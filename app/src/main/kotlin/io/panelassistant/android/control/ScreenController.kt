@@ -35,16 +35,26 @@ data class RouteSelection(val declared: ScreenOff, val selected: ScreenOff?, val
  */
 interface DisplacedScreenTimeout {
     var displacedMs: Int
+
+    /** The `STAY_ON_WHILE_PLUGGED_IN` mask the route cleared for the sleep; -1 when none. */
+    var displacedStayOnMask: Int
 }
 
 /** Process-local [DisplacedScreenTimeout] for tests and callers with no durable store. */
-class InMemoryDisplacedScreenTimeout(override var displacedMs: Int = -1) : DisplacedScreenTimeout
+class InMemoryDisplacedScreenTimeout(
+    override var displacedMs: Int = -1,
+    override var displacedStayOnMask: Int = -1,
+) : DisplacedScreenTimeout
 
 /** The durable store: shared by the screen-off route and prevent-idle-dim, which must agree on it. */
 class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android.Config) : DisplacedScreenTimeout {
     override var displacedMs: Int
         get() = config.displacedScreenOffTimeout
         set(v) { config.displacedScreenOffTimeout = v }
+
+    override var displacedStayOnMask: Int
+        get() = config.displacedStayOnWhilePluggedIn
+        set(v) { config.displacedStayOnWhilePluggedIn = v }
 }
 
 /**
@@ -91,8 +101,11 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   platform wake through [reconcilePhysicalWake]); the overlay is not armed for the same reason.
  *   Screen-timeout stops the renderer holding the screen on, writes a short `SCREEN_OFF_TIMEOUT` and
  *   waits for Android to sleep; the displaced value is restored on every wake and at the next
- *   construction, so a crash cannot leave the short timeout in force. When `WRITE_SETTINGS` is missing
- *   or the timeout does not take, it falls back to `lockNow()` if the app is an active device admin,
+ *   construction, so a crash cannot leave the short timeout in force. A set `stay_on_while_plugged_in`
+ *   would keep Android awake regardless, so with `WRITE_SECURE_SETTINGS` it is cleared for the sleep
+ *   and restored with the timeout; without that grant the route does not wait at all. When
+ *   `WRITE_SETTINGS` is missing, stay-on cannot be cleared, or the timeout does not take, it falls
+ *   back to `lockNow()` if the app is an active device admin,
  *   else to the visible dim. These two routes sleep a secured device too and record the PIN-on-wake
  *   consequence in the selection reason.
  */
@@ -570,10 +583,23 @@ class ScreenController(
      */
     private fun sleepByTimeout(): String? {
         if (!power.canWriteSystemSettings()) return "WRITE_SETTINGS is not granted"
+        // Stay-on-while-plugged-in keeps Android awake whatever the timeout says, so waiting out the
+        // timeout under it only delays the fallback by the whole confirmation window. Clear it for
+        // the sleep when Panel Assistant granted WRITE_SECURE_SETTINGS; otherwise refuse at once.
+        val stayOn = power.stayOnWhilePluggedInMask()
+        if (stayOn > 0 && !power.canWriteSecureSettings()) return REFUSAL_STAY_ON
         if (displacedTimeout.displacedMs <= 0) {
             val current = power.screenOffTimeoutMs()
             if (current <= 0) return "the current screen timeout could not be read"
             displacedTimeout.displacedMs = current
+        }
+        if (stayOn > 0) {
+            // Recorded before the write, like the timeout, so a process that dies asleep restores it.
+            if (displacedTimeout.displacedStayOnMask <= 0) displacedTimeout.displacedStayOnMask = stayOn
+            if (!power.setStayOnWhilePluggedInMask(0)) {
+                restoreDisplacedTimeout()
+                return "$STAY_ON_SETTING could not be cleared"
+            }
         }
         val touchesBefore = touchCount()
         BuiltinDashboard.releaseKeepScreenOn(true)
@@ -585,6 +611,9 @@ class ScreenController(
                 if (!power.isInteractive()) return null
                 if (touchCount() != touchesBefore) break
                 if (waited >= TIMEOUT_CONFIRM_MS) break
+                // The renderer's WebView can take a view-level keep-screen-on of its own mid-wait
+                // (media playback); ask the renderer to drop it again on every tick.
+                BuiltinDashboard.reassertKeepScreenOnRelease()
                 nap(KEYEVENT_POLL_MS)
                 waited += KEYEVENT_POLL_MS
             }
@@ -606,6 +635,11 @@ class ScreenController(
      *  on again. A failed write keeps the record, so the next wake or start tries again. */
     private fun restoreDisplacedTimeout() {
         BuiltinDashboard.releaseKeepScreenOn(false)
+        val stayOn = displacedTimeout.displacedStayOnMask
+        if (stayOn > 0) {
+            if (power.setStayOnWhilePluggedInMask(stayOn)) displacedTimeout.displacedStayOnMask = -1
+            else Log.w(TAG, "could not restore $STAY_ON_SETTING ($stayOn); will retry on the next wake")
+        }
         val displaced = displacedTimeout.displacedMs
         if (displaced <= 0) return
         if (power.setScreenOffTimeoutMs(displaced)) displacedTimeout.displacedMs = -1
@@ -818,6 +852,11 @@ class ScreenController(
         internal const val REASON_CANCELLED_BY_TOUCH =
             "the off was cancelled by a touch during the screen-timeout wait; the panel stays awake"
         private const val REFUSAL_TOUCHED = "touched"
+        internal const val STAY_ON_SETTING = "stay_on_while_plugged_in"
+        /** The screen-timeout refusal when stay-on is set and cannot be cleared; carried into the
+         *  selection reason so diagnostics name the setting that defeated the timeout. */
+        internal const val REFUSAL_STAY_ON =
+            "$STAY_ON_SETTING keeps Android awake and WRITE_SECURE_SETTINGS is not granted to clear it"
         internal const val REASON_UNEXERCISED =
             "not yet exercised; no screen-off has occurred since this controller was constructed"
         private const val DEFAULT_ON = 160

@@ -374,9 +374,20 @@ class DashboardActivity : AppCompatActivity() {
     // Stored so onDestroy can clear it by identity — an old instance destroyed after a new one's onCreate
     // must not wipe the new instance's registration (see BuiltinDashboard.clearScreenListener).
     private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { onScreenChanged(awake) } }
-    private val keepScreenOnListener: () -> Unit = {
-        runOnUiThread { if (!destroyed && ::activityConfig.isInitialized) applyRendererScreenPolicy() }
-    }
+    private val rendererScreenHold = RendererScreenHold<android.view.View>(
+        preventIdleDim = { activityConfig.preventIdleDim },
+        setWindowKeepScreenOn = { keep ->
+            if (keep) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        },
+        root = { window?.peekDecorView() },
+        children = { view ->
+            if (view is android.view.ViewGroup) List(view.childCount) { view.getChildAt(it) } else emptyList()
+        },
+        viewKeepsScreenOn = { it.keepScreenOn },
+        setViewKeepScreenOn = { view, keep -> view.keepScreenOn = keep },
+        log = { Log.i(TAG, it) },
+    )
     // Frontend-handshake watchdog: the page "loading" (onPageFinished) is NOT health — the frontend JS
     // app must post `connection-status: connected` on the external bus. Until it does, we retry with
     // backoff (a panel has no buttons to press). This catches the "loaded onto a blank/dead frontend"
@@ -833,7 +844,9 @@ class DashboardActivity : AppCompatActivity() {
         // Freeze the WebView when the panel screen is off (CPU/heat/memory), and reload the moment
         // connectivity returns if the frontend isn't connected — registered for the activity's lifetime.
         BuiltinDashboard.setScreenListener(screenListener)
-        BuiltinDashboard.setKeepScreenOnListener(keepScreenOnListener)
+        rendererScreenHold.attach { apply ->
+            runOnUiThread { if (!destroyed && ::activityConfig.isInitialized) apply() }
+        }
         BuiltinDashboard.setHaLifecycleListener(haLifecycleListener)
         // Adopt the CURRENT screen state — an instance created while the panel is dark (a relaunch at
         // night) must not assume the screen is on: it would arm the handshake watchdog against a page
@@ -876,7 +889,7 @@ class DashboardActivity : AppCompatActivity() {
         entityFilterLease = null
         BuiltinDashboard.releaseActivityOwner(activityOwner)
         BuiltinDashboard.clearScreenListener(screenListener)
-        BuiltinDashboard.clearKeepScreenOnListener(keepScreenOnListener)
+        rendererScreenHold.detach()
         BuiltinDashboard.clearHaLifecycleListener(haLifecycleListener)
         netCallback?.let { cb -> runCatching { conn?.unregisterNetworkCallback(cb) } }
         main.removeCallbacksAndMessages(null)
@@ -2382,14 +2395,9 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /** The foreground built-in renderer owns its timeout policy directly. This is the standard Android
-     * activity mechanism and does not interfere with explicit ha-paneld screen-off brightness/bl_power. */
-    private fun applyRendererScreenPolicy() {
-        if (shouldKeepBuiltInRendererScreenOn(activityConfig.preventIdleDim)) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
-    }
+     * activity mechanism and does not interfere with explicit ha-paneld screen-off brightness/bl_power.
+     * [RendererScreenHold] also clears the WebView's own view-level hold during a screen-timeout off. */
+    private fun applyRendererScreenPolicy() = rendererScreenHold.apply()
 
     /** Page zoom (%). Re-read + applied on resume so a live `dashboard_zoom` change lands; the POST
      *  path also reloads the page, since a fresh load is where the initial scale reliably takes effect. */

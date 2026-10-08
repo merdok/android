@@ -92,6 +92,13 @@ class DiagCapabilityPolicyTest {
         assertEquals("ok", lock.status)
         assertTrue(lock.note(englishCatalogue), lock.note(englishCatalogue).contains("device-admin screen lock"))
 
+        // Stay-on-while-plugged-in the app cannot clear defeats the timeout: report the fallback instead.
+        val stayOn = DiagReader.screenOnOffCapability(
+            ScreenOff.SCREEN_TIMEOUT, false, false,
+            canWriteSettings = true, deviceAdminActive = true, stayOnDefeatsTimeout = true,
+        )
+        assertTrue(stayOn.note(englishCatalogue), stayOn.note(englishCatalogue).contains("device-admin screen lock"))
+
         listOf(ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN).forEach { route ->
             val none = DiagReader.screenOnOffCapability(route, su = true, daemon = true)
             assertEquals("$route: root is not this route's remedy", "degraded", none.status)

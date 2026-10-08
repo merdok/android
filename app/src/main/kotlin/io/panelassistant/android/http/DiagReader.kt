@@ -119,6 +119,8 @@ object DiagReader {
                     canWriteSettings = canWrite,
                     deviceAdminActive = android?.isDeviceAdminActive() == true,
                     deviceSecure = android?.isDeviceSecure() == true,
+                    stayOnDefeatsTimeout = android != null &&
+                        android.stayOnWhilePluggedInMask() > 0 && !android.canWriteSecureSettings(),
                 )
             },
             if (showLed) rgbLedCapability(rkLed, ledProbe, daemonLed) else null,
@@ -212,7 +214,9 @@ object DiagReader {
      *
      * The two unprivileged Android-sleep routes report the route that a screen-off will take from the
      * grants in hand (screen-timeout falls back to the device-admin lock), and add the PIN-on-wake
-     * consequence where a screen lock credential is set. That is a note, not a refusal.
+     * consequence where a screen lock credential is set. That is a note, not a refusal. A stay-on-
+     * while-plugged-in setting the app cannot clear defeats the timeout, so the route reported is
+     * then the fallback the screen-off will actually take.
      */
     internal fun screenOnOffCapability(
         route: ScreenOff,
@@ -221,6 +225,8 @@ object DiagReader {
         canWriteSettings: Boolean = false,
         deviceAdminActive: Boolean = false,
         deviceSecure: Boolean = false,
+        /** `stay_on_while_plugged_in` is set and the app cannot clear it, so the timeout cannot sleep. */
+        stayOnDefeatsTimeout: Boolean = false,
     ): Cap {
         val dimOnly = { why: String -> Cap("screen_power", "degraded", note("dim_only", "reason" to note(why))) }
         val androidSleep = { id: String ->
@@ -237,7 +243,7 @@ object DiagReader {
             ScreenOff.SU_BLPOWER -> if (su || daemon) blPower(su) else dimOnly("dim_backlight_powered")
             ScreenOff.DAEMON_BLPOWER -> if (su || daemon) blPower(!daemon) else dimOnly("dim_backlight_powered")
             ScreenOff.SCREEN_TIMEOUT -> when {
-                canWriteSettings -> androidSleep("android_timeout")
+                canWriteSettings && !stayOnDefeatsTimeout -> androidSleep("android_timeout")
                 deviceAdminActive -> androidSleep("device_admin_lock")
                 else -> dimOnly("dim_android_sleep_grant")
             }

@@ -2092,6 +2092,15 @@ class Config private constructor(
             prefs.edit().putInt("displaced_screen_off_timeout", v).commit()
         }
 
+    // The STAY_ON_WHILE_PLUGGED_IN mask the screen-timeout route cleared while the panel sleeps (it
+    // keeps Android awake whatever the timeout says); restored with [displacedScreenOffTimeout].
+    // -1 = nothing displaced.
+    var displacedStayOnWhilePluggedIn: Int
+        get() = prefs.getInt("displaced_stay_on_while_plugged_in", -1)
+        set(v) {
+            prefs.edit().putInt("displaced_stay_on_while_plugged_in", v).commit()
+        }
+
     // Navigation bar mode: "Off" | "Always on" | "Swipe reveal" | "Native" (NavbarController.MODES).
     // The first three govern ha-paneld's own drawn overlay; "Native" means the firmware's own bar has
     // authority and is only selectable where a declaration or firmware probe confirms one. Persisted so the mode is

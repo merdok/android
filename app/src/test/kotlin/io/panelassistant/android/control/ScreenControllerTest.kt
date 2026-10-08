@@ -1532,6 +1532,100 @@ class ScreenControllerTest {
         assertEquals(listOf("set:200"), backlight.calls)
     }
 
+    /** Stay-on-while-plugged-in defeats any timeout. With WRITE_SECURE_SETTINGS the route clears it
+     *  for the sleep and puts back exactly the mask that was there on wake. */
+    @Test fun stayOnWhilePluggedInIsClearedForTheSleepAndRestoredOnWake() {
+        power.canWrite = true
+        power.canWriteSecure = true
+        power.stayOnMask = 7
+        power.timeoutMs = 300_000
+        val sc = androidSleepController()
+
+        sc.sleep()
+        assertFalse("Android sleeps once stay-on no longer holds it", power.interactive)
+        assertEquals(0, power.stayOnMask)
+        assertEquals("recorded durably before the write", 7, displaced.displacedStayOnMask)
+        assertEquals(ScreenOff.SCREEN_TIMEOUT, sc.routeSelection().selected)
+
+        sc.wake()
+        assertEquals(7, power.stayOnMask)
+        assertEquals(300_000, power.timeoutMs)
+        assertEquals("nothing is left to restore twice", -1, displaced.displacedStayOnMask)
+    }
+
+    /** A wake Android performed itself must put stay-on back too. */
+    @Test fun stayOnWhilePluggedInIsRestoredOnAPhysicalWake() {
+        power.canWrite = true
+        power.canWriteSecure = true
+        power.stayOnMask = 3
+        val sc = androidSleepController()
+        sc.sleep()
+        assertEquals(0, power.stayOnMask)
+
+        power.interactive = true
+        assertTrue(sc.reconcilePhysicalWake())
+        assertEquals(3, power.stayOnMask)
+    }
+
+    /** A process that dies while the panel sleeps must not leave stay-on cleared for good: the next
+     *  controller restores it as it is constructed, from the durable record alone. */
+    @Test fun stayOnWhilePluggedInIsRestoredByTheNextProcessAfterARestartWhileAsleep() {
+        power.canWrite = true
+        power.canWriteSecure = true
+        power.stayOnMask = 7
+        androidSleepController().sleep()
+        assertEquals(0, power.stayOnMask)
+
+        androidSleepController()          // the replacement process; nobody called wake()
+        assertEquals(7, power.stayOnMask)
+        assertEquals(-1, displaced.displacedStayOnMask)
+    }
+
+    /** Without the grant the timeout cannot work, so the route does not wait the confirmation window
+     *  out: it goes straight to the lock, leaves the timeout and the renderer's hold alone, and names
+     *  the setting in the selection reason. */
+    @Test fun stayOnWithoutTheGrantGoesStraightToTheLockAndSaysWhy() {
+        power.canWrite = true
+        power.stayOnMask = 7
+        power.adminActive = true
+        power.timeoutMs = 300_000
+        var naps = 0
+        var released = false
+        val listener: () -> Unit = { if (BuiltinDashboard.keepScreenOnReleased) released = true }
+        BuiltinDashboard.setKeepScreenOnListener(listener)
+        try {
+            val sc = androidSleepController(nap = { naps++ })
+            sc.sleep()
+
+            assertEquals("no pointless wait", 0, naps)
+            assertEquals("the timeout was never touched", 0, power.timeoutWrites)
+            assertFalse("the renderer kept its hold", released)
+            assertEquals(1, power.locks)
+            assertEquals(7, power.stayOnMask)
+            val selection = sc.routeSelection()
+            assertEquals(ScreenOff.DEVICE_ADMIN, selection.selected)
+            assertTrue(selection.reason, selection.reason.contains("stay_on_while_plugged_in"))
+        } finally {
+            BuiltinDashboard.clearKeepScreenOnListener(listener)
+        }
+    }
+
+    /** Neither the grant nor a device admin: the visible dim, at once, with the reason. */
+    @Test fun stayOnWithoutTheGrantOrAnAdminDimsAtOnceAndSaysWhy() {
+        power.canWrite = true
+        power.stayOnMask = 1
+        backlight.level = 200
+        var naps = 0
+        val sc = androidSleepController(nap = { naps++ })
+        sc.sleep()
+
+        assertEquals(0, naps)
+        assertEquals(listOf("set:10"), backlight.calls)
+        val selection = sc.routeSelection()
+        assertEquals(ScreenOff.BRIGHTNESS_ZERO, selection.selected)
+        assertTrue(selection.reason, selection.reason.contains("stay_on_while_plugged_in"))
+    }
+
     /** The overlay cannot fire on a noninteractive device, so neither route arms it, whatever the outcome. */
     @Test fun androidSleepRoutesNeverArmTheTouchOverlay() {
         wakeTap.canArm = true

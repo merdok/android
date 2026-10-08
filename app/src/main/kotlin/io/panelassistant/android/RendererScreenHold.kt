@@ -1,0 +1,75 @@
+package io.panelassistant.android
+
+import io.panelassistant.android.control.BuiltinDashboard
+import java.util.Collections
+import java.util.IdentityHashMap
+
+/**
+ * The built-in renderer's keep-screen-on, applied to its window and to the views inside it.
+ *
+ * `Window.clearFlags(FLAG_KEEP_SCREEN_ON)` alone does not let Android time out: `ViewRootImpl` forces
+ * the window flag back on while any attached view has `keepScreenOn` set, and the dashboard WebView
+ * sets one on a child view of its own while it plays media. So while a screen-timeout off has
+ * [BuiltinDashboard.keepScreenOnReleased] set, this also clears every view-level hold under [root]
+ * and remembers which views it cleared, and gives exactly those back (where still attached) once the
+ * release ends.
+ *
+ * Generic over the view type so the walk is testable without Android; [DashboardActivity] binds it to
+ * its real window and view tree. [apply] runs on the thread that owns the views; [attach] registers it
+ * with [BuiltinDashboard] through [post], which must deliver to that thread.
+ */
+internal class RendererScreenHold<V : Any>(
+    private val preventIdleDim: () -> Boolean,
+    private val setWindowKeepScreenOn: (Boolean) -> Unit,
+    private val root: () -> V?,
+    private val children: (V) -> List<V>,
+    private val viewKeepsScreenOn: (V) -> Boolean,
+    private val setViewKeepScreenOn: (V, Boolean) -> Unit,
+    private val log: (String) -> Unit = {},
+) {
+    private val suppressed: MutableSet<V> = Collections.newSetFromMap(IdentityHashMap())
+
+    private var listener: (() -> Unit)? = null
+
+    fun apply() {
+        val released = BuiltinDashboard.keepScreenOnReleased
+        setWindowKeepScreenOn(shouldKeepBuiltInRendererScreenOn(preventIdleDim(), released))
+        if (released) {
+            var cleared = 0
+            forEachView { view ->
+                if (viewKeepsScreenOn(view)) {
+                    setViewKeepScreenOn(view, false)
+                    suppressed += view
+                    cleared++
+                }
+            }
+            if (cleared > 0) log("released $cleared view-level keep-screen-on hold(s) for a screen-timeout off")
+        } else if (suppressed.isNotEmpty()) {
+            // Only views still in the tree: a hold the WebView dropped meanwhile left with its view.
+            forEachView { view -> if (suppressed.remove(view)) setViewKeepScreenOn(view, true) }
+            suppressed.clear()
+        }
+    }
+
+    fun attach(post: (() -> Unit) -> Unit) {
+        detach()
+        val l: () -> Unit = { post(::apply) }
+        listener = l
+        BuiltinDashboard.setKeepScreenOnListener(l)
+    }
+
+    fun detach() {
+        listener?.let(BuiltinDashboard::clearKeepScreenOnListener)
+        listener = null
+    }
+
+    private fun forEachView(action: (V) -> Unit) {
+        val start = root() ?: return
+        val pending = ArrayDeque<V>().apply { add(start) }
+        while (pending.isNotEmpty()) {
+            val view = pending.removeFirst()
+            action(view)
+            pending.addAll(children(view))
+        }
+    }
+}

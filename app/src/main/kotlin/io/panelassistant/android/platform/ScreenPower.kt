@@ -42,6 +42,16 @@ interface ScreenPower {
     /** Write `SCREEN_OFF_TIMEOUT`; true only when the write was accepted and reads back. */
     fun setScreenOffTimeoutMs(ms: Int): Boolean = false
 
+    /** Whether the app holds `WRITE_SECURE_SETTINGS` (granted over ADB by Panel Assistant). */
+    fun canWriteSecureSettings(): Boolean = false
+
+    /** `Settings.Global.STAY_ON_WHILE_PLUGGED_IN` bit mask, or -1 when it cannot be read. Any set
+     *  bit keeps Android awake on that power source whatever the screen timeout says. */
+    fun stayOnWhilePluggedInMask(): Int = -1
+
+    /** Write `STAY_ON_WHILE_PLUGGED_IN`; true only when the write was accepted and reads back. */
+    fun setStayOnWhilePluggedInMask(mask: Int): Boolean = false
+
     /** Whether [PanelDeviceAdminReceiver] is an active device admin. */
     fun isDeviceAdminActive(): Boolean = false
 
@@ -97,6 +107,20 @@ class AndroidScreenPower(context: Context) : ScreenPower {
     override fun setScreenOffTimeoutMs(ms: Int): Boolean = runCatching {
         Settings.System.putInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, ms) &&
             screenOffTimeoutMs() == ms
+    }.getOrDefault(false)
+
+    override fun canWriteSecureSettings(): Boolean = runCatching {
+        app.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+    }.getOrDefault(false)
+
+    override fun stayOnWhilePluggedInMask(): Int = runCatching {
+        Settings.Global.getInt(app.contentResolver, Settings.Global.STAY_ON_WHILE_PLUGGED_IN, -1)
+    }.getOrDefault(-1)
+
+    override fun setStayOnWhilePluggedInMask(mask: Int): Boolean = runCatching {
+        Settings.Global.putInt(app.contentResolver, Settings.Global.STAY_ON_WHILE_PLUGGED_IN, mask) &&
+            stayOnWhilePluggedInMask() == mask
     }.getOrDefault(false)
 
     override fun isDeviceAdminActive(): Boolean = runCatching { policy?.isAdminActive(admin) == true }.getOrDefault(false)

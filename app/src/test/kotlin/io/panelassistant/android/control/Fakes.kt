@@ -187,7 +187,19 @@ class FakeScreenPower(
     override fun setScreenOffTimeoutMs(ms: Int): Boolean {
         if (!canWrite) return false
         timeoutMs = ms
-        if (ms < 60_000 && shortTimeoutSleeps) interactive = false
+        timeoutWrites++
+        // A set stay-on-while-plugged-in mask keeps Android awake whatever the timeout says.
+        if (ms < 60_000 && shortTimeoutSleeps && stayOnMask <= 0) interactive = false
+        return true
+    }
+    var timeoutWrites = 0
+    var canWriteSecure = false
+    var stayOnMask = 0
+    override fun canWriteSecureSettings() = canWriteSecure
+    override fun stayOnWhilePluggedInMask() = stayOnMask
+    override fun setStayOnWhilePluggedInMask(mask: Int): Boolean {
+        if (!canWriteSecure) return false
+        stayOnMask = mask
         return true
     }
     override fun isDeviceAdminActive() = adminActive

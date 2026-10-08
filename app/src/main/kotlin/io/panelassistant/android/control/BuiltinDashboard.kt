@@ -344,6 +344,12 @@ object BuiltinDashboard {
         keepScreenOnListener?.invoke()
     }
 
+    /** While released, have the renderer drop any keep-screen-on taken since (the WebView can take a
+     *  view-level one for media playback at any time). A no-op when not released. */
+    fun reassertKeepScreenOnRelease() {
+        if (keepScreenOnReleased) keepScreenOnListener?.invoke()
+    }
+
     /** True while the renderer is latched on "HA rejected our login settings" (terminal refresh response /
      *  repeated auth-invalid). Read by the `:8888` health warnings so the failure is visible off-panel;
      *  cleared when a reload/navigate arrives or the frontend connects. */

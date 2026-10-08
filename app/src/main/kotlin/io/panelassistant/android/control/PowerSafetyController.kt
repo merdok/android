@@ -17,6 +17,9 @@ class PowerSafetyController(
     /** Durable read of the last actual screen-off; never probes su or the helper daemon on its own. */
     private val screenRouteSelection: () -> RouteSelection,
     private val directRootExpected: Boolean = false,
+    /** The stay-on mask a screen-timeout sleep cleared and will restore on wake; -1 when none. While
+     *  it is held, that value, not the temporary 0, is the panel's configured stay-on. */
+    private val displacedStayOnMask: () -> Int = { -1 },
 ) {
     private val app = context.applicationContext
     private val powerManager = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -38,7 +41,7 @@ class PowerSafetyController(
                 ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 ?.takeIf { it >= 0 }
         }.getOrNull()
-        val stayOn = runCatching {
+        val stayOn = displacedStayOnMask().takeIf { it > 0 } ?: runCatching {
             Settings.Global.getInt(app.contentResolver, STAY_ON_WHILE_PLUGGED_IN)
         }.getOrNull()
         return PowerSafetyObservation(
