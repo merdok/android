@@ -44,7 +44,7 @@ private fun pickerRow(
 ): String {
     val channelControl = if (name == "paneld") """<span class="cpa-channel">—</span>""" else
         """<select class="cchan" onchange="loadVersions('$name')"><option value="stable" selected>${esc(strings.get("install.components.stable"))}</option><option value="prerelease">${esc(strings.get("install.components.prerelease"))}</option></select>"""
-    return """<div class="comprow" data-name="${esc(name)}" data-installed-version="${esc(if (name == "paneld") Config.VERSION else installed.orEmpty())}">
+    return """<div class="fact comprow" data-name="${esc(name)}" data-installed-version="${esc(if (name == "paneld") Config.VERSION else installed.orEmpty())}">
 <div class="compname"><b>${esc(label)}</b> <span class="muted">${if (installed != null) """${esc(strings.get("install.shared.installed"))} <span class="cver">${esc(installed)}</span>""" else """<span class="cver">${esc(strings.get("install.shared.not_installed"))}</span>"""}</span></div>
 <div class="comppick">
 <label class="muted">${esc(strings.get("install.components.channel"))} $channelControl</label>
@@ -57,6 +57,6 @@ ${if (installer) """<button class="pbtn cinstall"${hardenedApprovalA11yAttrs(str
 
 /** Installed version and state for a Play-managed Companion. */
 private fun simpleRow(label: String, installed: String?, action: String, strings: AppStrings): String =
-    """<div class="comprow">
+    """<div class="fact comprow">
 <div class="compname"><b>${esc(label)}</b> <span class="muted">${if (installed != null) """${esc(strings.get("install.shared.installed"))} <span class="cver">${esc(installed)}</span>""" else """<span class="cver">${esc(strings.get("install.shared.not_installed"))}</span>"""}</span></div>
 <div class="comppick">$action</div></div>"""

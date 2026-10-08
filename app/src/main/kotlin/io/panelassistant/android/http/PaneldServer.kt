@@ -311,7 +311,7 @@ class PaneldServer internal constructor(
     )
     private val catalogueLoader by lazy { CatalogueLoader(asset) }
     private val pageHealth = PageHealth(appContext, config)
-    private val pages get() = PageShell(config, catalogueLoader, { setupState.setupNeedsUser() }, ::buildToken, ::renderConfigConcurrencyHash)
+    private val pages get() = PageShell(config, catalogueLoader, { setupState.setupNeedsUser() }, ::buildToken, ::renderConfigConcurrencyHash, asset)
 
     /** One locale negotiation path for every localized human page and its hydration payload. */
     private fun requestStrings(call: ApplicationCall): AppStrings = resolvedRequestStrings(

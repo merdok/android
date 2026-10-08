@@ -3,7 +3,7 @@
 // the same document; api.js renders every endpoint from the real openapi.json.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ASSETS, PANEL, escapeHtml, i18nPayload } from '../harness.mjs';
+import { ASSETS, BRAND_LOCKUP, PANEL, escapeHtml, i18nPayload } from '../harness.mjs';
 
 export const API_HTML = resolve(ASSETS, 'api.html');
 export const API_SPEC = resolve(ASSETS, 'openapi.json');
@@ -20,6 +20,7 @@ export function apiFrame({ catalogues, locale }) {
   const localizedHref = (path) => (locale === 'en' ? path : `${path}?lang=${locale}`);
   return readFileSync(API_HTML, 'utf8')
     .replace('<title>ha-paneld · REST API</title>', `<title>${escapeHtml(`${PANEL.name} · REST API`)}</title>`)
+    .replace('__API_BRAND__', BRAND_LOCKUP)
     .replace('__API_LANG__', escapeHtml(locale))
     .replace('__API_BACK_HREF__', escapeHtml(localizedHref('./')))
     .replace('__API_I18N_PAYLOAD__', i18nPayload(catalogues, locale, API_PREFIXES));

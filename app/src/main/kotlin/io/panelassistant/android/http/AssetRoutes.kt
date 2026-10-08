@@ -18,11 +18,9 @@ internal fun Route.assetRoutes(asset: (String) -> String) {
         call.response.headers.append("Cache-Control", "no-cache")
         call.respondText(asset("info.css"), ContentType.Text.CSS)
     }
-    get("/icon.svg") {
+    // The mark from the brand asset set; browsers ask for /favicon.svg too, so both names serve it.
+    for (path in listOf("/icon.svg", "/favicon.svg")) get(path) {
         call.respondText(asset("icon.svg"), ContentType.Image.SVG)
-    }
-    get("/favicon.svg") {
-        call.respondText(asset("favicon.svg"), ContentType.Image.SVG)
     }
     // Generic bundled-asset server for the redesigned UI (page scripts + vendored libs).
     get("/assets/{f...}") {

@@ -37,7 +37,7 @@ internal fun tameRowHtml(
     }
     val action = if (tamed) "untame" else "tame"
     val label = strings.get(if (tamed) "install.tame.action.reenable" else "install.tame.action.tame")
-    val btn = if (tamed) "" else "background:var(--pkg-tame);border-color:var(--pkg-tame)"
+    val btn = if (tamed) "" else " class=\"pbtn danger\""
     // Tags (authored or heuristic: core/vendor/user/overlay) after the label; note below the package id.
     val tags = c.tags.joinToString("") { tag ->
         val localized = when (tag.lowercase(java.util.Locale.ROOT)) {
@@ -47,12 +47,12 @@ internal fun tameRowHtml(
             "overlay" -> strings.get("install.tame.tag.overlay")
             else -> tag
         }
-        """<span class="vtag">${esc(localized)}</span>"""
+        """ <span class="pill">${esc(localized)}</span>"""
     }
     // A "recommended" badge marks the profile's defaultTame picks (safe first picks / the "Tame all
     // recommended" set) while they're still active.
     val recBadge = if (c.recommended && !tamed)
-        """<span class="vtag rec">${esc(strings.get("install.tame.badge.recommended"))}</span>""" else ""
+        """ <span class="pill">${esc(strings.get("install.tame.badge.recommended"))}</span>""" else ""
     val note = if (c.note.isNotBlank())
         """<br><small style="color:var(--pkg-note)">${esc(c.note)}</small>""" else ""
     // A non-removable package (core Android / dashboard / ourselves) is shown for context with a muted
@@ -60,7 +60,7 @@ internal fun tameRowHtml(
     val control = if (!c.removable)
         """<span style="font-size:.8em;color:var(--pkg-protected);white-space:nowrap">${esc(strings.get("install.tame.state.protected"))}</span>"""
     else
-        """<form method="post" action="${localizedHref("api/v1/tame", strings)}" style="margin:0"><input type="hidden" name="pkg" value="${esc(c.pkg)}"><input type="hidden" name="action" value="$action"><button type="submit"${hardenedApprovalA11yAttrs(strings = strings)} style="$btn;white-space:nowrap"${if (disabled) " disabled" else ""}>${esc(label)}</button></form>"""
+        """<form method="post" action="${localizedHref("api/v1/tame", strings)}" style="margin:0"><input type="hidden" name="pkg" value="${esc(c.pkg)}"><input type="hidden" name="action" value="$action"><button type="submit"$btn${hardenedApprovalA11yAttrs(strings = strings)} style="white-space:nowrap"${if (disabled) " disabled" else ""}>${esc(label)}</button></form>"""
     return """  <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--pkg-divider)">
    <span style="flex:1;min-width:0;overflow:hidden">${esc(c.label)}$recBadge$tags<br><small style="color:var(--fg-muted)">${esc(c.pkg)}</small>$note</span>
    $state

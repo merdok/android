@@ -64,7 +64,7 @@ function paintTop(top,msg){
 }
 function setTopMode(mode){
  if(mode!=='cpu'&&mode!=='ram')return;topMode=mode;
- document.querySelectorAll('.top-process-mode').forEach(function(button){var on=button.dataset.mode===mode;button.classList.toggle('on',on);button.setAttribute('aria-pressed',on?'true':'false');});
+ document.querySelectorAll('.top-process-mode').forEach(function(button){var on=button.dataset.mode===mode;button.setAttribute('aria-pressed',on?'true':'false');});
  paintTop(mode==='ram'?topRam:topCpu,mode==='ram'?i18nText('dashboard.top_processes.ram_unavailable','RAM data unavailable'):i18nText('dashboard.top_processes.needs_root','needs root (su)'));hwm('topproc');
 }
 // Noisy state-stream contributors: one sortable-looking data shape instead of repeating the same
