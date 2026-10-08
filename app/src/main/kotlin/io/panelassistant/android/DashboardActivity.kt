@@ -150,11 +150,6 @@ internal fun invalidEntityFilterFailureDisposition(
 
 internal fun deferReadyEntityBootstrapUntilWake(screenAwake: Boolean): Boolean = !screenAwake
 
-internal fun shouldKeepBuiltInRendererScreenOn(
-    preventIdleDim: Boolean,
-    keepScreenOnReleased: Boolean = BuiltinDashboard.keepScreenOnReleased,
-): Boolean = preventIdleDim && !keepScreenOnReleased
-
 private data class EntityFilterNativeHold(val error: String, val detail: String)
 
 private class EntityFilterInterceptorUnavailable(cause: Throwable) : RuntimeException(cause)
@@ -374,20 +369,7 @@ class DashboardActivity : AppCompatActivity() {
     // Stored so onDestroy can clear it by identity — an old instance destroyed after a new one's onCreate
     // must not wipe the new instance's registration (see BuiltinDashboard.clearScreenListener).
     private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { onScreenChanged(awake) } }
-    private val rendererScreenHold = RendererScreenHold<android.view.View>(
-        preventIdleDim = { activityConfig.preventIdleDim },
-        setWindowKeepScreenOn = { keep ->
-            if (keep) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        },
-        root = { window?.peekDecorView() },
-        children = { view ->
-            if (view is android.view.ViewGroup) List(view.childCount) { view.getChildAt(it) } else emptyList()
-        },
-        viewKeepsScreenOn = { it.keepScreenOn },
-        setViewKeepScreenOn = { view, keep -> view.keepScreenOn = keep },
-        log = { Log.i(TAG, it) },
-    )
+    private val rendererScreenHold = windowRendererScreenHold(this, { activityConfig.preventIdleDim }) { Log.i(TAG, it) }
     // Frontend-handshake watchdog: the page "loading" (onPageFinished) is NOT health — the frontend JS
     // app must post `connection-status: connected` on the external bus. Until it does, we retry with
     // backoff (a panel has no buttons to press). This catches the "loaded onto a blank/dead frontend"
@@ -2394,9 +2376,7 @@ class DashboardActivity : AppCompatActivity() {
         Log.d(TAG, "camera permission ${if (granted) "granted" else "denied"}")
     }
 
-    /** The foreground built-in renderer owns its timeout policy directly. This is the standard Android
-     * activity mechanism and does not interfere with explicit ha-paneld screen-off brightness/bl_power.
-     * [RendererScreenHold] also clears the WebView's own view-level hold during a screen-timeout off. */
+    /** The foreground built-in renderer owns its timeout policy directly (see [RendererScreenHold]). */
     private fun applyRendererScreenPolicy() = rendererScreenHold.apply()
 
     /** Page zoom (%). Re-read + applied on resume so a live `dashboard_zoom` change lands; the POST

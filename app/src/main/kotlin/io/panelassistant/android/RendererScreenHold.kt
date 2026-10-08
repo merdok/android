@@ -1,5 +1,9 @@
 package io.panelassistant.android
 
+import android.app.Activity
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
 import io.panelassistant.android.control.BuiltinDashboard
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -81,3 +85,26 @@ internal class RendererScreenHold<V : Any>(
         }
     }
 }
+
+internal fun shouldKeepBuiltInRendererScreenOn(
+    preventIdleDim: Boolean,
+    keepScreenOnReleased: Boolean = BuiltinDashboard.keepScreenOnReleased,
+): Boolean = preventIdleDim && !keepScreenOnReleased
+
+/** [RendererScreenHold] bound to [activity]'s real window and decor-view tree. */
+internal fun windowRendererScreenHold(
+    activity: Activity,
+    preventIdleDim: () -> Boolean,
+    log: (String) -> Unit,
+): RendererScreenHold<View> = RendererScreenHold(
+    preventIdleDim = preventIdleDim,
+    setWindowKeepScreenOn = { keep ->
+        if (keep) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    },
+    root = { activity.window?.peekDecorView() },
+    children = { view -> if (view is ViewGroup) List(view.childCount) { view.getChildAt(it) } else emptyList() },
+    viewKeepsScreenOn = { it.keepScreenOn },
+    setViewKeepScreenOn = { view, keep -> view.keepScreenOn = keep },
+    log = log,
+)
