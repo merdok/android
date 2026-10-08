@@ -12,7 +12,7 @@ import io.panelassistant.android.device.profile.ProfileSoc
  * locations of optional hardware — is loaded from the active YAML revision and exposed through this
  * interface.
  *
- * Design rule (see docs/architecture/device-profiles.md): a profile declares **candidates + quirks**;
+ * Design rule (see https://panel-assistant.io/go/docs?page=architecture/device-profiles): a profile declares **candidates + quirks**;
  * the functional modules still **runtime-probe to confirm** whenever the platform exposes a probe
  * (profile says *where to look*, the probe says *whether it's actually there*). The bundled generic
  * YAML deliberately keeps unknown hardware conservative: standard Android sensors and generic
@@ -232,7 +232,7 @@ interface DeviceProfile {
      *  dashboard. These panels have no Play Store, so ha-paneld sideloads a known-good `com.android.webview`
      *  from the `webview-mirror` release (pinned signer). null = no known-good build for this panel (leave
      *  the WebView alone). Pick the newest the panel's Android version supports (NSPanel Pro's 8.1 caps at
-     *  138). See docs/hardware/README.md. */
+     *  138). See https://panel-assistant.io/go/docs?page=hardware/readme. */
     val recommendedWebView: WebViewSpec? get() = provisioning.webViewArtifactId?.let(ProfileArtifacts.webViews::get)
 
     /** The newest HA Companion version known-good on this platform, or null = no cap. The Companion

@@ -29,4 +29,4 @@ The firmware names an `adc-keys` device, but the enclosure has no buttons, so `e
 - `/sys/class/leds` contains only `mmc2::`, which is card activity rather than a user-facing panel LED.
 - No physical buttons are present, no CHT8305 temperature or humidity sensor is available, and Android exposes no camera.
 
-Follow the [unofficial catalog procedure](README.md) to import [`community-yc-sm10p.yaml`](community-yc-sm10p.yaml), validate it and activate it while somebody can see and touch the panel. After restart, confirm that screen off and wake behave as expected, then exercise **Roll back** before relying on the profile unattended.
+Follow the [unofficial catalog procedure](https://panel-assistant.io/go/docs?page=profiles/unofficial/readme) to import [`community-yc-sm10p.yaml`](community-yc-sm10p.yaml), validate it and activate it while somebody can see and touch the panel. After restart, confirm that screen off and wake behave as expected, then exercise **Roll back** before relying on the profile unattended.

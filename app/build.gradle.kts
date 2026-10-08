@@ -164,7 +164,7 @@ android {
     // devcontainer, so `assembleRelease` installs in place over the public releases (no uninstall dance).
     // CI has no such file: it builds an unsigned release APK and post-signs with apksigner from Actions
     // secrets, so this is a no-op there. NEVER commit keystore.properties or the .jks (both gitignored).
-    // See docs/local-builds.md.
+    // See https://panel-assistant.io/go/docs?page=local-builds.
     signingConfigs {
         // Committed debug keystore keeps secretless CI and emulator artifacts deterministic. These
         // artifacts are test-only. Local builds with keystore.properties use the configured release

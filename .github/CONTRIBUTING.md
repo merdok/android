@@ -14,7 +14,7 @@ Thank you for contributing to ha-paneld. Bug reports, hardware findings, documen
 - Keep each pull request focused on one problem. Put unrelated refactoring, dependency updates and CI repairs in separate pull requests.
 - Explain the problem, the intended behaviour and how the change was tested.
 - Add or update tests where practical. Hardware-specific changes should name the device, firmware and Android version used for testing, including any limitations that remain unverified.
-- Follow the existing style and avoid reformatting unrelated code. See [Building ha-paneld from source](../docs/building.md) for the supported build environment.
+- Follow the existing style and avoid reformatting unrelated code. See [Building ha-paneld from source](https://panel-assistant.io/go/docs?page=building) for the supported build environment.
 - Be prepared to discuss and revise the change during review. Reviews aim to make contributions safe to merge across the range of supported panels.
 
 ## AI-assisted contributions

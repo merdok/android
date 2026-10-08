@@ -2,7 +2,7 @@
 
 Hardware photographs and vendor product shots used in the documentation are served from `assets.ha-paneld.com` rather than committed to this repository. This directory holds the tooling that publishes them, and [`docs/img/manifest.txt`](../../docs/img/manifest.txt) records every published object so the served set stays enumerable and verifiable.
 
-Why images are hosted rather than committed is covered in [`docs/infrastructure.md`](../../docs/infrastructure.md).
+Why images are hosted rather than committed is covered in [documentation infrastructure](https://panel-assistant.io/go/docs?page=infrastructure).
 
 ## Requirements
 
