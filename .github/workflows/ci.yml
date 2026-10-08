@@ -476,6 +476,7 @@ jobs:
       - name: Test tool and release contracts
         run: |
           tools/tests/release_workflow_test.sh
+          bash tools/tests/hardware_collector_test.sh
           python3 -m unittest discover -s tools/tests -p '*_test.py' -v
           python3 tools/i18n_catalogue.py validate \
             --source app/src/main/assets/i18n/en.json \
