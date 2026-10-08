@@ -29,7 +29,7 @@ By submitting a contribution, you agree that it may be distributed under the pro
 
 Clearly identify any third-party code or assets and their licence. Do not submit proprietary firmware, applications, credentials, private diagnostic archives or other material that you do not have permission to redistribute.
 
-Images have their own rules, because most documentation imagery is not committed to this repository at all — see [`docs/img/README.md`](../docs/img/README.md). Photographs you took yourself are welcome and are the best answer for hardware the project does not own; please do not submit images taken from a vendor's site or a marketplace listing.
+Images have their own rules, because most documentation imagery is not committed to this repository at all — see [image contribution guidelines](https://panel-assistant.io/go/docs?page=img/readme). Photographs you took yourself are welcome and are the best answer for hardware the project does not own; please do not submit images taken from a vendor's site or a marketplace listing.
 
 ## Community
 
