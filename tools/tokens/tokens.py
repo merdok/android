@@ -8,8 +8,9 @@ Outputs:
   * app/src/main/kotlin/io/panelassistant/android/PanelTokens.kt — every native colour, the scale rule
     and dp();
   * tools/tokens/tokens.css — the web custom properties, the copy Panel Assistant takes;
-  * the same CSS between the `tokens:begin` and `tokens:end` markers at the top of
-    app/src/main/assets/info.css, so `:8888` gets its tokens without a second render-blocking request.
+  * the same CSS between the `tokens:begin` and `tokens:end` markers in app/src/main/assets/info.css
+    and in the inline style of app/src/main/assets/api.html, so `:8888` gets its tokens without a
+    second render-blocking request.
 
 tokens.json is the only place a value is written. Its sections:
   * `scale.baselineEdgePx` — the shortest edge, in pixels at density 1, that native baseline sizes
@@ -34,6 +35,7 @@ SOURCE = ROOT / "tools/tokens/tokens.json"
 KOTLIN = ROOT / "app/src/main/kotlin/io/panelassistant/android/PanelTokens.kt"
 CSS = ROOT / "tools/tokens/tokens.css"
 INFO_CSS = ROOT / "app/src/main/assets/info.css"
+API_HTML = ROOT / "app/src/main/assets/api.html"
 BEGIN = "/* tokens:begin"
 END = "/* tokens:end */"
 NOTICE = "Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit."
@@ -152,10 +154,11 @@ def kotlin(tokens: dict) -> str:
     return "\n".join(out + classes).rstrip("\n") + "\n"
 
 
-def with_region(text: str, region: str) -> str:
+def with_region(path: Path, region: str) -> str:
+    text = path.read_text(encoding="utf-8")
     start, end = text.find(BEGIN), text.find(END)
     if start < 0 or end < start:
-        raise SystemExit(f"{INFO_CSS.relative_to(ROOT)}: no `{BEGIN} … {END}` region")
+        raise SystemExit(f"{path.relative_to(ROOT)}: no `{BEGIN} … {END}` region")
     return text[:start] + BEGIN + " */\n" + region + text[end:]
 
 
@@ -169,7 +172,8 @@ def main(argv: list[str]) -> int:
     wanted = {
         KOTLIN: kotlin(tokens),
         CSS: sheet,
-        INFO_CSS: with_region(INFO_CSS.read_text(encoding="utf-8"), sheet),
+        INFO_CSS: with_region(INFO_CSS, sheet),
+        API_HTML: with_region(API_HTML, sheet),
     }
     stale = [path for path, text in wanted.items()
              if not path.exists() or path.read_text(encoding="utf-8") != text]
