@@ -810,22 +810,6 @@ internal fun applyAutoSleepFencedReplay(
     else -> LiveSettingApplyResult.APPLIED
 }
 
-/**
- * The HTTP live-setting lane persists a value before the MQTT bridge applies it, so the bridge's own
- * auto_sleep write then reads UNCHANGED and never refreshes the controller. This lane refreshes it.
- */
-internal fun commitHttpLiveSetting(
-    config: Config,
-    spec: io.panelassistant.android.config.SettingSpec,
-    value: String,
-    refreshAutoSleep: () -> Unit,
-): Boolean {
-    val wasAutoSleep = config.autoSleep
-    if (!config.commitRaw(spec, value)) return false
-    if (spec.key == "auto_sleep" && config.autoSleep != wasAutoSleep) refreshAutoSleep()
-    return true
-}
-
 internal fun acceptCommittedAutoSleepSetting(
     authority: LiveSettingAuthority,
     refreshController: () -> Unit,
@@ -2213,9 +2197,7 @@ class PaneldService : Service() {
         // owns persistence itself (mirrors kiosk_lock/network_adb, whose actuators are also the sole writer).
         val actuationOwnsPersistence =
             key == "navbar_mode" || key == "kiosk_lock" || key == "network_adb" || key == "voice_enabled"
-        if (!spec.transient && !actuationOwnsPersistence &&
-            !commitHttpLiveSetting(config, spec, value) { refreshAutoSleepPresence() }
-        ) {
+        if (!spec.transient && !actuationOwnsPersistence && !commitHttpLiveSetting(config, spec, value) { refreshAutoSleepPresence() }) {
             return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
         }
         return commands.applySettingObserved(key, value, previous.takeUnless { spec.transient })
