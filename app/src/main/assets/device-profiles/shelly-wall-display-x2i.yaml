@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.0.3
+version: 2.0.4
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -25,11 +25,12 @@ metadata:
     - On-board relays are present at /sys/class/strelay and switch real contacts, but ha-paneld drives relays through its privileged route, so no relay capability is offered on this unprivileged panel.
     - Relay terminals are inert while the panel is powered over USB instead of mains, so any future relay support must state that condition.
     - Evidence comes from one unit, exercised on factory firmware 2.5.4 and again after updating it to 2.7.4. The update is one-way and installs a Shelly device-owner policy, which was measured to leave the launcher, the sensors and the adb posture alone; the vendor launcher is a protected package that cannot be disabled on either firmware.
+    - Screen-off lets Android's own screen timeout turn the display fully off, with no root. Android wakes it on any touch; a wave or approach wakes it through ha-paneld only after proximity has been calibrated on the panel. The firmware keeps the screen on while plugged in, so the full-off route needs Panel Assistant to grant WRITE_SECURE_SETTINGS at install; without that grant screen-off dims to the floor instead.
     - The panel declares camera features that no camera backs; ha-paneld offers the camera only when Android enumerates one, so no suppression is declared here.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
-    - screen.brightness-zero
+    - screen.screen-timeout
     - sensor.android
 match:
   # The X2i reports Jenna as its model, device and build product. Its product_version
@@ -69,7 +70,7 @@ hardware:
     transfer: identity
   # The backlight sysfs node refuses an unprivileged write, but this route writes
   # Settings.System instead and never touches it.
-  screen_off: brightness-zero
+  screen_off: screen-timeout
   # An ES7202 PDM microphone, the codec the WF1589T uses. Android opens it as a 16 kHz stereo
   # stream and hands the app the mono capture it asks for.
   microphone: true
