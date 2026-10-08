@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Notice's own words: pill words, short heroes, track steps and the compact notices. Every
+     explanation a screen gives stays in its original string; these only name the step or the fault. -->
+<resources>
+    <!-- Pill words -->
+    <string name="notice_pill_starting_up">Starting up</string>
+    <string name="notice_pill_retrying">Retrying</string>
+    <string name="notice_pill_action_needed">Action needed</string>
+    <string name="notice_pill_sign_in">Sign in</string>
+    <string name="notice_pill_reconnecting">Reconnecting</string>
+    <string name="notice_pill_learning">Learning</string>
+    <string name="notice_pill_setup">Setup</string>
+    <string name="notice_pill_not_set_up">Not set up</string>
+
+    <!-- Hero words, for a screen with no number to show -->
+    <string name="notice_hero_version_check">Version check</string>
+    <string name="notice_hero_finding_dashboards">Finding dashboards</string>
+    <string name="notice_hero_upgrade_ha">Upgrade HA</string>
+    <string name="notice_hero_ancient_webview">Ancient Webview</string>
+    <string name="notice_hero_filter_failed">Filter failed</string>
+    <string name="notice_hero_filter_refused">Filter refused</string>
+    <string name="notice_hero_reading">Reading</string>
+    <string name="notice_hero_almost_there">Almost there</string>
+
+    <!-- Lines that replace a title split into hero and line -->
+    <string name="notice_line_ha_compatibility">Home Assistant compatibility</string>
+    <string name="notice_line_ha_dashboard">the Home Assistant dashboard</string>
+    <string name="notice_line_reading_entities">Reading your entities</string>
+    <string name="notice_line_building_filter">Building the filtered set</string>
+    <string name="notice_line_entities_need_decision">entities need a decision before the dashboard opens</string>
+    <string name="notice_line_sign_in_needed">Nothing can load until the panel has a Home Assistant login.</string>
+    <string name="notice_line_sign_in_stopped">The saved sign-in stopped working.</string>
+    <string name="notice_line_setup_question">One setup question is waiting on this panel’s setup page</string>
+    <string name="notice_attention_explanation">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard.</string>
+    <string name="notice_attention_explanation_remote">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard. The same choices are available from another device at %1$s.</string>
+
+    <!-- QR prompts beside the code -->
+    <string name="notice_qr_sign_in">Scan to sign in from a phone</string>
+    <string name="notice_qr_sign_in_again">Scan to sign in again from a phone</string>
+    <string name="notice_qr_set_up">Scan to set up this panel from your phone</string>
+
+    <!-- Track steps -->
+    <string name="network_step_network">Network</string>
+    <string name="network_step_connecting">Connecting</string>
+    <string name="network_step_opening">Opening</string>
+    <string name="entity_step_read">Read</string>
+    <string name="entity_step_filter">Filter</string>
+    <string name="entity_step_open">Open</string>
+
+    <!-- Dashboard reload: the compact notice at the bottom that replaced the toast -->
+    <string name="reload_title">Reloading</string>
+    <string name="reload_applying_changes">Applying your changes</string>
+    <string name="reload_optimising_entities">Optimising which entities it uses; it may reload again as the panel learns</string>
+
+    <!-- Network chip. The probes are Home Assistant WebSocket pings. -->
+    <string name="network_chip_dropping">Network dropping packets</string>
+    <string name="network_chip_failing">Network failing</string>
+    <string name="network_chip_high_latency">High latency</string>
+    <string name="network_chip_very_high_latency">Very high latency</string>
+    <string name="network_chip_pings_lost">%1$d of %2$d pings to Home Assistant lost in %3$d min</string>
+    <string name="network_chip_no_ping_answered">No ping to Home Assistant answered in %1$d min</string>
+    <string name="network_chip_ping_time">Pings to Home Assistant take %1$s</string>
+</resources>

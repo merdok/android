@@ -130,7 +130,8 @@ class AdminLauncherActivity : AppCompatActivity() {
             statusBrandMark(this, dark),
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(StatusSurface.specFor(this).brandHeightDp),
+                // The lock-up's own proportions: 32 dp of mark beside the name.
+                dp(ADMIN_BRAND_HEIGHT_DP),
             ).apply {
                 gravity = android.view.Gravity.CENTER_HORIZONTAL
                 bottomMargin = dp(10)
@@ -311,3 +312,6 @@ class AdminLauncherActivity : AppCompatActivity() {
         private const val TAG = "ha-paneld/admin-launcher"
     }
 }
+
+/** The admin launcher's lock-up height. */
+private const val ADMIN_BRAND_HEIGHT_DP = 32

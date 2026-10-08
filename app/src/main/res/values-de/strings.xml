@@ -86,11 +86,8 @@
     <string name="loading_dashboard">Dashboard wird geladen…</string>
     <string name="nothing_to_do_here">Hier ist nichts zu tun.</string>
     <string name="panel_generic_description">Dieses Gerät ist ein von ha-paneld betriebenes Home Assistant-Wandpanel. Es stellt das Dashboard, den App-Launcher und die Panel-Steuerung auf dem Gerät bereit und bindet Bildschirm, LED, Tasten, Lautsprecher und Sensoren über das lokale Netzwerk in Home Assistant ein. Konfiguriere das Panel über einen Browser unter der unten angegebenen Adresse.</string>
-    <string name="open_address_browser">Öffne diese Adresse in einem Browser, um das Panel zu konfigurieren</string>
-    <string name="scan_config_phone">Scannen, um die Konfigurationsseite auf dem Smartphone zu öffnen</string>
     <string name="retry_dashboard">Dashboard erneut versuchen</string>
     <string name="dashboard">Dashboard</string>
-    <string name="open_dashboard">Dashboard öffnen</string>
     <string name="sign_in_home_assistant">Bei Home Assistant anmelden</string>
 
     <string name="panel_admin">Panel-Verwaltung</string>
@@ -98,13 +95,9 @@
     <string name="apps">Apps</string>
     <string name="no_launchable_apps">Keine startbaren Apps gefunden.</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld startet das Dashboard neu – %1$s</string>
-    <string name="applying_changes">deine Änderungen werden angewendet</string>
     <string name="applying_dashboard_theme">dein Dashboard-Design wird angewendet</string>
     <string name="optimizing_entities_restart">die verwendeten Entitäten werden optimiert (möglicherweise wird es erneut geladen, während das Panel dazulernt)</string>
     <string name="service_running_caption">wird ausgeführt</string>
-    <string name="panel_service_running">Der Panel-Dienst wird ausgeführt.</string>
-    <string name="ha_opens_automatically">Home Assistant wird automatisch geöffnet</string>
     <string name="elapsed_usually">%1$d s vergangen · normalerweise etwa %2$d s</string>
     <string name="elapsed_learning">%1$d s vergangen · Zeitverhalten dieses Panels wird ermittelt</string>
     <string name="network_starting_android">Android-Netzwerkdienste werden gestartet</string>
@@ -121,8 +114,6 @@
     <string name="sign_in_rejected_fix">Behebung: Öffne %1$s → Home Assistant-Verbindung und verwende dann die Browseranmeldung. Das Dashboard wird automatisch neu geladen, wenn sich die Anmeldung ändert.</string>
     <string name="dashboard_reconnecting">Verbindung zu Home Assistant wird wiederhergestellt…</string>
     <string name="dashboard_unreachable_retry">Das Dashboard war nicht erreichbar und versucht automatisch weiter, eine Verbindung herzustellen.</string>
-    <string name="retrying_seconds">Automatischer neuer Versuch in %1$d s</string>
-    <string name="retrying_minutes_seconds">Automatischer neuer Versuch in %1$d min %2$d s</string>
     <string name="web_viewer_too_old_title">Die Webansicht dieses Panels ist zu alt</string>
     <string name="web_viewer_too_old_detail">Das integrierte Dashboard benötigt eine neuere Version von Android System WebView als auf diesem Panel vorhanden ist. Eine andere Dashboard-App auf dem Panel funktioniert möglicherweise weiterhin.</string>
     <string name="checking_ha_compatibility">Home Assistant-Kompatibilität wird geprüft</string>
@@ -135,8 +126,6 @@
     <string name="ha_sign_in_rejected">Home Assistant-Anmeldung abgelehnt</string>
     <string name="ha_sign_in_needed_detail">Ohne Home Assistant-Anmeldung kann nichts geladen werden. Die Anmeldung befindet sich in den Einstellungen dieses Panels unter „Home Assistant-Verbindung“. Das Dashboard wird automatisch geöffnet, sobald die Anmeldung funktioniert.</string>
     <string name="ha_sign_in_rejected_detail">Die gespeicherte Anmeldung funktioniert nicht mehr, daher wurde das Dashboard nicht geöffnet. Melde dich in den Einstellungen dieses Panels unter „Home Assistant-Verbindung“ erneut an. Das Dashboard kehrt dann automatisch zurück. Tippe stattdessen auf „Erneut versuchen“, wenn das Konto auf dem Home Assistant-Server wiederhergestellt wurde.</string>
-    <string name="ha_sign_in_needed_qr">Ohne Home Assistant-Anmeldung kann nichts geladen werden. Scanne diesen Code, um dich über ein Smartphone anzumelden:</string>
-    <string name="ha_sign_in_rejected_qr">Die gespeicherte Anmeldung funktioniert nicht mehr. Scanne diesen Code, um dich über ein Smartphone erneut anzumelden:</string>
     <string name="cannot_reach_ha">Das Panel kann Home Assistant nicht erreichen</string>
     <string name="cannot_reach_ha_detail">Das Panel konnte die Home Assistant-Version nicht lesen und hat deshalb kein Dashboard geöffnet. Prüfe, ob Home Assistant läuft und dieses Panel mit dem Netzwerk verbunden ist. Das Panel versucht es weiter.\n\nGrund: %1$s\n\nNicht übersetzte Diagnosedetails:\n%2$s</string>
     <string name="ha_transport_not_ready">Die Home Assistant-Verbindung ist noch nicht bereit.</string>
@@ -160,23 +149,15 @@
     <string name="dashboard_list_unavailable_detail">Home Assistant hat nicht geantwortet, als das Panel die für sein Konto verfügbaren Dashboards abgefragt hat. Prüfe, ob Home Assistant läuft und das Panel weiterhin angemeldet ist. Das Panel versucht es weiter.</string>
     <string name="home_assistant_could_not_open">Home Assistant konnte nicht geöffnet werden</string>
     <string name="home_assistant_could_not_open_detail">Die Webansicht des Panels konnte Home Assistant nicht starten. Das Panel versucht es weiter. Falls der Fehler anhält, muss die Webansicht aktualisiert oder repariert werden. Sie heißt Android System WebView; die Neuinstallation desselben Builds repariert eine beschädigte Version.</string>
-    <string name="finish_questions_browser">Du musst die letzten wichtigen Fragen in deinem Browser beantworten, um die Leistung deiner Dashboards zu optimieren</string>
     <string name="skip_load_dashboard">Überspringen und Dashboard jetzt laden</string>
     <string name="skip_entity_filter_detail">Beim Überspringen werden alle Entitäten von Home Assistant geladen, was auf diesem Panel langsamer ist. Du kannst die Filterung später unter Konfigurieren → Dashboard aktivieren.</string>
     <string name="optimized_subscription_unavailable">Optimiertes Dashboard-Abonnement nicht verfügbar</string>
-    <string name="entity_filter_attention">Entitätsfilter erfordert Aufmerksamkeit</string>
     <string name="ha_refused_entity_scan">Home Assistant hat die Entitätssuche abgelehnt</string>
     <string name="dashboard_scan_failed">Dashboard-Suche konnte nicht abgeschlossen werden</string>
-    <string name="preparing_optimized_subscription">Optimiertes Dashboard-Abonnement wird vorbereitet</string>
-    <string name="entity_scan_step_reading_count">Schritt 1 von 3 · Entitäten werden gelesen – bisher %1$d</string>
-    <string name="entity_scan_step_reading">Schritt 1 von 3 · Entitäten werden gelesen…</string>
-    <string name="entity_scan_step_building">Schritt 2 von 3 · Gefilterte Auswahl aus %1$d Entitäten wird erstellt</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant wurde nicht geöffnet, weil das Laden aller Entitäten dieses Panel verlangsamen würde. Versuche es erneut oder deaktiviere den Entitätsfilter in den Panel-Einstellungen unter „Dashboard“.</string>
     <string name="entity_filter_invalid_config">Die auf diesem Panel gespeicherte Entitätsliste ist ungültig und kann daher nicht verwendet werden.</string>
     <string name="entity_filter_webview_too_old">Die Webansicht dieses Panels, Android System WebView, ist zu alt, um die von Home Assistant gesendeten Daten zu filtern. Eine Aktualisierung sollte dies beheben.</string>
     <string name="entity_filter_setup_failed">Das Panel konnte die Entitätsfilterung dieses Mal nicht einrichten.</string>
-    <string name="entity_filter_attention_detail">Mit Home Assistant ist alles in Ordnung. Das Panel benötigt eine Antwort zu den beim Lesen deiner Entitäten gefundenen Sicherheitsprüfungen, bevor es das Dashboard öffnen kann. Zu prüfen: %1$d.</string>
-    <string name="entity_filter_attention_remote">Mit Home Assistant ist alles in Ordnung. Das Panel benötigt eine Antwort zu den beim Lesen deiner Entitäten gefundenen Sicherheitsprüfungen, bevor es das Dashboard öffnen kann. Zu prüfen: %1$d. Dieselben Auswahlmöglichkeiten sind über ein anderes Gerät unter %2$s verfügbar.</string>
     <string name="too_many_flagged_entities">Mit Home Assistant ist alles in Ordnung. Es wurden zu viele Entitäten zur Prüfung auf dem Panel markiert. Öffne die Entitätseinstellungen, um das Dashboard zu vereinfachen, oder tippe auf „Entitätsfilter deaktivieren“.</string>
     <string name="entity_scan_auth_rejected">Home Assistant hat die Anmeldung dieses Panels abgelehnt, als das Panel die anzuzeigenden Entitäten abgefragt hat. Das Dashboard wurde nicht geöffnet. „Konfigurieren“ öffnet die Einstellungen dieses Panels; unter „Home Assistant-Verbindung“ befindet sich die Anmeldung. Das Dashboard kehrt automatisch zurück, sobald sie funktioniert.</string>
     <string name="entity_scan_failed_detail">Die Suche nach deinen Entitäten wurde nicht abgeschlossen, daher wurde das Dashboard nicht geöffnet. Prüfe, ob Home Assistant läuft und das Panel mit dem Netzwerk verbunden ist, und versuche es dann erneut.</string>
@@ -189,7 +170,6 @@
     <string name="open_entity_settings">Entitätseinstellungen öffnen</string>
 
     <string name="ha_offline">Home Assistant ist offline</string>
-    <string name="ha_network_unreliable">HA-Netzwerk unzuverlässig</string>
 
     <string name="nav_back">Zurück</string>
     <string name="nav_launcher">Launcher</string>

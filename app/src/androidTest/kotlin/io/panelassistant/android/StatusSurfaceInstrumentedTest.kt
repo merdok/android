@@ -79,10 +79,6 @@ class StatusSurfaceInstrumentedTest {
         // status frame is drawn by a fullscreen activity that receives the whole 480. Measurements are
         // taken against the window each test actually gets, asserted per test, rather than against
         // either figure assumed in advance.
-        assertTrue(
-            "logical ${real.widthPixels}x${real.heightPixels}dp must select the compact tier",
-            (real.heightPixels / usable.density).toInt() < STATUS_COMPACT_HEIGHT_DP,
-        )
     }
 
     /** Physical panel height, read once in the precondition so no measurement hard-codes it. */
@@ -179,16 +175,21 @@ class StatusSurfaceInstrumentedTest {
 
     /** The phase used for the overflow measurements: the tallest real screen the frame has to draw. */
     private fun StatusSurface.tallestPhase(): List<View> = listOf(
-        heading("Entity filter needs attention"),
-        detail(
-            "Nothing is wrong with Home Assistant. Too many entities were flagged to review on the " +
-                "panel. Open the Entities page in panel settings and simplify the dashboard, or turn " +
-                "the entity filter off.",
+        notice.hero("12"),
+        notice.line("entities need a decision before the dashboard opens"),
+        notice.actions(
+            notice.action("Ignore flagged entities and continue", primary = true) {},
+            notice.action("Disable entity filter") {},
+            notice.action("Open entity settings") {},
         ),
-        action("Ignore flagged entities and continue", fullWidth = true) {},
-        action("Disable entity filter", fullWidth = true) {},
-        action("Open entity settings", fullWidth = true) {},
+        notice.footer(
+            "Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found " +
+                "while reading your entities before it can open the dashboard. The same choices are " +
+                "available from another device at http://192.0.2.10:8888/entities.",
+        ),
     )
+
+    private fun StatusSurface.show(rows: List<View>) = setBody("Action needed", *rows.toTypedArray())
 
     /**
      * How far down the rows themselves actually reach.
@@ -198,10 +199,7 @@ class StatusSurfaceInstrumentedTest {
      * it that way made this test report the frame SHRINKING at a larger font scale — the band grew, so
      * the viewport it was being pinned to got smaller.
      */
-    private fun StatusSurface.bodyExtent(): Int {
-        val content = scroller().getChildAt(0) as ViewGroup
-        return (0 until content.childCount).maxOf { content.getChildAt(it).bottom }
-    }
+    private fun StatusSurface.bodyExtent(): Int = notice.view.bottom
 
     private fun View.topInWindow(): Int {
         val xy = IntArray(2)
@@ -220,13 +218,13 @@ class StatusSurfaceInstrumentedTest {
         root.layout(root.left, root.top, root.right, root.bottom)
     }
 
+    /** The lock-up at the start of the card's brand row. */
     private fun StatusSurface.mark(): View {
-        val band = (root.getChildAt(0) as ViewGroup).getChildAt(0) as ViewGroup
-        return band.getChildAt(0)
+        val brandRow = notice.view.getChildAt(0) as ViewGroup
+        return (brandRow.getChildAt(0) as ViewGroup).getChildAt(0)
     }
 
-    private fun StatusSurface.scroller(): ScrollView =
-        (root.getChildAt(0) as ViewGroup).getChildAt(1) as ScrollView
+    private fun StatusSurface.scroller(): ScrollView = scroll
 
     /**
      * The mark does not move when the phase changes.
@@ -240,20 +238,11 @@ class StatusSurfaceInstrumentedTest {
         onFrame { activity, surface ->
             val positions = mutableListOf<Int>()
             listOf(
-                arrayOf(surface.heading("Checking Home Assistant compatibility")),
-                arrayOf(
-                    surface.heading("Entity filter needs attention"),
-                    surface.detail(
-                        "Nothing is wrong with Home Assistant. Too many entities were flagged to " +
-                            "review on the panel.",
-                    ),
-                    surface.action("Ignore flagged entities and continue", fullWidth = true) {},
-                    surface.action("Disable entity filter", fullWidth = true) {},
-                    surface.action("Open entity settings", fullWidth = true) {},
-                ),
-                arrayOf(surface.caption("waiting 12s")),
+                listOf(surface.notice.hero("Checking", word = true), surface.notice.line("Home Assistant compatibility")),
+                surface.tallestPhase(),
+                listOf(surface.notice.footer("waiting 12s")),
             ).forEach { rows ->
-                surface.setBody(*rows)
+                surface.show(rows)
                 activity.settle()
                 positions += surface.mark().topInWindow()
             }
@@ -267,11 +256,11 @@ class StatusSurfaceInstrumentedTest {
     fun theTallestPhaseKeepsItsActionsOnScreen() {
         onFrame { activity, surface ->
             val rows = surface.tallestPhase()
-            surface.setBody(*rows.toTypedArray())
+            surface.show(rows)
             activity.settle()
             val panelBottom = activity.findViewById<View>(android.R.id.content).height
             assertEquals("the frame must fill the panel", panelHeightPx, panelBottom)
-            rows.filterIsInstance<Button>().forEach { action ->
+            ((rows[2] as ViewGroup).let { group -> (0 until group.childCount).map(group::getChildAt) }).filterIsInstance<Button>().forEach { action ->
                 assertTrue("fixture sanity: an action must be laid out", action.height > 0)
                 assertTrue(
                     "an action ends at ${action.bottomInWindow()} on a ${panelBottom}px panel",
@@ -285,15 +274,14 @@ class StatusSurfaceInstrumentedTest {
     @Test
     fun aPhaseChangeReturnsToTheTopOfTheNewContent() {
         onFrame { activity, surface ->
-            surface.setBody(
-                surface.heading("Entity filter needs attention"),
-                *(1..12).map { surface.detail("Filler row $it so the body genuinely overflows") }
-                    .toTypedArray(),
+            surface.show(
+                listOf(surface.notice.line("Entity filter needs attention")) +
+                    (1..12).map { surface.notice.footer("Filler row $it so the body genuinely overflows") },
             )
             activity.settle()
             surface.scroller().scrollTo(0, 400)
             assertNotEquals("the fixture must actually scroll", 0, surface.scroller().scrollY)
-            surface.setBody(surface.heading("Home Assistant sign-in rejected"))
+            surface.show(listOf(surface.notice.line("Home Assistant sign-in rejected")))
             activity.settle()
             assertEquals("a new phase must start at its own top", 0, surface.scroller().scrollY)
         }
@@ -304,10 +292,10 @@ class StatusSurfaceInstrumentedTest {
     fun everyActionShowsItsPressedAndDisabledStates() {
         onFrame { activity, surface ->
             listOf(
-                surface.action("Retry") {},
-                surface.action("Ignore flagged entities and continue", primary = true) {},
+                surface.notice.action("Retry") {},
+                surface.notice.action("Ignore flagged entities and continue", primary = true) {},
             ).forEach { action: Button ->
-                surface.setBody(action)
+                surface.show(listOf(surface.notice.actions(action)))
                 activity.settle()
                 val idle = action.background.constantState
                 action.isPressed = true
@@ -341,7 +329,7 @@ class StatusSurfaceInstrumentedTest {
     fun aLargeFontScaleGrowsTheFrameRatherThanClippingIt() {
         var atDeviceScale = 0
         onFrame { activity, surface ->
-            surface.setBody(*surface.tallestPhase().toTypedArray())
+            surface.show(surface.tallestPhase())
             activity.settle()
             atDeviceScale = surface.bodyExtent()
             assertTrue("fixture sanity: the phase must lay out at all", atDeviceScale > 0)
@@ -349,11 +337,10 @@ class StatusSurfaceInstrumentedTest {
 
         onFrame(fontScale = LARGE_FONT_SCALE) { activity, surface ->
             val rows = surface.tallestPhase()
-            surface.setBody(*rows.toTypedArray())
+            surface.show(rows)
             activity.settle()
 
             val scroller = surface.scroller()
-            val content = scroller.getChildAt(0) as ViewGroup
             assertTrue(
                 "the frame must GROW with the font scale: ${atDeviceScale}px then ${surface.bodyExtent()}px",
                 surface.bodyExtent() > atDeviceScale,
@@ -372,23 +359,11 @@ class StatusSurfaceInstrumentedTest {
             assertEquals("the body cannot be scrolled to its end", overflow, scroller.scrollY)
 
             val lastRow = rows.last()
-            assertEquals(
-                "fixture sanity: the last row is the final action",
-                content.getChildAt(content.childCount - 1),
-                lastRow,
-            )
-            assertTrue("the final action must be laid out, not collapsed", lastRow.height > 0)
+            assertTrue("the final row must be laid out, not collapsed", lastRow.height > 0)
             assertTrue(
-                "the final action ends at ${lastRow.bottomInWindow()} below a viewport ending at " +
+                "the final row ends at ${lastRow.bottomInWindow()} below a viewport ending at " +
                     "${scroller.bottomInWindow()}",
                 lastRow.bottomInWindow() <= scroller.bottomInWindow(),
-            )
-
-            // The mark is outside the scroller, so scrolling to the end must not have moved it.
-            assertTrue("the mark left the screen", surface.mark().topInWindow() >= 0)
-            assertTrue(
-                "the mark must stay above the body it heads",
-                surface.mark().bottomInWindow() <= scroller.topInWindow(),
             )
         }
     }
@@ -436,40 +411,47 @@ class StatusSurfaceInstrumentedTest {
     fun czechAndBrazilianPortugueseStatusAndProximityTextRemainReadableAndReachable() {
         for (locale in requestedExpansionLocales()) for (dark in listOf(false, true)) {
             for (scale in listOf(1.0f, LARGE_FONT_SCALE)) onFrame(dark, scale, locale) { activity, surface ->
+                val n = surface.notice
                 val phases = listOf(
                     listOf(
-                        surface.heading(activity.getText(R.string.entity_filter_attention)),
-                        surface.detail(activity.getString(R.string.entity_filter_attention_remote, 9999, "http://192.0.2.123:8888/entities")),
-                        surface.action(activity.getText(R.string.ignore_flagged_entities), fullWidth = true) {},
-                        surface.action(activity.getText(R.string.disable_entity_filter), fullWidth = true) {},
-                        surface.action(activity.getText(R.string.open_entity_settings), fullWidth = true) {},
+                        n.hero("9999"),
+                        n.line(activity.getText(R.string.notice_line_entities_need_decision)),
+                        n.actions(
+                            n.action(activity.getText(R.string.ignore_flagged_entities), primary = true) {},
+                            n.action(activity.getText(R.string.disable_entity_filter)) {},
+                            n.action(activity.getText(R.string.open_entity_settings)) {},
+                        ),
+                        n.footer(activity.getString(R.string.notice_attention_explanation_remote, "http://192.0.2.123:8888/entities")),
                     ),
                     listOf(
-                        surface.heading(activity.getText(R.string.cannot_reach_ha)),
-                        surface.detail(activity.getString(R.string.cannot_reach_ha_detail,
+                        n.hero("0:14"),
+                        n.line(activity.getText(R.string.cannot_reach_ha)),
+                        n.actions(n.action(activity.getText(R.string.retry), primary = true) {}, n.action(activity.getText(R.string.configure)) {}),
+                        n.footer(activity.getString(R.string.cannot_reach_ha_detail,
                             activity.getString(R.string.ha_transport_dns), "UnknownHostException: homeassistant.example.invalid")),
-                        surface.action(activity.getText(R.string.retry), fullWidth = true) {},
                     ),
                     listOf(
-                        surface.heading(activity.getText(R.string.proximity_wizard_review)),
-                        surface.detail(activity.getText(R.string.proximity_wizard_review_neither)),
-                        surface.detail(activity.getText(R.string.proximity_wizard_review_hint)),
-                        surface.action(activity.getText(R.string.proximity_wizard_save), fullWidth = true) {},
-                        surface.action(activity.getText(R.string.proximity_wizard_cancel), fullWidth = true) {},
+                        n.line(activity.getText(R.string.proximity_wizard_review)),
+                        n.footer(activity.getText(R.string.proximity_wizard_review_neither)),
+                        n.footer(activity.getText(R.string.proximity_wizard_review_hint)),
+                        n.actions(
+                            n.action(activity.getText(R.string.proximity_wizard_save), primary = true) {},
+                            n.action(activity.getText(R.string.proximity_wizard_cancel)) {},
+                        ),
                     ),
                 )
                 for (rows in phases) {
-                    surface.setBody(*rows.toTypedArray())
+                    surface.show(rows)
                     activity.settle()
                     assertEquals("a localized frame fills the physical panel", panelHeightPx, surface.root.height)
-                    rows.forEach { assertTextFits(it, "$locale $scale") }
+                    rows.flatMap { row -> if (row is ViewGroup) (0 until row.childCount).map(row::getChildAt) else listOf(row) }
+                        .filterIsInstance<TextView>().forEach { assertTextFits(it, "$locale $scale") }
                     val scroller = surface.scroller()
                     val overflow = (surface.bodyExtent() - scroller.height).coerceAtLeast(0)
                     scroller.scrollTo(0, overflow)
                     activity.settle()
                     assertEquals("$locale $scale: final action is reachable", overflow, scroller.scrollY)
                     assertTrue("$locale $scale: final action is within the viewport", rows.last().bottomInWindow() <= scroller.bottomInWindow())
-                    assertTrue("$locale $scale: branding stays above the scroller", surface.mark().bottomInWindow() <= scroller.topInWindow())
                 }
             }
         }

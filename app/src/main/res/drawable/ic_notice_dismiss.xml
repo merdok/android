@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The compact notice's dismiss cross; tinted to the card's ink by CompactNotice. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp" android:height="20dp"
+    android:viewportWidth="20" android:viewportHeight="20">
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="2.2" android:strokeLineCap="round"
+        android:pathData="M4.5,4.5 L15.5,15.5 M15.5,4.5 L4.5,15.5" />
+</vector>

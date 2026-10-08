@@ -86,11 +86,8 @@
     <string name="loading_dashboard">Chargement de votre tableau de bord…</string>
     <string name="nothing_to_do_here">Aucune action n’est nécessaire ici.</string>
     <string name="panel_generic_description">Cet appareil est un panneau mural Home Assistant propulsé par ha-paneld. Il fournit le tableau de bord sur le panneau, le lanceur d’applications et les commandes du panneau, tout en exposant l’écran, la LED, les boutons, le haut-parleur et les capteurs à Home Assistant sur votre réseau local. Configurez le panneau depuis un navigateur à l’adresse ci-dessous.</string>
-    <string name="open_address_browser">Ouvrez cette adresse dans un navigateur pour configurer le panneau</string>
-    <string name="scan_config_phone">Scannez pour ouvrir la page de configuration sur votre téléphone</string>
     <string name="retry_dashboard">Réessayer le tableau de bord</string>
     <string name="dashboard">Tableau de bord</string>
-    <string name="open_dashboard">Ouvrir le tableau de bord</string>
     <string name="sign_in_home_assistant">Connexion à Home Assistant</string>
 
     <string name="panel_admin">Administration du panneau</string>
@@ -98,13 +95,9 @@
     <string name="apps">Applications</string>
     <string name="no_launchable_apps">Aucune application lançable trouvée.</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld redémarre le tableau de bord — %1$s</string>
-    <string name="applying_changes">application de vos modifications</string>
     <string name="applying_dashboard_theme">application du thème de votre tableau de bord</string>
     <string name="optimizing_entities_restart">optimisation des entités utilisées (il peut se recharger à nouveau pendant que le panneau apprend)</string>
     <string name="service_running_caption">actif</string>
-    <string name="panel_service_running">Le service du panneau est en cours d’exécution.</string>
-    <string name="ha_opens_automatically">Home Assistant s’ouvrira automatiquement</string>
     <string name="elapsed_usually">%1$d s écoulées · environ %2$d s habituellement</string>
     <string name="elapsed_learning">%1$d s écoulées · apprentissage de la durée sur ce panneau</string>
     <string name="network_starting_android">Démarrage des services réseau Android</string>
@@ -121,8 +114,6 @@
     <string name="sign_in_rejected_fix">Correction : ouvrez %1$s → Connexion à Home Assistant, puis utilisez Connexion dans le navigateur. Le tableau de bord se recharge automatiquement lorsque la connexion enregistrée change.</string>
     <string name="dashboard_reconnecting">Reconnexion à Home Assistant…</string>
     <string name="dashboard_unreachable_retry">Le tableau de bord n’a pas pu être joint et continuera de réessayer automatiquement.</string>
-    <string name="retrying_seconds">Nouvelle tentative automatique dans %1$d s</string>
-    <string name="retrying_minutes_seconds">Nouvelle tentative automatique dans %1$d min %2$d s</string>
     <string name="web_viewer_too_old_title">Le navigateur de ce panneau est trop ancien</string>
     <string name="web_viewer_too_old_detail">Le tableau de bord intégré nécessite une version d’Android System WebView plus récente que celle du panneau. Une autre application de tableau de bord installée sur le panneau peut toutefois fonctionner.</string>
     <string name="checking_ha_compatibility">Vérification de la compatibilité avec Home Assistant</string>
@@ -135,8 +126,6 @@
     <string name="ha_sign_in_rejected">Connexion à Home Assistant refusée</string>
     <string name="ha_sign_in_needed_detail">Rien ne peut se charger tant que le panneau ne dispose pas d’une connexion à Home Assistant. La connexion se trouve dans les paramètres de ce panneau, sous Connexion à Home Assistant. Le tableau de bord s’ouvre automatiquement dès que la connexion fonctionne.</string>
     <string name="ha_sign_in_rejected_detail">La connexion enregistrée ne fonctionne plus ; le tableau de bord ne s’est donc pas ouvert. Reconnectez-vous dans les paramètres de ce panneau, sous Connexion à Home Assistant, et le tableau de bord reviendra automatiquement. Touchez plutôt Réessayer si le compte a été restauré sur le serveur Home Assistant.</string>
-    <string name="ha_sign_in_needed_qr">Rien ne peut se charger tant que le panneau ne dispose pas d’une connexion à Home Assistant. Scannez ceci pour vous connecter depuis un téléphone :</string>
-    <string name="ha_sign_in_rejected_qr">La connexion enregistrée ne fonctionne plus. Scannez ceci pour vous reconnecter depuis un téléphone :</string>
     <string name="cannot_reach_ha">Le panneau ne parvient pas à joindre Home Assistant</string>
     <string name="cannot_reach_ha_detail">Le panneau n’a pas pu lire la version de Home Assistant ; il n’a donc pas ouvert de tableau de bord. Vérifiez que Home Assistant fonctionne et que ce panneau est connecté au réseau. Le panneau continue d’essayer.\n\nRaison : %1$s\n\nDétails du diagnostic non traduits :\n%2$s</string>
     <string name="ha_transport_not_ready">La connexion à Home Assistant n’est pas encore prête.</string>
@@ -160,23 +149,15 @@
     <string name="dashboard_list_unavailable_detail">Home Assistant n’a pas répondu lorsque le panneau a demandé quels tableaux de bord son compte pouvait ouvrir. Vérifiez que Home Assistant fonctionne et que le panneau est toujours connecté. Le panneau continue d’essayer.</string>
     <string name="home_assistant_could_not_open">Impossible d’ouvrir Home Assistant</string>
     <string name="home_assistant_could_not_open_detail">Le navigateur du panneau n’a pas pu démarrer Home Assistant. Le panneau continue d’essayer. Si le problème persiste, le navigateur doit être mis à jour ou réparé ; il s’agit d’Android System WebView, et réinstaller la même version permet de réparer une installation endommagée.</string>
-    <string name="finish_questions_browser">Vous devez répondre aux dernières questions importantes dans votre navigateur afin d’optimiser les performances de vos tableaux de bord</string>
     <string name="skip_load_dashboard">Ignorer et charger le tableau de bord maintenant</string>
     <string name="skip_entity_filter_detail">En ignorant cette étape, toutes les entités de Home Assistant seront chargées, ce qui ralentit ce panneau. Vous pourrez activer le filtrage plus tard sous Configurer → Tableau de bord.</string>
     <string name="optimized_subscription_unavailable">Abonnement optimisé au tableau de bord indisponible</string>
-    <string name="entity_filter_attention">Le filtre d’entités nécessite votre attention</string>
     <string name="ha_refused_entity_scan">Home Assistant a refusé l’analyse des entités</string>
     <string name="dashboard_scan_failed">L’analyse du tableau de bord n’a pas pu aboutir</string>
-    <string name="preparing_optimized_subscription">Préparation de l’abonnement optimisé au tableau de bord</string>
-    <string name="entity_scan_step_reading_count">Étape 1 sur 3 · Lecture de vos entités — %1$d pour l’instant</string>
-    <string name="entity_scan_step_reading">Étape 1 sur 3 · Lecture de vos entités…</string>
-    <string name="entity_scan_step_building">Étape 2 sur 3 · Création de l’ensemble filtré à partir de %1$d entités</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant n’a pas été ouvert, car charger toutes les entités ralentirait ce panneau. Réessayez ou désactivez le filtre d’entités sous Configurer, dans les paramètres du Tableau de bord.</string>
     <string name="entity_filter_invalid_config">La liste d’entités enregistrée sur ce panneau n’est pas valide et ne peut donc pas être utilisée.</string>
     <string name="entity_filter_webview_too_old">Le navigateur de ce panneau, Android System WebView, est trop ancien pour filtrer ce que Home Assistant envoie. Sa mise à jour devrait résoudre le problème.</string>
     <string name="entity_filter_setup_failed">Le panneau n’a pas pu configurer le filtrage des entités cette fois-ci.</string>
-    <string name="entity_filter_attention_detail">Home Assistant fonctionne normalement. Le panneau a besoin d’une réponse concernant les contrôles de sécurité détectés lors de la lecture de vos entités avant de pouvoir ouvrir le tableau de bord. Nombre d’éléments à examiner : %1$d.</string>
-    <string name="entity_filter_attention_remote">Home Assistant fonctionne normalement. Le panneau a besoin d’une réponse concernant les contrôles de sécurité détectés lors de la lecture de vos entités avant de pouvoir ouvrir le tableau de bord. Nombre d’éléments à examiner : %1$d. Les mêmes choix sont disponibles depuis un autre appareil à l’adresse %2$s.</string>
     <string name="too_many_flagged_entities">Home Assistant fonctionne normalement. Trop d’entités ont été signalées pour examen sur le panneau. Ouvrez les paramètres des entités afin de simplifier le tableau de bord ou touchez Désactiver le filtre d’entités.</string>
     <string name="entity_scan_auth_rejected">Home Assistant a refusé la connexion de ce panneau lorsque celui-ci a demandé quelles entités afficher. Le tableau de bord ne s’est pas ouvert. Configurer ouvre les paramètres de ce panneau, où la rubrique Connexion Home Assistant contient les informations de connexion ; le tableau de bord revient automatiquement dès que la connexion fonctionne.</string>
     <string name="entity_scan_failed_detail">L’analyse de vos entités n’a pas abouti ; le tableau de bord ne s’est donc pas ouvert. Vérifiez que Home Assistant fonctionne et que le panneau est connecté au réseau, puis réessayez.</string>
@@ -189,7 +170,6 @@
     <string name="open_entity_settings">Ouvrir les paramètres des entités</string>
 
     <string name="ha_offline">Home Assistant est hors ligne</string>
-    <string name="ha_network_unreliable">Réseau HA peu fiable</string>
 
     <string name="nav_back">Retour</string>
     <string name="nav_launcher">Lanceur</string>

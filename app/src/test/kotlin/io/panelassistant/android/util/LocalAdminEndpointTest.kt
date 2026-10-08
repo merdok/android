@@ -58,4 +58,31 @@ class LocalAdminEndpointTest {
         assertFalse(LocalAdminReadiness.isExpectedHealthResponse(200, "another local service\n"))
         assertFalse(LocalAdminReadiness.isExpectedHealthResponse(503, "ha-paneld unavailable\n"))
     }
+
+    /** A screen offers an address only when that page answers with itself, not a redirect or nothing. */
+    @Test
+    fun aPageAnswersOnlyWithItsOwnOk() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/configure") { exchange ->
+            val body = "ok".toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.createContext("/moved") { exchange ->
+            exchange.responseHeaders.add("Location", "/configure")
+            exchange.sendResponseHeaders(302, -1)
+            exchange.close()
+        }
+        server.start()
+        try {
+            val port = server.address.port
+            assertTrue(LocalAdminReadiness.pageAnswers(LocalAdminEndpoint.url("127.0.0.1", port, "/configure#cfg-ha-oauth")))
+            assertFalse("a redirect is not the page", LocalAdminReadiness.pageAnswers(LocalAdminEndpoint.url("127.0.0.1", port, "/moved")))
+            assertFalse("a missing page is not the page", LocalAdminReadiness.pageAnswers(LocalAdminEndpoint.url("127.0.0.1", port, "/nothing")))
+        } finally {
+            server.stop(0)
+        }
+        val closed = java.net.ServerSocket(0).use { it.localPort }
+        assertFalse("nothing listening", LocalAdminReadiness.pageAnswers(LocalAdminEndpoint.url("127.0.0.1", closed, "/configure"), timeoutMs = 300))
+    }
 }

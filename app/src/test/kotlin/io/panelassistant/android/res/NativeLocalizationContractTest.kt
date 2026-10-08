@@ -33,9 +33,9 @@ class NativeLocalizationContractTest {
         val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
             .parse(File("src/main/res/values/strings.xml"))
         val catalogue = baseStrings()
-        assertEquals(230, document.getElementsByTagName("string").length)
-        assertEquals(230, catalogue.size)
-        assertEquals(228, catalogue.count { it.value })
+        assertEquals(210, document.getElementsByTagName("string").length)
+        assertEquals(210, catalogue.size)
+        assertEquals(208, catalogue.count { it.value })
         assertEquals(
             setOf("app_name", "wordmark_description"),
             catalogue.filterValues { !it }.keys,
@@ -81,7 +81,8 @@ class NativeLocalizationContractTest {
     @Test fun everyAppStringReferenceResolvesAndEveryFrozenKeyIsAccountedFor() {
         val catalogue = baseStrings()
         val supplemental = stringsIn(File("src/main/res/values/proximity_wizard.xml")) +
-            stringsIn(File("src/main/res/values/ha_lifecycle.xml"))
+            stringsIn(File("src/main/res/values/ha_lifecycle.xml")) +
+            stringsIn(File("src/main/res/values/notice.xml"))
         val kotlinReferences = productionKotlin.values.flatMap { source ->
             Regex("(?<!android\\.)R\\.string\\.([A-Za-z0-9_]+)").findAll(source).map { it.groupValues[1] }.toList()
         }.toSet()
@@ -101,17 +102,19 @@ class NativeLocalizationContractTest {
         )
     }
 
-    @Test fun proximityWizardResourcesAreCompleteInEveryReleaseLocale() {
-        val base = stringsIn(File("src/main/res/values/proximity_wizard.xml"))
-        for (locale in AppLocale.RELEASE_LOCALES.filterNot { it == AppLocale.ENGLISH }) {
-            val directory = when (locale) {
-                "zh-Hans" -> "values-zh-rCN"
-                "pt-BR" -> "values-pt-rBR"
-                else -> "values-$locale"
+    @Test fun proximityWizardAndNoticeResourcesAreCompleteInEveryReleaseLocale() {
+        for (file in listOf("proximity_wizard.xml", "notice.xml")) {
+            val base = stringsIn(File("src/main/res/values/$file"))
+            for (locale in AppLocale.RELEASE_LOCALES.filterNot { it == AppLocale.ENGLISH }) {
+                val directory = when (locale) {
+                    "zh-Hans" -> "values-zh-rCN"
+                    "pt-BR" -> "values-pt-rBR"
+                    else -> "values-$locale"
+                }
+                val translated = stringsIn(File("src/main/res/$directory/$file"))
+                assertEquals("$directory $file", base.keys, translated.keys)
+                assertTrue("$directory $file must contain only translated strings", translated.values.all { it })
             }
-            val translated = stringsIn(File("src/main/res/$directory/proximity_wizard.xml"))
-            assertEquals("$directory proximity strings", base.keys, translated.keys)
-            assertTrue("$directory must contain only translated strings", translated.values.all { it })
         }
     }
 }

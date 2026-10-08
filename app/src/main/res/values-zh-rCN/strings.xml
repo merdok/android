@@ -86,11 +86,8 @@
     <string name="loading_dashboard">正在加载仪表盘…</string>
     <string name="nothing_to_do_here">这里无需操作。</string>
     <string name="panel_generic_description">此设备是由 ha-paneld 驱动的 Home Assistant 墙面面板。它提供面板上的仪表盘、应用启动器和面板控制，同时通过本地网络向 Home Assistant 提供屏幕、LED、按钮、扬声器和传感器。请在浏览器中使用下方地址配置面板。</string>
-    <string name="open_address_browser">在浏览器中打开此地址以配置面板</string>
-    <string name="scan_config_phone">扫描二维码，在手机上打开配置页面</string>
     <string name="retry_dashboard">重试仪表盘</string>
     <string name="dashboard">仪表盘</string>
-    <string name="open_dashboard">打开仪表盘</string>
     <string name="sign_in_home_assistant">登录 Home Assistant</string>
 
     <string name="panel_admin">面板管理</string>
@@ -98,13 +95,9 @@
     <string name="apps">应用</string>
     <string name="no_launchable_apps">未找到可启动的应用。</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld 正在重启仪表盘——%1$s</string>
-    <string name="applying_changes">正在应用您的更改</string>
     <string name="applying_dashboard_theme">正在应用您的仪表盘主题</string>
     <string name="optimizing_entities_restart">正在优化所使用的实体（面板学习时可能会再次重新加载）</string>
     <string name="service_running_caption">运行中</string>
-    <string name="panel_service_running">面板服务正在运行。</string>
-    <string name="ha_opens_automatically">Home Assistant 将自动打开</string>
     <string name="elapsed_usually">已用时 %1$d 秒 · 通常约需 %2$d 秒</string>
     <string name="elapsed_learning">已用时 %1$d 秒 · 正在学习此面板的耗时</string>
     <string name="network_starting_android">正在启动 Android 网络服务</string>
@@ -121,8 +114,6 @@
     <string name="sign_in_rejected_fix">修复：打开%1$s → Home Assistant 连接，然后使用浏览器登录。登录信息更改后，仪表盘会自动重新加载。</string>
     <string name="dashboard_reconnecting">正在重新连接 Home Assistant…</string>
     <string name="dashboard_unreachable_retry">无法访问仪表盘，将继续自动重试。</string>
-    <string name="retrying_seconds">将在 %1$d 秒后自动重试</string>
-    <string name="retrying_minutes_seconds">将在 %1$d 分 %2$d 秒后自动重试</string>
     <string name="web_viewer_too_old_title">此面板的网页查看器版本过旧</string>
     <string name="web_viewer_too_old_detail">内置仪表盘所需的 Android System WebView 比此面板上的版本更新。面板上的其他仪表盘应用可能仍可使用。</string>
     <string name="checking_ha_compatibility">正在检查 Home Assistant 兼容性</string>
@@ -135,8 +126,6 @@
     <string name="ha_sign_in_rejected">Home Assistant 登录被拒绝</string>
     <string name="ha_sign_in_needed_detail">面板必须有 Home Assistant 登录信息才能加载内容。登录信息位于此面板设置的“Home Assistant 连接”下。登录成功后，仪表盘会自行打开。</string>
     <string name="ha_sign_in_rejected_detail">已保存的登录信息不再有效，因此仪表盘未打开。请在此面板设置的“Home Assistant 连接”下重新登录，仪表盘随后会自行恢复。如果 Home Assistant 服务器上的账户已恢复，请改为点按“重试”。</string>
-    <string name="ha_sign_in_needed_qr">面板必须有 Home Assistant 登录信息才能加载内容。扫描此二维码可通过手机登录：</string>
-    <string name="ha_sign_in_rejected_qr">已保存的登录信息不再有效。扫描此二维码可通过手机重新登录：</string>
     <string name="cannot_reach_ha">面板无法访问 Home Assistant</string>
     <string name="cannot_reach_ha_detail">面板无法读取 Home Assistant 版本，因此尚未打开仪表盘。请检查 Home Assistant 是否正在运行，以及此面板是否已连接网络。面板会继续尝试。\n\n原因：%1$s\n\n未翻译的诊断详情：\n%2$s</string>
     <string name="ha_transport_not_ready">Home Assistant 连接尚未准备就绪。</string>
@@ -160,23 +149,15 @@
     <string name="dashboard_list_unavailable_detail">面板询问其账户可以打开哪些仪表盘时，Home Assistant 未响应。请检查 Home Assistant 是否正在运行，以及面板是否仍处于登录状态。面板会继续尝试。</string>
     <string name="home_assistant_could_not_open">无法打开 Home Assistant</string>
     <string name="home_assistant_could_not_open_detail">面板的网页查看器无法启动 Home Assistant。面板会继续尝试。如果持续失败，则需要更新或修复网页查看器；它名为 Android System WebView，重新安装同一内部版本可修复损坏的版本。</string>
-    <string name="finish_questions_browser">您需要在浏览器中完成最后几个重要问题，以优化仪表盘性能</string>
     <string name="skip_load_dashboard">跳过并立即加载仪表盘</string>
     <string name="skip_entity_filter_detail">跳过后会加载 Home Assistant 中的所有实体，这在此面板上速度较慢。稍后可在“设置”→“仪表盘”下开启筛选。</string>
     <string name="optimized_subscription_unavailable">优化的仪表盘订阅不可用</string>
-    <string name="entity_filter_attention">实体筛选器需要处理</string>
     <string name="ha_refused_entity_scan">Home Assistant 拒绝了实体扫描</string>
     <string name="dashboard_scan_failed">仪表盘扫描无法完成</string>
-    <string name="preparing_optimized_subscription">正在准备优化的仪表盘订阅</string>
-    <string name="entity_scan_step_reading_count">第 1/3 步 · 正在读取您的实体——目前 %1$d 个</string>
-    <string name="entity_scan_step_reading">第 1/3 步 · 正在读取您的实体…</string>
-    <string name="entity_scan_step_building">第 2/3 步 · 正在根据 %1$d 个实体构建筛选集</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant 尚未打开，因为加载所有实体会使此面板变慢。请重试，或在“设置”的“仪表盘”设置中关闭实体筛选器。</string>
     <string name="entity_filter_invalid_config">此面板上保存的实体列表无效，因此无法使用。</string>
     <string name="entity_filter_webview_too_old">此面板的网页查看器 Android System WebView 版本过旧，无法筛选 Home Assistant 发送的内容。更新后应该可以解决此问题。</string>
     <string name="entity_filter_setup_failed">面板此次无法设置实体筛选。</string>
-    <string name="entity_filter_attention_detail">Home Assistant 没有问题。面板在读取您的实体时发现了安全检查项，需要您处理后才能打开仪表盘。需要审查的数量：%1$d。</string>
-    <string name="entity_filter_attention_remote">Home Assistant 没有问题。面板在读取您的实体时发现了安全检查项，需要您处理后才能打开仪表盘。需要审查的数量：%1$d。也可以在另一台设备上通过 %2$s 进行相同选择。</string>
     <string name="too_many_flagged_entities">Home Assistant 没有问题。面板上标记为待审查的实体过多。请打开实体设置以简化仪表盘，或点按“禁用实体筛选器”。</string>
     <string name="entity_scan_auth_rejected">面板询问要显示哪些实体时，Home Assistant 拒绝了此面板的登录。仪表盘尚未打开。“设置”会打开此面板的设置，其中的“Home Assistant 连接”保存着登录信息；登录成功后仪表盘会自行恢复。</string>
     <string name="entity_scan_failed_detail">实体扫描未完成，因此仪表盘尚未打开。请检查 Home Assistant 是否正在运行，以及面板是否已连接网络，然后重试。</string>
@@ -189,7 +170,6 @@
     <string name="open_entity_settings">打开实体设置</string>
 
     <string name="ha_offline">Home Assistant 已离线</string>
-    <string name="ha_network_unreliable">HA 网络不稳定</string>
 
     <string name="nav_back">返回</string>
     <string name="nav_launcher">启动器</string>

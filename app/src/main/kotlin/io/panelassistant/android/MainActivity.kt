@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private var configButton: Button? = null
     private var configButtonCompact = false
     private var hintView: TextView? = null
-    private var signInButton: Button? = null
+    private var signInRow: View? = null
     private var lastStageKey: String? = null
     // The journey most recently applied, kept so a rebuild can restore the presentation immediately
     // rather than waiting for a future poll to report a value that has not changed.
@@ -148,10 +148,18 @@ class MainActivity : AppCompatActivity() {
             next == "render_proof" -> getString(R.string.loading_dashboard) to getString(R.string.nothing_to_do_here)
             else -> null
         }
-        stageView?.visibility = if (stage == null) View.GONE else View.VISIBLE
-        stageView?.text = stage?.first ?: ""
-        hintView?.text = stage?.second ?: getString(R.string.panel_generic_description)
-        signInButton?.visibility = if (!complete && next == "ha_credentials") View.VISIBLE else View.GONE
+        val identity = !complete && next == "identity"
+        statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, config.setupEverCompleted)?.let(::getString).orEmpty())
+        // Not set up: the pill says so, and the hint is the one line. A later stage: the stage is the line
+        // and its hint the footer. No stage: the panel's description.
+        stageView?.text = when {
+            stage == null -> getString(R.string.panel_generic_description)
+            identity -> stage.second
+            else -> stage.first
+        }
+        hintView?.text = stage?.second.orEmpty()
+        hintView?.visibility = if (stage == null || identity) View.GONE else View.VISIBLE
+        signInRow?.visibility = if (!complete && next == "ha_credentials") View.VISIBLE else View.GONE
         configButton?.text = configButtonLabel(configButtonCompact, complete)
     }
     // --------------------------------------------------------------------------------------------------
@@ -167,17 +175,6 @@ class MainActivity : AppCompatActivity() {
     private var presentedIntro: View? = null
     private var introAcknowledgement: IntroAcknowledgement? = null
     private var preparedAutoReturn: PreparedVisibleAutoReturn? = null
-
-    /** Colours for the standing screen, shared with every other ha-paneld status surface. The wordmark
-     *  itself switches via res/drawable(-night)-nodpi/wordmark.png; [statusPalette] covers the rest.
-     *
-     *  The theme decision is [statusSurfaceDark] rather than this screen's former system-only reading:
-     *  a panel with a configured dashboard theme used to get a light standing screen and a dark
-     *  startup screen minutes apart, which is one panel appearing to be two applications. */
-    // Recomputed on every read, never cached. Held in a `by lazy` this outlived a configuration
-    // change: the shared frame rebuilt itself with the new theme while the body kept the colours of
-    // the old one, so one screen was drawn from two themes at once.
-    private val pal: StatusPalette get() = statusPalette(StatusSurface.darkFor(this, config))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -481,7 +478,7 @@ class MainActivity : AppCompatActivity() {
         configButton = null
         stageView = null
         hintView = null
-        signInButton = null
+        signInRow = null
         introGeneration++
         super.onDestroy()
     }
@@ -521,154 +518,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildUi(): View {
-        val dm = resources.displayMetrics
-        val hDp = (dm.heightPixels / dm.density).toInt()
-        // Scale to the vertical budget so it fits WITHOUT scrolling on a 480x480 panel, yet the icon
-        // and QR grow prominent on roomy displays. Tiers: tight (≈480²) / medium / large.
-        val compact = hDp < 560
-        val qrDp = when { hDp < 560 -> 132; hDp < 900 -> 192; else -> 240 }
-        val pad = if (compact) dp(16) else dp(36)
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            // CENTER (not just CENTER_HORIZONTAL): with the ScrollView's fillViewport=true the column is
-            // stretched to the viewport height, so this vertically centres the content in any spare
-            // space; when content exceeds the screen it keeps its natural height and the ScrollView scrolls.
-            gravity = Gravity.CENTER
-            // No vertical padding of its own: the shared frame already insets the body, and this
-            // screen has to keep fitting a 480x480 panel without scrolling, so the two must not stack.
-            setPadding(dp(24), 0, dp(24), 0)
-        }
-        // The mark is NOT in this column. It used to be its first child, which meant every live update
-        // to the status line below re-centred the column and moved the mark with it. It now sits in the
-        // shared fixed band above, built from the one theme value this screen also picks its colours
-        // from — the two used to disagree, so a panel configured opposite to the system drew the mark's
-        // dark ink onto a dark background.
-        // Live setup stage — the answer to someone walking up to the panel mid-commissioning: what is it
-        // doing, and do I need to act? Filled by the loopback journey poll; hidden until data arrives so
-        // an unpolled screen is exactly the pre-wizard layout.
-        stageView = text("", if (compact) 14f else 16f, pal.body, bold = true, padBottom = if (compact) 4 else 8)
-            .also { it.visibility = View.GONE; root.addView(it) }
-        // Description — shown on all panels (the shorter wordmark frees the vertical space on 480x480);
-        // slightly smaller + tighter on compact so it still fits without scrolling. Doubles as the
-        // stage HINT once the journey poll reports (the generic text returns when setup completes).
-        hintView = text(
-            getString(R.string.panel_generic_description),
-            if (compact) 12.5f else 14f, pal.body, padBottom = if (compact) 10 else 22,
-        ).also { root.addView(it) }
+        val surface = statusSurface()
+        val notice = surface.notice
+        // The QR leads: the address is for typing on another device, and the code is the quicker route.
+        val qr = notice.qr(url, getString(R.string.config_qr_description, url), getString(R.string.notice_qr_set_up))
+        // The line: the live setup stage, the answer to someone walking up to the panel mid-commissioning —
+        // what is it doing, and do I need to act? Filled by the loopback journey poll; until it reports, the
+        // panel's description.
+        val line = notice.line(getString(R.string.panel_generic_description))
+        stageView = line
+        val hint = notice.footer("").apply { visibility = View.GONE }
+        hintView = hint
         // The full URL — tappable here, and readable so it can be typed on another device.
-        root.addView(TextView(this).apply {
-            gravity = Gravity.CENTER
-            textSize = if (compact) 15f else 18f
-            setTextColor(Color.parseColor(pal.accent))
-            text = url
-            setOnClickListener { openConfig() }
-            setPadding(0, 0, 0, dp(if (compact) 6 else 0))
-        })
-        if (!compact) root.addView(text(getString(R.string.open_address_browser), 12f, pal.subtle, padTop = 4, padBottom = 16))
-        // QR of the config URL — scan with a phone instead of typing it.
-        qrBitmap(url, dp(qrDp))?.let { qr ->
-            root.addView(ImageView(this).apply {
-                setImageBitmap(qr)
-                contentDescription = getString(R.string.config_qr_description, url)
-                layoutParams = LinearLayout.LayoutParams(dp(qrDp), dp(qrDp)).apply { topMargin = dp(6); bottomMargin = dp(4) }
-            })
-            if (!compact) root.addView(text(getString(R.string.scan_config_phone), 12f, pal.subtle, padBottom = 24))
-        }
-        // Buttons: side-by-side when vertical space is tight (shorter labels), stacked otherwise.
-        // The label follows the journey for the same reason the URL does — on an unfinished panel this
-        // opens guided setup, so calling it "configuration" both undersells it and contradicts the hint
-        // above, which tells the user which button to tap. Updated live by applySetupStage.
-        val cfgBtn = button(configButtonLabel(compact)) { openConfig() }
+        val address = notice.footer(url).apply { setOnClickListener { openConfig() } }
+        // The label follows the journey for the same reason the URL does — on an unfinished panel this opens
+        // guided setup, so calling it "configuration" both undersells it and contradicts the hint, which
+        // tells the user which button to tap. Updated live by applySetupStage.
+        val cfgBtn = notice.action(configButtonLabel(compact = true), primary = true) { openConfig() }
         configButton = cfgBtn
-        configButtonCompact = compact
+        configButtonCompact = true
         val recovery = dashboardRecoveryState()
         val dashboardLabel = if (recovery == PanelStatus.DashboardRecoveryState.BUILTIN_RENDERER) {
             getString(R.string.retry_dashboard)
-        } else if (compact) {
+        } else {
             getString(R.string.dashboard)
-        } else {
-            getString(R.string.open_dashboard)
         }
-        val haBtn = dashboardIntent()?.let { button(dashboardLabel) { openDashboard() } }
-        if (compact && haBtn != null) {
-            root.addView(LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                fun weighted(b: Button) { b.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { topMargin = dp(10); marginStart = dp(4); marginEnd = dp(4) } }
-                weighted(cfgBtn); weighted(haBtn)
-                addView(cfgBtn); addView(haBtn)
-            })
-        } else {
-            root.addView(cfgBtn)
-            haBtn?.let { root.addView(it) }
-        }
+        val haBtn = dashboardIntent()?.let { notice.action(dashboardLabel) { openDashboard() } }
         // The one moment setup hands BACK to the panel: sign-in. The wizard announces it in the browser;
         // this button is the same action under the user's finger, so the handoff never depends on the
         // automatic relaunch having fired. DashboardActivity's readiness gate routes a URL-without-
         // credentials start to the on-panel Home Assistant login rather than bouncing here.
-        signInButton = button(getString(R.string.sign_in_home_assistant)) {
+        val signIn = notice.actions(notice.action(getString(R.string.sign_in_home_assistant)) {
             runCatching {
                 startActivity(Intent(this, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-        }.also { it.visibility = View.GONE; root.addView(it) }
-
-        // The shared frame supplies the fixed brand band, the background, the capped and centred
-        // reading column and the scroll safety net. This column goes in as ONE row so the frame adds
-        // no inter-row spacing of its own — the spacing here is the tuned first-run layout, not a
-        // status phase, and it has to keep fitting a 480x480 panel without scrolling.
-        val surface = statusSurface()
-        // The build number belongs on this screen — it is the one a bug report quotes.
-        surface.setBody(root)
+        }).apply { visibility = View.GONE }
+        signInRow = signIn
+        surface.setBody(
+            standingNoticePill(stagePresent = false, identity = false, everCompleted = config.setupEverCompleted)
+                ?.let(::getString).orEmpty(),
+            qr,
+            line,
+            notice.actions(*listOfNotNull(cfgBtn, haBtn).toTypedArray()),
+            signIn,
+            hint,
+            address,
+        )
         return surface.root
     }
 
     /**
-     * The branded frame, kept across rebuilds and rebuilt only when the theme or the panel geometry
-     * changes. Shared with the dashboard's status screens so the standing screen cannot drift into a
-     * second mark, a second palette or a second theme rule.
+     * The frame, kept across rebuilds and rebuilt only when the theme or the panel geometry changes.
+     * Shared with the dashboard's status screens so the standing screen cannot drift into a second mark,
+     * a second palette or a second theme rule.
      */
     private var statusSurface: StatusSurface? = null
 
     private fun statusSurface(): StatusSurface {
         val dark = StatusSurface.darkFor(this, config)
-        val spec = StatusSurface.specFor(this)
-        statusSurface?.let { if (statusSurfaceReusable(it.spec, it.dark, spec, dark)) return it }
+        val geometry = StatusSurface.geometryFor(this)
+        statusSurface?.let { if (statusSurfaceReusable(it.geometry, it.dark, geometry, dark)) return it }
         return StatusSurface(this, dark).also { statusSurface = it }
-    }
-
-    private fun text(
-        s: String, size: Float, color: String,
-        bold: Boolean = false, padTop: Int = 0, padBottom: Int = 0, maxWidth: Int = 0,
-    ): TextView = TextView(this).apply {
-        gravity = Gravity.CENTER
-        textSize = size
-        setTextColor(Color.parseColor(color))
-        if (bold) setTypeface(typeface, Typeface.BOLD)
-        if (maxWidth > 0) this.maxWidth = dp(maxWidth)
-        setPadding(0, dp(padTop), 0, dp(padBottom))
-        text = s
-    }
-
-    private fun button(label: String, onClick: () -> Unit): Button = Button(this).apply {
-        // The shape, padding and label size are shared with the status screens' actions rather than
-        // spelled out here. They were spelled out here, and the status screens quietly grew a
-        // different control: no padding at all, an upper-cased label and no separation between a pair.
-        // Naming the same constants is what stops that happening again; the drawn result is unchanged.
-        text = label
-        isAllCaps = false
-        textSize = STATUS_ACTION_LABEL_SP
-        setTextColor(Color.parseColor(pal.actionText))
-        background = GradientDrawable().apply {
-            cornerRadius = dp(STATUS_ACTION_CORNER_DP).toFloat()
-            setColor(Color.parseColor(pal.actionBackground))
-        }
-        setPadding(
-            dp(STATUS_ACTION_PADDING_H_DP), dp(STATUS_ACTION_PADDING_V_DP),
-            dp(STATUS_ACTION_PADDING_H_DP), dp(STATUS_ACTION_PADDING_V_DP),
-        )
-        layoutParams = LinearLayout.LayoutParams(dp(260), ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { topMargin = dp(8); bottomMargin = dp(8) }
-        setOnClickListener { onClick() }
     }
 
     // Open the config page in-app — kiosk panels usually have no browser, so an ACTION_VIEW intent

@@ -130,9 +130,12 @@ class ProximityWizardActivity : AppCompatActivity() {
     private lateinit var countdownRing: ProximityCountdownView
     private lateinit var rawNumberFormat: NumberFormat
     private lateinit var layoutSpec: ProximityWizardLayoutSpec
-    private val backgroundColor = PanelTokens.Proximity.BACKGROUND
-    private val bodyColor = PanelTokens.Proximity.BODY
-    private val accentColor = PanelTokens.Proximity.ACCENT
+    // The shared palette's dark tone: the wizard keeps one dark look in either theme, so its pictogram
+    // reads the same on every panel, and takes its colours and faces from the same set as every Notice.
+    private val ink = PanelTokens.Notice.DARK
+    private val backgroundColor = android.graphics.Color.parseColor(statusPalette(dark = true).background)
+    private val bodyColor = ink.text
+    private val accentColor = ink.accent
 
     private val poll = object : Runnable {
         override fun run() {
@@ -184,7 +187,7 @@ class ProximityWizardActivity : AppCompatActivity() {
             textSize = size
             gravity = Gravity.START
             setTextColor(bodyColor)
-            typeface = Typeface.create(if (bold) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
+            typeface = if (bold) Notice.MEDIUM else Typeface.DEFAULT
             includeFontPadding = false
             setLineSpacing(dp(3).toFloat(), 1f)
             setPadding(0, dp(6), 0, dp(6))
@@ -195,7 +198,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         }
         root.addView(label(20f, true).apply {
             setText(R.string.proximity_wizard_title)
-            setTextColor(PanelTokens.Proximity.TITLE)
+            setTextColor(ink.secondary)
             letterSpacing = 0.06f
         }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(if (compact) 10 else 20) })
         instruction = label(if (compact) 34f else 40f, true).apply {
@@ -205,12 +208,13 @@ class ProximityWizardActivity : AppCompatActivity() {
         detail = label(26f)
         rawLabel = label(if (compactSquare) 18f else 22f, true).apply {
             setText(R.string.proximity_wizard_raw_label)
-            setTextColor(PanelTokens.Proximity.CAPTION)
+            setTextColor(ink.muted)
             letterSpacing = 0.04f
         }
         rawValue = label(layoutSpec.rawValueSp, true).apply {
             setTextColor(accentColor)
-            typeface = Typeface.create("monospace", Typeface.BOLD)
+            typeface = Notice.LIGHT_FACE
+            fontFeatureSettings = "tnum"
             gravity = if (compactSquare) Gravity.START else Gravity.CENTER_HORIZONTAL
             maxLines = 1
         }
@@ -219,7 +223,7 @@ class ProximityWizardActivity : AppCompatActivity() {
             setText(R.string.proximity_wizard_raw_waiting)
             gravity = if (compactSquare) Gravity.START else Gravity.CENTER_HORIZONTAL
         }
-        mode = label(24f).apply { setTextColor(PanelTokens.Proximity.MODE) }
+        mode = label(24f).apply { setTextColor(ink.secondary) }
         progress = label(24f, true).apply { setTextColor(accentColor) }
         indicator = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             progressTintList = ColorStateList.valueOf(accentColor)
@@ -229,7 +233,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         cadence = label(56f, true).apply { gravity = Gravity.CENTER }
         cadenceLabel = label(24f).apply {
             gravity = Gravity.CENTER
-            setTextColor(PanelTokens.Proximity.CAPTION)
+            setTextColor(ink.muted)
         }
         countdownRing = ProximityCountdownView(this)
         val clock = FrameLayout(this).apply {
@@ -301,22 +305,22 @@ class ProximityWizardActivity : AppCompatActivity() {
         fun button(filled: Boolean) = Button(this).apply {
             isAllCaps = false
             textSize = 24f
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            typeface = Notice.MEDIUM
             minimumHeight = dp(60)
             minHeight = dp(60)
             setPadding(dp(16), dp(12), dp(16), dp(12))
             stateListAnimator = null
             elevation = 0f
             val shape = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(Notice.ACTION_CORNER.toInt()).toFloat()
                 setColor(if (filled) accentColor else Color.TRANSPARENT)
-                setStroke(dp(1), if (filled) accentColor else PanelTokens.Proximity.ACTION_OUTLINE)
+                setStroke(dp(1), if (filled) accentColor else noticeWithAlpha(bodyColor, 0x3D))
             }
             backgroundTintList = null
-            background = RippleDrawable(ColorStateList.valueOf(PanelTokens.Proximity.ACTION_RIPPLE), shape, null)
+            background = RippleDrawable(ColorStateList.valueOf(noticeWithAlpha(bodyColor, 0x32)), shape, null)
             setTextColor(ColorStateList(
                 arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
-                intArrayOf(PanelTokens.Proximity.ACTION_DISABLED_TEXT, if (filled) PanelTokens.Proximity.ACTION_FILLED_TEXT else bodyColor),
+                intArrayOf(ink.muted, if (filled) ink.surface else bodyColor),
             ))
         }
         cancel = button(false).apply {

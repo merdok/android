@@ -59,6 +59,27 @@ class LocalAdminReadiness(
         internal fun isExpectedHealthResponse(status: Int, body: String): Boolean =
             status == HttpURLConnection.HTTP_OK && body.startsWith("ha-paneld ")
 
+        /**
+         * Whether [url] — an address a panel screen is about to offer someone — answers right now with the
+         * page itself: one GET, HTTP 200, no redirects followed. The fragment never reaches the server. A
+         * screen offers the address only when this holds, so a panel whose own pages are not reachable from
+         * the network never shows a code that leads nowhere.
+         */
+        fun pageAnswers(url: String, timeoutMs: Int = 1_500): Boolean = runCatching {
+            val connection = (URL(url.substringBefore('#')).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                instanceFollowRedirects = false
+                connectTimeout = timeoutMs
+                readTimeout = timeoutMs
+                useCaches = false
+            }
+            try {
+                connection.responseCode == HttpURLConnection.HTTP_OK
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(false)
+
         /** One short, side-effect-free liveness request. */
         fun healthProbe(url: String, timeoutMs: Int = 500): Boolean {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {

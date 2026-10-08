@@ -86,11 +86,8 @@
     <string name="loading_dashboard">Cargando tu panel de control…</string>
     <string name="nothing_to_do_here">No tienes que hacer nada aquí.</string>
     <string name="panel_generic_description">Este dispositivo es un panel mural de Home Assistant con ha-paneld. Proporciona el panel de control, el iniciador de aplicaciones y los controles del panel, y expone la pantalla, el LED, los botones, el altavoz y los sensores a Home Assistant mediante tu red local. Configura el panel desde un navegador usando la dirección de abajo.</string>
-    <string name="open_address_browser">Abre esta dirección en un navegador para configurar el panel</string>
-    <string name="scan_config_phone">Escanea para abrir la página de configuración en tu teléfono</string>
     <string name="retry_dashboard">Reintentar el panel de control</string>
     <string name="dashboard">Panel de control</string>
-    <string name="open_dashboard">Abrir panel de control</string>
     <string name="sign_in_home_assistant">Iniciar sesión en Home Assistant</string>
 
     <string name="panel_admin">Administración del panel</string>
@@ -98,13 +95,9 @@
     <string name="apps">Aplicaciones</string>
     <string name="no_launchable_apps">No se encontraron aplicaciones que se puedan iniciar.</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld está reiniciando el panel de control: %1$s</string>
-    <string name="applying_changes">aplicando tus cambios</string>
     <string name="applying_dashboard_theme">aplicando el tema de tu panel de control</string>
     <string name="optimizing_entities_restart">optimizando las entidades que utiliza (puede recargarse de nuevo mientras el panel aprende)</string>
     <string name="service_running_caption">en ejecución</string>
-    <string name="panel_service_running">El servicio del panel está en ejecución.</string>
-    <string name="ha_opens_automatically">Home Assistant se abrirá automáticamente</string>
     <string name="elapsed_usually">%1$d s transcurridos · suele tardar unos %2$d s</string>
     <string name="elapsed_learning">%1$d s transcurridos · aprendiendo los tiempos de este panel</string>
     <string name="network_starting_android">Iniciando los servicios de red de Android</string>
@@ -121,8 +114,6 @@
     <string name="sign_in_rejected_fix">Solución: abre %1$s → Conexión con Home Assistant y usa Inicio de sesión en el navegador. El panel de control se recarga automáticamente cuando cambia el inicio de sesión.</string>
     <string name="dashboard_reconnecting">Volviendo a conectar con Home Assistant…</string>
     <string name="dashboard_unreachable_retry">No se pudo acceder al panel de control y se seguirá reintentando automáticamente.</string>
-    <string name="retrying_seconds">Reintentando automáticamente en %1$d s</string>
-    <string name="retrying_minutes_seconds">Reintentando automáticamente en %1$d min %2$d s</string>
     <string name="web_viewer_too_old_title">El visor web de este panel es demasiado antiguo</string>
     <string name="web_viewer_too_old_detail">El panel de control integrado necesita una versión de Android System WebView más reciente que la instalada en este panel. Es posible que otra aplicación de panel de control siga funcionando.</string>
     <string name="checking_ha_compatibility">Comprobando la compatibilidad con Home Assistant</string>
@@ -135,8 +126,6 @@
     <string name="ha_sign_in_rejected">Inicio de sesión en Home Assistant rechazado</string>
     <string name="ha_sign_in_needed_detail">No se puede cargar nada hasta que el panel tenga un inicio de sesión de Home Assistant. Se encuentra en la configuración de este panel, en Conexión con Home Assistant. El panel de control se abre automáticamente cuando funciona el inicio de sesión.</string>
     <string name="ha_sign_in_rejected_detail">El inicio de sesión guardado dejó de funcionar, por lo que el panel de control no se ha abierto. Vuelve a iniciar sesión en la configuración de este panel, en Conexión con Home Assistant, y el panel de control volverá automáticamente. Si la cuenta se ha restaurado en el servidor de Home Assistant, toca Reintentar.</string>
-    <string name="ha_sign_in_needed_qr">No se puede cargar nada hasta que el panel tenga un inicio de sesión de Home Assistant. Escanea esto para iniciar sesión desde un teléfono:</string>
-    <string name="ha_sign_in_rejected_qr">El inicio de sesión guardado dejó de funcionar. Escanea esto para volver a iniciar sesión desde un teléfono:</string>
     <string name="cannot_reach_ha">El panel no puede acceder a Home Assistant</string>
     <string name="cannot_reach_ha_detail">El panel no pudo leer la versión de Home Assistant, por lo que no ha abierto un panel de control. Comprueba que Home Assistant esté en ejecución y que este panel esté conectado a la red. El panel sigue intentándolo.\n\nMotivo: %1$s\n\nDatos de diagnóstico sin traducir:\n%2$s</string>
     <string name="ha_transport_not_ready">La conexión con Home Assistant todavía no está lista.</string>
@@ -160,23 +149,15 @@
     <string name="dashboard_list_unavailable_detail">Home Assistant no respondió cuando el panel preguntó qué paneles de control podía abrir su cuenta. Comprueba que Home Assistant esté en ejecución y que la sesión del panel siga iniciada. El panel sigue intentándolo.</string>
     <string name="home_assistant_could_not_open">No se pudo abrir Home Assistant</string>
     <string name="home_assistant_could_not_open_detail">El visor web del panel no pudo iniciar Home Assistant. El panel sigue intentándolo. Si continúa fallando, el visor web necesita una actualización o reparación; se denomina Android System WebView y reinstalar la misma compilación repara una instalación dañada.</string>
-    <string name="finish_questions_browser">Debes responder las últimas preguntas importantes en el navegador para optimizar el rendimiento de tus paneles de control</string>
     <string name="skip_load_dashboard">Omitir y cargar ahora el panel de control</string>
     <string name="skip_entity_filter_detail">Si omites este paso, se cargarán todas las entidades de Home Assistant, lo que ralentizará este panel. Puedes activar el filtrado más tarde en Configurar → Panel de control.</string>
     <string name="optimized_subscription_unavailable">La suscripción optimizada del panel de control no está disponible</string>
-    <string name="entity_filter_attention">El filtro de entidades necesita atención</string>
     <string name="ha_refused_entity_scan">Home Assistant rechazó el análisis de entidades</string>
     <string name="dashboard_scan_failed">No se pudo completar el análisis del panel de control</string>
-    <string name="preparing_optimized_subscription">Preparando la suscripción optimizada del panel de control</string>
-    <string name="entity_scan_step_reading_count">Paso 1 de 3 · Leyendo tus entidades: %1$d hasta ahora</string>
-    <string name="entity_scan_step_reading">Paso 1 de 3 · Leyendo tus entidades…</string>
-    <string name="entity_scan_step_building">Paso 2 de 3 · Creando el conjunto filtrado a partir de %1$d entidades</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant no se ha abierto porque cargar todas las entidades ralentizaría este panel. Vuelve a intentarlo o desactiva el filtro de entidades en Configurar, dentro de la configuración del Panel de control.</string>
     <string name="entity_filter_invalid_config">La lista de entidades guardada en este panel no es válida, por lo que no puede utilizarse.</string>
     <string name="entity_filter_webview_too_old">El visor web de este panel, Android System WebView, es demasiado antiguo para filtrar lo que envía Home Assistant. Una actualización debería corregirlo.</string>
     <string name="entity_filter_setup_failed">El panel no pudo configurar el filtrado de entidades esta vez.</string>
-    <string name="entity_filter_attention_detail">Home Assistant funciona correctamente. Antes de abrir el panel de control, el panel necesita que respondas a las comprobaciones de seguridad surgidas al leer tus entidades. Número de elementos que requieren revisión: %1$d.</string>
-    <string name="entity_filter_attention_remote">Home Assistant funciona correctamente. Antes de abrir el panel de control, el panel necesita que respondas a las comprobaciones de seguridad surgidas al leer tus entidades. Número de elementos que requieren revisión: %1$d. Las mismas opciones están disponibles desde otro dispositivo en %2$s.</string>
     <string name="too_many_flagged_entities">Home Assistant funciona correctamente. Se marcaron demasiadas entidades para revisarlas en el panel. Abre la configuración de entidades para simplificar el panel de control o toca Desactivar filtro de entidades.</string>
     <string name="entity_scan_auth_rejected">Home Assistant rechazó el inicio de sesión de este panel cuando el panel consultó qué entidades debía mostrar. El panel de control no se ha abierto. Configurar abre la configuración de este panel, donde Conexión con Home Assistant contiene el inicio de sesión; el panel de control volverá automáticamente cuando funcione.</string>
     <string name="entity_scan_failed_detail">El análisis de tus entidades no terminó, por lo que el panel de control no se ha abierto. Comprueba que Home Assistant esté en ejecución y que el panel esté conectado a la red y vuelve a intentarlo.</string>
@@ -189,7 +170,6 @@
     <string name="open_entity_settings">Abrir configuración de entidades</string>
 
     <string name="ha_offline">Home Assistant está sin conexión</string>
-    <string name="ha_network_unreliable">La red de HA no es fiable</string>
 
     <string name="nav_back">Volver</string>
     <string name="nav_launcher">Iniciador</string>

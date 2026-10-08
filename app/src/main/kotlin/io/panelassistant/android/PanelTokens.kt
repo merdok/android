@@ -23,8 +23,9 @@ internal object PanelTokens {
     fun dp(value: Int, density: Float): Int = (value * density).toInt()
 
     /**
-     * Colours of the branded full-screen status frame (StatusSurface), the standing screen and the
-     * admin launcher. Hex strings, because the reconnect and sign-in pages put them into HTML.
+     * The panel's own background behind a full-screen Notice and the proximity wizard, and the
+     * admin launcher's text and button. Hex strings, because the dashboard's blank document puts
+     * the background into HTML.
      */
     object Status {
         val DARK = StatusPalette(
@@ -32,30 +33,14 @@ internal object PanelTokens {
             body = "#c8ccd2",
             subtle = "#8a8f99",
             accent = "#4a9eff",
-            track = "#30343a",
             actionBackground = "#2f6fd0",
-            actionText = "#ffffff",
-            actionSurface = "#2a2f36",
-            actionBorder = "#6b737e",
-            actionPressed = "#3b424b",
-            actionPrimaryPressed = "#4a86e0",
-            actionDisabled = "#1c1f24",
-            error = "#ff6b6b",
         )
         val LIGHT = StatusPalette(
             background = "#ffffff",
             body = "#2a2e34",
             subtle = "#5a6068",
             accent = "#1669d6",
-            track = "#dce1e7",
             actionBackground = "#2557a7",
-            actionText = "#ffffff",
-            actionSurface = "#eef1f5",
-            actionBorder = "#8a929c",
-            actionPressed = "#dde3ea",
-            actionPrimaryPressed = "#1b4a8f",
-            actionDisabled = "#f4f6f8",
-            error = "#b3261e",
         )
     }
 
@@ -99,46 +84,27 @@ internal object PanelTokens {
     }
 
     /**
-     * The corner chips (network path, microphone muted) and the migration notice. Warning and
-     * severe take the restart notice's amber and red, opaque per theme because the surface behind
-     * is an arbitrary dashboard.
+     * The migration notice's amber, opaque because the surface behind is an arbitrary dashboard.
+     * The chips themselves are compact Notices.
      */
     object Chip {
         val DARK = ChipColours(
             warningSurface = 0xFF2A2418.toInt(),
             warningBorder = 0xFFD2951F.toInt(),
             warningLabel = 0xFFFAF2E2.toInt(),
-            severeSurface = 0xFF2E1A1D.toInt(),
-            severeBorder = 0xFFD8474D.toInt(),
-            severeLabel = 0xFFFBEBEC.toInt(),
-            quietSurface = 0xFF202124.toInt(),
         )
         val LIGHT = ChipColours(
             warningSurface = 0xFFFDF6E7.toInt(),
             warningBorder = 0xFFA5741A.toInt(),
             warningLabel = 0xFF3A2A08.toInt(),
-            severeSurface = 0xFFFDECEE.toInt(),
-            severeBorder = 0xFFB4292F.toInt(),
-            severeLabel = 0xFF3F1114.toInt(),
-            quietSurface = 0xFFF1F3F4.toInt(),
         )
     }
 
     /**
-     * The proximity wizard, its pictogram and its countdown ring, which keep one dark look in
-     * either theme.
+     * The proximity wizard's pictogram, countdown ring and wave cue. The wizard's text, buttons and
+     * background are the shared Notice and status colours.
      */
     object Proximity {
-        const val BACKGROUND = 0xFF0E1725.toInt()
-        const val BODY = 0xFFF3F7FF.toInt()
-        const val ACCENT = 0xFF85BAFF.toInt()
-        const val TITLE = 0xFFA1BBDC.toInt()
-        const val CAPTION = 0xFFA9BEDB.toInt()
-        const val MODE = 0xFFB3C8E4.toInt()
-        const val ACTION_OUTLINE = 0xFF617893.toInt()
-        const val ACTION_RIPPLE = 0x32F3F7FF.toInt()
-        const val ACTION_DISABLED_TEXT = 0xFF687C97.toInt()
-        const val ACTION_FILLED_TEXT = 0xFF082143.toInt()
         const val WAVE = 0xFFC8ADFF.toInt()
         const val WAVE_TEXT = 0xFFE3D5FF.toInt()
         const val PICTOGRAM_FLOOR = 0xFF405671.toInt()
@@ -184,41 +150,20 @@ internal object PanelTokens {
 }
 
 /**
- * Colours of the branded full-screen status frame (StatusSurface), the standing screen and the
- * admin launcher. Hex strings, because the reconnect and sign-in pages put them into HTML.
+ * The panel's own background behind a full-screen Notice and the proximity wizard, and the admin
+ * launcher's text and button. Hex strings, because the dashboard's blank document puts the
+ * background into HTML.
  */
 internal data class StatusPalette(
     val background: String,
     val body: String,
     val subtle: String,
     val accent: String,
-    val track: String,
     /**
      * The emphasised action. Dark: 3.87:1 against the page and 4.88:1 for its label; the earlier
      * #2557a7 reached only 2.70:1 against the dark page.
      */
     val actionBackground: String,
-    val actionText: String,
-    /** Secondary actions (Retry, Configure, Skip), drawn by the frame rather than the platform. */
-    val actionSurface: String,
-    /**
-     * The edge of a secondary action, held to at least 3:1 against the page (WCAG's ratio for a
-     * component boundary): the fill alone gave about 1.3 to 1.5:1.
-     */
-    val actionBorder: String,
-    /** The surface while an action is held or focused, so a press is visible. */
-    val actionPressed: String,
-    /** The emphasised action while held or focused. */
-    val actionPrimaryPressed: String,
-    /**
-     * The surface of a disabled action; the entity-filter recovery disables them while it works.
-     */
-    val actionDisabled: String,
-    /**
-     * A terminal failure's heading: the light red that reads on a near-black panel is barely
-     * legible on white.
-     */
-    val error: String,
 )
 
 /**
@@ -246,17 +191,11 @@ internal data class NoticeColours(
 )
 
 /**
- * The corner chips (network path, microphone muted) and the migration notice. Warning and severe
- * take the restart notice's amber and red, opaque per theme because the surface behind is an
- * arbitrary dashboard.
+ * The migration notice's amber, opaque because the surface behind is an arbitrary dashboard. The
+ * chips themselves are compact Notices.
  */
 internal data class ChipColours(
     val warningSurface: Int,
     val warningBorder: Int,
     val warningLabel: Int,
-    val severeSurface: Int,
-    val severeBorder: Int,
-    val severeLabel: Int,
-    /** The microphone-muted chip. */
-    val quietSurface: Int,
 )

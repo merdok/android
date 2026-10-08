@@ -86,11 +86,8 @@
     <string name="loading_dashboard">Caricamento della dashboard…</string>
     <string name="nothing_to_do_here">Non devi fare nulla qui.</string>
     <string name="panel_generic_description">Questo dispositivo è un pannello da parete per Home Assistant basato su ha-paneld. Fornisce la dashboard sul pannello, l’avvio delle app e i controlli del pannello, rendendo disponibili a Home Assistant tramite la rete locale schermo, LED, pulsanti, altoparlante e sensori. Configura il pannello da un browser usando l’indirizzo seguente.</string>
-    <string name="open_address_browser">Apri questo indirizzo in un browser per configurare il pannello</string>
-    <string name="scan_config_phone">Scansiona per aprire la pagina di configurazione sul telefono</string>
     <string name="retry_dashboard">Riprova dashboard</string>
     <string name="dashboard">Dashboard</string>
-    <string name="open_dashboard">Apri dashboard</string>
     <string name="sign_in_home_assistant">Accedi a Home Assistant</string>
 
     <string name="panel_admin">Amministrazione pannello</string>
@@ -98,13 +95,9 @@
     <string name="apps">App</string>
     <string name="no_launchable_apps">Nessuna app avviabile trovata.</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld sta riavviando la dashboard: %1$s</string>
-    <string name="applying_changes">applicazione delle modifiche</string>
     <string name="applying_dashboard_theme">applicazione del tema della dashboard</string>
     <string name="optimizing_entities_restart">ottimizzazione delle entità usate (potrebbe ricaricarsi di nuovo mentre il pannello apprende)</string>
     <string name="service_running_caption">in esecuzione</string>
-    <string name="panel_service_running">Il servizio del pannello è in esecuzione.</string>
-    <string name="ha_opens_automatically">Home Assistant si aprirà automaticamente</string>
     <string name="elapsed_usually">%1$d s trascorsi · solitamente circa %2$d s</string>
     <string name="elapsed_learning">%1$d s trascorsi · apprendimento dei tempi del pannello</string>
     <string name="network_starting_android">Avvio dei servizi di rete Android</string>
@@ -121,8 +114,6 @@
     <string name="sign_in_rejected_fix">Soluzione: apri %1$s → Connessione Home Assistant, quindi usa Accesso dal browser. La dashboard si ricarica automaticamente quando cambia l’accesso.</string>
     <string name="dashboard_reconnecting">Riconnessione a Home Assistant…</string>
     <string name="dashboard_unreachable_retry">Impossibile raggiungere la dashboard; i tentativi continueranno automaticamente.</string>
-    <string name="retrying_seconds">Nuovo tentativo automatico tra %1$d s</string>
-    <string name="retrying_minutes_seconds">Nuovo tentativo automatico tra %1$d min %2$d s</string>
     <string name="web_viewer_too_old_title">Il visualizzatore web del pannello è troppo vecchio</string>
     <string name="web_viewer_too_old_detail">La dashboard integrata richiede una versione di Android System WebView più recente di quella presente sul pannello. Un’altra app per dashboard installata sul pannello potrebbe comunque funzionare.</string>
     <string name="checking_ha_compatibility">Verifica della compatibilità con Home Assistant</string>
@@ -135,8 +126,6 @@
     <string name="ha_sign_in_rejected">Accesso a Home Assistant rifiutato</string>
     <string name="ha_sign_in_needed_detail">Non è possibile caricare nulla finché il pannello non dispone di un accesso a Home Assistant. L’accesso si trova nelle impostazioni di questo pannello, sotto Connessione Home Assistant. La dashboard si apre da sola non appena l’accesso funziona.</string>
     <string name="ha_sign_in_rejected_detail">L’accesso salvato ha smesso di funzionare, quindi la dashboard non si è aperta. Accedi di nuovo nelle impostazioni di questo pannello, sotto Connessione Home Assistant, e la dashboard tornerà automaticamente. Tocca invece Riprova se l’account è stato ripristinato sul server Home Assistant.</string>
-    <string name="ha_sign_in_needed_qr">Non è possibile caricare nulla finché il pannello non dispone di un accesso a Home Assistant. Scansiona per accedere da un telefono:</string>
-    <string name="ha_sign_in_rejected_qr">L’accesso salvato ha smesso di funzionare. Scansiona per accedere di nuovo da un telefono:</string>
     <string name="cannot_reach_ha">Il pannello non riesce a raggiungere Home Assistant</string>
     <string name="cannot_reach_ha_detail">Il pannello non ha potuto leggere la versione di Home Assistant, quindi non ha aperto una dashboard. Verifica che Home Assistant sia in esecuzione e che il pannello sia connesso alla rete. Il pannello continua a riprovare.\n\nMotivo: %1$s\n\nDettagli diagnostici non tradotti:\n%2$s</string>
     <string name="ha_transport_not_ready">La connessione a Home Assistant non è ancora pronta.</string>
@@ -160,23 +149,15 @@
     <string name="dashboard_list_unavailable_detail">Home Assistant non ha risposto quando il pannello ha richiesto quali dashboard può aprire il suo account. Verifica che Home Assistant sia in esecuzione e che il pannello abbia ancora effettuato l’accesso. Il pannello continua a riprovare.</string>
     <string name="home_assistant_could_not_open">Impossibile aprire Home Assistant</string>
     <string name="home_assistant_could_not_open_detail">Il visualizzatore web del pannello non ha avviato Home Assistant. Il pannello continua a riprovare. Se il problema persiste, il visualizzatore web deve essere aggiornato o riparato; si chiama Android System WebView e reinstallando la stessa build si ripara un’installazione danneggiata.</string>
-    <string name="finish_questions_browser">Devi completare nel browser le ultime domande importanti per ottimizzare le prestazioni delle dashboard</string>
     <string name="skip_load_dashboard">Ignora e carica subito la dashboard</string>
     <string name="skip_entity_filter_detail">Ignorando questo passaggio verranno caricate tutte le entità di Home Assistant, rallentando il pannello. Puoi attivare il filtro in seguito da Configura → Dashboard.</string>
     <string name="optimized_subscription_unavailable">Sottoscrizione ottimizzata della dashboard non disponibile</string>
-    <string name="entity_filter_attention">Il filtro delle entità richiede attenzione</string>
     <string name="ha_refused_entity_scan">Home Assistant ha rifiutato la scansione delle entità</string>
     <string name="dashboard_scan_failed">Impossibile completare la scansione della dashboard</string>
-    <string name="preparing_optimized_subscription">Preparazione della sottoscrizione ottimizzata della dashboard</string>
-    <string name="entity_scan_step_reading_count">Passaggio 1 di 3 · Lettura delle entità — %1$d finora</string>
-    <string name="entity_scan_step_reading">Passaggio 1 di 3 · Lettura delle entità…</string>
-    <string name="entity_scan_step_building">Passaggio 2 di 3 · Creazione del set filtrato da %1$d entità</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant non è stato aperto perché caricare tutte le entità rallenterebbe il pannello. Riprova oppure disattiva il filtro delle entità in Configura, nelle impostazioni della Dashboard.</string>
     <string name="entity_filter_invalid_config">L’elenco delle entità salvato sul pannello non è valido e non può essere utilizzato.</string>
     <string name="entity_filter_webview_too_old">Il visualizzatore web del pannello, Android System WebView, è troppo vecchio per filtrare ciò che Home Assistant invia. Aggiornarlo dovrebbe risolvere il problema.</string>
     <string name="entity_filter_setup_failed">Questa volta il pannello non ha potuto configurare il filtro delle entità.</string>
-    <string name="entity_filter_attention_detail">Non c’è alcun problema con Home Assistant. Prima di aprire la dashboard, il pannello richiede una risposta sui controlli di sicurezza rilevati durante la lettura delle entità. Numero da esaminare: %1$d.</string>
-    <string name="entity_filter_attention_remote">Non c’è alcun problema con Home Assistant. Prima di aprire la dashboard, il pannello richiede una risposta sui controlli di sicurezza rilevati durante la lettura delle entità. Numero da esaminare: %1$d. Le stesse opzioni sono disponibili da un altro dispositivo all’indirizzo %2$s.</string>
     <string name="too_many_flagged_entities">Non c’è alcun problema con Home Assistant. Sono state contrassegnate troppe entità da esaminare sul pannello. Apri le impostazioni delle entità per semplificare la dashboard oppure tocca Disattiva filtro entità.</string>
     <string name="entity_scan_auth_rejected">Home Assistant ha rifiutato l’accesso del pannello quando il pannello ha richiesto quali entità mostrare. La dashboard non è stata aperta. Configura apre le impostazioni di questo pannello, dove Connessione Home Assistant contiene l’accesso; la dashboard tornerà automaticamente non appena l’accesso funzionerà.</string>
     <string name="entity_scan_failed_detail">La scansione delle entità non è terminata, quindi la dashboard non è stata aperta. Verifica che Home Assistant sia in esecuzione e che il pannello sia connesso alla rete, quindi riprova.</string>
@@ -189,7 +170,6 @@
     <string name="open_entity_settings">Apri impostazioni entità</string>
 
     <string name="ha_offline">Home Assistant non è in linea</string>
-    <string name="ha_network_unreliable">Rete HA inaffidabile</string>
 
     <string name="nav_back">Indietro</string>
     <string name="nav_launcher">Avvio applicazioni</string>

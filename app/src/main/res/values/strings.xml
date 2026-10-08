@@ -88,11 +88,8 @@
     <string name="loading_dashboard">Loading your dashboard…</string>
     <string name="nothing_to_do_here">Nothing to do here.</string>
     <string name="panel_generic_description">This device is a Home Assistant wall panel powered by ha-paneld. It provides the on-panel dashboard, app launcher and panel controls, while exposing the screen, LED, buttons, speaker and sensors to Home Assistant over your local network. Configure the panel from a browser using the address below.</string>
-    <string name="open_address_browser">Open this address in a browser to configure the panel</string>
-    <string name="scan_config_phone">Scan to open the config page on your phone</string>
     <string name="retry_dashboard">Retry dashboard</string>
     <string name="dashboard">Dashboard</string>
-    <string name="open_dashboard">Open dashboard</string>
     <string name="sign_in_home_assistant">Sign in to Home Assistant</string>
 
     <string name="panel_admin">Panel admin</string>
@@ -100,13 +97,9 @@
     <string name="apps">Apps</string>
     <string name="no_launchable_apps">No launchable apps found.</string>
 
-    <string name="dashboard_restart_announcement">ha-paneld is restarting the dashboard — %1$s</string>
-    <string name="applying_changes">applying your changes</string>
     <string name="applying_dashboard_theme">applying your dashboard theme</string>
     <string name="optimizing_entities_restart">optimising which entities it uses (it may reload again as the panel learns)</string>
     <string name="service_running_caption">running</string>
-    <string name="panel_service_running">The panel service is running.</string>
-    <string name="ha_opens_automatically">Home Assistant will open automatically</string>
     <string name="elapsed_usually">%1$d s elapsed · usually about %2$d s</string>
     <string name="elapsed_learning">%1$d s elapsed · learning this panel’s timing</string>
     <string name="network_starting_android">Starting Android network services</string>
@@ -123,8 +116,6 @@
     <string name="sign_in_rejected_fix">Fix: open %1$s → Home Assistant connection, then use Browser sign-in. The dashboard reloads automatically when the login changes.</string>
     <string name="dashboard_reconnecting">Reconnecting to Home Assistant…</string>
     <string name="dashboard_unreachable_retry">The dashboard couldn’t be reached and will keep retrying automatically.</string>
-    <string name="retrying_seconds">Retrying automatically in %1$d s</string>
-    <string name="retrying_minutes_seconds">Retrying automatically in %1$d min %2$d s</string>
     <string name="web_viewer_too_old_title">This panel’s web viewer is too old</string>
     <string name="web_viewer_too_old_detail">The built-in dashboard needs a newer Android System WebView than this panel has. Another dashboard app on the panel may still work.</string>
     <string name="checking_ha_compatibility">Checking Home Assistant compatibility</string>
@@ -137,8 +128,6 @@
     <string name="ha_sign_in_rejected">Home Assistant sign-in rejected</string>
     <string name="ha_sign_in_needed_detail">Nothing can load until the panel has a Home Assistant login. The sign-in lives in this panel’s settings, under Home Assistant connection. The dashboard opens on its own once the sign-in works.</string>
     <string name="ha_sign_in_rejected_detail">The saved sign-in stopped working, so the dashboard has not opened. Sign in again in this panel’s settings, under Home Assistant connection, and the dashboard returns on its own. Tap Retry instead if the account has been restored on the Home Assistant server.</string>
-    <string name="ha_sign_in_needed_qr">Nothing can load until the panel has a Home Assistant login. Scan this to sign in from a phone:</string>
-    <string name="ha_sign_in_rejected_qr">The saved sign-in stopped working. Scan this to sign in again from a phone:</string>
     <string name="cannot_reach_ha">The panel cannot reach Home Assistant</string>
     <string name="cannot_reach_ha_detail">The panel could not read the Home Assistant version, so it has not opened a dashboard. Check that Home Assistant is running and that this panel is on the network. The panel keeps trying.\n\nReason: %1$s\n\nUntranslated diagnostic details:\n%2$s</string>
     <string name="ha_transport_not_ready">The Home Assistant connection is not ready yet.</string>
@@ -162,23 +151,15 @@
     <string name="dashboard_list_unavailable_detail">Home Assistant did not answer when the panel asked which dashboards its account can open. Check that Home Assistant is running and that the panel is still signed in. The panel keeps trying.</string>
     <string name="home_assistant_could_not_open">Home Assistant could not open</string>
     <string name="home_assistant_could_not_open_detail">The panel’s web viewer would not start Home Assistant. The panel keeps trying. If it keeps failing, the web viewer needs updating or repairing; it is called Android System WebView, and reinstalling the same build repairs a damaged one.</string>
-    <string name="finish_questions_browser">You need to finish the last important questions in your browser to optimise the performance of your dashboards</string>
     <string name="skip_load_dashboard">Skip and load the dashboard now</string>
     <string name="skip_entity_filter_detail">Skipping loads every entity Home Assistant has, which is slower on this panel. You can turn filtering on later under Configure → Dashboard.</string>
     <string name="optimized_subscription_unavailable">Optimized dashboard subscription unavailable</string>
-    <string name="entity_filter_attention">Entity filter needs attention</string>
     <string name="ha_refused_entity_scan">Home Assistant refused the entity scan</string>
     <string name="dashboard_scan_failed">Dashboard scan could not finish</string>
-    <string name="preparing_optimized_subscription">Preparing optimized dashboard subscription</string>
-    <string name="entity_scan_step_reading_count">Step 1 of 3 · Reading your entities — %1$d so far</string>
-    <string name="entity_scan_step_reading">Step 1 of 3 · Reading your entities…</string>
-    <string name="entity_scan_step_building">Step 2 of 3 · Building the filtered set from %1$d entities</string>
     <string name="entity_filter_hold_detail">%1$s Home Assistant has not been opened, because loading every entity would make this panel slow. Try again, or turn the entity filter off under Configure, in the Dashboard settings.</string>
     <string name="entity_filter_invalid_config">The entity list saved on this panel is not valid, so it cannot be used.</string>
     <string name="entity_filter_webview_too_old">This panel’s web viewer, Android System WebView, is too old to filter what Home Assistant sends. Updating it should fix this.</string>
     <string name="entity_filter_setup_failed">The panel could not set up the entity filtering this time.</string>
-    <string name="entity_filter_attention_detail">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard. Number requiring review: %1$d.</string>
-    <string name="entity_filter_attention_remote">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard. Number requiring review: %1$d. The same choices are available from another device at %2$s.</string>
     <string name="too_many_flagged_entities">Nothing is wrong with Home Assistant. Too many entities were flagged to review on the panel. Open entity settings to simplify the dashboard, or tap Disable entity filter.</string>
     <string name="entity_scan_auth_rejected">Home Assistant rejected this panel’s sign-in when the panel asked which entities to show. The dashboard has not been opened. Configure opens this panel’s settings, where Home Assistant connection holds the sign-in; the dashboard returns on its own once it works.</string>
     <string name="entity_scan_failed_detail">The scan of your entities did not finish, so the dashboard has not been opened. Check that Home Assistant is running and that the panel is on the network, then try again.</string>
@@ -191,7 +172,6 @@
     <string name="open_entity_settings">Open entity settings</string>
 
     <string name="ha_offline">Home Assistant is offline</string>
-    <string name="ha_network_unreliable">HA network unreliable</string>
 
     <string name="nav_back">Back</string>
     <string name="nav_launcher">Launcher</string>

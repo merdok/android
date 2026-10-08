@@ -1,34 +1,30 @@
 package io.panelassistant.android.assist
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.TextView
 import androidx.core.view.doOnPreDraw
+import io.panelassistant.android.CompactNotice
 import io.panelassistant.android.Config
-import io.panelassistant.android.PanelTokens
-import io.panelassistant.android.haNetworkChipTextSizePx
 import io.panelassistant.android.i18n.CatalogueLoader
 
 /**
- * "Microphone muted", in the bottom-start corner of the dashboard window while Android reports the
- * microphone muted. Sized like the network chip, which holds the opposite corner, and like it never
- * takes a touch. It has no close button: the mute is the owner's own setting and unmuting clears it.
+ * "Microphone muted", a compact Notice in the bottom-start corner of the dashboard window while Android
+ * reports the microphone muted. The network chip holds the opposite corner; like it, this never takes a
+ * touch. It has no dismiss: the mute is the owner's own setting and unmuting clears it.
  *
  * A change is announced before it settles, so the owner learns what the small chip means: muting shows
  * the chip large in the middle of the screen, then shrinks it into its corner; unmuting shows
  * "Microphone on" there and fades it. A dashboard that opens already muted just shows the chip.
  */
 internal class MicrophoneMutedChip private constructor(
-    private val chip: TextView,
+    private val notice: CompactNotice,
     private val mutedText: String,
     private val onText: String,
 ) {
+    private val chip: View get() = notice.view
     private val settle = Runnable {
         chip.animate().translationX(0f).translationY(0f).scaleX(1f).scaleY(1f).setDuration(MOVE_MS).start()
     }
@@ -45,10 +41,9 @@ internal class MicrophoneMutedChip private constructor(
             rest(muted)
             return
         }
-        chip.text = if (muted) mutedText else onText
-        chip.contentDescription = chip.text
+        val text = if (muted) mutedText else onText
+        notice.show(text)
         chip.alpha = 1f
-        chip.visibility = View.VISIBLE
         chip.bringToFront()
         // Centre it once the new text has been measured, then hold before settling or fading.
         chip.doOnPreDraw {
@@ -59,25 +54,21 @@ internal class MicrophoneMutedChip private constructor(
             chip.translationY = parent.height / 2f - (chip.top + chip.height / 2f)
             chip.postDelayed(if (muted) settle else fade, HOLD_MS)
         }
-        chip.announceForAccessibility(chip.text)
+        chip.announceForAccessibility(text)
     }
 
     private fun rest(muted: Boolean) {
-        chip.text = mutedText
-        chip.contentDescription = mutedText
+        notice.show(mutedText)
         chip.alpha = 1f
         chip.scaleX = 1f
         chip.scaleY = 1f
         chip.translationX = 0f
         chip.translationY = 0f
-        chip.visibility = if (muted) View.VISIBLE else View.GONE
+        if (!muted) notice.hide()
     }
 
     companion object {
-        private const val PAD_H_DP = 12
-        private const val PAD_V_DP = 8
         private const val MARGIN_DP = 12
-        private const val CORNER_DP = 10
         private const val PROMINENT_SCALE = 2.5f
         private const val HOLD_MS = 2_500L
         private const val MOVE_MS = 700L
@@ -85,39 +76,23 @@ internal class MicrophoneMutedChip private constructor(
 
         /** A hidden chip added to [decor]; [VoiceAttention.muteShown] drives it. */
         fun attach(context: Context, decor: ViewGroup): MicrophoneMutedChip {
-            val metrics = context.resources.displayMetrics
-            val density = metrics.density
+            // Direct Boot: settings unreadable means the dark dashboard, and so the light chip.
             val config = runCatching { Config(context) }.getOrNull()
-            val dark = config?.dashboardThemeDark ?: true
             val strings = CatalogueLoader.assets(context)
                 .strings(CatalogueLoader.nativeLocale(config?.uiLanguage))
-            val chip = TextView(context).apply {
-                maxLines = 1
-                setTextSize(TypedValue.COMPLEX_UNIT_PX, haNetworkChipTextSizePx(minOf(metrics.widthPixels, metrics.heightPixels).toFloat(), density))
-                setTextColor(if (dark) Color.WHITE else Color.BLACK)
-                setPadding((PAD_H_DP * density).toInt(), (PAD_V_DP * density).toInt(), (PAD_H_DP * density).toInt(), (PAD_V_DP * density).toInt())
-                background = GradientDrawable().apply {
-                    cornerRadius = CORNER_DP * density
-                    // Opaque, as the network chip is: the dashboard behind it is arbitrary.
-                    setColor((if (dark) PanelTokens.Chip.DARK else PanelTokens.Chip.LIGHT).quietSurface)
-                }
-                elevation = 6 * density
-                isClickable = false
-                isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-                visibility = View.GONE
-            }
-            val margin = (MARGIN_DP * density).toInt()
+            val notice = CompactNotice(context, config?.dashboardThemeDark ?: true, inline = false, onDismiss = null)
+            notice.view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            val margin = (MARGIN_DP * context.resources.displayMetrics.density).toInt()
             decor.addView(
-                chip,
+                notice.view,
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM or Gravity.START,
                 ).apply { setMargins(margin, margin, margin, margin) },
             )
-            return MicrophoneMutedChip(chip, strings.get("shell.microphone_muted"), strings.get("shell.microphone_on"))
-                .also { chip.tag = it }
+            return MicrophoneMutedChip(notice, strings.get("shell.microphone_muted"), strings.get("shell.microphone_on"))
+                .also { notice.view.tag = it }
         }
     }
 }
