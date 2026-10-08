@@ -89,6 +89,9 @@ body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg
 /* No header element ever word-wraps — the brand, the panel-switcher (its "· name" + dropdown) and the
    Open in HA / Reveal buttons stay on one line (they collapse/hide on narrow screens instead). */
 h1{font-size:1.3rem;margin:0 0 .2rem;display:flex;align-items:center} h1 small{color:var(--accent);font-weight:400}
+/* Rules between component:begin and component:end are the shared web components: Panel Assistant's
+   frontend copies exactly these, in order, with tokens.css (frontend/sync-tokens.mjs). Comments only. */
+/* component:begin */
 /* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn
    0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline
    on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H
@@ -97,6 +100,7 @@ h1{font-size:1.3rem;margin:0 0 .2rem;display:flex;align-items:center} h1 small{c
 .brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}
 .brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}
 .brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}
+/* component:end */
 /* Header panel-switcher: the friendly-name in the title becomes this dropdown when >1 ha-paneld is on the
    LAN. Styled to read like the title (var(--accent)) but clearly a control. Kept as pure header CONTENT so it's
    unaffected by the planned fixed/sticky-header rework. */
@@ -125,10 +129,12 @@ h2 small{text-transform:none;letter-spacing:0;color:var(--ok-dim);font-weight:40
    Inline-size containment leaves a block-level .cards at its parent's width, and no position:fixed
    element lives inside a card (the entity listbox is a deliberate body-level portal). */
 .cards{columns:400px;column-gap:18px;container:panelcards/inline-size}
+/* component:begin */
 .card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;margin:0 0 18px;break-inside:avoid;-webkit-column-break-inside:avoid;box-sizing:border-box;--single-column:0}
 /* Card title-bar: a subtly demarcated full-width header (slight tint + divider) separating the title
    from content. Also the intended drag handle for card reordering + home for a collapse triangle. */
 .card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}
+/* component:end */
 .card-title-action{float:right;color:var(--accent2);font-size:.78rem;text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500}
 .card-title-action:hover{color:var(--text-bright);text-decoration:underline}
 /* Tighter card spacing on a narrow screen. VERTICAL only, so unlike the page gutter it cannot change a
@@ -206,6 +212,7 @@ button{background:var(--primary);border-color:var(--primary);color:var(--primary
 .prox-learning-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .prox-learning-actions .pbtn{min-height:44px}
 .prox-learning-actions .pbtn[hidden]{display:none}
+/* component:begin */
 /* Self-contained so it looks identical on <button> AND <a> (the "Open in HA" link) — anchors don't
    inherit the button{} border/radius/colour, so spell them out + kill the link underline. */
 .pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}
@@ -213,6 +220,7 @@ button{background:var(--primary);border-color:var(--primary);color:var(--primary
 .pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
 .pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */
 .pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */
+/* component:end */
 [data-hardened-approval]::after{content:"";display:inline-block;width:.81rem;height:.95rem;background:currentColor;clip-path:polygon(50% 0,95% 18%,82% 72%,50% 100%,18% 72%,5% 18%);opacity:.72;vertical-align:-.18rem}
 .hardened-label-tail{white-space:nowrap}.hardened-label-tail::after{margin-left:.34rem}
 .pbtn[data-hardened-approval]::after{width:.68rem;height:.8rem;margin-left:.34rem;vertical-align:-.14rem}
@@ -232,6 +240,7 @@ input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disable
 .ctlrow-secondary{margin-top:8px}
 .ctlrow.collapsed .lbl{display:none}
 @media (max-width:600px){.ctlrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ctlrow .pbtn{box-sizing:border-box;min-height:48px;margin-left:0!important;text-align:center}.ctlrow .lbl{display:inline}.ctlrow .pbtn.ctl-wide{grid-column:1/-1}}
+/* component:begin */
 /* Notice row: every advisory on these pages, one line the height of the old strip. Severity is the pill
    word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent
    dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */
@@ -249,6 +258,7 @@ input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disable
 .notice-detail{color:var(--dim)}
 .notice a{color:var(--accent);font-weight:600}
 .notice-action{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+/* component:end */
 /* Screenshot hygiene: blur sensitive identity/network values by default; "Reveal" or focusing the field
    un-blurs. NOT access control — the value is still in the page source. Works on <span> and <input>. */
 .secret{filter:blur(5px);transition:filter .12s;cursor:pointer}   /* click to reveal just that one */
@@ -592,6 +602,7 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 .lg-W{color:var(--log-warn)}
 .lg-E,.lg-F{color:var(--log-error)}
 
+/* component:begin */
 /* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an
    order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so
    the wizard inherits dark/light for free. */
@@ -658,6 +669,7 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 .wiz details summary{cursor:pointer;color:var(--accent)}
 .wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}
 @media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}
+/* component:end */
 /* Commissioning only: an unsaved change on a panel that cannot yet show a dashboard is urgent, because
    the user may not yet know Save exists. Off the instant setup completes (the body class is a pure
    function of journey state), so a working panel's save bar never nags. Reduced motion keeps the
