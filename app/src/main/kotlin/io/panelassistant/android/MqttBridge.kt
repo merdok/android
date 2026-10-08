@@ -65,7 +65,7 @@ import io.panelassistant.android.control.WifiOutageCounts
 import io.panelassistant.android.mqtt.MqttTransport
 import io.panelassistant.android.mqtt.MqttConnectionGeneration
 import io.panelassistant.android.mqtt.MqttFamilyPreference
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.mqtt.MqttRoutePlanner
 import io.panelassistant.android.mqtt.classifyDisconnect
 import io.panelassistant.android.mqtt.mqttFamilyBrokerIdentity
@@ -320,7 +320,7 @@ internal fun mqttAnnouncementRecoveryIdentity(
     profileIdentity: String,
     user: String,
     password: String,
-    addressFamilyPolicy: String = SettingsRegistry.DEFAULT_MQTT_ADDRESS_FAMILY,
+    addressFamilyPolicy: String = SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
     buildVersionCode: Int = BuildConfig.VERSION_CODE,
 ): String {
     // Internal candidates share VERSION_NAME. Every installed build is a legitimate new bounded
@@ -709,7 +709,7 @@ internal class MqttBridge(
     private val runtimeBroker: String = config.mqttBroker,
     private val runtimeMqttUser: String = config.mqttUser,
     private val runtimeMqttPassword: String = config.mqttPassword,
-    private val runtimeMqttAddressFamily: String = config.mqttAddressFamily,
+    private val runtimeMqttAddressFamily: String = config.addressFamily,
     private val transport: MqttTransport = HiveMqTransport(),
 ) {
 
@@ -865,8 +865,8 @@ internal class MqttBridge(
         val auth = if (a.consecutiveRejects == 0) "auth-ok" else
             "${a.state} · rejects ${a.consecutiveRejects} · attempt ${a.retryAttempt} · next ${a.nextRetryMs?.let { ((it - now).coerceAtLeast(0) / 1000).toString() + "s" } ?: "none"}"
         val lastAuth = a.lastSuccessMs?.let { "${((now - it).coerceAtLeast(0) / 1000)}s ago" } ?: "never"
-        val policy = MqttAddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily)
-        val familyPolicy = if (policy == MqttAddressFamilyPolicy.AUTOMATIC) {
+        val policy = AddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily)
+        val familyPolicy = if (policy == AddressFamilyPolicy.AUTOMATIC) {
             "Automatic (next ${if (familyPreference.preferIpv4) "IPv4" else "IPv6"})"
         } else {
             policy.configValue
@@ -1173,7 +1173,7 @@ internal class MqttBridge(
             val (host, port) = ep.host to ep.port
             tlsActive = ep.tls
             val familyIdentity = checkNotNull(mqttFamilyBrokerIdentity(broker))
-            val familyPolicy = MqttAddressFamilyPolicy.fromConfig(credentials.addressFamily)
+            val familyPolicy = AddressFamilyPolicy.fromConfig(credentials.addressFamily)
             val announcementIdentity = mqttAnnouncementRecoveryIdentity(
                 familyIdentity,
                 panel,
@@ -1200,7 +1200,7 @@ internal class MqttBridge(
                     connectionGeneration = connectionGeneration.currentOrNull(),
                 )
                 val learned = familyPreference.selectForConnect(familyIdentity, attempt)
-                val selected = if (familyPolicy == MqttAddressFamilyPolicy.AUTOMATIC) {
+                val selected = if (familyPolicy == AddressFamilyPolicy.AUTOMATIC) {
                     learned
                 } else {
                     familyPolicy.initialPreferIpv4
@@ -1216,7 +1216,7 @@ internal class MqttBridge(
                 initialPreferIpv4 = selectedRoute.preferIpv4,
                 // A retained Automatic route gets the established watchdog grace. All other first
                 // attempts may suppress one failed family immediately, without changing reconnect backoff.
-                rapidInitialFallbackAllowed = familyPolicy != MqttAddressFamilyPolicy.AUTOMATIC ||
+                rapidInitialFallbackAllowed = familyPolicy != AddressFamilyPolicy.AUTOMATIC ||
                     !familyPreference.awaitingProgress,
             )
             val initialRoute = routePlanner.resolveInitial()
@@ -1303,8 +1303,8 @@ internal class MqttBridge(
         }
 
     internal fun stageAlternateFamilyForReconnect(baseline: MqttRecoveryTicket): MqttRecoveryTicket? {
-        if (MqttAddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily) !=
-            MqttAddressFamilyPolicy.AUTOMATIC
+        if (AddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily) !=
+            AddressFamilyPolicy.AUTOMATIC
         ) {
             // Explicit policy is the durable bound. A steady-state watchdog rebuild may retry it, but
             // must not persist an opposing learned preference behind the user's back.
@@ -1607,8 +1607,8 @@ internal class MqttBridge(
                     // unrelated heartbeat ACK that can succeed while discovery remains wedged.
                     selectedFamilyRoute
                         ?.takeIf {
-                            MqttAddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily) ==
-                                MqttAddressFamilyPolicy.AUTOMATIC
+                            AddressFamilyPolicy.fromConfig(runtimeMqttAddressFamily) ==
+                                AddressFamilyPolicy.AUTOMATIC
                         }
                         ?.let { selected ->
                         val confirmed = synchronized(familyRecoveryLock) {
@@ -1739,7 +1739,7 @@ internal class MqttBridge(
         val base = discoverHaUrl(credentials.broker) ?: brokerHttpsUrl(credentials.broker) ?: return
         val target = HaLink.resolutionTarget(base, panel)
         if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return
-        val linkFamilyPolicy = MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
+        val linkFamilyPolicy = AddressFamilyPolicy.fromConfig(config.addressFamily)
         val link = HaLink.resolve(
             base, credentials.user, credentials.password, listOf(panel, runtimeFriendlyName),
             preferIpv4 = linkFamilyPolicy.initialPreferIpv4,

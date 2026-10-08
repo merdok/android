@@ -4,7 +4,7 @@ import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.HaConnectionRoutes
 import io.panelassistant.android.dashboard.EntityFilterProtocol
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.util.HaWebSocketClients
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
@@ -245,7 +245,7 @@ internal class HaPresenceSourceManager(
         scope,
         DashboardHaApiSessionProvider(config),
         KtorHaPresenceTransport(
-            socketFamilyPolicy = { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) },
+            socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
         ),
         streamOwner,
         offerAggregate,
@@ -864,7 +864,7 @@ internal class HaPresenceSourceManager(
 
 /** Bounded one-shot registry/history transport; it has no retry, subscription or liveness loop. */
 internal class KtorHaPresenceTransport(
-    private val socketFamilyPolicy: () -> MqttAddressFamilyPolicy = { MqttAddressFamilyPolicy.AUTOMATIC },
+    private val socketFamilyPolicy: () -> AddressFamilyPolicy = { AddressFamilyPolicy.AUTOMATIC },
 ) : HaPresenceTransport {
     override suspend fun registry(baseUrl: String, accessToken: String): HaPresenceRegistrySnapshot {
         var devices: JSONObject? = null

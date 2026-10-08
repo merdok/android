@@ -4,7 +4,7 @@ import android.util.Log
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.dashboard.EntityFilterProtocol
 import io.ktor.client.HttpClient
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.util.HaWebSocketClients
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
@@ -1260,7 +1260,7 @@ internal class HaExactEntityStreamOwner(
 
 internal class KtorHaExactEntityStreamTransport(
     private val rest: HaAmbientTransport = KtorHaAmbientTransport(),
-    private val socketFamilyPolicy: () -> MqttAddressFamilyPolicy = { MqttAddressFamilyPolicy.AUTOMATIC },
+    private val socketFamilyPolicy: () -> AddressFamilyPolicy = { AddressFamilyPolicy.AUTOMATIC },
     /**
      * Stamps each pong at decode time for the round-trip measurement. Must be the SAME clock the
      * owner sends on, which is why the service passes its `elapsedRealtime` lambda to both.

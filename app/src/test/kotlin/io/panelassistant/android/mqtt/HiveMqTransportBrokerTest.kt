@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.util.AddressFamilyPolicy
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
@@ -39,7 +40,7 @@ class HiveMqTransportBrokerTest {
             val planner = MqttRoutePlanner(
                 logicalHost = "mqtt.test.invalid",
                 port = broker.port,
-                policy = MqttAddressFamilyPolicy.AUTOMATIC,
+                policy = AddressFamilyPolicy.AUTOMATIC,
                 initialPreferIpv4 = false,
                 rapidInitialFallbackAllowed = true,
                 resolver = MqttBrokerResolver {
@@ -135,7 +136,7 @@ class HiveMqTransportBrokerTest {
                 val planner = MqttRoutePlanner(
                     logicalHost = "mqtt.test.invalid",
                     port = broker.port,
-                    policy = MqttAddressFamilyPolicy.AUTOMATIC,
+                    policy = AddressFamilyPolicy.AUTOMATIC,
                     // Start on the black hole. The families are inverted relative to the field report
                     // because only unrouted IPv4 documentation space actually black-holes here: this
                     // container has no IPv6 default route, so a global IPv6 fails instantly instead.

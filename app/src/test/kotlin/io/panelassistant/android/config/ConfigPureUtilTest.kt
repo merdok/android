@@ -336,7 +336,7 @@ class MigrationsTest {
     @Test fun schemaFourAddsAutomaticMqttAddressFamilyPolicy() {
         val (migrated, warnings) = Migrations.migrate(4, mapOf("mqtt_broker" to "tcp://ha:1883"))
 
-        assertEquals("Automatic", migrated["mqtt_address_family"])
+        assertEquals("Automatic", migrated[SettingsRegistry.ADDRESS_FAMILY_KEY])
         assertTrue(warnings.isEmpty())
     }
 
@@ -346,7 +346,19 @@ class MigrationsTest {
             mapOf("mqtt_address_family" to "Prefer IPv4"),
         )
 
-        assertEquals("Prefer IPv4", migrated["mqtt_address_family"])
+        assertEquals("Prefer IPv4", migrated[SettingsRegistry.ADDRESS_FAMILY_KEY])
+        assertTrue(warnings.isEmpty())
+    }
+
+    @Test fun aSchemaFourteenBackupKeepsItsAddressFamilyUnderTheRenamedKey() {
+        val (migrated, warnings) = Migrations.migrate(
+            14,
+            mapOf("mqtt_address_family" to "Force IPv4", "mqtt_broker" to "tcp://ha:1883"),
+        )
+
+        assertEquals("Force IPv4", migrated[SettingsRegistry.ADDRESS_FAMILY_KEY])
+        assertFalse("the retired key cannot reach the restore plan", "mqtt_address_family" in migrated)
+        assertEquals("tcp://ha:1883", migrated["mqtt_broker"])
         assertTrue(warnings.isEmpty())
     }
 

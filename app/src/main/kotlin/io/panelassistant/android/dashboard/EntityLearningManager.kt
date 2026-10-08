@@ -23,7 +23,7 @@ import io.panelassistant.android.storage.WalCheckpointOutcome
 import io.panelassistant.android.util.BoundedStreams
 import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.HaWebSocketClients
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.util.closeBody
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
@@ -2143,7 +2143,7 @@ class EntityLearningManager(
         requireCurrentHaRoute(base, token, route)
         check(HaConnectionRoutes.verify(config, route)) { "Home Assistant instance unavailable" }
         val ws = EntityFilterProtocol.upstreamWebSocketUrl(base)
-        val policy = MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
+        val policy = AddressFamilyPolicy.fromConfig(config.addressFamily)
         val client = HaWebSocketClients.client(
             preferIpv4 = policy.initialPreferIpv4,
             ipv4Only = policy.ipv4Only,

@@ -1,7 +1,7 @@
 package io.panelassistant.android.panelassistant
 
 import io.panelassistant.android.dashboard.EntityFilterProtocol
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.sensors.HaProtocolException
 import io.panelassistant.android.util.HaWebSocketClients
 import io.ktor.client.HttpClient
@@ -21,8 +21,8 @@ import java.io.IOException
  * other Home Assistant socket on the panel.
  */
 internal class KtorPanelAssistantTransportConnector(
-    /** Read at every connect, so a changed `mqtt_address_family` applies to the next attempt. */
-    private val socketFamilyPolicy: () -> MqttAddressFamilyPolicy,
+    /** Read at every connect, so a changed `network_address_family` applies to the next attempt. */
+    private val socketFamilyPolicy: () -> AddressFamilyPolicy,
 ) : PanelAssistantTransportConnector {
     /**
      * Runs on the caller's dispatcher (the owner's IO worker). Switching context here would let a

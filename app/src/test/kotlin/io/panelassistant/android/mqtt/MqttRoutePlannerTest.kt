@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.MqttAddressFamily
 import io.panelassistant.android.config.Scope
 import io.panelassistant.android.config.SettingsRegistry
@@ -22,19 +23,19 @@ class MqttRoutePlannerTest {
     private val ipv4 = InetAddress.getByName("192.0.2.10")
 
     @Test fun `address family setting is bounded advanced device policy`() {
-        val spec = assertNotNull(SettingsRegistry.spec("mqtt_address_family"))
+        val spec = assertNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY))
         assertEquals("Automatic", spec.default)
         assertEquals(Tier.ADVANCED, spec.tier)
         assertEquals(Scope.DEVICE, spec.scope)
         assertEquals(listOf("Automatic", "Prefer IPv4", "Force IPv4"), spec.options)
-        assertEquals(MqttAddressFamilyPolicy.AUTOMATIC, MqttAddressFamilyPolicy.fromConfig("unknown"))
-        assertEquals(MqttAddressFamilyPolicy.PREFER_IPV4, MqttAddressFamilyPolicy.fromConfig("prefer ipv4"))
-        assertEquals(MqttAddressFamilyPolicy.FORCE_IPV4, MqttAddressFamilyPolicy.fromConfig("FORCE IPV4"))
+        assertEquals(AddressFamilyPolicy.AUTOMATIC, AddressFamilyPolicy.fromConfig("unknown"))
+        assertEquals(AddressFamilyPolicy.PREFER_IPV4, AddressFamilyPolicy.fromConfig("prefer ipv4"))
+        assertEquals(AddressFamilyPolicy.FORCE_IPV4, AddressFamilyPolicy.fromConfig("FORCE IPV4"))
     }
 
     @Test fun `automatic alternates on every pre-CONNACK network failure until one family connects`() {
         val resolutions = AtomicInteger()
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) {
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) {
             resolutions.incrementAndGet()
             listOf(ipv6, ipv4)
         }
@@ -61,7 +62,7 @@ class MqttRoutePlannerTest {
     }
 
     @Test fun `prefer IPv4 keeps its single excursion and returns to the stated family`() {
-        val planner = planner(MqttAddressFamilyPolicy.PREFER_IPV4) { listOf(ipv6, ipv4) }
+        val planner = planner(AddressFamilyPolicy.PREFER_IPV4) { listOf(ipv6, ipv4) }
 
         assertEquals(MqttAddressFamily.IPV4, planner.resolveInitial()?.family)
         // The unbounded alternation belongs to Automatic, which has no user-stated family to return
@@ -80,7 +81,7 @@ class MqttRoutePlannerTest {
     }
 
     @Test fun `a non-network pre-CONNACK failure never alternates the family`() {
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) { listOf(ipv6, ipv4) }
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) { listOf(ipv6, ipv4) }
 
         assertEquals(MqttAddressFamily.IPV6, planner.resolveInitial()?.family)
         repeat(3) {
@@ -94,7 +95,7 @@ class MqttRoutePlannerTest {
 
     @Test fun `initial alternate survives a DNS answer without the sibling family`() {
         var addresses = listOf(ipv6)
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) { addresses }
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) { addresses }
 
         assertEquals(MqttAddressFamily.IPV6, planner.resolveInitial()?.family)
         // No sibling was published, so nothing was selected and nothing was consumed.
@@ -113,7 +114,7 @@ class MqttRoutePlannerTest {
         val planner = MqttRoutePlanner(
             logicalHost = "mqtt.example.test",
             port = 8883,
-            policy = MqttAddressFamilyPolicy.AUTOMATIC,
+            policy = AddressFamilyPolicy.AUTOMATIC,
             initialPreferIpv4 = false,
             // The process boundary restored a learned route that has not yet reached the broker. It
             // gets the watchdog's full grace window before any family change, so no in-place alternate.
@@ -133,7 +134,7 @@ class MqttRoutePlannerTest {
 
     @Test fun `successful route remains preferred while every reconnect gets fresh DNS`() {
         var addresses = listOf(ipv6, ipv4)
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) { addresses }
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) { addresses }
         val first = assertNotNull(planner.resolveInitial())
         planner.markConnected(first)
 
@@ -147,7 +148,7 @@ class MqttRoutePlannerTest {
     }
 
     @Test fun `steady reconnect refreshes established family before one bounded sibling fallback`() {
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) { listOf(ipv6, ipv4) }
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) { listOf(ipv6, ipv4) }
         val established = assertNotNull(planner.resolveInitial())
         planner.markConnected(established)
 
@@ -171,7 +172,7 @@ class MqttRoutePlannerTest {
     @Test fun `steady alternate budget survives a failed resolver before the sibling appears`() {
         var fail = false
         var addresses = listOf(ipv6, ipv4)
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) {
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) {
             if (fail) error("temporary DNS failure") else addresses
         }
         val established = assertNotNull(planner.resolveInitial())
@@ -192,11 +193,11 @@ class MqttRoutePlannerTest {
     }
 
     @Test fun `prefer IPv4 falls back but force IPv4 fails closed`() {
-        val preferred = planner(MqttAddressFamilyPolicy.PREFER_IPV4) { listOf(ipv6, ipv4) }
+        val preferred = planner(AddressFamilyPolicy.PREFER_IPV4) { listOf(ipv6, ipv4) }
         assertEquals(MqttAddressFamily.IPV4, preferred.resolveInitial()?.family)
 
         var preferAddresses = listOf(ipv6)
-        val preferFallback = planner(MqttAddressFamilyPolicy.PREFER_IPV4) { preferAddresses }
+        val preferFallback = planner(AddressFamilyPolicy.PREFER_IPV4) { preferAddresses }
         val establishedV6 = assertNotNull(preferFallback.resolveInitial())
         assertEquals(MqttAddressFamily.IPV6, establishedV6.family)
         preferFallback.markConnected(establishedV6)
@@ -206,13 +207,13 @@ class MqttRoutePlannerTest {
             preferFallback.resolveReconnect(preConnackFailure = false, networkFailure = true).join()?.family,
         )
 
-        val forced = planner(MqttAddressFamilyPolicy.FORCE_IPV4) { listOf(ipv6) }
+        val forced = planner(AddressFamilyPolicy.FORCE_IPV4) { listOf(ipv6) }
         assertNull(forced.resolveInitial())
     }
 
     @Test fun `numeric dial address retains logical TLS host`() {
         val route = assertNotNull(
-            planner(MqttAddressFamilyPolicy.PREFER_IPV4) { listOf(ipv4) }.resolveInitial(),
+            planner(AddressFamilyPolicy.PREFER_IPV4) { listOf(ipv4) }.resolveInitial(),
         )
         val socket = assertNotNull(route.socketAddress())
 
@@ -234,7 +235,7 @@ class MqttRoutePlannerTest {
 
     @Test fun `resolution failure retains established route without raw-host family escape`() {
         var fail = false
-        val planner = planner(MqttAddressFamilyPolicy.AUTOMATIC) {
+        val planner = planner(AddressFamilyPolicy.AUTOMATIC) {
             if (fail) error("resolver unavailable") else listOf(ipv4)
         }
         val established = assertNotNull(planner.resolveInitial())
@@ -251,7 +252,7 @@ class MqttRoutePlannerTest {
         val planner = MqttRoutePlanner(
             logicalHost = "mqtt.example.test",
             port = 8883,
-            policy = MqttAddressFamilyPolicy.AUTOMATIC,
+            policy = AddressFamilyPolicy.AUTOMATIC,
             initialPreferIpv4 = false,
             rapidInitialFallbackAllowed = true,
             resolver = MqttBrokerResolver { listOf(ipv4) },
@@ -266,7 +267,7 @@ class MqttRoutePlannerTest {
     }
 
     private fun planner(
-        policy: MqttAddressFamilyPolicy,
+        policy: AddressFamilyPolicy,
         resolve: () -> List<InetAddress>,
     ) = MqttRoutePlanner(
         logicalHost = "mqtt.example.test",

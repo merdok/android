@@ -73,10 +73,13 @@ object SettingsRegistry {
     }
 
     /** Bump whenever the persisted shape changes; drives bundle migration. */
-    const val SCHEMA = 14
+    const val SCHEMA = 15
     const val MAX_PANEL_ID_CHARS = 63
     const val DEFAULT_SILENCE_BOOT_CHIME = true
-    const val DEFAULT_MQTT_ADDRESS_FAMILY = "Automatic"
+    const val DEFAULT_ADDRESS_FAMILY = "Automatic"
+    const val ADDRESS_FAMILY_KEY = "network_address_family"
+    /** Schema 15 renamed the address family setting: it governs every Home Assistant connection, not only MQTT. */
+    const val LEGACY_ADDRESS_FAMILY_KEY = "mqtt_address_family"
     const val DEFAULT_UI_LANGUAGE = "auto"
     val UI_LANGUAGES: List<String> = listOf(DEFAULT_UI_LANGUAGE) + AppLocale.RELEASE_LOCALES
 
@@ -116,6 +119,7 @@ object SettingsRegistry {
      * old HA exposure flags. Applying any bundle must never resurrect a retired update owner.
      */
     val RETIRED_KEYS: Set<String> = setOf(
+        LEGACY_ADDRESS_FAMILY_KEY,
         "kiosk_companion_packages",
         "voice_state",
         "${HA_EXPOSE_PREFIX}voice_enabled",
@@ -297,11 +301,11 @@ object SettingsRegistry {
             maxChars = 4_096,
         ),
         SettingSpec(
-            key = "mqtt_address_family", type = SettingType.ENUM, group = "MQTT",
+            key = ADDRESS_FAMILY_KEY, type = SettingType.ENUM, group = "Dashboard",
             tier = Tier.ADVANCED, summary = "Use IPv4, IPv6 or both to reach MQTT and Home Assistant.",
-            label = "MQTT + Home Assistant WebSocket address family", default = DEFAULT_MQTT_ADDRESS_FAMILY,
+            label = "MQTT + Home Assistant WebSocket address family", default = DEFAULT_ADDRESS_FAMILY,
             scope = Scope.DEVICE,
-            options = listOf(DEFAULT_MQTT_ADDRESS_FAMILY, "Prefer IPv4", "Force IPv4"),
+            options = listOf(DEFAULT_ADDRESS_FAMILY, "Prefer IPv4", "Force IPv4"),
             help = "Applies to the MQTT broker connection and the panel's Home Assistant WebSocket " +
                 "connections; plain HTTPS reads always try every published address. Automatic learns " +
                 "a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a " +

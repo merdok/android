@@ -149,7 +149,7 @@ import io.panelassistant.android.sensors.HaNetworkPathRuntime
 import io.panelassistant.android.sensors.HaPresenceSourceManager
 import io.panelassistant.android.sensors.HaSiteMetadataClient
 import io.panelassistant.android.sensors.KtorHaAmbientTransport
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.panelassistant.KtorPanelAssistantTransportConnector
 import io.panelassistant.android.panelassistant.PanelAssistantApprovalState
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
@@ -674,7 +674,7 @@ internal class NetworkRuntimeIdentity(
     internal val broker: String,
     private val user: String,
     private val password: String,
-    private val addressFamily: String = SettingsRegistry.DEFAULT_MQTT_ADDRESS_FAMILY,
+    private val addressFamily: String = SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
 ) {
     override fun equals(other: Any?): Boolean = other is NetworkRuntimeIdentity &&
         panelId == other.panelId && friendlyName == other.friendlyName && httpPort == other.httpPort &&
@@ -1369,7 +1369,7 @@ class PaneldService : Service() {
             auth = haSessionAuthority,
             transport = KtorHaExactEntityStreamTransport(
                 haApi,
-                socketFamilyPolicy = { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) },
+                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
                 monotonicMillis = haSocketClock,
                 onRouteConnected = { address, otherResolved -> haPathProbe.onRouteConnected(address, otherResolved) },
             ),
@@ -1400,7 +1400,7 @@ class PaneldService : Service() {
             scope = scope,
             auth = haSessionAuthority,
             connector = KtorPanelAssistantTransportConnector(
-                socketFamilyPolicy = { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) },
+                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
             ),
             monotonicMillis = haSocketClock,
             addresses = {
@@ -1448,7 +1448,7 @@ class PaneldService : Service() {
                     val token = session.accessToken
                     val authenticated = if (token != null && session.route == route) {
                         try {
-                            val probe = KtorPanelAssistantTransportConnector { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) }.connect(route.owner.url, token)
+                            val probe = KtorPanelAssistantTransportConnector { AddressFamilyPolicy.fromConfig(config.addressFamily) }.connect(route.owner.url, token)
                             probe.close()
                             true
                         } catch (_: Exception) { false }
@@ -1904,7 +1904,7 @@ class PaneldService : Service() {
                         config.mqttBroker,
                         config.mqttUser,
                         config.mqttPassword,
-                        config.mqttAddressFamily,
+                        config.addressFamily,
                     )
                 ) {
                     bridge.state

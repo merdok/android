@@ -140,7 +140,7 @@ internal class ConfigValueProjection(
             "\"mqtt_broker\":${s(config.mqttBroker)}," +
             "\"mqtt_user\":${s(config.mqttUser)}," +
             "\"mqtt_password_set\":${config.mqttPassword.isNotEmpty()}," +
-            "\"mqtt_address_family\":${s(config.mqttAddressFamily)}," +
+            "\"network_address_family\":${s(config.addressFamily)}," +
             "\"dashboard_package\":${s(config.dashboardPackage)}," +
             "\"launcher_package\":${s(config.launcherPackage)}," +
             "\"tame_vendor_packages\":${s(config.tameVendorPackagesRaw)}," +

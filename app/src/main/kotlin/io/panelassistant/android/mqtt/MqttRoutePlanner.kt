@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.MqttAddressFamily
 import io.panelassistant.android.mqttAddressFamily
 import java.net.Inet4Address
@@ -14,24 +15,6 @@ import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.function.Supplier
-
-/** User-owned bound on MQTT address-family selection. */
-internal enum class MqttAddressFamilyPolicy(
-    val configValue: String,
-    val initialPreferIpv4: Boolean,
-    val ipv4Only: Boolean,
-) {
-    AUTOMATIC("Automatic", initialPreferIpv4 = false, ipv4Only = false),
-    PREFER_IPV4("Prefer IPv4", initialPreferIpv4 = true, ipv4Only = false),
-    FORCE_IPV4("Force IPv4", initialPreferIpv4 = true, ipv4Only = true),
-    ;
-
-    companion object {
-        fun fromConfig(value: String): MqttAddressFamilyPolicy = entries.firstOrNull {
-            it.configValue.lowercase(Locale.ROOT) == value.trim().lowercase(Locale.ROOT)
-        } ?: AUTOMATIC
-    }
-}
 
 internal fun interface MqttBrokerResolver {
     fun resolve(host: String): List<InetAddress>
@@ -66,7 +49,7 @@ internal data class MqttDialRoute(
 class MqttRoutePlanner internal constructor(
     private val logicalHost: String,
     private val port: Int,
-    private val policy: MqttAddressFamilyPolicy,
+    private val policy: AddressFamilyPolicy,
     initialPreferIpv4: Boolean,
     private val rapidInitialFallbackAllowed: Boolean,
     private val resolver: MqttBrokerResolver = MqttBrokerResolver {
@@ -74,7 +57,7 @@ class MqttRoutePlanner internal constructor(
     },
     private val resolverExecutor: Executor = RESOLVER_EXECUTOR,
 ) {
-    private var preferredIpv4 = if (policy == MqttAddressFamilyPolicy.AUTOMATIC) {
+    private var preferredIpv4 = if (policy == AddressFamilyPolicy.AUTOMATIC) {
         initialPreferIpv4
     } else {
         policy.initialPreferIpv4
@@ -113,7 +96,7 @@ class MqttRoutePlanner internal constructor(
             // An EXPLICIT policy keeps its existing one-excursion shape: Prefer IPv4 looks at the
             // sibling once and then returns to the family the user asked for. Only Automatic, which
             // has no user-stated preference to return to, alternates until something connects.
-            val explicitPolicyAllowsAlternate = policy == MqttAddressFamilyPolicy.AUTOMATIC ||
+            val explicitPolicyAllowsAlternate = policy == AddressFamilyPolicy.AUTOMATIC ||
                 !explicitPolicyAlternateSpent
             val initialAlternate = rapidInitialFallbackAllowed && !connectedEver &&
                 explicitPolicyAllowsAlternate &&
@@ -128,7 +111,7 @@ class MqttRoutePlanner internal constructor(
             val suppressFailedFamily = alternateBudget != null
             val preferIpv4 = if (suppressFailedFamily) {
                 current?.family == MqttAddressFamily.IPV6
-            } else if (policy != MqttAddressFamilyPolicy.AUTOMATIC) {
+            } else if (policy != AddressFamilyPolicy.AUTOMATIC) {
                 policy.initialPreferIpv4
             } else {
                 current?.family?.let { it == MqttAddressFamily.IPV4 } ?: preferredIpv4
@@ -167,7 +150,7 @@ class MqttRoutePlanner internal constructor(
                             // Unbounded under Automatic; one excursion under an explicit policy,
                             // which then pins back to its stated family.
                             AlternateBudget.INITIAL ->
-                                if (policy != MqttAddressFamilyPolicy.AUTOMATIC) {
+                                if (policy != AddressFamilyPolicy.AUTOMATIC) {
                                     explicitPolicyAlternateSpent = true
                                 }
                             AlternateBudget.STEADY -> alternateSpentSinceConnect = true

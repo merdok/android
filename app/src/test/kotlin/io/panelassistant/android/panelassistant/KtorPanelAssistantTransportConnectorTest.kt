@@ -1,7 +1,7 @@
 package io.panelassistant.android.panelassistant
 
 import io.panelassistant.android.HaAuthOwner
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.sensors.HaApiSession
 import io.panelassistant.android.sensors.HaApiSessionProvider
 import io.panelassistant.android.sensors.HaAuthenticationException
@@ -49,7 +49,7 @@ class KtorPanelAssistantTransportConnectorTest {
                 scope = scope,
                 auth = HaApiSessionProvider { HaApiSession(server.baseUrl, "token", owner = OWNER) },
                 connector = KtorPanelAssistantTransportConnector(
-                    socketFamilyPolicy = { policyReads.incrementAndGet(); MqttAddressFamilyPolicy.FORCE_IPV4 },
+                    socketFamilyPolicy = { policyReads.incrementAndGet(); AddressFamilyPolicy.FORCE_IPV4 },
                 ),
                 backoffBaseMs = 50L,
                 backoffMaxMs = 200L,
@@ -89,7 +89,7 @@ class KtorPanelAssistantTransportConnectorTest {
         try {
             runBlocking {
                 val failure = try {
-                    KtorPanelAssistantTransportConnector { MqttAddressFamilyPolicy.AUTOMATIC }
+                    KtorPanelAssistantTransportConnector { AddressFamilyPolicy.AUTOMATIC }
                         .connect(server.baseUrl, "token")
                     null
                 } catch (thrown: Exception) {
@@ -109,7 +109,7 @@ class KtorPanelAssistantTransportConnectorTest {
         try {
             runBlocking {
                 val failure = try {
-                    KtorPanelAssistantTransportConnector { MqttAddressFamilyPolicy.AUTOMATIC }
+                    KtorPanelAssistantTransportConnector { AddressFamilyPolicy.AUTOMATIC }
                         .connect(server.baseUrl, "token")
                     null
                 } catch (thrown: Exception) {
@@ -129,7 +129,7 @@ class KtorPanelAssistantTransportConnectorTest {
         val server = FakePanelAssistantServer().apply { start() }
         try {
             runBlocking {
-                val connection = KtorPanelAssistantTransportConnector { MqttAddressFamilyPolicy.AUTOMATIC }
+                val connection = KtorPanelAssistantTransportConnector { AddressFamilyPolicy.AUTOMATIC }
                     .connect(server.baseUrl, "token")
                 try {
                     assertNull(connection.receive(100L))

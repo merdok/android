@@ -1018,17 +1018,17 @@
       "sourceHash": "cdd9bce57411aec9a0af3472b278942d976f8f616cb462feebc82082714b7df7",
       "state": "machine-cross-checked"
     },
-    "configure.enum.mqtt_address_family.automatic": {
+    "configure.enum.network_address_family.automatic": {
       "text": "Automaticky",
       "sourceHash": "d461a493a3753877c9486cffa3444265a33370af8a7fff242fb119b71750839c",
       "state": "machine-cross-checked"
     },
-    "configure.enum.mqtt_address_family.force_ipv4": {
+    "configure.enum.network_address_family.force_ipv4": {
       "text": "Vynutit „IPv4“",
       "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
       "state": "machine-cross-checked"
     },
-    "configure.enum.mqtt_address_family.prefer_ipv4": {
+    "configure.enum.network_address_family.prefer_ipv4": {
       "text": "Upřednostnit „IPv4“",
       "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
       "state": "machine-cross-checked"
@@ -10838,17 +10838,17 @@
       "sourceHash": "ca6b303ae590f03bc698654dc1506b6ab7ae9ace6609b91d5f37a427f69d985f",
       "state": "machine-cross-checked"
     },
-    "settings.mqtt_address_family.help": {
+    "settings.network_address_family.help": {
       "text": "Platí pro připojení k brokeru MQTT a připojení panelu přes Home Assistant WebSocket; běžné požadavky HTTPS vždy zkoušejí všechny zveřejněné adresy. Automaticky se naučí funkční trasu a přepíná mezi IPv6 a IPv4. Upřednostnit IPv4 ponechá IPv6 jako zálohu; Vynutit IPv4 odmítá koncové body bez adresy IPv4.",
       "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
       "state": "machine-cross-checked"
     },
-    "settings.mqtt_address_family.label": {
+    "settings.network_address_family.label": {
       "text": "Rodina adres pro MQTT + Home Assistant WebSocket",
       "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
       "state": "machine-cross-checked"
     },
-    "settings.mqtt_address_family.summary": {
+    "settings.network_address_family.summary": {
       "text": "Použijte IPv4, IPv6 nebo obojí pro spojení s MQTT a Home Assistant.",
       "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
       "state": "machine-cross-checked"

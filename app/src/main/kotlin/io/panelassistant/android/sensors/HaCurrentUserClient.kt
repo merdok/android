@@ -1,7 +1,7 @@
 package io.panelassistant.android.sensors
 
 import io.panelassistant.android.Config
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.util.HaWebSocketClients
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
@@ -44,7 +44,7 @@ internal class HaCurrentUserClient(
 ) {
     constructor(config: Config) : this(
         DashboardHaApiSessionProvider(config),
-        KtorHaCurrentUserTransport { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) },
+        KtorHaCurrentUserTransport { AddressFamilyPolicy.fromConfig(config.addressFamily) },
     )
 
     suspend fun status(): HaCurrentUserStatus {
@@ -153,7 +153,7 @@ internal suspend fun readOptionalHaLanguage(socket: HaCurrentUserSocket): String
 }
 
 private class KtorHaCurrentUserTransport(
-    private val socketFamilyPolicy: () -> MqttAddressFamilyPolicy = { MqttAddressFamilyPolicy.AUTOMATIC },
+    private val socketFamilyPolicy: () -> AddressFamilyPolicy = { AddressFamilyPolicy.AUTOMATIC },
 ) : HaCurrentUserTransport {
     override suspend fun read(baseUrl: String, accessToken: String): HaCurrentUserRead = withContext(Dispatchers.IO) {
         val policy = socketFamilyPolicy()

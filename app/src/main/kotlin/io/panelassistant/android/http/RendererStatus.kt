@@ -34,7 +34,7 @@ internal fun rendererAdmission(
     return RendererAdmissionPresentation.of(
         mode = mode,
         haUrl = config.haUrl,
-        addressFamilyPolicy = config.mqttAddressFamily,
+        addressFamilyPolicy = config.addressFamily,
         live = RendererAdmissionRuntime.current(),
         nowElapsedMs = android.os.SystemClock.elapsedRealtime(),
         processStartElapsedMs = android.os.Process.getStartElapsedRealtime(),

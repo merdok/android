@@ -532,7 +532,7 @@ internal class PanelStateCore(
                     val auth = HaCredentialManager.resolve(config, stillCurrent = stillCurrent)
                     val token = auth.session?.accessToken ?: return@Thread
                     val route = auth.route ?: return@Thread
-                    val familyPolicy = io.panelassistant.android.mqtt.MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
+                    val familyPolicy = io.panelassistant.android.util.AddressFamilyPolicy.fromConfig(config.addressFamily)
                     val link = HaLink.resolveWithAccessToken(
                         route.url, token, listOf(panelId, friendlyName),
                         preferIpv4 = familyPolicy.initialPreferIpv4,

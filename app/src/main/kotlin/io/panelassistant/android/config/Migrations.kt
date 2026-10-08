@@ -33,7 +33,7 @@ object Migrations {
             }
         },
         Migration { values ->
-            values.putIfAbsent("mqtt_address_family", SettingsRegistry.DEFAULT_MQTT_ADDRESS_FAMILY)
+            values.putIfAbsent(SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY, SettingsRegistry.DEFAULT_ADDRESS_FAMILY)
         },
         // Schema 5 stored the adaptive response on a scale where 50 was neutral and everything above it
         // amplified beyond the measured light. Schema 6 retires that key for a new one holding the
@@ -85,7 +85,18 @@ object Migrations {
         Migration { values -> values.putIfAbsent("dashboard_network_warning", "true") },
         Migration { values -> values.putIfAbsent("auto_sleep_touch_delay_seconds", "30") },
         Migration { values -> values.putIfAbsent("auto_brightness_maximum_percent", "100") },
-        Migration { values -> values.keys.removeAll(SettingsRegistry.RETIRED_KEYS) },
+        // The retirements of schema 14. The address family key retired by schema 15 is renamed by the
+        // next step, never dropped here.
+        Migration { values ->
+            values.keys.removeAll(SettingsRegistry.RETIRED_KEYS - SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY)
+        },
+        // Schema 15 renames the address family setting, which governs every Home Assistant connection:
+        // a chosen value moves to the new key, so an older backup still restores it.
+        Migration { values ->
+            values.remove(SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY)?.let {
+                values.putIfAbsent(SettingsRegistry.ADDRESS_FAMILY_KEY, it)
+            }
+        },
     )
 
     /**

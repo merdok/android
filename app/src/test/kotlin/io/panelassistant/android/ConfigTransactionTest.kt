@@ -193,6 +193,24 @@ class ConfigTransactionTest {
         }
     }
 
+    @Test fun liveMigrationCarriesTheAddressFamilyToItsRenamedKey() {
+        val prefs = fakePreferences(initial = mapOf(
+            "config_schema" to 14,
+            "mqtt_address_family" to "Force IPv4",
+            "mqtt_broker" to "tcp://ha:1883",
+        ))
+        val config = Config(prefs.instance)
+
+        assertTrue(config.migrateLiveStore())
+        assertEquals("Force IPv4", config.addressFamily)
+        assertEquals("Force IPv4", config.mqttCredentialsSnapshot().addressFamily)
+        assertFalse(prefs.values.containsKey("mqtt_address_family"))
+        assertEquals(SettingsRegistry.SCHEMA, prefs.values["config_schema"])
+        val committed = prefs.values.toMap()
+        assertTrue(Config(prefs.instance).migrateLiveStore())
+        assertEquals("a second startup must be a no-op", committed, prefs.values)
+    }
+
     @Test fun failedUpdateOwnerRemovalLeavesTheCompleteStoreForTheNextStartupToRetry() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
             val initial = retiredUpdatePreferences() + mapOf(
@@ -868,13 +886,13 @@ class ConfigTransactionTest {
 
         config.setMqtt("tcp://broker:1883", "panel", "secret", "force ipv4")
 
-        assertEquals("Force IPv4", config.mqttAddressFamily)
+        assertEquals("Force IPv4", config.addressFamily)
         assertEquals("Force IPv4", config.mqttCredentialsSnapshot().addressFamily)
         kotlin.test.assertFailsWith<IllegalArgumentException> {
             config.setMqtt("tcp://other:1883", "other", "changed", "IPv7")
         }
         assertEquals("tcp://broker:1883", config.mqttBroker)
-        assertEquals("Force IPv4", config.mqttAddressFamily)
+        assertEquals("Force IPv4", config.addressFamily)
     }
 
     @Test fun registryStagesOauthExpiryAsLongWithoutTruncation() {
@@ -1941,7 +1959,7 @@ class ConfigTransactionTest {
             "mqtt_broker" to "ssl://broker.local:8883",
             "mqtt_user" to "panel",
             "mqtt_password" to "secret",
-            "mqtt_address_family" to "Force IPv4",
+            SettingsRegistry.ADDRESS_FAMILY_KEY to "Force IPv4",
             "ha_url" to "https://ha.local",
             "ha_token" to "access",
             "ha_refresh_token" to "refresh",

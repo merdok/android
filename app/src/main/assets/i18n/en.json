@@ -2743,55 +2743,6 @@
       "softMaxChars": 44,
       "hardMaxChars": 72
     },
-    "configure.enum.mqtt_address_family.automatic": {
-      "text": "Automatic",
-      "sourceHash": "d461a493a3753877c9486cffa3444265a33370af8a7fff242fb119b71750839c",
-      "surface": "configure",
-      "context": "Visible label for the exact mqtt_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
-      "risk": "ordinary",
-      "siblings": [
-        "configure.enum.mqtt_address_family.prefer_ipv4",
-        "configure.enum.mqtt_address_family.force_ipv4"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 44,
-      "hardMaxChars": 72
-    },
-    "configure.enum.mqtt_address_family.force_ipv4": {
-      "text": "Force IPv4",
-      "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
-      "surface": "configure",
-      "context": "Visible label for the exact mqtt_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
-      "risk": "ordinary",
-      "siblings": [
-        "configure.enum.mqtt_address_family.automatic",
-        "configure.enum.mqtt_address_family.prefer_ipv4"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "IPv4"
-      ],
-      "softMaxChars": 44,
-      "hardMaxChars": 72
-    },
-    "configure.enum.mqtt_address_family.prefer_ipv4": {
-      "text": "Prefer IPv4",
-      "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
-      "surface": "configure",
-      "context": "Visible label for the exact mqtt_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
-      "risk": "ordinary",
-      "siblings": [
-        "configure.enum.mqtt_address_family.automatic",
-        "configure.enum.mqtt_address_family.force_ipv4"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "IPv4"
-      ],
-      "softMaxChars": 44,
-      "hardMaxChars": 72
-    },
     "configure.enum.navbar_mode.always_on": {
       "text": "Always on",
       "sourceHash": "044ba8a9ae43b296f0908d5f94c2ec616c7703ef71e1e3218393fad6c91a83b2",
@@ -2853,6 +2804,55 @@
       ],
       "placeholders": [],
       "frozen": [],
+      "softMaxChars": 44,
+      "hardMaxChars": 72
+    },
+    "configure.enum.network_address_family.automatic": {
+      "text": "Automatic",
+      "sourceHash": "d461a493a3753877c9486cffa3444265a33370af8a7fff242fb119b71750839c",
+      "surface": "configure",
+      "context": "Visible label for the exact network_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
+      "risk": "ordinary",
+      "siblings": [
+        "configure.enum.network_address_family.prefer_ipv4",
+        "configure.enum.network_address_family.force_ipv4"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 44,
+      "hardMaxChars": 72
+    },
+    "configure.enum.network_address_family.force_ipv4": {
+      "text": "Force IPv4",
+      "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
+      "surface": "configure",
+      "context": "Visible label for the exact network_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
+      "risk": "ordinary",
+      "siblings": [
+        "configure.enum.network_address_family.automatic",
+        "configure.enum.network_address_family.prefer_ipv4"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "IPv4"
+      ],
+      "softMaxChars": 44,
+      "hardMaxChars": 72
+    },
+    "configure.enum.network_address_family.prefer_ipv4": {
+      "text": "Prefer IPv4",
+      "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
+      "surface": "configure",
+      "context": "Visible label for the exact network_address_family setting wire option; translate display text only and preserve the submitted/stored wire value.",
+      "risk": "ordinary",
+      "siblings": [
+        "configure.enum.network_address_family.automatic",
+        "configure.enum.network_address_family.force_ipv4"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "IPv4"
+      ],
       "softMaxChars": 44,
       "hardMaxChars": 72
     },
@@ -32749,67 +32749,6 @@
       "softMaxChars": 70,
       "hardMaxChars": 90
     },
-    "settings.mqtt_address_family.help": {
-      "text": "Applies to the MQTT broker connection and the panel's Home Assistant WebSocket connections; plain HTTPS reads always try every published address. Automatic learns a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a fallback; Force IPv4 rejects endpoints with no IPv4 address.",
-      "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
-      "surface": "settings",
-      "context": "Configure > MQTT > MQTT + Home Assistant WebSocket address family: supporting help for the mqtt_address_family setting.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_address_family.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT",
-        "WebSocket",
-        "IPv4",
-        "IPv6",
-        "HTTP",
-        "HTTPS"
-      ],
-      "softMaxChars": 412,
-      "hardMaxChars": 549
-    },
-    "settings.mqtt_address_family.label": {
-      "text": "MQTT + Home Assistant WebSocket address family",
-      "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
-      "surface": "settings",
-      "context": "Configure > MQTT: label for the mqtt_address_family setting.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_address_family.help"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT",
-        "WebSocket"
-      ],
-      "softMaxChars": 63,
-      "hardMaxChars": 83
-    },
-    "settings.mqtt_address_family.summary": {
-      "text": "Use IPv4, IPv6 or both to reach MQTT and Home Assistant.",
-      "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
-      "surface": "settings",
-      "context": "Configure > MQTT: one-line summary shown under the mqtt_address_family setting's label; the full help opens behind an info button. Plain text, one line.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_address_family.label",
-        "settings.mqtt_address_family.help"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT",
-        "IPv4",
-        "IPv6",
-        "Assist"
-      ],
-      "softMaxChars": 70,
-      "hardMaxChars": 90
-    },
     "settings.mqtt_broker.label": {
       "text": "Broker URL",
       "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
@@ -32991,6 +32930,67 @@
       "placeholders": [],
       "frozen": [
         "ADB"
+      ],
+      "softMaxChars": 70,
+      "hardMaxChars": 90
+    },
+    "settings.network_address_family.help": {
+      "text": "Applies to the MQTT broker connection and the panel's Home Assistant WebSocket connections; plain HTTPS reads always try every published address. Automatic learns a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a fallback; Force IPv4 rejects endpoints with no IPv4 address.",
+      "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
+      "surface": "settings",
+      "context": "Configure > MQTT > MQTT + Home Assistant WebSocket address family: supporting help for the network_address_family setting.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.network_address_family.label"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant",
+        "MQTT",
+        "WebSocket",
+        "IPv4",
+        "IPv6",
+        "HTTP",
+        "HTTPS"
+      ],
+      "softMaxChars": 412,
+      "hardMaxChars": 549
+    },
+    "settings.network_address_family.label": {
+      "text": "MQTT + Home Assistant WebSocket address family",
+      "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
+      "surface": "settings",
+      "context": "Configure > Dashboard: label for the network_address_family setting.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.network_address_family.help"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant",
+        "MQTT",
+        "WebSocket"
+      ],
+      "softMaxChars": 63,
+      "hardMaxChars": 83
+    },
+    "settings.network_address_family.summary": {
+      "text": "Use IPv4, IPv6 or both to reach MQTT and Home Assistant.",
+      "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
+      "surface": "settings",
+      "context": "Configure > Dashboard: one-line summary shown under the network_address_family setting's label; the full help opens behind an info button. Plain text, one line.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.network_address_family.label",
+        "settings.network_address_family.help"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant",
+        "MQTT",
+        "IPv4",
+        "IPv6",
+        "Assist"
       ],
       "softMaxChars": 70,
       "hardMaxChars": 90

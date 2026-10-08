@@ -83,7 +83,7 @@ internal fun stageDirectCredentialSettings(
 ): DirectCredentialEffects {
     val broker = posted["mqtt_broker"]
     val user = posted["mqtt_user"]
-    val mqttAddressFamily = posted["mqtt_address_family"]
+    val mqttAddressFamily = posted[SettingsRegistry.ADDRESS_FAMILY_KEY]
     val brokerChanged = broker != null && broker != config.mqttBroker
     val password = when {
         user != null && user.isEmpty() -> ""

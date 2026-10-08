@@ -43,7 +43,7 @@ internal data class MqttCredentialsSnapshot(
     val broker: String,
     val user: String,
     val password: String,
-    val addressFamily: String = SettingsRegistry.DEFAULT_MQTT_ADDRESS_FAMILY,
+    val addressFamily: String = SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
 )
 
 internal enum class AutoSleepWriteResult { UNCHANGED, COMMITTED, FAILED }
@@ -417,7 +417,8 @@ class Config private constructor(
     val mqttBroker: String get() = stringPref("mqtt_broker")
     val mqttUser: String get() = stringPref("mqtt_user")
     val mqttPassword: String get() = stringPref("mqtt_password")
-    val mqttAddressFamily: String get() = stringPref("mqtt_address_family")
+    /** The address-family policy for every Home Assistant connection, MQTT included. */
+    val addressFamily: String get() = stringPref(SettingsRegistry.ADDRESS_FAMILY_KEY)
 
     /** One immutable durable-state generation for connection setup; consumers must not combine
      * independent broker, credential, and route-policy getters across a concurrent commit. */
@@ -427,8 +428,8 @@ class Config private constructor(
             broker = all["mqtt_broker"] as? String ?: "",
             user = all["mqtt_user"] as? String ?: "",
             password = all["mqtt_password"] as? String ?: "",
-            addressFamily = all["mqtt_address_family"] as? String
-                ?: SettingsRegistry.DEFAULT_MQTT_ADDRESS_FAMILY,
+            addressFamily = all[SettingsRegistry.ADDRESS_FAMILY_KEY] as? String
+                ?: SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
         )
     }
 
@@ -837,15 +838,15 @@ class Config private constructor(
     /** Persist MQTT settings (used by the HTTP config page). A null password leaves it unchanged. */
     fun setMqtt(broker: String, user: String, password: String?, addressFamily: String? = null) {
         val normalizedAddressFamily = addressFamily?.let { raw ->
-            val spec = checkNotNull(SettingsRegistry.spec("mqtt_address_family"))
+            val spec = checkNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY))
             (SettingValue.validate(spec, raw) as? Validation.Ok)?.normalized
-                ?: throw IllegalArgumentException("mqtt_address_family: unsupported value")
+                ?: throw IllegalArgumentException("${SettingsRegistry.ADDRESS_FAMILY_KEY}: unsupported value")
         }
         edit {
             putString("mqtt_broker", broker)
             putString("mqtt_user", user)
             if (password != null) putString("mqtt_password", password)
-            if (normalizedAddressFamily != null) putString("mqtt_address_family", normalizedAddressFamily)
+            if (normalizedAddressFamily != null) putString(SettingsRegistry.ADDRESS_FAMILY_KEY, normalizedAddressFamily)
         }
     }
 
@@ -2682,6 +2683,14 @@ class Config private constructor(
             ed.putInt(SettingsRegistry.RESPONSE_PERCENT_KEY, Migrations.rescaleSensitivity(legacy))
         }
         ed.remove(SettingsRegistry.LEGACY_SENSITIVITY_KEY)
+        // Schema 15 renames the address family setting. As with the sensitivity above, the retired key is
+        // no registered setting, so only this read can carry a chosen value; the retired-key removal
+        // below then drops the old one in the same commit.
+        if (from < 15 && !prefs.contains(SettingsRegistry.ADDRESS_FAMILY_KEY)) {
+            prefs.getString(SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY, null)?.let {
+                ed.putString(SettingsRegistry.ADDRESS_FAMILY_KEY, it)
+            }
+        }
         // A schema-3 live store may have relied on the old true fallbacks without ever materializing
         // them. Preserve that upgrade behavior, while fresh schema-1 stores receive schema-4 defaults.
         if (from == 3) {

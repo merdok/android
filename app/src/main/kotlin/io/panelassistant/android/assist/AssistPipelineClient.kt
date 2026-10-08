@@ -2,7 +2,7 @@ package io.panelassistant.android.assist
 
 import io.panelassistant.android.Config
 import io.panelassistant.android.dashboard.EntityFilterProtocol
-import io.panelassistant.android.mqtt.MqttAddressFamilyPolicy
+import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
 import io.panelassistant.android.sensors.DashboardHaApiSessionProvider
 import io.panelassistant.android.sensors.HaApiSession
@@ -99,7 +99,7 @@ internal class AssistPipelineClient(
 ) {
     constructor(config: Config) : this(
         DashboardHaApiSessionProvider(config),
-        KtorAssistTransport(socketFamilyPolicy = { MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily) }),
+        KtorAssistTransport(socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) }),
     )
 
     suspend fun listPipelines(): AssistCatalogResult = withContext(dispatcher) {
@@ -349,7 +349,7 @@ internal class AssistPipelineClient(
 }
 
 internal class KtorAssistTransport(
-    private val socketFamilyPolicy: () -> MqttAddressFamilyPolicy = { MqttAddressFamilyPolicy.AUTOMATIC },
+    private val socketFamilyPolicy: () -> AddressFamilyPolicy = { AddressFamilyPolicy.AUTOMATIC },
     private val connectTimeoutMs: Long = CONNECT_TIMEOUT_MS,
 ) : AssistTransport {
     override suspend fun connect(baseUrl: String, accessToken: String): AssistSocket = withContext(Dispatchers.IO) {
