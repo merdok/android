@@ -44,10 +44,7 @@ ADB=(adb)
 [ -z "$SERIAL" ] || ADB+=(-s "$SERIAL")
 
 # The blanket form is correct HERE and only here: this collector reads, and never hands adb a path on
-# the host, so switching Git Bash's path conversion off wholesale costs nothing. tools/provision.sh
-# and helper/install-daemon.sh deliberately use a narrow MSYS2_ARG_CONV_EXCL prefix list instead,
-# because they push, pull and install host files that adb.exe can only open once converted. Do not
-# "harmonise" the two in either direction.
+# the host, so switching Git Bash's path conversion off wholesale costs nothing.
 adb_run() {
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "${ADB[@]}" "$@"
 }
