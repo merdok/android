@@ -245,7 +245,7 @@ input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disable
    word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent
    dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */
 .notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}
-.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:2px 10px;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600}
+.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600}
 .notice-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}
 .notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}
