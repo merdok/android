@@ -34,8 +34,7 @@ class NoticeRowsHttpTest {
                 val response = client.get("/api/v1/info?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }
                 assertEquals(HttpStatusCode.OK, response.status)
                 val banners = JSONObject(response.bodyAsText()).getString("banners")
-                val rows = Regex("""<div class="notice" data-severity="([a-z_]+)"[^>]*>.*?<b class="notice-title">(.*?)</b>""")
-                    .findAll(banners).map { it.groupValues[1] to it.groupValues[2] }.toList()
+                val rows = rows(banners)
                 assertEquals(
                     listOf(
                         "action_needed" to "Storage pressure: critical",
@@ -46,6 +45,70 @@ class NoticeRowsHttpTest {
                 )
                 assertFalse(banners.contains("class=\"setup"))
                 retiredGlyphs.forEach { assertFalse("retired glyph $it in $banners", banners.contains(it)) }
+            }
+        }
+    }
+
+    /** Every row [DashboardAdvisories.render] can draw, in render order. Two rows pairs cannot co-occur, so
+     *  two renders pin the whole sequence: the Companion internal-URL row needs a Companion renderer while
+     *  the zoom row needs the built-in one, and MQTT progress (broker saved, still connecting) and the
+     *  setup-needs row (no broker) are opposite MQTT states. */
+    @Test fun `dashboard advisories keep their full render order`() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.enablePages()
+            fixture.enableWarmDashboard()
+            fixture.config.setWakeOnWave(true)
+            val owner = io.panelassistant.android.control.BuiltinDashboard.acquireActivityOwner()
+            io.panelassistant.android.control.BuiltinDashboard.setActivityAuthLatched(owner, true)
+            try {
+                val webViewOld = PageHealth.Inputs(PanelInfo.WebViewStatus("Chrome 60", tooOld = true), hasRenderer = true, brokerConfigured = false)
+                val builtin = fixture.advisories(io.panelassistant.android.PanelStatus.DashboardRecoveryState.BUILTIN_RENDERER)
+                fixture.config.setDashboardZoom(125)
+                fixture.config.setMqtt("", "", "")
+                val first = rows(builtin.render(fixture.snapshot("disabled", densityBase = 160), webViewOld, englishCatalogue))
+                assertEquals(
+                    listOf(
+                        "action_needed" to "Storage pressure: critical",
+                        POWER,
+                        "action_needed" to "Zigbee gateway is runaway",
+                        AUTH,
+                        "action_needed" to "Built-in renderer stopped retrying after repeated WebView failures. Update or repair System WebView, then use Reload dashboard from the panel navbar or Dashboard tab.",
+                        "warning" to esc(formattedString(englishCatalogue, "dashboard.banner.zoom.title", "zoom" to "125")),
+                        WEBVIEW,
+                        TERMUX,
+                        PROXIMITY,
+                        SIGN_IN,
+                        SETUP,
+                    ),
+                    first,
+                )
+
+                fixture.config.setDashboardPackage(io.panelassistant.android.util.CompanionInstaller.SUPPORTED_PACKAGES.first())
+                fixture.config.setMqtt("mqtt://contract.invalid:1883", "", "")
+                fixture.companionCache.set(io.panelassistant.android.control.CompanionDb.ServerObservation(
+                    io.panelassistant.android.control.CompanionDb.Probe.SUCCEEDED, null,
+                    io.panelassistant.android.control.CompanionDb.UrlStatus(needsRepair = true, affected = 1),
+                ))
+                val external = fixture.advisories(io.panelassistant.android.PanelStatus.DashboardRecoveryState.EXTERNAL_RENDERER)
+                val second = rows(external.render(fixture.snapshot("connecting", densityBase = 160), webViewOld, englishCatalogue))
+                assertEquals(
+                    listOf(
+                        "action_needed" to "Storage pressure: critical",
+                        POWER,
+                        "action_needed" to "Zigbee gateway is runaway",
+                        AUTH,
+                        "action_needed" to "Dashboard app is crash-looping",
+                        "action_needed" to esc(englishCatalogue.get("dashboard.banner.companion_url.title")),
+                        WEBVIEW,
+                        TERMUX,
+                        PROXIMITY,
+                        SIGN_IN,
+                        PROGRESS,
+                    ),
+                    second,
+                )
+            } finally {
+                io.panelassistant.android.control.BuiltinDashboard.releaseActivityOwner(owner)
             }
         }
     }
@@ -106,6 +169,69 @@ class NoticeRowsHttpTest {
                 assertEquals(json.getJSONArray("warnings").length(), json.getJSONArray("warning_severities").length())
             }
         }
+    }
+
+    /** (data-severity, title) per row; an untitled row reports its detail text with tags stripped. */
+    private fun rows(banners: String) = banners.split("""<div class="notice" """).drop(1).map { row ->
+        val severity = Regex("""^data-severity="([a-z_]+)"""").find(row)!!.groupValues[1]
+        val title = Regex("""<b class="notice-title">(.*?)</b>""").find(row)?.groupValues?.get(1)
+            ?: Regex("""<span class="notice-detail">(.*?)</span></span>""").find(row)!!.groupValues[1].replace(Regex("<[^>]+>"), "")
+        severity to title
+    }
+
+    private fun PaneldServerHttpFixture.snapshot(mqtt: String, densityBase: Int?) = ManagementSnapshot(
+        mapOf("MQTT" to mqtt, "System WebView" to "Chrome 60"), emptyMap(), io.panelassistant.android.config.Capabilities(),
+        emptyList(), io.panelassistant.android.control.PrivilegedRouteObservation(directSuReady = true, helperRootReady = false),
+        200, densityBase, 1.0f, false,
+    )
+
+    /** The production class over the fixture's real Config, sensors, observations and setup state; lambdas
+     *  stand in for the probes so every row can be lit at once. */
+    private fun PaneldServerHttpFixture.advisories(recovery: io.panelassistant.android.PanelStatus.DashboardRecoveryState): DashboardAdvisories {
+        fun <T> field(name: String): T = PaneldServer::class.java.getDeclaredField(name).run {
+            isAccessible = true
+            @Suppress("UNCHECKED_CAST") (get(server) as T)
+        }
+        val observations = field<ManagementObservations>("managementObservations")
+        observations.termuxBridgeCache.set(TermuxBridgeProbe.State.RUNNING)
+        return DashboardAdvisories(
+            config, context, field("sensors"), observations, field("setupState"), PageHealth(context, config),
+            mqttState = { "connecting" },
+            haSignInNeededForEffectiveDashboard = { true },
+            powerSafetyAdvisory = {
+                io.panelassistant.android.control.PowerSafetyAdvisory(
+                    io.panelassistant.android.control.PowerSafetyAssessment(
+                        level = io.panelassistant.android.control.PowerRiskLevel.AT_RISK,
+                        observation = io.panelassistant.android.control.PowerSafetyObservation(
+                            keepAwakeConfigured = false, wakeLockHeld = false,
+                            wifiLockRequired = false, wifiLockHeld = false,
+                            preventIdleDimConfigured = false, screenOffTimeoutMs = 30_000,
+                            interactive = true, pluggedMask = 1, stayOnWhilePluggedIn = 0,
+                            deviceIdleMode = false, ignoringBatteryOptimizations = false,
+                            screenOffMechanism = "test",
+                        ),
+                        reasonCodes = emptyList(), summary = "at risk", action = "repair",
+                    ),
+                    io.panelassistant.android.control.PowerRepairCapability.APP_ONLY,
+                    io.panelassistant.android.control.PowerSafetyAdvisoryAction.NONE, null, false,
+                )
+            },
+            storageHealth = { storage(StorageHealthSeverity.CRITICAL) },
+            catalogueLoader = { testCatalogue },
+            radioStatus = { ZigbeeHealthSnapshot(state = ZigbeeHealthState.RUNAWAY, joined = false) },
+            dashboardRecoveryState = { recovery },
+        )
+    }
+
+    private companion object {
+        val POWER = "action_needed" to "Panel power safety: at risk"
+        val AUTH = "action_needed" to esc(englishCatalogue.get("dashboard.banner.auth_rejected.title"))
+        val WEBVIEW = "action_needed" to esc(englishCatalogue.get("dashboard.banner.webview_old.title"))
+        val TERMUX = "warning" to "A Zigbee bridge is running in Termux on this panel. It may interfere with the panel's Zigbee gateway. Review the Termux bridge before enabling Zigbee gateway features."
+        val PROXIMITY = "warning" to esc(englishCatalogue.get("configure.proximity.setup.unavailable"))
+        val SIGN_IN = "warning" to esc(englishCatalogue.get("dashboard.banner.ha_sign_in.title"))
+        val SETUP = "warning" to "This panel needs MQTT configuration — set on the Configure tab."
+        val PROGRESS = "working" to "MQTT settings saved — verifying the broker connection. This can take a short while after saving."
     }
 
     private fun PaneldServer.set(name: String, value: Any) {

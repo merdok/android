@@ -12339,39 +12339,39 @@
       "state": "machine-cross-checked"
     },
     "shell.notice.severity.action_needed": {
-      "text": "Action needed",
+      "text": "Ação necessária",
       "sourceHash": "f6b44079c1c82081b2511dc5e6de8a7c72408d3f807e6deddf73d8eb0df0c252",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.note": {
-      "text": "Note",
+      "text": "Observação",
       "sourceHash": "d8da2c49df39d91df7ecd199b92da7bf264f026242ccc69b08daeadfe587c45b",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.resolved": {
-      "text": "Resolved",
+      "text": "Resolvido",
       "sourceHash": "5be3c2c8354e1eb924b03a3dcc7fa4172e9aa0f4917b46b44fcc7daf8835d7a7",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.unavailable": {
-      "text": "Unavailable",
+      "text": "Indisponível",
       "sourceHash": "ca184496974204a0bd3fd4925e0540bc4b0df6fcc232994d29754272b7183812",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.update": {
-      "text": "Update",
+      "text": "Atualização",
       "sourceHash": "c1c1009d3f37ec058070a62e22caf9ac9dae2169d452487c5c271a8bcf57a291",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.warning": {
-      "text": "Warning",
+      "text": "Aviso",
       "sourceHash": "e981ddae45d8f4ca53f1ccbe613ad254a041dacf65a06026099a6302d332113b",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.notice.severity.working": {
-      "text": "Working",
+      "text": "Em andamento",
       "sourceHash": "a92f0449a9f7235bf69dc2e8ff7070bfae3f00ec8f8f26e5457a9beac53466ac",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.open_in_ha": {
       "text": "Abrir no HA",
@@ -12494,14 +12494,14 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.step_starting": {
-      "text": "Starting",
+      "text": "Iniciando",
       "sourceHash": "aeed4d26bb5f0c312bc8a9ee9ce362899252110089263414690ae7b5d6625427",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.step_stopping": {
-      "text": "Stopping",
+      "text": "Parando",
       "sourceHash": "a71ee1d4ac5c2b7a820bdc4c3ac45e38885f52b41b4bfd3f5cd1328ce600f940",
-      "state": "english-fallback"
+      "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.taking_longer": {
       "text": "Está demorando mais que o normal",

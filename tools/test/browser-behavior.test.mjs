@@ -897,13 +897,7 @@ function installCardMemoryFixture(compact) {
 
 function powerSafetyFixture() {
   return `<!doctype html><html><head><meta charset="utf-8">${i18nBridge()}</head><body>
-    <div class="setup" data-power-safety-banner>
-      <span class="power-safety-warning">Panel power safety needs attention.</span>
-      <form method="post" action="/api/v1/power-safety/repair" data-power-safety-repair style="display:inline">
-        <button class="pbtn" type="submit" data-hardened-approval>Repair power safety</button>
-        <span class="power-safety-repair-result" role="status" aria-live="polite"></span>
-      </form>
-    </div>
+    <div class="notice" data-severity="action_needed" data-power-safety-banner><span class="notice-pill">Action needed</span><span class="notice-text"><b class="notice-title">Panel power safety: at risk</b> <span class="notice-detail">Panel power safety needs attention.</span></span><span class="notice-action"><form method="post" action="/api/v1/power-safety/repair" data-power-safety-repair style="display:inline"><button class="pbtn" type="submit" data-hardened-approval>Repair power safety</button> <span class="power-safety-repair-result" role="status" aria-live="polite"></span></form></span></div>
     <script src="/power-safety.js"></script>
   </body></html>`;
 }

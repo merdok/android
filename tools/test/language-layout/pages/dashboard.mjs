@@ -4,7 +4,7 @@
 // controlsHtml and bannersHtml, with every row label family present. The polled endpoints (perf, sensors,
 // camera/status, inspect, screenshot) answer with plausible live data so their tables render too.
 import { deflateSync } from 'node:zlib';
-import { escapeHtml as esc, shellHtml } from '../harness.mjs';
+import { escapeHtml as esc, noticeRow, shellHtml } from '../harness.mjs';
 
 const GH_ICON = 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12';
 const REPO = 'https://example.invalid/repository';
@@ -211,15 +211,26 @@ function displayRows(s) {
   ].join('\n');
 }
 
+// bannerFor() findings, proximityLearningBanner, haSignInBanner and dashboardSetupNeedsBanner, in render order.
 function bannersHtml(s) {
   const t = s.t;
   return [
-    `<div class="setup crit">⚠ <b>${t('dashboard.banner.webview_old.title')}</b> (Chromium 68) — ${t('dashboard.banner.webview_old.explanation')} <a href="https://example.invalid/webview" target="_blank" rel="noopener">${t('dashboard.banner.webview_old.update_action')}</a> ${t('dashboard.banner.webview_old.target', { version: 87 })}. <small>${t('dashboard.banner.webview_old.engine_note')}</small> <a href="${href(s, 'install')}">${t('dashboard.banner.manage_install')}</a></div>`,
-    `<div class="setup info" data-update="Home Assistant Companion" data-version="2024.10.1">⬆ <b>Home Assistant Companion</b> ${t('dashboard.banner.update.available', { latest: '2024.10.1', current: '2024.9.1' })} — <a href="${href(s, 'install')}">${t('dashboard.banner.manage_install')}</a> <button class="pbtn" onclick="ignoreUpdate(this)">${t('dashboard.banner.update.ignore')}</button></div>`,
-    `<div class="setup crit">⚠ <b>${t('dashboard.banner.schema_rollback.title')}</b> (schema 43 → 42) — ${t('dashboard.banner.schema_rollback.explanation')} <a href="${href(s, 'configure')}">${t('dashboard.banner.schema_rollback.configure_action')}</a> ${t('dashboard.banner.schema_rollback.or_restore')} <a href="${href(s, 'install')}">${t('shell.nav.install')}</a>.</div>`,
-    `<div class="setup">👋 <b>${t('dashboard.banner.proximity_learning.title')}</b>. ${t('dashboard.banner.proximity_learning.touch_available')} <a href="${href(s, 'configure#cfg-proximity-learning')}">${t('dashboard.banner.proximity_learning.action')}</a>.</div>`,
-    `<div class="setup">🏠 <b>${t('dashboard.banner.ha_sign_in.title')}</b> ${t('dashboard.banner.ha_sign_in.explanation')} <a href="${href(s, 'configure#cfg-ha-oauth')}">${t('dashboard.banner.ha_sign_in.action')}</a>.</div>`,
-    `<div class="setup">⚠ ${t('dashboard.banner.setup_needs.prefix')} <a href="${href(s, 'configure')}">${esc(`${s.text('dashboard.banner.setup_needs.valid_credentials')} ${s.text('dashboard.banner.setup_needs.joiner')} ${s.text('dashboard.banner.setup_needs.reachable_broker')}`)}</a> ${t('dashboard.banner.setup_needs.suffix')}</div>`,
+    noticeRow(s, 'action_needed', t('dashboard.banner.webview_old.title'),
+      `(Chromium 68) ${t('dashboard.banner.webview_old.explanation')} ${t('dashboard.banner.webview_old.target', { version: 87 })}. <small>${t('dashboard.banner.webview_old.engine_note')}</small> <a href="${href(s, 'install')}">${t('dashboard.banner.manage_install')}</a>`,
+      `<a href="https://example.invalid/webview" target="_blank" rel="noopener">${t('dashboard.banner.webview_old.update_action')}</a>`),
+    noticeRow(s, 'update', 'Home Assistant Companion',
+      `${t('dashboard.banner.update.available', { latest: '2024.10.1', current: '2024.9.1' })} — <a href="${href(s, 'install')}">${t('dashboard.banner.manage_install')}</a>`,
+      `<button class="pbtn" onclick="ignoreUpdate(this)">${t('dashboard.banner.update.ignore')}</button>`,
+      ' data-update="Home Assistant Companion" data-version="2024.10.1"'),
+    noticeRow(s, 'action_needed', t('dashboard.banner.schema_rollback.title'),
+      `(schema 43 → 42) ${t('dashboard.banner.schema_rollback.explanation')} ${t('dashboard.banner.schema_rollback.or_restore')} <a href="${href(s, 'install')}">${t('shell.nav.install')}</a>.`,
+      `<a href="${href(s, 'configure')}">${t('dashboard.banner.schema_rollback.configure_action')}</a>`),
+    noticeRow(s, 'warning', t('dashboard.banner.proximity_learning.title'),
+      `${t('dashboard.banner.proximity_learning.touch_available')} <a href="${href(s, 'configure#cfg-proximity-learning')}">${t('dashboard.banner.proximity_learning.action')}</a>.`),
+    noticeRow(s, 'warning', t('dashboard.banner.ha_sign_in.title'),
+      `${t('dashboard.banner.ha_sign_in.explanation')} <a href="${href(s, 'configure#cfg-ha-oauth')}">${t('dashboard.banner.ha_sign_in.action')}</a>.`),
+    noticeRow(s, 'warning', '',
+      `${t('dashboard.banner.setup_needs.prefix')} <a href="${href(s, 'configure')}">${esc(`${s.text('dashboard.banner.setup_needs.valid_credentials')} ${s.text('dashboard.banner.setup_needs.joiner')} ${s.text('dashboard.banner.setup_needs.reachable_broker')}`)}</a> ${t('dashboard.banner.setup_needs.suffix')}`),
   ].join('');
 }
 
@@ -323,7 +334,7 @@ export default {
       const filled = (id) => { const t = document.getElementById(id); return t && t.querySelector('th') && !/color:#888/.test(t.rows[0]?.cells[0]?.getAttribute('style') || ''); };
       return ['infotbl', 'nettbl', 'proftbl', 'contexttbl', 'captbl', 'livetbl', 'behavtbl', 'disptbl', 'perf', 'smtbl', 'streamtbl', 'senstbl', 'camtbl'].every(filled)
         && document.querySelectorAll('#topproc tr').length > 2 && document.querySelectorAll('#noisyentities tr').length > 2
-        && document.querySelector('#bannerzone .setup') && document.querySelector('#ctlzone button:not([disabled])')
+        && document.querySelector('#bannerzone .notice') && document.querySelector('#ctlzone button:not([disabled])')
         && document.getElementById('insthint').textContent.length > 0
         && document.querySelector('#shotcard .shot.loaded');
     });

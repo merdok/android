@@ -62,8 +62,8 @@ class HtmlUiCatalogueContractTest {
             catalogue.getJSONObject(key).getString("surface") in promotedSurfaces
         }
 
-        assertTrue("the source catalogue must not shrink", source.strings.size >= 2523)
-        assertTrue("the declared promoted HTML UI preview scope must not shrink silently", expected.size >= 2054)
+        assertTrue("the source catalogue must not shrink", source.strings.size >= 2515) // 2026-10-08 notice rows: 17 duplicate banner keys removed, 9 added
+        assertTrue("the declared promoted HTML UI preview scope must not shrink silently", expected.size >= 2046) // 2026-10-08 notice rows: duplicate banner keys removed
         releaseTargetLocales.forEach { locale ->
             val target = TargetCatalogue.parse(File(assets, "i18n/$locale.json").readText(), source)
             assertEquals(

@@ -46,6 +46,11 @@ const MIME = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.html': 'text/html',
 };
 
+// Mirrors the server's notice() row (http/Notice.kt). Every argument but severity is already-escaped HTML.
+export function noticeRow(s, severity, title, detail = '', action = '', attrs = '') {
+  return `<div class="notice" data-severity="${severity}"${attrs}><span class="notice-pill">${s.t(`shell.notice.severity.${severity}`)}</span><span class="notice-text">${title ? `<b class="notice-title">${title}</b>` : ''}${title && detail ? ' ' : ''}${detail ? `<span class="notice-detail">${detail}</span>` : ''}</span>${action ? `<span class="notice-action">${action}</span>` : ''}</div>`;
+}
+
 export function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -146,8 +151,7 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
   const href = (path) => (locale === 'en' ? path : `${path}${path.includes('?') ? '&' : '?'}lang=${locale}`);
   const tab = (id, path, key) => `<a href="${href(path)}"${id === active ? ' class="active"' : ''}>${s.t(key)}</a>`;
   const nav = `<div class="nav">${setupTab ? tab('setup', 'setup', 'shell.nav.setup') : ''}${tab('dashboard', './', 'shell.nav.dashboard')}${tab('configure', 'configure', 'shell.nav.configure')}${tab('profiles', 'profiles', 'shell.nav.profile')}${tab('entities', 'entities', 'shell.nav.entities')}${tab('install', 'install', 'shell.nav.install')}${tab('logs', 'logs', 'shell.nav.logs')}<a href="${href('api')}">API</a></div>`;
-  // Mirrors the server's notice() row (http/Notice.kt).
-  const notice = (attrs, severity, title, detail, action) => `<div class="notice" data-severity="${severity}"${attrs}><span class="notice-pill">${s.t(`shell.notice.severity.${severity}`)}</span><span class="notice-text">${title ? `<b class="notice-title">${title}</b>` : ''}${title && detail ? ' ' : ''}${detail ? `<span class="notice-detail">${detail}</span>` : ''}</span>${action ? `<span class="notice-action">${action}</span>` : ''}</div>`;
+  const notice = (attrs, severity, title, detail, action) => noticeRow(s, severity, title, detail, action, attrs);
   const migration = notice(' id="migrationbar"', 'warning', s.t('shell.migration.title'), s.t('shell.migration.body'), `<a href="https://example.invalid/migration" target="_blank" rel="noopener">https://example.invalid/migration</a> <button id="migration-dismiss" class="pbtn" type="button">${s.t('shell.migration.dismiss')}</button>`);
   return `<!doctype html><html lang="${escapeHtml(locale)}"${themeAttr}><head><base href="/"><meta charset="utf-8">
 <script>/* ?theme=light|dark pins the UI theme for testing (else the browser preference rules) */

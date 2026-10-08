@@ -80,10 +80,10 @@ internal fun storageNotice(storage: HealthAudit.StoragePresentation, strings: Ap
         text.replace("{$name}", value)
     }
     val spec = titled(severity, rendered)
-    // The measured summary and action are English runtime text: shown in place of the catalogue detail
+    // The measured summary and action are English runtime text: appended to the catalogue detail
     // wherever the page itself is English, so the figures and the escalation step are never lost.
     val english = runCatching { strings.resolve(key).language == AppLocale.ENGLISH }.getOrDefault(true)
-    return if (english) spec.copy(detail = "${esc(storage.summary)} ${esc(storage.action)}".trim()) else spec
+    return if (english) spec.copy(detail = "${spec.detail} ${esc(storage.summary)} ${esc(storage.action)}".trim()) else spec
 }
 
 /** Power safety as one notice whenever the assessment warns. [inlineRepair] picks the repair or

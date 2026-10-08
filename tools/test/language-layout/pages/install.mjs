@@ -1,7 +1,7 @@
 // Install: mirror of PaneldServer.installBody() inside page() on a panel with root and the privileged
 // installer ready, an old WebView the profile can heal, a Companion whose internal URL needs repair and a
 // power-safety advisory offering repair — so every card and every top-of-tab warning renders.
-import { tabbedPage } from '../harness.mjs';
+import { noticeRow, tabbedPage } from '../harness.mjs';
 
 const GH_ICON = 'M12 2a10 10 0 0 0-3 19.5v-3.4c-2.8.6-3.4-1.2-3.4-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 3 .8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8A10 10 0 0 0 12 2z';
 const HOSTILE_ONE = '<img src=x onerror="window.__hostileOwned=1">';
@@ -119,16 +119,23 @@ function builders(s, locale) {
   return { href, a11y, approval, cardTitle, pickerRow, simpleRow };
 }
 
-// localizedPowerSafetyBanner(REPAIR, direct_root, inlineRepair) — the catalogue path for every locale.
+// powerSafetyNotice(REPAIR, direct_root, inlineRepair) — the catalogue path for every locale.
 function powerBanner(s) {
-  return `<div class="setup crit" data-power-safety-banner>⛔ <b>${s.t('runtime.power_safety.level.at_risk')}</b> — ${s.t('runtime.power_safety.summary.at_risk')} ${s.t('runtime.power_safety.action.repair_direct')} <form method="post" action="api/v1/power-safety/repair" data-power-safety-repair style="display:inline"><button class="pbtn" type="submit" data-hardened-approval title="${s.t('runtime.power_safety.button.repair_title')}">${s.t('runtime.power_safety.button.repair')}</button> <span class="power-safety-repair-result" role="status" aria-live="polite"></span></form></div>`;
+  return noticeRow(s, 'action_needed', s.t('runtime.power_safety.level.at_risk'),
+    `${s.t('runtime.power_safety.summary.at_risk')} ${s.t('runtime.power_safety.action.repair_direct')}`,
+    `<form method="post" action="api/v1/power-safety/repair" data-power-safety-repair style="display:inline"><button class="pbtn" type="submit" data-hardened-approval title="${s.t('runtime.power_safety.button.repair_title')}">${s.t('runtime.power_safety.button.repair')}</button> <span class="power-safety-repair-result" role="status" aria-live="polite"></span></form>`,
+    ' data-power-safety-banner');
 }
 
 function warnings(s, b) {
-  // adHocWarnings(): Companion internal URL needing repair, with the inline repair button.
-  const companion = `<div class="setup crit">⚠ <b>${s.t('dashboard.banner.companion_url.title')}</b> ${s.t('dashboard.banner.companion_url.summary_many', { count: 2 })} <i>"Missing 'Host' header"</i>. ${s.t('dashboard.banner.companion_url.explanation')}<div style="margin-top:10px"><button class="pbtn"${b.approval()} onclick="repairCompUrl(this)">⚙ ${s.t('dashboard.banner.companion_url.repair')}</button> <span id="cu-fix" class="muted"></span></div></div>`;
-  // installWarning(WEBVIEW_OLD)
-  const webview = `<div class="setup crit">⚠ <b>${s.t('install.warning.webview_old.title')}</b> (Chromium 95.0.4638.74) — ${s.t('install.warning.webview_old.body')} <a href="https://example.invalid/webview" target="_blank" rel="noopener">${s.t('install.warning.webview_old.help')}</a> (${s.t('install.warning.webview_old.target', { version: 120 })}).</div>`;
+  // adHocWarnings(inlineRepair = true): Companion internal URL needing repair, with the inline repair button.
+  const companion = noticeRow(s, 'action_needed', s.t('dashboard.banner.companion_url.title'),
+    `${s.t('dashboard.banner.companion_url.summary_many', { count: 2 })} <i>"Missing 'Host' header"</i>. ${s.t('dashboard.banner.companion_url.explanation')}`,
+    `<button class="pbtn"${b.approval()} onclick="repairCompUrl(this)">${s.t('dashboard.banner.companion_url.repair')}</button> <span id="cu-fix" class="muted"></span>`);
+  // installWarning(WEBVIEW_OLD) → webviewOldNotice(manageInstall = false)
+  const webview = noticeRow(s, 'action_needed', s.t('dashboard.banner.webview_old.title'),
+    `(Chromium 95.0.4638.74) ${s.t('dashboard.banner.webview_old.explanation')} ${s.t('dashboard.banner.webview_old.target', { version: 120 })}. <small>${s.t('dashboard.banner.webview_old.engine_note')}</small>`,
+    `<a href="https://example.invalid/webview" target="_blank" rel="noopener">${s.t('dashboard.banner.webview_old.update_action')}</a>`);
   return powerBanner(s) + companion + webview;
 }
 
@@ -143,7 +150,7 @@ ${b.pickerRow('companion', 'HA Companion', '2026.9.4-minimal')}
 function apkCard(s, b) {
   return `<div class="card" data-layout-key="apk-install">${b.cardTitle(s.t('install.apk.title'))}
 <p class="note">${s.t('install.apk.description')}</p>
-<div class="setup">⚠ <b>${s.t('install.apk.security_title')}</b> ${s.t('install.apk.security_warning')} <small>(${s.t('install.apk.security_future_auth')})</small></div>
+${noticeRow(s, 'warning', s.t('install.apk.security_title'), `${s.t('install.apk.security_warning')} <small>(${s.t('install.apk.security_future_auth')})</small>`)}
 <label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="apk-allow" checked onchange="apkAllow(this)"> ${s.t('install.apk.enable')}</label>
 <div id="apk-ui">
 <label class="pbtn" style="cursor:pointer">⭱ ${s.t('install.apk.choose')}<input type="file" id="apk-file" accept=".apk,application/vnd.android.package-archive" style="display:none" onchange="apkPick(this)"></label>
