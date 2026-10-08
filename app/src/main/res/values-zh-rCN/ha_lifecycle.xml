@@ -12,7 +12,7 @@
     <string name="ha_step_offline">离线</string>
     <string name="ha_until_back">后 Home Assistant 恢复</string>
     <string name="ha_past_usual">已超过通常时间</string>
-    <string name="ha_reloading_detail">仪表板正在重新加载</string>
+    <string name="ha_reloading_detail">你的仪表板正在重新加载</string>
     <string name="ha_usually">%1$s · 通常 %2$s</string>
     <string name="ha_restarted_in">重启用时 %1$s</string>
     <string name="ha_exact_seconds">%1$d 秒</string>
