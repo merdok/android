@@ -131,7 +131,7 @@ class ReceiptProfileRefusalTest {
             override fun claimHome() = throw AssertionError("claimed HOME before the release")
             override fun homeSettled() = false
             override fun healthy() = false
-            override fun mqttConverged() = false
+            override fun homeAssistantConverged() = false
             override fun uninstallLegacy() = throw AssertionError("removed the legacy app")
             override fun forgetSecrets() = throw AssertionError("forgot the receipt")
         }

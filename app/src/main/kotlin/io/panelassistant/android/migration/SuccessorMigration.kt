@@ -99,7 +99,9 @@ internal class SuccessorMigration(private val ports: Ports, private val markers:
         /** A fresh HOME query is [homeSettled]: removing the legacy package cannot strand the launcher. */
         fun homeSettled(): Boolean
         fun healthy(): Boolean
-        fun mqttConverged(): Boolean
+
+        /** This app reaches Home Assistant again by a transport, if the legacy app did when it wrote the receipt. */
+        fun homeAssistantConverged(): Boolean
 
         /** Remove the legacy package through the helper. */
         fun uninstallLegacy(): Boolean
@@ -216,7 +218,7 @@ internal class SuccessorMigration(private val ports: Ports, private val markers:
     private fun confirm(): Result? {
         if (markers.done(Step.CONFIRM)) return null
         if (!ports.healthy()) return Result.Waiting(Step.CONFIRM, "health check failed")
-        if (!ports.mqttConverged()) return Result.Waiting(Step.CONFIRM, "MQTT has not converged")
+        if (!ports.homeAssistantConverged()) return Result.Waiting(Step.CONFIRM, "Home Assistant has not reconnected")
         if (!ports.homeSettled()) return Result.Waiting(Step.CONFIRM, "HOME does not resolve to this app")
         if (!markers.record(Step.CONFIRM)) return Result.Waiting(Step.CONFIRM, "marker not durable")
         return null

@@ -26,4 +26,15 @@ class MigrationGrantsTest {
         assertEquals(setOf("MICROPHONE"), missing(27, setOf("MICROPHONE" to legacy)))
         assertEquals(emptySet<String>(), missing(27, setOf("MICROPHONE" to legacy, "MICROPHONE" to own)))
     }
+
+    @Test fun theLegacyAppsConnectionMustBeRegainedByEitherTransport() {
+        fun converged(mqtt: Boolean, native: Boolean, legacyConnected: Boolean) =
+            AndroidSuccessorMigrationPorts.homeAssistantConverged(mqtt, native) { legacyConnected }
+        // A legacy app that reached Home Assistant holds removal until this app does, by either transport.
+        assertEquals(false, converged(mqtt = false, native = false, legacyConnected = true))
+        assertEquals(true, converged(mqtt = true, native = false, legacyConnected = true))
+        assertEquals(true, converged(mqtt = false, native = true, legacyConnected = true))
+        // One that never connected is not held for ever to a connection it never had.
+        assertEquals(true, converged(mqtt = false, native = false, legacyConnected = false))
+    }
 }

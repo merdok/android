@@ -1826,6 +1826,10 @@ class PaneldService : Service() {
             scope = scope,
             httpPort = { config.httpPort },
             mqttState = { runtime.current().mqtt.state },
+            panelAssistantConnected = {
+                ::panelAssistantTransport.isInitialized &&
+                    panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
+            },
             offerHandoff = { offerSuccessorHandoff() },
             // LAN delivery has installed the successor; never fall back to a release download.
             offerInstalledHandoff = { offerSuccessorHandoff(allowInstall = false) },

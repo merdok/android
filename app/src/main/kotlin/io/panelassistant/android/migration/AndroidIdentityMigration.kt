@@ -86,6 +86,7 @@ internal class AndroidIdentityMigration(
     private val scope: CoroutineScope,
     private val httpPort: () -> Int,
     private val mqttState: () -> String,
+    private val panelAssistantConnected: () -> Boolean = { false },
     private val offerHandoff: suspend () -> SuccessorHandoff.Outcome?,
     private val offerInstalledHandoff: suspend () -> SuccessorHandoff.Outcome?,
     private val requestRestart: () -> Unit,
@@ -140,6 +141,7 @@ internal class AndroidIdentityMigration(
             if (held) Environment.HELD_SERVICE else Environment.SERVICE,
             httpPort = httpPort(),
             mqttState = mqttState,
+            panelAssistantConnected = panelAssistantConnected,
             beginRestore = restoreAttempts::begin,
         )
         return scope.launch {

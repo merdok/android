@@ -80,7 +80,7 @@ class SuccessorMigrationTest {
         var failingGrant: String? = null
         var homeClaimWorks = true
         var healthy = true
-        var mqttConverged = true
+        var homeAssistantConverged = true
         var uninstallWorks = true
         var uninstalls = 0
         val calls = mutableListOf<String>()
@@ -149,7 +149,7 @@ class SuccessorMigrationTest {
         }
         override fun homeSettled() = home == "own"
         override fun healthy() = healthy
-        override fun mqttConverged() = mqttConverged
+        override fun homeAssistantConverged() = homeAssistantConverged
         override fun uninstallLegacy(): Boolean {
             call("uninstall")
             invariant(home == "own") { "legacy package removed while it was still HOME" }
@@ -407,14 +407,14 @@ class SuccessorMigrationTest {
         assertEquals(0, world.uninstalls)
     }
 
-    @Test fun removalWaitsForHealthThenMqttThenHome() {
+    @Test fun removalWaitsForHealthThenHomeAssistantThenHome() {
         val markers = FakeMarkers()
-        val world = World().apply { healthy = false; mqttConverged = false }
+        val world = World().apply { healthy = false; homeAssistantConverged = false }
 
         assertEquals(Result.Waiting(Step.CONFIRM, "health check failed"), runToRest(world, markers))
         world.healthy = true
-        assertEquals(Result.Waiting(Step.CONFIRM, "MQTT has not converged"), runToRest(world, markers))
-        world.mqttConverged = true
+        assertEquals(Result.Waiting(Step.CONFIRM, "Home Assistant has not reconnected"), runToRest(world, markers))
+        world.homeAssistantConverged = true
         world.home = "legacy"
         assertEquals(Result.Waiting(Step.CONFIRM, "HOME does not resolve to this app"), runToRest(world, markers))
         assertEquals(0, world.uninstalls)
