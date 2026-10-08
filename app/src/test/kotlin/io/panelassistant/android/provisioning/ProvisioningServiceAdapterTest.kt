@@ -34,6 +34,8 @@ class ProvisioningServiceAdapterTest {
         assertEquals(
             mapOf(
                 "generic" to null,
+                "meta-portal" to ProvisioningImportance.RECOMMENDED,
+                "meta-portal-10-gen2" to ProvisioningImportance.RECOMMENDED,
                 "nspanel-pro" to null,
                 "s9e" to ProvisioningImportance.REQUIRED,
                 "shelly-wall-display" to ProvisioningImportance.RECOMMENDED,

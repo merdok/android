@@ -1,0 +1,73 @@
+schema: 2
+id: meta-portal-10-gen2
+version: 1.0.0
+display_name: Meta Portal 10" (2nd gen)
+soc_class: qcs605
+metadata:
+  author: ha-paneld maintainers
+  license: Apache-2.0
+  # One unit checked on live hardware; "verified" waits for a second unit or wider firmware coverage.
+  maturity: experimental
+  tested_firmware:
+    - Portal 10" (2nd gen) Android 10 QKQ1.210213.001.3051355900018050
+  limitations:
+    - Network ADB does not survive a restart.
+    - The ADB switch (Settings › Debug, behind the Meta account PIN) shows no on or off state; tap it until the panel appears on your computer.
+    - Keep the Meta account signed in. Removing it hides the ADB switch and stops Meta's on-screen factory reset from working.
+    - The camera lens is at the top left, so the camera-on indicator is not drawn over it.
+    - Meta's volume slider does not change media volume, which is what spoken replies use.
+    - "Hardware reset: hold both volume keys while plugging in power, with no computer connected by USB. With a computer connected, the same keys start Qualcomm's emergency download mode instead; unplug power to leave it."
+requires:
+  min_core_version: 0.9.5-rc1
+  drivers:
+    - screen.brightness-zero
+    - sensor.android
+match:
+  # Lower-case identity reported by the 10" (2nd gen) itself.
+  priority: 500
+  fallback: false
+  any:
+    - priority: 950
+      all:
+        - field: model
+          op: equals
+          values:
+            - portal
+        - field: device
+          op: equals
+          values:
+            - omni
+platform:
+  # The application UID is sandboxed and Meta's system bar has no navigation buttons.
+  su_form: none
+  app_can_su: false
+  has_recents: true
+  has_native_navbar: false
+hardware:
+  led:
+    mechanism: none
+    transfer: identity
+  screen_off: brightness-zero
+  camera: true
+  microphone: true
+  has_button_backlight: false
+sensors:
+  light_technology: Ambient light
+  cht8305: false
+  room_temp_offset_c: 0.0
+identity:
+  manufacturer: Meta
+  model: Portal 10" (2nd gen)
+  model_label_strategy: display-name
+input:
+  evdev_buttons: []
+cpu: {}
+display:
+  physical_ppi: 149
+provisioning:
+  software: {}
+  display:
+    # Native 160 renders larger than other landscape panels; 140 matches them.
+    density: 140
+  packages: []
+  recipes: []

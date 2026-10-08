@@ -73,7 +73,7 @@ class BundledProfileParityTest {
     @Test fun provenCaptureDeclaresAMicrophoneAndOmissionLeavesItToThePanel() {
         // `true` records proof, so these arm voice without the panel's own capture check.
         assertEquals(
-            setOf("wf1589t", "nspanel-pro", "shelly-wall-display-x2i", "smt1019", "tpa10"),
+            setOf("wf1589t", "nspanel-pro", "shelly-wall-display-x2i", "smt1019", "tpa10", "meta-portal-10-gen2"),
             bundled.filter { it.document.hardware.microphoneDeclared == true }.map { it.document.id }.toSet(),
         )
         // No bundled board has a microphone shown not to work, so none hides voice outright: every other
@@ -112,7 +112,7 @@ class BundledProfileParityTest {
      */
     @Test fun onlyHardwareWithACameraDeclaresOne() {
         assertEquals(
-            setOf("tpa10", "wf1589t"),
+            setOf("tpa10", "wf1589t", "meta-portal-10-gen2"),
             bundled.filter { it.document.hardware.cameraDeclared == true }.map { it.document.id }.toSet(),
         )
         // Neither declares the key. For the generic fallback that is the point of the change: an
@@ -126,6 +126,9 @@ class BundledProfileParityTest {
         assertEquals(true, bundledById.getValue("tpa10").profile().cameraDeclared)
         assertEquals(true, bundledById.getValue("wf1589t").profile().cameraDeclared)
         assertNull(bundledById.getValue("nspanel-pro").profile().cameraDeclared)
+        // The Portal family profile covers models nobody has checked, so it leaves both to the panel.
+        assertNull(bundledById.getValue("meta-portal").document.hardware.cameraDeclared)
+        assertNull(bundledById.getValue("meta-portal").document.hardware.microphoneDeclared)
     }
 
     /**
@@ -143,7 +146,12 @@ class BundledProfileParityTest {
      * the arc visibly missed on each until they were declared. A board with no camera declares nothing.
      */
     @Test fun everyCameraPanelDeclaresWhereItsLensIs() {
-        val cameras = bundled.filter { it.document.hardware.cameraDeclared == true }
+        // The Portal 10" (2nd gen) lens sits at the top LEFT. The schema can only describe a lens above
+        // the centre of the active area, so no offset would place the arc over it; it declares none
+        // until the schema gains a horizontal lens position.
+        val cameras = bundled.filter {
+            it.document.hardware.cameraDeclared == true && it.document.id !in OFF_CENTRE_LENS_IDS
+        }
         assertTrue("this test is vacuous without a camera profile", cameras.isNotEmpty())
         cameras.forEach {
             val offset = it.document.hardware.cameraLensOffsetPx
@@ -324,7 +332,7 @@ class BundledProfileParityTest {
         }
 
         assertEquals(
-            EXPECTED_BUNDLED_IDS - setOf("generic", "shelly-wall-display", "shelly-wall-display-v2"),
+            EXPECTED_BUNDLED_IDS - setOf("generic", "meta-portal", "meta-portal-10-gen2", "shelly-wall-display", "shelly-wall-display-v2"),
             featureBearing.map { it.document.id }.toSet(),
         )
         featureBearing.forEach { source ->
@@ -753,6 +761,9 @@ class BundledProfileParityTest {
         ResolutionFixture("sandboxed ioctl device", DeviceFacts("rk3576_u", "wf2489t", ""), "smt1019"),
         ResolutionFixture("ioctl device", DeviceFacts("rk3576_u", "wf1589t", ""), "wf1589t"),
         ResolutionFixture("vendor firmware", DeviceFacts("foo", "bar", "s9_android_1.1.0"), "s9e"),
+        ResolutionFixture("Portal 10 inch second generation", DeviceFacts("portal", "omni", ""), "meta-portal-10-gen2"),
+        ResolutionFixture("other Portal model", DeviceFacts("portal", "aloha", ""), "meta-portal"),
+        ResolutionFixture("Portal device codename without the Portal model", DeviceFacts("unrelated", "omni", ""), "generic"),
         ResolutionFixture("unknown fallback", DeviceFacts("mysterypanel", "unknowndev", ""), "generic"),
         ResolutionFixture("collision: exact codename over broad reference SoC", DeviceFacts("PX30_EVB", "Jenna", ""), "shelly-wall-display-x2i"),
         ResolutionFixture("collision: exact device over vendor firmware", DeviceFacts("tpa10", "tpa10", "s9_android_1.1.0"), "tpa10"),
@@ -898,8 +909,11 @@ class BundledProfileParityTest {
 
     private companion object {
         val CORE_VERSION: String = BuildConfig.VERSION_NAME
+        val OFF_CENTRE_LENS_IDS = setOf("meta-portal-10-gen2")
         val EXPECTED_BUNDLED_IDS = setOf(
             "generic",
+            "meta-portal",
+            "meta-portal-10-gen2",
             "nspanel-pro",
             "s9e",
             "shelly-wall-display-v2",
@@ -912,6 +926,8 @@ class BundledProfileParityTest {
         )
         val EXPECTED_BUNDLED_SHA256 = mapOf(
             "generic.yaml" to "16088624128aa375bc28fb747e535f93aa43c65881b5041a6fedc3ce4de056d2",
+            "meta-portal.yaml" to "7924357c57dc92b7e702bb5ae0242c5aa4ee359d1b5aa878d1cfb68e22b0c1d8",
+            "meta-portal-10-gen2.yaml" to "78c6fd0ff6f4e22df00572d897cd705a068bc14872291b5596485cc9d9e03431",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
             "shelly-wall-display-v2.yaml" to "f005b3abd13716930955456c058b891f76c30dbdd31e6e1a1fb022f2d41a3e85",
