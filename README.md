@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/wordmark-on-dark.svg">
-  <img src="docs/img/wordmark-on-light.svg" width="360" alt="Panel Assistant">
+  <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
+  <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="360" alt="Panel Assistant">
 </picture>
 
 [![CI](https://github.com/panel-assistant/android/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/panel-assistant/android/actions/workflows/ci.yml)
