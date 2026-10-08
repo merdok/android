@@ -1,5 +1,9 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.SoftwareUpdateInputs
+import io.panelassistant.android.state.SoftwareTarget
+import io.panelassistant.android.state.SoftwareComponent
+import io.panelassistant.android.state.SoftwareUpdates
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -64,7 +68,7 @@ class SoftwareUpdateReplayFixtureTest {
         val publications = SoftwareUpdateEntities.discoveryPlan(panel, inputs, step, availability, device) +
             SoftwarePublication(
                 SoftwareUpdateEntities.stateTopic(panel, inputs.component),
-                if (SoftwareUpdateEntities.withheld(inputs)) "" else SoftwareUpdateEntities.stateJson(inputs),
+                if (SoftwareUpdates.withheld(inputs)) "" else SoftwareUpdates.stateJson(inputs),
                 retain = true,
             )
         return current to JSONArray(publications.map {

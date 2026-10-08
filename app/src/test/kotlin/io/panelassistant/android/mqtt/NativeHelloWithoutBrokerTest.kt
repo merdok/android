@@ -1,13 +1,12 @@
 package io.panelassistant.android.mqtt
 
 import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
-import io.panelassistant.android.requestWatchdogLocalObservation
+import io.panelassistant.android.requestLocalObservation
 import io.panelassistant.android.util.ServiceRuntimeOwner
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.TimeUnit
@@ -15,15 +14,13 @@ import java.util.concurrent.TimeUnit
 internal class NativeHelloWithoutBrokerTest : MqttWireRig() {
     @Test(timeout = 90_000)
     fun acceptedHelloReportsEveryKnowableDescribedChannelWithoutBroker() = runBlocking {
-        val rig = rig(runtimeBroker = "")
-        val owner = ServiceRuntimeOwner(rig.bridge, "native-hello-without-broker")
+        // No MQTT bridge exists: the state core alone produces every native observation.
+        val rig = rig(runtimeBroker = "", mqtt = false)
+        val owner = ServiceRuntimeOwner(rig, "native-hello-without-broker")
         try {
             assertTrue(owner.start { it.start() }.get(5, TimeUnit.SECONDS))
-            assertEquals("discovering", rig.bridge.state)
-            assertNull(rig.bridge.heartbeatConnectionGeneration())
-            assertTrue("no MQTT connection was attempted", rig.transport.snapshot().none { it.startsWith("connect\t") })
             var checks = 0
-            assertTrue("a replaced runtime cannot complete a native snapshot", !rig.bridge.observeForNativeHello {
+            assertTrue("a replaced runtime cannot complete a native snapshot", !rig.core.observeForNativeHello {
                 ++checks == 1
             })
             assertEquals("ownership was checked after observation", 2, checks)
@@ -32,8 +29,8 @@ internal class NativeHelloWithoutBrokerTest : MqttWireRig() {
             // Bind a fresh reporter afterwards: its accepted hello must produce those observations
             // even though no MQTT connect or watchdog tick supplies its initial cache.
             val reference = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(reference.bindShape(rig.bridge::nativeChannelShape))
-            requestWatchdogLocalObservation(owner) { it }
+            rig.core.addStateSink(reference.bindShape(rig.core::nativeChannelShape))
+            requestLocalObservation(owner) { it.core }
             drainStatePump()
             val referenceOffer = reference.offer()
             reference.open(referenceOffer.descriptors)
@@ -42,19 +39,13 @@ internal class NativeHelloWithoutBrokerTest : MqttWireRig() {
             assertTrue(knowable.containsAll(listOf("screen", "navigate", "home_dashboard", "storage_health", "relay1")))
 
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val hello = native.offer()
             val described = hello.descriptors.map { it.channel }.toSet()
             assertTrue("expected channels must be described", described.containsAll(knowable))
 
-            // The production accepted-hello path samples the current bridge before opening reporting.
-            assertTrue(rig.bridge.observeForNativeHello { owner.observe()?.let(owner::isCurrent) == true })
-            assertTrue(
-                "a disconnected MQTT client must not be used by the native full pass",
-                rig.transport.snapshot().none {
-                    it.startsWith("# dropped\t") || it.startsWith("true\t") || it.startsWith("false\t")
-                },
-            )
+            // The production accepted-hello path samples the current runtime before opening reporting.
+            assertTrue(rig.core.observeForNativeHello { owner.observe()?.let(owner::isCurrent) == true })
             native.open(hello.descriptors)
             val begin = JSONObject(requireNotNull(native.next(2, "native-session", 0L)))
             assertEquals("full_begin", begin.getString("sync"))
@@ -74,7 +65,7 @@ internal class NativeHelloWithoutBrokerTest : MqttWireRig() {
     @Test(timeout = 45_000)
     fun acceptedHelloReportsCurrentStateWhileConnectedBrokerSendStalls() = runBlocking {
         val rig = rig()
-        val owner = ServiceRuntimeOwner(rig.bridge, "native-hello-stalled-broker")
+        val owner = ServiceRuntimeOwner(rig, "native-hello-stalled-broker")
         try {
             assertTrue(owner.start { it.start() }.get(5, TimeUnit.SECONDS))
             rig.transport.awaitPublication(0, "connected broker", timeoutSeconds = 10) {
@@ -82,18 +73,18 @@ internal class NativeHelloWithoutBrokerTest : MqttWireRig() {
             }
             rig.transport.drain()
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val hello = native.offer()
 
             rig.transport.blockNextPublish("ha-paneld/golden/auto_sleep_activity/state")
             rig.storage.set(storageSnapshot(io.panelassistant.android.storage.StorageHealthSeverity.WARNING, 65_536))
-            rig.bridge.publishAutoSleepActivity()
+            rig.core.publishAutoSleepActivity()
             assertTrue("connected MQTT send did not stall", rig.transport.publishEntered.await(10, TimeUnit.SECONDS))
 
             // The fake accepted the connection and holds every PUBACK. Its send also stops returning,
             // as a broker-facing client under backpressure can. Native full sync must still finish.
             assertTrue(withTimeout(2_000) {
-                rig.bridge.observeForNativeHello { owner.observe()?.let(owner::isCurrent) == true }
+                rig.core.observeForNativeHello { owner.observe()?.let(owner::isCurrent) == true }
             })
             native.open(hello.descriptors)
             val begin = JSONObject(requireNotNull(native.next(2, "native-session", 0L)))

@@ -18,6 +18,8 @@ internal class MqttStateOutbox(
     private val sender: StateSink,
     /** A fresh observation through the state core, which offers it back here. */
     private val reconcile: (key: String) -> Unit,
+    /** How a channel publishes; null for a native-only channel, which this outbox never holds. */
+    private val policyFor: (key: String) -> Policy?,
     private val schedule: (() -> Unit) -> Unit = StateConverger::dispatch,
     private val featureCosts: FeatureCostRegistry = FeatureCosts.registry,
     private val monotonicMs: () -> Long = { System.nanoTime() / 1_000_000L },
@@ -50,21 +52,15 @@ internal class MqttStateOutbox(
         var cost: FeatureCostRegistry.Span? = null,
     )
 
-    private val policies = java.util.concurrent.ConcurrentHashMap<String, Policy>()
     private val channels = linkedMapOf<String, Runtime>()
     private var successes = 0L
     private var failures = 0L
     private var closed = false
 
-    /** Record how [key] publishes, before the core registers it; the first policy for a key wins. */
-    fun route(key: String, policy: Policy) {
-        policies.putIfAbsent(key, policy)
-    }
-
     @Synchronized
     override fun register(key: String) {
         if (closed || key in channels) return
-        channels[key] = Runtime(policies[key] ?: return)
+        channels[key] = Runtime(policyFor(key) ?: return)
     }
 
     override fun offer(

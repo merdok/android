@@ -7,9 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdaptiveProximitySurfaceContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the state core and command handlers need the Android service to construct; discovery pins MqttBridge.kt, deleted with the MQTT removal.
     @Test fun homeAssistantReceivesOnlyAvailableFleetNormalizedState() {
-        val mqtt = source("MqttBridge.kt")
+        val mqtt = source("MqttBridge.kt") + source("PanelStateCore.kt")
 
         assertTrue(mqtt.contains("normalizedLevel?.coerceIn(0, 100)"))
         assertTrue(mqtt.contains("registryExposable(\"proximity_level\""))
@@ -21,7 +21,7 @@ class AdaptiveProximitySurfaceContractTest {
                 .buildDiscoveryJson("test", "a", "d").contains("\"unit_of_measurement\":\"%\""),
         )
         assertTrue(mqtt.contains("availability_mode\":\"all\""))
-        assertTrue(mqtt.contains("numericDeadband(4.0)"))
+        assertTrue(mqtt.contains("\"proximity_level\" -> state(equivalent = deadband(4.0))"))
         assertTrue(mqtt.contains("publish(stateProximityLevel, \"\", retain = true)"))
         assertTrue(
             mqtt.indexOf("publish(proximityAvailabilityTopic") <
@@ -37,7 +37,7 @@ class AdaptiveProximitySurfaceContractTest {
     }
 
     @Test fun independentReportMaskIsNotCollapsedByTheMqttStateOwner() {
-        val mqtt = source("MqttBridge.kt")
+        val mqtt = source("PanelStateCore.kt")
 
         assertTrue(mqtt.contains("reportMask: Int = ProximityReportGate.BOTH"))
         assertTrue(mqtt.contains("val admitted = admit(nextNear, level, reportMask)"))

@@ -68,7 +68,7 @@ internal class InstallPageHandler(
                 companion, inlineRepair = true, strings = strings,
             )
         val warnings = extra + problems.joinToString("") { installWarning(it, canInstallCompanion, strings) }
-        val allGood = if (h.brokerConfigured && problems.isEmpty() && extra.isEmpty() && !powerAdvisory.assessment.warning) """<div class="card" data-layout-key="ready"><p class="note">✓ ${esc(strings.get("install.ready"))}</p></div>""" else ""
+        val allGood = if (h.homeAssistantConfigured && problems.isEmpty() && extra.isEmpty() && !powerAdvisory.assessment.warning) """<div class="card" data-layout-key="ready"><p class="note">✓ ${esc(strings.get("install.ready"))}</p></div>""" else ""
         val compPkg = CompanionInstaller.installedPkg(appContext)
         val compCur = compPkg?.let { AppInstaller.installedVersion(appContext, it) }?.takeIf { it.isNotBlank() }
         return installPageBody(

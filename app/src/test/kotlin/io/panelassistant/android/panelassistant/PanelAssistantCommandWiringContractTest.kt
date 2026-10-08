@@ -3,44 +3,77 @@ package io.panelassistant.android.panelassistant
 import io.panelassistant.android.HardenedModeRefusalException
 import io.panelassistant.android.LiveSettingUnavailableException
 import io.panelassistant.android.SensitiveApprovalPendingException
+import io.panelassistant.android.mqtt.MqttWireRig
 import io.panelassistant.android.panelAssistantCommandResult
-import io.panelassistant.android.testsupport.TestSources
+import io.panelassistant.android.security.LocalApprovalBroker
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 /**
- * Native commands run through the bridge's own command handlers, which need the Android service to
- * construct, so the wiring between the transport and those handlers is pinned at its source; the
- * classification of a handler's outcome is tested directly.
+ * Native commands through the production command dispatcher, on a runtime with no MQTT bridge at all: the
+ * channel's handler reaches the hardware, the outcome reads as the command's result, and a sensitive
+ * command asks for its approval under the Panel Assistant peer, which an MQTT approval can never satisfy.
  */
-class PanelAssistantCommandWiringContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
-    private val bridge by lazy { TestSources.kotlin("MqttBridge.kt").readText() }
-
-    @Test fun mqttCommandsYieldToThePersistedNativeAuthority() {
-        val onCommand = bridge.substringAfter("private fun onCommand(").substringBefore("\n    }\n")
-        assertTrue(onCommand, onCommand.contains("mqttAcceptsCommand(retired, retained, config.panelAssistantAuthority)"))
-        assertTrue(onCommand, onCommand.contains("consumeCommand(topic, payload, MQTT_PEER)"))
+internal class PanelAssistantCommandWiringContractTest : MqttWireRig() {
+    @Test fun aNativeCommandReachesItsHandlerAndReportsWithoutMqtt() {
+        val rig = rig(runtimeBroker = "", mqtt = false)
+        try {
+            rig.start()
+            val native = PanelAssistantShadowReporter(log = {})
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
+            // The accepted hello's pass confirms the relays, as it does on a panel.
+            assertTrue(kotlinx.coroutines.runBlocking { rig.core.observeForNativeHello { true } })
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "relay1", "ON"))
+            assertEquals("$RELAY_BASE/relay1=1", rig.sysfs.writes.last())
+            drainStatePump()
+            native.open(native.offer().descriptors)
+            val begin = org.json.JSONObject(requireNotNull(native.next(1, "native-session", 0L)))
+            val observations = begin.getJSONArray("observations")
+            val relay1 = (0 until observations.length()).map(observations::getJSONObject).single { it.getString("channel") == "relay1" }
+            assertEquals(true, relay1.get("value"))
+            assertEquals(
+                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL),
+                submitNative(rig, "not_a_channel", "ON"),
+            )
+            assertEquals(
+                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE),
+                submitNative(rig, "update_paneld", "install"),
+            )
+        } finally { rig.close() }
     }
 
-    @Test fun nativeCommandsShareTheMqttChannelKeyHandlersAndApprovalUnderTheirOwnPeer() {
-        val submit = bridge.substringAfter("internal fun submitPanelAssistantCommand(").substringBefore("\n    }\n")
-        assertTrue(submit, submit.contains("val topic = \"ha-paneld/\$panel/\${command.channel}/set\""))
-        assertTrue(submit, submit.contains("key = command.channel,"))
-        assertTrue(submit, submit.contains("CommandKind.ACTION ->"))
-        val admitAt = submit.indexOf("command.admit()")
-        val runAt = submit.indexOf("consumeCommand(topic, payload, PANEL_ASSISTANT_PEER)")
-        assertTrue(submit, admitAt in 0 until runAt)
+    @Test fun aSensitiveCommandIsApprovedUnderItsOwnTransportPeer() {
+        val rig = rig(hasCamera = true)
+        val broker = LocalApprovalBroker.instance
+        val before = broker.pending().map { it.id }.toSet()
+        try {
+            rig.announce()
+            val pending = submitNative(rig, "camera_enabled", "ON")
+            assertTrue("$pending", pending is PanelAssistantCommandResult.ApprovalPending)
+            val nativeApproval = broker.pending().single { it.id !in before }
+            assertEquals("panel_assistant", nativeApproval.peer)
+            assertFalse("nothing changed before approval", rig.config.cameraEnabled)
 
-        val consume = bridge.substringAfter("private fun consumeCommand(").substringBefore("\n    }\n")
-        assertTrue(consume.indexOf("commandPeer.set(peer)") in 0 until consume.indexOf("dispatchCommand(topic, payloadBytes)"))
-        assertTrue(consume.contains("commandPeer.remove()"))
-        val authorize = bridge.substringAfter("private fun authorizeRemoteSensitive(").substringBefore("\n    }\n")
-        assertTrue(authorize, authorize.contains("val peer = commandPeer.get() ?: MQTT_PEER"))
-        assertTrue(authorize, authorize.contains("LocalApprovalBroker.instance.request(operation, peer, payload, summary)"))
-        assertTrue(bridge.contains("private const val MQTT_PEER = \"mqtt\""))
-        assertTrue(bridge.contains("private const val PANEL_ASSISTANT_PEER = \"panel_assistant\""))
+            // The same request arriving over MQTT is a different principal, so the native approval
+            // granted below cannot be consumed by it.
+            rig.transport.deliver("ha-paneld/$PANEL/camera_enabled/set", "ON")
+            barrier(rig, "camera_enabled")
+            val mqttApproval = broker.pending().single { it.id !in before && it.id != nativeApproval.id }
+            assertEquals("mqtt", mqttApproval.peer)
+            assertTrue(broker.approve(nativeApproval.id))
+            rig.transport.deliver("ha-paneld/$PANEL/camera_enabled/set", "ON")
+            barrier(rig, "camera_enabled")
+            assertFalse("the MQTT command did not consume the native approval", rig.config.cameraEnabled)
+
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "camera_enabled", "ON"))
+            assertTrue(rig.config.cameraEnabled)
+        } finally {
+            broker.pending().filter { it.id !in before }.forEach { broker.deny(it.id) }
+            rig.close()
+        }
     }
 
     @Test fun aHandlerOutcomeReadsAsItsCommandResult() {

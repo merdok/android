@@ -8,9 +8,9 @@ class MqttBridgeLiveSettingResultTest {
         assertEquals(
             LiveSettingApplyResult.APPLIED,
             liveSettingApplyResult(
-                MqttCommandDispatcher.RunResult(
-                    MqttCommandDispatcher.Admission.ACCEPTED,
-                    MqttCommandDispatcher.Execution.SUCCEEDED,
+                CommandQueue.RunResult(
+                    CommandQueue.Admission.ACCEPTED,
+                    CommandQueue.Execution.SUCCEEDED,
                 ),
             ),
         )
@@ -18,15 +18,15 @@ class MqttBridgeLiveSettingResultTest {
 
     @Test fun `closed or rejected admission maps to deferred`() {
         listOf(
-            MqttCommandDispatcher.Admission.CLOSED,
-            MqttCommandDispatcher.Admission.REJECTED,
+            CommandQueue.Admission.CLOSED,
+            CommandQueue.Admission.REJECTED,
         ).forEach { admission ->
             assertEquals(
                 LiveSettingApplyResult.DEFERRED,
                 liveSettingApplyResult(
-                    MqttCommandDispatcher.RunResult(
+                    CommandQueue.RunResult(
                         admission,
-                        MqttCommandDispatcher.Execution.NOT_ADMITTED,
+                        CommandQueue.Execution.NOT_ADMITTED,
                     ),
                 ),
             )
@@ -37,9 +37,9 @@ class MqttBridgeLiveSettingResultTest {
         assertEquals(
             LiveSettingApplyResult.DEFERRED,
             liveSettingApplyResult(
-                MqttCommandDispatcher.RunResult(
-                    MqttCommandDispatcher.Admission.ACCEPTED,
-                    MqttCommandDispatcher.Execution.PENDING,
+                CommandQueue.RunResult(
+                    CommandQueue.Admission.ACCEPTED,
+                    CommandQueue.Execution.PENDING,
                 ),
             ),
         )
@@ -49,9 +49,9 @@ class MqttBridgeLiveSettingResultTest {
         assertEquals(
             LiveSettingApplyResult.FAILED,
             liveSettingApplyResult(
-                MqttCommandDispatcher.RunResult(
-                    MqttCommandDispatcher.Admission.ACCEPTED,
-                    MqttCommandDispatcher.Execution.FAILED,
+                CommandQueue.RunResult(
+                    CommandQueue.Admission.ACCEPTED,
+                    CommandQueue.Execution.FAILED,
                 ),
             ),
         )
@@ -61,9 +61,9 @@ class MqttBridgeLiveSettingResultTest {
         assertEquals(
             LiveSettingApplyResult.FAILED,
             liveSettingApplyResult(
-                MqttCommandDispatcher.RunResult(
-                    MqttCommandDispatcher.Admission.ACCEPTED,
-                    MqttCommandDispatcher.Execution.NOT_ADMITTED,
+                CommandQueue.RunResult(
+                    CommandQueue.Admission.ACCEPTED,
+                    CommandQueue.Execution.NOT_ADMITTED,
                 ),
             ),
         )

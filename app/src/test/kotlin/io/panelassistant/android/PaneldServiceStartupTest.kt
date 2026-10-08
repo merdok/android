@@ -87,7 +87,7 @@ class PaneldServiceStartupTest {
         val attempts = AtomicInteger()
         val actuations = LinkedBlockingQueue<CompletableFuture<NavbarModeApplyOutcome>>()
         val retried = CountDownLatch(1)
-        val dispatcher = MqttCommandDispatcher(threadName = "navbar-late-retry-test")
+        val dispatcher = CommandQueue(threadName = "navbar-late-retry-test")
         val schedule = PaneldService::class.java.getDeclaredMethod("scheduleLiveSettingRetries", Set::class.java)
             .apply { isAccessible = true }
         fun scheduleRetry() { schedule.invoke(service, setOf("navbar_mode")) }

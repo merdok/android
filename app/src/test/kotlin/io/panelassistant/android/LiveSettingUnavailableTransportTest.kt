@@ -14,9 +14,9 @@ import org.junit.Test
  */
 class LiveSettingUnavailableTransportTest {
     @Test fun `only a handler that ran can report unavailability`() {
-        val failed = MqttCommandDispatcher.RunResult(
-            MqttCommandDispatcher.Admission.ACCEPTED,
-            MqttCommandDispatcher.Execution.FAILED,
+        val failed = CommandQueue.RunResult(
+            CommandQueue.Admission.ACCEPTED,
+            CommandQueue.Execution.FAILED,
         )
         assertEquals(
             LiveSettingApplyResult.UNAVAILABLE,
@@ -32,25 +32,25 @@ class LiveSettingUnavailableTransportTest {
         // The flag belongs to one dispatch. If that dispatch was replaced or refused, nothing observed
         // the hardware, so the honest answer is the same as it always was.
         listOf(
-            MqttCommandDispatcher.RunResult(
-                MqttCommandDispatcher.Admission.ACCEPTED,
-                MqttCommandDispatcher.Execution.SUPERSEDED,
+            CommandQueue.RunResult(
+                CommandQueue.Admission.ACCEPTED,
+                CommandQueue.Execution.SUPERSEDED,
             ) to LiveSettingApplyResult.FAILED,
-            MqttCommandDispatcher.RunResult(
-                MqttCommandDispatcher.Admission.REJECTED,
-                MqttCommandDispatcher.Execution.NOT_ADMITTED,
+            CommandQueue.RunResult(
+                CommandQueue.Admission.REJECTED,
+                CommandQueue.Execution.NOT_ADMITTED,
             ) to LiveSettingApplyResult.DEFERRED,
-            MqttCommandDispatcher.RunResult(
-                MqttCommandDispatcher.Admission.CLOSED,
-                MqttCommandDispatcher.Execution.NOT_ADMITTED,
+            CommandQueue.RunResult(
+                CommandQueue.Admission.CLOSED,
+                CommandQueue.Execution.NOT_ADMITTED,
             ) to LiveSettingApplyResult.DEFERRED,
-            MqttCommandDispatcher.RunResult(
-                MqttCommandDispatcher.Admission.ACCEPTED,
-                MqttCommandDispatcher.Execution.PENDING,
+            CommandQueue.RunResult(
+                CommandQueue.Admission.ACCEPTED,
+                CommandQueue.Execution.PENDING,
             ) to LiveSettingApplyResult.DEFERRED,
-            MqttCommandDispatcher.RunResult(
-                MqttCommandDispatcher.Admission.ACCEPTED,
-                MqttCommandDispatcher.Execution.SUCCEEDED,
+            CommandQueue.RunResult(
+                CommandQueue.Admission.ACCEPTED,
+                CommandQueue.Execution.SUCCEEDED,
             ) to LiveSettingApplyResult.APPLIED,
         ).forEach { (result, expected) ->
             assertEquals(

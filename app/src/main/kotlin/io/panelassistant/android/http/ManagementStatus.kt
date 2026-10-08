@@ -120,7 +120,7 @@ internal fun managementStatusJson(
         "{\"name\":${jsonStr(c.name(english))},\"note\":${jsonStr(c.note(english))},\"color\":${jsonStr(capColor[c.status] ?: PanelTokens.Page.CAPABILITY_UNKNOWN)}}"
     }
     val zigbee = radio?.let {
-        JSONObject(it.mqttAttributes()).put("state", it.state.wireValue).toString()
+        JSONObject(it.attributesJson()).put("state", it.state.wireValue).toString()
     } ?: "null"
     // `renderer` is emitted UNCONDITIONALLY, including for an external or unconfigured renderer,
     // because a consumer must never have to infer applicability from an absent field. A fleet

@@ -1,11 +1,12 @@
 package io.panelassistant.android.panelassistant
 
+import io.panelassistant.android.state.SoftwareUpdates
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingSpec
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.mqttButtonEventTypes
-import io.panelassistant.android.mqtt.SoftwareComponent
+import io.panelassistant.android.state.SoftwareComponent
 import io.panelassistant.android.mqtt.SoftwareUpdateEntities
 import io.panelassistant.android.storage.StorageHealthSeverity
 import org.json.JSONArray
@@ -88,7 +89,7 @@ internal object PanelAssistantChannelCatalog {
     )
 
     private val RENAMED: Map<String, String> = SoftwareComponent.entries.associate {
-        SoftwareUpdateEntities.stateChannelKey(it) to "update_${it.wire}"
+        SoftwareUpdates.stateChannelKey(it) to "update_${it.wire}"
     }
 
     /** The wire channel an MQTT converger channel reports on; null for a folded attribute channel. */

@@ -34,8 +34,11 @@ class CameraMqttSurfaceTest {
     private val panel = "test"
     private val device = """"device":{"identifiers":["ha-paneld-test"]}"""
     private val panelAvailability = "ha-paneld/$panel/availability"
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: discovery pins MqttBridge.kt, deleted with the MQTT removal; the state channel and
+    // the remote handler need the Android service to construct.
     private val mqtt by lazy { TestSources.kotlin("MqttBridge.kt").readText() }
+    private val core by lazy { TestSources.kotlin("PanelStateCore.kt").readText() }
+    private val commands by lazy { TestSources.kotlin("PanelCommandDispatcher.kt").readText() }
 
     private fun slice(text: String, from: String, to: String): String {
         val start = text.indexOf(from)
@@ -164,16 +167,16 @@ class CameraMqttSurfaceTest {
     }
 
     @Test fun everySiteTheCameraSwitchNeedsIsWired() {
-        val admitted = slice(mqtt, "private val stateCommandTopics", "private val actionCommandTopics")
+        val admitted = slice(commands, "private val STATE_CHANNELS", "private val ACTION_CHANNELS")
         assertTrue(
-            "an unadmitted command topic is delivered by the wildcard subscription and then dropped",
-            admitted.contains("cmdCameraEnabled"),
+            "an unadmitted command channel is delivered by the wildcard subscription and then dropped",
+            admitted.contains("\"camera_enabled\""),
         )
 
-        val dispatch = slice(mqtt, "private fun dispatchCommand", "fun publishScreenOn")
-        assertTrue(dispatch.contains("cmdCameraEnabled -> handleCameraEnabled(payload)"))
+        val dispatch = slice(commands, "private fun dispatch(channel", "private fun handleSoftwareCommand")
+        assertTrue(dispatch.contains("\"camera_enabled\" -> handleCameraEnabled(payload)"))
 
-        val handler = slice(mqtt, "private fun handleCameraEnabled", "private fun publishCameraSnapshot")
+        val handler = slice(commands, "private fun handleCameraEnabled", "override fun handleSilenceBootChime")
         val authorizeAt = handler.indexOf("authorizeRemoteSensitive(")
         val writeAt = handler.indexOf("config.setCameraEnabled(")
         assertTrue("the enable direction must ask for local approval", authorizeAt >= 0)
@@ -186,12 +189,12 @@ class CameraMqttSurfaceTest {
             "the owner must be actuated, not only the preference written",
             handler.contains("onCameraEnabledChanged()"),
         )
-        assertTrue(handler.contains("""stateConverger.reconcile("camera_enabled", force = true)"""))
+        assertTrue(handler.contains("""core.reconcile("camera_enabled", force = true)"""))
 
-        val converger = slice(mqtt, "private fun createStateConverger", "private fun ensureCapabilityChannels")
+        val converger = slice(core, "private fun createStateConverger", "fun addStateSink")
         assertTrue(
             "without a state channel the switch never reports back what the panel did",
-            converger.contains("""channel("camera_enabled", stateCameraEnabled)"""),
+            converger.contains("""channel("camera_enabled")"""),
         )
 
         val discovery = slice(mqtt, "private fun publishDiscovery", "private fun jsonEsc")
@@ -200,7 +203,7 @@ class CameraMqttSurfaceTest {
         // The switch is opt-in by the assertion above, so the image has to follow the same decision.
         // Announcing it on `hasCamera` alone left a fresh camera panel showing Home Assistant a
         // permanently unavailable image entity and no switch able to arm it.
-        val announce = slice(discovery, "cameraSnapshotAnnounced =", "publishCameraSnapshot(refreshUrl = true)")
+        val announce = slice(discovery, "cameraSnapshotAnnounced =", "core.publishCameraSnapshot(refreshUrl = true)")
         assertTrue(announce.contains("""config.haExposed("camera_enabled", false)"""))
         // The withdrawal must be published, not skipped: a config topic written earlier in this bridge
         // generation survives until something overwrites it.

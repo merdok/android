@@ -1,6 +1,6 @@
 package io.panelassistant.android.control
 
-import io.panelassistant.android.MqttCommandDispatcher
+import io.panelassistant.android.CommandQueue
 import io.panelassistant.android.hardware.TransferCurve
 import io.panelassistant.android.util.MonotonicDeadline
 import io.panelassistant.android.util.SuccessStickyProbe
@@ -156,7 +156,7 @@ class BrightnessHardwareWriterTest {
             successfulWrites = successfulWrites,
             elapsedRealtimeMs = BrightnessWriteSequencer.ElapsedRealtimeSource { 42L },
         )
-        val dispatcher = MqttCommandDispatcher(threadName = "brightness-lock-order-test")
+        val dispatcher = CommandQueue(threadName = "brightness-lock-order-test")
         val automaticWrite = Thread({
             synchronized(autoBrightnessMonitor) {
                 autoMonitorHeld.countDown()
@@ -165,15 +165,15 @@ class BrightnessHardwareWriterTest {
         }, "automatic-brightness-lock-order-test").apply { isDaemon = true }
 
         try {
-            assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitLatest("screen") {
+            assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitLatest("screen") {
                 sequencer.write(10)
             })
             assertTrue(screenActuatorEntered.await(1, TimeUnit.SECONDS))
-            assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitLatest("led") {
+            assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitLatest("led") {
                 observedControls += "led"
                 controlsApplied.countDown()
             })
-            assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitLatest("buttons") {
+            assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitLatest("buttons") {
                 observedControls += "buttons"
                 controlsApplied.countDown()
             })

@@ -15,7 +15,7 @@ import org.junit.Test
  * it, what happens to a value that becomes invalid, and that nothing treats it as a drawn bar.
  */
 class NativeNavbarModeTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the state core and command handlers need the Android service to construct; discovery pins MqttBridge.kt, deleted with the MQTT removal.
 
     private val navbarSpec get() = SettingsRegistry.spec("navbar_mode")!!
 
@@ -127,7 +127,7 @@ class NativeNavbarModeTest {
     /** MQTT coerces rather than rejects, and "Native" is recognised once it joins MODES, so the guard
      *  has to be explicit or a stray command would take a panel's only navigation away. */
     @Test fun `the mqtt command path refuses native before actuating it`() {
-        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
+        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
         val handler = bridge.substring(
             bridge.indexOf("override fun handleNavbar(payload: String)"),
             bridge.indexOf("override fun handleHomeDashboard"),
@@ -136,7 +136,7 @@ class NativeNavbarModeTest {
         val actuate = handler.indexOf("applyAcknowledgedNavbarMode(")
         assertTrue("handleNavbar must consult navbarModePermitted", guard >= 0)
         assertTrue("the guard must precede actuation", actuate > guard)
-        assertTrue("a refusal must republish the canonical state", handler.contains("stateConverger.reconcile(\"navbar\", force = true)\n            return"))
+        assertTrue("a refusal must republish the canonical state", handler.contains("core.reconcile(\"navbar\", force = true)\n            return"))
     }
 
     @Test fun `the public api documents native as profile gated wireFormat`() {

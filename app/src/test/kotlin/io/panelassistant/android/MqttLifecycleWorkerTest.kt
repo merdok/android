@@ -173,7 +173,7 @@ class MqttLifecycleWorkerTest {
     }
 
     @Test fun replacementActuationAlwaysRunsAfterAnUninterruptibleOldGeneration() {
-        val coordinator = MqttZigbeeActuationCoordinator()
+        val coordinator = ZigbeeActuationCoordinator()
         val oldLease = coordinator.activate()
         val oldStarted = CountDownLatch(1)
         val releaseOld = CountDownLatch(1)
@@ -209,7 +209,7 @@ class MqttLifecycleWorkerTest {
     }
 
     @Test fun invalidatedGenerationCannotBeginAQueuedActuation() {
-        val coordinator = MqttZigbeeActuationCoordinator()
+        val coordinator = ZigbeeActuationCoordinator()
         val oldLease = coordinator.activate()
         coordinator.retire(oldLease)
         coordinator.activate()

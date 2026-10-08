@@ -16,7 +16,7 @@ import org.junit.Test
  * prove it can fail; the rest hold the Android-coupled seams that carry it, which have no JVM harness.
  */
 class TouchSoundDriftContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the state channel and remote handler need the Android service to construct.
     private fun source(path: String): String =
         File("src/main/kotlin/io/panelassistant/android/$path").readText()
 
@@ -85,10 +85,10 @@ class TouchSoundDriftContractTest {
     }
 
     @Test fun theStatePublishedToHomeAssistantIsThePersistedIntent() {
-        val bridge = source("MqttBridge.kt")
+        val core = source("PanelStateCore.kt")
 
-        assertTrue(bridge.contains("""channel("touch_sound", stateTouchSound) { known(if (config.touchSound) "ON" else "OFF") }"""))
-        assertFalse(bridge.contains("touchSound.isEnabled()"))
+        assertTrue(core.contains("""channel("touch_sound") { known(if (config.touchSound) "ON" else "OFF") }"""))
+        assertFalse(core.contains("touchSound.isEnabled()"))
     }
 
     /**
@@ -97,14 +97,14 @@ class TouchSoundDriftContractTest {
      * switch in Home Assistant. Persist first, exactly like every other live setting.
      */
     @Test fun anMqttOriginatedChangePersistsIntentBeforeItActuates() {
-        val bridge = source("MqttBridge.kt")
-        val handler = bridge.substring(
-            bridge.indexOf("override fun handleTouchSound(payload: String)"),
-            bridge.indexOf("override fun handleWatchdog(payload: String)"),
+        val commands = source("PanelCommandDispatcher.kt")
+        val handler = commands.substring(
+            commands.indexOf("override fun handleTouchSound(payload: String)"),
+            commands.indexOf("override fun handleWatchdog(payload: String)"),
         )
 
         assertTrue(handler.contains("config.commitTouchSound(on)"))
         assertTrue(handler.indexOf("config.commitTouchSound(on)") < handler.indexOf("touchSound.apply(on)"))
-        assertTrue(handler.contains("""stateConverger.reconcile("touch_sound", force = true)"""))
+        assertTrue(handler.contains("""core.reconcile("touch_sound", force = true)"""))
     }
 }

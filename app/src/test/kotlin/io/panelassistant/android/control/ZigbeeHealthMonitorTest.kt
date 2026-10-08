@@ -76,7 +76,7 @@ class ZigbeeHealthMonitorTest {
             state = ZigbeeHealthState.HEALTHY,
             joined = true,
             role = "Repeater",
-        ).mqttAttributes()
+        ).attributesJson()
         assertFalse(attributes.contains("network_key"))
         assertFalse(attributes.contains("password"))
         assertFalse(attributes.contains("radio_mac"))

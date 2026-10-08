@@ -17,14 +17,14 @@ internal class NativeLightChannelTest : MqttWireRig() {
         val rig = rig(lightChannel = { answer })
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.announce()
             assertOffered(native, described = false, unsupported = false)
             assertTrue("no illuminance discovery at all", illuminanceConfigs(rig).isEmpty())
 
             answer = true
             val from = rig.transport.size()
-            rig.bridge.notifyLightAvailabilityChanged()
+            rig.core.notifyLightAvailabilityChanged()
             rig.transport.awaitPublication(from, "illuminance config") { it.topic() == CONFIG }
             rig.transport.drain()
 
@@ -39,7 +39,7 @@ internal class NativeLightChannelTest : MqttWireRig() {
         val rig = rig(lightChannel = { false })
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.announce()
             assertOffered(native, described = false, unsupported = true)
             assertEquals("an empty config removes the MQTT entity", listOf(""), illuminanceConfigs(rig))
@@ -52,7 +52,7 @@ internal class NativeLightChannelTest : MqttWireRig() {
         val rig = rig(lightChannel = { true })
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.announce()
             assertOffered(native, described = true, unsupported = false)
             assertTrue(illuminanceConfigs(rig).single().isNotEmpty())

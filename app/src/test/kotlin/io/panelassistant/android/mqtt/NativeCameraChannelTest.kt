@@ -16,7 +16,7 @@ internal class NativeCameraChannelTest : MqttWireRig() {
         val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             enumerated = false
             now = 1_000L
@@ -37,7 +37,7 @@ internal class NativeCameraChannelTest : MqttWireRig() {
         val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             now = 999L
             assertCameraOffered(native, true)
@@ -57,7 +57,7 @@ internal class NativeCameraChannelTest : MqttWireRig() {
         val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             enumerated = true
             now = 1_000L

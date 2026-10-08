@@ -1,5 +1,7 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.SoftwareUpdateSources
+import io.panelassistant.android.state.SoftwareTarget
 import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.config.SettingsRegistry
 import android.content.ContentResolver
@@ -13,7 +15,7 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.MqttAddressFamily
 import io.panelassistant.android.MqttBridge
 import io.panelassistant.android.mqttKnownConfigTopics
-import io.panelassistant.android.requestWatchdogLocalObservation
+import io.panelassistant.android.requestLocalObservation
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.control.AdbController
 import io.panelassistant.android.control.AutoBrightnessController
@@ -139,7 +141,7 @@ internal abstract class MqttWireRig {
             rig.config.setPanelAssistantAuthority(authority)
             val completed = CountDownLatch(1)
             val result = java.util.concurrent.atomic.AtomicReference<PanelAssistantCommandResult>()
-            rig.bridge.submitPanelAssistantCommand(
+            rig.commands.submit(
                 PanelAssistantCommand("relay1", "ON", admit = { null }),
             ) { result.set(it); completed.countDown() }
             rig.sysfs.blockRelease.countDown()
@@ -166,6 +168,7 @@ internal abstract class MqttWireRig {
         val transport = rig.transport
         val sysfs = rig.sysfs
         val bridge = rig.bridge
+        val core = rig.core
         val storage = rig.storage
         val autoSleepConfigChanges = rig.autoSleepConfigChanges
         val companionUpdateRequests = rig.companionUpdateRequests
@@ -214,12 +217,12 @@ internal abstract class MqttWireRig {
             command("volume", "36", transport, from = actionMark)
 
             // Local producers reconciled through the bridge's public update methods.
-            local(transport, "ha-paneld/$PANEL/illuminance/state") { bridge.publishLight(120) }
-            local(transport, "ha-paneld/$PANEL/temperature/state") { bridge.publishTemperature(21.46f) }
-            local(transport, "ha-paneld/$PANEL/humidity/state") { bridge.publishHumidity(40.4f) }
-            local(transport, "ha-paneld/$PANEL/proximity_level/state") { bridge.publishProximity(true, 50) }
+            local(transport, "ha-paneld/$PANEL/illuminance/state") { core.publishLight(120) }
+            local(transport, "ha-paneld/$PANEL/temperature/state") { core.publishTemperature(21.46f) }
+            local(transport, "ha-paneld/$PANEL/humidity/state") { core.publishHumidity(40.4f) }
+            local(transport, "ha-paneld/$PANEL/proximity_level/state") { core.publishProximity(true, 50) }
             storage.set(storageSnapshot(StorageHealthSeverity.WARNING, walBytes = 65_536))
-            local(transport, "ha-paneld/$PANEL/storage_health/attributes") { bridge.publishStorageHealth() }
+            local(transport, "ha-paneld/$PANEL/storage_health/attributes") { core.publishStorageHealth() }
 
             // ---- retirement ----
             transport.mark("# final")
@@ -291,7 +294,7 @@ internal abstract class MqttWireRig {
     protected fun submitNative(rig: Rig, channel: String, payload: String): PanelAssistantCommandResult {
         val done = CountDownLatch(1)
         val result = java.util.concurrent.atomic.AtomicReference<PanelAssistantCommandResult>()
-        rig.bridge.submitPanelAssistantCommand(PanelAssistantCommand(channel, payload, admit = { null })) {
+        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null })) {
             result.set(it)
             done.countDown()
         }
@@ -303,7 +306,7 @@ internal abstract class MqttWireRig {
     protected fun barrier(rig: Rig, busy: String) {
         val done = CountDownLatch(1)
         val key = if (busy == "navigate") "home_dashboard" else "navigate"
-        rig.bridge.submitPanelAssistantCommand(
+        rig.commands.submit(
             PanelAssistantCommand(key, "", admit = { PanelAssistantCommandResult.Refused("barrier") }),
         ) { done.countDown() }
         assertTrue("command worker drained", done.await(20, TimeUnit.SECONDS))
@@ -317,7 +320,9 @@ internal abstract class MqttWireRig {
         val config: Config,
         val transport: RecordingTransport,
         val sysfs: SysfsRootShell,
-        val bridge: MqttBridge,
+        val core: io.panelassistant.android.PanelStateCore,
+        val commands: io.panelassistant.android.PanelCommandDispatcher,
+        private val mqttBridge: MqttBridge?,
         val storage: java.util.concurrent.atomic.AtomicReference<StorageHealthSnapshot>,
         val storageReads: AtomicInteger,
         val updateSources: java.util.concurrent.atomic.AtomicReference<SoftwareUpdateSources>,
@@ -325,7 +330,17 @@ internal abstract class MqttWireRig {
         val companionUpdateRequests: AtomicInteger,
         val selfUpdateRequests: AtomicInteger,
     ) {
+        /** The bridge; a rig built without MQTT has none, which is what its native tests prove. */
+        val bridge: MqttBridge get() = checkNotNull(mqttBridge) { "this rig was built without MQTT" }
+
+        /** The service's start order: the state core's startup step, then MQTT when the rig has it. */
+        fun start() {
+            core.start()
+            mqttBridge?.start()
+        }
+
         fun announce() {
+            core.start()
             bridge.start()
             transport.awaitPublication(0, "availability online", timeoutSeconds = 60) { it.topic() == "ha-paneld/$PANEL/availability" && it.decodedPayload() == "online" }
             transport.drain()
@@ -334,7 +349,9 @@ internal abstract class MqttWireRig {
         }
 
         fun close() {
-            runCatching { bridge.stop(MonotonicDeadline(1_000)) }
+            runCatching { mqttBridge?.stop(MonotonicDeadline(1_000)) }
+            runCatching { commands.stop(MonotonicDeadline(1_000)) }
+            runCatching { core.stop(MonotonicDeadline(1_000)) }
             tmp.deleteRecursively()
         }
     }
@@ -366,6 +383,8 @@ internal abstract class MqttWireRig {
         autoSleepActivity: () -> io.panelassistant.android.AutoSleepActivitySnapshot = { io.panelassistant.android.AutoSleepActivitySnapshot() },
         cameraSnapshotUrl: () -> String? = { null },
         helperSend: ((String) -> String?)? = null,
+        // False builds the state core and dispatcher alone, as a panel no transport but Panel Assistant reaches.
+        mqtt: Boolean = true,
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("mqtt-wire-golden").toFile()
@@ -436,27 +455,26 @@ internal abstract class MqttWireRig {
         val companionUpdateRequests = AtomicInteger()
         val selfUpdateRequests = AtomicInteger()
 
-        val bridge = MqttBridge(
+        val ledEffect = LedEffectController(led)
+        val zigbee = ZigbeeController(fakeProfile(), FakeRootShell())
+        // Not reached: the capability snapshot reports no CPU governors.
+        val cpu = allocate(CpuController::class.java)
+        // Only its best-effort reconnect reassertion runs, on a worker that logs and discards failure.
+        val adb = allocate(AdbController::class.java)
+        val volume = VolumeController(context)
+        val core = io.panelassistant.android.PanelStateCore(
             config = config,
             brightness = brightness,
             screen = screen,
             led = led,
-            ledEffect = LedEffectController(led),
-            navigate = NavigateController(context),
-            volume = VolumeController(context),
+            ledEffect = ledEffect,
+            volume = volume,
             system = system,
-            // Never reached by the scenario: the navbar command below takes the capability refusal path.
-            navbar = allocate(NavbarController::class.java),
-            watchdog = WatchdogController(system, config),
-            // Never reached: touch_sound needs an Android audio stack, so no touch_sound command is sent.
-            touchSound = allocate(TouchSoundController::class.java),
             bootChime = bootChime,
-            zigbee = ZigbeeController(fakeProfile(), FakeRootShell()),
+            zigbee = zigbee,
             relay = relay,
-            // Not reached: the capability snapshot reports no CPU governors.
-            cpu = allocate(CpuController::class.java),
-            // Only its best-effort reconnect reassertion runs, on a worker that logs and discards failure.
-            adb = allocate(AdbController::class.java),
+            cpu = cpu,
+            adb = adb,
             buttonsEnabled = true,
             hasEvdevButtons = false,
             capabilities = { capabilities },
@@ -465,23 +483,65 @@ internal abstract class MqttWireRig {
             hasHumidity = hasHumidity,
             hasCht8305 = false,
             hasButtonBacklight = true,
-            hasMicrophone = true,
             media = media,
             hasCamera = cameraAvailability,
             lightChannel = lightChannel,
-            // Never reached: no screen brightness or auto-brightness command is sent.
-            autoBright = allocate(AutoBrightnessController::class.java),
-            configUrl = { "http://192.0.2.10:8888/" },
-            onUpdateCompanion = { companionUpdateRequests.incrementAndGet() },
-            onSelfUpdate = { selfUpdateRequests.incrementAndGet() },
+            autoSleepActivity = autoSleepActivity,
+            cameraSnapshotUrl = cameraSnapshotUrl,
             softwareUpdateSources = { updateSources.get() },
-            onDirectKioskSetting = { true },
-            migrationNoticeEnglish = { key -> english.strings(AppLocale.ENGLISH).get(key) },
             storageHealth = { storageReads.incrementAndGet(); storage.get() },
+            helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
+            panelId = PANEL,
+            friendlyName = "Golden panel",
             wifiOutages = { WifiOutageCounts(last24h = 3) },
             learnedProximityEligibility = { true },
             learnedProximityState = learnedProximityState,
+        )
+        val commands = io.panelassistant.android.PanelCommandDispatcher(
+            config = config,
+            core = core,
+            brightness = brightness,
+            screen = screen,
+            navigate = NavigateController(context),
+            volume = volume,
+            system = system,
+            // Never reached by the scenario: the navbar command below takes the capability refusal path.
+            navbar = allocate(NavbarController::class.java),
+            watchdog = WatchdogController(system, config),
+            // Never reached: touch_sound needs an Android audio stack, so no touch_sound command is sent.
+            touchSound = allocate(TouchSoundController::class.java),
+            bootChime = bootChime,
+            zigbee = zigbee,
+            relay = relay,
+            cpu = cpu,
+            adb = adb,
+            hasProximity = true,
+            hasButtonBacklight = true,
+            hasMicrophone = true,
+            media = media,
+            hasCamera = cameraAvailability,
+            // Never reached: no screen brightness or auto-brightness command is sent.
+            autoBright = allocate(AutoBrightnessController::class.java),
+            onUpdateCompanion = { companionUpdateRequests.incrementAndGet() },
+            onSelfUpdate = { selfUpdateRequests.incrementAndGet() },
+            onDirectKioskSetting = { true },
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
+            helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
+        )
+        val bridge = if (!mqtt) null else MqttBridge(
+            config = config,
+            core = core,
+            commands = commands,
+            led = led,
+            adb = adb,
+            buttonsEnabled = true,
+            hasEvdevButtons = false,
+            hasCht8305 = false,
+            hasButtonBacklight = true,
+            configUrl = { "http://192.0.2.10:8888/" },
+            cameraSnapshotUrl = cameraSnapshotUrl,
+            softwareUpdateSources = { updateSources.get() },
+            migrationNoticeEnglish = { key -> english.strings(AppLocale.ENGLISH).get(key) },
             runtimePanelId = PANEL,
             runtimeFriendlyName = "Golden panel",
             runtimeBroker = runtimeBroker,
@@ -489,11 +549,8 @@ internal abstract class MqttWireRig {
             runtimeMqttPassword = "panel-password",
             runtimeMqttAddressFamily = "Automatic",
             transport = transport,
-            autoSleepActivity = autoSleepActivity,
-            cameraSnapshotUrl = cameraSnapshotUrl,
-            helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
         )
-        return Rig(tmp, config, transport, sysfs, bridge, storage, storageReads, updateSources, autoSleepConfigChanges, companionUpdateRequests, selfUpdateRequests)
+        return Rig(tmp, config, transport, sysfs, core, commands, bridge, storage, storageReads, updateSources, autoSleepConfigChanges, companionUpdateRequests, selfUpdateRequests)
     }
 
     protected fun command(
@@ -1042,7 +1099,7 @@ internal class MqttWireGoldenTest : MqttWireRig() {
             rig.announce()
             val lines = rig.transport.snapshot()
             val translated = mutableSetOf<String>()
-            for (converger in rig.bridge.stateChannelKeys()) {
+            for (converger in rig.core.stateChannelKeys()) {
                 val wire = PanelAssistantChannelCatalog.wireChannel(converger) ?: continue
                 val descriptor = requireNotNull(PanelAssistantChannelCatalog.describe(wire)) { wire }
                 lines.filter { it.isPublication() && it.topic().startsWith("ha-paneld/$PANEL/") && it.topic().endsWith("/state") }
@@ -1079,11 +1136,11 @@ internal class MqttNativeParityTest : MqttWireRig() {
             rig.announce()
             val announcement = rig.transport.snapshot()
             val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertEquals(retired.keys.sorted(), native.offer().unsupported)
             assertTrue(native.offer().descriptors.map { it.channel }.containsAll(listOf("update_paneld", "update_companion")))
             retired.forEach { (channel, platform) ->
-                assertFalse(channel, channel in rig.bridge.stateChannelKeys())
+                assertFalse(channel, channel in rig.core.stateChannelKeys())
                 assertNull(channel, PanelAssistantChannelCatalog.describe(channel))
                 val discovery = "homeassistant/$platform/${PANEL}_${channel}/config"
                 val state = "ha-paneld/$PANEL/$channel/state"
@@ -1181,7 +1238,7 @@ internal class MqttNativeParityTest : MqttWireRig() {
         try {
             mqtt.announce()
             native.announce()
-            val channels = native.bridge.stateChannelKeys()
+            val channels = native.core.stateChannelKeys()
                 .mapNotNull(PanelAssistantChannelCatalog::wireChannel).distinct().sorted()
                 .mapNotNull(PanelAssistantChannelCatalog::describe)
                 .filter { it.platform in PanelAssistantCommandTranslation.COMMANDABLE_PLATFORMS }
@@ -1298,7 +1355,7 @@ internal class MqttDiscoveryWithdrawalTest : MqttWireRig() {
             // An update entity's shape changing while withdrawn converges nothing: its config stays removed.
             val shapeFrom = rig.transport.size()
             rig.updateSources.set(updateSources(paneldTarget = null))
-            rig.bridge.publishSoftwareUpdates()
+            rig.core.publishSoftwareUpdates()
             rig.transport.drain()
             assertEquals(
                 "no discovery publication for a reshaped update entity while withdrawn",
@@ -1420,7 +1477,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
         rig.updateSources.set(updateSources().copy(companionMinimalVersion = null, companionFullVersion = null))
         try {
             val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val offer = native.offer()
             val absent = listOf("camera_enabled", "camera_snapshot", "humidity", "led", "proximity", "proximity_level", "temperature", "update_companion")
             assertEquals((absent + PanelAssistantChannelCatalog.RETIRED_CHANNELS).sorted(), offer.unsupported)
@@ -1438,7 +1495,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
             val rig = rig(hasCamera = true, configure = { it.setCameraEnabled(enabled) })
             try {
                 val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-                rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+                rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
                 rig.announce()
                 val offer = native.offer()
                 assertFalse("camera_enabled" in offer.unsupported)
@@ -1467,7 +1524,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
         val rig = rig(led = unreachable)
         try {
             val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val offer = native.offer()
             assertFalse("led" in offer.unsupported)
             assertTrue("led" in offer.descriptors.map { it.channel })
@@ -1481,7 +1538,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
         val rig = rig(learnedProximityState = learned::get)
         try {
             val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val before = native.offer()
             assertEquals((listOf("camera_enabled", "camera_snapshot", "proximity", "proximity_level") + PanelAssistantChannelCatalog.RETIRED_CHANNELS).sorted(), before.unsupported)
             native.open(before.descriptors)
@@ -1502,7 +1559,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
         val rig = rig(hasCamera = true, learnedProximityState = { null })
         try {
             val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-            rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
+            rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val offer = native.offer()
             assertEquals(PanelAssistantChannelCatalog.RETIRED_CHANNELS.sorted(), offer.unsupported)
             assertTrue(offer.descriptors.map { it.channel }.containsAll(
@@ -1524,20 +1581,20 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
 
     @Test fun watchdogObservesNativeChangesWithoutMqttConnection() {
         val rig = rig(runtimeBroker = "unsupported://broker")
-        val owner = ServiceRuntimeOwner(rig.bridge, "native-observation-test")
+        val owner = ServiceRuntimeOwner(rig, "native-observation-test")
         val native = io.panelassistant.android.panelassistant.PanelAssistantShadowReporter(log = {})
-        rig.bridge.addStateSink(native.bind(rig.bridge::stateChannelKeys))
+        rig.core.addStateSink(native.bind(rig.core::stateChannelKeys))
         try {
-            requestWatchdogLocalObservation(owner) { it }
+            requestLocalObservation(owner) { it.core }
             drainStatePump()
             assertEquals("an unstarted service cannot observe hardware", 0, rig.storageReads.get())
-            assertTrue(owner.start { it.start() }.get(5, TimeUnit.SECONDS))
+            assertTrue(owner.start { it.core.start(); it.bridge.start() }.get(5, TimeUnit.SECONDS))
             assertEquals("config-error", rig.bridge.state)
             assertEquals(null, rig.bridge.heartbeatConnectionGeneration())
             assertEquals(HeartbeatAdmission.Decision.NoCurrentConnection, HeartbeatAdmission.decide(
                 rig.bridge.heartbeatConnectionGeneration(), emptyList(),
             ))
-            requestWatchdogLocalObservation(owner) { it }
+            requestLocalObservation(owner) { it.core }
             drainStatePump()
             native.open(native.descriptors())
             fun report(id: Long): org.json.JSONObject {
@@ -1561,7 +1618,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
             report(2) // Complete the initial native snapshot.
             rig.storage.set(storageSnapshot(StorageHealthSeverity.WARNING, walBytes = 65_536))
             rig.sysfs.writeSysfs("$RELAY_BASE/relay1", "1")
-            requestWatchdogLocalObservation(owner) { it }
+            requestLocalObservation(owner) { it.core }
             drainStatePump()
             val changed = report(3)
             assertEquals("warning", value(changed, "storage_health"))
@@ -1571,7 +1628,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
             owner.closeAdmission()
             rig.storage.set(storageSnapshot(StorageHealthSeverity.HEALTHY, walBytes = 4_096))
             rig.sysfs.writeSysfs("$RELAY_BASE/relay1", "0")
-            requestWatchdogLocalObservation(owner) { it }
+            requestLocalObservation(owner) { it.core }
             drainStatePump()
             assertEquals("retired service must not sample", readsBeforeRetirement, rig.storageReads.get())
             assertEquals("retired service must not report", null, native.next(4, "session", 0L))
@@ -1587,10 +1644,10 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
 
     @Test fun watchdogLocalObservationIsBoundedAndRechecksOwnerAtExecution() {
         val rig = rig(runtimeBroker = "unsupported://broker")
-        val owner = ServiceRuntimeOwner(rig.bridge, "bounded-observation-test")
+        val owner = ServiceRuntimeOwner(rig, "bounded-observation-test")
         val release = CountDownLatch(1)
         try {
-            assertTrue(owner.start { it.start() }.get(5, TimeUnit.SECONDS))
+            assertTrue(owner.start { it.core.start(); it.bridge.start() }.get(5, TimeUnit.SECONDS))
             val entered = CountDownLatch(1)
             StateConverger.dispatch {
                 entered.countDown()
@@ -1598,7 +1655,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
             }
             assertTrue(entered.await(5, TimeUnit.SECONDS))
             val before = rig.storageReads.get()
-            repeat(100) { requestWatchdogLocalObservation(owner) { it } }
+            repeat(100) { requestLocalObservation(owner) { it.core } }
             release.countDown()
             drainStatePump()
             // The audit has two storage observers: health and its attributes.
@@ -1612,7 +1669,7 @@ internal class MqttNativeAuthorityTest : MqttWireRig() {
                     check(retireRelease.await(10, TimeUnit.SECONDS))
                 }
                 assertTrue(retireEntered.await(5, TimeUnit.SECONDS))
-                requestWatchdogLocalObservation(owner) { it }
+                requestLocalObservation(owner) { it.core }
                 owner.closeAdmission()
             } finally {
                 retireRelease.countDown()

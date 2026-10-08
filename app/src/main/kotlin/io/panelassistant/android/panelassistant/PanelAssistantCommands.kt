@@ -30,6 +30,8 @@ internal class PanelAssistantCommand(
     val channel: String,
     val payload: String,
     val admit: () -> PanelAssistantCommandResult?,
+    /** The session's command id: the request this command's one result answers. */
+    val requestId: String? = null,
 )
 
 /** The panel's ordered command authority and approval broker, as the native transport reaches them. */
@@ -225,6 +227,7 @@ internal class PanelAssistantCommandProcessor(
             PanelAssistantCommand(
                 channel = request.channel,
                 payload = request.payload,
+                requestId = commandId,
                 admit = {
                     when {
                         synchronized(lock) { closed } -> PanelAssistantCommandResult.Failed(CODE_FAILED)

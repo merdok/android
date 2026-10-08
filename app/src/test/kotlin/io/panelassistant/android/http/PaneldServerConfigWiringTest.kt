@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelCommandDispatcher
 import io.panelassistant.android.MqttBridge
 import io.panelassistant.android.config.SettingsRegistry
 import org.junit.Assert.assertEquals
@@ -20,7 +21,7 @@ class PaneldServerConfigWiringTest {
 
         assertEquals(expectedKeys, registryKeys.toSet())
         assertEquals(registryKeys, PaneldServer.HTTP_LIVE_KEYS)
-        assertEquals(expectedKeys, MqttBridge.APPLY_SETTING_KEYS)
+        assertEquals(expectedKeys, PanelCommandDispatcher.APPLY_SETTING_KEYS)
         assertTrue(registryKeys.all { SettingsRegistry.spec(it)?.readOnly == false })
     }
 }

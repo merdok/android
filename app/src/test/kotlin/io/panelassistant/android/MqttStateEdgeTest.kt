@@ -13,7 +13,7 @@ class MqttStateEdgeTest {
         assertEquals("", mqttStatePayload(Observation.Known("")))
         assertTrue(
             "state channels retain by default",
-            mqttStateChannel("relay1", "ha-paneld/p/relay1/state", observe = { Observation.Unavailable }).route.retain,
+            mqttStateChannel("relay1", "ha-paneld/p/relay1/state").route.retain,
         )
     }
 

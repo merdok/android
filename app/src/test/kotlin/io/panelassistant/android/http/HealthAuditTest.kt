@@ -9,12 +9,12 @@ class HealthAuditTest {
     private val update = UpdateChecker.UpdateInfo("HA Companion", "2026.5.4", "2026.6.5", "https://x")
 
     @Test fun healthyPanelHasNoFindings() {
-        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "138.0", hasRenderer = true, brokerConfigured = true, updates = emptyList())
+        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "138.0", hasRenderer = true, homeAssistantConfigured = true, updates = emptyList())
         assertTrue(f.isEmpty())
     }
 
     @Test fun oldWebViewCarriesTheVersionToShow() {
-        val f = HealthAudit.evaluate(webViewTooOld = true, webViewDisplay = "com.android.webview 107.0.5304.105", hasRenderer = true, brokerConfigured = true, updates = emptyList())
+        val f = HealthAudit.evaluate(webViewTooOld = true, webViewDisplay = "com.android.webview 107.0.5304.105", hasRenderer = true, homeAssistantConfigured = true, updates = emptyList())
         assertEquals(1, f.size)
         assertEquals(HealthAudit.Kind.WEBVIEW_OLD, f[0].kind)
         assertEquals("com.android.webview 107.0.5304.105", f[0].detail)
@@ -25,7 +25,7 @@ class HealthAuditTest {
             webViewTooOld = false,
             webViewDisplay = "",
             hasRenderer = false,
-            brokerConfigured = true,
+            homeAssistantConfigured = true,
             updates = emptyList(),
         )
         assertEquals(listOf(HealthAudit.Kind.NO_RENDERER), f.map { it.kind })
@@ -36,21 +36,21 @@ class HealthAuditTest {
             webViewTooOld = false,
             webViewDisplay = "",
             hasRenderer = false,
-            brokerConfigured = false,
+            homeAssistantConfigured = false,
             updates = emptyList(),
         )
         assertTrue(f.isEmpty())
     }
 
     @Test fun eachUpdateBecomesOneFindingCarryingItsInfo() {
-        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "", hasRenderer = true, brokerConfigured = true, updates = listOf(update))
+        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "", hasRenderer = true, homeAssistantConfigured = true, updates = listOf(update))
         assertEquals(1, f.size)
         assertEquals(HealthAudit.Kind.UPDATE, f[0].kind)
         assertEquals(update, f[0].update)
     }
 
     @Test fun findingsAreOrderedWebViewThenRendererThenUpdates() {
-        val f = HealthAudit.evaluate(webViewTooOld = true, webViewDisplay = "107", hasRenderer = false, brokerConfigured = true, updates = listOf(update))
+        val f = HealthAudit.evaluate(webViewTooOld = true, webViewDisplay = "107", hasRenderer = false, homeAssistantConfigured = true, updates = listOf(update))
         assertEquals(
             listOf(HealthAudit.Kind.WEBVIEW_OLD, HealthAudit.Kind.NO_RENDERER, HealthAudit.Kind.UPDATE),
             f.map { it.kind },
@@ -59,7 +59,7 @@ class HealthAuditTest {
 
     @Test fun schemaRollbackIsReportedFirstAndCarriesTheVersionDetail() {
         val f = HealthAudit.evaluate(
-            webViewTooOld = true, webViewDisplay = "107", hasRenderer = false, brokerConfigured = true,
+            webViewTooOld = true, webViewDisplay = "107", hasRenderer = false, homeAssistantConfigured = true,
             updates = listOf(update),
             schemaRolledBack = true, schemaRollbackDetail = "schema 13 → 11",
         )
@@ -77,7 +77,7 @@ class HealthAuditTest {
     }
 
     @Test fun noSchemaRollbackFindingByDefault() {
-        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "", hasRenderer = true, brokerConfigured = true, updates = emptyList())
+        val f = HealthAudit.evaluate(webViewTooOld = false, webViewDisplay = "", hasRenderer = true, homeAssistantConfigured = true, updates = emptyList())
         assertTrue(f.none { it.kind == HealthAudit.Kind.SCHEMA_ROLLED_BACK })
     }
 }

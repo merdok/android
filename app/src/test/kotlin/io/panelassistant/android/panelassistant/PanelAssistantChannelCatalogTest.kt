@@ -1,5 +1,6 @@
 package io.panelassistant.android.panelassistant
 
+import io.panelassistant.android.state.SoftwareUpdates
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.state.StateConverger
@@ -27,7 +28,7 @@ class PanelAssistantChannelCatalogTest {
         assertEquals(PanelAssistantWireValue.Known(true), PanelAssistantValueTranslation.translate(descriptor, StateConverger.Observation.Known("ON")))
     }
 
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the registration sites in PanelStateCore.kt are the channel list; no runtime enumerates every family.
 
     @Test fun mediaIsAnEnabledMediaPlayerTheNativeTransportCommands() {
         val json = PanelAssistantChannelCatalog.describe("media")!!.toJson()
@@ -239,16 +240,16 @@ class PanelAssistantChannelCatalogTest {
     }
 
     companion object {
-        /** Every channel the bridge registers with its converger, read from the registration sites. */
+        /** Every channel the state core registers with its converger, read from the registration sites. */
         fun convergerChannels(): List<String> {
-            val bridge = TestSources.kotlin("MqttBridge.kt").readText()
-            val converger = bridge.substringAfter("private fun createStateConverger()").substringBefore("private fun registerStateChannel(")
-            val capabilities = bridge.substringAfter("private fun ensureCapabilityChannels(").substringBefore("fun start()")
+            val core = TestSources.kotlin("PanelStateCore.kt").readText()
+            val converger = core.substringAfter("private fun createStateConverger()").substringBefore("fun addStateSink(")
+            val capabilities = core.substringAfter("fun ensureCapabilityChannels(").substringBefore("fun start()")
             fun list(name: String) = Regex("""\"([a-z0-9_]+)\"""").findAll(
-                bridge.substringAfter("private val $name = listOf(").substringBefore(")"),
+                core.substringAfter("val $name = listOf(").substringBefore(")"),
             ).map { it.groupValues[1] }.toList()
             val literals = Regex("""channel\(\s*"([a-z0-9_]+)"""").findAll(converger).map { it.groupValues[1] }.toList()
-            require(converger.contains("SoftwareUpdateEntities.stateChannelKey(component)"))
+            require(converger.contains("SoftwareUpdates.stateChannelKey(component)"))
             val families = Regex("""register\("([a-z_]+?)(\${'$'}n)?"""").findAll(capabilities).flatMap { match ->
                 if (match.groupValues[2].isEmpty()) sequenceOf(match.groupValues[1])
                 else sequenceOf("${match.groupValues[1]}1", "${match.groupValues[1]}64")

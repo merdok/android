@@ -642,7 +642,7 @@ class PaneldServer internal constructor(
 
     /** Panel Assistant granted native authority, so this panel reaches Home Assistant without MQTT. */
     private fun panelAssistantNative(): Boolean =
-        !SetupBanner.mqttSetupRequired(config.panelAssistantAuthority)
+        config.panelAssistantAuthority == io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.AUTHORITY_NATIVE
 
 
     private fun statusJson(

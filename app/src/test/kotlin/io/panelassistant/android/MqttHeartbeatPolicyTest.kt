@@ -36,12 +36,12 @@ class MqttHeartbeatPolicyTest {
         ).forEach { assertNull("$it must remain change-only", mqttMeasurementRefreshAfterAckMs(it)) }
 
         val observation = { StateConverger.Observation.Known("50") }
-        val measurement = mqttStateChannel("diag_cpu", "cpu/state", retain = false, observe = observation)
+        val measurement = mqttStateChannel("diag_cpu", "cpu/state", retain = false)
         assertEquals(MQTT_MEASUREMENT_REFRESH_AFTER_ACK_MS, measurement.policy.maxSilenceMs)
         assertFalse("the channel factory must preserve per-channel retain policy", measurement.route.retain)
         assertTrue(measurement.policy.refreshEligible("50"))
         assertFalse(measurement.policy.refreshEligible("unknown"))
         assertFalse(measurement.policy.refreshEligible("NaN"))
-        assertNull(mqttStateChannel("screen", "screen/state", observe = observation).policy.maxSilenceMs)
+        assertNull(mqttStateChannel("screen", "screen/state").policy.maxSilenceMs)
     }
 }

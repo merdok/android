@@ -61,7 +61,7 @@ class NoticeRowsHttpTest {
             val owner = io.panelassistant.android.control.BuiltinDashboard.acquireActivityOwner()
             io.panelassistant.android.control.BuiltinDashboard.setActivityAuthLatched(owner, true)
             try {
-                val webViewOld = PageHealth.Inputs(PanelInfo.WebViewStatus("Chrome 60", tooOld = true), hasRenderer = true, brokerConfigured = false)
+                val webViewOld = PageHealth.Inputs(PanelInfo.WebViewStatus("Chrome 60", tooOld = true), hasRenderer = true, homeAssistantConfigured = false)
                 val builtin = fixture.advisories(io.panelassistant.android.PanelStatus.DashboardRecoveryState.BUILTIN_RENDERER)
                 fixture.config.setDashboardZoom(125)
                 fixture.config.setMqtt("", "", "")

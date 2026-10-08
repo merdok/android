@@ -39,7 +39,7 @@ class InstallHealthPresentationTest {
             webViewTooOld = true,
             webViewDisplay = "System WebView 107.0",
             hasRenderer = false,
-            brokerConfigured = true,
+            homeAssistantConfigured = true,
             updates = emptyList(),
             schemaRolledBack = true,
             schemaRollbackDetail = "localized-hostile detail",

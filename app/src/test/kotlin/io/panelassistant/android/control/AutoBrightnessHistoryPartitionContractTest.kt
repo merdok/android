@@ -6,8 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AutoBrightnessHistoryPartitionContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
-    private val mqtt = source("MqttBridge.kt")
+    // Source-text reason: the remote handlers need the Android service to construct.
+    private val mqtt = source("PanelCommandDispatcher.kt")
 
     @Test fun `sensitivity reapplies policy without restarting the ambient source`() {
         val handler = mqtt.substringAfter("override fun handleAutoBrightnessSensitivity")

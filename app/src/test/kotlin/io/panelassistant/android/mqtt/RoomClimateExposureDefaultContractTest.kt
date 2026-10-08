@@ -6,8 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RoomClimateExposureDefaultContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
-    private val bridge = File("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
+    // Source-text reason: the diagnostic channels need the Android service to construct.
+    private val bridge = File("src/main/kotlin/io/panelassistant/android/PanelStateCore.kt").readText()
 
     @Test fun diagnosticAndRoomClimateRuntimeUsesRegistryExposureDefaults() {
         assertEquals(

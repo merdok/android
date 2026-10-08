@@ -8,17 +8,17 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 /**
- * One bounded, ordered authority for live MQTT/HTTP commands.
+ * One bounded, ordered queue for every live command the panel takes, whatever its origin.
  *
  * Stateful commands conflate by key: replacing a pending value moves the new value to the tail, so
  * the values which survive a burst still execute in their accepted arrival order. Actions never
  * conflate and have a smaller FIFO allowance. Closing rejects new work, cancels everything pending,
  * and waits for the one active handler to finish before returning.
  */
-internal class MqttCommandDispatcher(
+internal class CommandQueue(
     private val maxPending: Int = DEFAULT_MAX_PENDING,
     private val maxPendingActions: Int = DEFAULT_MAX_PENDING_ACTIONS,
-    private val threadName: String = "mqtt-command-dispatch",
+    private val threadName: String = "panel-command-dispatch",
     private val resultWaitMs: Long = DEFAULT_RESULT_WAIT_MS,
     private val nowNanos: () -> Long = System::nanoTime,
     private val onQueueWait: (waitNanos: Long) -> Unit = {},

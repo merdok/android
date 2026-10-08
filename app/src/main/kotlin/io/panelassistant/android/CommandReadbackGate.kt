@@ -1,4 +1,4 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android
 
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome

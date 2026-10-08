@@ -6,9 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HardenedControlContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the remote command handlers need the Android service to construct.
     private val mqtt by lazy {
-        TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
+        TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
     }
 
     // Source-text reason: user-visible English labels for the security modes and remote-ADB refusals.
@@ -23,21 +23,21 @@ class HardenedControlContractTest {
     }
 
     @Test fun mqttExplicitInstallsAndRebootRemainApprovalGated() {
-        val dispatch = mqtt.substring(mqtt.indexOf("private fun dispatchCommand"), mqtt.indexOf("fun publishScreenOn"))
-        assertTrue(dispatch.contains("cmdUpdateCompanion ->"))
-        assertTrue(dispatch.contains("cmdUpdatePaneld ->"))
-        assertTrue(dispatch.contains("cmdReboot ->"))
+        val dispatch = mqtt.substring(mqtt.indexOf("private fun dispatch(channel"), mqtt.indexOf("private fun handleSoftwareCommand"))
+        assertTrue(dispatch.contains("\"update_companion\" ->"))
+        assertTrue(dispatch.contains("\"update_paneld\" ->"))
+        assertTrue(dispatch.contains("\"reboot\" ->"))
         assertTrue(dispatch.contains("SensitiveOperation.APK_INSTALL"))
         assertTrue(dispatch.contains("SensitiveOperation.DEVICE_REBOOT"))
 
         // Hardened mode publishes a closed list of operations it protects, and a dashboard reload is on
         // it. The MQTT arm shipped ungated while the HTTP route was gated, so a documented protection
         // was absent on the transport an automation actually uses. Approval must precede the reload.
-        val reloadArm = dispatch.substring(dispatch.indexOf("cmdReload ->"), dispatch.indexOf("cmdReboot ->"))
+        val reloadArm = dispatch.substring(dispatch.indexOf("\"reload\" ->"), dispatch.indexOf("\"reboot\" ->"))
         assertTrue(reloadArm.contains("SensitiveOperation.DASHBOARD_RELOAD"))
         assertTrue(reloadArm.indexOf("authorizeRemoteSensitive(") < reloadArm.indexOf("system.reloadDashboard("))
 
-        val serviceApply = mqtt.substring(mqtt.indexOf("internal fun applySetting"), mqtt.indexOf("// ---- discovery ----"))
+        val serviceApply = mqtt.substring(mqtt.indexOf("internal fun applySetting"), mqtt.indexOf("fun stop(deadline: MonotonicDeadline)"))
         assertTrue(serviceApply.contains("sensitiveApprovalRequired = false"))
         assertTrue(serviceApply.contains("dispatchLiveSetting("))
         assertTrue(serviceApply.contains("handlers = this"))

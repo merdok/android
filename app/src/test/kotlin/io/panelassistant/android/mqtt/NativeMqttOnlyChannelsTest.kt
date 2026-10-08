@@ -21,11 +21,11 @@ import java.util.concurrent.CopyOnWriteArrayList
 /** The reports MQTT used to carry alone, reaching the native transport on a panel with no broker. */
 internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
     @Test fun aButtonPressWithoutBrokerIsReportedAsANativeEvent() {
-        val rig = rig(runtimeBroker = "")
+        val rig = rig(runtimeBroker = "", mqtt = false)
         try {
             val native = bound(rig)
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             val button = native.offer().descriptors.single { it.channel == "button" }
             assertEquals("event", button.platform)
             assertTrue("keycode_home" in button.options!!)
@@ -40,13 +40,13 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
             ButtonBus.emit("KEYCODE_BACK")
             val second = JSONObject(requireNotNull(native.next(5, "native-session", 0L)))
             assertTrue("event ids only grow", second.getLong("event_id") > event.getLong("event_id"))
-            assertFalse(rig.bridge.isConnected())
         } finally { rig.close() }
     }
 
     @Test fun autoSleepActivityIsReportedWithoutBroker() {
         val rig = rig(
             runtimeBroker = "",
+            mqtt = false,
             autoSleepActivity = {
                 AutoSleepActivitySnapshot(
                     holdingAwake = true, policyHealthy = true, reason = "presence", learnedDelay = "90s",
@@ -56,8 +56,8 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         )
         try {
             val native = bound(rig)
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             val observation = observation(fullSync(native), "auto_sleep_activity")
             assertEquals("known", observation.getString("state"))
             assertEquals(true, observation.get("value"))
@@ -74,14 +74,15 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
     @Test fun cameraSnapshotIsReportedOnceAndNotRepeatedForFreshness() {
         val rig = rig(
             runtimeBroker = "",
+            mqtt = false,
             hasCamera = true,
             cameraSnapshotUrl = { "http://192.0.2.10:8888/api/v1/camera/snapshot" },
             configure = { it.setCameraEnabled(true) },
         )
         try {
             val native = bound(rig)
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             val snapshot = observation(fullSync(native), "camera_snapshot")
             assertEquals("known", snapshot.getString("state"))
             assertEquals(
@@ -91,7 +92,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
 
             // Another local pass refreshes the other channels, but never the acknowledged snapshot URL:
             // Home Assistant fetches a new frame for each image report.
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             val delta = JSONObject(requireNotNull(native.next(4, "native-session", 0L)))
             assertTrue("other channels still refresh", channels(delta).isNotEmpty())
             assertFalse("camera_snapshot" in channels(delta))
@@ -106,7 +107,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
             gatewayCpu = 87,
             containment = ZigbeeContainmentResult.PARTIAL,
         )
-        sink("zigbee_gateway_health_attributes", StateConverger.Observation.Known(health.mqttAttributes())) {}
+        sink("zigbee_gateway_health_attributes", StateConverger.Observation.Known(health.attributesJson())) {}
         sink("zigbee_gateway_health", StateConverger.Observation.Known(health.state.wireValue)) {}
         val descriptor = native.offer().descriptors.single { it.channel == "zigbee_gateway_health" }
         assertEquals("sensor", descriptor.platform)
@@ -117,7 +118,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         val observation = observation(fullSync(native), "zigbee_gateway_health")
         assertEquals("degraded_high_cpu", observation.getString("value"))
         val attributes = observation.getJSONObject("attributes")
-        assertEquals(JSONObject(health.mqttAttributes()).keys().asSequence().toSet(), attributes.keys().asSequence().toSet())
+        assertEquals(JSONObject(health.attributesJson()).keys().asSequence().toSet(), attributes.keys().asSequence().toSet())
         assertEquals(87, attributes.getInt("gateway_cpu_percent"))
         assertEquals("partial", attributes.getString("containment_result"))
         assertTrue(attributes.isNull("firmware"))
@@ -127,6 +128,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         val sent = CopyOnWriteArrayList<String>()
         val rig = rig(
             runtimeBroker = "",
+            mqtt = false,
             helperSend = { command -> sent += command; "OK" },
             configure = {
                 it.attachProfile(io.panelassistant.android.control.fakeProfile(hasButtonBacklight = true))
@@ -134,24 +136,23 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
             },
         )
         try {
-            rig.bridge.start()
-            assertFalse(rig.bridge.isConnected())
+            rig.start()
             assertNotNull("the stored level was re-applied: $sent", sent.singleOrNull { it.startsWith("BTN ") })
         } finally { rig.close() }
     }
 
     @Test fun anUnsetButtonBacklightIsLeftAlone() {
         val sent = CopyOnWriteArrayList<String>()
-        val rig = rig(runtimeBroker = "", helperSend = { command -> sent += command; "OK" })
+        val rig = rig(runtimeBroker = "", mqtt = false, helperSend = { command -> sent += command; "OK" })
         try {
-            rig.bridge.start()
+            rig.start()
             assertNull(sent.firstOrNull { it.startsWith("BTN ") })
         } finally { rig.close() }
     }
 
     private fun bound(rig: Rig): PanelAssistantShadowReporter = PanelAssistantShadowReporter(log = {}).also { native ->
-        rig.bridge.addStateSink(native.bindShape(rig.bridge::nativeChannelShape))
-        rig.bridge.addEventSink(native::event)
+        rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
+        rig.core.addEventSink(native::event)
     }
 
     /** Runs an accepted session's full sync and returns its `full_begin` report. */

@@ -27,8 +27,9 @@ internal class OutboxConverger(
         val nativeOnly: Boolean = false,
     )
 
+    private val policies = java.util.concurrent.ConcurrentHashMap<String, MqttStateOutbox.Policy>()
     val core = StateConverger()
-    val outbox = MqttStateOutbox(sender, { key -> core.reconcile(key) }, schedule, featureCosts, monotonicMs)
+    val outbox = MqttStateOutbox(sender, { key -> core.reconcile(key) }, policies::get, schedule, featureCosts, monotonicMs)
 
     init {
         if (onObservation != null) core.addSink { channel, observation, _ -> onObservation(channel, observation) }
@@ -37,7 +38,7 @@ internal class OutboxConverger(
 
     fun register(channel: Channel) {
         if (!channel.nativeOnly) {
-            outbox.route(channel.key, MqttStateOutbox.Policy(channel.equivalent, channel.refreshEligible, channel.maxSilenceMs))
+            policies.putIfAbsent(channel.key, MqttStateOutbox.Policy(channel.equivalent, channel.refreshEligible, channel.maxSilenceMs))
         }
         core.register(StateConverger.Channel(channel.key, channel.observe))
     }

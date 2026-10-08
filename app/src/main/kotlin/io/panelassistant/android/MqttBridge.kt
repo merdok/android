@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.state.SoftwareUpdates
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.SystemClock
@@ -71,12 +72,12 @@ import io.panelassistant.android.mqtt.mqttFamilyBrokerIdentity
 import io.panelassistant.android.mqtt.AuthRecovery
 import io.panelassistant.android.mqtt.isAuthRecoveryState
 import io.panelassistant.android.mqtt.SoftwareCommandOutcome
-import io.panelassistant.android.mqtt.SoftwareComponent
+import io.panelassistant.android.state.SoftwareComponent
 import io.panelassistant.android.mqtt.SoftwareDiscoveryShape
 import io.panelassistant.android.mqtt.SoftwareDiscoveryStep
 import io.panelassistant.android.mqtt.SoftwareUpdateEntities
-import io.panelassistant.android.mqtt.SoftwareUpdateInputs
-import io.panelassistant.android.mqtt.SoftwareUpdateSources
+import io.panelassistant.android.state.SoftwareUpdateInputs
+import io.panelassistant.android.state.SoftwareUpdateSources
 import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.Json
 import io.panelassistant.android.util.MonotonicDeadline
@@ -95,235 +96,6 @@ import java.util.WeakHashMap
 import kotlin.coroutines.resume
 import org.json.JSONObject
 
-/** Independent, production-used map from registry live keys to their concrete MqttBridge effect owner.
- * Keeping dispatch exhaustive over this enum means a newly declared live setting cannot acquire HTTP
- * and MQTT classification merely because both classifications derive from the same registry flag. */
-internal enum class LiveSettingEffectOwner(val settingKey: String) {
-    WAKE_ON_WAVE("wake_on_wave"),
-    AUTO_SLEEP("auto_sleep"),
-    AUTO_SLEEP_SOURCE("auto_sleep_source"),
-    PREVENT_IDLE_DIM("prevent_idle_dim"),
-    WATCHDOG("watchdog_enabled"),
-    KIOSK("kiosk_lock"),
-    BOOT_CHIME("silence_boot_chime"),
-    AUTO_BRIGHTNESS("auto_brightness"),
-    TOUCH_SOUND("touch_sound"),
-    VOICE("voice_enabled"),
-    NETWORK_ADB("network_adb"),
-    ZIGBEE("zigbee_router"),
-    AUTO_BRIGHTNESS_MINIMUM("auto_brightness_minimum_percent"),
-    AUTO_BRIGHTNESS_MAXIMUM("auto_brightness_maximum_percent"),
-    AUTO_BRIGHTNESS_RESPONSE("auto_brightness_response_percent"),
-    AUTO_BRIGHTNESS_HA_ENTITY("auto_brightness_ha_entity"),
-    CPU_GOVERNOR("cpu_governor"),
-    NAVBAR("navbar_mode"),
-    HOME_DASHBOARD("home_dashboard"),
-    HA_AREA_PUBLISH_ONLY("ha_area"),
-    ;
-
-    companion object {
-        private val bySettingKey = entries.associateBy(LiveSettingEffectOwner::settingKey)
-        internal val settingKeys: Set<String> = bySettingKey.keys
-
-        fun requireFor(key: String): LiveSettingEffectOwner =
-            bySettingKey[key] ?: error("live setting declared without a dispatcher: $key")
-    }
-}
-
-/**
- * The complete external MQTT surface for registry-backed live settings.
- *
- * This is deliberately narrower than [LiveSettingEffectOwner]: HTTP can apply adaptive-brightness
- * tuning/source fields, while `ha_area` is followed by server-owned HA registry work and its bridge
- * owner is intentionally publish-only. The wildcard subscription must not turn those HTTP-only/no-op
- * owners into undocumented MQTT writers.
- */
-internal val externalMqttLiveSettingOwners: Map<String, String> = linkedMapOf(
-    "cpu_governor" to "cpu_governor",
-    "network_adb" to "network_adb",
-    "home_dashboard" to "home_dashboard",
-    "navbar" to "navbar_mode",
-    "wake_on_wave" to "wake_on_wave",
-    "auto_sleep" to "auto_sleep",
-    "touch_sound" to "touch_sound",
-    "watchdog" to "watchdog_enabled",
-    "kiosk_lock" to "kiosk_lock",
-    "silence_boot_chime" to "silence_boot_chime",
-    "prevent_idle_dim" to "prevent_idle_dim",
-    "zigbee_router" to "zigbee_router",
-    "auto_brightness" to "auto_brightness",
-)
-
-/**
- * The key a *failed* external command must still supersede, or null.
- *
- * A handler that persists intent before actuating leaves newer durable truth behind even when the
- * actuation then fails — and that failure throws straight past the supersession step that normally
- * retires the older queued HTTP value. Left alone, startup replay commits the stale HTTP value over the
- * newer external one, inverting last-write-wins on the durable setting.
- *
- * Both arguments are required to agree. [committedKey] alone would let a key committed by an earlier
- * dispatch retire a pending value the current command never touched, and [topicKey] alone would retire
- * one for a command that threw before committing anything — an unauthorized or refused command must
- * leave HTTP intent exactly where it was.
- */
-internal fun supersededKeyAfterFailedDispatch(topicKey: String?, committedKey: String?): String? =
-    topicKey?.takeIf { it == committedKey }
-
-/** Resolve an admitted MQTT setting topic to the same registry key used by HTTP live application. */
-internal fun externalLiveSettingKey(panel: String, topic: String): String? {
-    val prefix = "ha-paneld/$panel/"
-    if (!topic.startsWith(prefix) || !topic.endsWith("/set")) return null
-    val leaf = topic.removePrefix(prefix).removeSuffix("/set")
-    return externalMqttLiveSettingOwners[leaf]
-}
-
-/**
- * The concrete live-setting owners. [MqttBridge] implements these methods itself, so production has no
- * second key-to-method adapter that can be swapped independently of the behaviour tested by the router.
- */
-internal interface LiveSettingHandlers {
-    fun handleWakeOnWave(payload: String)
-    fun handleAutoSleep(payload: String)
-    fun handleAutoSleepSource(payload: String)
-    fun handlePreventIdleDim(payload: String, approvalRequired: Boolean = true)
-    fun handleWatchdog(payload: String)
-    fun handleKiosk(payload: String)
-    fun handleSilenceBootChime(payload: String)
-    fun handleAutoBright(payload: String)
-    fun handleTouchSound(payload: String)
-    fun handleVoiceEnabled(payload: String)
-    fun handleNetAdb(payload: String)
-    fun handleZigbee(payload: String)
-    fun handleAutoBrightnessMaximum(payload: String)
-    fun handleAutoBrightnessMinimum(payload: String)
-    fun handleAutoBrightnessSensitivity(payload: String)
-    fun handleAutoBrightnessHaEntity(payload: String)
-    fun handleCpuGov(payload: String)
-    fun handleNavbar(payload: String)
-    fun handleHomeDashboard(payload: String, previousValue: String? = null)
-    fun handleHaAreaPublishOnly()
-}
-
-/** Route one normalized registry value to exactly one typed effect handler. */
-internal fun dispatchLiveSetting(
-    key: String,
-    value: String,
-    previousValue: String? = null,
-    sensitiveApprovalRequired: Boolean = true,
-    handlers: LiveSettingHandlers,
-) {
-    val onOff = if (SettingValue.parseBool(value) == true) "ON" else "OFF"
-    when (LiveSettingEffectOwner.requireFor(key)) {
-        LiveSettingEffectOwner.WAKE_ON_WAVE -> handlers.handleWakeOnWave(onOff)
-        LiveSettingEffectOwner.AUTO_SLEEP -> handlers.handleAutoSleep(onOff)
-        LiveSettingEffectOwner.AUTO_SLEEP_SOURCE -> handlers.handleAutoSleepSource(value)
-        LiveSettingEffectOwner.PREVENT_IDLE_DIM -> handlers.handlePreventIdleDim(
-            if (sensitiveApprovalRequired) value else onOff,
-            sensitiveApprovalRequired,
-        )
-        LiveSettingEffectOwner.WATCHDOG -> handlers.handleWatchdog(onOff)
-        LiveSettingEffectOwner.KIOSK -> handlers.handleKiosk(onOff)
-        LiveSettingEffectOwner.BOOT_CHIME -> handlers.handleSilenceBootChime(onOff)
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS -> handlers.handleAutoBright(onOff)
-        LiveSettingEffectOwner.TOUCH_SOUND -> handlers.handleTouchSound(onOff)
-        LiveSettingEffectOwner.VOICE -> handlers.handleVoiceEnabled(onOff)
-        LiveSettingEffectOwner.NETWORK_ADB -> handlers.handleNetAdb(onOff)
-        LiveSettingEffectOwner.ZIGBEE -> handlers.handleZigbee(onOff)
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MINIMUM -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessMinimum(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MAXIMUM -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessMaximum(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_RESPONSE -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessSensitivity(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_HA_ENTITY -> handlers.handleAutoBrightnessHaEntity(value)
-        LiveSettingEffectOwner.CPU_GOVERNOR -> handlers.handleCpuGov(value)
-        LiveSettingEffectOwner.NAVBAR -> handlers.handleNavbar(value)
-        LiveSettingEffectOwner.HOME_DASHBOARD -> handlers.handleHomeDashboard(value, previousValue)
-        LiveSettingEffectOwner.HA_AREA_PUBLISH_ONLY -> handlers.handleHaAreaPublishOnly()
-    }
-}
-
-/**
- * A live-setting handler failed because this panel has no path to the hardware at all.
- *
- * The classification is thrown rather than returned because the command dispatcher between the handler
- * and the live-setting journal reports one boolean per command. Throwing carries the distinction across
- * that boundary without giving every MQTT command a typed result it has no use for; on the plain MQTT
- * command path, where nothing is journalled, it is an ordinary failure.
- */
-internal class LiveSettingUnavailableException(val key: String) :
-    IllegalStateException("$key has no apply path on this hardware")
-
-/** Fail a handler while preserving whether the attempt found no path at all. */
-internal fun requireControlApplied(
-    key: String,
-    outcome: io.panelassistant.android.control.ControlApplyOutcome,
-    message: () -> String,
-) {
-    when (outcome) {
-        io.panelassistant.android.control.ControlApplyOutcome.APPLIED -> Unit
-        io.panelassistant.android.control.ControlApplyOutcome.UNAVAILABLE ->
-            throw LiveSettingUnavailableException(key)
-        io.panelassistant.android.control.ControlApplyOutcome.FAILED -> error(message())
-    }
-}
-
-internal fun liveSettingApplyResult(
-    result: MqttCommandDispatcher.RunResult,
-    unavailable: () -> Boolean = { false },
-): LiveSettingApplyResult = when {
-    result.admission == MqttCommandDispatcher.Admission.CLOSED ||
-        result.admission == MqttCommandDispatcher.Admission.REJECTED ->
-        LiveSettingApplyResult.DEFERRED
-    result.execution == MqttCommandDispatcher.Execution.PENDING ->
-        LiveSettingApplyResult.DEFERRED
-    result.execution == MqttCommandDispatcher.Execution.SUCCEEDED ->
-        LiveSettingApplyResult.APPLIED
-    // Only a handler that ran and failed can report unavailability. Superseded and never-admitted work
-    // observed no hardware at all, so it stays an ordinary retryable failure whatever the flag says.
-    result.execution == MqttCommandDispatcher.Execution.FAILED && unavailable() ->
-        LiveSettingApplyResult.UNAVAILABLE
-    else -> LiveSettingApplyResult.FAILED
-}
-
-internal fun liveSettingApplication(
-    result: MqttCommandDispatcher.RunResult,
-    unavailable: () -> Boolean = { false },
-): LiveSettingApplication {
-    val initial = liveSettingApplyResult(result, unavailable)
-    if (result.execution != MqttCommandDispatcher.Execution.PENDING) {
-        return LiveSettingApplication.immediate(initial)
-    }
-    return LiveSettingApplication(initial) { observer ->
-        result.observeLateCompletion { terminal ->
-            observer(
-                liveSettingApplyResult(
-                    MqttCommandDispatcher.RunResult(result.admission, terminal),
-                    unavailable,
-                ),
-            )
-        }
-    }
-}
-
-internal fun applyAutoSleepSetting(
-    desired: Boolean,
-    write: (Boolean) -> AutoSleepWriteResult,
-    onCommitted: (Boolean) -> Unit,
-) {
-    when (write(desired)) {
-        AutoSleepWriteResult.UNCHANGED -> Unit
-        AutoSleepWriteResult.COMMITTED -> onCommitted(desired)
-        AutoSleepWriteResult.FAILED -> error("auto_sleep setting commit failed")
-    }
-}
 
 internal fun hiddenReadOnlyStateTopic(key: String, panel: String): String? =
     SettingsRegistry.spec(key)?.ha?.takeIf { it.readOnly }?.stateTopic(panel)
@@ -339,94 +111,6 @@ internal fun mqttMeasurementRefreshAfterAckMs(key: String): Long? =
 internal fun mqttMeasurementPayloadIsRefreshable(payload: String): Boolean =
     payload.toDoubleOrNull()?.isFinite() == true
 
-private val WIFI_DIAGNOSTIC_KEYS = setOf("diag_wifi_ssid", "diag_wifi_rssi")
-
-/** Whether the published count is a total or a known lower bound, so HA never records a floor as exact. */
-internal fun wifiOutageMqttAttributes(counts: WifiOutageCounts): String =
-    JSONObject().put("is_lower_bound", counts.saturated).toString()
-
-/**
- * What the outage-attributes topic should carry right now.
- *
- * The attributes share the count's opt-in: hiding the sensor must CLEAR the retained payload rather
- * than leave a stale `is_lower_bound` alive in the broker for an entity nobody exposed. Pure so the
- * expose/hide/reconnect boundary is checked by behaviour, not by reading the bridge's source.
- */
-internal fun wifiOutageAttributeObservation(
-    exposed: Boolean,
-    counts: WifiOutageCounts?,
-): io.panelassistant.android.state.StateConverger.Observation =
-    if (!exposed || counts == null) {
-        io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    } else {
-        io.panelassistant.android.state.StateConverger.Observation.Known(wifiOutageMqttAttributes(counts))
-    }
-
-/** Path-free, bounded Home Assistant attributes derived from the shared immutable snapshot. */
-internal fun storageHealthMqttAttributes(snapshot: StorageHealthSnapshot): String {
-    val probeRan = snapshot.checkedAtMillis > 0L
-    val capacityKnown = probeRan && snapshot.totalBytes > 0L
-    val sqliteMetricsKnown = probeRan && snapshot.pageSizeBytes > 0L && snapshot.pageCount > 0L
-    val databaseFilesBytes = listOf(
-        snapshot.mainDatabaseBytes,
-        snapshot.walBytes,
-        snapshot.sidecarBytes,
-    ).fold(0L) { total, value ->
-        if (value > Long.MAX_VALUE - total) Long.MAX_VALUE else total + value
-    }
-    fun valueOrNull(value: Any?, known: Boolean = probeRan): Any? = if (known) value else JSONObject.NULL
-    return JSONObject()
-        .put("storage_pressure", snapshot.pressureSeverity.name.lowercase(Locale.ROOT))
-        .put("failure_category", snapshot.databaseFailureKind?.name?.lowercase(Locale.ROOT) ?: JSONObject.NULL)
-        .put("failure_operation", snapshot.databaseFailureOperationLabel ?: JSONObject.NULL)
-        .put("auto_vacuum", snapshot.autoVacuumMode.name.lowercase(Locale.ROOT))
-        .put("usable_bytes", valueOrNull(snapshot.usableBytes, capacityKnown))
-        .put("total_bytes", valueOrNull(snapshot.totalBytes, capacityKnown))
-        .put("used_percent", if (capacityKnown) snapshot.usedPercent ?: JSONObject.NULL else JSONObject.NULL)
-        .put("main_database_bytes", valueOrNull(snapshot.mainDatabaseBytes))
-        .put("wal_bytes", valueOrNull(snapshot.walBytes))
-        .put("database_sidecar_bytes", valueOrNull(snapshot.sidecarBytes))
-        .put("database_files_bytes", valueOrNull(databaseFilesBytes))
-        .put("page_size_bytes", valueOrNull(snapshot.pageSizeBytes, sqliteMetricsKnown))
-        .put("page_count", valueOrNull(snapshot.pageCount, sqliteMetricsKnown))
-        .put("freelist_count", valueOrNull(snapshot.freelistCount, sqliteMetricsKnown))
-        .put("schema_version", valueOrNull(snapshot.schemaVersion, sqliteMetricsKnown && snapshot.schemaVersion > 0))
-        .put("quick_check", snapshot.quickCheck.name.lowercase(Locale.ROOT))
-        .put("checked_at_epoch_seconds", valueOrNull(snapshot.checkedAtMillis / 1_000L))
-        .toString()
-}
-
-internal fun diagnosticObservation(
-    key: String,
-    exposed: Boolean,
-    value: String?,
-): io.panelassistant.android.state.StateConverger.Observation = when {
-    key in WIFI_DIAGNOSTIC_KEYS && (!exposed || value == null) ->
-        io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    !exposed -> io.panelassistant.android.state.StateConverger.Observation.Unknown
-    else -> io.panelassistant.android.state.StateConverger.Observation.Known(value ?: "unknown")
-}
-
-internal enum class LearnedProximityRefresh { SKIPPED, ELIGIBLE, INELIGIBLE }
-
-/** Service-owned policy projection for HA's binary activity entity. The entity is deliberately
- * binary: HA's recorder/history chart is the useful historical visualization, while attributes retain
- * only bounded categorical context for diagnosing why the policy is active or unavailable. */
-internal data class AutoSleepActivitySnapshot(
-    val holdingAwake: Boolean = false,
-    val policyHealthy: Boolean = false,
-    val reason: String = "unavailable",
-    val learnedDelay: String = "unknown",
-    val sourceCount: Int = 0,
-    val phase: String = "unavailable",
-    val manualSuppression: Boolean = false,
-)
-
-internal data class AutoSleepMqttProjection(
-    val state: String,
-    val attributes: String,
-    val availability: String,
-)
 
 internal data class AutoSleepMqttPublication(
     val topic: String,
@@ -475,24 +159,6 @@ internal fun mqttDeviceIdentifiers(
     legacyAndroidId.trim().takeIf(String::isNotEmpty)?.let { add("ha-paneld-aid-$it") }
 }
 
-internal fun autoSleepMqttProjection(snapshot: AutoSleepActivitySnapshot): AutoSleepMqttProjection {
-    fun category(raw: String): String = raw.trim().lowercase(java.util.Locale.ROOT)
-        .replace(Regex("[^a-z0-9_-]+"), "_")
-        .trim('_')
-        .take(48)
-        .ifBlank { "unknown" }
-    return AutoSleepMqttProjection(
-        state = if (snapshot.holdingAwake) "ON" else "OFF",
-        attributes = "{" +
-            "\"reason\":${Json.str(category(snapshot.reason))}," +
-            "\"learned_delay\":${Json.str(category(snapshot.learnedDelay))}," +
-            "\"source_count\":${snapshot.sourceCount.coerceAtLeast(0)}," +
-            "\"phase\":${Json.str(category(snapshot.phase))}," +
-            "\"manual_suppression\":${snapshot.manualSuppression}" +
-            "}",
-        availability = if (snapshot.policyHealthy) "online" else "offline",
-    )
-}
 
 internal fun autoSleepMqttPublications(
     panel: String,
@@ -507,7 +173,7 @@ internal fun autoSleepMqttPublications(
         AutoSleepMqttPublication(attributesTopic, ""),
         AutoSleepMqttPublication(availabilityTopic, ""),
     )
-    val projection = autoSleepMqttProjection(snapshot)
+    val projection = autoSleepActivityProjection(snapshot)
     val state = AutoSleepMqttPublication(stateTopic, projection.state)
     val attributes = AutoSleepMqttPublication(attributesTopic, projection.attributes)
     val availability = AutoSleepMqttPublication(availabilityTopic, projection.availability)
@@ -576,20 +242,6 @@ internal fun cameraSnapshotPublications(
     } else listOf(availability)
 }
 
-/** A mode-change signal carries no truth. The admitted bridge generation samples the service-owned
- * authority immediately before it clears stale state and schedules fresh discovery. */
-internal fun refreshLearnedProximityFromAuthority(
-    admitted: Boolean,
-    eligible: () -> Boolean,
-    clearIneligibleState: () -> Unit,
-    reannounce: () -> Unit,
-): LearnedProximityRefresh {
-    if (!admitted) return LearnedProximityRefresh.SKIPPED
-    val current = runCatching(eligible).getOrDefault(false)
-    if (!current) clearIneligibleState()
-    reannounce()
-    return if (current) LearnedProximityRefresh.ELIGIBLE else LearnedProximityRefresh.INELIGIBLE
-}
 
 /** Sticky retirement evidence. Mutation owners must drain synchronously before shared hardware can be
  * dismantled; retained final publication and transport disconnect may finish on the transport owner. */
@@ -598,134 +250,6 @@ internal class MqttRetirement {
     val finalization = CompletableFuture<Unit>()
 }
 
-/** Kiosk ON is durable only after privileged actuation accepts it; OFF remains fail-safe and retryable. */
-internal fun applyAcknowledgedKioskSetting(
-    on: Boolean,
-    actuate: (Boolean) -> Boolean,
-    persist: (Boolean) -> Boolean,
-    reconcile: () -> Unit,
-): Boolean {
-    if (on) {
-        if (!runCatching { actuate(true) }.getOrDefault(false)) return false
-        if (!runCatching { persist(true) }.getOrDefault(false)) {
-            // Actuation owns a durable recovery marker. Roll back local enforcement and retry
-            // uncertain platform cleanup without ever acknowledging an ON that config did not commit.
-            // SharedPreferences may update its in-memory map even when commit() reports disk failure,
-            // so explicitly restore OFF before cleanup as well as returning a failed acknowledgement.
-            runCatching { persist(false) }
-            runCatching { actuate(false) }
-            return false
-        }
-    } else {
-        // OFF is fail-safe: persistence failure must never prevent local/persistent cleanup.
-        val persisted = runCatching { persist(false) }.getOrDefault(false)
-        runCatching { actuate(false) }
-        if (!persisted) return false
-    }
-    runCatching(reconcile)
-    return true
-}
-
-/**
- * voice_enabled ON is durable only once [commit] (the durable [io.panelassistant.android.Config.
- * commitVoiceEnabled], never the fire-and-forget async write) accepts it AND the live bridge generation
- * has a microphone; [reconcile] runs on every path — success, capability refusal, or commit failure —
- * so the voice_enabled channel is never left echoing a value nothing actually took effect for, whether
- * that is a stale retained ON from before a profile switch removed the capability, or an in-memory
- * SharedPreferences value that changed even though its commit() reported failure (the same hazard
- * [applyAcknowledgedKioskSetting] guards against). A `false` return means the caller must report the
- * request as failed/refused rather than applied — see handleVoiceEnabled.
- */
-internal fun applyAcknowledgedVoiceEnabled(
-    on: Boolean,
-    hasMicrophone: Boolean,
-    commit: (Boolean) -> Boolean,
-    reconcile: () -> Unit,
-): Boolean {
-    if (on && !hasMicrophone) {
-        runCatching(reconcile)
-        return false
-    }
-    if (!runCatching { commit(on) }.getOrDefault(false)) {
-        runCatching(reconcile)
-        return false
-    }
-    runCatching(reconcile)
-    return true
-}
-
-/** Camera OFF is always immediate. Camera ON is admitted only on a camera-capable profile and only
- * after the local approval broker accepts the exact request. The caller performs no state mutation
- * until this function returns, so a missing capability or pending/refused approval cannot pre-arm a
- * hidden camera setting. */
-internal fun requireCameraEnableAdmission(
-    on: Boolean,
-    hasCamera: Boolean,
-    authorize: () -> Unit,
-) {
-    if (!on) return
-    check(hasCamera) { "this panel has no camera capability" }
-    authorize()
-}
-
-/** One non-reentrant lane for HTTP, MQTT, and the on-device escape gesture. The kiosk controller is
- * service-owned, so it can apply synchronously without borrowing the replaceable MQTT dispatcher. */
-internal class KioskSettingCoordinator(
-    private val canEnable: () -> Boolean,
-    private val actuate: (Boolean) -> Boolean,
-    private val persist: (Boolean) -> Boolean,
-) {
-    private val lock = Any()
-
-    fun apply(on: Boolean, reconcile: () -> Unit = {}): Boolean = synchronized(lock) {
-        if (on && !canEnable()) return false
-        applyAcknowledgedKioskSetting(on, actuate, persist, reconcile)
-    }
-
-    fun <T> serialized(block: () -> T): T = synchronized(lock, block)
-}
-
-internal fun applyAcknowledgedNavbarMode(
-    payload: String,
-    previousMode: String,
-    actuate: (String) -> CompletableFuture<NavbarModeApplyOutcome>,
-    rollback: (expectedMode: String, previousMode: String) -> CompletableFuture<NavbarModeApplyOutcome>,
-    persist: (String) -> Boolean,
-    reconcile: () -> Unit,
-    timeoutMs: Long = NAVBAR_ACK_TIMEOUT_MS,
-) {
-    fun await(
-        future: CompletableFuture<NavbarModeApplyOutcome>,
-        label: String,
-    ): NavbarModeApplyOutcome = try {
-        future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-    } catch (failure: Exception) {
-        throw IllegalStateException("navbar $label acknowledgement failed", failure)
-    }
-
-    val outcome = try {
-        await(actuate(payload), "actuation")
-    } catch (failure: IllegalStateException) {
-        // Conditional rollback supersedes this request only if it is still the controller's latest
-        // desired mode. A newer HTTP/MQTT request remains authoritative and returns SUPERSEDED here.
-        runCatching { await(rollback(payload, previousMode), "timeout rollback") }
-        throw failure
-    }
-    check(outcome.status == NavbarModeApplyStatus.APPLIED) {
-        "navbar transition ${outcome.status.name.lowercase()}"
-    }
-    val persisted = runCatching { persist(outcome.mode) }.getOrDefault(false)
-    if (!persisted) {
-        val restored = await(rollback(outcome.mode, previousMode), "persistence rollback")
-        check(restored.status == NavbarModeApplyStatus.APPLIED ||
-            restored.status == NavbarModeApplyStatus.SUPERSEDED
-        ) { "navbar persistence failed and rollback ${restored.status.name.lowercase()}" }
-        error("navbar persistence failed")
-    }
-    reconcile()
-}
-
-private const val NAVBAR_ACK_TIMEOUT_MS = 20_000L
 
 /**
  * MQTT bridge — the single uniform control API across the fleet. Publishes Home Assistant
@@ -1131,79 +655,21 @@ internal class MqttAnnouncementReadiness {
     }
 }
 
-/**
- * The Home Assistant level to publish when the effective backlight moved from [baseline] to [effective]
- * without a command. A profile curve's reads are already on the Home Assistant scale ([curved]), so they are
- * published as read; otherwise the node may sit on a framework curve's scale and is back-mapped in proportion
- * to the last published [commanded] level.
- */
-internal fun reportedBacklightDrift(curved: Boolean, commanded: Int, effective: Int, baseline: Int): Int =
-    if (curved) {
-        effective.coerceIn(1, 255)
-    } else {
-        (commanded.toLong() * effective / baseline.coerceAtLeast(1)).toInt().coerceIn(1, 255)
-    }
-
 internal class MqttBridge(
     private val config: Config,
-    private val brightness: BrightnessController,
-    private val screen: ScreenController,
+    // The runtime generation's state owner: MQTT is one more destination for its channels.
+    private val core: PanelStateCore,
+    // The runtime generation's ordered command authority: MQTT commands are one more origin.
+    private val commands: PanelCommandDispatcher,
     private val led: LedController,
-    // Drives strobe/blink/pulse on the LED (HA's built-in light `effect`). Service-owned + injected so a
-    // bridge rebuild (reconfigure) can never orphan a running effect loop — there is only ever one.
-    private val ledEffect: LedEffectController,
-    private val navigate: NavigateController,
-    private val volume: VolumeController,
-    private val system: SystemController,
-    // Soft on-screen navbar overlay (select: Off / Always on / Swipe reveal).
-    private val navbar: NavbarController,
-    // App watchdog (switch): self-heals a dead/abandoned dashboard. Toggling restarts its poll loop.
-    private val watchdog: WatchdogController,
-    private val touchSound: TouchSoundController,
-    private val bootChime: BootChimeController,
-    // Zigbee gateway control (Sonoff NSPanel Pro only). Presence is detected lazily on the MQTT
-    // thread in publishDiscovery — it costs a su exec, so it must not run on the main thread.
-    private val zigbee: ZigbeeController,
-    // On-board relays + button LEDs (Smatek S9E). Probed lazily on the MQTT thread.
-    private val relay: RelayController,
-    // CPU governor + persistent network adb (root/su panels). Probed lazily on the MQTT thread.
-    private val cpu: CpuController,
     private val adb: AdbController,
     private val buttonsEnabled: Boolean,
     // Panel has hardware buttons instrumented via the daemon (evdev) — publish the event entity even
     // when the accessibility key capture is off (e.g. the WF1589T power button).
     private val hasEvdevButtons: Boolean,
-    // Capability snapshot supplier for availableWhen gating of registry entities (null = no gating,
-    // used by tests). Called on the MQTT thread at discovery time, so probes stay off the main thread.
-    private val capabilities: (() -> Capabilities)? = null,
-    private val hasProximity: Boolean,
-    private val hasTemperature: Boolean,
-    private val hasHumidity: Boolean,
     // Panel carries a CHT8305 room temp/humidity chip (daemon-read) — gates the opt-in Room sensors.
     private val hasCht8305: Boolean,
     private val hasButtonBacklight: Boolean,
-    /** The profile's key-backlight curve; the reported state stays the Home Assistant level. */
-    private val buttonBacklightTransfer: io.panelassistant.android.hardware.TransferCurve =
-        io.panelassistant.android.hardware.TransferCurve.Identity,
-    // The profile-authoritative microphone capability (Capabilities.hasMicrophone, itself sourced from
-    // the active device profile), captured per bridge generation exactly like hasCht8305/
-    // hasButtonBacklight — a profile switch already forces a fresh bridge (profileIdentity), so this is
-    // never stale for longer than that. Gates the voice_enabled live-setting handler, which refuses ON
-    // without it.
-    private val hasMicrophone: Boolean = false,
-    // The panel's media player, or null when the profile declares no speaker: the native `media`
-    // channel is then stated unsupported rather than described.
-    private val media: io.panelassistant.android.media.PanelMediaPlayer? = null,
-    // Live profile/probe capability: null keeps the native channel while enumeration is unsettled.
-    // Discovery is not a write guard: wildcard subscriptions receive commands even without an entity.
-    private val hasCamera: () -> Boolean? = { false },
-    // Live light-sensor answer: true described, false settled absent, null left out until it settles.
-    private val lightChannel: () -> Boolean? = { true },
-    // Optional service-owned adaptive-brightness engine.
-    private val autoBright: AutoBrightnessController,
-    private val onAutoBrightnessConfigChanged: () -> Unit = {},
-    // Service-owned auto-sleep policy projection; sampled on the MQTT worker for HA history.
-    private val autoSleepActivity: () -> AutoSleepActivitySnapshot = { AutoSleepActivitySnapshot() },
     // Evaluated for every discovery announcement so DHCP/address changes never leave HA's device-page
     // Visit link pinned to the address captured when the service process started.
     private val configUrl: () -> String? = { null },
@@ -1211,42 +677,20 @@ internal class MqttBridge(
     // the same reason as configUrl — a DHCP move must not leave a stale address published. Null when no
     // LAN address is known, which makes the snapshot image entity unavailable rather than wrong.
     private val cameraSnapshotUrl: () -> String? = { null },
-    // The camera master switch moved through MQTT. The service performs the same actuation its HTTP
-    // reconfigure path performs, so both routes converge on one owner rather than two.
-    private val onCameraEnabledChanged: () -> Unit = {},
     // Resolves HA's LAN IP via mDNS to default the broker when none is configured (injected by the
     // service, wired to MdnsAdvertiser). Returns null if HA isn't found / mDNS unavailable.
     private val discoverHaIp: () -> String? = { null },
     // HA's advertised base URL (scheme+host+port) from zeroconf TXT — for the "Open in HA" device link,
     // so we never guess a port/scheme. Null if HA isn't found / advertises no URL.
     private val discoverHaUrl: (configuredBroker: String) -> String? = { null },
-    // Trigger an HA Companion app install/update. Injected by the service (needs Context + a
-    // coroutine); runs off the MQTT thread. Fired by the update_companion button.
-    private val onUpdateCompanion: () -> Unit = {},
-    // Trigger an explicit ha-paneld update. force=true installs the stable catalogue's newest build.
-    private val onSelfUpdate: (force: Boolean) -> Unit = {},
     // Inputs for the MQTT update entities, sampled on this bridge's workers: installed versions,
     // same-policy catalog targets, install-lane ownership and Panel Assistant ownership. Install
     // capability comes from this bridge's own capability snapshot. Null publishes no update entities.
     private val softwareUpdateSources: (() -> SoftwareUpdateSources)? = null,
-    // One admitted `install` command with its exact catalog tag already bound. False means the shared
-    // destructive-operation lane was busy and nothing started.
-    private val onSoftwareInstall: (SoftwareComponent, String) -> Boolean = { _, _ -> false },
-    // Home-dashboard commands change the automatic entity-learning ownership target. Notify only after
-    // the normalized path is durably visible so the manager can hide/rebuild the correct subscription.
-    private val onDashboardTargetChanged: () -> Unit = {},
-    // Direct MQTT kiosk commands join the service-owned coordinator used by HTTP and the local escape
-    // gesture, instead of creating a second persistence/actuation ordering lane inside this bridge.
-    private val onDirectKioskSetting: (Boolean) -> Boolean,
     // The app-asset source catalogue in English. The service owns Android Context; the MQTT bridge
     // receives only the lookup so the device-facing title and guidance do not duplicate public copy.
     private val migrationNoticeEnglish: (String) -> String,
-    // A successfully executed external MQTT setting is newer truth than any HTTP generation which
-    // timed out ahead of it, even though their dispatcher conflation keys intentionally differ.
-    private val onExternalSettingApplied: (String) -> Boolean = { true },
     private val zigbeeHealth: () -> ZigbeeHealthSnapshot = { ZigbeeHealthSnapshot() },
-    private val storageHealth: () -> StorageHealthSnapshot = StorageHealthRuntime::snapshot,
-    private val onZigbeeExplicitRetry: () -> Unit = {},
     // A panel-id replaced by reconfiguration. Its discovery and availability are cleared by the NEW
     // connection, so cleanup cannot be lost when the old client is detached or the broker was offline.
     private val stalePanelId: String? = null,
@@ -1258,8 +702,6 @@ internal class MqttBridge(
     // Event types declared by the active runtime profile. Discovery must advertise every value this
     // bridge can publish, not only the historical built-in key list.
     private val profileButtonEventTypes: Set<String> = emptySet(),
-    // The root helper's command line, for the button backlight.
-    private val helperSend: (String) -> String? = HelperClient::send,
     // Immutable connection/advertisement identity for this concrete bridge generation. Config remains
     // live for settings that can be re-projected without replacing the broker connection.
     private val runtimePanelId: String = config.panelId,
@@ -1268,28 +710,8 @@ internal class MqttBridge(
     private val runtimeMqttUser: String = config.mqttUser,
     private val runtimeMqttPassword: String = config.mqttPassword,
     private val runtimeMqttAddressFamily: String = config.mqttAddressFamily,
-    private val wifiDiagnostics: (WifiDiagnosticDemand) -> WifiDiagnosticSnapshot = { WifiDiagnosticSnapshot() },
-    private val wifiOutages: () -> WifiOutageCounts? = { null },
-    private val learnedProximityEligibility: () -> Boolean = { false },
-    // Learned proximity once it is settled; null while the calibration is still loading or has closed, so a
-    // transient false is never stated to Home Assistant as a panel without the sensor.
-    private val learnedProximityState: () -> Boolean? = { null },
-    private val onAutoSleepConfigChanged: (Boolean) -> Unit = {},
     private val transport: MqttTransport = HiveMqTransport(),
-) : LiveSettingHandlers {
-    private enum class CommandKind { LATEST, ACTION }
-
-    private val haLinkResolutionThread = AtomicReference<Thread?>()
-    private val discoveryCapabilities = MqttDiscoveryCapabilitySource(
-        supplier = capabilities,
-        onFailure = { error ->
-            Log.w(TAG, "capability snapshot failed; publishing conservative discovery", error)
-        },
-    )
-    // Channel shape grows monotonically after a live capability is confirmed. A transient negative
-    // snapshot therefore publishes unknown/unavailable state instead of deleting the channel forever.
-    private val capabilityShape = MqttCapabilityShape()
-    private val capabilityChannelLock = Any()
+) {
 
     /** Broker actually in use — configured, or auto-discovered as `tcp://<ha-ip>:1883`; "" if none. */
     var activeBroker: String = ""
@@ -1329,25 +751,8 @@ internal class MqttBridge(
     private val familyRecoveryLock = Any()
     @Volatile private var selectedFamilyRoute: MqttSelectedFamilyRoute? = null
     @Volatile private var activeConnection: MqttConnectionLease? = null
-    private val commandDispatcher = MqttCommandDispatcher(
-        onQueueWait = { waitNanos ->
-            FeatureCosts.registry.recordSynchronousElapsed(FeatureCostOperation.MQTT_COMMAND_QUEUE_WAIT, waitNanos)
-        },
-    )
-    // Relay/button-LED read-backs leave the command worker and coalesce latest-generation-wins, so a
-    // burst costs one privileged read, and a late read-back can never publish behind a newer command:
-    // the generation predicate travels into the converger and is re-evaluated under its admission
-    // lock, so an observation overtaken mid-flight is withdrawn instead of published.
-    // The scheduler is the RAW convergence pump, deliberately not dispatchStateWork: the bridge
-    // lifecycle wrapper DROPS tasks after retirement, which would strand the gate's open feature-cost
-    // span. Every task runs; cancellation lives inside reconcile, whose own gate no-ops after close().
-    private val relayReadbackGate = io.panelassistant.android.mqtt.CommandReadbackGate(
-        schedule = { task -> io.panelassistant.android.state.StateConverger.dispatch(task) },
-        readback = { key, stillCurrent -> stateConverger.reconcile(key, force = true, admit = stillCurrent) },
-    )
     private val adbReassertWorker = LatestDispatcher.singleSlot<Unit>("mqtt-adb-reassert", consume = { adb.reassert() })
     private val discoveryAnnouncementLock = Any()
-    private var buttonSubscription: ButtonBus.Subscription? = null
 
     fun isConnected(): Boolean = state == "connected"
     internal fun heartbeatConnectionGeneration(): Long? =
@@ -1510,23 +915,6 @@ internal class MqttBridge(
     private val cmdNetAdb = "ha-paneld/$panel/network_adb/set"
     private val stateNetAdb = "ha-paneld/$panel/network_adb/state"
     private val stateScreen = "ha-paneld/$panel/screen/state"
-    // Last brightness reported to HA on stateScreen (-1 = screen reported OFF); heartbeat reconciles
-    // the effective hardware backlight against this so firmware dims reach HA between commands.
-    @Volatile private var lastScreenBrightness = -1
-    // LED hardware has no readback on every backend. Publish desired state only after the current bridge
-    // has a confirmed write; a failed command/effect frame remains Unknown instead of fabricating success.
-    @Volatile private var ledActuationKnown = false
-    // Effective (node-scale) level the last command settled at; -1 = capture on next heartbeat tick.
-    @Volatile private var screenEffectiveBaseline = -1
-    // Per-channel sync state: previous tick's read (settle detection) + last published volume.
-    @Volatile private var prevTickBrightness = -1
-    @Volatile private var prevTickVolume = -1
-    @Volatile private var lastPublishedVolume = -1
-    // Last CPU-tier reported to HA — baselined at announce / on command, so the sync channel only fires
-    // when the live sysfs governor is changed by something else (a thermal daemon, another app).
-    @Volatile private var lastPublishedGovTier: String? = null
-    // Recent "changed outside MQTT" events, surfaced on the info page + /diag for debugging.
-    private val syncLog = io.panelassistant.android.state.SyncLog()
     private val stateLed = "ha-paneld/$panel/led/state"
     private val stateNavigate = "ha-paneld/$panel/navigate/state"
     private val stateVolume = "ha-paneld/$panel/volume/state"
@@ -1551,23 +939,6 @@ internal class MqttBridge(
     // leave a frame sitting on the broker. HA stores this URL and fetches it when somebody actually looks
     // at the card, so the camera opens for a viewer and never for a publish.
     private val cameraSnapshotAvailability = cameraSnapshotAvailabilityTopic(panel)
-    private val stateCommandTopics by lazy {
-        setOf(
-            cmdCpuGov, cmdNetAdb, cmdScreen, cmdLed, cmdNavigate, cmdVolume, cmdHomeDashboard,
-            cmdButtons, cmdNavbar, cmdWakeOnWave, cmdAutoSleep, cmdTouchSound, cmdWatchdog, cmdKiosk,
-            cmdSilenceBootChime, cmdPreventIdleDim, cmdZigbee, cmdAutoBright,
-            cmdCameraEnabled,
-        )
-    }
-    private val actionCommandTopics by lazy {
-        setOf(
-            cmdReload, cmdReboot, cmdUpdateCompanion, cmdUpdatePaneld,
-        )
-    }
-    @Volatile private var lastIlluminance: Int? = null
-    private val proximityPublication = ProximityPublicationState()
-    @Volatile private var lastTemperature: Float? = null
-    @Volatile private var lastHumidity: Float? = null
 
     private data class SoftwareUpdateDiscoveryContext(val availability: String, val device: String)
     // Captured by each discovery pass so a later shape change can republish with the same identity.
@@ -1580,12 +951,6 @@ internal class MqttBridge(
     // Eager ownership removes the extra lazy/not-yet-closed state: every external producer sees the
     // same converger, and retirement can close it before any late callback tries to publish.
     private val announcementReadiness = MqttAnnouncementReadiness()
-    // The MQTT edge: each channel's topic and retain policy, recorded before the channel is registered so
-    // no reconcile can reach the sink for a channel without its route. Declared ahead of the converger,
-    // whose construction registers channels.
-    private val mqttStateRoutes = java.util.concurrent.ConcurrentHashMap<String, MqttStateRoute>()
-    @Volatile private var nativeStateSink: io.panelassistant.android.state.StateSink? = null
-    @Volatile private var nativeEventSink: ((channel: String, event: String) -> Unit)? = null
     // A connected broker can block inside send(). Keep every pump-originated MQTT publication off
     // the shared observation pump; the bounded queue also covers non-converger state topics.
     private val statePublicationWorker = java.util.concurrent.ThreadPoolExecutor(
@@ -1596,13 +961,102 @@ internal class MqttBridge(
     )
     private val stateOutbox = io.panelassistant.android.mqtt.MqttStateOutbox(
         sender = ::publishStateObservation,
-        reconcile = { key -> stateConverger.reconcile(key) },
+        reconcile = { key -> core.reconcile(key) },
+        policyFor = { key -> stateRouteFor(key)?.policy },
         schedule = ::dispatchStateWork,
     )
-    private val stateConverger = createStateConverger()
-    private val zigbeeActuation = MqttZigbeeActuationCoordinators.forController(zigbee)
-    private val zigbeeLease = zigbeeActuation.activate()
-    private val zigbeeWorker = LatestDispatcher.singleSlot<Boolean>("zigbee-state", ::reconcileZigbeeDesired)
+
+    /** What MQTT projects beyond the core's state channels, at the point each transition happens. */
+    private val stateProjection = object : StateCoreListener {
+        override fun onCapabilitiesObserved(observation: CapabilityObservation) {
+            if (observation.grew) requestReAnnounce()
+        }
+
+        override fun onDescriptionInputsChanged() = requestReAnnounce()
+
+        // Current retained states precede the entity-specific online edge; the clears follow offline.
+        override fun onProximityAvailability(available: Boolean) {
+            publish(proximityAvailabilityTopic, if (available) "online" else "offline", retain = true)
+            if (!available) {
+                publish(stateProximity, "", retain = true)
+                publish(stateProximityLevel, "", retain = true)
+            }
+        }
+
+        // The snapshot entity's URL and availability. The URL topic never carries an empty payload: HA
+        // validates every message on it as a URL and logs an error for anything else, so "the camera is
+        // off" is said on the availability topic instead of by clearing the URL.
+        override fun onCameraSnapshot(refreshUrl: Boolean) {
+            cameraSnapshotPublications(
+                panel = panel,
+                announced = cameraSnapshotAnnounced,
+                enabled = config.cameraEnabled,
+                url = cameraSnapshotUrl(),
+                refreshUrl = refreshUrl,
+            ).forEach { publish(it.topic, it.payload, retain = true) }
+        }
+
+        override fun onZigbeeHealth(snapshot: ZigbeeHealthSnapshot?) {
+            lifecycle.runIfOpen(Unit) {
+                if (state != "connected") return@runIfOpen
+                val current = snapshot ?: zigbeeHealth()
+                publish(stateZigbeeHealth, current.state.wireValue, retain = true)
+                publish(attrZigbeeHealth, current.attributesJson(), retain = true)
+            }
+        }
+
+        override fun onAutoSleepActivity(exposed: Boolean, snapshot: AutoSleepActivitySnapshot) {
+            autoSleepMqttPublications(panel, exposed, snapshot).forEach { publication ->
+                publish(publication.topic, publication.payload, retain = publication.retain)
+            }
+        }
+
+        override fun onButton(event: String) {
+            publish(eventButton, """{"event_type":"$event"}""")
+        }
+
+        override fun onSoftwareUpdatesDue() = reconcileSoftwareUpdates(announcing = false)
+
+        override fun resolveHaLinkWithoutNativeSession() = resolveHaLinkFromBroker()
+    }
+
+    init {
+        core.addListener(stateProjection)
+        core.attach(stateOutbox)
+    }
+
+    /** How one core channel publishes on MQTT, or null for a channel only the native transport carries. */
+    private fun stateRouteFor(key: String): MqttStateChannel? {
+        fun state(topic: String = "ha-paneld/$panel/$key/state", retain: Boolean = true, equivalent: (String, String) -> Boolean = String::equals) =
+            mqttStateChannel(key, topic, retain, equivalent)
+        // Hardware confirmed after startup publishes change-only, like any retained switch.
+        fun capability() = MqttStateChannel(MqttStateRoute("ha-paneld/$panel/$key/state", retain = true))
+        val deadband = io.panelassistant.android.mqtt.MqttStateOutbox::numericDeadband
+        return when (key) {
+            // Native only: MQTT has no media_player platform (protocol section 18), and carries the camera
+            // snapshot, auto-sleep activity and Zigbee health on topics of their own.
+            "media", "camera_snapshot", "auto_sleep_activity", "auto_sleep_activity_attributes",
+            "zigbee_gateway_health", "zigbee_gateway_health_attributes" -> null
+            "storage_health_attributes" -> state(attrStorageHealth)
+            "diag_wifi_outages_attributes" -> state(attrWifiOutages)
+            "illuminance" -> state(retain = false)
+            "proximity_level" -> state(equivalent = deadband(4.0))
+            "temperature" -> state(retain = false, equivalent = deadband(0.1))
+            "humidity" -> state(retain = false, equivalent = deadband(1.0))
+            in PanelStateCore.DIAG_KEYS, in PanelStateCore.ROOM_KEYS -> state(
+                SettingsRegistry.spec(key)!!.ha!!.stateTopic(panel),
+                equivalent = DIAG_DEADBANDS[key]?.let(deadband) ?: String::equals,
+            )
+            "network_adb", "zigbee_router", "cpu_governor" -> capability()
+            else -> when {
+                key.startsWith("relay") || key.startsWith("button_led") -> capability()
+                key.startsWith("software_update_") -> SoftwareComponent.entries
+                    .firstOrNull { SoftwareUpdates.stateChannelKey(it) == key }
+                    ?.let { state(SoftwareUpdateEntities.stateTopic(panel, it)) }
+                else -> state()
+            }
+        }
+    }
     // HiveMQ invokes both lifecycle callbacks on its own event loop. That thread may never acquire the
     // bridge gate: it only hands the latest event to this fixed-cardinality owner.
     private val connectionEventDispatcher = MqttConnectionEventDispatcher(::performConnectionEvent)
@@ -1635,238 +1089,13 @@ internal class MqttBridge(
         }
     }
 
-    private fun createStateConverger(): io.panelassistant.android.state.StateConverger {
-        val known = { payload: String -> io.panelassistant.android.state.StateConverger.Observation.Known(payload) }
-        val unknown = io.panelassistant.android.state.StateConverger.Observation.Unknown
-        val c = io.panelassistant.android.state.StateConverger()
-        c.addSink { channel, observation, done -> nativeStateSink?.invoke(channel, observation, done) }
-        c.attach(stateOutbox)
-        fun channel(
-            key: String,
-            topic: String?,
-            retain: Boolean = true,
-            equivalent: (String, String) -> Boolean = String::equals,
-            observe: () -> io.panelassistant.android.state.StateConverger.Observation,
-        ) {
-            val mqtt = mqttStateChannel(key, topic.orEmpty(), retain, equivalent, observe)
-            // A null topic is a native-only channel: the converger observes it, MQTT never publishes it.
-            if (topic == null) c.register(mqtt.channel) else registerStateChannel(c, mqtt)
-        }
-
-        channel("storage_health", stateStorageHealth) {
-            known(storageHealth().severity.name.lowercase(Locale.ROOT))
-        }
-        // Retained update-entity state. A withheld entity (ha-paneld's under a Panel Assistant lease, or
-        // the Companion's while no Companion is installed) clears its retained payload rather than
-        // leaving a stale version behind the discovery tombstone.
-        if (softwareUpdateSources != null) for (component in SoftwareComponent.entries) {
-            channel(
-                SoftwareUpdateEntities.stateChannelKey(component),
-                SoftwareUpdateEntities.stateTopic(panel, component),
-            ) {
-                softwareUpdateInputs(component)?.let { inputs ->
-                    if (SoftwareUpdateEntities.withheld(inputs)) io.panelassistant.android.state.StateConverger.Observation.Unavailable
-                    else known(SoftwareUpdateEntities.stateJson(inputs))
-                } ?: unknown
-            }
-        }
-        channel("storage_health_attributes", attrStorageHealth) {
-            known(storageHealthMqttAttributes(storageHealth()))
-        }
-        channel("screen", stateScreen) {
-            if (!config.haExposed("screen", true)) return@channel unknown
-            when (screen.observedDark()) {
-                true -> {
-                    lastScreenBrightness = -1
-                    screenEffectiveBaseline = -1
-                    known("""{"state":"OFF"}""")
-                }
-                false -> {
-                    val level = lastScreenBrightness.takeIf { it >= 0 } ?: brightness.getCommanded().coerceAtLeast(1)
-                    // Baseline the first authoritative observation too. Otherwise the first heartbeat
-                    // misclassifies an already-lit startup as a local wake and emits a duplicate state.
-                    lastScreenBrightness = level
-                    known("""{"state":"ON","brightness":$level}""")
-                }
-                null -> unknown
-            }
-        }
-        channel("led", stateLed) {
-            LedCommandPolicy.statePayload(
-                LedCommandPolicy.stored(config.lastLed, config.lastLedEffect),
-                ledActuationKnown,
-                ledEffect.status(),
-            )?.let(known) ?: unknown
-        }
-        channel("navigate", stateNavigate) { known(config.lastNavigate.ifEmpty { "/" }) }
-        channel("home_dashboard", stateHomeDashboard) { known(config.homeDashboard) }
-        channel("volume", stateVolume) {
-            if (config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
-        }
-        // Native only: MQTT has no media_player platform (protocol section 18).
-        channel("media", topic = null) { media?.let { known(it.observation()) } ?: unknown }
-        if (hasButtonBacklight) channel("buttons", stateButtons) { known(buttonBacklightState(config.lastButtonBacklight)) }
-        channel("wake_on_wave", stateWakeOnWave) {
-            if (hasProximity) known(if (config.wakeOnWave) "ON" else "OFF") else unknown
-        }
-        channel("auto_sleep", stateAutoSleep) { known(if (config.autoSleep) "ON" else "OFF") }
-        // Persisted intent, not the platform flag: the flag has other writers, and publishing an
-        // observation of it would let firmware drift flip the Home Assistant switch on its own.
-        channel("touch_sound", stateTouchSound) { known(if (config.touchSound) "ON" else "OFF") }
-        channel("watchdog", stateWatchdog) { known(if (config.watchdogEnabled) "ON" else "OFF") }
-        channel("kiosk_lock", stateKiosk) { known(if (config.kioskLock) "ON" else "OFF") }
-        channel("silence_boot_chime", stateSilenceBootChime) { known(if (bootChime.isEnabled()) "ON" else "OFF") }
-        channel("prevent_idle_dim", statePreventIdleDim) { known(if (config.preventIdleDim) "ON" else "OFF") }
-        channel("auto_brightness", stateAutoBright) { known(if (config.autoBrightness) "ON" else "OFF") }
-        channel("camera_enabled", stateCameraEnabled) { known(if (config.cameraEnabled) "ON" else "OFF") }
-        // Native only: MQTT carries the snapshot URL and its availability on their own topics.
-        channel("camera_snapshot", topic = null) {
-            cameraSnapshotUrl()?.takeIf { config.cameraEnabled && it.isNotBlank() }?.let(known)
-                ?: io.panelassistant.android.state.StateConverger.Observation.Unavailable
-        }
-        // Native only: MQTT publishes its state, attributes and availability itself.
-        channel("auto_sleep_activity", topic = null) {
-            if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
-            val snapshot = autoSleepActivity()
-            if (!config.autoSleep || !snapshot.policyHealthy) io.panelassistant.android.state.StateConverger.Observation.Unavailable
-            else known(if (snapshot.holdingAwake) "ON" else "OFF")
-        }
-        // Folded into auto_sleep_activity: the same attributes its MQTT entity carries.
-        channel("auto_sleep_activity_attributes", topic = null) {
-            if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
-            known(autoSleepMqttProjection(autoSleepActivity()).attributes)
-        }
-        channel("navbar", stateNavbar) { known(config.navbarMode) }
-
-        channel("illuminance", stateIlluminance, retain = false) {
-            if (config.haExposed("illuminance", true)) lastIlluminance?.let { known(it.toString()) } ?: unknown
-            else unknown
-        }
-        channel("proximity", stateProximity) {
-            if (learnedProximityEligible() && config.haExposed("proximity", true)) {
-                proximityPublication.near?.let { known(if (it) "ON" else "OFF") } ?: unknown
-            } else unknown
-        }
-        channel(
-            "proximity_level",
-            stateProximityLevel,
-            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(4.0),
-        ) {
-            if (learnedProximityEligible() && config.haExposed("proximity_level", true)) {
-                proximityPublication.level?.let { known(it.toString()) } ?: unknown
-            } else unknown
-        }
-        channel("temperature", stateTemperature, retain = false,
-            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(0.1)) {
-            if (config.haExposed("temperature", true)) {
-                lastTemperature?.let { known(String.format(java.util.Locale.US, "%.1f", it)) } ?: unknown
-            } else unknown
-        }
-        channel("humidity", stateHumidity, retain = false,
-            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(1.0)) {
-            if (config.haExposed("humidity", true)) lastHumidity?.let { known(Math.round(it).toString()) } ?: unknown
-            else unknown
-        }
-
-        // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
-        // attribute; without it Home Assistant records a capped 200 as an exact measurement.
-        channel("diag_wifi_outages_attributes", attrWifiOutages) {
-            // The attributes ride with the count and share its opt-in: a hidden sensor must not keep
-            // a retained attribute payload alive in the broker for an entity nobody exposed.
-            val exposed = config.haExposed(
-                "diag_wifi_outages_24h",
-                requireNotNull(SettingsRegistry.spec("diag_wifi_outages_24h")).haExposedByDefault,
-            )
-            wifiOutageAttributeObservation(exposed, wifiOutages())
-        }
-
-        val diagDeadband = mapOf(
-            "diag_cpu" to 5.0, "diag_memory" to 3.0, "diag_soc_temp" to 0.5,
-            "diag_wifi_rssi" to 3.0,
-            "room_temp" to 0.2, "room_humidity" to 1.0,
-        )
-        val diagKeys = if (hasCht8305) DIAG_KEYS + ROOM_KEYS else DIAG_KEYS
-        for (key in diagKeys) channel(
-            key,
-            SettingsRegistry.spec(key)!!.ha!!.stateTopic(panel),
-            equivalent = diagDeadband[key]?.let(io.panelassistant.android.mqtt.MqttStateOutbox::numericDeadband)
-                ?: String::equals,
-        ) {
-            // Transport-dependent Wi-Fi discovery clears its retained state when unavailable.
-            // Do not immediately recreate a retained literal "unknown" behind the tombstone.
-            val exposedByDefault = requireNotNull(SettingsRegistry.spec(key)).haExposedByDefault
-            diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
-        }
-        return c
-    }
-
-    private fun registerStateChannel(
-        converger: io.panelassistant.android.state.StateConverger,
-        mqtt: MqttStateChannel,
-    ) {
-        // A duplicate keeps the first route, and the converger then refuses the duplicate channel.
-        mqttStateRoutes.putIfAbsent(mqtt.channel.key, mqtt.route)
-        stateOutbox.route(mqtt.channel.key, mqtt.policy)
-        converger.register(mqtt.channel)
-    }
-
-    /** Bind the native reporter directly to observations, independently of MQTT delivery capacity. */
-    internal fun addStateSink(sink: io.panelassistant.android.state.StateSink) { nativeStateSink = sink }
-
-    /** Hand transient events (button presses) to the native transport; it never blocks the caller. */
-    internal fun addEventSink(sink: (channel: String, event: String) -> Unit) { nativeEventSink = sink }
-
-    /** The converger's registered channels, which grow as hardware capabilities are confirmed. */
-    internal fun stateChannelKeys(): Set<String> = stateConverger.keys()
-
-    /**
-     * The native describe's view of [stateChannelKeys]: a channel whose [hardwareAvailability] is settled
-     * false is stated unsupported instead of described. An unsettled one stays described, or omitted if [PROVEN_ONLY_CHANNELS].
-     */
-    internal fun nativeChannelShape(): io.panelassistant.android.panelassistant.PanelAssistantChannelShape {
-        val learned = runCatching(learnedProximityState).getOrNull()
-        val keys = stateConverger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
-        val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
-        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot())
-        // The button event entity exists whenever a button source does, as its MQTT discovery does.
-        val events = listOf(BUTTON_EVENT_CHANNEL).filter { buttonsEnabled || hasEvdevButtons }
-        return io.panelassistant.android.panelassistant.PanelAssistantChannelShape(
-            served + actions.filter { it.second }.map { it.first } + events,
-            unsupported + actions.filterNot { it.second }.map { it.first } + PanelAssistantChannelCatalog.RETIRED_CHANNELS,
-        )
-    }
-
-    /**
-     * Whether this panel can fill a hardware-gated entity: the one definition MQTT discovery (its
-     * availability override, which publishes an empty config when false) and the native describe (which
-     * states the channel unsupported when false) share. Null when [key] is not hardware-gated here, or when
-     * its answer is not settled; MQTT passes learned proximity from its announcement snapshot, the native
-     * describe from the live, settled source.
-     */
-    private fun hardwareAvailability(key: String, learnedProximity: Boolean?): Boolean? = when (key) {
-        "temperature" -> hasTemperature
-        "humidity" -> hasHumidity
-        MEDIA_CHANNEL -> media != null
-        "camera_enabled", "camera_snapshot" -> hasCamera()
-        "proximity", "proximity_level" -> learnedProximity
-        "illuminance" -> lightChannel()
-        // LedFactory returns the no-op controller only for a profile declaring no LED. A declared LED stays
-        // described even when its probe fails: a daemon-driven one reads false until the helper answers.
-        "led" -> if (led is NoOpLedController) false else null
-        SoftwareUpdateEntities.stateChannelKey(SoftwareComponent.COMPANION) ->
-            softwareUpdateInputs(SoftwareComponent.COMPANION)
-                ?.takeUnless { it.presenceUnknown }
-                ?.let { !SoftwareUpdateEntities.companionAbsent(it) }
-        else -> null
-    }
-
     /** The primary state sink: derives the topic, retain flag and payload bytes from the channel. */
     private fun publishStateObservation(
         channel: String,
         observation: io.panelassistant.android.state.StateConverger.Observation.Reportable,
         done: (Boolean) -> Unit,
     ) {
-        val route = checkNotNull(mqttStateRoutes[channel]) { "no MQTT route for state channel $channel" }
+        val route = checkNotNull(stateRouteFor(channel)) { "no MQTT route for state channel $channel" }.route
         val generation = connectionGeneration.currentOrNull()
         publish(route.topic, mqttStatePayload(observation), route.retain) { acknowledged ->
             if (acknowledged && generation != null && connectionGeneration.isCurrent(generation)) {
@@ -1875,83 +1104,6 @@ internal class MqttBridge(
             done(acknowledged)
         }
     }
-
-    /**
-     * Add newly confirmed hardware channels without replacing the bridge. The possible shape never
-     * shrinks, while each observer checks the latest live snapshot and reports unavailable rather than
-     * presenting a transiently unreachable controller as healthy.
-     */
-    private fun ensureCapabilityChannels(snapshot: Capabilities?): MqttCapabilityObservation =
-        synchronized(capabilityChannelLock) {
-            val live = snapshot ?: Capabilities(
-                zigbeePresent = zigbee.present(),
-                cpuGovernors = cpu.available(),
-                networkAdb = adb.available(),
-                relays = relay.count(),
-                buttonLeds = relay.ledCount(),
-            )
-            val observation = capabilityShape.observe(live)
-            val converger = stateConverger
-            // capabilityChannelLock serializes this compound keys/register operation; StateConverger
-            // independently synchronizes each registry mutation and observation snapshot.
-            val registered = converger.keys()
-            val unknown = io.panelassistant.android.state.StateConverger.Observation.Unknown
-            fun known(payload: String) = io.panelassistant.android.state.StateConverger.Observation.Known(payload)
-            fun register(
-                key: String,
-                topic: String?,
-                observe: () -> io.panelassistant.android.state.StateConverger.Observation,
-            ) {
-                // A null topic is a native-only channel, as in createStateConverger.
-                if (key in registered) return
-                if (topic == null) {
-                    converger.register(io.panelassistant.android.state.StateConverger.Channel(key, observe = observe))
-                } else {
-                    registerStateChannel(
-                        converger,
-                        MqttStateChannel(
-                            io.panelassistant.android.state.StateConverger.Channel(key, observe = observe),
-                            MqttStateRoute(topic, retain = true),
-                        ),
-                    )
-                }
-            }
-
-            if (observation.possible.networkAdb) register("network_adb", stateNetAdb) {
-                if (!capabilityShape.current().live.networkAdb) known("unknown")
-                else known(if (adb.isPersisted()) "ON" else "OFF")
-            }
-            if (observation.possible.zigbee) register("zigbee_router", stateZigbee) {
-                if (!capabilityShape.current().live.zigbee) known("unknown")
-                else if (config.zigbeeRouterConfigured && !config.zigbeeRouterEnabled) known("OFF")
-                else known(if (zigbee.running()) "ON" else "OFF")
-            }
-            // Native only: publishZigbeeHealth sends MQTT its state and attributes directly.
-            if (observation.possible.zigbee) register("zigbee_gateway_health", topic = null) {
-                if (!capabilityShape.current().live.zigbee) io.panelassistant.android.state.StateConverger.Observation.Unavailable
-                else known(zigbeeHealth().state.wireValue)
-            }
-            if (observation.possible.zigbee) register("zigbee_gateway_health_attributes", topic = null) {
-                known(zigbeeHealth().mqttAttributes())
-            }
-            if (observation.possible.cpu) register("cpu_governor", stateCpuGov) {
-                if (!capabilityShape.current().live.cpu) known("unknown")
-                else cpu.currentTier()?.let(::known) ?: known("unknown")
-            }
-            for (n in 1..observation.possible.relays) {
-                register("relay$n", "ha-paneld/$panel/relay$n/state") {
-                    if (capabilityShape.current().live.relays < n) known("unknown")
-                    else relay.read(n)?.let { known(if (it) "ON" else "OFF") } ?: known("unknown")
-                }
-            }
-            for (n in 1..observation.possible.buttonLeds) {
-                register("button_led$n", "ha-paneld/$panel/button_led$n/state") {
-                    if (capabilityShape.current().live.buttonLeds < n) known("unknown")
-                    else relay.ledRead(n - 1)?.let { known(if (it) "ON" else "OFF") } ?: known("unknown")
-                }
-            }
-            observation
-        }
 
     fun start() {
         // A successor that has not restored the panel's identity yet must not connect under the one it
@@ -1969,16 +1121,6 @@ internal class MqttBridge(
     }
 
     private fun startOpen() {
-        // Confirm startup LED state through existing actuation, including panels without a broker.
-        runCatching { reapplyStoredLed() }
-            .onFailure { Log.w(TAG, "startup LED restoration failed", it) }
-        // The button backlight too: a native-only panel never reaches the MQTT connect announcement.
-        runCatching { restoreButtonBacklight() }
-            .onFailure { Log.w(TAG, "startup button backlight restoration failed", it) }
-        // Button presses reach the native transport with or without a broker.
-        if (buttonSubscription == null) {
-            buttonSubscription = ButtonBus.subscribe { event -> publishButton(event) }
-        }
         // Linearize the explicit fresh-client boundary before clearing bridge state. A delayed event from
         // the prior client must not overwrite this attempt while it is waiting for its first CONNACK.
         connectionEventDispatcher.supersede()
@@ -2383,7 +1525,7 @@ internal class MqttBridge(
         // Capture before command subscriptions can initialize the state-channel registry. Every entity
         // in this announcement sees the same immutable values; later bounded snapshots may add channels
         // when a transiently unavailable live probe recovers.
-        val capabilitySnapshot = discoveryCapabilities.snapshot()
+        val capabilitySnapshot = core.capabilities.snapshot()
         synchronized(discoveryAnnouncementLock) {
             if (!connectionAnnouncementIsCurrent(announcement)) return@synchronized
             subscribe("ha-paneld/$panel/+/set") { topic, payload, retained -> onCommand(topic, payload, retained) }
@@ -2412,13 +1554,12 @@ internal class MqttBridge(
                     }
                 }
             }
-            proximityPublication.serialized {
-                val proximityAvailable = learnedProximityEligible() && available == true
+            core.withProximity { proximityAvailable ->
                 if (proximityAvailable) {
                     // Current retained states must precede the entity-specific online edge. These are the
                     // first state-converger admissions on this connection, so the bounded outbox has room.
-                    stateConverger.reconcile("proximity", force = true)
-                    stateConverger.reconcile("proximity_level", force = true)
+                    core.reconcile("proximity", force = true)
+                    core.reconcile("proximity_level", force = true)
                     publish(proximityAvailabilityTopic, "online", retain = true)
                 } else {
                     publish(proximityAvailabilityTopic, "offline", retain = true)
@@ -2428,8 +1569,8 @@ internal class MqttBridge(
                     publish(stateProximityLevel, "", retain = true)
                 }
             }
-            restoreAndPublishStates()
-            stateConverger.reconcileAll()
+            core.restoreAndReconcile()
+            core.reconcileAll()
             // Entity-specific availability and retained state must converge before the panel-wide
             // online edge; otherwise HA can briefly resurrect a previous process's proximity value.
             publish(availabilityTopic, "online", retain = true) { acknowledged ->
@@ -2444,10 +1585,10 @@ internal class MqttBridge(
             reannounceDispatcher.suppressPending()
         }
         if (!connectionAnnouncementIsCurrent(announcement)) return
-        reconcileZigbeeOnConnect() // boot-restore: start the gateway if left ON and nothing else has
+        commands.reconcileZigbeeBoot() // boot-restore: start the gateway if left ON and nothing else has
         // A reconnect storm must not create one blocked privileged thread per callback.
         adbReassertWorker.submit(Unit)
-        maybeResolveHaLink() // native HA session first, MQTT credential fallback; off-thread, best-effort
+        core.maybeResolveHaLink() // native HA session first, MQTT credential fallback; off-thread, best-effort
     }
 
     private fun connectionAnnouncementIsCurrent(announcement: MqttConnectAnnouncement): Boolean =
@@ -2551,8 +1692,8 @@ internal class MqttBridge(
                 // HA frequently emits a retained birth immediately after our connect announcement and may
                 // repeat births while its MQTT integration settles. Reuse one monotonic-TTL snapshot across
                 // that bounded burst instead of repeating privileged probes for byte-identical discovery.
-                publishDiscovery(discoveryCapabilities.snapshot(REANNOUNCE_CAPABILITY_TTL_MS))
-                restoreAndPublishStates()
+                publishDiscovery(core.capabilities.snapshot(REANNOUNCE_CAPABILITY_TTL_MS))
+                core.restoreAndReconcile()
                 cost.work(units = publishedConfigTopics.size.toLong())
                 Log.i(TAG, "HA online — re-announced discovery for $panel")
             } catch (e: Exception) {
@@ -2575,81 +1716,39 @@ internal class MqttBridge(
     /** Re-evaluate transport-dependent discovery after Android changes the default network. */
     internal fun refreshNetworkState() {
         if (!isConnected()) return
-        discoveryCapabilities.invalidate()
+        core.capabilities.invalidate()
         requestReAnnounce()
     }
 
     /** Re-project live Config into discovery/state without replacing a healthy broker connection. */
     internal fun refreshConfiguration(reannounce: Boolean, resolveHaLink: Boolean) {
         if (reannounce) requestReAnnounce()
-        if (resolveHaLink) maybeResolveHaLink()
+        if (resolveHaLink) core.maybeResolveHaLink()
     }
 
     /**
-     * Resolve this panel's HA device-settings URL. A configured built-in renderer is authoritative: use
-     * its exact endpoint and current access token, even when MQTT is disabled or its broker credentials
-     * belong to another HA instance. MQTT username/password remain a compatibility fallback only when no
-     * native renderer connection exists. Legacy cache entries have no [Config.haDeviceLinkTarget], so an
-     * upgrade immediately repairs them rather than trusting their old random registry id for another 6h.
+     * The compatibility "Open in HA" link for a panel with no native renderer connection: MQTT
+     * username/password against the Home Assistant the broker belongs to. Runs on the state core's link
+     * worker, which always prefers the native session.
      */
-    internal fun maybeResolveHaLink() {
-        lifecycle.runIfOpen(Unit) admission@{
-            if (haLinkResolutionThread.get() != null) return@admission
-            lateinit var worker: Thread
-            worker = Thread {
-                try {
-                    val nativeBase = config.haUrl.trim().trimEnd('/')
-                    if (nativeBase.isNotBlank()) {
-                        val target = HaLink.resolutionTarget(nativeBase, panel)
-                        if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return@Thread
-                        val stillCurrent = {
-                            lifecycle.isOpen() &&
-                                config.haUrl.trim().trimEnd('/') == nativeBase && config.panelId == panel
-                        }
-                        val auth = HaCredentialManager.resolve(config, stillCurrent = stillCurrent)
-                        val token = auth.session?.accessToken ?: return@Thread
-                        val route = auth.route ?: return@Thread
-                        val familyPolicy = MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
-                        val link = HaLink.resolveWithAccessToken(
-                            route.url, token, listOf(panel, runtimeFriendlyName),
-                            preferIpv4 = familyPolicy.initialPreferIpv4,
-                            ipv4Only = familyPolicy.ipv4Only,
-                        ) ?: return@Thread
-                        lifecycle.runIfOpen(Unit) {
-                            if (stillCurrent() && HaConnectionRoutes.isCurrent(config, route)) config.setHaDeviceUrl(link, target)
-                        }
-                        return@Thread
-                    }
-
-                    val credentials = config.mqttCredentialsSnapshot()
-                    if (credentials.user.isBlank() || credentials.password.isBlank()) return@Thread
-                    // Prefer mDNS (broker-matched). Else derive HA from the broker HOST: a working broker is
-                    // likely the HA server too. HaLink reads /api/config for its canonical browser link.
-                    val base = discoverHaUrl(credentials.broker) ?: brokerHttpsUrl(credentials.broker) ?: return@Thread
-                    val target = HaLink.resolutionTarget(base, panel)
-                    if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return@Thread
-                    val linkFamilyPolicy = MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
-                    val link = HaLink.resolve(
-                        base, credentials.user, credentials.password, listOf(panel, runtimeFriendlyName),
-                        preferIpv4 = linkFamilyPolicy.initialPreferIpv4,
-                        ipv4Only = linkFamilyPolicy.ipv4Only,
-                    ) ?: return@Thread
-                    lifecycle.runIfOpen(Unit) {
-                        if (config.haUrl.isBlank() && config.panelId == panel &&
-                            config.mqttCredentialsSnapshot() == credentials
-                        ) config.setHaDeviceUrl(link, target)
-                    }
-                } finally {
-                    haLinkResolutionThread.compareAndSet(worker, null)
-                }
-            }.apply { isDaemon = true; name = "ha-device-link" }
-            if (!haLinkResolutionThread.compareAndSet(null, worker)) return@admission
-            try {
-                worker.start()
-            } catch (failure: Throwable) {
-                haLinkResolutionThread.compareAndSet(worker, null)
-                throw failure
-            }
+    private fun resolveHaLinkFromBroker() {
+        val credentials = config.mqttCredentialsSnapshot()
+        if (credentials.user.isBlank() || credentials.password.isBlank()) return
+        // Prefer mDNS (broker-matched). Else derive HA from the broker HOST: a working broker is
+        // likely the HA server too. HaLink reads /api/config for its canonical browser link.
+        val base = discoverHaUrl(credentials.broker) ?: brokerHttpsUrl(credentials.broker) ?: return
+        val target = HaLink.resolutionTarget(base, panel)
+        if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return
+        val linkFamilyPolicy = MqttAddressFamilyPolicy.fromConfig(config.mqttAddressFamily)
+        val link = HaLink.resolve(
+            base, credentials.user, credentials.password, listOf(panel, runtimeFriendlyName),
+            preferIpv4 = linkFamilyPolicy.initialPreferIpv4,
+            ipv4Only = linkFamilyPolicy.ipv4Only,
+        ) ?: return
+        lifecycle.runIfOpen(Unit) {
+            if (config.haUrl.isBlank() && config.panelId == panel &&
+                config.mqttCredentialsSnapshot() == credentials
+            ) config.setHaDeviceUrl(link, target)
         }
     }
 
@@ -2661,30 +1760,7 @@ internal class MqttBridge(
         return "https://$host"
     }
 
-    /**
-     * Sync HA to the panel's actual state on (re)connect, so the UI isn't stale after a reboot
-     * (hardware resets, but HA holds the last retained state). Re-applies the last LED colour and
-     * publishes the current screen/volume/navigate states.
-     */
-    private fun restoreAndPublishStates() {
-        volume.getPercent().let { lastPublishedVolume = it }
-        // Reconnect is just another reconciliation trigger; the registry observes physical state.
-        stateConverger.reconcile("screen", force = true)
-        // Navigate: last pushed path, else default to the dashboard root "/" so the entity shows a
-        // sensible local path instead of "unknown" before anything has been navigated.
-        // LED: re-apply the last colour to the hardware (reset on reboot) and publish it.
-        reapplyStoredLed()
-        restoreButtonBacklight()
-    }
-
-    /** Re-apply the stored button backlight level, which the hardware loses on reboot. */
-    private fun restoreButtonBacklight() {
-        if (hasButtonBacklight) {
-            config.lastButtonBacklight.takeIf { it >= 0 }?.let { helperSend(buttonBacklightCommand(it, buttonBacklightTransfer)) }
-        }
-    }
-
-    // ---- command dispatch ----
+    // ---- command edge ----
 
     private fun onCommand(topic: String, payloadBytes: ByteArray, retained: Boolean) {
         val retired = !lifecycle.isOpen()
@@ -2702,323 +1778,21 @@ internal class MqttBridge(
             }
             return
         }
-        val kind = commandKind(topic)
-        // State commands conflate by their transport-neutral channel, derived here at the MQTT edge.
-        val channel = if (kind == CommandKind.LATEST) mqttCommandChannel(panel, topic) else null
-        if (kind == null || kind == CommandKind.LATEST && channel == null || payloadBytes.size > MAX_COMMAND_PAYLOAD_BYTES) {
-            FeatureCosts.registry.recordDropped(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-            return
-        }
-
-        // HiveMQ reuses callback-owned values. Copy only after the cheap retained/topic/size gates, then
-        // return immediately so a root call or slow controller can never pin its network callback.
-        val payload = payloadBytes.copyOf()
-        val command = {
-            // Authority may have changed while this command waited behind a slow handler.
-            if (mqttAcceptsCommand(!lifecycle.isOpen(), retained, config.panelAssistantAuthority)) {
-                consumeCommand(topic, payload, MQTT_PEER)
-            } else {
-                FeatureCosts.registry.recordDropped(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
+        // Commands are keyed by their transport-neutral channel, derived here at the MQTT edge. HiveMQ
+        // reuses callback-owned values, so the dispatcher copies nothing: copy only after the cheap gates,
+        // then return immediately so a root call or slow controller can never pin its network callback.
+        val channel = mqttCommandChannel(panel, topic)
+        val admission = channel?.takeIf { commands.kind(it) != null && payloadBytes.size <= MAX_COMMAND_PAYLOAD_BYTES }
+            ?.let { admitted ->
+                commands.submit(admitted, payloadBytes.copyOf(), CommandOrigin.MQTT) {
+                    // Authority may have changed while this command waited behind a slow handler.
+                    mqttAcceptsCommand(!lifecycle.isOpen(), retained, config.panelAssistantAuthority)
+                }
             }
-            Unit
-        }
-        val admission = when (kind) {
-            CommandKind.LATEST -> commandDispatcher.submitLatest(requireNotNull(channel), command)
-            CommandKind.ACTION -> commandDispatcher.submitAction(command)
-        }
-        recordCommandAdmission(admission)
+        if (admission == null) FeatureCosts.registry.recordDropped(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
     }
-
-    private fun commandKind(topic: String): CommandKind? = when {
-        topic in stateCommandTopics -> CommandKind.LATEST
-        topic in actionCommandTopics -> CommandKind.ACTION
-        indexedCommandTopic(topic, "ha-paneld/$panel/relay") -> CommandKind.LATEST
-        indexedCommandTopic(topic, "ha-paneld/$panel/button_led") -> CommandKind.LATEST
-        else -> null
-    }
-
-    private fun indexedCommandTopic(topic: String, prefix: String): Boolean {
-        if (!topic.startsWith(prefix) || !topic.endsWith("/set")) return false
-        return topic.substring(prefix.length, topic.length - 4).toIntOrNull() in 1..MAX_DYNAMIC_COMMAND_INDEX
-    }
-
-    private fun recordCommandAdmission(admission: MqttCommandDispatcher.Admission) {
-        when (admission) {
-            MqttCommandDispatcher.Admission.ACCEPTED -> Unit
-            MqttCommandDispatcher.Admission.COALESCED ->
-                FeatureCosts.registry.recordCoalesced(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-            MqttCommandDispatcher.Admission.REJECTED,
-            MqttCommandDispatcher.Admission.CLOSED ->
-                FeatureCosts.registry.recordDropped(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-        }
-        FeatureCosts.registry.setBacklog(
-            FeatureCostOperation.MQTT_COMMAND_DISPATCH,
-            commandDispatcher.pendingCount(),
-        )
-    }
-
-    /**
-     * The registry key whose newer external intent became durable during the dispatch running on this
-     * thread, set by a handler that persists before it actuates.
-     *
-     * Thread-scoped rather than a plain field because HTTP live settings reach the same handlers through
-     * the same dispatcher: a shared field could be set by one path and read by another. [consumeCommand]
-     * clears it on entry and exit, so a value can only ever describe the dispatch that is running.
-     */
-    private val externalIntentCommitted = ThreadLocal<String?>()
-
-    /**
-     * The approval principal of the dispatch running on this thread: `mqtt` or `panel_assistant`. The broker
-     * binds an approval to its peer, so an approval primed by one transport cannot be consumed by the other.
-     */
-    private val commandPeer = ThreadLocal<String?>()
 
     private val nativeAuthorityDropLogged = java.util.concurrent.atomic.AtomicBoolean(false)
-
-    /**
-     * Run one Panel Assistant command on the same ordered authority MQTT commands use. Stateful commands
-     * conflate by channel; reload and reboot use the action queue. [done] receives exactly one result.
-     * Actions reach the same sensitive handlers as MQTT.
-     *
-     * A temporary adapter: until the common handlers take a channel identity, it reaches them through the
-     * channel's MQTT command topic, with the payload `PanelAssistantCommandTranslation` mapped from the
-     * channel's declared options.
-     */
-    internal fun submitPanelAssistantCommand(
-        command: PanelAssistantCommand,
-        done: (PanelAssistantCommandResult) -> Unit,
-    ) {
-        val answered = java.util.concurrent.atomic.AtomicBoolean(false)
-        val finish = { result: PanelAssistantCommandResult -> if (answered.compareAndSet(false, true)) done(result) }
-        if (!lifecycle.isOpen()) {
-            finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
-            return
-        }
-        if (command.channel == MEDIA_CHANNEL) return submitMediaCommand(command, finish)
-        val topic = "ha-paneld/$panel/${command.channel}/set"
-        when (commandKind(topic)) {
-            null -> return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL))
-            CommandKind.ACTION -> if (command.channel !in setOf("reload", "reboot"))
-                return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE))
-            CommandKind.LATEST -> Unit
-        }
-        val payload = command.payload.toByteArray(Charsets.UTF_8)
-        if (payload.size > MAX_COMMAND_PAYLOAD_BYTES) {
-            return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
-        }
-        val run = {
-            val refusal = command.admit()
-            if (refusal != null) {
-                finish(refusal)
-            } else if (command.channel == "reboot" && !system.canReboot() ||
-                command.channel == "reload" && !system.canReloadDashboard(config.dashboardPackage)
-            ) {
-                finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE))
-            } else {
-                finish(panelAssistantCommandResult(consumeCommand(topic, payload, PANEL_ASSISTANT_PEER)))
-            }
-        }
-        val admission = if (command.channel == "reload" || command.channel == "reboot") {
-            commandDispatcher.submitAction(run)
-        } else {
-            commandDispatcher.submitLatest(
-                key = command.channel,
-                onSkipped = { execution ->
-                    finish(if (execution == MqttCommandDispatcher.Execution.SUPERSEDED) {
-                        PanelAssistantCommandResult.Superseded
-                    } else {
-                        PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
-                    })
-                },
-                command = run,
-            )
-        }
-        if (admission == MqttCommandDispatcher.Admission.CLOSED || admission == MqttCommandDispatcher.Admission.REJECTED) {
-            finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
-        }
-        recordCommandAdmission(admission)
-    }
-
-    /**
-     * The native-only `media` channel. It has no MQTT command topic, so the wildcard subscription cannot
-     * reach it. Media commands run in order on the action queue rather than conflating by channel: a
-     * mute must not replace a play still waiting to run.
-     */
-    private fun submitMediaCommand(command: PanelAssistantCommand, finish: (PanelAssistantCommandResult) -> Unit) {
-        val player = media
-            ?: return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL))
-        val parsed = runCatching { org.json.JSONObject(command.payload) }.getOrNull()
-            ?.let(io.panelassistant.android.media.PanelMediaCommand::parse)
-            ?: return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
-        val admission = commandDispatcher.submitAction {
-            finish(
-                command.admit() ?: if (player.command(parsed)) PanelAssistantCommandResult.Applied
-                else PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED),
-            )
-        }
-        if (admission == MqttCommandDispatcher.Admission.CLOSED || admission == MqttCommandDispatcher.Admission.REJECTED) {
-            finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
-        }
-        recordCommandAdmission(admission)
-    }
-
-    /** The media player's state changed: re-observe the `media` channel. */
-    internal fun mediaChanged() {
-        dispatchStateWork { stateConverger.reconcile(MEDIA_CHANNEL) }
-    }
-
-    /** Returns the failure the command handler raised, already logged, or null when it applied. */
-    private fun consumeCommand(topic: String, payloadBytes: ByteArray, peer: String): Exception? {
-        FeatureCosts.registry.setBacklog(
-            FeatureCostOperation.MQTT_COMMAND_DISPATCH,
-            commandDispatcher.pendingCount(),
-        )
-        val cost = FeatureCosts.registry.span(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-            .work(units = 1, bytes = payloadBytes.size.toLong())
-        externalIntentCommitted.remove()
-        commandPeer.set(peer)
-        try {
-            dispatchCommand(topic, payloadBytes)
-            externalLiveSettingKey(panel, topic)?.let { key ->
-                check(onExternalSettingApplied(key)) { "failed to supersede pending HTTP setting $key" }
-            }
-            return null
-        } catch (e: Exception) {
-            cost.outcome(FeatureCostOutcome.FAILURE)
-            Log.w(TAG, "command failed on $topic (${payloadBytes.size} bytes)", e)
-            // The handler may have made newer intent durable before failing to actuate it. Retire the
-            // older queued HTTP value anyway — leaving it lets startup replay commit the stale value
-            // over the newer one. Best-effort and logged: this is already the failure path, and a
-            // second throw here would only replace one diagnosis with another.
-            supersededKeyAfterFailedDispatch(externalLiveSettingKey(panel, topic), externalIntentCommitted.get())
-                ?.let { key ->
-                    if (!onExternalSettingApplied(key)) {
-                        Log.w(TAG, "failed to supersede pending HTTP setting $key after a failed command")
-                    }
-                }
-            return e
-        } finally {
-            commandPeer.remove()
-            externalIntentCommitted.remove()
-            cost.close()
-        }
-    }
-
-    private fun dispatchCommand(topic: String, payloadBytes: ByteArray) {
-        val payload = String(payloadBytes, Charsets.UTF_8)
-        // NEVER act on a RETAINED command. Command topics are fire-and-forget; a retained payload is
-        // always stale — e.g. a broker- or automation-retained screen-off replayed on every (re)subscribe,
-        // which is exactly what stranded a panel dark after a reconnect. Our own state/discovery stays
-        // retained; inbound commands must be fresh.
-        // Relay + button-LED topics are dynamic (relay1/…, button_led1/…) — match before the fixed set.
-        if (topic.startsWith("ha-paneld/$panel/relay") && topic.endsWith("/set")) {
-            handleRelay(topic, payload); return
-        }
-        if (topic.startsWith("ha-paneld/$panel/button_led") && topic.endsWith("/set")) {
-            handleButtonLed(topic, payload); return
-        }
-        // Every registry-declared live setting, whether it arrived from MQTT or HTTP, reaches the same
-        // exhaustive owner mapping. Action commands and non-live camera control remain below.
-        externalLiveSettingKey(panel, topic)?.let { key ->
-            dispatchLiveSetting(key = key, value = payload, handlers = this)
-            return
-        }
-        when (topic) {
-            cmdScreen -> handleScreen(payload)
-            cmdLed -> handleLed(payload)
-            cmdNavigate -> handleNavigate(payload)
-            cmdVolume -> handleVolume(payload)
-            cmdReload -> {
-                authorizeRemoteSensitive(
-                    SensitiveOperation.DASHBOARD_RELOAD,
-                    payload,
-                    "Reload the dashboard renderer from Home Assistant",
-                )
-                val reloaded = system.reloadDashboard(config.dashboardPackage)
-                if (!reloaded && commandPeer.get() == PANEL_ASSISTANT_PEER) {
-                    throw LiveSettingUnavailableException("reload")
-                }
-            }
-            cmdReboot -> {
-                authorizeRemoteSensitive(
-                    SensitiveOperation.DEVICE_REBOOT,
-                    payload,
-                    "Reboot this panel from Home Assistant",
-                )
-                val rebooted = system.reboot()
-                if (!rebooted && commandPeer.get() == PANEL_ASSISTANT_PEER) {
-                    throw LiveSettingUnavailableException("reboot")
-                }
-            }
-            cmdButtons -> if (hasButtonBacklight) handleButtons(payload)
-            cmdUpdateCompanion -> handleSoftwareCommand(SoftwareComponent.COMPANION, payload) {
-                authorizeRemoteSensitive(
-                    SensitiveOperation.APK_INSTALL,
-                    "companion\u0000$payload",
-                    "Install the Home Assistant Companion update from Home Assistant",
-                )
-                onUpdateCompanion()
-            }
-            cmdUpdatePaneld -> handleSoftwareCommand(SoftwareComponent.PANELD, payload) {
-                authorizeRemoteSensitive(
-                    SensitiveOperation.APK_INSTALL,
-                    "paneld\u0000$payload",
-                    "Install the ha-paneld update from Home Assistant",
-                )
-                onSelfUpdate(true)
-            }
-            cmdCameraEnabled -> handleCameraEnabled(payload)
-            else -> Log.d(TAG, "unhandled command topic $topic")
-        }
-    }
-
-    /**
-     * The update topics carry two senders for one release: the legacy button's `PRESS` keeps its
-     * existing behaviour, the update entity's `install` takes strict admission, and every other payload
-     * is refused before anything is resolved, downloaded or approved.
-     */
-    private fun handleSoftwareCommand(component: SoftwareComponent, payload: String, legacy: () -> Unit) {
-        val outcome = SoftwareUpdateEntities.route(
-            payload = payload,
-            inputs = { softwareUpdateInputs(component) },
-            legacy = legacy,
-            authorize = { tag ->
-                authorizeRemoteSensitive(
-                    SensitiveOperation.APK_INSTALL,
-                    "${component.wire}\u0000install\u0000$tag",
-                    "Install ${component.entityName} $tag from Home Assistant",
-                )
-            },
-            install = { tag -> onSoftwareInstall(component, tag) },
-        )
-        when (outcome) {
-            SoftwareCommandOutcome.Legacy -> return
-            is SoftwareCommandOutcome.Started ->
-                Log.i(TAG, "${component.wire} install of ${outcome.tag} started from Home Assistant")
-            is SoftwareCommandOutcome.Busy ->
-                Log.w(TAG, "${component.wire} install of ${outcome.tag} not started: another destructive operation is running")
-            is SoftwareCommandOutcome.Refused ->
-                Log.w(TAG, "refusing ${component.wire} update command from Home Assistant: ${outcome.reason} (${payload.length} chars)")
-        }
-        // Home Assistant must see the truth now: progress if it started, unchanged state otherwise.
-        reconcileSoftwareUpdates(announcing = false)
-    }
-
-    /** Re-evaluate both update entities: catalog refreshes, install start and finish, package changes. */
-    fun publishSoftwareUpdates() {
-        dispatchStateWork { reconcileSoftwareUpdates(announcing = false) }
-    }
-
-    private fun softwareUpdateInputs(component: SoftwareComponent): SoftwareUpdateInputs? {
-        val sources = softwareUpdateSources ?: return null
-        val snapshot = try {
-            sources()
-        } catch (e: Exception) {
-            Log.w(TAG, "update entity inputs unavailable", e)
-            return null
-        }
-        return snapshot.inputs(component, discoveryCapabilities.cached()?.canInstallVerifiedApps == true)
-    }
 
     /**
      * Converge Home Assistant's view of both update entities. Discovery is republished only when the
@@ -3030,7 +1804,7 @@ internal class MqttBridge(
         val discovery = softwareUpdateDiscovery ?: return
         synchronized(softwareUpdateLock) {
             for (component in SoftwareComponent.entries) {
-                val inputs = softwareUpdateInputs(component) ?: return
+                val inputs = core.softwareUpdateInputs(component) ?: return
                 val current = SoftwareUpdateEntities.shape(inputs)
                 val previous = if (component in softwareShapes) softwareShapes[component]
                 else SoftwareDiscoveryShape.decode(config.softwareUpdateDiscoveryShape(component.wire))
@@ -3051,793 +1825,12 @@ internal class MqttBridge(
                 if (previous != current) {
                     config.setSoftwareUpdateDiscoveryShape(component.wire, current.encode())
                 }
-                stateConverger.reconcile(
-                    SoftwareUpdateEntities.stateChannelKey(component),
+                core.reconcile(
+                    SoftwareUpdates.stateChannelKey(component),
                     force = announcing || step != SoftwareDiscoveryStep.NONE,
                 )
             }
         }
-    }
-
-    /** Publish screen=ON to HA after a LOCAL wake (e.g. wake-on-wave), so `light.<panel>_screen` tracks
-     *  reality instead of staying OFF. No-op if the broker isn't connected yet. */
-    fun publishScreenOn() {
-        dispatchStateWork { publishScreenBrightness(brightness.getCommanded().coerceAtLeast(1)) }
-    }
-
-    /** Reconcile the existing physical screen light after a service-owned automatic transition. */
-    fun publishScreenState() {
-        dispatchStateWork {
-            if (screen.isIntendedOff()) publishScreenOff()
-            else publishScreenBrightness(brightness.getCommanded().coerceAtLeast(1))
-        }
-    }
-
-    /** Publish the current volume to HA after a LOCAL change (e.g. navbar Volume ±), so
-     *  `number.<panel>_volume` tracks reality. No-op if the broker isn't connected yet. */
-    fun publishVolume() {
-        dispatchStateWork { stateConverger.reconcile("volume", force = true) }
-    }
-
-    private fun handleScreen(payload: String) {
-        val command = io.panelassistant.android.control.ScreenCommandPolicy.parse(payload)
-        if (!command.on) {
-            screen.sleep()
-            publishScreenOff()
-            return
-        }
-        // Capture explicit intent before wake completion can reapply automatic control.
-        command.brightness?.let {
-            autoBright.noteExternalBrightness(it, io.panelassistant.android.control.BrightnessPreferenceOrigin.HOME_ASSISTANT)
-        }
-        // A bare ON on a lit panel changes nothing: ensureOn skips the wake path, whose brightness
-        // fallback would otherwise restore a stale saved level on the brightness-zero route.
-        val delivered = io.panelassistant.android.control.ScreenCommandPolicy.executeOn(
-            command,
-            ensureOn = screen::ensureOn,
-            setBrightness = brightness::setBrightness,
-            commandedLevel = brightness::getCommanded,
-            noteLevel = screen::noteLevel,
-            publish = ::publishScreenBrightness,
-        )
-        check(delivered) { "screen wake failed; ON not published" }
-    }
-
-    /** Restore persisted LED intent through acknowledged actuation after startup, reconnect or a camera hold.
-     * Persisted intent includes commands refused while the camera owned the output. */
-    fun reapplyStoredLed() {
-        val desiredLed = LedCommandPolicy.stored(config.lastLed, config.lastLedEffect)
-        ledActuationKnown = false
-        ledActuationKnown = if (desiredLed.on && desiredLed.effect != null) {
-            ledEffect.start(desiredLed.effect, desiredLed.red, desiredLed.green, desiredLed.blue, desiredLed.brightness)
-        } else if (desiredLed.on) {
-            ledEffect.setSolid(
-                desiredLed.red * desiredLed.brightness / 255,
-                desiredLed.green * desiredLed.brightness / 255,
-                desiredLed.blue * desiredLed.brightness / 255,
-            )
-        } else {
-            // Force the hardware off too — the LED can power up to a default on reboot, so publishing
-            // OFF without driving it leaves HA and the physical LED disagreeing (seen on rk3576).
-            ledEffect.setOff()
-        }
-        stateConverger.reconcile("led", force = true)
-    }
-
-    private fun handleLed(payload: String) {
-        val desired = LedCommandPolicy.command(
-            payload,
-            LedCommandPolicy.stored(config.lastLed, config.lastLedEffect),
-        )
-        // Persist user intent even when hardware is temporarily unreachable so reconnect can retry it,
-        // but clear observation authority before exposing the new desired state.
-        ledActuationKnown = false
-        config.lastLed = desired.storedColor()
-        config.lastLedEffect = desired.storedEffect()
-        ledActuationKnown = if (!desired.on) {
-            ledEffect.setOff()
-        } else if (desired.effect != null) {
-            ledEffect.start(desired.effect, desired.red, desired.green, desired.blue, desired.brightness)
-        } else {
-            ledEffect.setSolid(
-                desired.red * desired.brightness / 255,
-                desired.green * desired.brightness / 255,
-                desired.blue * desired.brightness / 255,
-            )
-        }
-        stateConverger.reconcile("led", force = true)
-    }
-
-    override fun handleWakeOnWave(payload: String) {
-        if (!hasProximity) {
-            Log.w(TAG, "ignoring wake_on_wave command without a proximity source")
-            return
-        }
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        config.setWakeOnWave(on)
-        stateConverger.reconcile("wake_on_wave", force = true)
-    }
-
-    override fun handleAutoSleep(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        applyAutoSleepSetting(on, config::setAutoSleep, onAutoSleepConfigChanged)
-        stateConverger.reconcile("auto_sleep", force = true)
-    }
-
-    override fun handleAutoSleepSource(payload: String) {
-        config.setRaw(requireNotNull(SettingsRegistry.spec("auto_sleep_source")), payload)
-        onAutoSleepConfigChanged(config.autoSleep)
-        stateConverger.reconcile("auto_sleep", force = true)
-    }
-
-    override fun handlePreventIdleDim(payload: String, approvalRequired: Boolean) {
-        val on = requireNotNull(PowerSafetyMutationPolicy.parseGuardSwitch(payload)) {
-            "prevent_idle_dim accepts only ON or OFF"
-        }
-        if (approvalRequired && PowerSafetyMutationPolicy.requestsSafetyReduction(
-                keepAwake = config.keepAwake,
-                requestedKeepAwake = null,
-                preventIdleDim = config.preventIdleDim,
-                requestedPreventIdleDim = on,
-            )
-        ) {
-            authorizeRemoteSensitive(
-                SensitiveOperation.POWER_CONFIGURATION,
-                "prevent_idle_dim\u0000$payload",
-                "Disable the panel's native screen-timeout guard from Home Assistant",
-            )
-        }
-        config.setPreventIdleDim(on)
-        brightness.applyPreventIdleDim(on, config)
-        stateConverger.reconcile("prevent_idle_dim", force = true)
-    }
-
-    override fun handleTouchSound(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        // Persist the intent before actuating it, like every other live setting. The state channel now
-        // reports the persisted value, so a change that only reached the controller would publish the old
-        // value straight back and flip the switch in Home Assistant. The HTTP path has already committed
-        // the same value through applyLiveSettingObserved, which makes this idempotent rather than
-        // redundant: MQTT reaches this handler without it.
-        check(config.commitTouchSound(on)) { "touch sound intent could not be persisted" }
-        // Durable from here, so a failed actuation below must not leave an older queued HTTP value alive
-        // to be replayed over this one. The actuation throws past consumeCommand's ordinary supersession.
-        externalIntentCommitted.set("touch_sound")
-        requireControlApplied("touch_sound", touchSound.apply(on)) { "touch sound transition failed" }
-        stateConverger.reconcile("touch_sound", force = true)
-    }
-
-    override fun handleWatchdog(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        config.setWatchdogEnabled(on)
-        watchdog.apply(on)
-        stateConverger.reconcile("watchdog", force = true)
-    }
-
-    // The voice assistant is a Home Assistant satellite through Panel Assistant, never an MQTT entity:
-    // this handler is only the live-setting path the panel's own Configure page uses, and an ON on a
-    // bridge generation without a microphone is refused.
-    //
-    // A refusal or a failed durable commit THROWS rather than returning silently. dispatchSetting runs
-    // inside the HTTP live-setting path's command-dispatcher lane, whose exception handling is what
-    // converts a thrown failure into LiveSettingApplyResult.FAILED — a silent return here previously let
-    // both cases report execution SUCCEEDED, so a refused or unpersisted ON came back to the caller as
-    // APPLIED. The decision itself is the pure, directly-testable applyAcknowledgedVoiceEnabled (mirrors
-    // applyAcknowledgedKioskSetting), which always reconciles before reporting failure.
-    override fun handleVoiceEnabled(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        if (on && !hasMicrophone) Log.w(TAG, "ignoring voice_enabled ON command without a microphone")
-        val accepted = applyAcknowledgedVoiceEnabled(
-            on = on,
-            hasMicrophone = hasMicrophone,
-            commit = config::commitVoiceEnabled,
-            reconcile = {},
-        )
-        check(accepted) {
-            if (on && !hasMicrophone) "this panel has no microphone capability"
-            else "voice_enabled setting commit failed"
-        }
-    }
-
-    override fun handleKiosk(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        check(onDirectKioskSetting(on)) { "kiosk setting was not durably acknowledged" }
-        stateConverger.reconcile("kiosk_lock", force = true)
-    }
-
-    /** Publish the kiosk-lock state — used by the on-device unlock gesture, which turns it OFF outside the
-     *  MQTT/HTTP command path and must still tell HA. */
-    fun publishKioskState() {
-        dispatchStateWork { stateConverger.reconcile("kiosk_lock", force = true) }
-    }
-
-    /** The camera master switch, commanded from Home Assistant. Enabling arms the camera and nothing more:
-     *  Android still withholds the camera until somebody grants the permission at the panel, and every
-     *  enable direction waits for a local approval first, so no remote message alone can put this panel's
-     *  camera into service. Disabling ends a live session immediately. */
-    private fun handleCameraEnabled(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        requireCameraEnableAdmission(on, hasCamera() == true) {
-            authorizeRemoteSensitive(
-                SensitiveOperation.CAMERA_ENABLE,
-                "camera_enabled\u0000enable",
-                "Serve this panel's camera to Home Assistant",
-                always = true,
-            )
-        }
-        config.setCameraEnabled(on)
-        // The same actuation the HTTP reconfigure path performs, so both routes converge on one owner.
-        onCameraEnabledChanged()
-        stateConverger.reconcile("camera_enabled", force = true)
-        publishCameraSnapshot(refreshUrl = on)
-    }
-
-    /** Availability for the snapshot image entity, and — on a fresh enable only — the URL republish that
-     *  makes Home Assistant drop its cached frame. The URL topic never carries an empty payload: HA
-     *  validates every message on it as a URL and logs an error for anything else, so "the camera is off"
-     *  is said on the availability topic instead of by clearing the URL. Nothing here is periodic; the
-     *  camera opens when a person looks at the card, never because the panel published. */
-    private fun publishCameraSnapshot(refreshUrl: Boolean) {
-        stateConverger.reconcile("camera_snapshot", force = true)
-        cameraSnapshotPublications(
-            panel = panel,
-            announced = cameraSnapshotAnnounced,
-            enabled = config.cameraEnabled,
-            url = cameraSnapshotUrl(),
-            refreshUrl = refreshUrl,
-        ).forEach { publish(it.topic, it.payload, retain = true) }
-    }
-
-    /** Republish the camera surface after a change made outside MQTT (the Configure page, a bundle
-     *  import, provisioning). The service calls this from the same reconfigure fan-out that notifies the
-     *  camera owner, so Home Assistant never keeps a switch position the panel has already left. */
-    fun publishCameraState() {
-        dispatchStateWork {
-            stateConverger.reconcile("camera_enabled", force = true)
-            publishCameraSnapshot(refreshUrl = config.cameraEnabled)
-        }
-    }
-
-    override fun handleSilenceBootChime(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        requireControlApplied("silence_boot_chime", bootChime.apply(on)) { "boot chime transition failed" }
-        stateConverger.reconcile("silence_boot_chime", force = true)
-    }
-
-    override fun handleAutoBright(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        config.setAutoBrightness(on)
-        autoBright.reapplyLatest()
-        onAutoBrightnessConfigChanged()
-        stateConverger.reconcile("auto_brightness", force = true)
-    }
-
-    override fun handleAutoBrightnessSensitivity(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessResponsePercent(value)
-        autoBright.reapplyLatest()
-    }
-
-    override fun handleAutoBrightnessMaximum(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessMaximumPercent(value)
-        autoBright.reapplyLatest()
-    }
-
-    override fun handleAutoBrightnessMinimum(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessMinimumPercent(value)
-        autoBright.reapplyLatest()
-    }
-
-    override fun handleAutoBrightnessHaEntity(payload: String) {
-        config.setAutoBrightnessHaEntity(payload.trim().trim('"'))
-        onAutoBrightnessConfigChanged()
-        autoBright.reapplyLatest()
-    }
-
-    // Button backlight (e.g. TPA10): a brightness-only light, driven via the root daemon's BTN command
-    // (same daemon that owns the sysfs LED). Daemon calls are short blocking I/O — fine on this thread.
-    private fun handleButtons(payload: String) {
-        val json = JSONObject(payload)
-        val on = json.optString("state", "ON").equals("ON", ignoreCase = true)
-        val level = if (!on) 0 else if (json.has("brightness")) json.getInt("brightness") else 255
-        if (helperSend(buttonBacklightCommand(level, buttonBacklightTransfer)) == "OK") {
-            config.lastButtonBacklight = level
-            stateConverger.reconcile("buttons", force = true)
-        }
-    }
-
-    // Zigbee router toggle (Sonoff NSPanel Pro). ON starts the guard supervisor (→ mosquitto +
-    // zgateway, ensures Repeater role); OFF stops the guard + zstack, freeing the radio.
-    //
-    // The vendor lifecycle is slow — OFF blocks ~8s in the stop script, and ON's gateway spawns on the
-    // guard's ~30s timer (tens of seconds before it answers) — so it must NOT run on the MQTT callback
-    // thread. We publish the commanded state optimistically, then reconcile to the real running state
-    // on a background thread (polling for the slow ON) so HA ends up correct without stalling MQTT.
-    override fun handleZigbee(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        if (on) onZigbeeExplicitRetry()
-        config.setZigbeeRouterEnabled(on) // persist desired state so it survives a reboot (boot-restore)
-        admitZigbee(on)
-    }
-
-    /** User-initiated join retry from the local HTML UI. The persisted switch must already be ON;
-     *  this reasserts Repeater mode through the same serialized actuator without spawning another guard. */
-    fun requestZigbeeJoin(): Boolean {
-        if (!lifecycle.isOpen() || !config.zigbeeRouterConfigured || !config.zigbeeRouterEnabled) return false
-        onZigbeeExplicitRetry()
-        return admitZigbee(true) != LatestDispatcher.Admission.CLOSED
-    }
-
-    fun publishZigbeeRouterState() {
-        lifecycle.runIfOpen(Unit) { stateConverger.reconcile("zigbee_router", force = true) }
-    }
-
-    fun publishZigbeeHealth(snapshot: ZigbeeHealthSnapshot? = null) {
-        lifecycle.runIfOpen(Unit) {
-            // The attributes first, so the native report carries them with the state.
-            stateConverger.reconcile("zigbee_gateway_health_attributes", force = true)
-            stateConverger.reconcile("zigbee_gateway_health", force = true)
-            if (state != "connected") return@runIfOpen
-            val current = snapshot ?: zigbeeHealth()
-            publish(stateZigbeeHealth, current.state.wireValue, retain = true)
-            publish(attrZigbeeHealth, current.mqttAttributes(), retain = true)
-        }
-    }
-
-    /** Re-project the shared authority after a startup/daily observation or immediate database failure. */
-    fun publishStorageHealth() {
-        lifecycle.runIfOpen(Unit) {
-            if (state != "connected") return@runIfOpen
-            stateConverger.reconcile("storage_health", force = true)
-            stateConverger.reconcile("storage_health_attributes", force = true)
-        }
-    }
-
-    // Boot/connect RECONCILE for the Zigbee router. Vendor firmware boot-starts the NSPanel Pro gateway
-    // independently of us (and on 120P/3.7.1 the vendor guard CPU-spins), so we drive it to the user's
-    // explicit choice on every connect: start it if they left it ON and nothing has; STOP it if they
-    // turned it OFF (otherwise the vendor-started gateway returns each reboot). Gated on the switch having
-    // been CONFIGURED — we never disable a stock vendor gateway by our default. Slow lifecycle off-thread.
-    private fun reconcileZigbeeOnConnect() {
-        if (!capabilityShape.current().live.zigbee || !config.zigbeeRouterConfigured) return
-        val want = config.zigbeeRouterEnabled
-        if (want == zigbee.running()) return // already in the desired state
-        admitZigbee(want)
-    }
-
-    private fun admitZigbee(desired: Boolean): LatestDispatcher.Admission {
-        val admission = zigbeeWorker.submit(desired)
-        when (admission) {
-            LatestDispatcher.Admission.COALESCED ->
-                FeatureCosts.registry.recordCoalesced(FeatureCostOperation.ZIGBEE_RECONCILE)
-            LatestDispatcher.Admission.REJECTED, // unreachable for a single slot
-            LatestDispatcher.Admission.CLOSED ->
-                FeatureCosts.registry.recordDropped(FeatureCostOperation.ZIGBEE_RECONCILE)
-            LatestDispatcher.Admission.ACCEPTED -> Unit
-        }
-        FeatureCosts.registry.setBacklog(FeatureCostOperation.ZIGBEE_RECONCILE, zigbeeWorker.pendingCount())
-        return admission
-    }
-
-    private fun reconcileZigbeeDesired(desired: Boolean) {
-        FeatureCosts.registry.setBacklog(FeatureCostOperation.ZIGBEE_RECONCILE, 0)
-        val cost = FeatureCosts.registry.span(FeatureCostOperation.ZIGBEE_RECONCILE).work(units = 1)
-        try {
-            val execution = zigbeeActuation.executeIfCurrent(zigbeeLease) {
-                val reconciled = zigbee.reconcile(desired)
-                if (desired && reconciled) for (i in 0 until 18) {
-                    // A newer bridge generation or command is already authoritative. Stop waiting and
-                    // release the shared actuator so its latest desired state can run after this one.
-                    if (!lifecycle.isOpen() || !zigbeeActuation.isCurrent(zigbeeLease) ||
-                        config.zigbeeRouterEnabled != desired || zigbee.running()
-                    ) break
-                    Thread.sleep(5_000)
-                }
-                reconciled to zigbee.running()
-            }
-            if (!execution.executed || !execution.currentAfter) {
-                cost.outcome(FeatureCostOutcome.CANCELLED)
-                return
-            }
-            val (reconciled, running) = requireNotNull(execution.value)
-            if (!reconciled) cost.outcome(FeatureCostOutcome.FAILURE)
-            if (lifecycle.isOpen()) stateConverger.reconcile("zigbee_router", force = true)
-            Log.i(TAG, "zigbee reconcile -> ${if (desired) "on" else "off"}; running=$running")
-        } catch (e: InterruptedException) {
-            cost.outcome(FeatureCostOutcome.CANCELLED)
-            Thread.currentThread().interrupt()
-        } catch (e: Exception) {
-            cost.outcome(FeatureCostOutcome.FAILURE)
-            Log.w(TAG, "zigbee reconcile failed", e)
-        } finally {
-            cost.close()
-        }
-    }
-
-    // On-board relay (Smatek S9E). topic = ha-paneld/<panel>/relay<N>/set; payload ON/OFF.
-    // The write runs here on the ordered command worker; the physical read-back goes through the
-    // generation-guarded gate so bursts coalesce and a late read-back never publishes a superseded state.
-    private fun handleRelay(topic: String, payload: String) {
-        val n = topic.substringAfter("/relay").substringBefore("/set").toIntOrNull() ?: return
-        val on = payload.trim().let { it.equals("ON", ignoreCase = true) || it == "1" }
-        if (!relayReadbackGate.command("relay$n") { relay.set(n, on) }) {
-            Log.w(TAG, "relay$n write failed; read-back will publish the physical state")
-        }
-    }
-
-    // S9E button LED. topic = ha-paneld/<panel>/button_led<N>/set (N 1-based); payload ON/OFF.
-    private fun handleButtonLed(topic: String, payload: String) {
-        val n = topic.substringAfter("/button_led").substringBefore("/set").toIntOrNull() ?: return
-        val on = payload.trim().let { it.equals("ON", ignoreCase = true) || it == "1" }
-        if (!relayReadbackGate.command("button_led$n") { relay.ledSet(n - 1, on) }) {
-            Log.w(TAG, "button_led$n write failed; read-back will publish the physical state")
-        }
-    }
-
-    // CPU scaling governor (select). Quick su write; publishes the read-back governor.
-    override fun handleCpuGov(payload: String) {
-        val tier = payload.trim().trim('"')   // "Performance" | "Efficiency" | "Auto"
-        check(cpu.setTier(tier)) { "CPU governor transition failed" }
-        stateConverger.reconcile("cpu_governor", force = true)
-    }
-
-    // Persistent network adb (switch). Restarts adbd to apply; that only affects adb, not MQTT.
-    override fun handleNetAdb(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        if (on && config.hardenedSecurityEnabled) {
-            throw HardenedModeRefusalException("network ADB cannot be enabled while Hardened mode is active")
-        }
-        check(adb.set(on)) { "network adb transition failed" }
-        stateConverger.reconcile("network_adb", force = true)
-    }
-
-    /** Commands from Home Assistant have no HTTP peer to bind. Keep their one-shot panel approval under
-     * the fixed principal of the transport that delivered them; service-side replays of already-approved
-     * HTTP writes bypass this helper. */
-    private fun authorizeRemoteSensitive(
-        operation: SensitiveOperation,
-        payload: String,
-        summary: String,
-        always: Boolean = false,
-    ) {
-        if (!always && !config.hardenedSecurityEnabled) return
-        val peer = commandPeer.get() ?: MQTT_PEER
-        val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, peer, payload, summary)
-        if (decision != ApprovalBroker.Decision.APPROVED) {
-            throw SensitiveApprovalPendingException(
-                approvalId,
-                "approval required on the panel before ${operation.label.lowercase()}",
-            )
-        }
-    }
-
-    // Soft navbar mode (select). Persist and publish only after the asynchronous platform actuation
-    // acknowledges both privileged display state and the main-thread overlay mutation.
-    override fun handleNavbar(payload: String) {
-        val previous = config.navbarMode
-        // Unlike HTTP, this path coerces rather than rejects — NavbarController.normalise maps anything
-        // unrecognised onto Off and the result is then persisted. "Native" IS recognised, so without this
-        // guard a command aimed at the wrong panel would take away its drawn bar and leave no navigation
-        // at all. Keep the panel where it is and let the reconcile republish the canonical value, which
-        // snaps the Home Assistant select back.
-        if (!navbarModePermitted(payload.trim().trim('"'), config.hasNativeNavbar)) {
-            Log.w(TAG, "navbar: refusing $payload — this panel has no native navigation bar")
-            stateConverger.reconcile("navbar", force = true)
-            return
-        }
-        applyAcknowledgedNavbarMode(
-            payload = payload,
-            previousMode = previous,
-            actuate = navbar::applyAsync,
-            rollback = navbar::rollbackAsync,
-            persist = { applied ->
-                config.commitRaw(requireNotNull(SettingsRegistry.spec("navbar_mode")), applied)
-            },
-            reconcile = { stateConverger.reconcile("navbar", force = true) },
-        )
-    }
-
-    override fun handleHomeDashboard(payload: String, previousValue: String?) {
-        // One authority decides what a home dashboard may be: the setting's own validator, which the
-        // config API and both pickers already use. This function serves two callers with different
-        // histories — an MQTT command arrives unvalidated, live apply arrives already canonical — and the
-        // former URL-to-local-path conversion was wrong for both. It let MQTT retain a route the API
-        // would have refused, and it rewrote an accepted route whose query or fragment merely CONTAINED
-        // "://" into a different dashboard. Neither caller wants a second, weaker opinion here.
-        val spec = SettingsRegistry.spec("home_dashboard")
-        val target = when (val validated = spec?.let { SettingValue.validate(it, payload) }) {
-            is Validation.Ok -> validated.normalized
-            else -> {
-                // Refuse rather than coerce, then republish so the entity cannot go on showing a value
-                // the panel did not accept. The route itself is not logged; it names the owner's rooms.
-                Log.w(TAG, "home_dashboard command refused: not a well-formed dashboard route")
-                stateConverger.reconcile("home_dashboard", force = true)
-                return
-            }
-        }
-        val changed = target != (previousValue ?: config.homeDashboard)
-        config.setHomeDashboard(target)
-        if (changed) onDashboardTargetChanged()
-        stateConverger.reconcile("home_dashboard", force = true)
-    }
-
-    /** Discovery embeds suggested_area on its next publish; the server owns HA registry write-back. */
-    override fun handleHaAreaPublishOnly() = Unit
-
-    private fun handleNavigate(payload: String) {
-        // Local navigation only: strip any scheme + host so an external URL can't be pushed (the HA
-        // Companion opens a disorienting in-app WebView for those). We keep just the path.
-        val path = toLocalPath(payload)
-        if (path.isEmpty()) return
-        if (config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) {
-            if (path == config.lastNavigate && config.homeDashboard.isNotBlank() && config.homeDashboard != "/") {
-                BuiltinDashboard.navPath = null
-                system.reloadDashboard(config.dashboardPackage)
-                return
-            }
-            // Built-in renderer: set the target path and (re)launch DashboardActivity, which loads it —
-            // the deep link targets the Companion and would no-op on a builtin-only panel.
-            BuiltinDashboard.navPath = path
-            system.launchHome(config.dashboardPackage)
-            config.lastNavigate = path
-            stateConverger.reconcile("navigate", force = true)
-            return
-        }
-        if (path == config.lastNavigate) {
-            // Already on this path — the deeplink is a no-op, so reload the dashboard instead.
-            system.reloadDashboard(config.dashboardPackage)
-        } else {
-            val companion = system.resolveDashboard(config.dashboardPackage)
-                .takeIf { RendererResolver.companionHomeRoute(it, config.homeDashboard) != null }
-            if (companion != null) navigate.navigate("homeassistant://navigate$path", companion)
-            else navigate.navigate("homeassistant://navigate$path")
-            config.lastNavigate = path
-            stateConverger.reconcile("navigate", force = true)
-        }
-    }
-
-    /** Publish the service-owned return after the Companion accepted its panel-home deep link. */
-    fun reconcileNavigateState() = stateConverger.reconcile("navigate", force = true)
-
-    /** Reduce any posted value to a leading-slash local path: drop `scheme://` and the `host:port`
-     *  authority, keep the path (+ query/fragment). `http://ha.local:8123/lovelace/0` → `/lovelace/0`;
-     *  `lovelace/0` → `/lovelace/0`; `/lovelace/0` unchanged. */
-    private fun toLocalPath(raw: String): String {
-        var s = raw.trim().trim('"')
-        if (s.isEmpty()) return ""
-        val scheme = s.indexOf("://")
-        if (scheme >= 0) {
-            s = s.substring(scheme + 3)            // strip scheme://
-            val slash = s.indexOf('/')             // drop the host[:port] authority
-            s = if (slash >= 0) s.substring(slash) else "/"
-        }
-        if (!s.startsWith("/")) s = "/$s"
-        return s
-    }
-
-    private fun handleVolume(payload: String) {
-        // number entity sends a plain numeric string (0..100).
-        val pct = payload.trim().trim('"').toDoubleOrNull()?.toInt() ?: return
-        volume.setPercent(pct)
-        volume.getPercent().let { lastPublishedVolume = it }
-        stateConverger.reconcile("volume", force = true)
-    }
-
-    private fun publishButton(event: String) {
-        lifecycle.runIfOpen(Unit) {
-            runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event) }
-            publish(eventButton, """{"event_type":"$event"}""")
-        }
-    }
-
-    // Sensor readings are NOT retained: a fresh sample arrives shortly, so retaining only adds broker
-    // clutter + a brief stale value on reconnect. (Occupancy/proximity IS retained — it has no periodic
-    // sample between transitions, so the last state must survive a reconnect. Stateful controls too.)
-    fun publishLight(lux: Int) {
-        lifecycle.runIfOpen(Unit) {
-            lastIlluminance = lux
-            stateConverger.reconcile("illuminance")
-        }
-    }
-
-    /** Publish fleet-normalized proximity. Null means the learner cannot currently make a trustworthy
-     * statement; entity-specific availability is taken offline and retained guessed values are cleared. */
-    fun publishProximity(
-        near: Boolean?,
-        normalizedLevel: Int?,
-        reportMask: Int = ProximityReportGate.BOTH,
-    ) {
-        val nextNear = near
-        lifecycle.runIfOpen(Unit) publish@{
-            proximityPublication.serialized proximity@{
-                if (!learnedProximityEligible()) {
-                    clearProximityStateLocked()
-                    return@proximity
-                }
-                val level = normalizedLevel?.coerceIn(0, 100)
-                val available = nextNear != null && level != null
-                val admitted = admit(nextNear, level, reportMask)
-                val availabilityChanged = admitted and ProximityPublicationState.AVAILABILITY_CHANGED != 0
-                if (availabilityChanged) {
-                    publish(proximityAvailabilityTopic, if (available) "online" else "offline", retain = true)
-                }
-                if (!available) {
-                    if (availabilityChanged) {
-                        publish(stateProximity, "", retain = true)
-                        publish(stateProximityLevel, "", retain = true)
-                    }
-                    return@proximity
-                }
-                if (admitted and ProximityReportGate.PRESENCE != 0) {
-                    stateConverger.reconcile("proximity", force = availabilityChanged)
-                }
-                if (admitted and ProximityReportGate.LEVEL != 0) {
-                    stateConverger.reconcile("proximity_level", force = availabilityChanged)
-                }
-            }
-        }
-    }
-
-    /** Apply an empirical mode-change notification without accepting truth from its producer. */
-    /** Re-announce discovery when the light answer changes: the first reading describes the illuminance
-     *  entity, and a never-reported sensor settling absent states it unsupported. */
-    internal fun notifyLightAvailabilityChanged() {
-        lifecycle.runIfOpen(Unit) {
-            discoveryCapabilities.invalidate()
-            requestReAnnounce()
-        }
-    }
-
-    internal fun notifyLearnedProximityChanged() {
-        lifecycle.runIfOpen(Unit) {
-            discoveryCapabilities.invalidate()
-            refreshLearnedProximityFromAuthority(
-                admitted = true,
-                eligible = learnedProximityEligibility,
-                clearIneligibleState = {
-                    clearProximityState(force = true)
-                },
-                reannounce = ::requestReAnnounce,
-            )
-        }
-    }
-
-    private fun learnedProximityEligible(): Boolean =
-        runCatching(learnedProximityEligibility).getOrDefault(false)
-
-    private fun clearProximityState(force: Boolean = false) {
-        proximityPublication.serialized { clearProximityStateLocked(force) }
-    }
-
-    private fun ProximityPublicationState.clearProximityStateLocked(force: Boolean = false) {
-        val hadState = clear()
-        if (force || hadState) {
-            publish(proximityAvailabilityTopic, "offline", retain = true)
-            publish(stateProximity, "", retain = true)
-            publish(stateProximityLevel, "", retain = true)
-        }
-    }
-
-    // Rounded at publish (1dp temp, integer humidity) so precision wobble can't create recorder rows.
-    fun publishTemperature(celsius: Float) {
-        lifecycle.runIfOpen(Unit) {
-            lastTemperature = celsius
-            stateConverger.reconcile("temperature")
-        }
-    }
-
-    fun publishHumidity(percent: Float) {
-        lifecycle.runIfOpen(Unit) {
-            lastHumidity = percent
-            stateConverger.reconcile("humidity")
-        }
-    }
-
-    /** Re-sample and publish the policy entity after a decision, health, source or suppression change. */
-    fun publishAutoSleepActivity() {
-        dispatchStateWork(::publishAutoSleepActivitySnapshot)
-    }
-
-    private fun publishAutoSleepActivitySnapshot() {
-        val exposed = config.haExposed("auto_sleep_activity", true)
-        val snapshot = if (!exposed) AutoSleepActivitySnapshot() else runCatching(autoSleepActivity)
-            .onFailure { Log.w(TAG, "auto-sleep policy snapshot failed; publishing unavailable", it) }
-            .getOrDefault(AutoSleepActivitySnapshot())
-        autoSleepMqttPublications(panel, exposed, snapshot).forEach { publication ->
-            publish(publication.topic, publication.payload, retain = publication.retain)
-        }
-        // The attributes first, so the native report carries them with the state.
-        stateConverger.reconcile("auto_sleep_activity_attributes", force = true)
-        stateConverger.reconcile("auto_sleep_activity", force = true)
-    }
-
-    /**
-     * Apply a setting from a NON-MQTT source (the HTTP `/api/v1/config` API) through the SAME
-     * side-effect + state-publish path an MQTT command takes, so a value set over HTTP behaves
-     * identically to one set from Home Assistant (persist → drive hardware → publish retained state).
-     * [value] is the registry-normalized string ("true"/"false", a number, or an enum label).
-     * Reports whether the setting applied, was not admitted because this bridge is draining, or failed
-     * after admission. Only the admission failure is safe for the service to acknowledge as deferred.
-     */
-    internal fun applySetting(key: String, value: String, previousValue: String? = null): LiveSettingApplyResult {
-        return applySettingObserved(key, value, previousValue).initial
-    }
-
-    internal fun applySettingObserved(
-        key: String,
-        value: String,
-        previousValue: String? = null,
-    ): LiveSettingApplication {
-        if (key !in APPLY_SETTING_KEYS) return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
-        if (!lifecycle.isOpen()) return LiveSettingApplication.immediate(LiveSettingApplyResult.DEFERRED)
-        var started = false
-        // Written on the dispatcher thread by the handler below, read by this caller and by the late
-        // completion observer, so it must be published across both.
-        val unavailable = java.util.concurrent.atomic.AtomicBoolean(false)
-        val result = commandDispatcher.runLatestResult(
-            key = "http:$key",
-            onAdmission = ::recordCommandAdmission,
-        ) {
-            started = true
-            val cost = FeatureCosts.registry.span(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-                .work(units = 1, bytes = value.toByteArray().size.toLong())
-            try {
-                // This path is used only by the HTTP/service live-setting authority. Its owning HTTP
-                // request was already approved against the real peer before it became durable or queued.
-                dispatchLiveSetting(
-                    key = key,
-                    value = value,
-                    previousValue = previousValue,
-                    sensitiveApprovalRequired = false,
-                    handlers = this,
-                )
-            } catch (e: LiveSettingUnavailableException) {
-                unavailable.set(true)
-                cost.outcome(FeatureCostOutcome.FAILURE)
-                throw e
-            } catch (e: Exception) {
-                cost.outcome(FeatureCostOutcome.FAILURE)
-                throw e
-            } finally {
-                cost.close()
-            }
-        }
-        if (!result.executed && !started &&
-            (result.admission == MqttCommandDispatcher.Admission.REJECTED ||
-                result.admission == MqttCommandDispatcher.Admission.CLOSED)
-        ) {
-            FeatureCosts.registry.span(FeatureCostOperation.MQTT_COMMAND_DISPATCH)
-                .outcome(FeatureCostOutcome.REJECTED)
-                .work(bytes = value.toByteArray().size.toLong())
-                .close()
-        }
-        FeatureCosts.registry.setBacklog(
-            FeatureCostOperation.MQTT_COMMAND_DISPATCH,
-            commandDispatcher.pendingCount(),
-        )
-        return liveSettingApplication(result, unavailable::get)
-    }
-
-    /** Publish the already-durable auto-sleep value without running its mutating command handler.
-     * The generation check happens inside the dispatcher lane, after any concurrent direct MQTT
-     * command, so stale queued OFF work can never overwrite a newer ON. */
-    internal fun convergeAutoSleep(expectedGeneration: Long, expectedValue: Boolean): LiveSettingApplyResult {
-        if (!lifecycle.isOpen()) return LiveSettingApplyResult.DEFERRED
-        val result = commandDispatcher.runLatestResult(
-            key = "http:auto_sleep",
-            onAdmission = ::recordCommandAdmission,
-        ) {
-            if (config.autoSleepGeneration == expectedGeneration && config.autoSleep == expectedValue) {
-                stateConverger.reconcile("auto_sleep", force = true)
-            }
-        }
-        FeatureCosts.registry.setBacklog(
-            FeatureCostOperation.MQTT_COMMAND_DISPATCH,
-            commandDispatcher.pendingCount(),
-        )
-        return liveSettingApplyResult(result)
     }
 
     // ---- discovery ----
@@ -3883,7 +1876,7 @@ internal class MqttBridge(
                 if (key in WIFI_DIAGNOSTIC_KEYS) {
                     // The converger serializes this clear behind any older in-flight value for the same
                     // topic, so a delayed SSID/RSSI acknowledgement cannot win after the tombstone.
-                    stateConverger.reconcile(key, force = true)
+                    core.reconcile(key, force = true)
                 } else {
                     publish(stateTopic, "", retain = true)
                 }
@@ -3892,7 +1885,7 @@ internal class MqttBridge(
     }
 
     private fun publishDiscovery(capabilitySnapshot: Capabilities?) {
-        val channelShape = ensureCapabilityChannels(capabilitySnapshot).possible
+        val channelShape = core.ensureCapabilityChannels(capabilitySnapshot).possible
         if (config.panelAssistantMqttDiscovery == PanelAssistantTransportProtocol.MQTT_DISCOVERY_WITHDRAW) {
             publish(migrationNoticeState, "", retain = true)
             publish(migrationNoticeAttributes, "", retain = true)
@@ -3999,7 +1992,7 @@ internal class MqttBridge(
         }
 
         registryExposable("screen") {
-            stateConverger.reconcile("screen", force = true)
+            core.reconcile("screen", force = true)
         }
         val autoSleepAvail = autoSleepAvailabilityFragment(availabilityTopic, autoSleepAvailabilityTopic)
 
@@ -4022,7 +2015,7 @@ internal class MqttBridge(
             "text", "${panel}_home_dashboard",
             """{"name":"Home dashboard","object_id":"${panel}_home_dashboard","unique_id":"${panel}_home_dashboard","command_topic":"$cmdHomeDashboard","state_topic":"$stateHomeDashboard","mode":"text","icon":"mdi:home-search","entity_category":"config",$avail,$device}""",
         )
-        stateConverger.reconcile("home_dashboard", force = true)
+        core.reconcile("home_dashboard", force = true)
 
         // The button event entity surfaces a11y key capture AND daemon-instrumented evdev buttons
         // (e.g. the WF1589T power key), so publish it whenever either source exists.
@@ -4037,38 +2030,38 @@ internal class MqttBridge(
         // TTS/announce playback volume (STREAM_MUSIC). HA has no MQTT media_player platform, so
         // volume is a number entity rather than a media_player slider.
         registryExposable("volume") {
-            stateConverger.reconcile("volume", force = true)
+            core.reconcile("volume", force = true)
         }
 
         // Panel sensors — exposed as data only; room sensors stay the occupancy/lux authority. Their
         // registry descriptors are shared with Configure/API availability and remain the sole schema.
         // Live answer; unsettled neither creates nor deletes (not even by the upgrade prune) an entity.
-        when (val available = hardwareAvailability("illuminance", null)) {
+        when (val available = core.hardwareAvailability("illuminance", null)) {
             null -> SettingsRegistry.spec("illuminance")?.ha?.let { keepConfig(it.component, "${panel}_${it.objectSuffix}") }
             else -> registryExposable("illuminance", availableOverride = available) {
-                stateConverger.reconcile("illuminance", force = true)
+                core.reconcile("illuminance", force = true)
             }
         }
         val learnedProximity = capabilitySnapshot?.hasLearnedProximity == true
-        registryExposable("proximity", proximityAvail, hardwareAvailability("proximity", learnedProximity)) {
-            stateConverger.reconcile("proximity", force = true)
+        registryExposable("proximity", proximityAvail, core.hardwareAvailability("proximity", learnedProximity)) {
+            core.reconcile("proximity", force = true)
         }
-        registryExposable("proximity_level", proximityAvail, hardwareAvailability("proximity_level", learnedProximity)) {
-            stateConverger.reconcile("proximity_level", force = true)
+        registryExposable("proximity_level", proximityAvail, core.hardwareAvailability("proximity_level", learnedProximity)) {
+            core.reconcile("proximity_level", force = true)
         }
         registryExposable("auto_sleep_activity", autoSleepAvail, availableOverride = config.autoSleep) {
-            publishAutoSleepActivitySnapshot()
+            core.publishAutoSleepActivityNow()
         }
         // SensorManager climate. On CHT8305 panels (TPA10) these are suppressed in favour of the
         // daemon-read room_temp/room_humidity, so publish an EMPTY config (tombstone) instead of
         // skipping — a panel upgrading from a version that DID expose them then sheds the now-duplicate,
         // stale entity from HA (SensorManager never streams a value on that chip). Empty on a panel that
         // never had the sensor is a harmless no-op.
-        registryExposable("temperature", availableOverride = hardwareAvailability("temperature", null)) {
-            stateConverger.reconcile("temperature", force = true)
+        registryExposable("temperature", availableOverride = core.hardwareAvailability("temperature", null)) {
+            core.reconcile("temperature", force = true)
         }
-        registryExposable("humidity", availableOverride = hardwareAvailability("humidity", null)) {
-            stateConverger.reconcile("humidity", force = true)
+        registryExposable("humidity", availableOverride = core.hardwareAvailability("humidity", null)) {
+            core.reconcile("humidity", force = true)
         }
         if (hasButtonBacklight) {
             publishConfig(
@@ -4081,13 +2074,13 @@ internal class MqttBridge(
         // Registry-backed entities are built from SettingsRegistry (the single source of truth,
         // golden-tested for byte-parity with these payloads by DiscoveryParityTest).
         registryExposable("wake_on_wave") {
-            stateConverger.reconcile("wake_on_wave", force = true)
+            core.reconcile("wake_on_wave", force = true)
         }
         registryExposable("auto_sleep") {
-            stateConverger.reconcile("auto_sleep", force = true)
+            core.reconcile("auto_sleep", force = true)
         }
         registryExposable("touch_sound") {
-            stateConverger.reconcile("touch_sound", force = true)
+            core.reconcile("touch_sound", force = true)
         }
 
         publishConfig(
@@ -4104,16 +2097,16 @@ internal class MqttBridge(
         softwareUpdateDiscovery = SoftwareUpdateDiscoveryContext(avail, device)
         reconcileSoftwareUpdates(announcing = true)
         registryExposable("kiosk_lock") {
-            stateConverger.reconcile("kiosk_lock", force = true)
+            core.reconcile("kiosk_lock", force = true)
         }
         // Auto-brightness — optional on-panel adaptive engine. Sensitivity and an optional native HA
         // illuminance subscription are configured on the panel; HA retains only the enable switch.
         registryExposable("auto_brightness") {
-            stateConverger.reconcile("auto_brightness", force = true)
+            core.reconcile("auto_brightness", force = true)
         }
         // The native camera now owns this setting; withdraw its redundant legacy switch.
         publishConfig("switch", "${panel}_camera_enabled", "")
-        stateConverger.reconcile("camera_enabled", force = true)
+        core.reconcile("camera_enabled", force = true)
         // The snapshot as an `image` entity carrying a URL. Home Assistant stores the URL and fetches a
         // frame only when somebody looks at the card, so a still exists without the panel ever taking one
         // — and no frame is parked on the broker, which the camera contract forbids outright. Its own
@@ -4135,13 +2128,13 @@ internal class MqttBridge(
                 cameraSnapshotDiscoveryJson(panel, cameraSnapshotAvail, device)
             },
         )
-        publishCameraSnapshot(refreshUrl = true)
+        core.publishCameraSnapshot(refreshUrl = true)
         publishConfig(
             "sensor", "${panel}_storage_health",
             """{"name":"Storage health","object_id":"${panel}_storage_health","unique_id":"${panel}_storage_health","state_topic":"$stateStorageHealth","json_attributes_topic":"$attrStorageHealth","icon":"mdi:database-alert","entity_category":"diagnostic",$avail,$device}""",
         )
-        stateConverger.reconcile("storage_health", force = true)
-        stateConverger.reconcile("storage_health_attributes", force = true)
+        core.reconcile("storage_health", force = true)
+        core.reconcile("storage_health_attributes", force = true)
         // Zigbee router — only on panels with the Sonoff gateway package (NSPanel Pro). present()
         // costs a su exec; safe here because onConnected runs off the main thread.
         if (channelShape.zigbee) {
@@ -4149,7 +2142,7 @@ internal class MqttBridge(
                 "sensor", "${panel}_zigbee_gateway_health",
                 """{"name":"Zigbee gateway health","object_id":"${panel}_zigbee_gateway_health","unique_id":"${panel}_zigbee_gateway_health","state_topic":"$stateZigbeeHealth","json_attributes_topic":"$attrZigbeeHealth","icon":"mdi:zigbee","entity_category":"diagnostic",$avail,$device}""",
             )
-            publishZigbeeHealth()
+            core.publishZigbeeHealth()
         }
 
         // On-board relays (Smatek S9E `st_relay`). count() probes sysfs via su — off-main-thread here.
@@ -4158,7 +2151,7 @@ internal class MqttBridge(
                 "switch", "${panel}_relay$n",
                 """{"name":"Relay $n","object_id":"${panel}_relay$n","unique_id":"${panel}_relay$n","command_topic":"ha-paneld/$panel/relay$n/set","state_topic":"ha-paneld/$panel/relay$n/state","icon":"mdi:electric-switch",$avail,$device}""",
             )
-            stateConverger.reconcile("relay$n", force = true)
+            core.reconcile("relay$n", force = true)
         }
 
         // S9E button LEDs (gpio147-150) — on/off lights, gated on the gpio nodes being present.
@@ -4167,7 +2160,7 @@ internal class MqttBridge(
                 "light", "${panel}_button_led$n",
                 """{"name":"Button LED $n","object_id":"${panel}_button_led$n","unique_id":"${panel}_button_led$n","command_topic":"ha-paneld/$panel/button_led$n/set","state_topic":"ha-paneld/$panel/button_led$n/state","icon":"mdi:led-on",$avail,$device}""",
             )
-            stateConverger.reconcile("button_led$n", force = true)
+            core.reconcile("button_led$n", force = true)
         }
 
         // CPU governor (select) — su panels with cpufreq. Three intent-based tiers (Performance /
@@ -4175,8 +2168,8 @@ internal class MqttBridge(
         // SoC's governor (Auto = its dynamic governor — ramps up on interaction, idles low).
         if (channelShape.cpu) {
             registryExposable("cpu_governor", availableOverride = true) {
-                cpu.currentTier()?.let { lastPublishedGovTier = it }
-                stateConverger.reconcile("cpu_governor", force = true)
+                core.baselineCpuGovernor()
+                core.reconcile("cpu_governor", force = true)
             }
         }
 
@@ -4184,27 +2177,27 @@ internal class MqttBridge(
         // native navbar. Published on all panels; Off by default, the user opts a panel in. Drawing
         // needs SYSTEM_ALERT_WINDOW (root-granted by NavbarController); a no-op select otherwise.
         registryExposable("navbar_mode") {
-            stateConverger.reconcile("navbar", force = true)
+            core.reconcile("navbar", force = true)
         }
 
         // Persistent network adb (switch) — opt-in; root panels only. Standing LAN adb port when ON.
         if (channelShape.networkAdb) {
             registryExposable("network_adb", availableOverride = true) {
-                stateConverger.reconcile("network_adb", force = true)
+                core.reconcile("network_adb", force = true)
             }
         }
 
         // Diagnostic sensors (read-only) — all OPT-IN (haExposedByDefault=false), so a panel is silent
         // in HA until a pip is enabled. Publish the current value on expose; syncLocalState() refreshes
         // them each heartbeat tick with a deadband. Boot time is constant, so it's published only here.
-        for (key in DIAG_KEYS) {
-            registryExposable(key) { publishDiag(key) }
+        for (key in PanelStateCore.DIAG_KEYS) {
+            registryExposable(key) { core.reconcile(key, force = true) }
         }
 
         // Room climate (CHT8305 panels only, e.g. TPA10) — real environmental sensors reported by
         // default from the Sensors card. Same publish machinery (deadbanded heartbeat refresh).
-        if (hasCht8305) for (key in ROOM_KEYS) {
-            registryExposable(key) { publishDiag(key) }
+        if (hasCht8305) for (key in PanelStateCore.ROOM_KEYS) {
+            registryExposable(key) { core.reconcile(key, force = true) }
         }
 
         // Panel actions (root via su; graceful no-op without it).
@@ -4367,33 +2360,6 @@ internal class MqttBridge(
         )
     }
 
-    private val localObservationPending = AtomicBoolean(false)
-
-    /** One queued/running local pass per bridge, independent of broker heartbeat admission. */
-    internal fun requestLocalObservation(stillCurrent: () -> Boolean) {
-        if (!lifecycle.isOpen() || !localObservationPending.compareAndSet(false, true)) return
-        io.panelassistant.android.state.StateConverger.dispatch {
-            try {
-                lifecycle.runIfOpen(Unit) {
-                    if (stillCurrent()) runCatching { syncLocalState() }
-                }
-            } finally {
-                localObservationPending.set(false)
-            }
-        }
-    }
-
-    /** Serialize the accepted hello's full observation before native full_begin. */
-    internal suspend fun observeForNativeHello(stillCurrent: () -> Boolean): Boolean =
-        suspendCancellableCoroutine { waiting ->
-            io.panelassistant.android.state.StateConverger.dispatch {
-                val observed = lifecycle.runIfOpen(false) {
-                    if (!stillCurrent()) false else runCatching { syncLocalState(); stillCurrent() }.getOrDefault(false)
-                }
-                if (waiting.isActive) waiting.resume(observed)
-            }
-        }
-
     /**
      * Liveness probe: publish a monotonic-independent `last_seen_at` (epoch seconds) so a healthy link keeps
      * [lastOkMs] fresh even when nothing else is publishing, and a dead half-open link stops ACKing and
@@ -4407,190 +2373,9 @@ internal class MqttBridge(
         runCatching { publish("ha-paneld/$panel/last_seen_at", (System.currentTimeMillis() / 1000).toString()) }
     }
 
-    /**
-     * Local-state observation: panel values can change OUTSIDE ha-paneld's API (auto-brightness and
-     * any local app writing the setting, hardware volume keys, vendor firmware dimming the backlight
-     * node), and HA must track them without being flooded. One pass per heartbeat tick per channel:
-     * publish only when the value differs from the LAST PUBLISHED beyond the channel's deadband AND
-     * has settled (change since the previous tick within the settle band) — fast oscillation
-     * publishes nothing until it stops, a slow ramp publishes at most once per tick, steady state
-     * publishes zero MQTT messages. Runs on the convergence pump (su-safe, off-main).
-     */
-    private fun syncLocalState() {
-        runCatching {
-            val capabilityObservation = ensureCapabilityChannels(
-                discoveryCapabilities.snapshot(CAPABILITY_RECOVERY_PROBE_MS),
-            )
-            capabilityObservation.changedKeys().forEach {
-                stateConverger.reconcile(it, force = true)
-            }
-            if (capabilityObservation.grew) requestReAnnounce()
-            if (!capabilityObservation.previousLive.zigbee && capabilityObservation.live.zigbee) {
-                reconcileZigbeeOnConnect()
-            }
-        }
-        val observedOffGeneration = screen.currentOffGeneration()
-        val physicallyDark = screen.observedDark()
-        if (physicallyDark == true) screen.noteObservedDark(observedOffGeneration)
-        val becameOff = physicallyDark == true && lastScreenBrightness >= 0
-        if (becameOff) {
-            Log.i(TAG, "screen became physically dark outside MQTT — syncing OFF")
-            syncLog.record(SystemClock.elapsedRealtime(), "screen →OFF (physical)")
-            publishScreenOff()
-        } else if (physicallyDark == false && lastScreenBrightness < 0) {
-            val reconciled = !screen.isIntendedOff() || screen.reconcileObservedLit(observedOffGeneration)
-            if (reconciled) {
-                val level = brightness.getCommanded().coerceAtLeast(1)
-                Log.i(TAG, "screen became physically lit outside MQTT — syncing ON")
-                syncLog.record(SystemClock.elapsedRealtime(), "screen →ON (physical)")
-                publishScreenBrightness(level)
-            }
-        }
-
-        // Channel: commanded brightness (Android setting — the scale HA commands in). Catches
-        // auto-brightness and any local actor. Skipped while the screen is deliberately off.
-        if (!becameOff && !screen.isIntendedOff() && lastScreenBrightness >= 0
-        ) {
-            val cur = brightness.getCommanded()
-            if (settled(cur, prevTickBrightness, lastScreenBrightness, deadband = 3)) {
-                Log.i(TAG, "local brightness changed outside MQTT: $lastScreenBrightness -> $cur — syncing")
-                syncLog.record(SystemClock.elapsedRealtime(), "brightness $lastScreenBrightness→$cur")
-                publishScreenBrightness(cur.coerceAtLeast(1))
-            }
-            prevTickBrightness = cur
-
-            // Channel: effective backlight vs its post-command baseline — ONLY when the commanded
-            // setting hasn't moved (else the channel above owns it). Catches firmware node-dims. On a
-            // panel whose framework maps the setting through its own curve the node scale differs, so
-            // drift is back-mapped proportionally; a profile curve already reads back on the HA scale.
-            if (cur == lastScreenBrightness || kotlin.math.abs(cur - lastScreenBrightness) <= 3) {
-                val eff = brightness.getBrightness()
-                if (eff >= 0) {
-                    val base = screenEffectiveBaseline
-                    if (base < 0) {
-                        screenEffectiveBaseline = eff   // command settled — remember its hardware level
-                    } else if (kotlin.math.abs(eff - base) > SCREEN_DRIFT) {
-                        val reported = reportedBacklightDrift(brightness.curved, lastScreenBrightness, eff, base)
-                        Log.i(TAG, "screen backlight moved externally: baseline $base -> $eff — reporting $reported")
-                        syncLog.record(SystemClock.elapsedRealtime(), "backlight →$reported (firmware dim)")
-                        publishScreenBrightness(reported)
-                        screenEffectiveBaseline = eff
-                    }
-                }
-            }
-        }
-
-        // Channel: volume — hardware keys / local apps change it outside MQTT.
-        runCatching {
-            val cur = volume.getPercent()
-            if (settled(cur, prevTickVolume, lastPublishedVolume, deadband = 1)) {
-                Log.i(TAG, "local volume changed outside MQTT: $lastPublishedVolume -> $cur — syncing")
-                syncLog.record(SystemClock.elapsedRealtime(), "volume $lastPublishedVolume→$cur")
-                lastPublishedVolume = cur
-                stateConverger.reconcile("volume", force = true)
-            }
-            prevTickVolume = cur
-        }
-
-        // Channel: CPU governor — a thermal daemon or another app can change the scaling governor;
-        // currentTier() reads the LIVE sysfs governor, so publish when the mapped tier no longer matches
-        // what HA last saw. Categorical (not numeric) — publish on any change vs the baseline, no deadband.
-        // The baseline is set at announce / on command, so this only fires on a genuinely external change.
-        runCatching {
-            if (capabilityShape.current().live.cpu) {
-                val tier = cpu.currentTier()
-                if (tier != null && lastPublishedGovTier != null && tier != lastPublishedGovTier) {
-                    Log.i(TAG, "cpu governor changed outside MQTT: $lastPublishedGovTier -> $tier — syncing")
-                    syncLog.record(SystemClock.elapsedRealtime(), "cpu_governor $lastPublishedGovTier→$tier")
-                    lastPublishedGovTier = tier
-                    stateConverger.reconcile("cpu_governor", force = true)
-                }
-            }
-        }
-
-        // Diagnostic sensors — refresh each exposed one. Deadbands still publish meaningful changes;
-        // selected measurement sensors also have a bounded maximum broker-ACK silence. Boot time is
-        // constant and is therefore published only at exposure/reconnect.
-        runCatching { syncDiagnostics() }
-
-        // Update entities: a Companion installed or removed outside ha-paneld, an expired Panel
-        // Assistant lease or a changed install route all surface here within one tick.
-        runCatching { reconcileSoftwareUpdates(announcing = false) }
-
-        // Architectural safety net: audit every registered state channel from its declared authority.
-        // Stable acknowledged values cost no publish; failed sends stay dirty and retry next heartbeat.
-        runCatching { stateConverger.reconcileAll() }
-    }
-
-    // Current string value for a diagnostic sensor, or null when unavailable on this panel.
-    private fun diagValue(key: String): String? = when (key) {
-        "diag_ip" -> PanelMetrics.shared.ipAddress()
-        "diag_cpu" -> PanelMetrics.shared.systemSnapshot().cpuOverall?.toString()
-        "diag_memory" -> PanelMetrics.shared.systemSnapshot().memPercent?.toString()
-        "diag_soc_temp" -> PanelMetrics.shared.systemSnapshot().socTempC?.let { String.format(java.util.Locale.US, "%.1f", it) }
-        "diag_boot" -> PanelMetrics.shared.bootTime()
-        "diag_wifi_ssid" -> wifiDiagnostics(WifiDiagnosticDemand(
-            ssid = true,
-            privilegedRoute = capabilityShape.current().live.networkAdb,
-        )).ssid
-        "diag_wifi_rssi" -> wifiDiagnostics(WifiDiagnosticDemand(
-            rssi = true,
-            privilegedRoute = capabilityShape.current().live.networkAdb,
-        )).rssiDbm?.toString()
-        // Rolling outage counts stay published (retained last value) through a Wi-Fi dropout —
-        // that dropout is exactly what they exist to report — so they are not WIFI_DIAGNOSTIC_KEYS.
-        "diag_wifi_outages_24h" -> wifiOutages()?.last24h?.toString()
-        // Room climate — apply the calibration offset to temperature; humidity is reported whole-percent.
-        "room_temp" -> PanelMetrics.shared.roomClimate()?.tempC?.let { String.format(java.util.Locale.US, "%.1f", it + config.roomTempOffsetC) }
-        "room_humidity" -> PanelMetrics.shared.roomClimate()?.humidityPct?.let { String.format(java.util.Locale.US, "%.0f", it) }
-        else -> null
-    }
-
-    /** Publish a diagnostic sensor's current value (unconditional — used at expose time). */
-    private fun publishDiag(key: String) {
-        stateConverger.reconcile(key, force = true)
-    }
-
-    /** Per-tick refresh of the numeric/IP diagnostic sensors, gated on expose + a per-metric deadband.
-     *  Measurement sensors may additionally publish one unchanged value after the bounded maximum
-     *  silence. Boot time (constant) is published only at expose. */
-    private fun syncDiagnostics() {
-        val keys = if (hasCht8305) DIAG_KEYS + ROOM_KEYS else DIAG_KEYS
-        for (key in keys) {
-            val exposedByDefault = requireNotNull(SettingsRegistry.spec(key)).haExposedByDefault
-            if (!config.haExposed(key, exposedByDefault)) continue
-            stateConverger.reconcile(key)
-        }
-    }
-
-    /** Sync predicate — delegates to the pure [io.panelassistant.android.state.SyncGate] (unit-tested):
-     *  [cur] differs from [published] beyond [deadband] AND isn't still moving fast (within SETTLE_BAND of
-     *  the previous tick's read — a mid-flight value waits for the next tick). */
-    private fun settled(cur: Int, prevTick: Int, published: Int, deadband: Int): Boolean =
-        io.panelassistant.android.state.SyncGate.settled(cur, prevTick, published, deadband, SETTLE_BAND)
-
-    /** Recent local-state sync events (newest first) for the info page + /diag. Empty when nothing has
-     *  changed outside MQTT since boot. */
-    fun recentSyncEvents(): List<String> = syncLog.recent(SystemClock.elapsedRealtime())
-
     fun convergenceStatus(): String = stateOutbox.status().let {
-        "${stateConverger.keys().size} channels · ${it.dirty} dirty · ${it.inFlight} in-flight · ${it.unknown} unknown · " +
+        "${core.stateChannelKeys().size} channels · ${it.dirty} dirty · ${it.inFlight} in-flight · ${it.unknown} unknown · " +
             "ack ${it.successes}/${it.failures} · pending ${it.pending.joinToString(",").ifEmpty { "none" }}"
-    }
-
-    /** Publish screen=OFF and reset the brightness baseline used by local-state reconciliation. */
-    private fun publishScreenOff() {
-        lastScreenBrightness = -1
-        screenEffectiveBaseline = -1
-        stateConverger.reconcile("screen", force = true)
-    }
-
-    /** Publish screen=ON at [level] and remember it as the last-reported brightness (the reconcile
-     *  in [syncLocalState] compares the effective backlight against this). */
-    private fun publishScreenBrightness(level: Int) {
-        lastScreenBrightness = level
-        screenEffectiveBaseline = -1   // re-capture on the next tick, after the framework settles
-        stateConverger.reconcile("screen", force = true)
     }
 
     fun stop(
@@ -4610,50 +2395,26 @@ internal class MqttBridge(
         // A broker-facing send may ignore interruption. Its generation and lifecycle are fenced;
         // runtime replacement must not wait for this transport's blocked I/O to return.
         statePublicationWorker.shutdownNow()
-        stateConverger.close()
-        zigbeeActuation.retire(zigbeeLease)
-        val cancelledCommands = commandDispatcher.close()
-        val queuedZigbee = zigbeeWorker.pendingCount()
-        haLinkResolutionThread.get()?.interrupt()
+        stateOutbox.close()
         authRecovery.supersedeRetry()
         authScheduler.shutdownNow()
-        zigbeeWorker.closeAndJoin(0L)
         adbReassertWorker.closeAndJoin(0L)
         reannounceDispatcher.close()
-
-        if (cancelledCommands > 0) {
-            FeatureCosts.registry.recordDropped(
-                FeatureCostOperation.MQTT_COMMAND_DISPATCH,
-                cancelledCommands.toLong(),
-            )
-        }
-        if (queuedZigbee > 0) {
-            FeatureCosts.registry.recordDropped(FeatureCostOperation.ZIGBEE_RECONCILE, queuedZigbee.toLong())
-        }
-        FeatureCosts.registry.setBacklog(FeatureCostOperation.MQTT_COMMAND_DISPATCH, 0)
-        FeatureCosts.registry.setBacklog(FeatureCostOperation.ZIGBEE_RECONCILE, 0)
         FeatureCosts.registry.setBacklog(FeatureCostOperation.MQTT_DISCOVERY_REANNOUNCE, 0)
 
         try {
             val lifecycleDrained = lifecycle.awaitDrained(deadline)
             val connectionEventDrained = connectionEventDispatcher.closeAndJoin(deadline.remainingMs())
             val connectAnnouncementDrained = connectAnnouncementDispatcher.closeAndJoin(deadline.remainingMs())
-            val stateDrained = stateConverger.closeAndDrain(deadline)
-            val commandsDrained = commandDispatcher.awaitDrained(deadline)
-            val haLinkDrained = haLinkResolutionThread.get().interruptAndJoin(deadline)
             val authDrained = authScheduler.shutdownNowAndAwait(deadline)
-            val zigbeeDrained = zigbeeWorker.closeAndJoin(deadline.remainingMs())
             val adbReassertDrained = adbReassertWorker.closeAndJoin(deadline.remainingMs())
             val reannounceDrained = reannounceDispatcher.closeAndJoin(deadline.remainingMs())
-            val ownersDrained = lifecycleDrained && connectionEventDrained && connectAnnouncementDrained && stateDrained &&
-                commandsDrained && haLinkDrained && authDrained && zigbeeDrained &&
-                adbReassertDrained && reannounceDrained
+            val ownersDrained = lifecycleDrained && connectionEventDrained && connectAnnouncementDrained &&
+                authDrained && adbReassertDrained && reannounceDrained
 
             // An admitted start may have created these immediately before the lifecycle gate drained.
             activeConnection = null
             connectionGeneration.clear()
-            buttonSubscription?.close()
-            buttonSubscription = null
             publishRecoveryLifecycleStateWithAddressFamily("disabled", null)
             result.ownersDrained.complete(ownersDrained)
 
@@ -4663,8 +2424,7 @@ internal class MqttBridge(
                     "MQTT retirement did not drain all mutation owners " +
                         "(lifecycle=$lifecycleDrained connection=$connectionEventDrained " +
                         "announce=$connectAnnouncementDrained " +
-                        "state=$stateDrained commands=$commandsDrained " +
-                        "haLink=$haLinkDrained auth=$authDrained zigbee=$zigbeeDrained " +
+                        "auth=$authDrained " +
                         "adb=$adbReassertDrained reannounce=$reannounceDrained)",
                 )
                 transport.disconnectDetached()
@@ -4714,19 +2474,7 @@ internal class MqttBridge(
         private const val TAG = "ha-paneld/mqtt"
         private val ANNOUNCEMENT_BOUNDARY_CONSUMED_HERE = AtomicReference<String?>(null)
         private const val MAX_COMMAND_PAYLOAD_BYTES = 64 * 1024
-        private const val MEDIA_CHANNEL = "media"
-        /** The hardware button event channel: no state, only `report_event`. */
-        private const val BUTTON_EVENT_CHANNEL = "button"
-        /** Described only once proven: a never-reported light sensor creates no entity (maintainer, 2026-10-06). */
-        private val PROVEN_ONLY_CHANNELS = setOf("illuminance")
-        private const val MAX_DYNAMIC_COMMAND_INDEX = 64
-        /** Approval principals of the two remote command transports. */
-        private const val MQTT_PEER = "mqtt"
-        private const val PANEL_ASSISTANT_PEER = "panel_assistant"
         private const val HA_LINK_TTL_MS = 6 * 3_600_000L // re-resolve the "Open in HA" link at most every 6h
-
-        /** Keys accepted by [applySetting], declared once by [SettingsRegistry]. */
-        internal val APPLY_SETTING_KEYS = SettingsRegistry.liveApplyKeys().toSet()
 
         /**
          * Inject `default_entity_id` = `<component>.<objectId>` as the FIRST key of a discovery payload —
@@ -4746,147 +2494,16 @@ internal class MqttBridge(
                 payload
             }
 
-        private const val SCREEN_DRIFT = 2   // reconcile threshold (0-255 scale) — ignore rounding jitter
-        private const val SETTLE_BAND = 6    // "still moving" if the value shifted more than this since last tick
-        // Diagnostic sensors published via the opt-in exposable() gate (all default local-only).
-        private val DIAG_KEYS = listOf(
-            "diag_ip", "diag_cpu", "diag_memory", "diag_soc_temp", "diag_boot",
-            "diag_wifi_ssid", "diag_wifi_rssi", "diag_wifi_outages_24h",
-        )
-        // Room climate sensors — available only on panels with a CHT8305 (see hasCht8305).
-        private val ROOM_KEYS = listOf("room_temp", "room_humidity")
         // MQTT keepalive: PINGREQ every this-many idle seconds. Short enough to detect a dead link within
         // ~1.5× this, well under the service liveness-watchdog's stale threshold.
         private const val KEEPALIVE_SEC = 30
         private const val REANNOUNCE_DEBOUNCE_MS = 250L
         private const val REANNOUNCE_CAPABILITY_TTL_MS = 5_000L
-        private const val CAPABILITY_RECOVERY_PROBE_MS = 30_000L
-    }
-}
-
-internal data class MqttCapabilityChannels(
-    val zigbee: Boolean = false,
-    val cpu: Boolean = false,
-    val networkAdb: Boolean = false,
-    val relays: Int = 0,
-    val buttonLeds: Int = 0,
-) {
-    fun keys(): Set<String> = buildSet {
-        if (zigbee) add("zigbee_router")
-        if (cpu) add("cpu_governor")
-        if (networkAdb) add("network_adb")
-        for (n in 1..relays) add("relay$n")
-        for (n in 1..buttonLeds) add("button_led$n")
-    }
-}
-
-internal data class MqttCapabilityObservation(
-    val possible: MqttCapabilityChannels,
-    val live: MqttCapabilityChannels,
-    val previousLive: MqttCapabilityChannels,
-    val grew: Boolean,
-) {
-    fun changedKeys(): Set<String> = buildSet {
-        if (live.zigbee != previousLive.zigbee && possible.zigbee) add("zigbee_router")
-        if (live.cpu != previousLive.cpu && possible.cpu) add("cpu_governor")
-        if (live.networkAdb != previousLive.networkAdb && possible.networkAdb) add("network_adb")
-        if (live.relays != previousLive.relays) {
-            for (n in minOf(live.relays, previousLive.relays) + 1..maxOf(live.relays, previousLive.relays)) {
-                add("relay$n")
-            }
-        }
-        if (live.buttonLeds != previousLive.buttonLeds) {
-            for (n in minOf(live.buttonLeds, previousLive.buttonLeds) + 1..
-                maxOf(live.buttonLeds, previousLive.buttonLeds)
-            ) {
-                add("button_led$n")
-            }
-        }
-    }
-}
-
-/**
- * Separates monotonic channel shape from the latest live probe. Once hardware has been confirmed its
- * MQTT identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
- * the entity. Newly confirmed channels can be registered and announced by the existing bridge.
- */
-internal class MqttCapabilityShape(private val maxDynamicChannels: Int = 64) {
-    init {
-        require(maxDynamicChannels >= 0)
-    }
-
-    private var possible = MqttCapabilityChannels()
-    private var live = MqttCapabilityChannels()
-
-    @Synchronized
-    fun observe(capabilities: Capabilities): MqttCapabilityObservation {
-        val previousLive = live
-        live = MqttCapabilityChannels(
-            zigbee = capabilities.zigbeePresent,
-            cpu = capabilities.cpuGovernors,
-            networkAdb = capabilities.networkAdb,
-            relays = capabilities.relays.coerceIn(0, maxDynamicChannels),
-            buttonLeds = capabilities.buttonLeds.coerceIn(0, maxDynamicChannels),
+        private val DIAG_DEADBANDS = mapOf(
+            "diag_cpu" to 5.0, "diag_memory" to 3.0, "diag_soc_temp" to 0.5,
+            "diag_wifi_rssi" to 3.0,
+            "room_temp" to 0.2, "room_humidity" to 1.0,
         )
-        val nextPossible = MqttCapabilityChannels(
-            zigbee = possible.zigbee || live.zigbee,
-            cpu = possible.cpu || live.cpu,
-            networkAdb = possible.networkAdb || live.networkAdb,
-            relays = maxOf(possible.relays, live.relays),
-            buttonLeds = maxOf(possible.buttonLeds, live.buttonLeds),
-        )
-        val grew = nextPossible != possible
-        possible = nextPossible
-        return MqttCapabilityObservation(possible, live, previousLive, grew)
-    }
-
-    @Synchronized
-    fun current(): MqttCapabilityObservation =
-        MqttCapabilityObservation(possible, live, live, grew = false)
-}
-
-/** One immutable capability value per discovery announcement, with a short monotonic burst cache. */
-internal class MqttDiscoveryCapabilitySource(
-    private val supplier: (() -> Capabilities)?,
-    private val onFailure: (Exception) -> Unit = {},
-    private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
-) {
-    private val initial = AtomicReference<Capabilities?>()
-    private var latest: Capabilities? = null
-    private var latestAtMs = Long.MIN_VALUE
-
-    /** The last snapshot taken, without probing. Null before the first one. */
-    @Synchronized
-    fun cached(): Capabilities? = latest
-
-    @Synchronized
-    fun snapshot(maxAgeMs: Long = 0L): Capabilities? {
-        val source = supplier ?: return null
-        val now = nowMs()
-        if (maxAgeMs > 0L && latestAtMs != Long.MIN_VALUE) {
-            val age = now - latestAtMs
-            if (age in 0..maxAgeMs) return latest
-        }
-        val value = try {
-            source()
-        } catch (e: Exception) {
-            onFailure(e)
-            // A failed live probe must not abort the complete discovery announcement. All-false is the
-            // fail-closed settings view; hardware entities driven by constructor/profile facts continue.
-            Capabilities()
-        }
-        initial.compareAndSet(null, value)
-        latest = value
-        latestAtMs = nowMs()
-        return value
-    }
-
-    fun initialSnapshot(): Capabilities? = initial.get()
-
-    @Synchronized
-    fun invalidate() {
-        latest = null
-        latestAtMs = Long.MIN_VALUE
     }
 }
 
@@ -4930,37 +2547,6 @@ internal class MqttReannounceDispatcher(
     }
 }
 
-/** Serializes Zigbee actuation across replaceable bridge generations. Invalidation is non-blocking;
- * a newer lease waits behind any old uninterruptible call and therefore always owns the final state. */
-internal class MqttZigbeeActuationCoordinator {
-    class Lease internal constructor()
-    data class Execution<T>(val executed: Boolean, val currentAfter: Boolean, val value: T?)
-
-    private val current = AtomicReference<Lease?>()
-    private val actuationLock = Any()
-
-    fun activate(): Lease = Lease().also { replacement -> current.getAndSet(replacement) }
-
-    fun retire(lease: Lease) {
-        current.compareAndSet(lease, null)
-    }
-
-    fun isCurrent(lease: Lease): Boolean = current.get() === lease
-
-    fun <T> executeIfCurrent(lease: Lease, action: () -> T): Execution<T> = synchronized(actuationLock) {
-        if (!isCurrent(lease)) return@synchronized Execution(false, false, null)
-        val value = action()
-        Execution(true, isCurrent(lease), value)
-    }
-}
-
-private object MqttZigbeeActuationCoordinators {
-    private val controllers = WeakHashMap<ZigbeeController, MqttZigbeeActuationCoordinator>()
-
-    @Synchronized
-    fun forController(controller: ZigbeeController): MqttZigbeeActuationCoordinator =
-        controllers.getOrPut(controller) { MqttZigbeeActuationCoordinator() }
-}
 
 /**
  * The historical discovery superset is deliberately explicit: if a registry entity is later removed,
@@ -5077,23 +2663,6 @@ private fun mqttReconfigureBrokerIdentity(raw: String): String =
 internal fun mqttAcceptsCommand(stopped: Boolean, retained: Boolean, panelAssistantAuthority: String = ""): Boolean =
     !stopped && !retained && panelAssistantAuthority != PanelAssistantTransportProtocol.AUTHORITY_NATIVE
 
-/** A sensitive remote command is waiting for [approvalId] to be approved on the panel's own screen. */
-internal class SensitiveApprovalPendingException(val approvalId: String, message: String) : IllegalStateException(message)
-
-/** A remote command Hardened mode refuses outright, with no approval that could allow it. */
-internal class HardenedModeRefusalException(message: String) : IllegalStateException(message)
-
-/** How a command handler's outcome reads on the native transport. */
-internal fun panelAssistantCommandResult(failure: Exception?): PanelAssistantCommandResult = when (failure) {
-    null -> PanelAssistantCommandResult.Applied
-    is SensitiveApprovalPendingException -> PanelAssistantCommandResult.ApprovalPending(failure.approvalId)
-    is HardenedModeRefusalException ->
-        PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_REFUSED_HARDENED)
-    is LiveSettingUnavailableException ->
-        PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE)
-    is IllegalArgumentException -> PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
-    else -> PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
-}
 
 internal fun mqttIsHaOnline(payload: ByteArray): Boolean =
     String(payload, Charsets.UTF_8).trim().equals("online", ignoreCase = true)

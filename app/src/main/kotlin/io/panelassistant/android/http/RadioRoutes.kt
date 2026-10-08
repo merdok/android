@@ -27,7 +27,7 @@ internal fun Route.radioRoutes(
             .put("router_enabled", configured() && enabled())
             .put("status", st.publicSummary())
             .put("state", st.state.wireValue)
-            .put("attributes", JSONObject(st.mqttAttributes()))
+            .put("attributes", JSONObject(st.attributesJson()))
             .toString()
         call.respondText(body, ContentType.Application.Json)
     }

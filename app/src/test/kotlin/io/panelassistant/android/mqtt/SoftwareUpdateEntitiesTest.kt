@@ -1,5 +1,10 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.SoftwareUpdateSources
+import io.panelassistant.android.state.SoftwareUpdateInputs
+import io.panelassistant.android.state.SoftwareTarget
+import io.panelassistant.android.state.SoftwareComponent
+import io.panelassistant.android.state.SoftwareUpdates
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.mqttKnownConfigTopics
 import io.panelassistant.android.mqttStalePanelCleanup
@@ -73,7 +78,7 @@ class SoftwareUpdateEntitiesTest {
         assertEquals(field(json, "installed_version"), field(json, "latest_version"))
     }
 
-    private fun state(inputs: SoftwareUpdateInputs) = JSONObject(SoftwareUpdateEntities.stateJson(inputs))
+    private fun state(inputs: SoftwareUpdateInputs) = JSONObject(SoftwareUpdates.stateJson(inputs))
 
     private fun field(json: JSONObject, key: String): Any {
         assertTrue("state is missing $key: $json", json.has(key))
@@ -181,8 +186,8 @@ class SoftwareUpdateEntitiesTest {
 
     @Test fun companionAbsentWithholdsTheEntityEntirely() {
         val inputs = companion(installed = null)
-        assertTrue(SoftwareUpdateEntities.companionAbsent(inputs))
-        assertTrue(SoftwareUpdateEntities.withheld(inputs))
+        assertTrue(SoftwareUpdates.companionAbsent(inputs))
+        assertTrue(SoftwareUpdates.withheld(inputs))
         assertEquals(
             SoftwareDiscoveryShape(announced = false, installable = false, hasLatest = false),
             SoftwareUpdateEntities.shape(inputs),
@@ -202,7 +207,7 @@ class SoftwareUpdateEntitiesTest {
 
     @Test fun companionAbsentWithoutAnInstallRouteIsWithheldToo() {
         val inputs = companion(installed = null, canInstall = false)
-        assertTrue(SoftwareUpdateEntities.withheld(inputs))
+        assertTrue(SoftwareUpdates.withheld(inputs))
         assertFalse(SoftwareUpdateEntities.shape(inputs).announced)
         assertEquals(SoftwareInstallAdmission.Refused("no-install-route"), SoftwareUpdateEntities.admit(inputs))
     }
@@ -210,7 +215,7 @@ class SoftwareUpdateEntitiesTest {
     @Test fun anInstalledCompanionIsAnnouncedAgainAfterAbsence() {
         val absent = SoftwareUpdateEntities.shape(companion(installed = null))
         val installed = companion(installed = "2026.5.1-minimal")
-        assertFalse(SoftwareUpdateEntities.withheld(installed))
+        assertFalse(SoftwareUpdates.withheld(installed))
         assertEquals(
             SoftwareDiscoveryStep.ANNOUNCE,
             SoftwareUpdateEntities.transition(absent, SoftwareUpdateEntities.shape(installed), announcing = false),
@@ -219,8 +224,8 @@ class SoftwareUpdateEntitiesTest {
     }
 
     @Test fun paneldIsNeverTreatedAsAnAbsentCompanion() {
-        assertFalse(SoftwareUpdateEntities.companionAbsent(paneld()))
-        assertFalse(SoftwareUpdateEntities.withheld(paneld()))
+        assertFalse(SoftwareUpdates.companionAbsent(paneld()))
+        assertFalse(SoftwareUpdates.withheld(paneld()))
     }
 
     @Test fun aPlayManagedCompanionIsReadOnlyWithNoLatestVersion() {
@@ -463,7 +468,7 @@ class SoftwareUpdateEntitiesTest {
         // Recreation: the new retained state lands first, then the retained tombstone, then live config.
         assertEquals(
             listOf(
-                SoftwarePublication(state, SoftwareUpdateEntities.stateJson(playManaged), retain = true),
+                SoftwarePublication(state, SoftwareUpdates.stateJson(playManaged), retain = true),
                 SoftwarePublication(config, "", retain = true),
                 SoftwarePublication(config, readOnlyConfig, retain = false),
             ),

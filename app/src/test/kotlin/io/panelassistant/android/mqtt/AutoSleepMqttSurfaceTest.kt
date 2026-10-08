@@ -1,11 +1,12 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.PanelCommandDispatcher
 import io.panelassistant.android.MqttBridge
 import io.panelassistant.android.AutoSleepWriteResult
 import io.panelassistant.android.applyAutoSleepSetting
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.mqttKnownConfigTopics
-import io.panelassistant.android.autoSleepMqttProjection
+import io.panelassistant.android.autoSleepActivityProjection
 import io.panelassistant.android.autoSleepAvailabilityFragment
 import io.panelassistant.android.autoSleepMqttPublications
 import io.panelassistant.android.AutoSleepActivitySnapshot
@@ -37,7 +38,7 @@ class AutoSleepMqttSurfaceTest {
 
         assertNotNull(spec?.ha)
         assertFalse(spec?.haExposedByDefault == true)
-        assertTrue("auto_sleep" in MqttBridge.APPLY_SETTING_KEYS)
+        assertTrue("auto_sleep" in PanelCommandDispatcher.APPLY_SETTING_KEYS)
         assertTrue(mqttKnownConfigTopics("test").contains("homeassistant/switch/test_auto_sleep/config"))
     }
 
@@ -47,7 +48,7 @@ class AutoSleepMqttSurfaceTest {
     }
 
     @Test fun `mqtt activity is binary and publishes health before unavailable state`() {
-        val projection = autoSleepMqttProjection(AutoSleepActivitySnapshot(
+        val projection = autoSleepActivityProjection(AutoSleepActivitySnapshot(
             holdingAwake = true,
             policyHealthy = true,
             reason = "holding_awake",
@@ -65,7 +66,7 @@ class AutoSleepMqttSurfaceTest {
     }
 
     @Test fun `mqtt activity reports the complete automatic source union`() {
-        val projection = autoSleepMqttProjection(AutoSleepActivitySnapshot(sourceCount = 99))
+        val projection = autoSleepActivityProjection(AutoSleepActivitySnapshot(sourceCount = 99))
 
         assertTrue(projection.attributes.contains("\"source_count\":99"))
     }

@@ -8,8 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WifiOutageWiringContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
-    private val bridge = source("MqttBridge.kt")
+    // Source-text reason: the diagnostic channels need the Android service to construct; MQTT routes and
+    // discovery pin MqttBridge.kt, deleted with the MQTT removal.
+    private val bridge = source("MqttBridge.kt") + source("PanelStateCore.kt")
 
     @Test fun outageCountersStayRetainedThroughTheDropoutTheyReport() {
         // WIFI_DIAGNOSTIC_KEYS members tombstone their retained state when Wi-Fi goes away — the
@@ -17,16 +18,16 @@ class WifiOutageWiringContractTest {
         // Bounded at the set literal's closing paren, not the first newline, so the guard keeps
         // scanning the whole declaration if it is ever reformatted across lines.
         val keys = bridge.substring(
-            bridge.indexOf("private val WIFI_DIAGNOSTIC_KEYS"),
-            bridge.indexOf(")", bridge.indexOf("private val WIFI_DIAGNOSTIC_KEYS")),
+            bridge.indexOf("internal val WIFI_DIAGNOSTIC_KEYS"),
+            bridge.indexOf(")", bridge.indexOf("internal val WIFI_DIAGNOSTIC_KEYS")),
         )
         assertFalse(keys.contains("diag_wifi_outages_24h"))
         assertFalse(keys.contains("diag_wifi_outages_7d"))
 
         // Exact-count convergence: no deadband entry, so every change of an integer count publishes.
         val deadband = bridge.substring(
-            bridge.indexOf("val diagDeadband"),
-            bridge.indexOf(")", bridge.indexOf("val diagDeadband")),
+            bridge.indexOf("val DIAG_DEADBANDS"),
+            bridge.indexOf(")", bridge.indexOf("val DIAG_DEADBANDS")),
         )
         assertFalse(deadband.contains("diag_wifi_outages"))
     }
@@ -36,8 +37,8 @@ class WifiOutageWiringContractTest {
         // Membership in DIAG_KEYS is what wires discovery and the heartbeat refresh; a diagValue
         // branch alone is unreachable code.
         val diagKeys = bridge.substring(
-            bridge.indexOf("private val DIAG_KEYS"),
-            bridge.indexOf(")", bridge.indexOf("private val DIAG_KEYS")),
+            bridge.indexOf("internal val DIAG_KEYS"),
+            bridge.indexOf(")", bridge.indexOf("internal val DIAG_KEYS")),
         )
         assertTrue(diagKeys.contains("\"diag_wifi_outages_24h\""))
     }
@@ -48,7 +49,8 @@ class WifiOutageWiringContractTest {
         assertTrue(bridge.contains("""json_attributes_topic":"ha-paneld/{panel}/diag_wifi_outages_24h/attributes""") ||
             SettingsRegistry.spec("diag_wifi_outages_24h")!!.ha!!.body
                 .contains("""json_attributes_topic":"ha-paneld/{panel}/diag_wifi_outages_24h/attributes"""))
-        assertTrue(bridge.contains("""channel("diag_wifi_outages_attributes", attrWifiOutages)"""))
+        assertTrue(bridge.contains("""channel("diag_wifi_outages_attributes")"""))
+        assertTrue(bridge.contains(""""diag_wifi_outages_attributes" -> state(attrWifiOutages)"""))
         assertTrue(bridge.contains("""put("is_lower_bound", counts.saturated)"""))
     }
 

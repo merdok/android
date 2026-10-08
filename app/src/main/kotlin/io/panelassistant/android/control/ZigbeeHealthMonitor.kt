@@ -103,7 +103,7 @@ data class ZigbeeHealthSnapshot(
     val containment: ZigbeeContainmentResult = ZigbeeContainmentResult.NONE,
     val recursiveWatchdogAssignment: Boolean = false,
 ) {
-    fun mqttAttributes(): String = JSONObject()
+    fun attributesJson(): String = JSONObject()
         .put("firmware", firmware ?: JSONObject.NULL)
         .put("product_version", productVersion ?: JSONObject.NULL)
         .put("gateway_layout", layout)

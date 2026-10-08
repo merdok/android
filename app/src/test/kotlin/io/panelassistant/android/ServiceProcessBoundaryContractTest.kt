@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServiceProcessBoundaryContractTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal (HiveMqTransport.kt goes with it too).
+    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal (HiveMqTransport.kt goes with it too), and the command dispatcher's retirement order, which needs the Android service to construct.
     @Test fun mqttConnectedCallbackCannotRunAnnouncementWorkOrPinTheLifecycleGate() {
         val mqtt = source("MqttBridge.kt")
         val callback = mqtt.substring(
@@ -50,7 +50,7 @@ class ServiceProcessBoundaryContractTest {
             startOpen.indexOf("connectionEventDispatcher.supersede()") <
                 startOpen.indexOf("activeConnection = null"),
         )
-        assertTrue(announcement.contains("discoveryCapabilities.snapshot()"))
+        assertTrue(announcement.contains("core.capabilities.snapshot()"))
         assertTrue(announcement.contains("publishDiscovery(capabilitySnapshot)"))
         assertTrue(announcement.contains("publish(availabilityTopic, \"online\", retain = true)"))
         assertFalse(announcement.contains("lifecycle.runIfOpen"))
@@ -81,10 +81,8 @@ class ServiceProcessBoundaryContractTest {
             "lifecycle.closeAdmission()",
             "connectionEventDispatcher.close()",
             "connectAnnouncementDispatcher.close()",
-            "stateConverger.close()",
-            "commandDispatcher.close()",
+            "stateOutbox.close()",
             "authScheduler.shutdownNow()",
-            "zigbeeWorker.closeAndJoin(0L)",
             "adbReassertWorker.closeAndJoin(0L)",
             "reannounceDispatcher.close()",
         ).forEach { step ->
@@ -93,6 +91,14 @@ class ServiceProcessBoundaryContractTest {
         }
         listOf("ownersDrained", "finalization", "deadline.remainingMs()", "transport.publishThenDisconnect(")
             .forEach { assertTrue("typed/shared-deadline MQTT retirement step missing: $it", stop.contains(it)) }
+
+        // The command dispatcher retires the same way: every signal before its first wait.
+        val commands = source("PanelCommandDispatcher.kt")
+        val commandStop = commands.substring(commands.indexOf("fun stop(deadline: MonotonicDeadline)"), commands.indexOf("companion object", commands.indexOf("fun stop(deadline: MonotonicDeadline)")))
+        val commandWait = commandStop.indexOf("lifecycle.awaitDrained(deadline)")
+        listOf("lifecycle.closeAdmission()", "queue.close()", "zigbeeWorker.closeAndJoin(0L)").forEach { step ->
+            assertTrue("command retirement signal missing before its first wait: $step", commandStop.indexOf(step) in 0 until commandWait)
+        }
     }
 
     @Test fun hiveTransportPublishesTupleTransitionsAndCallbackEnqueuesInOneOrder() {

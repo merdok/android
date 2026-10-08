@@ -1,0 +1,194 @@
+package io.panelassistant.android.state
+
+import io.panelassistant.android.appVersion
+import io.panelassistant.android.util.CompanionInstaller
+import io.panelassistant.android.util.Json
+import io.panelassistant.android.util.UpdateChecker
+
+internal enum class SoftwareComponent(
+    /** The component name used by the Install API and the button command topic (`update_<wire>`). */
+    val wire: String,
+    val objectSuffix: String,
+    /** The [io.panelassistant.android.util.InstallProgress] component label while this app installs. */
+    val progressLabel: String,
+    val entityName: String,
+) {
+    PANELD("paneld", "ha_paneld", "ha-paneld", "ha-paneld"),
+    COMPANION("companion", "ha_companion", "HA Companion", "HA Companion"),
+}
+
+/** One catalog release resolved under the panel's current channel (and, for Companion, safety cap). */
+internal data class SoftwareTarget(
+    val version: String,
+    /** Exact release tag, the only value an admitted install passes to the installer. */
+    val tag: String,
+    val releaseUrl: String,
+    /** Companion only: the target was held below the channel head by this panel's safety cap. */
+    val capped: Boolean = false,
+    val newestVersion: String? = null,
+)
+
+internal data class SoftwareUpdateInputs(
+    val component: SoftwareComponent,
+    /** Installed versionName, or null when the app is not installed (Companion only). */
+    val installedVersion: String?,
+    /** A full, Play-managed Companion: ha-paneld never replaces it, so it is read-only here. */
+    val externallyManaged: Boolean = false,
+    /** Resolved under the current [channel]/[cap] only; null when no same-policy resolution exists. */
+    val target: SoftwareTarget?,
+    val channel: String,
+    val cap: String? = null,
+    /** This panel has a verified privileged install route. */
+    val canInstall: Boolean,
+    /** This component owns the shared destructive-operation lane right now. */
+    val installing: Boolean,
+    /** A Panel Assistant config entry owns the ha-paneld update entity, so MQTT withholds its own. */
+    val suppressed: Boolean = false,
+    /** Whether the app is installed could not be read, so a null [installedVersion] is not a settled absence. */
+    val presenceUnknown: Boolean = false,
+)
+
+/**
+ * Everything the service knows about both components at one instant. The bridge adds only its own
+ * install-capability observation, then projects one [SoftwareUpdateInputs] per component.
+ */
+internal data class SoftwareUpdateSources(
+    val paneldVersion: String,
+    val paneldChannel: String,
+    val paneldTarget: SoftwareTarget?,
+    /** Installed minimal Companion versionName, or null when the minimal package is absent. */
+    val companionMinimalVersion: String?,
+    /** Installed full Companion versionName, or null when the full package is absent. */
+    val companionFullVersion: String?,
+    val companionChannel: String,
+    val companionCap: String?,
+    val companionTarget: SoftwareTarget?,
+    /** The InstallProgress component label while the shared lane is running, otherwise null. */
+    val runningOperation: String?,
+    val panelAssistantOwnsPaneldUpdate: Boolean,
+    /** A Companion package lookup failed for a reason other than the package being absent. */
+    val companionPresenceUnknown: Boolean = false,
+) {
+    fun inputs(component: SoftwareComponent, canInstall: Boolean): SoftwareUpdateInputs = when (component) {
+        SoftwareComponent.PANELD -> SoftwareUpdateInputs(
+            component = component,
+            installedVersion = paneldVersion,
+            target = paneldTarget,
+            channel = paneldChannel,
+            canInstall = canInstall,
+            installing = runningOperation == component.progressLabel,
+            suppressed = panelAssistantOwnsPaneldUpdate,
+        )
+        SoftwareComponent.COMPANION -> SoftwareUpdateInputs(
+            component = component,
+            // The full app wins: CompanionInstaller refuses to act while it is present.
+            installedVersion = companionFullVersion ?: companionMinimalVersion,
+            externallyManaged = companionFullVersion != null,
+            target = companionTarget,
+            channel = companionChannel,
+            cap = companionCap,
+            canInstall = canInstall,
+            installing = runningOperation == component.progressLabel,
+            presenceUnknown = companionPresenceUnknown,
+        )
+    }
+}
+
+
+/**
+ * What the panel states about the two release-backed apps it manages, itself and the HA Companion app:
+ * the update channels' identity and observed state. Pure: one [SoftwareUpdateInputs] per component in,
+ * the channel's value out.
+ */
+internal object SoftwareUpdates {
+    const val NOT_INSTALLED = "not installed"
+    private const val UNSUPPORTED_PREFIX = "unsupported "
+    private const val MAX_SUMMARY_CHARS = 255
+
+    fun stateChannelKey(component: SoftwareComponent) = "software_update_${component.wire}"
+
+    internal fun normalized(component: SoftwareComponent, version: String): String =
+        if (component == SoftwareComponent.COMPANION) UpdateChecker.stripVariant(version) else version.trim()
+
+    internal fun companionAboveCap(inputs: SoftwareUpdateInputs): Boolean {
+        val installed = inputs.installedVersion?.takeIf { it.isNotBlank() } ?: return false
+        return inputs.component == SoftwareComponent.COMPANION && !inputs.externallyManaged &&
+            CompanionInstaller.exceedsCap(installed, inputs.cap)
+    }
+
+    /** The latest version Home Assistant is shown, or null when no truthful value exists. */
+    fun latestVersion(inputs: SoftwareUpdateInputs): String? =
+        if (inputs.externallyManaged) null else inputs.target?.version?.let { target ->
+            // HA compares installed/latest strings for equality. The same running release must have
+            // the same presentation on both sides; other releases retain their catalogue identity.
+            if (inputs.component == SoftwareComponent.PANELD && target == inputs.installedVersion)
+                appVersion(target) else target
+        }
+
+    /**
+     * A Companion entity exists only while a Companion app is installed. A panel without one is not
+     * missing an update, so Home Assistant is shown nothing rather than a permanent "not installed"
+     * offer under every panel; the Install page still adds the app.
+     */
+    fun companionAbsent(inputs: SoftwareUpdateInputs): Boolean =
+        inputs.component == SoftwareComponent.COMPANION && inputs.installedVersion == null
+
+    /** The entity is not announced at all: withheld for Panel Assistant, or no Companion to report on. */
+    fun withheld(inputs: SoftwareUpdateInputs): Boolean = inputs.suppressed || companionAbsent(inputs)
+
+    private fun installedPresentation(inputs: SoftwareUpdateInputs): String {
+        val installed = inputs.installedVersion ?: return NOT_INSTALLED
+        if (installed.isBlank()) return "unknown"
+        val version = if (inputs.component == SoftwareComponent.PANELD) appVersion(installed)
+            else normalized(inputs.component, installed)
+        return if (companionAboveCap(inputs)) UNSUPPORTED_PREFIX + version else version
+    }
+
+    private fun title(inputs: SoftwareUpdateInputs): String = when {
+        inputs.component == SoftwareComponent.PANELD -> "ha-paneld"
+        inputs.installedVersion == null -> "HA Companion"
+        inputs.externallyManaged -> "HA Companion (full)"
+        else -> "HA Companion (minimal)"
+    }
+
+    private fun channelLabel(channel: String) = if (channel == "prerelease") "Pre-release" else "Stable"
+
+    private fun summary(inputs: SoftwareUpdateInputs): String {
+        if (inputs.externallyManaged) {
+            return "Managed by Google Play. ha-paneld does not update the full Companion app."
+        }
+        val parts = mutableListOf("${channelLabel(inputs.channel)} channel.")
+        val target = inputs.target
+        val installed = inputs.installedVersion?.takeIf { it.isNotBlank() }
+        when {
+            target == null -> parts += "The latest release has not been checked yet."
+            companionAboveCap(inputs) -> parts +=
+                "Installed ${normalized(inputs.component, installed!!)} is above this panel's ${inputs.cap} safety cap; installing moves it to ${target.version}."
+            else -> {
+                if (target.capped) parts += "This panel's safety cap is ${inputs.cap}; the newest release is ${target.newestVersion}."
+                if (installed != null && UpdateChecker.compareVersions(
+                        normalized(inputs.component, target.version),
+                        normalized(inputs.component, installed),
+                    )?.let { it < 0 } == true
+                ) parts += "This build is newer than the latest release."
+            }
+        }
+        if (target != null && !inputs.canInstall) parts += "This panel has no install route; update it manually."
+        return parts.joinToString(" ").take(MAX_SUMMARY_CHARS)
+    }
+
+    /** Retained JSON for the state topic. Omitted keys keep Home Assistant's previous value. */
+    fun stateJson(inputs: SoftwareUpdateInputs): String = buildString {
+        append("{\"installed_version\":").append(Json.str(installedPresentation(inputs)))
+        latestVersion(inputs)?.let { append(",\"latest_version\":").append(Json.str(it)) }
+        append(",\"title\":").append(Json.str(title(inputs)))
+        append(",\"release_summary\":").append(Json.str(summary(inputs)))
+        if (!inputs.externallyManaged) {
+            inputs.target?.releaseUrl?.takeIf { it.startsWith("https://") }?.let {
+                append(",\"release_url\":").append(Json.str(it))
+            }
+        }
+        append(",\"in_progress\":").append(inputs.installing)
+        append('}')
+    }
+}

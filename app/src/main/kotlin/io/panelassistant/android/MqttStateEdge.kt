@@ -6,8 +6,8 @@ import io.panelassistant.android.state.StateConverger
 /** Where one converger channel lands on MQTT. Known only to the MQTT edge, never to the converger. */
 internal data class MqttStateRoute(val topic: String, val retain: Boolean)
 
+/** One state channel's MQTT route and publication policy. */
 internal data class MqttStateChannel(
-    val channel: StateConverger.Channel,
     val route: MqttStateRoute,
     val policy: MqttStateOutbox.Policy = MqttStateOutbox.Policy(),
 )
@@ -17,11 +17,9 @@ internal fun mqttStateChannel(
     topic: String,
     retain: Boolean = true,
     equivalent: (String, String) -> Boolean = String::equals,
-    observe: () -> StateConverger.Observation,
 ): MqttStateChannel {
     val refreshAfterAckMs = mqttMeasurementRefreshAfterAckMs(key)
     return MqttStateChannel(
-        StateConverger.Channel(key = key, observe = observe),
         MqttStateRoute(topic, retain),
         MqttStateOutbox.Policy(
             equivalent = equivalent,

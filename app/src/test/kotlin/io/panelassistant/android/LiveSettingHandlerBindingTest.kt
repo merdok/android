@@ -164,19 +164,15 @@ class LiveSettingHandlerBindingTest {
             "auto_brightness" to "auto_brightness",
         )
 
-        assertEquals(expected, externalMqttLiveSettingOwners)
-        expected.forEach { (leaf, key) ->
-            assertEquals(key, externalLiveSettingKey(panel, "ha-paneld/$panel/$leaf/set"))
-        }
-        assertEquals(null, externalLiveSettingKey(panel, "ha-paneld/$panel/not_a_setting/set"))
-        assertEquals(null, externalLiveSettingKey(panel, "ha-paneld/other/watchdog/set"))
-        assertEquals(null, externalLiveSettingKey(panel, "ha-paneld/$panel/watchdog/state"))
+        assertEquals(expected, externalLiveSettingOwners)
+        expected.forEach { (channel, key) -> assertEquals(key, externalLiveSettingKey(channel)) }
+        assertEquals(null, externalLiveSettingKey("not_a_setting"))
     }
 
     @Test fun `retired auto-update settings have no live command owner`() {
         val invocations = mutableListOf<Invocation>()
         listOf("self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update").forEach { key ->
-            assertEquals(key, null, externalLiveSettingKey("p", "ha-paneld/p/$key/set"))
+            assertEquals(key, null, externalLiveSettingKey(key))
             assertThrows(IllegalStateException::class.java) {
                 dispatchLiveSetting(key, "true", handlers = RecordingHandlers(invocations))
             }
@@ -186,7 +182,7 @@ class LiveSettingHandlerBindingTest {
 
     @Test fun `HTTP-only and publish-only live owners are rejected from external MQTT admission`() {
         val panel = "contract-panel"
-        val admitted = externalMqttLiveSettingOwners.values.toSet()
+        val admitted = externalLiveSettingOwners.values.toSet()
         val rejected = LiveSettingEffectOwner.settingKeys - admitted
         val expectedRejected = setOf(
             "auto_sleep_source",
@@ -201,7 +197,7 @@ class LiveSettingHandlerBindingTest {
 
         assertEquals(expectedRejected, rejected)
         rejected.forEach { key ->
-            assertEquals(key, null, externalLiveSettingKey(panel, "ha-paneld/$panel/$key/set"))
+            assertEquals(key, null, externalLiveSettingKey(key))
         }
     }
 }

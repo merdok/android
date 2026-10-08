@@ -1,6 +1,5 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android
 
-import io.panelassistant.android.MqttCommandDispatcher
 import io.panelassistant.android.LiveSettingApplyResult
 import io.panelassistant.android.LiveSettingAuthority
 import io.panelassistant.android.LiveSettingRequestOutcome
@@ -17,15 +16,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class MqttCommandDispatcherTest {
+class CommandQueueTest {
     @Test fun blockedOnThenFloodEndsAtLatestOffWithConstantBacklog() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val finished = CountDownLatch(2)
         val states = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-latest-flood-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-latest-flood-test")
 
-        assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitLatest("screen") {
+        assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitLatest("screen") {
             entered.countDown()
             assertTrue(release.await(5, TimeUnit.SECONDS))
             states += "ON"
@@ -35,7 +34,7 @@ class MqttCommandDispatcherTest {
         repeat(999) { index ->
             dispatcher.submitLatest("screen") { states += if (index % 2 == 0) "ON" else "OFF" }
         }
-        assertEquals(MqttCommandDispatcher.Admission.COALESCED, dispatcher.submitLatest("screen") {
+        assertEquals(CommandQueue.Admission.COALESCED, dispatcher.submitLatest("screen") {
             states += "OFF"
             finished.countDown()
         })
@@ -52,8 +51,8 @@ class MqttCommandDispatcherTest {
         val release = CountDownLatch(1)
         val done = CountDownLatch(1)
         val ran = Collections.synchronizedList(mutableListOf<String>())
-        val skipped = Collections.synchronizedList(mutableListOf<MqttCommandDispatcher.Execution>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-cross-transport-test")
+        val skipped = Collections.synchronizedList(mutableListOf<CommandQueue.Execution>())
+        val dispatcher = CommandQueue(threadName = "mqtt-cross-transport-test")
 
         dispatcher.submitLatest("blocker") {
             entered.countDown()
@@ -62,11 +61,11 @@ class MqttCommandDispatcherTest {
         assertTrue(entered.await(5, TimeUnit.SECONDS))
         // A native command queued first, then an MQTT command for the same channel replaces it.
         assertEquals(
-            MqttCommandDispatcher.Admission.ACCEPTED,
+            CommandQueue.Admission.ACCEPTED,
             dispatcher.submitLatest("relay1", onSkipped = { skipped += it }) { ran += "native" },
         )
-        assertEquals(MqttCommandDispatcher.Admission.COALESCED, dispatcher.submitLatest("relay1") { ran += "mqtt" })
-        assertEquals(listOf(MqttCommandDispatcher.Execution.SUPERSEDED), skipped.toList())
+        assertEquals(CommandQueue.Admission.COALESCED, dispatcher.submitLatest("relay1") { ran += "mqtt" })
+        assertEquals(listOf(CommandQueue.Execution.SUPERSEDED), skipped.toList())
         // And the other way round: an observed command that runs reports nothing through onSkipped.
         dispatcher.submitLatest("relay2", onSkipped = { skipped += it }) {
             ran += "native2"
@@ -77,18 +76,18 @@ class MqttCommandDispatcherTest {
         assertTrue(done.await(5, TimeUnit.SECONDS))
         assertTrue(dispatcher.closeAndDrain(MonotonicDeadline(5_000)).drained)
         assertEquals(listOf("mqtt", "native2"), ran.toList())
-        assertEquals(listOf(MqttCommandDispatcher.Execution.SUPERSEDED), skipped.toList())
+        assertEquals(listOf(CommandQueue.Execution.SUPERSEDED), skipped.toList())
     }
 
     @Test fun anObservedCommandThatCannotBeAdmittedSaysSo() {
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-closed-observed-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-closed-observed-test")
         dispatcher.close()
-        val skipped = mutableListOf<MqttCommandDispatcher.Execution>()
+        val skipped = mutableListOf<CommandQueue.Execution>()
         assertEquals(
-            MqttCommandDispatcher.Admission.CLOSED,
+            CommandQueue.Admission.CLOSED,
             dispatcher.submitLatest("relay1", onSkipped = { skipped += it }) { error("must not run") },
         )
-        assertEquals(listOf(MqttCommandDispatcher.Execution.NOT_ADMITTED), skipped)
+        assertEquals(listOf(CommandQueue.Execution.NOT_ADMITTED), skipped)
     }
 
     @Test fun queueWaitIsMeasuredFromTheExecutedSubmissionOnly() {
@@ -97,7 +96,7 @@ class MqttCommandDispatcherTest {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val finished = CountDownLatch(2)
-        val dispatcher = MqttCommandDispatcher(
+        val dispatcher = CommandQueue(
             threadName = "queue-wait-test",
             nowNanos = now::get,
             onQueueWait = { waits += it },
@@ -114,7 +113,7 @@ class MqttCommandDispatcherTest {
         now.set(9L)
         // Conflation restarts the receipt clock: the replaced submission reports no wait at all.
         assertEquals(
-            MqttCommandDispatcher.Admission.COALESCED,
+            CommandQueue.Admission.COALESCED,
             dispatcher.submitLatest("volume") { finished.countDown() },
         )
         now.set(10L)
@@ -130,7 +129,7 @@ class MqttCommandDispatcherTest {
         val release = CountDownLatch(1)
         val finished = CountDownLatch(3)
         val observed = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-state-order-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-state-order-test")
 
         dispatcher.submitAction {
             entered.countDown()
@@ -141,7 +140,7 @@ class MqttCommandDispatcherTest {
         assertTrue(entered.await(5, TimeUnit.SECONDS))
         dispatcher.submitLatest("screen") { observed += "screen-old" }
         dispatcher.submitLatest("volume") { observed += "volume"; finished.countDown() }
-        assertEquals(MqttCommandDispatcher.Admission.COALESCED, dispatcher.submitLatest("screen") {
+        assertEquals(CommandQueue.Admission.COALESCED, dispatcher.submitLatest("screen") {
             observed += "screen-new"
             finished.countDown()
         })
@@ -157,7 +156,7 @@ class MqttCommandDispatcherTest {
         val release = CountDownLatch(1)
         val finished = CountDownLatch(3)
         val actions = Collections.synchronizedList(mutableListOf<Int>())
-        val dispatcher = MqttCommandDispatcher(
+        val dispatcher = CommandQueue(
             maxPending = 5,
             maxPendingActions = 2,
             threadName = "mqtt-action-bound-test",
@@ -170,17 +169,17 @@ class MqttCommandDispatcherTest {
         }
         assertTrue(entered.await(5, TimeUnit.SECONDS))
 
-        assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitAction {
+        assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitAction {
             actions += 1
             finished.countDown()
         })
-        assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitAction {
+        assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitAction {
             actions += 2
             finished.countDown()
         })
-        assertEquals(MqttCommandDispatcher.Admission.REJECTED, dispatcher.submitAction { actions += 3 })
+        assertEquals(CommandQueue.Admission.REJECTED, dispatcher.submitAction { actions += 3 })
         // Stateful work still has room even when the action allowance is full.
-        assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, dispatcher.submitLatest("screen") {})
+        assertEquals(CommandQueue.Admission.ACCEPTED, dispatcher.submitLatest("screen") {})
 
         release.countDown()
         assertTrue(finished.await(5, TimeUnit.SECONDS))
@@ -192,7 +191,7 @@ class MqttCommandDispatcherTest {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val order = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-http-authority-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-http-authority-test")
         val caller = Executors.newSingleThreadExecutor()
         try {
             dispatcher.submitLatest("mqtt-screen") {
@@ -220,7 +219,7 @@ class MqttCommandDispatcherTest {
         val release = CountDownLatch(1)
         val finished = CountDownLatch(2)
         val applied = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(
+        val dispatcher = CommandQueue(
             threadName = "mqtt-http-deferred-test",
             resultWaitMs = 50,
         )
@@ -240,8 +239,8 @@ class MqttCommandDispatcherTest {
                 finished.countDown()
             }
 
-            assertEquals(MqttCommandDispatcher.Execution.PENDING, home.execution)
-            assertEquals(MqttCommandDispatcher.Execution.PENDING, watchdog.execution)
+            assertEquals(CommandQueue.Execution.PENDING, home.execution)
+            assertEquals(CommandQueue.Execution.PENDING, watchdog.execution)
             release.countDown()
             assertTrue(finished.await(5, TimeUnit.SECONDS))
             assertEquals(listOf("home", "watchdog"), applied)
@@ -254,7 +253,7 @@ class MqttCommandDispatcherTest {
     @Test fun lateSuccessClearsOnlyItsMatchingDurableGeneration() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val dispatcher = MqttCommandDispatcher(threadName = "late-success-authority", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "late-success-authority", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             val outcome = authority.applyOrQueueOutcomeObserved("screen", "ON", "OFF") { _, value, _ ->
@@ -278,7 +277,7 @@ class MqttCommandDispatcherTest {
     @Test fun lateFailureRemainsDurableAndBecomesReplayable() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val dispatcher = MqttCommandDispatcher(threadName = "late-failure-authority", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "late-failure-authority", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             assertEquals(
@@ -315,7 +314,7 @@ class MqttCommandDispatcherTest {
         val blockerEntered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val applied = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "same-key-authority", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "same-key-authority", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             dispatcher.submitAction {
@@ -343,7 +342,7 @@ class MqttCommandDispatcherTest {
         val releaseHttp = CountDownLatch(1)
         val finished = CountDownLatch(2)
         val applied = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "http-mqtt-order-authority", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "http-mqtt-order-authority", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             assertEquals(
@@ -380,7 +379,7 @@ class MqttCommandDispatcherTest {
         val releaseHttp = CountDownLatch(1)
         val mqttFinished = CountDownLatch(1)
         val applied = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "failed-http-newer-mqtt", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "failed-http-newer-mqtt", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             assertEquals(
@@ -417,7 +416,7 @@ class MqttCommandDispatcherTest {
         val releaseFirst = CountDownLatch(1)
         val secondEntered = CountDownLatch(1)
         val releaseSecond = CountDownLatch(1)
-        val dispatcher = MqttCommandDispatcher(threadName = "equal-value-aba", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "equal-value-aba", resultWaitMs = 30)
         val authority = LiveSettingAuthority(setOf("screen"))
         try {
             fun save(block: () -> Unit) = authority.applyOrQueueOutcomeObserved("screen", "ON", "OFF") { _, _, _ ->
@@ -454,7 +453,7 @@ class MqttCommandDispatcherTest {
         val blockerEntered = CountDownLatch(1)
         val releaseBlocker = CountDownLatch(1)
         val journal = TestJournal()
-        val dispatcher = MqttCommandDispatcher(threadName = "interrupted-generation", resultWaitMs = 30)
+        val dispatcher = CommandQueue(threadName = "interrupted-generation", resultWaitMs = 30)
         val first = LiveSettingAuthority(setOf("screen"), journal)
         dispatcher.submitAction {
             blockerEntered.countDown()
@@ -510,7 +509,7 @@ class MqttCommandDispatcherTest {
         val release = CountDownLatch(1)
         val secondAdmitted = CountDownLatch(1)
         val applied = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-http-conflation-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-http-conflation-test")
         val callers = Executors.newFixedThreadPool(2)
         try {
             dispatcher.submitAction {
@@ -518,13 +517,13 @@ class MqttCommandDispatcherTest {
                 assertTrue(release.await(5, TimeUnit.SECONDS))
             }
             assertTrue(entered.await(5, TimeUnit.SECONDS))
-            val first = callers.submit<MqttCommandDispatcher.RunResult> {
+            val first = callers.submit<CommandQueue.RunResult> {
                 dispatcher.runLatestResult("http:screen") { applied += "ON" }
             }
             val pendingDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
             while (dispatcher.pendingCount() != 1 && System.nanoTime() < pendingDeadline) Thread.yield()
             assertEquals(1, dispatcher.pendingCount())
-            val second = callers.submit<MqttCommandDispatcher.RunResult> {
+            val second = callers.submit<CommandQueue.RunResult> {
                 dispatcher.runLatestResult("http:screen", onAdmission = { secondAdmitted.countDown() }) {
                     applied += "OFF"
                 }
@@ -534,12 +533,12 @@ class MqttCommandDispatcherTest {
 
             val firstResult = first.get(5, TimeUnit.SECONDS)
             val secondResult = second.get(5, TimeUnit.SECONDS)
-            assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, firstResult.admission)
+            assertEquals(CommandQueue.Admission.ACCEPTED, firstResult.admission)
             assertFalse(firstResult.executed)
-            assertEquals(MqttCommandDispatcher.Execution.SUPERSEDED, firstResult.execution)
-            assertEquals(MqttCommandDispatcher.Admission.COALESCED, secondResult.admission)
+            assertEquals(CommandQueue.Execution.SUPERSEDED, firstResult.execution)
+            assertEquals(CommandQueue.Admission.COALESCED, secondResult.admission)
             assertTrue(secondResult.executed)
-            assertEquals(MqttCommandDispatcher.Execution.SUCCEEDED, secondResult.execution)
+            assertEquals(CommandQueue.Execution.SUCCEEDED, secondResult.execution)
             assertEquals(listOf("OFF"), applied)
         } finally {
             assertTrue(dispatcher.closeAndDrain(MonotonicDeadline(5_000)).drained)
@@ -553,7 +552,7 @@ class MqttCommandDispatcherTest {
         val closeReturned = CountDownLatch(1)
         val closeRestoredInterrupt = AtomicBoolean(false)
         val observed = Collections.synchronizedList(mutableListOf<String>())
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-close-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-close-test")
 
         dispatcher.submitAction {
             entered.countDown()
@@ -581,7 +580,7 @@ class MqttCommandDispatcherTest {
         while (dispatcher.pendingCount() != 0 && System.nanoTime() < admissionDeadline) Thread.yield()
         assertEquals(0, dispatcher.pendingCount())
         closer.interrupt()
-        assertEquals(MqttCommandDispatcher.Admission.CLOSED, dispatcher.submitLatest("late") {
+        assertEquals(CommandQueue.Admission.CLOSED, dispatcher.submitLatest("late") {
             observed += "late"
         })
         release.countDown()
@@ -595,7 +594,7 @@ class MqttCommandDispatcherTest {
         val entered = CountDownLatch(1)
         val interrupted = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-expired-drain-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-expired-drain-test")
         dispatcher.submitAction {
             entered.countDown()
             while (release.count > 0L) {
@@ -615,7 +614,7 @@ class MqttCommandDispatcherTest {
             assertEquals(1, expired.cancelled)
             assertFalse(expired.drained)
             assertTrue(interrupted.await(2, TimeUnit.SECONDS))
-            assertEquals(MqttCommandDispatcher.Admission.CLOSED, dispatcher.submitAction {
+            assertEquals(CommandQueue.Admission.CLOSED, dispatcher.submitAction {
                 error("late command ran")
             })
             release.countDown()
@@ -631,14 +630,14 @@ class MqttCommandDispatcherTest {
     }
 
     @Test fun admittedHandlerExceptionIsDistinguishedFromClosedAdmission() {
-        val dispatcher = MqttCommandDispatcher(threadName = "mqtt-result-test")
+        val dispatcher = CommandQueue(threadName = "mqtt-result-test")
         val failed = dispatcher.runLatestResult("failure") { error("controller failed") }
-        assertEquals(MqttCommandDispatcher.Admission.ACCEPTED, failed.admission)
-        assertEquals(MqttCommandDispatcher.Execution.FAILED, failed.execution)
+        assertEquals(CommandQueue.Admission.ACCEPTED, failed.admission)
+        assertEquals(CommandQueue.Execution.FAILED, failed.execution)
 
         assertTrue(dispatcher.closeAndDrain(MonotonicDeadline(5_000)).drained)
         val closed = dispatcher.runLatestResult("closed") {}
-        assertEquals(MqttCommandDispatcher.Admission.CLOSED, closed.admission)
-        assertEquals(MqttCommandDispatcher.Execution.NOT_ADMITTED, closed.execution)
+        assertEquals(CommandQueue.Admission.CLOSED, closed.admission)
+        assertEquals(CommandQueue.Execution.NOT_ADMITTED, closed.execution)
     }
 }

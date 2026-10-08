@@ -54,7 +54,7 @@ class ServiceTeardownDeadlineTest {
             assertTrue("the browser never saw the advertisement", seen.await(10, TimeUnit.SECONDS))
             val service = PaneldService()
             fenceProcessExit(service)
-            installRuntime(service, retiredBridge(), advertiser)
+            installRuntime(service, idleCore(), idleCommands(), retiredBridge(), advertiser)
 
             try {
                 service.onDestroy()
@@ -87,9 +87,36 @@ class ServiceTeardownDeadlineTest {
         return bridge
     }
 
-    private fun installRuntime(service: PaneldService, mqtt: MqttBridge, mdns: MdnsAdvertiser) {
+    /** A state core with nothing registered: its stop drains at once. */
+    private fun idleCore(): PanelStateCore = allocate(PanelStateCore::class.java).also { core ->
+        setOn(core, "lifecycle", io.panelassistant.android.util.RetirableMutationGate())
+        setOn(core, "converger", io.panelassistant.android.state.StateConverger())
+        setOn(core, "haLinkResolutionThread", AtomicReference<Thread?>())
+    }
+
+    /** A command dispatcher with nothing queued: its stop drains at once. */
+    private fun idleCommands(): PanelCommandDispatcher = allocate(PanelCommandDispatcher::class.java).also { commands ->
+        val zigbee = ZigbeeActuationCoordinator()
+        setOn(commands, "lifecycle", io.panelassistant.android.util.RetirableMutationGate())
+        setOn(commands, "zigbeeActuation", zigbee)
+        setOn(commands, "zigbeeLease", zigbee.activate())
+        setOn(commands, "queue", CommandQueue())
+        setOn(commands, "zigbeeWorker", io.panelassistant.android.util.LatestDispatcher.singleSlot<Boolean>("teardown-test-zigbee", consume = {}))
+    }
+
+    private fun setOn(target: Any, name: String, value: Any?) {
+        target.javaClass.getDeclaredField(name).apply { isAccessible = true }.set(target, value)
+    }
+
+    private fun installRuntime(
+        service: PaneldService,
+        core: PanelStateCore,
+        commands: PanelCommandDispatcher,
+        mqtt: MqttBridge,
+        mdns: MdnsAdvertiser,
+    ) {
         val type = Class.forName("${PaneldService::class.java.name}\$NetworkRuntime")
-        val pair = type.declaredConstructors.single().apply { isAccessible = true }.newInstance(mqtt, mdns)
+        val pair = type.declaredConstructors.single().apply { isAccessible = true }.newInstance(core, commands, mqtt, mdns)
         val owner = ServiceRuntimeOwner<Any>(pair, "test-runtime-lane")
         owner.start { }
         setField(service, "runtime", owner)

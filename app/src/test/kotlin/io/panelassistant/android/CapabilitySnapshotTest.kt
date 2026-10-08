@@ -8,7 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class MqttCapabilitySnapshotTest {
+class CapabilitySnapshotTest {
     @Test
     fun `learned proximity notification is truthless and replacement re-reads service authority`() {
         class FakeDiscoveryTransport {
@@ -51,7 +51,7 @@ class MqttCapabilitySnapshotTest {
     @Test
     fun `connect and reannounce each invoke the capability supplier exactly once`() {
         var calls = 0
-        val source = MqttDiscoveryCapabilitySource(supplier = {
+        val source = CapabilitySnapshotSource(supplier = {
             calls += 1
             Capabilities(canSetDisplay = calls == 1)
         })
@@ -69,7 +69,7 @@ class MqttCapabilitySnapshotTest {
 
     @Test
     fun `missing capability supplier leaves legacy controller fallbacks available`() {
-        val source = MqttDiscoveryCapabilitySource(null)
+        val source = CapabilitySnapshotSource(null)
 
         assertNull(source.snapshot())
         assertNull(source.initialSnapshot())
@@ -79,7 +79,7 @@ class MqttCapabilitySnapshotTest {
     fun `failed live snapshot degrades closed without aborting discovery`() {
         var calls = 0
         var failures = 0
-        val source = MqttDiscoveryCapabilitySource(
+        val source = CapabilitySnapshotSource(
             supplier = {
                 calls += 1
                 throw IllegalStateException("probe failed")
@@ -99,7 +99,7 @@ class MqttCapabilitySnapshotTest {
     fun `failed first snapshot can recover on a later bounded refresh`() {
         var now = 1_000L
         var calls = 0
-        val source = MqttDiscoveryCapabilitySource(
+        val source = CapabilitySnapshotSource(
             supplier = {
                 calls++
                 if (calls == 1) throw IllegalStateException("root not ready")
@@ -131,7 +131,7 @@ class MqttCapabilitySnapshotTest {
 
     @Test
     fun `channel shape grows after transient negatives and never shrinks on later unavailability`() {
-        val shape = MqttCapabilityShape()
+        val shape = CapabilityShape()
 
         val unavailable = shape.observe(Capabilities())
         assertTrue(unavailable.possible.keys().isEmpty())
@@ -178,7 +178,7 @@ class MqttCapabilitySnapshotTest {
     fun `reannouncement snapshot reuses a monotonic bounded cache`() {
         var now = 1_000L
         var calls = 0
-        val source = MqttDiscoveryCapabilitySource(
+        val source = CapabilitySnapshotSource(
             supplier = { Capabilities(canSetDisplay = ++calls % 2 == 1) },
             nowMs = { now },
         )
@@ -200,7 +200,7 @@ class MqttCapabilitySnapshotTest {
         var now = 1_000L
         var learned = false
         var calls = 0
-        val source = MqttDiscoveryCapabilitySource(
+        val source = CapabilitySnapshotSource(
             supplier = { calls++; Capabilities(hasLearnedProximity = learned) },
             nowMs = { now },
         )
@@ -218,7 +218,7 @@ class MqttCapabilitySnapshotTest {
     fun `clock rollback expires rather than extending a capability snapshot`() {
         var now = 1_000L
         var calls = 0
-        val source = MqttDiscoveryCapabilitySource(
+        val source = CapabilitySnapshotSource(
             supplier = { Capabilities(canSetDisplay = ++calls == 1) },
             nowMs = { now },
         )

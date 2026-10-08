@@ -17,7 +17,7 @@ import org.junit.Test
  * [LiveSettingAuthority] through that exact sequence.
  */
 class TouchSoundExternalSupersessionTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the handler and its failure path need the Android service to construct.
 
     /** The inversion itself, end to end on the real authority. */
     @Test fun anUnavailableExternalChangeStillRetiresTheOlderQueuedValue() {
@@ -82,14 +82,14 @@ class TouchSoundExternalSupersessionTest {
 
     /** The production wiring the cases above stand in for. */
     @Test fun theHandlerRecordsItsCommitAndTheFailurePathReadsIt() {
-        val bridge = File("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
-        val handler = bridge.substring(
-            bridge.indexOf("override fun handleTouchSound(payload: String)"),
-            bridge.indexOf("override fun handleWatchdog(payload: String)"),
+        val commands = File("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
+        val handler = commands.substring(
+            commands.indexOf("override fun handleTouchSound(payload: String)"),
+            commands.indexOf("override fun handleWatchdog(payload: String)"),
         )
-        val consume = bridge.substring(
-            bridge.indexOf("private fun consumeCommand(topic: String, payloadBytes: ByteArray, peer: String)"),
-            bridge.indexOf("private fun dispatchCommand(topic: String, payloadBytes: ByteArray)"),
+        val consume = commands.substring(
+            commands.indexOf("private fun consume(channel: String, payloadBytes: ByteArray, origin: CommandOrigin)"),
+            commands.indexOf("private fun dispatch(channel: String, payloadBytes: ByteArray)"),
         )
 
         // Committed, marked, and only then actuated — the order is the fix.

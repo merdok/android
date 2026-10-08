@@ -54,7 +54,7 @@ internal class PageHealth(
     class Inputs(
         val webView: PanelInfo.WebViewStatus,
         val hasRenderer: Boolean,
-        val brokerConfigured: Boolean,
+        val homeAssistantConfigured: Boolean,
     )
 
     /**
@@ -72,7 +72,9 @@ internal class PageHealth(
     fun healthInputs(): Inputs = Inputs(
         PanelInfo.webViewStatus(appContext),
         PanelInfo.dashboardRenderers(appContext, config.dashboardPackage, config.haUrl).isNotEmpty(),
-        config.mqttBroker.isNotBlank(),
+        // Set up for Home Assistant by either transport: a configured broker, or Panel Assistant having
+        // reached this panel. A native-only panel has no broker and is no less set up.
+        config.mqttBroker.isNotBlank() || config.panelAssistantConnectionSeen,
     )
 
     /** The schema-version detail to warn about when a downgrade reset config to defaults (the last
@@ -104,7 +106,7 @@ internal class PageHealth(
         webViewTooOld = h.webView.tooOld,
         webViewDisplay = webViewDisplay,
         hasRenderer = h.hasRenderer,
-        brokerConfigured = h.brokerConfigured,
+        homeAssistantConfigured = h.homeAssistantConfigured,
         updates = updates,
         schemaRolledBack = schemaRollbackDetail() != null,
         schemaRollbackDetail = schemaRollbackDetail() ?: "",

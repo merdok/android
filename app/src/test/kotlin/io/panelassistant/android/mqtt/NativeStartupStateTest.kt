@@ -5,7 +5,6 @@ import io.panelassistant.android.hardware.LedController
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -25,31 +24,30 @@ internal class NativeStartupStateTest : MqttWireRig() {
 
     @Test fun freshNativeStartupPublishesAcknowledgedLedOffWithoutBroker() {
         val led = Led()
-        val rig = rig(runtimeBroker = "", led = led)
+        val rig = rig(runtimeBroker = "", mqtt = false, led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.bridge.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation, _ ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             assertEquals(listOf("off"), led.writes)
             assertTrue(states.isNotEmpty())
             assertTrue(states.all { JSONObject(it).getString("state") == "OFF" })
-            assertFalse(rig.bridge.isConnected())
         } finally { rig.close() }
     }
 
     @Test fun nativeStartupRestoresStoredLedColorWithoutBroker() {
         val led = Led()
-        val rig = rig(runtimeBroker = "", led = led, configure = { it.lastLed = "1,128,255,0,0" })
+        val rig = rig(runtimeBroker = "", mqtt = false, led = led, configure = { it.lastLed = "1,128,255,0,0" })
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.bridge.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation, _ ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             assertEquals(listOf("128,0,0"), led.writes)
             assertTrue(states.isNotEmpty())
             assertEquals("ON", JSONObject(states.last()).getString("state"))
@@ -59,20 +57,20 @@ internal class NativeStartupStateTest : MqttWireRig() {
 
     @Test fun refusedStartupActuationStaysUnknownUntilAcknowledgedRestore() {
         val led = Led().apply { accepted = false }
-        val rig = rig(runtimeBroker = "", led = led)
+        val rig = rig(runtimeBroker = "", mqtt = false, led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.bridge.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation, _ ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
-            rig.bridge.start()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             assertEquals(listOf("off"), led.writes)
             assertTrue(states.isEmpty())
-            assertTrue("led" in rig.bridge.nativeChannelShape().served)
+            assertTrue("led" in rig.core.nativeChannelShape().served)
             led.accepted = true
-            rig.bridge.reapplyStoredLed()
-            assertTrue(runBlocking { rig.bridge.observeForNativeHello { true } })
+            rig.core.reapplyStoredLed()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             assertEquals("OFF", JSONObject(states.last()).getString("state"))
         } finally { rig.close() }
     }

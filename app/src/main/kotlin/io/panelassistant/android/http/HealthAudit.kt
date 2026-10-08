@@ -32,7 +32,8 @@ object HealthAudit {
      * @param webViewTooOld  engine-aware verdict (`PanelInfo.webViewStatus(...).tooOld`)
      * @param webViewDisplay the WebView version string to show in the WEBVIEW_OLD finding
      * @param hasRenderer    a supported dashboard app (built-in / Companion / configured package) is present
-     * @param brokerConfigured whether the user has configured an MQTT broker; renderer setup follows it
+     * @param homeAssistantConfigured whether the panel is set up for Home Assistant (an MQTT broker, or a
+     *   Panel Assistant connection); renderer setup follows it
      * @param updates        available component updates, already filtered + ordered by the caller
      * @param schemaRolledBack   config was reset by a version downgrade (last reconcile was PRESERVED_FRESH)
      * @param schemaRollbackDetail the schema-version detail to show (e.g. "schema 13 → 11")
@@ -41,7 +42,7 @@ object HealthAudit {
         webViewTooOld: Boolean,
         webViewDisplay: String,
         hasRenderer: Boolean,
-        brokerConfigured: Boolean,
+        homeAssistantConfigured: Boolean,
         updates: List<UpdateChecker.UpdateInfo>,
         schemaRolledBack: Boolean = false,
         schemaRollbackDetail: String = "",
@@ -49,7 +50,7 @@ object HealthAudit {
         // A downgrade that reset config to defaults is the most severe finding — render it first.
         if (schemaRolledBack) add(Finding(Kind.SCHEMA_ROLLED_BACK, detail = schemaRollbackDetail))
         if (webViewTooOld) add(Finding(Kind.WEBVIEW_OLD, detail = webViewDisplay))
-        if (brokerConfigured && !hasRenderer) add(Finding(Kind.NO_RENDERER))
+        if (homeAssistantConfigured && !hasRenderer) add(Finding(Kind.NO_RENDERER))
         updates.forEach { add(Finding(Kind.UPDATE, update = it)) }
     }
 

@@ -1,10 +1,11 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelCommandDispatcher
+import io.panelassistant.android.PanelStateCore
 import io.panelassistant.android.Config
 import io.panelassistant.android.LiveSettingApplyResult
 import io.panelassistant.android.LiveSettingAuthority
 import io.panelassistant.android.LiveSettingRequestOutcome
-import io.panelassistant.android.MqttBridge
 import io.panelassistant.android.dispatchLiveSetting
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.ConfigBundle
@@ -597,7 +598,7 @@ class ConfigPostProductionRouteTest {
                 assertEquals("/lovelace/beta", body.getJSONObject("settings").getString(spec.key))
             }
 
-            assertEquals(1, runtimeRefreshes.size, "the concrete MqttBridge effect owner must run")
+            assertEquals(1, runtimeRefreshes.size, "the concrete dispatcher effect owner must run")
             assertEquals("/lovelace/beta", config.getRaw(spec))
             val reopened = Config(SqliteStatePreferences(JdbcStatePersistence(database), reopenedWriter))
             assertEquals(
@@ -797,14 +798,14 @@ class ConfigPostProductionRouteTest {
      * home-dashboard handler owns both the durable Config write and the entity-learning target refresh; an empty
      * converger is sufficient because publication is deliberately a no-op without a registered channel.
      */
-    private fun liveEffectBridge(config: Config, onDashboardTargetChanged: () -> Unit): MqttBridge =
-        allocate(MqttBridge::class.java).also { bridge ->
-            setField(bridge, "config", config)
-            setField(bridge, "onDashboardTargetChanged", onDashboardTargetChanged)
+    private fun liveEffectBridge(config: Config, onDashboardTargetChanged: () -> Unit): PanelCommandDispatcher =
+        allocate(PanelCommandDispatcher::class.java).also { commands ->
+            setField(commands, "config", config)
+            setField(commands, "onDashboardTargetChanged", onDashboardTargetChanged)
             setField(
-                bridge,
-                "stateConverger",
-                StateConverger(),
+                commands,
+                "core",
+                allocate(PanelStateCore::class.java).also { setField(it, "converger", StateConverger()) },
             )
         }
 

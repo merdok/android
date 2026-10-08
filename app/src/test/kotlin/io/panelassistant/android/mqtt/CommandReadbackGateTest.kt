@@ -1,8 +1,9 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.CommandReadbackGate
 import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.testsupport.TestSources
-import io.panelassistant.android.MqttCommandDispatcher
+import io.panelassistant.android.CommandQueue
 import io.panelassistant.android.mqttStatePayload
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostRegistry
@@ -129,7 +130,7 @@ class CommandReadbackGateTest {
      * pin the process-global in-flight count. Cancellation belongs to reconcile's own lifecycle gate.
      */
     @Test fun theBridgeWiresTheGateToAnUndroppableScheduler() {
-        val source = TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
+        val source = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
         val wiring = source.substringAfter("relayReadbackGate = ").substringBefore("\n    )")
         assertTrue("gate must schedule on the raw convergence pump", wiring.contains("StateConverger.dispatch"))
         assertFalse("gate must not schedule through the task-dropping bridge wrapper", wiring.contains("dispatchStateWork"))
@@ -222,7 +223,7 @@ class CommandReadbackGateTest {
         val pump = ManualPump()
         val readbacks = Collections.synchronizedList(mutableListOf<String>())
         val gate = CommandReadbackGate(pump::schedule, { key, _ -> readbacks += key }, registry())
-        val dispatcher = MqttCommandDispatcher(threadName = "issue93-blocked-lane-test")
+        val dispatcher = CommandQueue(threadName = "issue93-blocked-lane-test")
         val writes = Collections.synchronizedList(mutableListOf<Pair<String, Boolean>>())
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
@@ -242,7 +243,7 @@ class CommandReadbackGateTest {
         // Rapid burst while blocked: OFF must be conflated away, the final ON survives.
         dispatcher.submitLatest("relay1/set") { gate.command("relay1") { writes += "relay1" to false; true } }
         assertEquals(
-            MqttCommandDispatcher.Admission.COALESCED,
+            CommandQueue.Admission.COALESCED,
             dispatcher.submitLatest("relay1/set") { gate.command("relay1") { writes += "relay1" to true; true } },
         )
         // An independent channel commanded during the burst is not displaced by it.

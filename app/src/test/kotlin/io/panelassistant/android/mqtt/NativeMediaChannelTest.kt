@@ -38,14 +38,14 @@ internal class NativeMediaChannelTest : MqttWireRig() {
         val media = player()
         val rig = rig(runtimeBroker = "", media = media)
         val observed = CopyOnWriteArrayList<String>()
-        rig.bridge.addStateSink { channel, observation, done ->
+        rig.core.addStateSink { channel, observation, done ->
             if (channel == "media") observed += (observation as StateConverger.Observation.Known).payload
             done(true)
         }
-        media.setChangeListener(rig.bridge::mediaChanged)
+        media.setChangeListener(rig.core::mediaChanged)
         try {
-            rig.bridge.start()
-            val shape = rig.bridge.nativeChannelShape()
+            rig.start()
+            val shape = rig.core.nativeChannelShape()
             assertTrue("media is described", "media" in shape.served)
             assertFalse("media is not unsupported", "media" in shape.unsupported)
 
@@ -79,8 +79,8 @@ internal class NativeMediaChannelTest : MqttWireRig() {
     fun aPanelWithoutASpeakerStatesMediaUnsupported() {
         val rig = rig(runtimeBroker = "", media = null)
         try {
-            rig.bridge.start()
-            val shape = rig.bridge.nativeChannelShape()
+            rig.start()
+            val shape = rig.core.nativeChannelShape()
             assertTrue("media is unsupported", "media" in shape.unsupported)
             assertFalse("media is not described", "media" in shape.served)
             assertEquals(

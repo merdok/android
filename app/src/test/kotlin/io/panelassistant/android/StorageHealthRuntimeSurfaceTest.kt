@@ -83,7 +83,7 @@ class StorageHealthRuntimeSurfaceTest {
     }
 
     @Test fun mqttAttributesAreTypedSanitizedAndPreserveUnderlyingPressure() {
-        val payload = storageHealthMqttAttributes(
+        val payload = storageHealthAttributes(
             snapshot(
                 severity = StorageHealthSeverity.DATABASE_FAILURE,
                 pressure = StorageHealthSeverity.CRITICAL,
@@ -106,7 +106,7 @@ class StorageHealthRuntimeSurfaceTest {
     }
 
     @Test fun uncheckedMqttAttributesUseExplicitNullsAndValidVocabulary() {
-        val json = JSONObject(storageHealthMqttAttributes(StorageHealthSnapshot.UNCHECKED))
+        val json = JSONObject(storageHealthAttributes(StorageHealthSnapshot.UNCHECKED))
         assertEquals("unchecked", json.getString("storage_pressure"))
         assertTrue(json.isNull("failure_category"))
         assertTrue(json.isNull("usable_bytes"))
@@ -116,7 +116,7 @@ class StorageHealthRuntimeSurfaceTest {
         assertEquals("not_run", json.getString("quick_check"))
 
         val sqliteUnknown = JSONObject(
-            storageHealthMqttAttributes(
+            storageHealthAttributes(
                 snapshot(StorageHealthSeverity.HEALTHY).copy(pageCount = 0L, freelistCount = 0L),
             ),
         )
@@ -132,7 +132,7 @@ class StorageHealthRuntimeSurfaceTest {
 
     @Test fun completedUnknownCapacityRetainsDatabaseEvidenceInMqttAttributes() {
         val json = JSONObject(
-            storageHealthMqttAttributes(
+            storageHealthAttributes(
                 snapshot(StorageHealthSeverity.UNCHECKED).copy(
                     pressureSeverity = StorageHealthSeverity.UNCHECKED,
                     usableBytes = 0L,
@@ -167,12 +167,12 @@ class StorageHealthRuntimeSurfaceTest {
         val mqtt = source("MqttBridge.kt")
         assertTrue(mqtt.contains("\"sensor\", \"\${panel}_storage_health\""))
         assertTrue(mqtt.contains("\"entity_category\":\"diagnostic\""))
-        assertTrue(mqtt.contains("stateConverger.reconcile(\"storage_health\", force = true)"))
+        assertTrue(mqtt.contains("core.reconcile(\"storage_health\", force = true)"))
     }
 
     @Test fun theMqttPayloadNamesTheFailingOperationAndTheReclamationMode() {
         val json = JSONObject(
-            storageHealthMqttAttributes(
+            storageHealthAttributes(
                 snapshot(
                     severity = StorageHealthSeverity.DATABASE_FAILURE,
                     failureKind = StorageDatabaseFailureKind.UNKNOWN,
@@ -192,7 +192,7 @@ class StorageHealthRuntimeSurfaceTest {
     }
 
     @Test fun theMqttPayloadUsesAnExplicitNullWhenNoOperationWasRecorded() {
-        val json = JSONObject(storageHealthMqttAttributes(StorageHealthSnapshot.UNCHECKED))
+        val json = JSONObject(storageHealthAttributes(StorageHealthSnapshot.UNCHECKED))
 
         assertTrue(json.isNull("failure_operation"))
         assertEquals("unknown", json.getString("auto_vacuum"))
@@ -257,7 +257,7 @@ class StorageHealthRuntimeSurfaceTest {
         quickCheck = StorageQuickCheck.OK,
     )
 
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the state core and command handlers need the Android service to construct; discovery pins MqttBridge.kt, deleted with the MQTT removal.
     private fun source(name: String): String {
         return TestSources.appFile("src/main/kotlin/io/panelassistant/android/$name").readText()
     }
