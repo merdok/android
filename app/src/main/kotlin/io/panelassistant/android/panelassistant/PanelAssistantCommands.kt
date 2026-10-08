@@ -143,8 +143,6 @@ internal class PanelAssistantCommandProcessor(
     val wake = Channel<Unit>(Channel.CONFLATED)
 
     private val described = channels.associateBy { it.channel }
-    private val accepting = session.authority == PanelAssistantTransportProtocol.AUTHORITY_NATIVE &&
-        PanelAssistantTransportProtocol.CAPABILITY_COMMANDS in session.capabilities
 
     private class Request(val channel: String, val payload: String, val deadlineMs: Long)
 
@@ -186,7 +184,6 @@ internal class PanelAssistantCommandProcessor(
             }
         }
         val refusal = when {
-            !accepting -> CODE_AUTHORITY_MISMATCH
             event.channel == null || described[event.channel] == null -> CODE_UNKNOWN_CHANNEL
             event.deadlineMs == null -> CODE_INVALID_VALUE
             described.getValue(event.channel).platform !in PanelAssistantCommandTranslation.COMMANDABLE_PLATFORMS ->
@@ -343,7 +340,6 @@ internal class PanelAssistantCommandProcessor(
         const val CODE_UNKNOWN_CHANNEL = "unknown_channel"
         const val CODE_INVALID_VALUE = "invalid_value"
         const val CODE_NOT_COMMANDABLE = "not_commandable"
-        const val CODE_AUTHORITY_MISMATCH = "authority_mismatch"
         const val CODE_EXPIRED = "expired"
         const val CODE_APPROVAL_DENIED = "approval_denied"
         const val CODE_APPROVAL_TIMEOUT = "approval_timeout"

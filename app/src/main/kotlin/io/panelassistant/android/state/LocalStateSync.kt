@@ -1,9 +1,9 @@
 package io.panelassistant.android.state
 
 /**
- * Pure helpers for the local-state → MQTT sync ([io.panelassistant.android.MqttBridge.syncLocalState]),
- * split out of the god-object bridge so the publish-decision logic + the /diag event log are unit-testable
- * without a broker. See docs on the sync contract: publish only past a deadband AND once settled, so fast
+ * Pure helpers for the local-state → Home Assistant sync,
+ * split out of the network runtime so the publish-decision logic + the /diag event log are unit-testable
+ * without a session. See docs on the sync contract: publish only past a deadband AND once settled, so fast
  * oscillation publishes nothing and steady state costs zero messages.
  */
 object SyncGate {
@@ -20,7 +20,7 @@ object SyncGate {
 }
 
 /**
- * Bounded, newest-first ring of recent "this changed outside MQTT" events, surfaced on the info page +
+ * Bounded, newest-first ring of recent "this changed outside the app" events, surfaced on the info page +
  * `/diag` so an operator can see what the panel synced and when. Thread-safe: recorded on the watchdog
  * thread, read on the HTTP thread. The clock is injected (elapsed-realtime millis) so it stays pure —
  * ages are computed at read time relative to `now`.

@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Optional hardware-button capture. Hardware/capacitive buttons that emit standard Android
- * KeyEvents are reported to HA via [ButtonBus] → MQTT `event.<panel>_button`. Enabled at
+ * KeyEvents are reported to HA via [ButtonBus] → Home Assistant `event.<panel>_button`. Enabled at
  * provisioning with `settings put secure enabled_accessibility_services <pkg>/<this>`.
  *
  * ⚠️ Per-hardware uncertain: panels whose buttons are GPIO-only (no KeyEvent) won't surface here
@@ -38,7 +38,7 @@ class PanelAccessibilityService : AccessibilityService() {
      *
      * A foreground-start timeout kills the process *and* drops the started-service record, so there is
      * no START_STICKY re-create waiting to happen. The accessibility service is bound by the system
-     * independently of that record, so the process can come back for it alone — no `:8888`, no MQTT and
+     * independently of that record, so the process can come back for it alone — no `:8888`, no Home Assistant link and
      * no log shipping. Observed lasting over eight hours, until `MainActivity` was started by hand.
      * This is the route back.
      *
@@ -86,7 +86,7 @@ class PanelAccessibilityService : AccessibilityService() {
     companion object : AccessibilityActions {
         private const val TAG = "ha-paneld/buttons"
 
-        // Set while the a11y service is connected; lets the MQTT command path perform global nav
+        // Set while the a11y service is connected; lets the command path perform global nav
         // actions (back/recents/home) with no root — performGlobalAction is an a11y capability.
         @Volatile
         private var instance: PanelAccessibilityService? = null

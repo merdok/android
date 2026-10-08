@@ -110,7 +110,7 @@ internal enum class LiveSettingRequestOutcome {
 }
 
 /**
- * Keeps HTTP-originated live settings authoritative while the replaceable MQTT runtime is draining.
+ * Keeps HTTP-originated live settings authoritative while the replaceable runtime is draining.
  *
  * A bridge can reject an otherwise valid setting because reconfiguration has closed its command
  * admission. Journal the latest accepted value synchronously before trying the bridge, then remove it
@@ -308,7 +308,7 @@ internal class LiveSettingAuthority(
     }
 
     /** Supersede any queued HTTP intent without replaying it. Safety-sensitive settings use this when
-     * another authority (for example MQTT or the boot escape window) establishes a newer truth. */
+     * another authority (for example a command or the boot escape window) establishes a newer truth. */
     @Synchronized
     fun discard(key: String): Boolean {
         if (key !in supportedKeys) return false

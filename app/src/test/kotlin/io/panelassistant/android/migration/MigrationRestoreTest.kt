@@ -96,11 +96,11 @@ class MigrationRestoreTest {
     }
 
     @Test fun theBackupProjectionCarriesTheCredentialsTheSuccessorMustKeep() {
-        // The successor never signs in again: the archive it pulls has to hold the broker password and
-        // the app-held Home Assistant tokens. They are in it only while they stay settable and durable.
+        // The successor never signs in again: the archive it pulls has to hold the app-held Home
+        // Assistant tokens. They are in it only while they stay settable and durable.
         val carried = SettingsRegistry.settable().filterNot { it.transient }.map { it.key }.toSet()
 
-        listOf("panel_id", "mqtt_password", "ha_refresh_token").forEach { key ->
+        listOf("panel_id", "ha_token", "ha_refresh_token").forEach { key ->
             assertTrue("$key must be part of the backup projection", key in carried)
         }
     }

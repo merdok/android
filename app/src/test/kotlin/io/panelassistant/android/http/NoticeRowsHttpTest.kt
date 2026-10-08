@@ -51,8 +51,7 @@ class NoticeRowsHttpTest {
 
     /** Every row [DashboardAdvisories.render] can draw, in render order. Two rows pairs cannot co-occur, so
      *  two renders pin the whole sequence: the Companion internal-URL row needs a Companion renderer while
-     *  the zoom row needs the built-in one, and MQTT progress (broker saved, still connecting) and the
-     *  setup-needs row (no broker) are opposite MQTT states. */
+     *  the zoom row needs the built-in one. */
     @Test fun `dashboard advisories keep their full render order`() {
         PaneldServerHttpFixture().use { fixture ->
             fixture.enablePages()
@@ -64,7 +63,6 @@ class NoticeRowsHttpTest {
                 val webViewOld = PageHealth.Inputs(PanelInfo.WebViewStatus("Chrome 60", tooOld = true), hasRenderer = true, homeAssistantConfigured = false)
                 val builtin = fixture.advisories(io.panelassistant.android.PanelStatus.DashboardRecoveryState.BUILTIN_RENDERER)
                 fixture.config.setDashboardZoom(125)
-                fixture.config.setMqtt("", "", "")
                 val first = rows(builtin.render(fixture.snapshot("disabled", densityBase = 160), webViewOld, englishCatalogue))
                 assertEquals(
                     listOf(
@@ -78,13 +76,11 @@ class NoticeRowsHttpTest {
                         TERMUX,
                         PROXIMITY,
                         SIGN_IN,
-                        SETUP,
                     ),
                     first,
                 )
 
                 fixture.config.setDashboardPackage(io.panelassistant.android.util.CompanionInstaller.SUPPORTED_PACKAGES.first())
-                fixture.config.setMqtt("mqtt://contract.invalid:1883", "", "")
                 fixture.companionCache.set(io.panelassistant.android.control.CompanionDb.ServerObservation(
                     io.panelassistant.android.control.CompanionDb.Probe.SUCCEEDED, null,
                     io.panelassistant.android.control.CompanionDb.UrlStatus(needsRepair = true, affected = 1),
@@ -103,7 +99,6 @@ class NoticeRowsHttpTest {
                         TERMUX,
                         PROXIMITY,
                         SIGN_IN,
-                        PROGRESS,
                     ),
                     second,
                 )
@@ -196,7 +191,6 @@ class NoticeRowsHttpTest {
         observations.termuxBridgeCache.set(TermuxBridgeProbe.State.RUNNING)
         return DashboardAdvisories(
             config, context, field("sensors"), observations, field("setupState"), PageHealth(context, config),
-            mqttState = { "connecting" },
             haSignInNeededForEffectiveDashboard = { true },
             powerSafetyAdvisory = {
                 io.panelassistant.android.control.PowerSafetyAdvisory(
@@ -230,8 +224,6 @@ class NoticeRowsHttpTest {
         val TERMUX = "warning" to "A Zigbee bridge is running in Termux on this panel. It may interfere with the panel's Zigbee gateway. Review the Termux bridge before enabling Zigbee gateway features."
         val PROXIMITY = "warning" to esc(englishCatalogue.get("configure.proximity.setup.unavailable"))
         val SIGN_IN = "warning" to esc(englishCatalogue.get("dashboard.banner.ha_sign_in.title"))
-        val SETUP = "warning" to "This panel needs MQTT configuration — set on the Configure tab."
-        val PROGRESS = "working" to "MQTT settings saved — verifying the broker connection. This can take a short while after saving."
     }
 
     private fun PaneldServer.set(name: String, value: Any) {

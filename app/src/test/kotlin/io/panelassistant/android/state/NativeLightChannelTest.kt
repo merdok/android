@@ -1,5 +1,6 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -7,42 +8,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The light answer through the production bridge, on both transports: the native hello's descriptor and
- * unsupported lists, and MQTT discovery's illuminance config. Described (true) creates the entity,
- * settled absent (false) removes it, and never reported (null) creates nothing and deletes nothing.
+ * The light answer through the production state core: the native hello's descriptor and unsupported
+ * lists. Described (true) creates the entity, settled absent (false) removes it, and never reported
+ * (null) creates nothing and deletes nothing.
  */
-internal class NativeLightChannelTest : MqttWireRig() {
+internal class NativeLightChannelTest : PanelRuntimeRig() {
     @Test(timeout = 90_000) fun aSensorThatNeverReportedCreatesNoEntityUntilItsFirstReading() {
         var answer: Boolean? = null
         val rig = rig(lightChannel = { answer })
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
-            rig.announce()
+            rig.start()
             assertOffered(native, described = false, unsupported = false)
-            assertTrue("no illuminance discovery at all", illuminanceConfigs(rig).isEmpty())
 
             answer = true
-            val from = rig.transport.size()
             rig.core.notifyLightAvailabilityChanged()
-            rig.transport.awaitPublication(from, "illuminance config") { it.topic() == CONFIG }
-            rig.transport.drain()
 
             assertOffered(native, described = true, unsupported = false)
-            assertTrue("the first reading publishes the entity", illuminanceConfigs(rig).last().isNotEmpty())
         } finally {
             rig.close()
         }
     }
 
-    @Test(timeout = 90_000) fun aSettledAbsentSensorIsStatedUnsupportedAndItsMqttEntityRemoved() {
+    @Test(timeout = 90_000) fun aSettledAbsentSensorIsStatedUnsupported() {
         val rig = rig(lightChannel = { false })
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
-            rig.announce()
+            rig.start()
             assertOffered(native, described = false, unsupported = true)
-            assertEquals("an empty config removes the MQTT entity", listOf(""), illuminanceConfigs(rig))
         } finally {
             rig.close()
         }
@@ -53,16 +48,12 @@ internal class NativeLightChannelTest : MqttWireRig() {
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
-            rig.announce()
+            rig.start()
             assertOffered(native, described = true, unsupported = false)
-            assertTrue(illuminanceConfigs(rig).single().isNotEmpty())
         } finally {
             rig.close()
         }
     }
-
-    private fun illuminanceConfigs(rig: Rig): List<String> =
-        rig.transport.snapshot().filter { it.topic() == CONFIG }.map { it.decodedPayload() }
 
     private fun assertOffered(native: PanelAssistantShadowReporter, described: Boolean, unsupported: Boolean) {
         val offer = native.offer()
@@ -70,9 +61,5 @@ internal class NativeLightChannelTest : MqttWireRig() {
         assertEquals("illuminance stated unsupported", unsupported, "illuminance" in offer.unsupported)
         assertTrue("unrelated screen channel stays described", offer.descriptors.any { it.channel == "screen" })
         assertFalse("screen is not withdrawn", "screen" in offer.unsupported)
-    }
-
-    private companion object {
-        const val CONFIG = "homeassistant/sensor/golden_illuminance/config"
     }
 }

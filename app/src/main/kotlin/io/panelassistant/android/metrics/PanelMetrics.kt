@@ -30,7 +30,7 @@ data class Snapshot(
 
 /**
  * The single source of truth for ha-paneld's OS-sourced **poll** telemetry — the union of what PerfReader
- * (the page-gated `/perf` chart) and the always-on HA `diag_*` publisher (in `MqttBridge`) used to read
+ * (the page-gated `/perf` chart) and the always-on HA `diag_*` publisher used to read
  * via duplicated, divergent `/proc`+`/sys` logic. Both now call this one reader directly while keeping
  * their own lifecycles; only the data source is shared. It also owns the constant boot-time timestamp
  * ([bootTime]) that the `diag_boot` sensor publishes.
@@ -106,7 +106,7 @@ class PanelMetrics(
     ), stickyWinner = false)
 
     /** A coherent reading, freshness-cached. Thread-safe: safe to call from the PerfReader coroutine and
-     *  the MQTT heartbeat thread concurrently. */
+     *  the heartbeat thread concurrently. */
     fun systemSnapshot(now: Long = clock()): Snapshot = synchronized(lock) {
         cached?.let { if (isWithinForwardWindow(now, it.ts, freshMs)) return it }
         readCoherent(now).also { cached = it }

@@ -51,7 +51,7 @@ class HaPresenceSourceManagerTest {
             this, provider, discovery, owner, { true }, dispatcher, ::epochMillis,
         )
 
-        val result = manager.prerequisite("device-uid", "panel")
+        val result = manager.prerequisite()
 
         assertEquals(listOf(false, true), forces)
         assertEquals(HaPanelAreaPrerequisitePhase.ASSIGNED, result.phase)
@@ -87,10 +87,9 @@ class HaPresenceSourceManagerTest {
         owner.close()
     }
 
-    @Test fun `a panel registered only by Panel Assistant goes live with its own entities excluded`() = runTest {
+    @Test fun `a panel goes live with its own entities excluded`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val discovery = FakePresenceTransport().apply {
-            panelAssistantOnly = true
             includePanelActivity = true
         }
         val aggregates = mutableListOf<HaPresenceAggregate>()
@@ -111,7 +110,7 @@ class HaPresenceSourceManagerTest {
         assertEquals("the panel's own proximity never reaches history", setOf(setOf(ENTITY)), discovery.historyEntitySets.toSet())
         assertEquals(
             HaPanelAreaPrerequisitePhase.ASSIGNED,
-            manager.prerequisite("device-uid", "panel", discoveryId = DID).phase,
+            manager.prerequisite(discoveryId = DID).phase,
         )
         manager.close()
         owner.close()
@@ -121,7 +120,6 @@ class HaPresenceSourceManagerTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         // The probe proves nothing here, so only the entry id from the hello can name the device.
         val discovery = FakePresenceTransport().apply {
-            panelAssistantOnly = true
             probeProvesNothing = true
         }
         val aggregates = mutableListOf<HaPresenceAggregate>()
@@ -140,7 +138,7 @@ class HaPresenceSourceManagerTest {
         )
         assertEquals(
             HaPanelAreaPrerequisitePhase.ASSIGNED,
-            manager.prerequisite("device-uid", "panel", discoveryId = DID).phase,
+            manager.prerequisite(discoveryId = DID).phase,
         )
         manager.close()
         owner.close()
@@ -148,7 +146,7 @@ class HaPresenceSourceManagerTest {
 
     @Test fun `a Panel Assistant device is not this panel without its discovery id`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val discovery = FakePresenceTransport().apply { panelAssistantOnly = true }
+        val discovery = FakePresenceTransport()
         val aggregates = mutableListOf<HaPresenceAggregate>()
         val (manager, owner) = manager(
             dispatcher, discovery, FakeExactTransport(FakeExactConnection()), aggregates,
@@ -161,7 +159,7 @@ class HaPresenceSourceManagerTest {
         assertEquals("registry_projection", aggregates.last().detail)
         assertEquals(
             HaPanelAreaPrerequisitePhase.UNAVAILABLE,
-            manager.prerequisite("device-uid", "panel", discoveryId = null).phase,
+            manager.prerequisite(discoveryId = null).phase,
         )
         manager.close()
         owner.close()
@@ -257,7 +255,7 @@ class HaPresenceSourceManagerTest {
         val exact = FakeExactTransport(FakeExactConnection())
         val (manager, owner) = manager(dispatcher, discovery, exact, mutableListOf())
 
-        val result = manager.prerequisite("device-uid", "panel")
+        val result = manager.prerequisite()
 
         assertEquals(HaPanelAreaPrerequisitePhase.ASSIGNED, result.phase)
         assertEquals("Room", result.areaName)
@@ -274,7 +272,7 @@ class HaPresenceSourceManagerTest {
         val exact = FakeExactTransport(FakeExactConnection())
         val (manager, owner) = manager(dispatcher, discovery, exact, mutableListOf())
 
-        val result = manager.prerequisite("device-uid", "panel")
+        val result = manager.prerequisite()
 
         assertEquals(HaPanelAreaPrerequisitePhase.UNASSIGNED, result.phase)
         assertFalse(result.eligible)
@@ -904,7 +902,7 @@ class HaPresenceSourceManagerTest {
         val controller = AutoSleepController(
             scope = backgroundScope,
             screen = screen,
-            configuration = { AutoSleepRuntimeConfig(true, "device-uid", "panel", "https://ha.example") },
+            configuration = { AutoSleepRuntimeConfig(true, "https://ha.example") },
             learning = object : AutoSleepLearning {
                 override fun learnedLease(partition: String, baseLeaseMs: Long) =
                     AutoSleepLearnedLease(baseLeaseMs, 0, 0, MIN_AUTO_SLEEP_LEASE_MS)
@@ -977,11 +975,9 @@ class HaPresenceSourceManagerTest {
     private fun request(
         enabled: Boolean = true,
         controllerEpoch: Long = 1L,
-        discoveryId: String? = null,
+        discoveryId: String? = DID,
     ) = HaPresenceRequest(
         enabled = enabled,
-        deviceUid = "device-uid",
-        panelId = "panel",
         controllerEpoch = controllerEpoch,
         discoveryId = discoveryId,
     )
@@ -1033,7 +1029,6 @@ class HaPresenceSourceManagerTest {
         var areaId = "room"
         var areaName = "Room"
         var registryFailure = false
-        var panelAssistantOnly = false
         var probeProvesNothing = false
         var registryAuthFailures = 0
         var includePanelActivity = false
@@ -1057,7 +1052,7 @@ class HaPresenceSourceManagerTest {
             val entities = JSONArray()
             val states = JSONArray()
             if (includePanelActivity) {
-                entities.put(JSONObject().put("ei", SELF).put("di", "panel-device").put("pl", "mqtt"))
+                entities.put(JSONObject().put("ei", SELF).put("di", "panel-device").put("pl", "zha"))
                 states.put(state(SELF, "off").put("attributes", JSONObject()
                     .put("device_class", "occupancy").put("friendly_name", "Panel proximity")))
             }
@@ -1069,7 +1064,7 @@ class HaPresenceSourceManagerTest {
             entityIds().forEachIndexed { index, id ->
                 val deviceId = "motion-device-$index"
                 devices.put(device(deviceId, "motion-$index"))
-                entities.put(JSONObject().put("ei", id).put("di", deviceId).put("pl", "mqtt"))
+                entities.put(JSONObject().put("ei", id).put("di", deviceId).put("pl", "zha"))
                 states.put(state(id, "off").put("attributes", JSONObject()
                     .put("device_class", "motion").put("friendly_name", "Motion $index")))
             }
@@ -1125,14 +1120,13 @@ class HaPresenceSourceManagerTest {
             }
         }
 
-        /** The panel's own device: MQTT-registered, or (like every migrated panel) Panel Assistant only. */
-        private fun panelDevice() = if (panelAssistantOnly) JSONObject()
+        /** The panel's own device, which Panel Assistant registers. */
+        private fun panelDevice() = JSONObject()
             .put("id", "panel-device").put("area_id", areaId)
             .put("identifiers", JSONArray().put(JSONArray().put("panel_assistant").put(PA_ENTRY)))
-        else device("panel-device", "ha-paneld-uid-device-uid")
 
         /** Core's `get_entries` answer for the panel's native proximity entity. */
-        private fun panelAssistantProbe(): JSONObject? = if (!panelAssistantOnly || probeProvesNothing) null else JSONObject()
+        private fun panelAssistantProbe(): JSONObject? = if (probeProvesNothing) null else JSONObject()
             .put("result", JSONObject().put(SELF, JSONObject()
                 .put("platform", "panel_assistant")
                 .put("unique_id", "${DID}_proximity")
@@ -1140,7 +1134,7 @@ class HaPresenceSourceManagerTest {
 
         private fun device(id: String, identifier: String) = JSONObject()
             .put("id", id).put("area_id", areaId)
-            .put("identifiers", JSONArray().put(JSONArray().put("mqtt").put(identifier)))
+            .put("identifiers", JSONArray().put(JSONArray().put("zha").put(identifier)))
 
         private fun history(entity: String, value: String, at: Long) = JSONObject()
             .apply { if (entity.isNotBlank()) put("entity_id", entity) }

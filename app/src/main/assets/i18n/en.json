@@ -6185,8 +6185,8 @@
       "hardMaxChars": 172
     },
     "dashboard.banner.ha_sign_in.title": {
-      "text": "MQTT is configured. Next: Home Assistant sign-in.",
-      "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
+      "text": "Next: Home Assistant sign-in.",
+      "sourceHash": "b29ddcf4f1965861a8a63e77f1877989257930681395f92c3de8a3e266c183b4",
       "surface": "dashboard",
       "context": "Dashboard ha sign in banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6196,8 +6196,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "Home Assistant",
-        "MQTT"
+        "Home Assistant"
       ],
       "softMaxChars": 69,
       "hardMaxChars": 98
@@ -6267,8 +6266,8 @@
       "hardMaxChars": 82
     },
     "dashboard.banner.no_renderer.title": {
-      "text": "MQTT is configured. Next: choose a dashboard renderer.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
+      "text": "Next: choose a dashboard renderer.",
+      "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
       "surface": "dashboard",
       "context": "Dashboard no renderer banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6278,9 +6277,7 @@
         "dashboard.banner.no_renderer.note"
       ],
       "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
+      "frozen": [],
       "softMaxChars": 76,
       "hardMaxChars": 108
     },
@@ -6407,164 +6404,6 @@
       "frozen": [],
       "softMaxChars": 70,
       "hardMaxChars": 100
-    },
-    "dashboard.banner.setup_needs.joiner": {
-      "text": "and",
-      "sourceHash": "6201111b83a0cb5b0922cb37cc442b9a40e24e3b1ce100a4bb204f4c63fd2ac0",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.mqtt_configuration",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.reachable_broker",
-        "dashboard.banner.setup_needs.rejected_credentials",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_broker_url",
-        "dashboard.banner.setup_needs.valid_credentials"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 7,
-      "hardMaxChars": 11
-    },
-    "dashboard.banner.setup_needs.mqtt_configuration": {
-      "text": "MQTT configuration",
-      "sourceHash": "dc67038dbc78f5ac4acaf201ff99b74d567c4a570b11c78fbef59a586da566f4",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.joiner",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.reachable_broker",
-        "dashboard.banner.setup_needs.rejected_credentials",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_broker_url",
-        "dashboard.banner.setup_needs.valid_credentials"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 26,
-      "hardMaxChars": 36
-    },
-    "dashboard.banner.setup_needs.prefix": {
-      "text": "This panel needs",
-      "sourceHash": "2d9faa88e40af4265de7e9424e308724b1e7b96e30c1ea1f586704a10235225a",
-      "surface": "dashboard",
-      "context": "Dashboard setup needs banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.suffix"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 23,
-      "hardMaxChars": 32
-    },
-    "dashboard.banner.setup_needs.reachable_broker": {
-      "text": "a reachable MQTT broker",
-      "sourceHash": "045ac1f4b721cd39b484c8273ebd33c7756cdb487214f63888ac86f9490f698f",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.joiner",
-        "dashboard.banner.setup_needs.mqtt_configuration",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.rejected_credentials",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_broker_url",
-        "dashboard.banner.setup_needs.valid_credentials"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 33,
-      "hardMaxChars": 46
-    },
-    "dashboard.banner.setup_needs.rejected_credentials": {
-      "text": "valid MQTT credentials (the broker rejected them)",
-      "sourceHash": "e3bec86a375b717aa06b9ef49db160cda580cfdebfe9a77fc35a6e1bc79d120d",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.joiner",
-        "dashboard.banner.setup_needs.mqtt_configuration",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.reachable_broker",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_broker_url",
-        "dashboard.banner.setup_needs.valid_credentials"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 69,
-      "hardMaxChars": 98
-    },
-    "dashboard.banner.setup_needs.suffix": {
-      "text": "— set on the Configure tab.",
-      "sourceHash": "a623aa42d2f1f53aa662a6afe155e3e0c1e47b2b888d5b843985025ef198d430",
-      "surface": "dashboard",
-      "context": "Dashboard setup needs banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.prefix"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 38,
-      "hardMaxChars": 54
-    },
-    "dashboard.banner.setup_needs.valid_broker_url": {
-      "text": "a valid MQTT broker URL",
-      "sourceHash": "ee8fc48bc75378fd7cad15208047034017bceaff1864019a22416e40b281a734",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.joiner",
-        "dashboard.banner.setup_needs.mqtt_configuration",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.reachable_broker",
-        "dashboard.banner.setup_needs.rejected_credentials",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_credentials"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 33,
-      "hardMaxChars": 46
-    },
-    "dashboard.banner.setup_needs.valid_credentials": {
-      "text": "valid MQTT credentials",
-      "sourceHash": "c3a2944f7904354478c69932bda9ef2ee929ef06cb1728669fc31f31e0524fb3",
-      "surface": "dashboard",
-      "context": "Dashboard setup-needs banner fragment; preserve list-joining grammar and the exact MQTT remediation distinction, and render as text, not HTML.",
-      "risk": "consequential",
-      "siblings": [
-        "dashboard.banner.setup_needs.joiner",
-        "dashboard.banner.setup_needs.mqtt_configuration",
-        "dashboard.banner.setup_needs.prefix",
-        "dashboard.banner.setup_needs.reachable_broker",
-        "dashboard.banner.setup_needs.rejected_credentials",
-        "dashboard.banner.setup_needs.suffix",
-        "dashboard.banner.setup_needs.valid_broker_url"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 31,
-      "hardMaxChars": 44
     },
     "dashboard.banner.update.available": {
       "text": "{latest} is available (installed: {current})",
@@ -9646,34 +9485,6 @@
       "softMaxChars": 12,
       "hardMaxChars": 24
     },
-    "dashboard.fact.mqtt": {
-      "text": "MQTT",
-      "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
-      "surface": "dashboard",
-      "context": "Networking row label",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 10,
-      "hardMaxChars": 20
-    },
-    "dashboard.fact.mqtt_timing": {
-      "text": "MQTT connection / auth timing",
-      "sourceHash": "e98d05be712824bc204ff342d965a29d937fc75bbec8481fe8c106a992abb89c",
-      "surface": "dashboard",
-      "context": "Runtime-diagnostics row label",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 42,
-      "hardMaxChars": 84
-    },
     "dashboard.fact.navbar": {
       "text": "Navbar",
       "sourceHash": "ea22ed8d628dd906c10d91accf3769b68cbf37127f2ecab6a66a1f3d27e6e5a6",
@@ -9801,18 +9612,6 @@
       ],
       "softMaxChars": 8,
       "hardMaxChars": 16
-    },
-    "dashboard.fact.state_convergence": {
-      "text": "State convergence",
-      "sourceHash": "a952d13f5e5135175bab1d28aeac5d7f6beba372b7ba1a60cd3e38d1689bf212",
-      "surface": "dashboard",
-      "context": "Runtime-diagnostics row label",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 28,
-      "hardMaxChars": 56
     },
     "dashboard.fact.storage": {
       "text": "Storage",
@@ -11988,252 +11787,6 @@
       "frozen": [],
       "softMaxChars": 12,
       "hardMaxChars": 16
-    },
-    "dashboard.runtime.mqtt.age_never": {
-      "text": "never",
-      "sourceHash": "6497e4b3d7bed16979a343a7db4efa6d57725529f5ac3cec45c1f08fabcbdafc",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.age_seconds_ago": {
-      "text": "{seconds}s ago",
-      "sourceHash": "b5907e4c12962ee59cf2dcdc0690ca8f736d7cdc77f5c546cb75fc84d2781931",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{seconds}"
-      ],
-      "frozen": [
-        "{seconds}"
-      ],
-      "softMaxChars": 26,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.auth_retry": {
-      "text": "{state} · rejects {rejects} · attempt {attempt} · next {next}",
-      "sourceHash": "ab27a09ae2f9439f008c5f90250464af8c2752e203041bb4ac35e75eb6b589fd",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{state}",
-        "{rejects}",
-        "{attempt}",
-        "{next}"
-      ],
-      "frozen": [
-        "{state}",
-        "{rejects}",
-        "{attempt}",
-        "{next}"
-      ],
-      "softMaxChars": 73,
-      "hardMaxChars": 122
-    },
-    "dashboard.runtime.mqtt.config_error": {
-      "text": "config-error · invalid or unsupported broker URL",
-      "sourceHash": "2b4df44055ce98c13abe97370dae68b9b8c5064008dd177455388e79e61ffc9d",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "URL"
-      ],
-      "softMaxChars": 60,
-      "hardMaxChars": 96
-    },
-    "dashboard.runtime.mqtt.family_automatic": {
-      "text": "Automatic (next {family})",
-      "sourceHash": "edada581531450033adad40e605a3dfd6211bdbef79fb5159ca89c7b857ec1ab",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{family}"
-      ],
-      "frozen": [
-        "{family}"
-      ],
-      "softMaxChars": 37,
-      "hardMaxChars": 50
-    },
-    "dashboard.runtime.mqtt.family_force_ipv4": {
-      "text": "Force IPv4",
-      "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "IPv4"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.family_prefer_ipv4": {
-      "text": "Prefer IPv4",
-      "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "IPv4"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.seconds": {
-      "text": "{seconds}s",
-      "sourceHash": "5307d20dc7c46cc7771e80a1d10417915bcf84ff57f50a15e3f7aea5d1661ed6",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{seconds}"
-      ],
-      "frozen": [
-        "{seconds}"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.announcing": {
-      "text": "announcing",
-      "sourceHash": "67209cabee758ad203e5ea33eae67637767e65aca1a440c111ac283aed2fc3d1",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.auth_failed": {
-      "text": "auth-failed",
-      "sourceHash": "1d75377d4dbd78456c27d8a187ae15d24bc4123a82b83de0596323e0b9525139",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.auth_retrying": {
-      "text": "auth-retrying",
-      "sourceHash": "a2653bd8b474cef91ad8f81e15e8d1b10bf8056049c83ac62b835e9b85710403",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 25,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.connected": {
-      "text": "connected",
-      "sourceHash": "12a7bd86e0a430327620a0e2274d0f6f091c783b21c169636ef8997f9f1da76a",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.connecting": {
-      "text": "connecting",
-      "sourceHash": "3d6df245178e60766e3478a821dd81b9702e3e4d4e1319d5484b0351f29c0149",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.disconnected": {
-      "text": "disconnected",
-      "sourceHash": "d0cb8d28fd8ddcf3c8bc194941b24815924ef438f9650ad2c41bbc01806d67d8",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.discovering": {
-      "text": "discovering",
-      "sourceHash": "346e887d310fe3193dc94b94facaab54dea5933f8d593dcc4c67d9000dd5619d",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.state.unreachable": {
-      "text": "unreachable",
-      "sourceHash": "5e6017027437e595ec72adee0718d78f092cddaa8d31048c9d5ba2ed647ded5e",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 48
-    },
-    "dashboard.runtime.mqtt.status": {
-      "text": "{state} · {transport} · last-ok {lastOk} · last-auth {lastAuth} · {auth} · family {family}",
-      "sourceHash": "21b4a9b385928557b8618f562b0b77a974a159b081213524f7a4b24cee066ebe",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics common status",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{state}",
-        "{transport}",
-        "{lastOk}",
-        "{lastAuth}",
-        "{auth}",
-        "{family}"
-      ],
-      "frozen": [
-        "{state}",
-        "{transport}",
-        "{lastOk}",
-        "{lastAuth}",
-        "{auth}",
-        "{family}"
-      ],
-      "softMaxChars": 102,
-      "hardMaxChars": 180
     },
     "dashboard.runtime.renderer.admitted_age": {
       "text": "{status} · admitted {age} ago",
@@ -20352,7 +19905,9 @@
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
-      "frozen": ["app_state"],
+      "frozen": [
+        "app_state"
+      ],
       "softMaxChars": 25,
       "hardMaxChars": 45
     },
@@ -20462,7 +20017,9 @@
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
-      "frozen": ["entity_state"],
+      "frozen": [
+        "entity_state"
+      ],
       "softMaxChars": 27,
       "hardMaxChars": 49
     },
@@ -20715,8 +20272,8 @@
       "hardMaxChars": 305
     },
     "install.presentation.status_no_renderer": {
-      "text": "ℹ MQTT is configured. Next: choose a dashboard renderer. Select ha-paneld's built-in renderer, install the Home Assistant Companion app, or configure another dashboard package.",
-      "sourceHash": "5f1d7770181d47b58470733464108f40b48294488714774fa4aa9407d8d2e136",
+      "text": "ℹ Next: choose a dashboard renderer. Select ha-paneld's built-in renderer, install the Home Assistant Companion app, or configure another dashboard package.",
+      "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
@@ -20724,22 +20281,20 @@
       "placeholders": [],
       "frozen": [
         "ha-paneld",
-        "Home Assistant",
-        "MQTT"
+        "Home Assistant"
       ],
       "softMaxChars": 176,
       "hardMaxChars": 317
     },
     "install.presentation.status_power_at_risk": {
-      "text": "⛔ Panel power safety: at risk — the panel can suspend or enter Doze after screen-off, making HTTP, MQTT, and background work unreachable.",
-      "sourceHash": "a74da057925352acddd3dd33fbb3024de2c565cbcb5410079024512fbe9ad1ab",
+      "text": "⛔ Panel power safety: at risk — the panel can suspend or enter Doze after screen-off, making HTTP and background work unreachable.",
+      "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "MQTT",
         "HTTP",
         "Doze"
       ],
@@ -30154,8 +29709,8 @@
       "hardMaxChars": 63
     },
     "runtime.power_safety.summary.at_risk": {
-      "text": "The panel can suspend or enter Doze after screen-off, making HTTP, MQTT, and background work unreachable.",
-      "sourceHash": "c3985d94deae2c90693d7b57b50bd842fa613cf16e2c8d34ca8a9aad579d9c13",
+      "text": "The panel can suspend or enter Doze after screen-off, making HTTP and background work unreachable.",
+      "sourceHash": "6e885ffabcbb2ba963ffc45120252bcc5b5cb11519f2bd7aabddc11c4e0cee66",
       "surface": "install",
       "context": "Server-rendered runtime warning; rendered as escaped text with server-owned icon, markup, and actions.",
       "risk": "consequential",
@@ -30166,8 +29721,7 @@
       "placeholders": [],
       "frozen": [
         "Doze",
-        "HTTP",
-        "MQTT"
+        "HTTP"
       ],
       "softMaxChars": 105,
       "hardMaxChars": 192
@@ -31775,8 +31329,8 @@
       "hardMaxChars": 90
     },
     "settings.diag_wifi_outages_24h.help": {
-      "text": "Short Wi-Fi dropouts in the rolling last 24 hours. Counts loss of the panel's active Wi-Fi connection only — Home Assistant or broker outages are never counted. If the panel had to cap what it stores, the sensor's is_lower_bound attribute says the value is a floor.",
-      "sourceHash": "cde65f42ed6eec37fb9bb3e2c9d160b951cfc99f8fb7c1f041efe21be3080cfb",
+      "text": "Short Wi-Fi dropouts in the rolling last 24 hours. Counts loss of the panel's active Wi-Fi connection only — Home Assistant outages are never counted. If the panel had to cap what it stores, the sensor's is_lower_bound attribute says the value is a floor.",
+      "sourceHash": "783f18ddfc10e7afa41fb5c6334d880121993421496923fcff2c7663363c73ed",
       "surface": "settings",
       "context": "Configure > Diagnostics > Wi-Fi outages (24 h): supporting help for the diag_wifi_outages_24h setting.",
       "risk": "ordinary",
@@ -32749,94 +32303,6 @@
       "softMaxChars": 70,
       "hardMaxChars": 90
     },
-    "settings.mqtt_broker.label": {
-      "text": "Broker URL",
-      "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-      "surface": "settings",
-      "context": "Configure > MQTT: label for the mqtt_broker setting.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "URL"
-      ],
-      "softMaxChars": 32,
-      "hardMaxChars": 32
-    },
-    "settings.mqtt_broker.summary": {
-      "text": "MQTT broker address. Blank finds Home Assistant automatically.",
-      "sourceHash": "044adf15a77d5bb058f4805811e03bbdd500014b03e4ebef2e688ed516ccb3ee",
-      "surface": "settings",
-      "context": "Configure > MQTT: one-line summary shown under the mqtt_broker setting's label; the full help opens behind an info button. Plain text, one line.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_broker.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT",
-        "Assist"
-      ],
-      "softMaxChars": 70,
-      "hardMaxChars": 90
-    },
-    "settings.mqtt_password.label": {
-      "text": "Password",
-      "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-      "surface": "settings",
-      "context": "Configure > MQTT: label for the mqtt_password setting.",
-      "risk": "consequential",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 32,
-      "hardMaxChars": 32
-    },
-    "settings.mqtt_password.summary": {
-      "text": "MQTT password. Blank keeps the current one.",
-      "sourceHash": "7fed95c1c70ef7755667c50ec3e5e1c5bf1b2644ba1dbb1cd6afdfce07939bb2",
-      "surface": "settings",
-      "context": "Configure > MQTT: one-line summary shown under the mqtt_password setting's label; the full help opens behind an info button. Plain text, one line.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_password.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 70,
-      "hardMaxChars": 90
-    },
-    "settings.mqtt_user.label": {
-      "text": "Username",
-      "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-      "surface": "settings",
-      "context": "Configure > MQTT: label for the mqtt_user setting.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 32,
-      "hardMaxChars": 32
-    },
-    "settings.mqtt_user.summary": {
-      "text": "MQTT username for this panel.",
-      "sourceHash": "c9051f2d3306c556507ff4d4d714230ec1201407135b13f6acad7f1541d4502e",
-      "surface": "settings",
-      "context": "Configure > MQTT: one-line summary shown under the mqtt_user setting's label; the full help opens behind an info button. Plain text, one line.",
-      "risk": "ordinary",
-      "siblings": [
-        "settings.mqtt_user.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 70,
-      "hardMaxChars": 90
-    },
     "settings.navbar_mode.help": {
       "text": "Soft on-screen navigation bar for panels with no native navbar. **Native** leaves navigation to the panel's own Android bar and draws nothing.\n\nHiding the Android system bars, from the built-in renderer's fullscreen setting or the Android dashboard lock, still hides a native bar.",
       "sourceHash": "5a6df2f1452dcbc4734840f9f5cef12eacdb2ecb12bd2d00c3107b445a069d36",
@@ -32935,10 +32401,10 @@
       "hardMaxChars": 90
     },
     "settings.network_address_family.help": {
-      "text": "Applies to the MQTT broker connection and the panel's Home Assistant WebSocket connections; plain HTTPS reads always try every published address. Automatic learns a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a fallback; Force IPv4 rejects endpoints with no IPv4 address.",
-      "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
+      "text": "Applies to the panel's Home Assistant WebSocket connections; plain HTTPS reads always try every published address. Automatic learns a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a fallback; Force IPv4 rejects endpoints with no IPv4 address.",
+      "sourceHash": "2f44d1ec32f8e5a629bde0c6fb769ab53c9c746816c71317b9218618840a6050",
       "surface": "settings",
-      "context": "Configure > MQTT > MQTT + Home Assistant WebSocket address family: supporting help for the network_address_family setting.",
+      "context": "Configure > Dashboard > Home Assistant WebSocket address family: supporting help for the network_address_family setting.",
       "risk": "ordinary",
       "siblings": [
         "settings.network_address_family.label"
@@ -32946,7 +32412,6 @@
       "placeholders": [],
       "frozen": [
         "Home Assistant",
-        "MQTT",
         "WebSocket",
         "IPv4",
         "IPv6",
@@ -32957,8 +32422,8 @@
       "hardMaxChars": 549
     },
     "settings.network_address_family.label": {
-      "text": "MQTT + Home Assistant WebSocket address family",
-      "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
+      "text": "Home Assistant WebSocket address family",
+      "sourceHash": "f97bb46f422f8778630da01f9363dde4bf1455af861d866b28d87e329a4bdd98",
       "surface": "settings",
       "context": "Configure > Dashboard: label for the network_address_family setting.",
       "risk": "ordinary",
@@ -32968,15 +32433,14 @@
       "placeholders": [],
       "frozen": [
         "Home Assistant",
-        "MQTT",
         "WebSocket"
       ],
       "softMaxChars": 63,
       "hardMaxChars": 83
     },
     "settings.network_address_family.summary": {
-      "text": "Use IPv4, IPv6 or both to reach MQTT and Home Assistant.",
-      "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
+      "text": "Use IPv4, IPv6 or both to reach Home Assistant.",
+      "sourceHash": "1f9dfb4ea985952ceb8b078a460c33ef6759696c97a87375fc1b789d6d1ea19f",
       "surface": "settings",
       "context": "Configure > Dashboard: one-line summary shown under the network_address_family setting's label; the full help opens behind an info button. Plain text, one line.",
       "risk": "ordinary",
@@ -32987,7 +32451,6 @@
       "placeholders": [],
       "frozen": [
         "Home Assistant",
-        "MQTT",
         "IPv4",
         "IPv6",
         "Assist"
@@ -32996,8 +32459,8 @@
       "hardMaxChars": 90
     },
     "settings.panel_id.help": {
-      "text": "Stable id used in entity IDs and MQTT topics (lowercase, digits, underscores; 63 characters maximum).",
-      "sourceHash": "c32f09aa8a5756c4cfde370f42fc7ce62bb040feb0b9e0375f2932c08988554e",
+      "text": "Stable id used in entity IDs (lowercase, digits, underscores; 63 characters maximum).",
+      "sourceHash": "f6f3b34b5d382474a82ac87481b3a630471efddad5ca8ed1b5cccdf94edae85e",
       "surface": "settings",
       "context": "Configure > Identity > Panel ID: supporting help for the panel_id setting.",
       "risk": "ordinary",
@@ -33007,7 +32470,6 @@
       "placeholders": [],
       "frozen": [
         "IDs",
-        "MQTT",
         "63"
       ],
       "softMaxChars": 160,
@@ -37407,10 +36869,10 @@
       "hardMaxChars": 32
     },
     "shell.migration.body": {
-      "text": "Add the Panel Assistant integration in Home Assistant to manage this panel. MQTT support will be removed.",
-      "sourceHash": "20339679c60bd71b0416b68306c5b5559ed4beb7a81b0a6173335fdd511311b1",
+      "text": "Add the Panel Assistant integration in Home Assistant to manage this panel.",
+      "sourceHash": "d624e8b4cd2a9f8067e4808c0952370185b235548991a95638208acf4ea0802f",
       "surface": "shell",
-      "context": "Persistent panel and web migration notice for owners without a Panel Assistant connection. Instruct the owner to add the Home Assistant integration to manage this panel. MQTT removal is future, not already complete; do not imply panel data or features are already lost.",
+      "context": "Persistent panel and web migration notice for owners without a Panel Assistant connection. Instruct the owner to add the Home Assistant integration to manage this panel.",
       "risk": "setup",
       "siblings": [
         "shell.migration.title",
@@ -37419,8 +36881,7 @@
       "placeholders": [],
       "frozen": [
         "Panel Assistant",
-        "Home Assistant",
-        "MQTT"
+        "Home Assistant"
       ],
       "softMaxChars": 160,
       "hardMaxChars": 210
@@ -38289,56 +37750,6 @@
       "frozen": [],
       "softMaxChars": 64,
       "hardMaxChars": 80
-    },
-    "shell.setup_progress.next": {
-      "text": "The dashboard setup step appears next.",
-      "sourceHash": "272d0261ca0dc2b0e2a88f17d7c7589b4c1f21ae1e9ae9596e10128a156d609b",
-      "surface": "shell",
-      "context": "Shared shell MQTT setup-progress state or suffix; preserve sequencing and render as text, not HTML.",
-      "risk": "ordinary",
-      "siblings": [
-        "shell.setup_progress.publishing",
-        "shell.setup_progress.verifying"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 54,
-      "hardMaxChars": 76
-    },
-    "shell.setup_progress.publishing": {
-      "text": "MQTT connected — publishing Home Assistant discovery.",
-      "sourceHash": "91badffcf3f64548ae77c2860e1ea840212f96d595e4f00ad17d768e1232c201",
-      "surface": "shell",
-      "context": "Shared shell MQTT setup-progress state or suffix; preserve sequencing and render as text, not HTML.",
-      "risk": "ordinary",
-      "siblings": [
-        "shell.setup_progress.next",
-        "shell.setup_progress.verifying"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT"
-      ],
-      "softMaxChars": 75,
-      "hardMaxChars": 106
-    },
-    "shell.setup_progress.verifying": {
-      "text": "MQTT settings saved — verifying the broker connection. This can take a short while after saving.",
-      "sourceHash": "da508a88ecafb04836ca28a2c351d7f5dfb5864cdad65f7d8fbce4f59e9eb82b",
-      "surface": "shell",
-      "context": "Shared shell MQTT setup-progress state or suffix; preserve sequencing and render as text, not HTML.",
-      "risk": "ordinary",
-      "siblings": [
-        "shell.setup_progress.next",
-        "shell.setup_progress.publishing"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 135,
-      "hardMaxChars": 192
     }
   }
 }

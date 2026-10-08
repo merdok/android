@@ -534,7 +534,7 @@ class ZigbeeHealthMonitor(
 
     /** Scheduled sampling backs off while the root shell is degraded: on affected hardware the runaway
      *  zgateway condition made every observation ride a 5s su timeout, and the resulting storm starved
-     *  the su lane for everything else (MQTT retire fences included) while producing no new signal.
+     *  the su lane for everything else (runtime retire fences included) while producing no new signal.
      *  A slow sample quarters the effective rate; consecutive slow samples reduce it 8×. An explicit
      *  retry or direct test call ([sample] with no generation) never skips. */
     @Volatile private var slowSampleSkips = 0

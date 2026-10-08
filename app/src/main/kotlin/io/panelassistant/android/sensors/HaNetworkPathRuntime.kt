@@ -27,7 +27,7 @@ internal interface HaNetworkPathObserver {
  * Serialises the state machine, stamps every fact with the injected monotonic clock, and pokes
  * consumers only when the verdict changes. [haRestarting] is a second attribution signal read
  * OUTSIDE the lock: while Home Assistant has announced a shutdown or start, a probe that goes
- * unanswered is the server's doing, not the path's. It is inert on a non-admin account with no MQTT
+ * unanswered is the server's doing, not the path's. It is inert on a non-admin account with no
  * birth/will, which is why the exception-class rule in the owner stays the primary attribution.
  */
 internal class HaNetworkPathMonitor(

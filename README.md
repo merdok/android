@@ -11,7 +11,7 @@
 
 ha-paneld makes Home Assistant dashboards practical on panels that otherwise feel too slow or awkward to use. Low-powered panels can become sluggish or take seconds to respond when connected to a large Home Assistant installation. One important cause is that the panel receives and processes updates for far more entities than its dashboard displays. **ha-paneld's built-in renderer can learn which entities the dashboard uses and ask Home Assistant to send only those states**. In the real world, this can reduce entity load by 10–100×, making that dashboard finally usable.
 
-ha-paneld also gives different makes of wall panel a consistent set of controls in Home Assistant. Depending on the hardware, that can include the screen, LEDs, buttons, sensors, relays and audio. MQTT discovery adds the available controls without per-device YAML, and the installer takes care of the Android setup.
+ha-paneld also gives different makes of wall panel a consistent set of controls in Home Assistant. Depending on the hardware, that can include the screen, LEDs, buttons, sensors, relays and audio. The Panel Assistant integration adds the available controls without per-device YAML, and the installer takes care of the Android setup.
 
 This is an app for dedicated wall panels, not personal phones. Hardware support is described through ordinary YAML profiles, so owners and manufacturers can add another panel without rebuilding the app.
 
@@ -106,7 +106,7 @@ Each panel publishes only the controls supported by its profile and detected har
 | Dashboard screenshot and remote tap | Panels with a supported screenshot method can show and refresh the screen from the Dashboard tab; Relaxed mode also allows a click to be sent back to the panel |
 | Panel information and configuration | Open `http://<panel>:8888/`, also linked as **Visit** on the Home Assistant device page |
 
-Home Assistant discovers these controls through MQTT without YAML. The main entity families, HTTP API and pairing details are in [docs/api.md](https://panel-assistant.io/go/docs?page=api). You can also browse and try the HTTP API on a panel at `http://<panel>:8888/api`.
+Home Assistant gets these controls through the Panel Assistant integration, without YAML. The main entity families, HTTP API and pairing details are in [docs/api.md](https://panel-assistant.io/go/docs?page=api). You can also browse and try the HTTP API on a panel at `http://<panel>:8888/api`.
 
 ## Security and root access
 
@@ -142,7 +142,7 @@ A limited [advanced fallback](https://panel-assistant.io/go/docs?page=provisioni
 
 ### Developing and extending ha-paneld
 
-- [HTTP, MQTT and Home Assistant API](https://panel-assistant.io/go/docs?page=api): the HTTP endpoints, main MQTT entity families, pairing and discovery. The machine-readable specification is available from a panel at `/api/v1/openapi.json`.
+- [HTTP and Home Assistant API](https://panel-assistant.io/go/docs?page=api): the HTTP endpoints, main entity families, pairing and discovery. The machine-readable specification is available from a panel at `/api/v1/openapi.json`.
 - [Panel profiles](https://panel-assistant.io/go/docs?page=profiles/readme): create, test and share support for another panel without rebuilding the app.
 - [Hardware references](https://panel-assistant.io/go/docs?page=hardware/readme): model-specific setup, sensors, controls, firmware and reverse-engineering notes.
 - [Building from source](https://panel-assistant.io/go/docs?page=building) and [local development](https://panel-assistant.io/go/docs?page=local-builds): build with Docker, the development container or a local Android toolchain.
@@ -193,7 +193,7 @@ The result is always open: your panel becomes a profile everyone can use. That's
 
 ## Development
 
-If you want to work on ha-paneld itself, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md). The developer documentation covers [building from source](https://panel-assistant.io/go/docs?page=building), [local and development-container builds](https://panel-assistant.io/go/docs?page=local-builds), the [HTTP and MQTT API](https://panel-assistant.io/go/docs?page=api), [panel-profile development](https://panel-assistant.io/go/docs?page=profiles/readme), the [browser test harness](tools/test/README.md), and the [release process](docs/RELEASING.md).
+If you want to work on ha-paneld itself, start with [CONTRIBUTING.md](.github/CONTRIBUTING.md). The developer documentation covers [building from source](https://panel-assistant.io/go/docs?page=building), [local and development-container builds](https://panel-assistant.io/go/docs?page=local-builds), the [HTTP API](https://panel-assistant.io/go/docs?page=api), [panel-profile development](https://panel-assistant.io/go/docs?page=profiles/readme), the [browser test harness](tools/test/README.md), and the [release process](docs/RELEASING.md).
 
 I have deliberately provided enough information to use the supplied development container and build a local test version. Do not submit computer-generated pull requests or issues unchanged: read and understand every part of the proposed text and code, then rewrite it in your own words. This is a one-man project, and I do not have time to review unfiltered computer-generated output. Be succinct and write for humans; if you are unsure about something, ask first.
 
@@ -202,10 +202,9 @@ I have deliberately provided enough information to use the supplied development 
 
 - **Application:** [Kotlin](https://github.com/JetBrains/kotlin), [AndroidX](https://github.com/androidx/androidx) and [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines).
 - **HTTP and Home Assistant WebSocket:** [Ktor](https://github.com/ktorio/ktor) CIO server, client and WebSocket modules.
-- **MQTT:** [HiveMQ MQTT Client](https://github.com/hivemq/hivemq-mqtt-client), using its MQTT 5 client and pure-Java NIO transport.
 - **mDNS:** [JmDNS](https://github.com/jmdns/jmdns), advertising `_ha-paneld._tcp` so ha-paneld instances can find one another for the multi-panel switcher. ha-paneld reports when that advertisement stops and cannot be recovered.
 - **Runtime profiles:** [SnakeYAML Engine](https://github.com/snakeyaml/snakeyaml-engine) for YAML 1.2, with [CodeMirror](https://codemirror.net/) and its [YAML language package](https://github.com/codemirror/lang-yaml) in the profile editor.
-- **QR and logging:** [ZXing](https://github.com/zxing/zxing) for setup QR codes and [SLF4J](https://github.com/qos-ch/slf4j) for Ktor and HiveMQ logging through Logcat.
+- **QR and logging:** [ZXing](https://github.com/zxing/zxing) for setup QR codes and [SLF4J](https://github.com/qos-ch/slf4j) for Ktor logging through Logcat.
 
 Dependency selection and updates follow the project's [dependency and supply-chain policy](.github/SECURITY.md#dependency-and-supply-chain-policy).
 

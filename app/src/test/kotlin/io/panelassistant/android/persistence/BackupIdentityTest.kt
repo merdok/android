@@ -15,42 +15,43 @@ class BackupIdentityTest {
     private fun manifest(fragment: String) = JSONObject("{\"kind\":\"ha-paneld-backup\"$fragment}")
 
     @Test fun theManifestCarriesThePseudonymAndTheWritingPackage() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld", mqttConnected = true))
+        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
 
         assertEquals(discoveryId, written.getString("discovery_id"))
         assertEquals("io.github.maxlyth.hapaneld", written.getString("package"))
     }
 
     @Test fun theRawAndroidIdIsNeverWritten() {
-        val fragment = BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld", mqttConnected = true)
+        val fragment = BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld")
 
         assertFalse(fragment.contains(androidId))
         // Anything that is not the 64-hex pseudonym, the Android id included, is dropped, not written.
-        assertFalse(BackupIdentity.manifestFragment(androidId, "pkg", false).contains("discovery_id"))
-        assertFalse(BackupIdentity.manifestFragment(null, "pkg", false).contains("discovery_id"))
+        assertFalse(BackupIdentity.manifestFragment(androidId, "pkg").contains("discovery_id"))
+        assertFalse(BackupIdentity.manifestFragment(null, "pkg").contains("discovery_id"))
     }
 
-    @Test fun theManifestRecordsWhetherItsWriterWasConnectedToMqtt() {
-        assertTrue(BackupIdentity.writerMqttConnected(manifest(BackupIdentity.manifestFragment(discoveryId, "pkg", true))))
-        assertFalse(BackupIdentity.writerMqttConnected(manifest(BackupIdentity.manifestFragment(discoveryId, "pkg", false))))
-        assertFalse("an archive that predates the field claims nothing", BackupIdentity.writerMqttConnected(manifest("")))
-        assertFalse(BackupIdentity.writerMqttConnected(manifest(",\"mqtt_connected\":\"true\"")))
+    @Test fun theLegacyWritersConnectionIsReadButNeverWritten() {
+        assertFalse(BackupIdentity.manifestFragment(discoveryId, "pkg").contains(BackupIdentity.LEGACY_CONNECTED_KEY))
+        assertTrue(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":true")))
+        assertFalse(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":false")))
+        assertFalse("an archive without the field claims nothing", BackupIdentity.legacyWriterConnected(manifest("")))
+        assertFalse(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":\"true\"")))
     }
 
     @Test fun bothIdentitiesOfThisAppProveTheSameDevice() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld", mqttConnected = true))
+        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
 
         assertTrue(BackupIdentity.sameDevice(written, panelAssistantDiscoveryId(androidId)))
     }
 
     @Test fun anotherDeviceIsNotTheSameDevice() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld", mqttConnected = true))
+        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
 
         assertFalse(BackupIdentity.sameDevice(written, panelAssistantDiscoveryId("0000000000000001")))
     }
 
     @Test fun anArchiveOrADeviceWithoutAPseudonymProvesNothing() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "pkg", false))
+        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "pkg"))
 
         assertFalse(BackupIdentity.sameDevice(manifest(""), discoveryId))
         assertFalse(BackupIdentity.sameDevice(written, null))

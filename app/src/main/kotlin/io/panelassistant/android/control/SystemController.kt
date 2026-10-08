@@ -119,7 +119,7 @@ class SystemController(
     /** True when [pkg] selects ha-paneld's own built-in WebView renderer rather than a foreign app.
      *  Our own package name is treated as the sentinel too: some callers resolve the renderer to a real
      *  package (e.g. for perf attribution), and letting it fall through to the foreign-app paths would
-     *  `am force-stop` ha-paneld itself — killing the service, MQTT and the web UI. */
+     *  `am force-stop` ha-paneld itself — killing the service and the web UI. */
     private fun isBuiltin(pkg: String) = isBuiltinSelection(pkg, env.ownPackage)
 
     private fun isSystemFallbackHome(home: ActivityRef?): Boolean =

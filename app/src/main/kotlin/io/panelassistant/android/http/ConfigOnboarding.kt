@@ -31,8 +31,7 @@ internal data class HandoverConfigPost(
  *
  * Rewrites the posted parameters rather than persisting separately, so an accepted address takes
  * exactly the same commit and live-apply path as one a person typed — the renderer reconfigure, the
- * read-back check and the mutation plan all behave identically. This mirrors
- * `augmentPostWithDiscoveredHaUrlForMqttOnboarding`, which fills the same field from discovery.
+ * read-back check and the mutation plan all behave identically.
  *
  * Three outcomes:
  *  - **already configured** — [currentHaUrl] is set, so the handover is dropped and [verify] is never
@@ -101,16 +100,7 @@ internal suspend fun rewritePostForHandover(
     return HandoverConfigPost(augmented, outcome, offered)
 }
 
-internal fun shouldDiscoverHaUrlForMqttOnboarding(currentHaUrl: String, posted: Parameters): Boolean {
-    if (currentHaUrl.isNotBlank()) return false
-    if (posted["ha_url"] != null) return false
-    return posted["mqtt_broker"]?.isNotBlank() == true ||
-        posted["mqtt_user"] != null ||
-        posted["mqtt_password"] != null
-}
-
 internal data class ConfigDiscoverySuggestions(
-    val mqttBroker: String = "",
     val haUrl: String = "",
     /** Why [haUrl] is empty, so setup can explain rather than leave the user at a blank field. */
     val haDiscovery: DiscoveryResult = DiscoveryResult(),

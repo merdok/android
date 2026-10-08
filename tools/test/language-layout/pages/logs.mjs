@@ -4,7 +4,7 @@
 import { tabbedPage } from '../harness.mjs';
 
 const LEVELS = ['V', 'D', 'I', 'W', 'E', 'I', 'D', 'W'];
-const TAGS = ['PaneldServer', 'MqttBridge', 'DashboardWebView', 'AutoBrightness', 'Provisioner', 'chromium', 'HaSession', 'Watchdog'];
+const TAGS = ['PaneldServer', 'HaWebSocket', 'DashboardWebView', 'AutoBrightness', 'Provisioner', 'chromium', 'HaSession', 'Watchdog'];
 
 function streamBody() {
   const lines = [];

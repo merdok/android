@@ -1,10 +1,7 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android
 
-import io.panelassistant.android.CommandReadbackGate
 import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.testsupport.TestSources
-import io.panelassistant.android.CommandQueue
-import io.panelassistant.android.mqttStatePayload
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostRegistry
 import io.panelassistant.android.util.MonotonicDeadline
@@ -24,7 +21,7 @@ import org.junit.Test
  * commands, including while a newer command's write is still in progress.
  */
 class CommandReadbackGateTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the dispatcher's wiring needs the Android service to construct.
 
     private class ManualPump {
         private val tasks = ConcurrentLinkedQueue<() -> Unit>()
@@ -87,15 +84,13 @@ class CommandReadbackGateTest {
     @Test fun anObservationOvertakenByANewerCommandIsWithdrawnAtAdmission() {
         val pump = ManualPump()
         val published = Collections.synchronizedList(mutableListOf<String>())
-        val converger = io.panelassistant.android.testsupport.OutboxConverger(
-            sender = { _, observation, done -> published += mqttStatePayload(observation); done(true) },
-            schedule = { it() },
-        )
+        val converger = StateConverger()
+        converger.addSink { _, observation, _ -> published += (observation as StateConverger.Observation.Known).payload }
         val hardware = java.util.concurrent.atomic.AtomicReference("ON")
         val observeEntered = CountDownLatch(1)
         val observeRelease = CountDownLatch(1)
         converger.register(
-            io.panelassistant.android.testsupport.OutboxConverger.Channel("relay1", observe = {
+            StateConverger.Channel("relay1", observe = {
                 val snapshot = hardware.get()   // captured BEFORE blocking — stale once released
                 observeEntered.countDown()
                 assertTrue(observeRelease.await(5, TimeUnit.SECONDS))
@@ -104,7 +99,7 @@ class CommandReadbackGateTest {
         )
         val gate = CommandReadbackGate(
             pump::schedule,
-            { key, stillCurrent -> converger.reconcile(key, force = true, admit = stillCurrent) },
+            { key, stillCurrent -> converger.reconcile(key, admit = stillCurrent) },
             registry(),
         )
 
@@ -126,10 +121,10 @@ class CommandReadbackGateTest {
 
     /**
      * WIRING CONTRACT: the gate's scheduler must execute every task. dispatchStateWork drops tasks
-     * after bridge retirement, which would strand the feature-cost span opened at scheduling time and
+     * after runtime retirement, which would strand the feature-cost span opened at scheduling time and
      * pin the process-global in-flight count. Cancellation belongs to reconcile's own lifecycle gate.
      */
-    @Test fun theBridgeWiresTheGateToAnUndroppableScheduler() {
+    @Test fun theDispatcherWiresTheGateToAnUndroppableScheduler() {
         val source = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
         val wiring = source.substringAfter("relayReadbackGate = ").substringBefore("\n    )")
         assertTrue("gate must schedule on the raw convergence pump", wiring.contains("StateConverger.dispatch"))

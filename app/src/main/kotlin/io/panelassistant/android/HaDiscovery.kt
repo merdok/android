@@ -1,23 +1,16 @@
 package io.panelassistant.android
 
-import java.net.InetAddress
-
 /**
  * Pure decision for "could automatic Home Assistant discovery have worked on this panel at all, and if
  * not, why?" — so setup can tell a user to type an address instead of leaving them at an empty field.
  *
  * mDNS is link-local by definition, so a panel on a different network segment from Home Assistant can
- * never discover it. [MdnsAdvertiser] already knows this — an explicitly configured broker that matches
- * no local HA service is deliberately treated as "its HA is across a tunnel" — but it throws the
- * knowledge away by returning a bare null, which a caller cannot tell apart from "found nothing yet".
- * That ambiguity is what makes setup on a routed/tunnelled panel look broken rather than inapplicable:
- * the field simply stays blank and nothing explains why.
+ * never discover it, and a bare null cannot be told apart from "found nothing yet".
  *
  * Outcomes are ranked by how much is actually known, and the wording must never overclaim.
  * [DiscoveryReason.MDNS_NOT_RUNNING] and [DiscoveryReason.NO_MULTICAST_LOCK] are facts about this panel
- * (we did not, or could not, listen). [DiscoveryReason.BROKER_NOT_ON_LINK] is a sound inference from
- * addresses and interface prefix lengths, and holds whether or not mDNS itself worked.
- * [DiscoveryReason.NO_RESPONSES_AT_ALL] is only a guess and is phrased as one.
+ * (we did not, or could not, listen). [DiscoveryReason.NO_RESPONSES_AT_ALL] is only a guess and is
+ * phrased as one.
  *
  * Pure — no Android imports, unit-tested in HaDiscoveryTest.
  */
@@ -47,22 +40,12 @@ enum class DiscoveryReason {
     /** No multicast lock, so multicast reception is not guaranteed. Certain. */
     NO_MULTICAST_LOCK,
 
-    /** The configured broker's address is outside every local interface prefix. Sound inference. */
-    BROKER_NOT_ON_LINK,
-
     /** A full browse saw no mDNS services of any kind. A guess — phrase it as one. */
     NO_RESPONSES_AT_ALL,
 
     /** The browse itself failed. */
     ERROR,
 }
-
-/**
- * One local interface prefix, e.g. `192.168.1.42/24`. [prefixLength] of zero or less means the platform
- * did not report one; such an entry is unusable and is skipped rather than guessed at (assuming /24
- * would silently misjudge a /16 or /22 LAN).
- */
-data class LocalPrefix(val address: String, val prefixLength: Int)
 
 data class DiscoveryResult(
     val outcome: DiscoveryOutcome = DiscoveryOutcome.NOT_ATTEMPTED,
@@ -107,48 +90,15 @@ object HaDiscovery {
     }
 
     /**
-     * Whether the broker — and therefore Home Assistant — is off-link, and so structurally undiscoverable
-     * by mDNS. Returns null when this cannot be judged, which the caller must treat as "don't know" and
-     * degrade to [DiscoveryOutcome.NONE_FOUND] rather than assert anything.
-     *
-     * Unjudgeable cases, all deliberately null rather than a guess: no broker addresses to test; no local
-     * prefix reported a length; or the broker is only reachable in an address family for which we have no
-     * local prefix (e.g. an IPv6-only broker on a panel that reported only IPv4 prefixes).
-     *
-     * A broker that is on-link in *any* family wins immediately — the broker host is reachable without a
-     * router, so mDNS to that segment is possible.
-     */
-    fun brokerOffLink(brokerIps: List<String>, localPrefixes: List<LocalPrefix>): Boolean? {
-        val targets = brokerIps.mapNotNull { parseIpLiteral(it) }
-        if (targets.isEmpty()) return null
-        val usable = localPrefixes.mapNotNull { prefix ->
-            val base = parseIpLiteral(prefix.address) ?: return@mapNotNull null
-            if (prefix.prefixLength <= 0) null else base to prefix.prefixLength
-        }
-        if (usable.isEmpty()) return null
-        var judged = false
-        for (target in targets) {
-            val sameFamily = usable.filter { (base, _) -> base.address.size == target.address.size }
-            if (sameFamily.isEmpty()) continue // no comparable local prefix — cannot judge THIS address
-            judged = true
-            if (sameFamily.any { (base, bits) -> sharesPrefix(base, target, bits) }) return false
-        }
-        return if (judged) true else null
-    }
-
-    /**
      * Fold the probe signals into one honest outcome. Order is the honesty ranking: a successful discovery
-     * settles it; then the two facts about this panel; then the address-based inference; then, last and
-     * weakest, the "nothing answered at all" guess.
+     * settles it; then the two facts about this panel; then, last and weakest, the "nothing answered at
+     * all" guess.
      *
-     * @param brokerOffLink the verdict from [brokerOffLink] — null means "could not judge"
      * @param servicesSeen  mDNS services of any type observed, or [SERVICES_SEEN_UNKNOWN] to skip the guess
      */
     fun classify(
         mdnsRunning: Boolean,
         multicastLockHeld: Boolean,
-        brokerConfigured: Boolean,
-        brokerOffLink: Boolean?,
         servicesSeen: Int,
         discoveredUrl: String,
         attemptedAtMs: Long,
@@ -160,13 +110,8 @@ object HaDiscovery {
         if (discoveredUrl.isNotBlank()) {
             return DiscoveryResult(DiscoveryOutcome.FOUND, discoveredUrl, DiscoveryReason.NONE, attemptedAtMs)
         }
-        // Off-link is checked before the panel-local facts only when those facts don't apply: if we never
-        // listened, saying "HA is on another segment" would claim a search we didn't run.
         if (!mdnsRunning) return result(DiscoveryOutcome.UNAVAILABLE, DiscoveryReason.MDNS_NOT_RUNNING)
         if (!multicastLockHeld) return result(DiscoveryOutcome.UNAVAILABLE, DiscoveryReason.NO_MULTICAST_LOCK)
-        if (brokerConfigured && brokerOffLink == true) {
-            return result(DiscoveryOutcome.UNAVAILABLE, DiscoveryReason.BROKER_NOT_ON_LINK)
-        }
         if (failed) return result(DiscoveryOutcome.UNAVAILABLE, DiscoveryReason.ERROR)
         if (servicesSeen == 0) return result(DiscoveryOutcome.UNAVAILABLE, DiscoveryReason.NO_RESPONSES_AT_ALL)
         return result(DiscoveryOutcome.NONE_FOUND)
@@ -180,8 +125,6 @@ object HaDiscovery {
     fun unavailableExplanation(result: DiscoveryResult): String? = when {
         result.outcome != DiscoveryOutcome.UNAVAILABLE -> null
         else -> when (result.reason) {
-            DiscoveryReason.BROKER_NOT_ON_LINK ->
-                "Home Assistant is on a different network segment from this panel, and automatic discovery only works within one segment"
             DiscoveryReason.MDNS_NOT_RUNNING ->
                 "this panel's network discovery service is not running"
             DiscoveryReason.NO_MULTICAST_LOCK ->
@@ -192,30 +135,5 @@ object HaDiscovery {
                 "this panel's network discovery attempt failed"
             DiscoveryReason.NONE -> null
         }
-    }
-
-    /** Whether [base] and [target] agree on their leading [bits] bits. Same-length inputs only. */
-    private fun sharesPrefix(base: InetAddress, target: InetAddress, bits: Int): Boolean {
-        val a = base.address
-        val b = target.address
-        if (a.size != b.size || bits <= 0 || bits > a.size * 8) return false
-        val wholeBytes = bits / 8
-        for (i in 0 until wholeBytes) if (a[i] != b[i]) return false
-        val remainder = bits % 8
-        if (remainder == 0) return true
-        val mask = (0xFF shl (8 - remainder)) and 0xFF
-        return (a[wholeBytes].toInt() and mask) == (b[wholeBytes].toInt() and mask)
-    }
-
-    /**
-     * Parse an IP literal only — never a hostname, so this can never trigger a DNS lookup from a pure
-     * decision path. Brackets and an IPv6 zone index are tolerated because that is how addresses arrive
-     * from broker URLs and from `NetworkInterface`.
-     */
-    internal fun parseIpLiteral(value: String): InetAddress? {
-        val bare = value.trim().removeSurrounding("[", "]").substringBefore('%')
-        if (bare.isEmpty() || !bare.contains('.') && !bare.contains(':')) return null
-        if (!bare.all { it.isDigit() || it in "abcdefABCDEF.:" }) return null
-        return runCatching { InetAddress.getByName(bare) }.getOrNull()
     }
 }

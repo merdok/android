@@ -29,7 +29,6 @@ class FleetScopeSpecTest {
 
         assertEquals(
             setOf(
-                "mqtt_broker",
                 "wake_on_wave",
                 "prevent_idle_dim",
                 "watchdog_enabled",
@@ -53,8 +52,6 @@ class FleetScopeSpecTest {
     @Test
     fun `panel credentials calibration and renderer state stay device local`() {
         val deviceLocal = listOf(
-            "mqtt_user",
-            "mqtt_password",
             "network_address_family",
             "auto_sleep",
             "auto_brightness_minimum_percent",

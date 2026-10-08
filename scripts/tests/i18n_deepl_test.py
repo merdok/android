@@ -89,7 +89,7 @@ class DeepLAdapterTest(unittest.TestCase):
             "sourceRevision": SOURCE_REVISION,
             "strings": {
                 "settings.alpha.label": source_record("Alpha"),
-                "settings.beta.help": source_record("Keep {name} on MQTT", frozen=["MQTT"], placeholders=["{name}"]),
+                "settings.beta.help": source_record("Keep {name} on HTTP", frozen=["HTTP"], placeholders=["{name}"]),
                 "settings.gamma.label": source_record("Gamma"),
             },
         }
@@ -163,7 +163,7 @@ class DeepLAdapterTest(unittest.TestCase):
             "state": "machine-cross-checked",
         })
         self.assertIsNone(records[1]["priorTarget"])
-        self.assertEqual(plan["requestedCharacters"], len("Keep {name} on MQTT") + len("Gamma"))
+        self.assertEqual(plan["requestedCharacters"], len("Keep {name} on HTTP") + len("Gamma"))
         self.assertGreaterEqual(plan["maximumBilledCharacters"], plan["requestedCharacters"])
         self.assertEqual(
             plan["batches"][0]["baseTargetHash"],
@@ -427,11 +427,11 @@ class DeepLAdapterTest(unittest.TestCase):
         )
         protected, tokens = DEEPL._protected_xml(record)
         self.assertIn('<x id="0">{name}</x>', protected)
-        self.assertIn("MQTT</x>", protected)
+        self.assertIn("HTTP</x>", protected)
         translated = protected.replace("Keep ", "Behalte ").replace(" on ", " auf ")
-        self.assertEqual(DEEPL._restore_xml(translated, tokens, record["key"]), "Behalte {name} auf MQTT")
+        self.assertEqual(DEEPL._restore_xml(translated, tokens, record["key"]), "Behalte {name} auf HTTP")
         with self.assertRaisesRegex(DEEPL.DeepLError, "changed protected token"):
-            DEEPL._restore_xml(translated.replace("MQTT", "Mqtt"), tokens, record["key"])
+            DEEPL._restore_xml(translated.replace("HTTP", "Http"), tokens, record["key"])
 
     def test_protected_xml_accepts_overlapping_frozen_tokens(self):
         record = {
@@ -513,7 +513,7 @@ class DeepLAdapterTest(unittest.TestCase):
         )
         plan_path = self.root / "plan.json"
         write_json(plan_path, plan)
-        fake = FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">MQTT</x>', "Gamma DE"])
+        fake = FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">HTTP</x>', "Gamma DE"])
         output = self.root / "output"
 
         result = DEEPL.generate(plan_path, self.source_path, self.target_dir, self.context_path, output, "secret-value:fx", fake)
@@ -550,7 +550,7 @@ class DeepLAdapterTest(unittest.TestCase):
         candidate = json.loads((output / "candidates/de.json").read_text())
         self.assertEqual(candidate["sourceRevision"], SOURCE_REVISION)
         self.assertEqual(candidate["sourceCatalogueHash"], DEEPL._source_digest(self.source_path))
-        self.assertEqual(candidate["translations"][1]["translation"], "Behalte {name} auf MQTT")
+        self.assertEqual(candidate["translations"][1]["translation"], "Behalte {name} auf HTTP")
         self.assertEqual(result["resultHashes"]["de"], DEEPL._source_digest(output / "candidates/de.json"))
 
     def test_custom_instruction_support_covers_documented_language_families(self):
@@ -674,7 +674,7 @@ class DeepLAdapterTest(unittest.TestCase):
     def test_no_changes_needs_no_credential_or_api_call(self):
         translations = {
             "settings.alpha.label": "Alpha FR",
-            "settings.beta.help": "Garder {name} sur MQTT",
+            "settings.beta.help": "Garder {name} sur HTTP",
             "settings.gamma.label": "Gamma FR",
         }
         current = {
@@ -717,7 +717,7 @@ class DeepLAdapterTest(unittest.TestCase):
         plan = DEEPL.build_plan(self.source_path, self.target_dir, self.context_path, ["it"], REVISION, set())
         plan_path = self.root / "plan.json"
         write_json(plan_path, plan)
-        fake = FakeHttp(["Alfa", 'Tieni <x id="0">{name}</x> su <x id="1">MQTT</x>', "Gamma IT"], usages=((0, 500_000), (50, 400_000)))
+        fake = FakeHttp(["Alfa", 'Tieni <x id="0">{name}</x> su <x id="1">HTTP</x>', "Gamma IT"], usages=((0, 500_000), (50, 400_000)))
         output = self.root / "output"
         with self.assertRaisesRegex(DEEPL.DeepLError, "inconsistent"):
             DEEPL.generate(plan_path, self.source_path, self.target_dir, self.context_path, output, "key:fx", fake)
@@ -728,7 +728,7 @@ class DeepLAdapterTest(unittest.TestCase):
         plan_path = self.root / "plan.json"
         write_json(plan_path, plan)
         fake = FakeHttp(
-            ["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">MQTT</x>', "Gamma DE"],
+            ["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">HTTP</x>', "Gamma DE"],
             usages=((100, 500_000), (99, 500_000)),
         )
         output = self.root / "output"
@@ -743,7 +743,7 @@ class DeepLAdapterTest(unittest.TestCase):
         write_json(plan_path, plan)
         billed = plan["maximumBilledCharacters"]
         fake = FakeHttp(
-            ["Alpha FR", 'Garder <x id="0">{name}</x> sur <x id="1">MQTT</x>', "Gamma FR"],
+            ["Alpha FR", 'Garder <x id="0">{name}</x> sur <x id="1">HTTP</x>', "Gamma FR"],
             usages=((100, 500_000), (100 + billed - 1, 500_000)),
         )
         output = self.root / "output"
@@ -757,7 +757,7 @@ class DeepLAdapterTest(unittest.TestCase):
         plan_path = self.root / "plan.json"
         write_json(plan_path, plan)
         fake = FakeHttp(
-            ["Alfa", 'Tieni <x id="0">{name}</x> su <x id="1">MQTT</x>', "Gamma IT"],
+            ["Alfa", 'Tieni <x id="0">{name}</x> su <x id="1">HTTP</x>', "Gamma IT"],
         )
         result = DEEPL.generate(plan_path, self.source_path, self.target_dir, self.context_path, self.root / "output", "key:fx", fake)
         result["accountUsageAfter"] = result["accountUsageBefore"] + result["billedCharacters"] - 1
@@ -777,7 +777,7 @@ class DeepLAdapterTest(unittest.TestCase):
             self.context_path,
             output,
             "key:fx",
-            FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">MQTT</x>', "Gamma DE"]),
+            FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">HTTP</x>', "Gamma DE"]),
         )
 
         rendered = DEEPL.summary(plan_path, output / "run.json")
@@ -796,8 +796,8 @@ class DeepLAdapterTest(unittest.TestCase):
             plan_path, self.source_path, self.target_dir, self.context_path, generated,
             "key:fx",
             FakeHttp([
-                "Alpha FR", 'Garder <x id="0">{name}</x> sur <x id="1">MQTT</x>', "Gamma FR",
-                "Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">MQTT</x>', "Gamma DE",
+                "Alpha FR", 'Garder <x id="0">{name}</x> sur <x id="1">HTTP</x>', "Gamma FR",
+                "Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">HTTP</x>', "Gamma DE",
             ]),
         )
         bundle = self.root / "bundle"
@@ -839,7 +839,7 @@ class DeepLAdapterTest(unittest.TestCase):
         DEEPL.generate(
             plan_path, self.source_path, self.target_dir, self.context_path, generated,
             "key:fx",
-            FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">MQTT</x>', "Gamma DE"]),
+            FakeHttp(["Alfa", 'Behalte <x id="0">{name}</x> auf <x id="1">HTTP</x>', "Gamma DE"]),
         )
         candidate_path = generated / "candidates/de.json"
         candidate_path.write_bytes(candidate_path.read_bytes() + b"\n")

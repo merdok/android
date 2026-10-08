@@ -218,8 +218,6 @@ class SettingsBehaviorContractTest {
 
     @Test fun `coupled credential owners clear dependent secrets atomically`() {
         val initial = mapOf<String, Any?>(
-            "mqtt_user" to "old-user",
-            "mqtt_password" to "old-password",
             "ha_url" to "https://ha.example.test",
             "ha_token" to "old-access",
             "ha_refresh_token" to "old-refresh",
@@ -228,12 +226,6 @@ class SettingsBehaviorContractTest {
         )
         val prefs = memoryPreferences(initial = initial)
         val config = Config(prefs.instance)
-
-        assertTrue(config.applyBatch {
-            stageDirectCredentialSettings(config, mapOf("mqtt_user" to ""))
-        })
-        assertEquals("", config.mqttUser)
-        assertEquals("", config.mqttPassword)
 
         assertTrue(config.applyBatch {
             stageDirectCredentialSettings(
@@ -265,10 +257,10 @@ class SettingsBehaviorContractTest {
         val failedPrefs = memoryPreferences(commitsSucceed = false, initial = initial)
         val failed = Config(failedPrefs.instance)
         assertFalse(failed.applyBatch {
-            stageDirectCredentialSettings(failed, mapOf("mqtt_user" to ""))
+            stageDirectCredentialSettings(failed, mapOf("ha_url" to ""))
         })
-        assertEquals("old-user", failed.mqttUser)
-        assertEquals("old-password", failed.mqttPassword)
+        assertEquals("old-access", failed.haToken)
+        assertEquals("old-refresh", failed.haRefreshToken)
     }
 
     @Test fun `changing Home Assistant origin never forwards the previous account tokens`() {

@@ -102,9 +102,9 @@ internal object ReceiptVerifier {
             .joinToString("; ") { "${it.path}: ${it.message}" }
             .take(MAX_REASON_CHARS)
 
-    /** Whether the verified receipt records that the legacy app was connected to MQTT when it wrote it. */
-    fun legacyMqttConnected(archive: File): Boolean = runCatching {
-        PanelBackup.readManifest(archive, MAX_MANIFEST_BYTES)?.let { BackupIdentity.writerMqttConnected(JSONObject(it)) }
+    /** Whether the verified receipt records that the legacy app was connected to Home Assistant when it wrote it. */
+    fun legacyConnected(archive: File): Boolean = runCatching {
+        PanelBackup.readManifest(archive, MAX_MANIFEST_BYTES)?.let { BackupIdentity.legacyWriterConnected(JSONObject(it)) }
     }.getOrNull() ?: true
 
     /**

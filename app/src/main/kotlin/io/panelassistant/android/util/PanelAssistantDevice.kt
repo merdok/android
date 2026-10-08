@@ -6,13 +6,13 @@ import org.json.JSONObject
  * Bounded projection of this panel's own device identity, for the Panel Assistant integration's
  * Home Assistant device card.
  *
- * Reading it changes nothing: no release lookup, no MQTT traffic, no settings write. Every field is
+ * Reading it changes nothing: no release lookup, no network traffic, no settings write. Every field is
  * presentation text, so anything blank, over-long or carrying control characters is represented as
  * absence rather than guessed or truncated.
  *
  * The Android id is deliberately omitted. The mDNS `did` token identifies the app installation, and the integration registers its own
- * Home Assistant device rather than adopting the MQTT bridge's identifiers, so it has no need of
- * MQTT's `serial_number` to match on.
+ * Home Assistant device rather than adopting identifiers the panel published itself, so it has no need of
+ * a `serial_number` to match on.
  */
 object PanelAssistantDevice {
     /** `DeviceProfile` publishes the model with this suffix to mark the app, not the hardware. */

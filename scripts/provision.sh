@@ -644,18 +644,14 @@ verify() {
     echo "   ${GRN}✓${X} Shizuku enhanced access: ready — APK updates, screenshots/taps and display sizing enabled"
   elif [ -n "$diag" ]; then
     echo "   ${YEL}⚠ THIS PANEL HAS NO ROOT — ha-paneld runs with a REDUCED feature set.${X}"
-    echo "     ${D}Working: HA sensors + MQTT, brightness, screen dim, audio/TTS, the dashboard renderers,${X}"
+    echo "     ${D}Working: the Panel Assistant integration, brightness, screen dim, audio/TTS, the dashboard renderers,${X}"
     echo "     ${D}the web UI and Back/Recents. Privileged hardware, system maintenance and private-app${X}"
     echo "     ${D}operations remain unavailable.${X}"
   fi
-  # panel_id + MQTT (informational — install-only is valid). grep/cut so no python (Git Bash-friendly).
-  local broker pid
-  broker="$(printf '%s' "$cfg" | grep -o '"mqtt_broker":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+  # panel_id (informational — install-only is valid). grep/cut so no python (Git Bash-friendly).
+  local pid
   pid="$(printf '%s' "$cfg" | grep -o '"panel_id":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
-  broker="$(printf '%s' "$broker" | sanitize_terminal)"
   pid="$(printf '%s' "$pid" | sanitize_terminal)"
-  if [ -n "$broker" ]; then echo "   ${GRN}✓${X} MQTT broker: ${B}$broker${X}"
-  else echo "   ${YEL}ℹ${X} MQTT broker: ${YEL}not explicitly set${X} ${D}(LAN auto-discovery will be attempted; it can also be set in Configure)${X}"; fi
   echo "   ${YEL}ℹ${X} panel_id: ${B}${pid:-?}${X}"
   return $rc
 }

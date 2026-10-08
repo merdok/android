@@ -68,7 +68,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
  * no-ops, like the other root-gated capabilities.
  *
  * All [WindowManager] mutations are posted to the main looper — `addView`/`removeView` must run on the
- * UI thread, but [apply] is called from the MQTT thread.
+ * UI thread, but [apply] is called from a command thread.
  */
 class NavbarController(
     private val context: Context,
@@ -84,7 +84,7 @@ class NavbarController(
     // Omit the Recents button on panels whose firmware has no overview screen (e.g. Tuya TPA10).
     private val hasRecents: Boolean,
     // Notify HA after a LOCAL navbar change so light.<panel>_screen / number.<panel>_volume don't go
-    // stale (the bar steps brightness/volume directly, bypassing the MQTT command path).
+    // stale (the bar steps brightness/volume directly, bypassing the command path).
     private val onBrightnessChanged: (Int) -> Unit = {},
     private val onBrightnessApplied: () -> Unit = {},
     private val onVolumeChanged: () -> Unit = {},
@@ -163,7 +163,7 @@ class NavbarController(
     }
 
     /**
-     * Idempotent: enqueue a rebuild of the overlay state for [newMode]. Calls from MQTT, startup, or the
+     * Idempotent: enqueue a rebuild of the overlay state for [newMode]. Calls from commands, startup, or the
      * settings UI conflate into one latest-value slot; blocking permission and overscan work runs on the
      * controller's single mode worker, while every [WindowManager] mutation remains on the main thread.
      */

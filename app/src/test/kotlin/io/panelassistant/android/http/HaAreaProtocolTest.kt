@@ -1,6 +1,5 @@
 package io.panelassistant.android.http
 
-import io.panelassistant.android.testsupport.TestSources
 import io.panelassistant.android.http.HaAreaProtocol.ReconcileAction
 import io.panelassistant.android.dashboard.EntityLearningManager
 import org.json.JSONObject
@@ -10,7 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HaAreaProtocolTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
+    private val ENTRY = setOf("entry-abc123")
+
     private fun areasJson() = JSONObject(
         """{"result":[
             {"area_id":"office","name":"Office","icon":"mdi:desk"},
@@ -22,8 +22,8 @@ class HaAreaProtocolTest {
 
     private fun devicesJson(areaId: String = "office") = JSONObject(
         """{"result":[
-            {"id":"other","identifiers":[["mqtt","something-else"]],"area_id":"kitchen"},
-            {"id":"dev1","identifiers":[["mqtt","ha-paneld-uid-abc123"],["mqtt","ha-paneld-alpha"]],"area_id":"$areaId"}
+            {"id":"other","identifiers":[["panel_assistant","another-entry"]],"area_id":"kitchen"},
+            {"id":"dev1","identifiers":[["panel_assistant","entry-abc123"]],"area_id":"$areaId"}
         ]}""",
     )
 
@@ -84,23 +84,20 @@ class HaAreaProtocolTest {
         assertTrue(HaAreaProtocol.areas(null).isEmpty())
     }
 
-    @Test fun thePanelDeviceIsFoundByItsOwnMqttIdentifiersAndJoinedToItsArea() {
+    @Test fun thePanelDeviceIsFoundByItsPanelAssistantEntryAndJoinedToItsArea() {
         val areas = HaAreaProtocol.areas(areasJson())
-        val found = HaAreaProtocol.panelDeviceArea(devicesJson(), areas, "abc123", "alpha", emptySet())
+        val found = HaAreaProtocol.panelDeviceArea(devicesJson(), areas, ENTRY)
         assertTrue(found.found)
         assertEquals("dev1", found.deviceId)
         assertEquals("Office", found.areaName)
-        // Legacy panel-id identifier is the fallback when the immutable one is absent.
-        val legacyOnly = HaAreaProtocol.panelDeviceArea(devicesJson(), areas, "", "alpha", emptySet())
-        assertTrue(legacyOnly.found)
         // No area on the device reads as blank, never as a guess.
-        val bare = HaAreaProtocol.panelDeviceArea(devicesJson(areaId = ""), areas, "abc123", "alpha", emptySet())
+        val bare = HaAreaProtocol.panelDeviceArea(devicesJson(areaId = ""), areas, ENTRY)
         assertTrue(bare.found)
         assertEquals("", bare.areaName)
         // Unlike the presence path this never throws — setup must be able to say "not found" calmly.
-        val missing = HaAreaProtocol.panelDeviceArea(JSONObject("""{"result":[]}"""), areas, "abc123", "x", emptySet())
+        val missing = HaAreaProtocol.panelDeviceArea(JSONObject("""{"result":[]}"""), areas, ENTRY)
         assertFalse(missing.found)
-        assertFalse(HaAreaProtocol.panelDeviceArea(null, areas, "abc123", "x", emptySet()).found)
+        assertFalse(HaAreaProtocol.panelDeviceArea(null, areas, ENTRY).found)
     }
 
     @Test fun jsonNullDeviceAreaIsUnassigned() {
@@ -108,7 +105,7 @@ class HaAreaProtocolTest {
         devices.getJSONArray("result").getJSONObject(1).put("area_id", JSONObject.NULL)
 
         val area = HaAreaProtocol.panelDeviceArea(
-            devices, HaAreaProtocol.areas(areasJson()), "abc123", "alpha", emptySet(),
+            devices, HaAreaProtocol.areas(areasJson()), ENTRY,
         )
 
         assertTrue(area.found)
@@ -124,7 +121,7 @@ class HaAreaProtocolTest {
     @Test fun existingAreaNamedLiteralNullIsNotAdoptedAsThePanelsArea() {
         val areas = HaAreaProtocol.areas(JSONObject("""{"result":[{"area_id":"bad-area","name":"null"}]}"""))
         val area = HaAreaProtocol.panelDeviceArea(
-            devicesJson(areaId = "bad-area"), areas, "abc123", "alpha", emptySet(),
+            devicesJson(areaId = "bad-area"), areas, ENTRY,
         )
         assertTrue(area.found)
         assertEquals("", area.areaName)
@@ -132,10 +129,10 @@ class HaAreaProtocolTest {
         assertEquals(ReconcileAction.KEEP, HaAreaProtocol.reconcile("", area.areaName, admin = true))
         val officeAreas = HaAreaProtocol.areas(areasJson())
         assertFalse(HaAreaProtocol.hasLiteralNullAssignment(
-            HaAreaProtocol.panelDeviceArea(devicesJson(), officeAreas, "abc123", "alpha", emptySet()), officeAreas,
+            HaAreaProtocol.panelDeviceArea(devicesJson(), officeAreas, ENTRY), officeAreas,
         ))
         assertFalse(HaAreaProtocol.hasLiteralNullAssignment(
-            HaAreaProtocol.panelDeviceArea(devicesJson(areaId = "missing"), areas, "abc123", "alpha", emptySet()),
+            HaAreaProtocol.panelDeviceArea(devicesJson(areaId = "missing"), areas, ENTRY),
             areas,
         ))
     }
@@ -146,7 +143,7 @@ class HaAreaProtocolTest {
             {"area_id":"study","name":"Study","icon":"mdi:desk"}
         ]}"""))
         val badDevice = HaAreaProtocol.panelDeviceArea(
-            devicesJson(areaId = "bad-area"), areas, "abc123", "alpha", emptySet(),
+            devicesJson(areaId = "bad-area"), areas, ENTRY,
         )
         assertTrue(HaAreaProtocol.hasLiteralNullAssignment(badDevice, areas))
 
@@ -163,7 +160,7 @@ class HaAreaProtocolTest {
         assertTrue(bad.getJSONObject("device").getBoolean("found"))
 
         val named = response(HaAreaProtocol.panelDeviceArea(
-            devicesJson(areaId = "study"), areas, "abc123", "alpha", emptySet(),
+            devicesJson(areaId = "study"), areas, ENTRY,
         )).getJSONObject("device")
         assertEquals("study", named.getString("area_id"))
         assertEquals("Study", named.getString("area_name"))
@@ -173,14 +170,6 @@ class HaAreaProtocolTest {
         val areas = HaAreaProtocol.areas(areasJson())
         assertEquals("office", HaAreaProtocol.resolveAreaId(areas, "  oFFiCe "))
         assertEquals(null, HaAreaProtocol.resolveAreaId(areas, "Garage"))
-    }
-
-    @Test fun discoveryOnlySuggestsAnAreaWhenOneIsRequested() {
-        // suggested_area applies at first registration only and must never appear as an empty string —
-        // HA would create an unnamed area. Pinned at source because the device block is assembled by hand.
-        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
-        assertTrue(bridge.contains("config.haArea.takeIf(String::isNotBlank)"))
-        assertTrue(bridge.contains("\"suggested_area\":\""))
     }
 
     @Test fun theCanonicalRuleHasAnOwnerThatDoesNotWaitForSomebodyToOpenAMenu() {

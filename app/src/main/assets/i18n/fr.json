@@ -2304,8 +2304,8 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.ha_sign_in.title": {
-      "text": "MQTT est configuré. Étape suivante : connexion à Home Assistant.",
-      "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
+      "text": "Étape suivante : connexion à Home Assistant.",
+      "sourceHash": "b29ddcf4f1965861a8a63e77f1877989257930681395f92c3de8a3e266c183b4",
       "state": "machine-cross-checked"
     },
     "dashboard.banner.manage_install": {
@@ -2329,8 +2329,8 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.no_renderer.title": {
-      "text": "MQTT est configuré. Étape suivante : choisir un moteur de rendu de tableau de bord.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
+      "text": "Étape suivante : choisir un moteur de rendu de tableau de bord.",
+      "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
       "state": "machine-cross-checked"
     },
     "dashboard.banner.panel_bridge_running": {
@@ -2371,46 +2371,6 @@
     "dashboard.banner.schema_rollback.title": {
       "text": "Base de données plus récente conservée après retour à une ancienne version",
       "sourceHash": "c6b434eb6d5f96ee9185ae968a89e7a1039ba9b2aad65bde00e6555a02b7fc78",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.joiner": {
-      "text": "et",
-      "sourceHash": "6201111b83a0cb5b0922cb37cc442b9a40e24e3b1ce100a4bb204f4c63fd2ac0",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.mqtt_configuration": {
-      "text": "une configuration MQTT",
-      "sourceHash": "dc67038dbc78f5ac4acaf201ff99b74d567c4a570b11c78fbef59a586da566f4",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.prefix": {
-      "text": "Ce panneau nécessite",
-      "sourceHash": "2d9faa88e40af4265de7e9424e308724b1e7b96e30c1ea1f586704a10235225a",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.reachable_broker": {
-      "text": "un broker MQTT joignable",
-      "sourceHash": "045ac1f4b721cd39b484c8273ebd33c7756cdb487214f63888ac86f9490f698f",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.rejected_credentials": {
-      "text": "des identifiants MQTT valides (le broker les a refusés)",
-      "sourceHash": "e3bec86a375b717aa06b9ef49db160cda580cfdebfe9a77fc35a6e1bc79d120d",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.suffix": {
-      "text": "— à définir dans l’onglet Configurer.",
-      "sourceHash": "a623aa42d2f1f53aa662a6afe155e3e0c1e47b2b888d5b843985025ef198d430",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.valid_broker_url": {
-      "text": "une URL de broker MQTT valide",
-      "sourceHash": "ee8fc48bc75378fd7cad15208047034017bceaff1864019a22416e40b281a734",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.banner.setup_needs.valid_credentials": {
-      "text": "des identifiants MQTT valides",
-      "sourceHash": "c3a2944f7904354478c69932bda9ef2ee929ef06cb1728669fc31f31e0524fb3",
       "state": "machine-cross-checked"
     },
     "dashboard.banner.update.available": {
@@ -3473,16 +3433,6 @@
       "sourceHash": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",
       "state": "machine-cross-checked"
     },
-    "dashboard.fact.mqtt": {
-      "text": "MQTT",
-      "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.fact.mqtt_timing": {
-      "text": "Délais connexion/auth. MQTT",
-      "sourceHash": "e98d05be712824bc204ff342d965a29d937fc75bbec8481fe8c106a992abb89c",
-      "state": "machine-cross-checked"
-    },
     "dashboard.fact.navbar": {
       "text": "Barre de navigation",
       "sourceHash": "ea22ed8d628dd906c10d91accf3769b68cbf37127f2ecab6a66a1f3d27e6e5a6",
@@ -3531,11 +3481,6 @@
     "dashboard.fact.soc": {
       "text": "SoC",
       "sourceHash": "2600f7e4db554c9760c141813188c03fb71f9694f085ca541eba178333899c5c",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.fact.state_convergence": {
-      "text": "Convergence des états",
-      "sourceHash": "a952d13f5e5135175bab1d28aeac5d7f6beba372b7ba1a60cd3e38d1689bf212",
       "state": "machine-cross-checked"
     },
     "dashboard.fact.storage": {
@@ -4236,91 +4181,6 @@
     "dashboard.runtime.ha_watching": {
       "text": "surveillance",
       "sourceHash": "19bda4aa00eaf9a162fb92bafdc63160190c0c8387687bb8b23027e7bb886ff6",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.age_never": {
-      "text": "jamais",
-      "sourceHash": "6497e4b3d7bed16979a343a7db4efa6d57725529f5ac3cec45c1f08fabcbdafc",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.age_seconds_ago": {
-      "text": "il y a {seconds} s",
-      "sourceHash": "b5907e4c12962ee59cf2dcdc0690ca8f736d7cdc77f5c546cb75fc84d2781931",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.auth_retry": {
-      "text": "{state} · rejets {rejects} · tentative {attempt} · prochaine {next}",
-      "sourceHash": "ab27a09ae2f9439f008c5f90250464af8c2752e203041bb4ac35e75eb6b589fd",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.config_error": {
-      "text": "erreur config. · URL du broker invalide ou non prise en charge",
-      "sourceHash": "2b4df44055ce98c13abe97370dae68b9b8c5064008dd177455388e79e61ffc9d",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.family_automatic": {
-      "text": "Automatique (prochaine famille : {family})",
-      "sourceHash": "edada581531450033adad40e605a3dfd6211bdbef79fb5159ca89c7b857ec1ab",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.family_force_ipv4": {
-      "text": "Forcer IPv4",
-      "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.family_prefer_ipv4": {
-      "text": "Préférer IPv4",
-      "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.seconds": {
-      "text": "{seconds} secondes",
-      "sourceHash": "5307d20dc7c46cc7771e80a1d10417915bcf84ff57f50a15e3f7aea5d1661ed6",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.announcing": {
-      "text": "annonce en cours",
-      "sourceHash": "67209cabee758ad203e5ea33eae67637767e65aca1a440c111ac283aed2fc3d1",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.auth_failed": {
-      "text": "échec d’authentification",
-      "sourceHash": "1d75377d4dbd78456c27d8a187ae15d24bc4123a82b83de0596323e0b9525139",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.auth_retrying": {
-      "text": "nouvel essai d’auth.",
-      "sourceHash": "a2653bd8b474cef91ad8f81e15e8d1b10bf8056049c83ac62b835e9b85710403",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.connected": {
-      "text": "connecté",
-      "sourceHash": "12a7bd86e0a430327620a0e2274d0f6f091c783b21c169636ef8997f9f1da76a",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.connecting": {
-      "text": "connexion",
-      "sourceHash": "3d6df245178e60766e3478a821dd81b9702e3e4d4e1319d5484b0351f29c0149",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.disconnected": {
-      "text": "déconnecté",
-      "sourceHash": "d0cb8d28fd8ddcf3c8bc194941b24815924ef438f9650ad2c41bbc01806d67d8",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.discovering": {
-      "text": "détection",
-      "sourceHash": "346e887d310fe3193dc94b94facaab54dea5933f8d593dcc4c67d9000dd5619d",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.state.unreachable": {
-      "text": "injoignable",
-      "sourceHash": "5e6017027437e595ec72adee0718d78f092cddaa8d31048c9d5ba2ed647ded5e",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.runtime.mqtt.status": {
-      "text": "{state} · {transport} · dernier succès {lastOk} · dernière authentification {lastAuth} · {auth} · famille {family}",
-      "sourceHash": "21b4a9b385928557b8618f562b0b77a974a159b081213524f7a4b24cee066ebe",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.admitted_age": {
@@ -7169,13 +7029,13 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_no_renderer": {
-      "text": "ℹ MQTT est configuré. Étape suivante : choisissez un moteur de rendu du tableau de bord. Sélectionnez le moteur intégré de ha-paneld, installez l’application Home Assistant Companion ou configurez un autre paquet de tableau de bord.",
-      "sourceHash": "5f1d7770181d47b58470733464108f40b48294488714774fa4aa9407d8d2e136",
+      "text": "ℹ Étape suivante : choisissez un moteur de rendu du tableau de bord. Sélectionnez le moteur intégré de ha-paneld, installez l’application Home Assistant Companion ou configurez un autre paquet de tableau de bord.",
+      "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
       "state": "machine-cross-checked"
     },
     "install.presentation.status_power_at_risk": {
-      "text": "⛔ Gestion de l’alimentation du panneau : à risque — le panneau peut se mettre en veille ou passer en mode Doze après l’extinction de l’écran, rendant HTTP, MQTT et les tâches en arrière-plan inaccessibles.",
-      "sourceHash": "a74da057925352acddd3dd33fbb3024de2c565cbcb5410079024512fbe9ad1ab",
+      "text": "⛔ Gestion de l’alimentation du panneau : à risque — le panneau peut se mettre en veille ou passer en mode Doze après l’extinction de l’écran, rendant HTTP et les tâches en arrière-plan inaccessibles.",
+      "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
       "state": "machine-cross-checked"
     },
     "install.presentation.status_power_caution": {
@@ -9999,8 +9859,8 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.summary.at_risk": {
-      "text": "Le panneau peut se mettre en veille ou passer en mode Doze après l’extinction de l’écran, rendant HTTP, MQTT et les tâches en arrière-plan inaccessibles.",
-      "sourceHash": "c3985d94deae2c90693d7b57b50bd842fa613cf16e2c8d34ca8a9aad579d9c13",
+      "text": "Le panneau peut se mettre en veille ou passer en mode Doze après l’extinction de l’écran, rendant HTTP et les tâches en arrière-plan inaccessibles.",
+      "sourceHash": "6e885ffabcbb2ba963ffc45120252bcc5b5cb11519f2bd7aabddc11c4e0cee66",
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.summary.caution": {
@@ -10504,9 +10364,9 @@
       "state": "machine-cross-checked"
     },
     "settings.diag_wifi_outages_24h.help": {
-      "sourceHash": "cde65f42ed6eec37fb9bb3e2c9d160b951cfc99f8fb7c1f041efe21be3080cfb",
+      "sourceHash": "783f18ddfc10e7afa41fb5c6334d880121993421496923fcff2c7663363c73ed",
       "state": "machine-cross-checked",
-      "text": "Brèves coupures Wi-Fi au cours des dernières 24 heures glissantes. Seules les pertes de la connexion Wi-Fi active du panneau sont comptées ; les interruptions de Home Assistant ou du broker ne le sont jamais. Si le panneau a dû limiter les données conservées, l’attribut is_lower_bound du capteur indique que la valeur est un minimum."
+      "text": "Brèves coupures Wi-Fi au cours des dernières 24 heures glissantes. Seules les pertes de la connexion Wi-Fi active du panneau sont comptées ; les interruptions de Home Assistant ne le sont jamais. Si le panneau a dû limiter les données conservées, l’attribut is_lower_bound du capteur indique que la valeur est un minimum."
     },
     "settings.diag_wifi_outages_24h.label": {
       "sourceHash": "ed67a870b93667bed3a06e3ffdaa2d597fb1925bb05fb45a83c0e58c77d4bc12",
@@ -10809,48 +10669,18 @@
       "state": "machine-cross-checked"
     },
     "settings.network_address_family.help": {
-      "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
+      "sourceHash": "2f44d1ec32f8e5a629bde0c6fb769ab53c9c746816c71317b9218618840a6050",
       "state": "machine-cross-checked",
-      "text": "S’applique à la connexion au broker MQTT et aux connexions WebSocket Home Assistant du panneau ; les lectures HTTPS simples essaient toujours toutes les adresses publiées. Automatique apprend une route fonctionnelle et bascule entre IPv6 et IPv4. Préférer IPv4 conserve IPv6 comme solution de repli ; Forcer IPv4 rejette les points de terminaison sans adresse IPv4."
+      "text": "S’applique aux connexions WebSocket Home Assistant du panneau ; les lectures HTTPS simples essaient toujours toutes les adresses publiées. Automatique apprend une route fonctionnelle et bascule entre IPv6 et IPv4. Préférer IPv4 conserve IPv6 comme solution de repli ; Forcer IPv4 rejette les points de terminaison sans adresse IPv4."
     },
     "settings.network_address_family.label": {
-      "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
+      "sourceHash": "f97bb46f422f8778630da01f9363dde4bf1455af861d866b28d87e329a4bdd98",
       "state": "machine-cross-checked",
-      "text": "Famille d’adresses MQTT + WebSocket Home Assistant"
+      "text": "Famille d’adresses WebSocket Home Assistant"
     },
     "settings.network_address_family.summary": {
-      "text": "Utilisez IPv4, IPv6 ou les deux pour accéder à MQTT et Home Assistant.",
-      "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
-      "state": "machine-cross-checked"
-    },
-    "settings.mqtt_broker.label": {
-      "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-      "state": "machine-cross-checked",
-      "text": "URL du broker"
-    },
-    "settings.mqtt_broker.summary": {
-      "text": "Adresse du broker MQTT. Vide : Home Assistant détecté automatiquement.",
-      "sourceHash": "044adf15a77d5bb058f4805811e03bbdd500014b03e4ebef2e688ed516ccb3ee",
-      "state": "machine-cross-checked"
-    },
-    "settings.mqtt_password.label": {
-      "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-      "state": "machine-cross-checked",
-      "text": "Mot de passe"
-    },
-    "settings.mqtt_password.summary": {
-      "text": "Mot de passe MQTT. Vide : le mot de passe actuel est conservé.",
-      "sourceHash": "7fed95c1c70ef7755667c50ec3e5e1c5bf1b2644ba1dbb1cd6afdfce07939bb2",
-      "state": "machine-cross-checked"
-    },
-    "settings.mqtt_user.label": {
-      "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-      "state": "machine-cross-checked",
-      "text": "Nom d’utilisateur"
-    },
-    "settings.mqtt_user.summary": {
-      "text": "Nom d’utilisateur MQTT pour ce panneau.",
-      "sourceHash": "c9051f2d3306c556507ff4d4d714230ec1201407135b13f6acad7f1541d4502e",
+      "text": "Utilisez IPv4, IPv6 ou les deux pour accéder à Home Assistant.",
+      "sourceHash": "1f9dfb4ea985952ceb8b078a460c33ef6759696c97a87375fc1b789d6d1ea19f",
       "state": "machine-cross-checked"
     },
     "settings.navbar_mode.help": {
@@ -10884,9 +10714,9 @@
       "state": "machine-cross-checked"
     },
     "settings.panel_id.help": {
-      "sourceHash": "c32f09aa8a5756c4cfde370f42fc7ce62bb040feb0b9e0375f2932c08988554e",
+      "sourceHash": "f6f3b34b5d382474a82ac87481b3a630471efddad5ca8ed1b5cccdf94edae85e",
       "state": "machine-cross-checked",
-      "text": "Identifiant stable utilisé dans les IDs d’entités et les sujets MQTT (minuscules, chiffres et traits de soulignement ; 63 caractères au maximum)."
+      "text": "Identifiant stable utilisé dans les IDs d’entités (minuscules, chiffres et traits de soulignement ; 63 caractères au maximum)."
     },
     "settings.panel_id.label": {
       "sourceHash": "e738d52375d65eb02067cf41e0807c06c4e21f391d5334bb5bed79e9a2e61daf",
@@ -12219,8 +12049,8 @@
       "state": "machine-cross-checked"
     },
     "shell.migration.body": {
-      "text": "Ajoutez l’intégration Panel Assistant dans Home Assistant pour gérer ce panneau. La prise en charge de MQTT sera supprimée.",
-      "sourceHash": "20339679c60bd71b0416b68306c5b5559ed4beb7a81b0a6173335fdd511311b1",
+      "text": "Ajoutez l’intégration Panel Assistant dans Home Assistant pour gérer ce panneau.",
+      "sourceHash": "d624e8b4cd2a9f8067e4808c0952370185b235548991a95638208acf4ea0802f",
       "state": "machine-cross-checked"
     },
     "shell.migration.dismiss": {
@@ -12496,21 +12326,6 @@
     "shell.settings_changed.externally": {
       "text": "Les paramètres ont été modifiés en dehors de cette page",
       "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
-      "state": "machine-cross-checked"
-    },
-    "shell.setup_progress.next": {
-      "text": "L’étape de configuration du tableau de bord vient ensuite.",
-      "sourceHash": "272d0261ca0dc2b0e2a88f17d7c7589b4c1f21ae1e9ae9596e10128a156d609b",
-      "state": "machine-cross-checked"
-    },
-    "shell.setup_progress.publishing": {
-      "text": "MQTT connecté — publication de la découverte Home Assistant.",
-      "sourceHash": "91badffcf3f64548ae77c2860e1ea840212f96d595e4f00ad17d768e1232c201",
-      "state": "machine-cross-checked"
-    },
-    "shell.setup_progress.verifying": {
-      "text": "Paramètres MQTT enregistrés — vérification de la connexion au broker. Cela peut prendre un moment après l’enregistrement.",
-      "sourceHash": "da508a88ecafb04836ca28a2c351d7f5dfb5864cdad65f7d8fbce4f59e9eb82b",
       "state": "machine-cross-checked"
     },
     "install.tame.hand_back.action": {

@@ -138,14 +138,14 @@ class ReceiptVerifierTest {
         )
     }
 
-    @Test fun theLegacyMqttConnectionIsReadFromTheReceiptAndAnUnreadableReceiptDemandsAConnection() {
+    @Test fun theLegacyConnectionIsReadFromTheReceiptAndAnUnreadableReceiptDemandsAConnection() {
         val connected = manifest().dropLast(1) + ",\"mqtt_connected\":true}"
         val never = manifest().dropLast(1) + ",\"mqtt_connected\":false}"
 
-        assertTrue(ReceiptVerifier.legacyMqttConnected(archive(connected)))
-        assertEquals(false, ReceiptVerifier.legacyMqttConnected(archive(never)))
-        assertEquals(false, ReceiptVerifier.legacyMqttConnected(archive(manifest())))
-        assertTrue(ReceiptVerifier.legacyMqttConnected(File(temp.root, "absent.zip")))
+        assertTrue(ReceiptVerifier.legacyConnected(archive(connected)))
+        assertEquals(false, ReceiptVerifier.legacyConnected(archive(never)))
+        assertEquals(false, ReceiptVerifier.legacyConnected(archive(manifest())))
+        assertTrue(ReceiptVerifier.legacyConnected(File(temp.root, "absent.zip")))
     }
 
     @Test fun aDeclaredPayloadThatIsNotInTheArchiveIsRefused() {

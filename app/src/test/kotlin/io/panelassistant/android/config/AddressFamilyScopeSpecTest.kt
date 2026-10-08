@@ -4,17 +4,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Upgrade-visible semantic pin: the address family setting (`mqtt_address_family` until schema 15, now
- * `network_address_family`) governs the MQTT broker connection AND the panel's Home Assistant WebSocket
- * connections. An existing
- * non-default value therefore broadens on upgrade, and the user-visible label/help must say so —
- * this pins the semantic tokens, not sentence wording.
+ * Semantic pin: the address family setting governs the panel's Home Assistant WebSocket connections,
+ * and the user-visible label/help must say so. This pins the semantic tokens, not sentence wording.
  */
 class AddressFamilyScopeSpecTest {
-    @Test fun addressFamilySettingNamesBothGovernedConnectionScopes() {
+    @Test fun addressFamilySettingNamesTheConnectionsItGoverns() {
         val spec = checkNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY))
         val surface = spec.label + " " + spec.help
-        assertTrue("names MQTT: $surface", surface.contains("MQTT"))
         assertTrue("names Home Assistant: $surface", surface.contains("Home Assistant"))
         // The qualifier is part of the pinned semantic: the policy governs WebSocket connections,
         // and claiming plain Home Assistant "connections" overstates it — REST reads iterate

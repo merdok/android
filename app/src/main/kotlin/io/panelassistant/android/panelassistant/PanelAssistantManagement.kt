@@ -13,8 +13,7 @@ internal data class PanelAssistantManagementSnapshot(val health: String, val sta
 
 /** What the panel serves when Panel Assistant manages it over its own session. */
 internal interface PanelAssistantManagement {
-    /** [updateOwner] is the session form of HTTP's update-owner header: Home Assistant shows this panel's update. */
-    suspend fun snapshot(updateOwner: Boolean): PanelAssistantManagementSnapshot
+    suspend fun snapshot(): PanelAssistantManagementSnapshot
 
     /**
      * Apply [settings] through the panel's own settings store; null when applied, else an outcome code.
@@ -25,10 +24,10 @@ internal interface PanelAssistantManagement {
 
     companion object {
         fun of(
-            read: suspend (Boolean) -> PanelAssistantManagementSnapshot,
+            read: suspend () -> PanelAssistantManagementSnapshot,
             write: suspend (Map<String, String>, () -> Boolean) -> String?,
         ): PanelAssistantManagement = object : PanelAssistantManagement {
-            override suspend fun snapshot(updateOwner: Boolean) = read(updateOwner)
+            override suspend fun snapshot() = read()
 
             override suspend fun applySettings(settings: Map<String, String>, admit: () -> Boolean) = write(settings, admit)
         }
@@ -131,7 +130,7 @@ internal class PanelAssistantManagementRequests(
         if (monotonicMillis() - receivedAt > deadline) return refused(PanelAssistantCommandProcessor.CODE_EXPIRED)
         return when (event.op) {
             PanelAssistantTransportProtocol.MANAGE_SNAPSHOT -> {
-                val snapshot = management.snapshot(event.updateOwner)
+                val snapshot = management.snapshot()
                 Answer(
                     event.commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED, null,
                     JSONObject().put("health", snapshot.health).put("status", snapshot.status),

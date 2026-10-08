@@ -11,9 +11,9 @@ internal sealed interface PanelAssistantWireValue {
 }
 
 /**
- * Translates the MQTT payload a state sink receives into the typed value of protocol section 7, at the
+ * Translates the state payload a state sink receives into the typed value of protocol section 7, at the
  * WebSocket edge only. A payload with no truthful typed form translates to null: the caller skips that
- * observation for the native transport and counts it, and MQTT is unaffected.
+ * observation for the native transport and counts it.
  */
 internal object PanelAssistantValueTranslation {
     /** Every non-text platform uses a literal `unknown` for a value the panel cannot currently read. */
@@ -119,7 +119,7 @@ internal object PanelAssistantValueTranslation {
     }
 
     /**
-     * Flat scalar attributes from an MQTT attributes payload: nested values, non-code keys and strings the
+     * Flat scalar attributes from a state attributes payload: nested values, non-code keys and strings the
      * integration would refuse are dropped rather than failing the parent observation. Null when the
      * payload is not a JSON object.
      */

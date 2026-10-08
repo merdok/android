@@ -119,20 +119,18 @@ internal object HaPresenceProtocol {
         areaResponse: JSONObject,
         entityResponse: JSONObject,
         states: JSONArray,
-        deviceUid: String,
-        panelId: String,
         panelAssistantEntryIds: Set<String>,
         preferredAreaName: String = "",
     ): HaPresenceAreaProjection {
         val devices = rows(deviceResponse.optJSONArray("result"), "device registry")
         val panelArea = projectPanelArea(
-            deviceResponse, areaResponse, deviceUid, panelId, panelAssistantEntryIds, preferredAreaName,
+            deviceResponse, areaResponse, panelAssistantEntryIds, preferredAreaName,
         )
         val entities = entityResponse.optJSONObject("result")?.optJSONArray("entities")
             ?: entityResponse.optJSONArray("result")
             ?: throw HaProtocolException("Home Assistant entity registry is incomplete")
 
-        val panelDeviceIds = panelDeviceIds(devices, deviceUid, panelId, panelAssistantEntryIds)
+        val panelDeviceIds = panelDeviceIds(devices, panelAssistantEntryIds)
         val panelAreaId = panelArea.id
         val panelAreaName = panelArea.name
 
@@ -214,8 +212,6 @@ internal object HaPresenceProtocol {
     fun projectPanelArea(
         deviceResponse: JSONObject,
         areaResponse: JSONObject,
-        deviceUid: String,
-        panelId: String,
         panelAssistantEntryIds: Set<String>,
         preferredAreaName: String = "",
     ): HaPanelArea {
@@ -230,7 +226,7 @@ internal object HaPresenceProtocol {
                     return HaPanelArea(id, name)
             }
         }
-        val device = panelDevice(devices, deviceUid, panelId, panelAssistantEntryIds)
+        val device = panelDevice(devices, panelAssistantEntryIds)
         val areaId = device.optString("area_id").trim().lowercase(Locale.ROOT)
         if (!validRegistryId(areaId)) throw HaProtocolException("Home Assistant panel device has no Area")
         val areaName = areas[areaId]?.optString("name")?.safeName() ?: areaId
@@ -362,16 +358,14 @@ internal object HaPresenceProtocol {
         registryIdOrNull(row, *keys) ?: throw HaProtocolException("Home Assistant registry row has no valid id")
 
     /**
-     * Every device row that is this panel, under either integration ([HaPanelDeviceMatcher.all]). A panel
-     * registered by both keeps its own entities on both, and each must stay out of the Area's sources.
+     * Every device row that is this panel ([HaPanelDeviceMatcher.all]); its own entities must stay out of
+     * the Area's sources.
      */
     private fun panelDeviceIds(
         devices: List<JSONObject>,
-        deviceUid: String,
-        panelId: String,
         panelAssistantEntryIds: Set<String>,
     ): Set<String> {
-        val matches = HaPanelDeviceMatcher.all(devices, deviceUid, panelId, panelAssistantEntryIds)
+        val matches = HaPanelDeviceMatcher.all(devices, panelAssistantEntryIds)
         if (matches.isEmpty()) throw HaProtocolException("Home Assistant panel device match is missing")
         return matches.mapNotNullTo(linkedSetOf()) { registryIdOrNull(it, "id", "device_id") }
             .takeIf(Set<String>::isNotEmpty)
@@ -381,10 +375,8 @@ internal object HaPresenceProtocol {
     /** The one device row whose Area is the panel's ([HaPanelDeviceMatcher.preferred]). */
     private fun panelDevice(
         devices: List<JSONObject>,
-        deviceUid: String,
-        panelId: String,
         panelAssistantEntryIds: Set<String>,
-    ): JSONObject = when (val match = HaPanelDeviceMatcher.preferred(devices, deviceUid, panelId, panelAssistantEntryIds)) {
+    ): JSONObject = when (val match = HaPanelDeviceMatcher.preferred(devices, panelAssistantEntryIds)) {
         is HaPanelDeviceMatcher.Match.Found -> match.device
         HaPanelDeviceMatcher.Match.Missing -> throw HaProtocolException("Home Assistant panel device match is missing")
         HaPanelDeviceMatcher.Match.Ambiguous -> throw HaProtocolException("Home Assistant panel device match is ambiguous")

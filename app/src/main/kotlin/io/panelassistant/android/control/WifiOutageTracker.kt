@@ -149,7 +149,7 @@ private fun outageNoun(count: Int): String = if (count == 1) "outage" else "outa
  * four-second dropout is worse than one that says nothing — but a panel dropping off Wi-Fi many
  * times a day is telling its owner the Wi-Fi needs attention, and without a counter nobody ever
  * learns that. Fed from the service's existing default-network callback; it never observes the
- * Home Assistant socket or the MQTT broker, whose restarts must not be blamed on the network.
+ * Home Assistant socket or another remote service, whose restarts must not be blamed on the network.
  *
  * One episode = a Wi-Fi default network was lost and later recovered onto Wi-Fi again. Both halves
  * of that sentence are load-bearing and neither is assumed:
@@ -172,7 +172,7 @@ private fun outageNoun(count: Int): String = if (count == 1) "outage" else "outa
  * episode is persisted as it is counted, so no restart can lose one. Nothing identifying is kept:
  * episode instants and a count, never an SSID, BSSID or MAC.
  *
- * Mutated on ConnectivityManager's binder thread; read from the MQTT heartbeat and HTTP threads.
+ * Mutated on ConnectivityManager's binder thread; read from the heartbeat and HTTP threads.
  */
 internal class WifiOutageTracker(
     private val store: WifiOutageStore? = null,
@@ -325,7 +325,7 @@ internal class WifiOutageTracker(
         forgetMergeAnchor()
     }
 
-    /** The rolling count for the MQTT diagnostic sensor and the Runtime diagnostics row. */
+    /** The rolling count for the diagnostic sensor and the Runtime diagnostics row. */
     @Synchronized
     fun counts(): WifiOutageCounts {
         val nowWall = wallClockMs()

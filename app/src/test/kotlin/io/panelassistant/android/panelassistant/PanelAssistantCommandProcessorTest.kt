@@ -66,20 +66,6 @@ class PanelAssistantCommandProcessorTest {
         assertEquals("refused" to "invalid_value", outcome(fixture.answers()))
     }
 
-    @Test fun `commands are refused unless the session holds native authority with commands granted`() {
-        listOf(
-            session(authority = "shadow", capabilities = listOf("state", "commands", "approval")),
-            session(authority = "mqtt", capabilities = listOf("commands")),
-            session(authority = "native", capabilities = listOf("state")),
-        ).forEach { refused ->
-            val fixture = Fixture(session = refused)
-            fixture.processor.onCommand(command("c1", "relay1", true, session = refused.token))
-
-            assertTrue(fixture.sink.submitted.isEmpty())
-            assertEquals("refused" to "authority_mismatch", outcome(fixture.answers()))
-        }
-    }
-
     @Test fun `undescribed, read-only and malformed commands are refused before anything runs`() {
         val fixture = Fixture()
         fixture.processor.onCommand(command("c1", "relay9", true))
@@ -329,8 +315,8 @@ class PanelAssistantCommandProcessorTest {
     private companion object {
         const val TTL_MS = 600_000L
 
-        fun session(authority: String = "native", capabilities: List<String> = listOf("state", "commands", "approval")) =
-            PanelAssistantSession(1, "session-token", authority, capabilities, "0.3.0")
+        fun session(capabilities: List<String> = listOf("state", "commands", "approval")) =
+            PanelAssistantSession(5, "session-token", capabilities, "0.3.0")
 
         val SESSION = session()
 

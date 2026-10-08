@@ -55,7 +55,7 @@ internal class DirectConfigPost(
      * Apply a POSTed config form/JSON (partial-merge), then live-reconfigure. Shared by the legacy
      * `/config` route and `/api/v1/config`. Fleet/JSON clients (Accept: application/json) get the new
      * config back; a browser form gets an HTML redirect to the info page. The bespoke handling of
-     * identity/MQTT/logging/tame keys is preserved; the formerly MQTT-only behaviour keys are applied
+     * identity/logging/tame keys is preserved; the formerly command-only behaviour keys are applied
      * through [applySetting] (same path as an HA command), and per-row HA-exposure toggles are stored.
      */
     suspend fun handle(
@@ -77,8 +77,7 @@ internal class DirectConfigPost(
         // admission decision below reads the posted parameters, and a handover that verified is an
         // ordinary `ha_url` write from here on.
         val handoverPost = onboarding.augmentPostWithVerifiedHandover(normalizedPost)
-        val onboardingPost = onboarding.augmentPostWithDiscoveredHaUrlForMqttOnboarding(handoverPost.parameters)
-        val p = onboardingPost.parameters
+        val p = handoverPost.parameters
         val postedValues = p.names().associateWith { p[it].orEmpty() }
         SettingsRegistry.automaticBrightnessBoundsError(
             postedValues, config.autoBrightnessMinimumPercent, config.autoBrightnessMaximumPercent,
@@ -272,7 +271,7 @@ internal class DirectConfigPost(
         // Partial-merge: apply ONLY keys present, so a fleet tool can set one field without clobbering
         // the rest. The UI form sends every key (blank = clear), preserving its full-replace behaviour.
         // Persisted fields are staged into one editor and committed atomically, so a power loss mid-apply
-        // can't leave a half-written config (e.g. broker set but credentials not). Live side-effects
+        // can't leave a half-written config (e.g. address set but credentials not). Live side-effects
         // (behaviour keys, reconfigure) run after the commit so they read freshly-committed state, and
         // renderer effects come from what changed against the pre-commit revision, never a read-back
         // inside applyBatch, which returns the pre-commit value.
@@ -361,7 +360,7 @@ internal class DirectConfigPost(
                     stageDirectLogShipping(config, postedValues)
                     // Credential groups carry dependent-clear semantics which cannot be represented as
                     // independent generic keys. Keep their actual owner in one production-used helper so
-                    // the behavioural contract can prove username/password and HA session transitions.
+                    // the behavioural contract can prove the HA session transitions.
                     credentialsChanged = stageDirectCredentialSettings(config, postedValues).haChanged
 
                     // Per-row "expose to HA" toggles (ha_expose_<key>=true|false) — take effect on the reconfigure.
@@ -376,7 +375,7 @@ internal class DirectConfigPost(
                 if (persisted && !mutationPlan.isNoOp) {
                     revisions.snapshot(requireNotNull(previous))
                     runCatching {
-                        // Home dashboard normally travels through the live MQTT-equivalent path. Apply this
+                        // Home dashboard normally travels through the live command path. Apply this
                         // one target-defining value before any renderer effect so owner-scoped filter state
                         // is rebound (or hidden) before a relaunched WebView can observe it.
                         mutationPlan.changedLive.firstOrNull { it.first == "home_dashboard" }?.let { (_, posted) ->
@@ -566,11 +565,6 @@ internal class DirectConfigPost(
             "Settings were saved; retrying hardware apply: ${it.joinToString()}. " +
                 "If they remain pending, restart the service."
         }
-        val onboardingSignInMessage = onboarding.mqttOnboardingSignInMessage(
-            onboardingPost.haUrlDiscovered,
-            mutationPlan.changedKeys,
-            onboardingPost.haDiscovery,
-        )
         // A handover that failed still saved the marker and the address, so this is a successful write
         // reporting an unsuccessful address — not an error. The authoritative state the integration
         // reads is `GET /api/v1/setup`, which carries the same verdict; this message exists so an
@@ -589,7 +583,7 @@ internal class DirectConfigPost(
             liveApplied,
             livePending,
             emptyList(),
-            pendingMessage ?: handoverMessage ?: onboardingSignInMessage,
+            pendingMessage ?: handoverMessage,
             if (livePending.isEmpty()) HttpStatusCode.OK else HttpStatusCode.Accepted,
         )
         } finally {

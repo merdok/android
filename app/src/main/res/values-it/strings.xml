@@ -61,19 +61,11 @@
     <string name="approval_op_power_safety_ack">Nascondi questa specifica avvertenza sulla sicurezza dell’alimentazione</string>
     <string name="approval_op_guard_db">Prosegui con il ripristino del database</string>
     <string name="approval_op_camera_enable">Attiva fotocamera del pannello</string>
-    <string name="approval_op_transport_release">Restituisci il controllo del pannello a MQTT</string>
 
     <string name="set_up">Configura</string>
     <string name="open_configuration">Apri configurazione</string>
     <string name="panel_not_set_up">Questo pannello non è ancora configurato.</string>
     <string name="panel_not_set_up_hint">Scansiona il codice o apri l’indirizzo seguente sul telefono o sul portatile: richiede circa due minuti. In alternativa, tocca %1$s per farlo su questo schermo.</string>
-    <string name="mqtt_could_not_connect">MQTT non è riuscito a connettersi.</string>
-    <string name="mqtt_credentials_rejected_hint">Il broker ha rifiutato il nome utente e la password: correggili nella pagina di configurazione in un browser.</string>
-    <string name="waiting_for_mqtt_details">In attesa dei dettagli MQTT.</string>
-    <string name="someone_configuring_hint">È in corso la configurazione da un browser. Non devi fare nulla qui.</string>
-    <string name="mqtt_address_check_hint">Controlla l’indirizzo del broker nella pagina di configurazione in un browser.</string>
-    <string name="checking_mqtt_connection">Verifica della connessione MQTT…</string>
-    <string name="takes_few_seconds_hint">Richiede alcuni secondi. Non devi fare nulla qui.</string>
     <string name="browser_engine_too_old">Il motore del browser di questo pannello è troppo vecchio.</string>
     <string name="browser_engine_too_old_hint">Le dashboard di Home Assistant ne richiedono uno più recente. Risolvi il problema nella pagina di configurazione in un browser.</string>
     <string name="choose_dashboard_app">Scegli un’app per la dashboard.</string>

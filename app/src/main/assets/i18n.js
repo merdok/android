@@ -37,7 +37,7 @@
   function interpolate(text, values) {
     if (!values || typeof values !== "object") return text;
     // Only named placeholders are substitutions. Unknown placeholders and all
-    // other bytes (HA, MQTT, package ids, URLs, versions and units) pass through.
+    // other bytes (HA, package ids, URLs, versions and units) pass through.
     return text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, function (placeholder, name) {
       return own.call(values, name) ? String(values[name]) : placeholder;
     });

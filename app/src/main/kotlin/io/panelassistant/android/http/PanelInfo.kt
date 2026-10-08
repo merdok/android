@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Gathers the panel facts shown on the info page (`GET /`). Static device/version facts live here;
- * runtime status (MQTT/LED/sensors) is passed in as [extras] by the service, which owns those
+ * runtime status (Panel Assistant/LED/sensors) is passed in as [extras] by the service, which owns those
  * objects. Returns an ordered map rendered verbatim as a key/value table.
  */
 object PanelInfo {

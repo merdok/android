@@ -61,14 +61,14 @@ while [ "$#" -gt 0 ]; do case "$1" in
     shift 2
     while [ "$#" -gt 0 ]; do
       case "$1" in
-        --mqtt-pass|--ha-token|--ha-pass)
+        --ha-token|--ha-pass)
           [ "$#" -ge 2 ] && [ -n "${2:-}" ] && [ "${2#--}" = "$2" ] ||
             { echo "$1 needs a value" >&2; exit 2; }
           claim_provision_secret "${1#--}"
           materialize_provision_secret "$1" "$2"
           shift 2
           ;;
-        --mqtt-pass-file|--ha-token-file|--ha-pass-file)
+        --ha-token-file|--ha-pass-file)
           [ "$#" -ge 2 ] && [ -n "${2:-}" ] && [ "${2#--}" = "$2" ] ||
             { echo "$1 needs a value" >&2; exit 2; }
           file_kind="${1#--}"; file_kind="${file_kind%-file}"
@@ -76,7 +76,7 @@ while [ "$#" -gt 0 ]; do case "$1" in
           PROVISION_ARGS+=("$1" "$2")
           shift 2
           ;;
-        --id|--mqtt|--mqtt-user|--log-host|--log-port|--log-proto|--ha-url|--ha-user|--export|--restore|--restore-fleet|--home-dashboard|--entity-filter)
+        --id|--log-host|--log-port|--log-proto|--ha-url|--ha-user|--export|--restore|--restore-fleet|--home-dashboard|--entity-filter)
           [ "$#" -ge 2 ] && [ -n "${2:-}" ] && [ "${2#--}" = "$2" ] ||
             { echo "$1 needs a value" >&2; exit 2; }
           PROVISION_ARGS+=("$1" "$2")
@@ -126,7 +126,7 @@ if [ "$ADVANCED_PROVISION" = 1 ]; then
     case "$option" in
       --export) HAS_EXPORT=1; i=$((i + 2)) ;;
       --verify) HAS_VERIFY=1; i=$((i + 1)) ;;
-      --id|--mqtt|--mqtt-user|--mqtt-pass-file|--log-host|--log-port|--log-proto|--ha-url|--ha-token-file|--ha-user|--ha-pass-file|--restore|--restore-fleet|--home-dashboard|--entity-filter)
+      --id|--log-host|--log-port|--log-proto|--ha-url|--ha-token-file|--ha-user|--ha-pass-file|--restore|--restore-fleet|--home-dashboard|--entity-filter)
         HAS_OTHER=1; i=$((i + 2)) ;;
       *) HAS_OTHER=1; i=$((i + 1)) ;;
     esac

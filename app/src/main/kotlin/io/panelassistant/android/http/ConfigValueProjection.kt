@@ -105,8 +105,8 @@ internal class ConfigValueProjection(
     fun concurrencyHash(values: Map<String, String> = currentValues()): String =
         io.panelassistant.android.config.ConfigHash.of(configConcurrencyValues(values))
 
-    /** Full config as JSON for fleet management. The MQTT password is never emitted — only a boolean
-     *  saying whether one is set. `http_port` is read-only (changing it needs a restart). */
+    /** Full config as JSON for fleet management. No credential is ever emitted: secret settings read
+     *  blank. `http_port` is read-only (changing it needs a restart). */
     fun configJson(
         mutationStatus: String? = null,
         applied: List<String> = emptyList(),
@@ -137,9 +137,6 @@ internal class ConfigValueProjection(
             "\"manufacturer\":${s(config.manufacturer)}," +
             "\"model\":${s(config.model)}," +
             "\"http_port\":${config.httpPort}," +
-            "\"mqtt_broker\":${s(config.mqttBroker)}," +
-            "\"mqtt_user\":${s(config.mqttUser)}," +
-            "\"mqtt_password_set\":${config.mqttPassword.isNotEmpty()}," +
             "\"network_address_family\":${s(config.addressFamily)}," +
             "\"dashboard_package\":${s(config.dashboardPackage)}," +
             "\"launcher_package\":${s(config.launcherPackage)}," +
@@ -180,9 +177,7 @@ internal class ConfigValueProjection(
         val displaySizingAvailable = caps.canSetDisplay
         // Include the settable settings PLUS the read-only HA sensors (diagnostics): the latter carry
         // no editable value but still render an expose pip, so the user can opt them into HA.
-        val mqttSetupRequired = SetupBanner.mqttSetupRequired(config.panelAssistantAuthority)
         val schemaSpecs = SettingsRegistry.schemaVisibleSpecs(caps)
-            .filter { it.group != "MQTT" || mqttSetupRequired }
         val items = schemaSpecs.joinToString(",") { spec ->
             val options = spec.optionsFor(caps)
             val opts = options.joinToString(",") { s(it) }

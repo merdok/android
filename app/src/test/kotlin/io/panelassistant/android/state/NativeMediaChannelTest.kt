@@ -1,6 +1,6 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
-import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.media.MediaStream
 import io.panelassistant.android.media.PanelMediaPlayer
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
@@ -12,8 +12,8 @@ import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
-/** The `media` channel through the real bridge: described by profile, commanded natively, never on MQTT. */
-internal class NativeMediaChannelTest : MqttWireRig() {
+/** The `media` channel through the real state core and dispatcher: described by profile, commanded natively. */
+internal class NativeMediaChannelTest : PanelRuntimeRig() {
     private class Recorded(val url: String, val onPrepared: () -> Unit) : MediaStream {
         override val durationMs = 60_000
         override fun start() {}
@@ -34,9 +34,9 @@ internal class NativeMediaChannelTest : MqttWireRig() {
     )
 
     @Test(timeout = 60_000)
-    fun aSpeakerPanelDescribesMediaAndRunsItsCommandsWithoutMqtt() {
+    fun aSpeakerPanelDescribesMediaAndRunsItsCommands() {
         val media = player()
-        val rig = rig(runtimeBroker = "", media = media)
+        val rig = rig(media = media)
         val observed = CopyOnWriteArrayList<String>()
         rig.core.addStateSink { channel, observation, done ->
             if (channel == "media") observed += (observation as StateConverger.Observation.Known).payload
@@ -66,10 +66,6 @@ internal class NativeMediaChannelTest : MqttWireRig() {
                 PanelAssistantCommandResult.Refused("invalid_value"),
                 submitNative(rig, "media", """{"action":"play","url":"ftp://x/y","announce":false}"""),
             )
-            assertTrue(
-                "media never reaches MQTT",
-                rig.transport.snapshot().none { it.contains("/media/") },
-            )
         } finally {
             rig.close()
         }
@@ -77,7 +73,7 @@ internal class NativeMediaChannelTest : MqttWireRig() {
 
     @Test(timeout = 60_000)
     fun aPanelWithoutASpeakerStatesMediaUnsupported() {
-        val rig = rig(runtimeBroker = "", media = null)
+        val rig = rig(media = null)
         try {
             rig.start()
             val shape = rig.core.nativeChannelShape()

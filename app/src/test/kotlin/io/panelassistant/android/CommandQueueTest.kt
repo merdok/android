@@ -626,7 +626,7 @@ class CommandQueueTest {
     }
 
     @Test fun instrumentationKeyIsFixedAndPublicSafe() {
-        assertEquals("mqtt.command_dispatch", FeatureCostOperation.MQTT_COMMAND_DISPATCH.id)
+        assertEquals("mqtt.command_dispatch", FeatureCostOperation.COMMAND_DISPATCH.id)
     }
 
     @Test fun admittedHandlerExceptionIsDistinguishedFromClosedAdmission() {

@@ -105,6 +105,6 @@ class TouchSoundDriftContractTest {
 
         assertTrue(handler.contains("config.commitTouchSound(on)"))
         assertTrue(handler.indexOf("config.commitTouchSound(on)") < handler.indexOf("touchSound.apply(on)"))
-        assertTrue(handler.contains("""core.reconcile("touch_sound", force = true)"""))
+        assertTrue(handler.contains("""core.reconcile("touch_sound")"""))
     }
 }

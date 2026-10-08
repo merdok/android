@@ -64,7 +64,7 @@ internal class DashboardRows(
         return displayCell(v, size)
     }
 
-    private val NET_KEYS = listOf("Local IP", "Local IPv6", "HTTP port", "MQTT", "mDNS", "Network ADB")
+    private val NET_KEYS = listOf("Local IP", "Local IPv6", "HTTP port", "mDNS", "Network ADB")
     private val HA_LIFECYCLE_FACT = "HA lifecycle"
     private val HA_NETWORK_FACT = "HA network path"
     private val HA_RENDERER_FACT = "HA renderer"
@@ -79,7 +79,7 @@ internal class DashboardRows(
     // measured path to the server every row below depends on, and the likeliest reason a dashboard
     // that IS rendered still feels broken.
     private val CONTEXT_KEYS = listOf(
-        "Wi-Fi stability", HA_NETWORK_FACT, HA_RENDERER_FACT, "MQTT state", "State convergence", "Local-state sync",
+        "Wi-Fi stability", HA_NETWORK_FACT, HA_RENDERER_FACT, "Local-state sync",
         "App database", "Security mode", "Audio playback", CAMERA_FACT, "Log shipping", HA_LIFECYCLE_FACT,
     )
     private val BEHAVIOUR_FACT_KEYS = setOf(

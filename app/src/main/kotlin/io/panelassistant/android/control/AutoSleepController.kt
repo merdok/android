@@ -57,8 +57,6 @@ internal data class AutoSleepManagerHandle(
 
 internal data class AutoSleepRuntimeConfig(
     val enabled: Boolean,
-    val deviceUid: String,
-    val panelId: String,
     val haUrl: String,
     /** Locally configured area name (`ha_area`); presence sources come from here when it is set. */
     val haArea: String = "",
@@ -130,7 +128,7 @@ internal class AutoSleepController private constructor(
         screen = screen,
         configuration = {
             AutoSleepRuntimeConfig(
-                config.autoSleep, config.deviceUid, config.panelId, config.haUrl, config.haArea, config.autoSleepSource,
+                config.autoSleep, config.haUrl, config.haArea, config.autoSleepSource,
                 config.autoSleepTouchDelaySeconds, panelAssistantDiscoveryId(config.deviceUid),
             )
         },
@@ -185,7 +183,7 @@ internal class AutoSleepController private constructor(
     private val projectionRevision = AtomicLong()
 
     @Volatile private var admission = Admission.OPEN
-    private var configured = AutoSleepRuntimeConfig(false, "", "", "", "")
+    private var configured = AutoSleepRuntimeConfig(false, "", "")
     @Volatile private var status = Status()
     private var aggregate = HaPresenceAggregate()
     private var decision: AutoSleepDecision? = null
@@ -247,7 +245,7 @@ internal class AutoSleepController private constructor(
 
     suspend fun prerequisite(): HaPanelAreaPrerequisite {
         val current = configuration()
-        return manager.prerequisite(current.deviceUid, current.panelId, current.haArea, current.discoveryId)
+        return manager.prerequisite(current.haArea, current.discoveryId)
     }
 
     /** Counterfactual history using today's policy/lease and HA Area-source history only. */
@@ -638,8 +636,6 @@ internal class AutoSleepController private constructor(
         }
         manager.configure(HaPresenceRequest(
             enabled = next.value.enabled && next.value.source == "home_assistant",
-            deviceUid = next.value.deviceUid,
-            panelId = next.value.panelId,
             controllerEpoch = next.epoch,
             preferredAreaName = next.value.haArea,
             discoveryId = next.value.discoveryId,

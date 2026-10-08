@@ -5,7 +5,7 @@ import java.util.Locale
 /**
  * User-owned bound on address-family selection for every connection the panel makes to Home Assistant:
  * the Panel Assistant transport, the Home Assistant WebSockets, Assist, presence, entity learning, the
- * HA link and, while it exists, MQTT.
+ * HA link.
  */
 internal enum class AddressFamilyPolicy(
     val configValue: String,

@@ -13,10 +13,10 @@ class DashboardProductPositioningTest {
     ).getJSONObject("strings")
     private fun english(key: String): String = english.getJSONObject(key).getString("text")
 
-    @Test fun builtinRendererSignInGuidanceCatalogueContractDoesNotLookLikeTheMqttStepFailed() {
+    @Test fun builtinRendererSignInGuidanceCatalogueContractDoesNotLookLikeAStepFailed() {
         val title = english("dashboard.banner.ha_sign_in.title")
         val explanation = english("dashboard.banner.ha_sign_in.explanation")
-        assertTrue(title.startsWith("MQTT is configured. Next:"))
+        assertTrue(title.startsWith("Next:"))
         assertTrue(explanation.contains("ha-paneld's built-in renderer is selected"))
         assertFalse(title.contains("failed", ignoreCase = true))
         assertFalse(explanation.contains("failed", ignoreCase = true))

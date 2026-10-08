@@ -388,9 +388,9 @@ object DiagReader {
 
     private val PUBLIC_PANEL_FACTS = setOf(
         "ha-paneld", "Android", "Firmware", "Device", "CPU", "RAM", "Storage", "Display",
-        "System WebView", "HA Companion", "MQTT state", "Security mode", "Keep panel responsive", "Prevent idle dim", "Android dashboard lock",
+        "System WebView", "HA Companion", "Security mode", "Keep panel responsive", "Prevent idle dim", "Android dashboard lock",
         "LED", "Nav actions (a11y)", "Navbar", "Zigbee", "Relays", "Network ADB", "Audio playback",
-        "App database", "Product version", "Local-state sync", "State convergence", WIFI_STABILITY_FACT,
+        "App database", "Product version", "Local-state sync", WIFI_STABILITY_FACT,
     )
 
     /**

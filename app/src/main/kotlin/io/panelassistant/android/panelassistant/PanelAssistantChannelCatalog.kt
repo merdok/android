@@ -5,16 +5,14 @@ import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingSpec
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.ZigbeeHealthState
-import io.panelassistant.android.mqttButtonEventTypes
 import io.panelassistant.android.state.SoftwareComponent
-import io.panelassistant.android.mqtt.SoftwareUpdateEntities
 import io.panelassistant.android.storage.StorageHealthSeverity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** How an MQTT state payload becomes a typed value on the native transport (protocol section 7). */
+/** How a converger state payload becomes a typed value on the native transport (protocol section 7). */
 internal enum class PanelAssistantValueKind { BOOLEAN, NUMBER, OPTION, TEXT, LIGHT, UPDATE, BUTTON, MEDIA, IMAGE, EVENT }
 
 /** One channel as the `hello` describes it. Codes and facts only, never display text. */
@@ -32,7 +30,7 @@ internal data class PanelAssistantChannelDescriptor(
     val unit: String? = null,
     val stateClass: String? = null,
     val forceUpdate: Boolean = false,
-    /** The closed value set: each wire code with the label the MQTT handlers and state payloads use. */
+    /** The closed value set: each wire code with the label the handlers and state payloads use. */
     val choices: List<ChannelOption>? = null,
     val min: Number? = null,
     val max: Number? = null,
@@ -65,16 +63,23 @@ internal data class PanelAssistantChannelDescriptor(
 }
 
 /**
- * The native transport's view of the converger's channels, read from the same definitions the MQTT edge
- * serialises: registry-backed entities from their [SettingsRegistry] channel id and typed facts, and the
- * hand-written discovery entities from the typed descriptors below, which mirror the literals in
- * `MqttBridge.publishDiscovery`. `unique_suffix` is always today's MQTT unique id after `<panel>_`.
+ * The native transport's view of the converger's channels: registry-backed entities from their
+ * [SettingsRegistry] channel id and typed facts, and the remaining entities from the typed descriptors
+ * below. `unique_suffix` is the entity's historical unique id after `<panel>_`, so existing entities keep
+ * their identity.
  *
- * Two converger channels are MQTT plumbing rather than channels on the wire: their attribute payloads
- * are folded into the parent channel's observation (protocol section 16). The update channels are
- * renamed to their wire ids.
+ * The attribute channels are converger plumbing rather than channels on the wire: their payloads are
+ * folded into the parent channel's observation (protocol section 16). The update channels are renamed to
+ * their wire ids.
  */
 internal object PanelAssistantChannelCatalog {
+    /** The button events every panel reports; a profile adds its own ([buttonDescriptor]). */
+    private val COMMON_BUTTON_EVENT_TYPES = setOf(
+        "KEYCODE_POWER", "KEYCODE_MUTE", "KEYCODE_F", "KEYCODE_F1", "KEYCODE_F2", "KEYCODE_F3",
+        "KEYCODE_F4", "KEYCODE_BACK", "KEYCODE_HOME", "KEYCODE_DPAD_CENTER", "KEYCODE_VOLUME_UP",
+        "KEYCODE_VOLUME_DOWN",
+    )
+
     /** Known former channels: hello states their retirement so existing native entities are removed. */
     val RETIRED_CHANNELS: Set<String> = setOf(
         "self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update",
@@ -92,7 +97,7 @@ internal object PanelAssistantChannelCatalog {
         SoftwareUpdates.stateChannelKey(it) to "update_${it.wire}"
     }
 
-    /** The wire channel an MQTT converger channel reports on; null for a folded attribute channel. */
+    /** The wire channel a converger channel reports on; null for a folded attribute channel. */
     fun wireChannel(converger: String): String? =
         if (converger in FOLDED) null else RENAMED[converger] ?: converger
 
@@ -176,23 +181,25 @@ internal object PanelAssistantChannelCatalog {
             uniqueSuffix = channel,
             kind = if (choices == null) PanelAssistantValueKind.BOOLEAN else PanelAssistantValueKind.OPTION,
             entityCategory = "config",
-            // No MQTT entity exists for these today (protocol section 15).
+            // Wire-only settings (protocol section 15).
             enabledDefault = false,
             choices = choices,
         )
 
     /**
-     * The hardware button event channel, whose event types are the MQTT event types this profile adds to the
-     * common set. The wire carries lowercase codes (protocol codes are lowercase); each code's label is the
-     * `KEYCODE_…` name the button bus emits and MQTT publishes.
+     * The hardware button event channel, whose event types are the common set plus those this profile adds.
+     * The wire carries lowercase codes (protocol codes are lowercase); each code's label is the `KEYCODE_…`
+     * name the button bus emits.
      */
     fun buttonDescriptor(profileEventTypes: Set<String> = emptySet()) = PanelAssistantChannelDescriptor(
         channel = "button", platform = "event", translationKey = "button", uniqueSuffix = "button",
         kind = PanelAssistantValueKind.EVENT,
-        choices = mqttButtonEventTypes(profileEventTypes).map { ChannelOption(it.lowercase(Locale.ROOT), it) },
+        choices = (COMMON_BUTTON_EVENT_TYPES + profileEventTypes).sorted()
+            .map { ChannelOption(it.lowercase(Locale.ROOT), it) },
     )
 
-    /** A value set whose MQTT payloads are already the codes. */
+
+    /** A value set whose state payloads are already the codes. */
     private fun sameAsCode(codes: List<String>) = codes.map { ChannelOption(it, it) }
 
     private val HAND_WRITTEN: Map<String, PanelAssistantChannelDescriptor> = listOf(
@@ -208,7 +215,7 @@ internal object PanelAssistantChannelCatalog {
             channel = "buttons", platform = "light", translationKey = "buttons", uniqueSuffix = "buttons",
             kind = PanelAssistantValueKind.LIGHT,
         ),
-        // Native only: MQTT has no media_player platform (protocol section 18).
+        // The media player (protocol section 18).
         PanelAssistantChannelDescriptor(
             channel = "media", platform = "media_player", translationKey = "media", uniqueSuffix = "media",
             kind = PanelAssistantValueKind.MEDIA,
@@ -255,7 +262,7 @@ internal object PanelAssistantChannelCatalog {
             channel = wire,
             platform = "update",
             translationKey = wire,
-            uniqueSuffix = SoftwareUpdateEntities.uniqueId("", component).removePrefix("_"),
+            uniqueSuffix = "${component.objectSuffix}_update",
             kind = PanelAssistantValueKind.UPDATE,
             entityCategory = "config",
         )

@@ -437,9 +437,9 @@ JSON
   *'/api/v1/config/export?include_secrets=1')
     [ "${MOCK_EXPORT:-ok}" = "ok" ] || exit 22
     if [ -n "$output_file" ]; then
-      printf '{"panel_id":"test-panel","mqtt_broker":""}\n' > "$output_file"
+      printf '{"panel_id":"test-panel"}\n' > "$output_file"
     else
-      printf '{"panel_id":"test-panel","mqtt_broker":""}\n'
+      printf '{"panel_id":"test-panel"}\n'
     fi
     ;;
   */api/v1/hand-back-home)
@@ -548,7 +548,7 @@ JSON
       [ "${MOCK_CONFIG:-ok}" = "ok" ] || exit 22
       printf '{"ok":true}\n'
     else
-      printf '{"panel_id":"test-panel","mqtt_broker":"","dashboard_package":"%s"}\n' "${MOCK_DASHBOARD_PACKAGE:-}"
+      printf '{"panel_id":"test-panel","dashboard_package":"%s"}\n' "${MOCK_DASHBOARD_PACKAGE:-}"
     fi
     ;;
   */api/v1/setup)
@@ -573,16 +573,13 @@ JSON
         printf '{%s"complete":true,"repair":false,"next":null,"panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"identity","status":"satisfied","blocking":true,"detail":"test-panel"}]}\n' "$renderer_field"
         ;;
       identity)
-        printf '{%s"complete":false,"repair":false,"next":"identity","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"identity","status":"blocked","blocking":true,"detail":"test-panel"},{"stage":"mqtt_broker","status":"blocked","blocking":false,"detail":""}]}\n' "$renderer_field"
+        printf '{%s"complete":false,"repair":false,"next":"identity","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"identity","status":"blocked","blocking":true,"detail":"test-panel"}]}\n' "$renderer_field"
         ;;
       home_dashboard)
         printf '{%s"complete":false,"repair":false,"next":"home_dashboard","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"ha_credentials","status":"satisfied","blocking":true,"detail":"https://ha.test"},{"stage":"home_dashboard","status":"blocked","blocking":true,"detail":""}]}\n' "$renderer_field"
         ;;
       ha_credentials)
         printf '{%s"complete":false,"repair":false,"next":"ha_credentials","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"identity","status":"satisfied","blocking":true,"detail":"test-panel"},{"stage":"ha_credentials","status":"blocked","blocking":true,"detail":"https://ha.test"}]}\n' "$renderer_field"
-        ;;
-      mqtt_auth_failed)
-        printf '{%s"complete":false,"repair":false,"next":"mqtt_connection","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"mqtt_broker","status":"satisfied","blocking":false,"detail":"tcp://broker.test:1883"},{"stage":"mqtt_connection","status":"blocked","blocking":false,"detail":"auth-failed"}]}\n' "$renderer_field"
         ;;
       in_flight)
         printf '{%s"complete":false,"repair":false,"next":"render_proof","panel":{"id":"test-panel","name":"Test"},"steps":[{"stage":"ha_credentials","status":"satisfied","blocking":true,"detail":"https://ha.test"},{"stage":"render_proof","status":"in_flight","blocking":true,"detail":"awaiting_frontend"}]}\n' "$renderer_field"

@@ -13,7 +13,7 @@ import io.panelassistant.android.util.CompanionInstaller
  *
  * ⚠️ Least-certain capability: depends on the Companion build honouring an external VIEW intent for
  * in-app navigation. Needs on-device validation; the deep-link contract may differ by build. The
- * uniform `text.<panel>_navigate` MQTT entity is stable regardless of how this resolves.
+ * uniform `text.<panel>_navigate` entity is stable regardless of how this resolves.
  */
 class NavigateController(private val context: Context) {
 

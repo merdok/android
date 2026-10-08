@@ -154,7 +154,7 @@
       return;
     }
     cfg.saving = true;
-    // Fence any mDNS suggestions computed against the pre-save broker/HA baseline.
+    // Fence any mDNS suggestions computed against the pre-save HA baseline.
     cfg.configDiscoveryRequest++;
     var submittedGeneration = cfg.editGeneration;
     updateSaveUi();
@@ -390,7 +390,7 @@
       // Never rebuild the form over an edit made while the bounded mDNS browse was in flight.
       if (request !== cfg.configDiscoveryRequest || cfg.dirty) return;
       var applied = false;
-      ["mqtt_broker", "ha_url"].forEach(function (key) {
+      ["ha_url"].forEach(function (key) {
         var suggestion = suggestions && suggestions[key];
         if (!suggestion || cfg.values[key] || cfg.savedValues[key] || cfg.dirtyValues[key]) return;
         cfg.values[key] = String(suggestion);

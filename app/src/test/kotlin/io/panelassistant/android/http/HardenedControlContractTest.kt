@@ -7,7 +7,7 @@ import org.junit.Test
 
 class HardenedControlContractTest {
     // Source-text reason: the remote command handlers need the Android service to construct.
-    private val mqtt by lazy {
+    private val dispatcher by lazy {
         TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
     }
 
@@ -22,47 +22,43 @@ class HardenedControlContractTest {
         return englishStrings.substringAfter(marker).substringBefore("</string>")
     }
 
-    @Test fun mqttExplicitInstallsAndRebootRemainApprovalGated() {
-        val dispatch = mqtt.substring(mqtt.indexOf("private fun dispatch(channel"), mqtt.indexOf("private fun handleSoftwareCommand"))
-        assertTrue(dispatch.contains("\"update_companion\" ->"))
-        assertTrue(dispatch.contains("\"update_paneld\" ->"))
+    @Test fun remoteRebootAndReloadRemainApprovalGated() {
+        val dispatch = dispatcher.substring(dispatcher.indexOf("private fun dispatch(channel"), dispatcher.indexOf("private fun handleScreen"))
         assertTrue(dispatch.contains("\"reboot\" ->"))
-        assertTrue(dispatch.contains("SensitiveOperation.APK_INSTALL"))
         assertTrue(dispatch.contains("SensitiveOperation.DEVICE_REBOOT"))
 
         // Hardened mode publishes a closed list of operations it protects, and a dashboard reload is on
-        // it. The MQTT arm shipped ungated while the HTTP route was gated, so a documented protection
+        // it. A remote command arm once shipped ungated while the HTTP route was gated, so a documented protection
         // was absent on the transport an automation actually uses. Approval must precede the reload.
         val reloadArm = dispatch.substring(dispatch.indexOf("\"reload\" ->"), dispatch.indexOf("\"reboot\" ->"))
         assertTrue(reloadArm.contains("SensitiveOperation.DASHBOARD_RELOAD"))
         assertTrue(reloadArm.indexOf("authorizeRemoteSensitive(") < reloadArm.indexOf("system.reloadDashboard("))
 
-        val serviceApply = mqtt.substring(mqtt.indexOf("internal fun applySetting"), mqtt.indexOf("fun stop(deadline: MonotonicDeadline)"))
+        val serviceApply = dispatcher.substring(dispatcher.indexOf("internal fun applySetting"), dispatcher.indexOf("fun stop(deadline: MonotonicDeadline)"))
         assertTrue(serviceApply.contains("sensitiveApprovalRequired = false"))
         assertTrue(serviceApply.contains("dispatchLiveSetting("))
         assertTrue(serviceApply.contains("handlers = this"))
-        assertFalse(serviceApply.contains("\"mqtt\""))
     }
 
-    @Test fun networkAdbCannotBeEnabledOverMqttUnderHardenedMode() {
-        val handler = mqtt.substring(mqtt.indexOf("override fun handleNetAdb"), mqtt.indexOf("private fun authorizeRemoteSensitive"))
+    @Test fun networkAdbCannotBeEnabledRemotelyUnderHardenedMode() {
+        val handler = dispatcher.substring(dispatcher.indexOf("override fun handleNetAdb"), dispatcher.indexOf("private fun authorizeRemoteSensitive"))
         assertTrue(handler.contains("on && config.hardenedSecurityEnabled"))
         assertFalse(handler.contains("LocalApprovalBroker"))
     }
 
-    @Test fun mqttPowerSafetyReductionsCannotBypassApproval() {
-        val handler = mqtt.substring(
-            mqtt.indexOf("override fun handlePreventIdleDim"),
-            mqtt.indexOf("override fun handleTouchSound"),
+    @Test fun remotePowerSafetyReductionsCannotBypassApproval() {
+        val handler = dispatcher.substring(
+            dispatcher.indexOf("override fun handlePreventIdleDim"),
+            dispatcher.indexOf("override fun handleTouchSound"),
         )
         assertTrue(handler.contains("PowerSafetyMutationPolicy.parseGuardSwitch(payload)"))
         assertTrue(handler.contains("SensitiveOperation.POWER_CONFIGURATION"))
         assertTrue(handler.contains("\"prevent_idle_dim\\u0000${'$'}payload\""))
         assertTrue(handler.indexOf("authorizeRemoteSensitive(") < handler.indexOf("config.setPreventIdleDim(on)"))
 
-        val dispatch = mqtt.substring(
-            mqtt.indexOf("internal fun dispatchLiveSetting"),
-            mqtt.indexOf("internal fun liveSettingApplyResult"),
+        val dispatch = dispatcher.substring(
+            dispatcher.indexOf("internal fun dispatchLiveSetting"),
+            dispatcher.indexOf("internal fun liveSettingApplyResult"),
         )
         assertTrue(dispatch.contains("if (sensitiveApprovalRequired) value else onOff"))
     }

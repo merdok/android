@@ -1,18 +1,16 @@
 package io.panelassistant.android.config
 
-import io.panelassistant.android.util.Json
-
 /**
  * Declarative settings registry — the single source of truth for ha-paneld configuration.
  *
  * A [SettingSpec] describes one setting once; three consumers read it so they can never drift:
  *  1. the HTTP `/api/v1/config` API (validation + accept + the form-generation schema),
- *  2. Home Assistant MQTT discovery ([HaEntity] → discovery payload, gated by per-panel exposure),
+ *  2. the Home Assistant channel descriptions ([HaEntity], gated by per-panel exposure),
  *  3. config bundle export/import + on-panel revision history.
  *
  * Everything in this package is **pure / Android-free** so it runs on the plain JVM unit-test
  * classpath (which has no `org.json` and no Android stubs). JSON is hand-built by string
- * concatenation here — matching the existing `PaneldServer.configJson()` / `MqttBridge` style —
+ * concatenation here — matching the existing `PaneldServer.configJson()` style —
  * and parsing of inbound JSON happens at the Android edge, handing a plain `Map<String,String>`
  * to this layer.
  */
@@ -41,9 +39,8 @@ sealed class Validation {
 }
 
 /**
- * Immutable capability snapshot for a single panel. Built by the service from the same profile +
- * runtime probes it already feeds `MqttBridge`, then consumed by [SettingSpec.availableWhen] and the
- * discovery loop. Plain data class so both stay unit-testable without Android.
+ * Immutable capability snapshot for a single panel. Built by the service from the profile and runtime
+ * probes, then consumed by [SettingSpec.availableWhen] and the channel description. Plain data class so both stay unit-testable without Android.
  */
 data class Capabilities(
     val hasProximity: Boolean = false,
@@ -88,81 +85,37 @@ data class Capabilities(
     // ha-paneld's own dark_mode toggle (Android 9- panels have no such control, so ours fills the gap).
     val hasSystemDarkMode: Boolean = false,
     // Runtime-only privilege routes. These describe what the panel can do now; they are never config
-    // switches and therefore cannot be imported or changed through MQTT/HTTP.
+    // switches and therefore cannot be imported or changed through Home Assistant or HTTP.
     val canCaptureAndInput: Boolean = false,
     val canSetDisplay: Boolean = false,
 )
 
 /**
- * Home Assistant discovery descriptor for a setting/control. `null` on a [SettingSpec] means the
+ * Home Assistant entity descriptor for a setting/control. `null` on a [SettingSpec] means the
  * setting is never an HA entity (e.g. panel_id, log sink host).
- *
- * [body] holds the entity-specific middle of the discovery JSON — every field between `unique_id`
- * and the shared `availability` + `device` fragments — with `{panel}` as the topic placeholder.
- * [haEntity] renders it field by field in the declared order (rather than re-deriving field order), which
- * keeps discovery stable apart from explicit descriptor-level policy fields such as the bounded
- * measurement refresh below.
  */
 data class HaEntity(
     val component: String,        // light | switch | number | select | sensor | binary_sensor | text | button | event
     val objectSuffix: String,     // unique_id/object_id suffix; full id = "<panel>_<objectSuffix>"
     val name: String,             // HA entity name ("Wake on wave")
-    // Entity-specific fields, comma-joined, no leading/trailing comma. {panel} = panel id. {options} =
-    // the capability-filtered ENUM choices as a JSON array; use it instead of a literal list only when
-    // the spec carries `optionRequires`, so every other entity's payload stays a fixed string.
-    val body: String,
     val readOnly: Boolean = false,// publish-only (sensors): no /api/v1/config row, value comes from the runtime
     /** Opt this numeric measurement into bounded unchanged-value reports. Home Assistant needs
      *  force_update to turn those reports into graph/recorder points; controls and attributes must not
      *  inherit it because their duplicate reports can wake automations or grow unrelated history. */
     val periodicRefresh: Boolean = false,
-    /** The channel id: the topic leaf on MQTT and the channel on the native transport. Usually the
-     *  [objectSuffix]; `voice_enabled` keeps its historical `voice_assistant` unique id. */
+    /** The channel id on the native transport. Usually the [objectSuffix]; `voice_enabled` keeps its
+     *  historical `voice_assistant` unique id. */
     val channel: String = objectSuffix,
-    /** The transport-neutral facts both serialisations take, rendered into [body] where declared. */
+    /** The facts the channel description carries. */
     val facts: ChannelFacts = ChannelFacts(),
-) {
-    /** State topic this entity reports on, e.g. `ha-paneld/<panel>/wake_on_wave/state`. */
-    fun stateTopic(panel: String): String = "ha-paneld/$panel/$channel/state"
-
-    /**
-     * Build the discovery payload. Entities without an explicit descriptor-level policy remain
-     * byte-identical to the legacy hand-written JSON.
-     * [deviceJson] is the shared `"device":{...}` fragment, [availJson] the shared availability
-     * fragment — both produced once per publish by the caller. [enabledByDefault]=false appends the
-     * soft-hide flag (entity exists in HA but disabled → no recorder load) for the advanced hide mode.
-     * [optionsJson] substitutes the `{options}` placeholder for a capability-filtered select; a body
-     * without the placeholder is unaffected, so this cannot perturb any other entity's bytes.
-     */
-    fun buildDiscoveryJson(
-        panel: String,
-        availJson: String,
-        deviceJson: String,
-        enabledByDefault: Boolean = true,
-        optionsJson: String? = null,
-    ): String {
-        val edb = if (enabledByDefault) "" else ""","enabled_by_default":false"""
-        val forceUpdate = if (periodicRefresh) ""","force_update":true""" else ""
-        // object_id keys the HA entity_id to the stable panel_id, not the cosmetic device name —
-        // matches the hand-written discovery payloads (discovery-identity anchoring).
-        return "{\"name\":\"${jsonEsc(name)}\",\"object_id\":\"${panel}_$objectSuffix\"," +
-            "\"unique_id\":\"${panel}_$objectSuffix\"," +
-            body.replace("{panel}", panel).replace("{options}", optionsJson.orEmpty()) +
-            forceUpdate + edb + ",$availJson,$deviceJson}"
-    }
-
-    companion object {
-        fun jsonEsc(s: String): String = Json.esc(s)
-    }
-}
-
+)
 /**
- * One value of a channel's closed set: the stable wire [code] and the [label] MQTT has always carried for
- * it. The code is declared, never derived from the label, so renaming a label changes no wire code.
+ * One value of a channel's closed set: the stable wire [code] and the [label] the setting has always
+ * stored for it. The code is declared, never derived from the label, so renaming a label changes no wire code.
  */
 data class ChannelOption(val code: String, val label: String)
 
-/** Transport-neutral facts of one channel, declared once ahead of the MQTT and native serialisations. */
+/** The facts of one channel, declared once. */
 data class ChannelFacts(
     val deviceClass: String? = null,
     val unit: String? = null,
@@ -176,11 +129,7 @@ data class ChannelFacts(
     val text: Boolean = false,
 )
 
-/**
- * Declares an [HaEntity]'s discovery body and its [ChannelFacts] in one pass. Each call records its fact
- * and renders it where it is written, so the MQTT bytes keep their historical field order while the
- * native descriptor reads the same typed values.
- */
+/** Declares an [HaEntity] and its [ChannelFacts]. */
 fun haEntity(
     component: String,
     objectSuffix: String,
@@ -190,63 +139,38 @@ fun haEntity(
     periodicRefresh: Boolean = false,
     discovery: HaDiscovery.() -> Unit,
 ): HaEntity {
-    val declared = HaDiscovery(channel).apply(discovery)
-    return HaEntity(
-        component, objectSuffix, name, declared.body, readOnly, periodicRefresh,
-        channel = channel, facts = declared.facts,
-    )
+    val declared = HaDiscovery().apply(discovery)
+    return HaEntity(component, objectSuffix, name, readOnly, periodicRefresh, channel = channel, facts = declared.facts)
 }
 
-class HaDiscovery internal constructor(private val channel: String) {
-    private val parts = mutableListOf<String>()
+class HaDiscovery internal constructor() {
     internal var facts = ChannelFacts()
         private set
-    internal val body: String get() = parts.joinToString(",")
 
-    fun commandTopic() = raw(""""command_topic":"ha-paneld/{panel}/$channel/set"""")
-    fun stateTopic() = raw(""""state_topic":"ha-paneld/{panel}/$channel/state"""")
-    fun attributesTopic() = raw(""""json_attributes_topic":"ha-paneld/{panel}/$channel/attributes"""")
-    fun icon(icon: String) = raw(""""icon":${Json.str(icon)}""")
-
-    /** MQTT-only presentation (schema, mode, payload literals). Never a channel fact. */
-    fun raw(fragment: String) {
-        parts += fragment
-    }
-
-    fun deviceClass(value: String) = fact("device_class", value) { copy(deviceClass = value) }
-    fun unit(value: String) = fact("unit_of_measurement", value) { copy(unit = value) }
-    fun stateClass(value: String) = fact("state_class", value) { copy(stateClass = value) }
-    fun entityCategory(value: String) = fact("entity_category", value) { copy(entityCategory = value) }
+    fun deviceClass(value: String) { facts = facts.copy(deviceClass = value) }
+    fun unit(value: String) { facts = facts.copy(unit = value) }
+    fun stateClass(value: String) { facts = facts.copy(stateClass = value) }
+    fun entityCategory(value: String) { facts = facts.copy(entityCategory = value) }
 
     fun range(min: Int, max: Int, step: Int) {
         facts = facts.copy(min = min, max = max, step = step)
-        raw(""""min":$min,"max":$max,"step":$step""")
     }
 
-    /** A select's options; MQTT lists their labels. */
     fun options(options: List<ChannelOption>) {
         facts = facts.copy(options = options)
-        raw(""""options":${options.joinToString(",", "[", "]") { Json.str(it.label) }}""")
     }
 
-    /** A select whose MQTT label list is filtered by capability at publish time (the `{options}` placeholder). */
+    /** A select whose choices are filtered by capability ([SettingSpec.optionsFor]). */
     fun capabilityOptions(options: List<ChannelOption>) {
         facts = facts.copy(options = options)
-        raw(""""options":{options}""")
     }
 
-    /** A sensor's closed value set, which MQTT discovery has never listed. */
     fun sensorOptions(options: List<ChannelOption>) {
         facts = facts.copy(options = options)
     }
 
     fun textValue() {
         facts = facts.copy(text = true)
-    }
-
-    private fun fact(key: String, value: String, record: ChannelFacts.() -> ChannelFacts) {
-        facts = facts.record()
-        raw(""""$key":${Json.str(value)}""")
     }
 }
 
@@ -260,7 +184,7 @@ const val SUMMARY_HARD_MAX_CHARS = 90
 data class SettingSpec(
     val key: String,
     val type: SettingType,
-    val group: String,                       // UI grouping ("Identity", "MQTT", "Behaviour", "Display", "System", "Logging")
+    val group: String,                       // UI grouping ("Identity", "Behaviour", "Display", "System", "Logging")
     val label: String,
     val help: String = "",
     // One line under the label on Configure; [help] opens behind the info button. Every visible
@@ -279,12 +203,12 @@ data class SettingSpec(
     val max: Double? = null,
     val step: Double? = null,
     // Bound persisted text independently of the enclosing request. A single short identity value is
-    // repeated across many MQTT discovery documents, so the HTTP body limit alone is not a useful
+    // repeated across many channel descriptions, so the HTTP body limit alone is not a useful
     // amplification bound. Individual specs may tighten this conservative default.
     val maxChars: Int = 16 * 1024,
     val options: List<String> = emptyList(), // ENUM choices
     // Retired ENUM spellings → their replacement, resolved before the options match. Renaming a
-    // choice would otherwise make every older config bundle, MQTT command and provision.sh
+    // choice would otherwise make every older config bundle, Home Assistant command and provision.sh
     // invocation fail validation outright instead of importing to the value the user meant.
     val aliases: Map<String, String> = emptyMap(),
     val picker: String? = null,              // dynamic picker for a STRING field ("package" → installed-apps dropdown)
@@ -294,8 +218,8 @@ data class SettingSpec(
     // discovery gate for every HA-publishable setting (those with `ha`, plus the discovery-pass entities
     // like navbar that carry no `ha` block here). A per-panel expose pip can still override it either way.
     val haExposedByDefault: Boolean = false,
-    // The setting's desired value is persisted and then routed through the shared MQTT-equivalent
-    // side-effect path. This keeps HTTP config, bundle/restore, and MQTT command admission on one
+    // The setting's desired value is persisted and then routed through the shared command side-effect
+    // path. This keeps HTTP config, bundle/restore, and Home Assistant command admission on one
     // declared set instead of independently maintained key lists.
     val liveApply: Boolean = false,
     val transient: Boolean = false,          // accepted + routed to a controller but never persisted
@@ -367,14 +291,6 @@ data class SettingSpec(
         else -> null
     }
 
-    /**
-     * The `{options}` substitution for this spec's HA select, or null when it declares no per-choice
-     * gates and therefore carries no placeholder. Sole authority for that fragment so the published
-     * payload and any assertion about it cannot be computed two different ways.
-     */
-    fun discoveryOptionsJson(caps: Capabilities): String? =
-        if (optionRequires.isEmpty()) null
-        else optionsFor(caps).joinToString(",", "[", "]") { Json.str(it) }
 }
 
 // Typed coercions of a spec's canonical [SettingSpec.default] string. This makes the spec the single

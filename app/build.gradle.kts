@@ -121,8 +121,7 @@ android {
 
     defaultConfig {
         applicationId = if (successorBridge) legacyApplicationId else successorApplicationId
-        // minSdk 26: clears the HiveMQ "<26 cannot connect over IoT" bug (#598) and covers
-        // the supported panels (NSPanel Pro Android 8.1 = API 27, TPA10 Android 11 = API 30).
+        // minSdk 26 covers the supported panels (NSPanel Pro Android 8.1 = API 27, TPA10 Android 11 = API 30).
         minSdk = 26
         targetSdk = 35
         // versionCode bumps on EVERY internal build (it drives upgrades + the /health build token);
@@ -219,7 +218,7 @@ android {
     }
 
     compileOptions {
-        // HiveMQ + Ktor require Java 8 language features.
+        // Ktor requires Java 8 language features.
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -232,7 +231,7 @@ android {
 
     packaging {
         resources {
-            // HiveMQ pulls Netty; these metadata files collide across the dependency graph.
+            // These metadata files collide across the dependency graph.
             excludes += setOf(
                 "META-INF/INDEX.LIST",
                 "META-INF/io.netty.versions.properties",
@@ -278,13 +277,10 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.websockets)
 
-    // MQTT 5 auto-discovery + state publishing.
-    implementation(libs.hivemq.mqtt.client)
-
     // mDNS advertise (_ha-paneld._tcp).
     implementation(libs.jmdns)
 
-    // JmDNS/Ktor/HiveMQ use SLF4J 2; keep their warnings observable in Android's stderr logcat.
+    // JmDNS/Ktor use SLF4J 2; keep their warnings observable in Android's stderr logcat.
     implementation(libs.slf4j.simple)
 
     // Strict YAML 1.2 parser for runtime-loadable device profiles. ProfileYaml applies tighter
@@ -299,8 +295,6 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.server.test.host)
-    // Independent MQTT 5 broker for transport-level composition tests; never packaged in the APK.
-    testImplementation(libs.moquette.broker)
     // Real org.json — the android.jar stub's returnDefaultValues would silently no-op JSON code under test.
     testImplementation(libs.org.json)
     // Real SQLite over JDBC — deterministic reproduction of cross-connection WAL BUSY contention

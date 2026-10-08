@@ -32,7 +32,6 @@ private fun runtimeValue(value: String, strings: AppStrings): String = when (val
 internal fun localizedRuntimeValue(key: String, value: String, strings: AppStrings): String = when (key) {
     "HA lifecycle" -> localizedHaLifecycle(value, strings)
     "HA renderer" -> localizedRendererRuntime(value, strings)
-    "MQTT state" -> localizedMqttRuntime(value, strings)
     "App database" -> localizedDatabaseRuntime(value, strings)
     "Camera" -> localizedCameraRuntime(value, strings)
     else -> runtimeValue(value, strings)
@@ -96,71 +95,6 @@ private fun localizedRendererRuntime(value: String, strings: AppStrings): String
     return admitted?.let {
         formattedString(strings, "dashboard.runtime.renderer.admitted_age", "status" to status, "age" to it.groupValues[2])
     } ?: status
-}
-
-private fun localizedMqttRuntime(value: String, strings: AppStrings): String {
-    if (value == "disabled") return strings.get("dashboard.runtime.disabled")
-    if (value == "config-error · invalid or unsupported broker URL") {
-        return strings.get("dashboard.runtime.mqtt.config_error")
-    }
-    val match = Regex(
-        "^([^·]+) · ((?:TLS|TCP)(?:/IPv[46])?) · last-ok ([^·]+) · last-auth ([^·]+) · (.+) · family (.+)$",
-    ).matchEntire(value) ?: return value
-    val state = localizedMqttState(match.groupValues[1].trim(), strings) ?: return value
-    val lastOk = localizedMqttAge(match.groupValues[3].trim(), strings) ?: return value
-    val lastAuth = localizedMqttAge(match.groupValues[4].trim(), strings) ?: return value
-    val authRaw = match.groupValues[5].trim()
-    val auth = if (authRaw == "auth-ok") {
-        authRaw
-    } else {
-        val authMatch = Regex("^(connected|auth-retrying|auth-failed) · rejects (\\d+) · attempt (\\d+) · next (.+)$")
-            .matchEntire(authRaw) ?: return value
-        val authState = localizedMqttState(authMatch.groupValues[1], strings) ?: return value
-        val next = when (val raw = authMatch.groupValues[4]) {
-            "none" -> strings.get("dashboard.value.none")
-            else -> Regex("^(\\d+)s$").matchEntire(raw)?.let {
-                formattedString(strings, "dashboard.runtime.mqtt.seconds", "seconds" to it.groupValues[1])
-            } ?: return value
-        }
-        formattedString(
-            strings,
-            "dashboard.runtime.mqtt.auth_retry",
-            "state" to authState,
-            "rejects" to authMatch.groupValues[2],
-            "attempt" to authMatch.groupValues[3],
-            "next" to next,
-        )
-    }
-    val family = when (val raw = match.groupValues[6].trim()) {
-        "Prefer IPv4" -> strings.get("dashboard.runtime.mqtt.family_prefer_ipv4")
-        "Force IPv4" -> strings.get("dashboard.runtime.mqtt.family_force_ipv4")
-        else -> Regex("^Automatic \\(next (IPv[46])\\)$").matchEntire(raw)?.let {
-            formattedString(strings, "dashboard.runtime.mqtt.family_automatic", "family" to it.groupValues[1])
-        } ?: return value
-    }
-    return formattedString(
-        strings,
-        "dashboard.runtime.mqtt.status",
-        "state" to state,
-        "transport" to match.groupValues[2],
-        "lastOk" to lastOk,
-        "lastAuth" to lastAuth,
-        "auth" to auth,
-        "family" to family,
-    )
-}
-
-private fun localizedMqttState(value: String, strings: AppStrings): String? = when (value) {
-    "connected", "announcing", "auth-retrying", "auth-failed", "unreachable", "connecting", "discovering", "disconnected" ->
-        strings.get("dashboard.runtime.mqtt.state.${value.replace('-', '_')}")
-    else -> null
-}
-
-private fun localizedMqttAge(value: String, strings: AppStrings): String? = when (value) {
-    "never" -> strings.get("dashboard.runtime.mqtt.age_never")
-    else -> Regex("^(\\d+)s ago$").matchEntire(value)?.let {
-        formattedString(strings, "dashboard.runtime.mqtt.age_seconds_ago", "seconds" to it.groupValues[1])
-    }
 }
 
 private fun localizedDatabaseRuntime(value: String, strings: AppStrings): String {
@@ -273,34 +207,6 @@ private fun runtimeValueFamily(value: String, strings: AppStrings): String {
 
 internal fun formattedString(strings: AppStrings, key: String, vararg values: Pair<String, String>): String =
     values.fold(strings.get(key)) { text, (name, value) -> text.replace("{$name}", value) }
-
-internal fun localizedSetupNeeds(needs: List<String>, strings: AppStrings): String = needs.joinToString(
-    separator = " ${strings.get("dashboard.banner.setup_needs.joiner")} ",
-) { need ->
-    when (need) {
-        "MQTT configuration" -> strings.get("dashboard.banner.setup_needs.mqtt_configuration")
-        "valid MQTT credentials" -> strings.get("dashboard.banner.setup_needs.valid_credentials")
-        "valid MQTT credentials (the broker rejected them)" ->
-            strings.get("dashboard.banner.setup_needs.rejected_credentials")
-        "a reachable MQTT broker" -> strings.get("dashboard.banner.setup_needs.reachable_broker")
-        "a valid MQTT broker URL" -> strings.get("dashboard.banner.setup_needs.valid_broker_url")
-        else -> need
-    }
-}
-
-internal fun localizedSetupProgress(progress: String, strings: AppStrings): String {
-    val next = " The dashboard setup step appears next."
-    val suffix = if (progress.endsWith(next)) " ${strings.get("shell.setup_progress.next")}" else ""
-    val base = progress.removeSuffix(next)
-    val translated = when (base) {
-        "MQTT settings saved — verifying the broker connection. This can take a short while after saving." ->
-            strings.get("shell.setup_progress.verifying")
-        "MQTT connected — publishing Home Assistant discovery." ->
-            strings.get("shell.setup_progress.publishing")
-        else -> base
-    }
-    return translated + suffix
-}
 
 internal fun localizedProximitySummary(summary: String, strings: AppStrings): String = when (summary) {
     "No proximity source" -> strings.get("dashboard.proximity.no_source")

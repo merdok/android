@@ -180,7 +180,7 @@ class ConfigTransactionTest {
             }
             assertEquals(SettingsRegistry.SCHEMA, prefs.values["config_schema"])
             assertEquals("existing-panel", config.panelId)
-            assertEquals("tcp://ha:1883", config.mqttBroker)
+            assertFalse("the broker address goes with the client", prefs.values.containsKey("mqtt_broker"))
             assertEquals(CompanionInstaller.MINIMAL_PKG, config.dashboardPackage)
             assertEquals(true, prefs.values["ha_expose_wake_on_wave"])
             if (schema == SettingsRegistry.SCHEMA) {
@@ -203,13 +203,86 @@ class ConfigTransactionTest {
 
         assertTrue(config.migrateLiveStore())
         assertEquals("Force IPv4", config.addressFamily)
-        assertEquals("Force IPv4", config.mqttCredentialsSnapshot().addressFamily)
         assertFalse(prefs.values.containsKey("mqtt_address_family"))
+        assertFalse(prefs.values.containsKey("mqtt_broker"))
         assertEquals(SettingsRegistry.SCHEMA, prefs.values["config_schema"])
         val committed = prefs.values.toMap()
         assertTrue(Config(prefs.instance).migrateLiveStore())
         assertEquals("a second startup must be a no-op", committed, prefs.values)
     }
+
+    @Test fun upgradeDeletesTheBrokerCredentialsAndEveryStateTheRemovedClientKept() {
+        for (schema in listOf(14, SettingsRegistry.SCHEMA)) {
+            val removed = removedClientPreferences()
+            val prefs = fakePreferences(initial = removed + mapOf(
+                "config_schema" to schema,
+                "panel_id" to "existing-panel",
+                "ha_url" to "http://ha.local:8123",
+            ))
+            val config = Config(prefs.instance)
+
+            assertTrue("migration from schema $schema", config.migrateLiveStore())
+            removed.keys.forEach { key ->
+                assertFalse("$key survived schema $schema migration", prefs.values.containsKey(key))
+            }
+            assertEquals("existing-panel", config.panelId)
+            assertEquals("http://ha.local:8123", config.haUrl)
+            assertTrue("a panel Panel Assistant already manages keeps that evidence", config.panelAssistantConnectionSeen)
+            val committed = prefs.values.toMap()
+            assertTrue(Config(prefs.instance).migrateLiveStore())
+            assertEquals("a second startup must be a no-op", committed, prefs.values)
+        }
+    }
+
+    @Test fun onlyAnAcceptedSessionOrAClaimedUpdateCarriesConnectionEvidenceAcrossTheUpgrade() {
+        for (authority in listOf("", "mqtt")) {
+            val prefs = fakePreferences(initial = mapOf(
+                "config_schema" to SettingsRegistry.SCHEMA,
+                "panel_assistant_authority" to authority,
+            ))
+            val config = Config(prefs.instance)
+
+            assertTrue(config.migrateLiveStore())
+            assertFalse(prefs.values.containsKey("panel_assistant_authority"))
+            assertFalse("authority '$authority' is no evidence of Panel Assistant", config.panelAssistantConnectionSeen)
+        }
+        for (evidence in listOf("panel_assistant_authority" to "shadow", "panel_assistant_update_owner_seen_ms" to 99L)) {
+            val prefs = fakePreferences(initial = mapOf("config_schema" to SettingsRegistry.SCHEMA, evidence))
+            val config = Config(prefs.instance)
+
+            assertTrue(config.migrateLiveStore())
+            assertFalse(prefs.values.containsKey(evidence.first))
+            assertTrue("${evidence.first} is carried forward", config.panelAssistantConnectionSeen)
+        }
+    }
+
+    @Test fun aFailedPurgeLeavesTheBrokerCredentialsForTheNextStartupToRetry() {
+        val initial = removedClientPreferences() + mapOf("config_schema" to SettingsRegistry.SCHEMA)
+        val prefs = fakePreferences(initial = initial, commitSucceeds = false)
+
+        assertFalse(Config(prefs.instance).migrateLiveStore())
+        assertEquals("a failed commit removes nothing", initial, prefs.values)
+        prefs.commitsSucceed.set(true)
+        assertTrue(Config(prefs.instance).migrateLiveStore())
+        assertFalse(prefs.values.containsKey("mqtt_password"))
+    }
+
+    /** Everything the removed broker client kept in the store, as an upgrading panel holds it. */
+    private fun removedClientPreferences(): Map<String, Any?> = mapOf(
+        "mqtt_broker" to "tcp://ha.local:1883",
+        "mqtt_user" to "panel",
+        "mqtt_password" to "secret",
+        "mqtt_update_shape_paneld" to "v1:110",
+        "panel_assistant_authority" to "native",
+        "panel_assistant_mqtt_discovery" to "withdraw",
+        "panel_assistant_update_owner_seen_ms" to 1234L,
+        "last_discovery_version" to "0.9.11",
+        "device_local_legacy_aid_bridge_pending_v1" to false,
+        "device_local_mqtt_family_broker" to "tcp://ha.local:1883",
+        "device_local_mqtt_family_ipv4" to true,
+        "device_local_mqtt_announcement_boundary_consumed" to "boundary",
+        "ha_expose_camera_enabled" to true,
+    )
 
     @Test fun failedUpdateOwnerRemovalLeavesTheCompleteStoreForTheNextStartupToRetry() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
@@ -872,27 +945,12 @@ class ConfigTransactionTest {
 
         val committed = config.applyBatch {
             config.setPanelId("new_panel")
-            config.setMqtt("tcp://broker:1883", "user", "secret")
+            config.setHaConnection("http://ha.local:8123", "secret")
         }
 
         assertFalse(committed)
         assertFalse(prefs.values.containsKey("panel_id"))
-        assertFalse(prefs.values.containsKey("mqtt_broker"))
-    }
-
-    @Test fun mqttAddressFamilyPolicyCommitsWithTheConnectionTuple() {
-        val prefs = fakePreferences()
-        val config = Config(prefs.instance)
-
-        config.setMqtt("tcp://broker:1883", "panel", "secret", "force ipv4")
-
-        assertEquals("Force IPv4", config.addressFamily)
-        assertEquals("Force IPv4", config.mqttCredentialsSnapshot().addressFamily)
-        kotlin.test.assertFailsWith<IllegalArgumentException> {
-            config.setMqtt("tcp://other:1883", "other", "changed", "IPv7")
-        }
-        assertEquals("tcp://broker:1883", config.mqttBroker)
-        assertEquals("Force IPv4", config.addressFamily)
+        assertFalse(prefs.values.containsKey("ha_url"))
     }
 
     @Test fun registryStagesOauthExpiryAsLongWithoutTruncation() {
@@ -988,9 +1046,9 @@ class ConfigTransactionTest {
         val prefs = fakePreferences(
             initial = mapOf(
                 "ha_url" to "https://renderer-a.example",
-                "ha_device_url" to "https://mqtt-b.example/config/devices/device/stale-id",
+                "ha_device_url" to "https://other-b.example/config/devices/device/stale-id",
                 "ha_link_at" to 1234L,
-                "ha_link_target" to HaLink.resolutionTarget("https://mqtt-b.example", "panel-id"),
+                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", "panel-id"),
             ),
         )
         val config = Config(prefs.instance)
@@ -1025,14 +1083,14 @@ class ConfigTransactionTest {
     @Test fun openInHaNeverExposesDeviceIdOwnedByAnotherNativeServer() {
         val panel = "wall-panel"
         val native = "https://native-a.example/ha"
-        val staleDevice = "https://mqtt-b.example/config/devices/device/stale-id"
+        val staleDevice = "https://other-b.example/config/devices/device/stale-id"
         val prefs = fakePreferences(
             initial = mapOf(
                 "panel_id" to panel,
                 "ha_url" to native,
                 "ha_base_url" to "https://companion-c.example",
                 "ha_device_url" to staleDevice,
-                "ha_link_target" to HaLink.resolutionTarget("https://mqtt-b.example", panel),
+                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", panel),
                 "ha_link_at" to 1234L,
             ),
         )
@@ -1088,7 +1146,6 @@ class ConfigTransactionTest {
     @Test fun importClearingCredentialIdentitiesClearsDependentSecretsInTheSameCommit() {
         val prefs = fakePreferences(
             initial = mapOf(
-                "mqtt_user" to "old-user", "mqtt_password" to "old-password",
                 "ha_url" to "http://ha:8123", "ha_token" to "old-access",
                 "ha_refresh_token" to "old-refresh", "ha_client_id" to "old-client",
                 "ha_token_expiry" to 1234L,
@@ -1096,13 +1153,12 @@ class ConfigTransactionTest {
         )
         val config = Config(prefs.instance)
         val editor = config.editor()
-        editor.putString("mqtt_user", "").putString("ha_url", "")
+        editor.putString("ha_url", "")
 
-        config.stageImportDependencies(editor, mapOf("mqtt_user" to "", "ha_url" to ""))
+        config.stageImportDependencies(editor, mapOf("ha_url" to ""))
 
-        assertEquals("old-password", prefs.values["mqtt_password"])
+        assertEquals("old-access", prefs.values["ha_token"])
         assertTrue(editor.commit())
-        assertEquals("", prefs.values["mqtt_password"])
         assertEquals("", prefs.values["ha_token"])
         assertEquals("", prefs.values["ha_refresh_token"])
         assertEquals("", prefs.values["ha_client_id"])
@@ -1956,10 +2012,6 @@ class ConfigTransactionTest {
 
     @Test fun credentialGroupsAreReadFromOneImmutablePreferenceSnapshot() {
         val prefs = fakePreferences(initial = mapOf(
-            "mqtt_broker" to "ssl://broker.local:8883",
-            "mqtt_user" to "panel",
-            "mqtt_password" to "secret",
-            SettingsRegistry.ADDRESS_FAMILY_KEY to "Force IPv4",
             "ha_url" to "https://ha.local",
             "ha_token" to "access",
             "ha_refresh_token" to "refresh",
@@ -1968,10 +2020,6 @@ class ConfigTransactionTest {
         ))
         val config = Config(prefs.instance)
 
-        assertEquals(
-            MqttCredentialsSnapshot("ssl://broker.local:8883", "panel", "secret", "Force IPv4"),
-            config.mqttCredentialsSnapshot(),
-        )
         assertEquals(
             HaAuthSnapshot("https://ha.local", "access", "refresh", 1234L, "client"),
             config.haAuthSnapshot(),
@@ -2310,110 +2358,6 @@ class ConfigTransactionTest {
         assertEquals("/dashboard-test", prefs.values["dashboard_entity_dashboard_path"])
         assertTrue("a query-only change must not re-scope learning", config.dashboardEntityFilterEnabled)
         assertEquals(listOf("light.hall", "light.porch"), config.dashboardEntityFilterIds)
-    }
-
-    @Test fun mqttFamilyPreferenceIsOneBrokerScopedAtomicTuple() {
-        val prefs = fakePreferences()
-        val config = Config(prefs.instance)
-
-        assertNull(config.mqttFamilyPreference("tcp://broker-a:1883"))
-        assertTrue(config.rememberMqttFamilyPreference("tcp://broker-a:1883", preferIpv4 = true))
-        assertEquals(true, config.mqttFamilyPreference("tcp://broker-a:1883"))
-        assertNull(config.mqttFamilyPreference("tcp://broker-b:1883"))
-
-        assertTrue(config.rememberMqttFamilyPreference("tcp://broker-b:1883", preferIpv4 = false))
-        assertEquals(false, config.mqttFamilyPreference("tcp://broker-b:1883"))
-        assertNull(config.mqttFamilyPreference("tcp://broker-a:1883"))
-        assertEquals("tcp://broker-b:1883", prefs.values["device_local_mqtt_family_broker"])
-        assertEquals(false, prefs.values["device_local_mqtt_family_ipv4"])
-
-        assertTrue(config.forgetMqttFamilyPreference())
-        assertNull(config.mqttFamilyPreference("tcp://broker-b:1883"))
-        assertFalse("device_local_mqtt_family_broker" in prefs.values)
-        assertFalse("device_local_mqtt_family_ipv4" in prefs.values)
-    }
-
-    @Test fun mqttFamilyPreferenceDoesNotClaimFailedCommit() {
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "device_local_mqtt_family_broker" to "tcp://broker-old:1883",
-                "device_local_mqtt_family_ipv4" to true,
-            ),
-            commitSucceeds = false,
-        )
-        val config = Config(prefs.instance)
-
-        assertFalse(config.rememberMqttFamilyPreference("tcp://broker-a:1883", preferIpv4 = true))
-        assertNull(config.mqttFamilyPreference("tcp://broker-a:1883"))
-        assertFalse(config.forgetMqttFamilyPreference())
-        assertEquals("tcp://broker-old:1883", prefs.values["device_local_mqtt_family_broker"])
-    }
-
-    @Test fun mqttAnnouncementBoundaryIsOneDurableConfigurationScopedToken() {
-        val prefs = fakePreferences()
-        val firstProcess = Config(prefs.instance)
-
-        assertTrue(firstProcess.mqttAnnouncementBoundaryAvailable("identity-a"))
-        assertTrue(firstProcess.consumeMqttAnnouncementBoundary("identity-a"))
-        assertFalse(firstProcess.mqttAnnouncementBoundaryAvailable("identity-a"))
-        assertFalse(firstProcess.consumeMqttAnnouncementBoundary("identity-a"))
-
-        // Recreating Config models the process boundary: CONNACK/heartbeat have no API that clears it.
-        val replacementProcess = Config(prefs.instance)
-        assertFalse(replacementProcess.mqttAnnouncementBoundaryAvailable("identity-a"))
-
-        // Relevant MQTT identity change opens a new one-shot; exact readiness clears that identity only.
-        assertTrue(replacementProcess.mqttAnnouncementBoundaryAvailable("identity-b"))
-        assertTrue(replacementProcess.consumeMqttAnnouncementBoundary("identity-b"))
-        assertTrue(replacementProcess.clearMqttAnnouncementBoundary("identity-b"))
-        assertTrue(replacementProcess.mqttAnnouncementBoundaryAvailable("identity-b"))
-    }
-
-    @Test fun mqttAnnouncementBoundaryFailsClosedWhenDurabilityCannotBeProved() {
-        val prefs = fakePreferences(commitSucceeds = false)
-        val config = Config(prefs.instance)
-
-        assertFalse(config.consumeMqttAnnouncementBoundary("identity-a"))
-        assertTrue(config.mqttAnnouncementBoundaryAvailable("identity-a"))
-    }
-
-    @Test fun mqttAnnouncementBoundaryRemainsConsumedWhenReadinessClearIsNotDurable() {
-        val prefs = fakePreferences(
-            initial = mapOf("device_local_mqtt_announcement_boundary_consumed" to "identity-a"),
-            commitSucceeds = false,
-        )
-        val config = Config(prefs.instance)
-
-        assertFalse(config.clearMqttAnnouncementBoundary("identity-a"))
-        assertFalse(config.mqttAnnouncementBoundaryAvailable("identity-a"))
-    }
-
-    @Test fun mqttLateReadinessCannotRearmACommittedPendingProcessBoundary() {
-        val prefs = fakePreferences()
-        val runningProcess = Config(prefs.instance)
-        val identity = "identity-a"
-
-        assertTrue(runningProcess.consumeMqttAnnouncementBoundary(identity))
-        assertEquals(
-            MqttAnnouncementReadinessBudgetResult.PRESERVED_PENDING_BOUNDARY,
-            reconcileMqttAnnouncementReadinessBudget(consumedHere = true) {
-                runningProcess.clearMqttAnnouncementBoundary(identity)
-            },
-        )
-
-        // The scheduled restart may be delayed after readiness. Its replacement must still inherit an
-        // exhausted token, so another announcement wedge cannot cross another process boundary.
-        val delayedRestart = Config(prefs.instance)
-        assertFalse(delayedRestart.mqttAnnouncementBoundaryAvailable(identity))
-
-        // Only exact readiness in a genuinely recreated process may clear the inherited spent token.
-        assertEquals(
-            MqttAnnouncementReadinessBudgetResult.REARMED,
-            reconcileMqttAnnouncementReadinessBudget(consumedHere = false) {
-                delayedRestart.clearMqttAnnouncementBoundary(identity)
-            },
-        )
-        assertTrue(delayedRestart.mqttAnnouncementBoundaryAvailable(identity))
     }
 
     @Test fun completedInstallGetsTheVersionedHomeDashboardMigrationAfterV1WasConsumed() {

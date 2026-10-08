@@ -49,7 +49,7 @@ object UpdateChecker {
     /**
      * The newest catalog release for one component, kept whether or not it is newer than what is
      * installed and whether or not the component is installed at all. [available] deliberately omits
-     * up-to-date and absent components, so the MQTT update entities read this instead. Each target
+     * up-to-date and absent components, so the Home Assistant update entities read this instead. Each target
      * records the policy that resolved it; a reader asking under any other channel or cap gets nothing.
      */
     internal data class ResolvedTarget(

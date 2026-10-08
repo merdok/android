@@ -116,7 +116,6 @@ function netRows(s) {
     row(fact(s, 'local_ip'), '<span class="secret">192.0.2.10</span>'),
     row(fact(s, 'local_ipv6'), '<span class="secret">2001:db8::10</span>'),
     row(fact(s, 'http_port'), '8888'),
-    row(fact(s, 'mqtt'), `mqtt://192.0.2.20:1883 (connected)${cfgIcon(s, 'cfg-mqtt_broker')}`),
     row(fact(s, 'mdns'), 'hallway-panel.local · _ha-paneld._tcp'),
     row(fact(s, 'network_adb'), `${s.t('dashboard.value.off')}${cfgIcon(s, 'cfg-network_adb')}`),
   ].join('\n');
@@ -139,12 +138,10 @@ function profileRows(s) {
 
 function contextRows(s) {
   const f = (key, values) => esc(s.format(key, values));
-  const age = s.format('dashboard.runtime.mqtt.age_seconds_ago', { seconds: 4 });
   return [
     row(fact(s, 'wifi_stability'), '3 drops in the last hour · RSSI −71 dBm'),
     `<tr><th>${esc(fact(s, 'ha_network_path'))}</th><td id="hanetcell">${f('dashboard.runtime.ha_network_healthy_slow', { evidence: 'p95 412 ms over 120 probes' })}</td></tr>`,
     row(fact(s, 'ha_renderer'), f('dashboard.runtime.renderer.admitted_age', { status: s.format('dashboard.runtime.renderer.builtin', { summary: s.text('dashboard.runtime.renderer.rendered_cached') }), age: '3m' })),
-    row(fact(s, 'mqtt_timing'), f('dashboard.runtime.mqtt.status', { state: s.text('dashboard.runtime.mqtt.state.connected'), transport: 'tcp', lastOk: age, lastAuth: age, auth: 'ok', family: s.format('dashboard.runtime.mqtt.family_automatic', { family: 'IPv4' }) })),
     row(fact(s, 'state_convergence'), f('dashboard.runtime.convergence', { channels: 14, dirty: 0, inFlight: 1, unknown: 0, successes: 212, failures: 0, pending: 1 })),
     row(fact(s, 'local_state_sync'), 'in sync · 38 entities'),
     row(fact(s, 'app_database'), esc([s.format('dashboard.runtime.database.schema', { version: 42 }), s.format('dashboard.runtime.database.used', { bytes: '1.2 MB' }), s.format('dashboard.runtime.database.on_disk', { bytes: '1.6 MB' })].join(' · '))),

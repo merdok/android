@@ -54,7 +54,7 @@ class ServiceTeardownDeadlineTest {
             assertTrue("the browser never saw the advertisement", seen.await(10, TimeUnit.SECONDS))
             val service = PaneldService()
             fenceProcessExit(service)
-            installRuntime(service, idleCore(), idleCommands(), retiredBridge(), advertiser)
+            installRuntime(service, idleCore(), idleCommands(), advertiser)
 
             try {
                 service.onDestroy()
@@ -73,18 +73,6 @@ class ServiceTeardownDeadlineTest {
             advertiser.stop()
             browser.close()
         }
-    }
-
-    /** A bridge whose terminal retirement already completed: `stop` returns it without new work. */
-    private fun retiredBridge(): MqttBridge {
-        val bridge = allocate(MqttBridge::class.java)
-        val retirement = MqttRetirement().apply {
-            ownersDrained.complete(true)
-            finalization.complete(Unit)
-        }
-        MqttBridge::class.java.getDeclaredField("retirement").apply { isAccessible = true }
-            .set(bridge, AtomicReference(retirement))
-        return bridge
     }
 
     /** A state core with nothing registered: its stop drains at once. */
@@ -112,11 +100,10 @@ class ServiceTeardownDeadlineTest {
         service: PaneldService,
         core: PanelStateCore,
         commands: PanelCommandDispatcher,
-        mqtt: MqttBridge,
         mdns: MdnsAdvertiser,
     ) {
         val type = Class.forName("${PaneldService::class.java.name}\$NetworkRuntime")
-        val pair = type.declaredConstructors.single().apply { isAccessible = true }.newInstance(core, commands, mqtt, mdns)
+        val pair = type.declaredConstructors.single().apply { isAccessible = true }.newInstance(core, commands, mdns)
         val owner = ServiceRuntimeOwner<Any>(pair, "test-runtime-lane")
         owner.start { }
         setField(service, "runtime", owner)

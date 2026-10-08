@@ -100,13 +100,13 @@ object BuiltinDashboard {
     /** Fired by the renderer's `BottomSwipeFrame` when a bottom-edge swipe qualifies; no-op if unset. */
     fun requestNavbarReveal() { navbarReveal?.invoke() }
 
-    /** The dashboard path the renderer should show — set by an MQTT `navigate` command, then the
+    /** The dashboard path the renderer should show — set by a `navigate` command, then the
      *  renderer is (re)launched and reads this on load. Null = fall back to the configured home
      *  dashboard. Lets `navigate` drive the built-in WebView the way a deep link drives the Companion. */
     @Volatile var navPath: String? = null
 
     /** Consume-once read of [navPath]: a navigate is a one-shot target, not a standing state — without
-     *  this, one MQTT navigate becomes the permanent reload target of every later crash rebuild and
+     *  this, one navigate becomes the permanent reload target of every later crash rebuild and
      *  interstitial recovery (which should return to the configured home instead). */
     @Synchronized fun consumeNavPath(): String? = navPath.also { navPath = null }
 
@@ -158,7 +158,7 @@ object BuiltinDashboard {
     // it's exhausted the renderer LATCHES: [SystemController.dashboardState] reports DEAD so automatic
     // recovery loops stand down, and startBuiltin refuses automatic relaunches until the latch expires.
     // Health reads this latch directly rather than feeding it through the foreign-app crash budget. An
-    // explicit reload (MQTT/`:8888`/navbar) clears the latch —
+    // explicit reload (Home Assistant/`:8888`/navbar) clears the latch —
     // deliberate user action is always honoured. Time params are caller-supplied elapsed-realtime
     // millis so this object stays pure Kotlin (JVM-unit-testable).
     private var rebuilds = 0
@@ -286,7 +286,7 @@ object BuiltinDashboard {
      * Whether Home Assistant's frontend has ever reported itself connected inside the panel's WebView —
      * setup's evidence that the built-in renderer genuinely reached a dashboard rather than merely being
      * configured to. Process-global and deliberately not persisted: a fresh process must re-earn it, and
-     * setup binds it to a configuration fingerprint so a moved broker or revoked token voids it.
+     * setup binds it to a configuration fingerprint so a moved Home Assistant URL or revoked token voids it.
      */
     @Volatile var frontendEverConnected = false
         private set

@@ -38,7 +38,7 @@ import javax.net.ssl.X509TrustManager
  *
  * Exists because the previous per-site CIO construction dialed exactly one resolved address: a host
  * whose leading AAAA is black-holed (SYN dropped, nothing rejects) could never fall back to a
- * working A record, permanently stranding the renderer on a panel whose MQTT — which plans address
+ * working A record, permanently stranding the renderer on a panel whose other network routes — which plan address
  * families — stayed healthy. The OkHttp engine walks every address the resolver returns and races
  * families (fast fallback), and the per-route connect timeout bounds each dead attempt so the walk
  * completes inside every caller's 15 s outer deadline.
@@ -287,7 +287,7 @@ internal class InboundBoundedWebSocketSession(
 
 /**
  * Resolver wrapper implementing the user address-family policy for HA WebSocket connections, with
- * the same vocabulary as the MQTT route planner: Automatic keeps the resolver's leading family,
+ * the same vocabulary as the route planner: Automatic keeps the resolver's leading family,
  * Prefer IPv4 leads with A records, Force IPv4 never emits an IPv6 address.
  *
  * Families are interleaved (RFC 8305 §4) rather than concatenated so a host publishing several

@@ -61,19 +61,11 @@
     <string name="approval_op_power_safety_ack">隐藏一条特定的电源安全注意事项</string>
     <string name="approval_op_guard_db">推进数据库恢复</string>
     <string name="approval_op_camera_enable">启用面板摄像头</string>
-    <string name="approval_op_transport_release">将面板控制权交还给 MQTT</string>
 
     <string name="set_up">初始设置</string>
     <string name="open_configuration">打开设置</string>
     <string name="panel_not_set_up">此面板尚未设置。</string>
     <string name="panel_not_set_up_hint">用手机或笔记本电脑扫描二维码或打开下面的地址——大约需要两分钟。也可以点按%1$s，在此屏幕上进行设置。</string>
-    <string name="mqtt_could_not_connect">MQTT 无法连接。</string>
-    <string name="mqtt_credentials_rejected_hint">MQTT 消息代理拒绝了用户名和密码——请在浏览器中打开面板设置页面进行修正。</string>
-    <string name="waiting_for_mqtt_details">正在等待 MQTT 详细信息。</string>
-    <string name="someone_configuring_hint">有人正在浏览器中进行设置。这里无需操作。</string>
-    <string name="mqtt_address_check_hint">请在浏览器的设置页面中检查 MQTT 消息代理地址。</string>
-    <string name="checking_mqtt_connection">正在检查 MQTT 连接…</string>
-    <string name="takes_few_seconds_hint">这需要几秒钟。这里无需操作。</string>
     <string name="browser_engine_too_old">此面板的浏览器引擎版本过旧。</string>
     <string name="browser_engine_too_old_hint">Home Assistant 仪表盘需要更新的版本。请在浏览器中打开面板设置页面进行修复。</string>
     <string name="choose_dashboard_app">选择仪表盘应用。</string>

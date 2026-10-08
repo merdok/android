@@ -15,23 +15,24 @@ import org.json.JSONObject
 object BackupIdentity {
     const val DISCOVERY_ID_KEY = "discovery_id"
     const val PACKAGE_KEY = "package"
-    const val MQTT_CONNECTED_KEY = "mqtt_connected"
+    /** Written by builds before 1.0: whether the writer held a broker connection. Read from their archives only. */
+    const val LEGACY_CONNECTED_KEY = "mqtt_connected"
     private val DISCOVERY_ID_RE = Regex("[0-9a-f]{64}")
 
     /** The manifest members, each prefixed with a comma; an unavailable discovery id is omitted. */
-    fun manifestFragment(discoveryId: String?, packageName: String, mqttConnected: Boolean): String = buildString {
+    fun manifestFragment(discoveryId: String?, packageName: String): String = buildString {
         if (discoveryId != null && DISCOVERY_ID_RE.matches(discoveryId)) {
             append(",\"$DISCOVERY_ID_KEY\":").append(Json.str(discoveryId))
         }
         append(",\"$PACKAGE_KEY\":").append(Json.str(packageName))
-        // Whether the writer was connected to its broker when it wrote this. The other identity of this
-        // app uses it to decide what "MQTT unchanged" means after a handover: a panel that was
-        // connected must connect again, and one that never was is not held to a broker it never had.
-        append(",\"$MQTT_CONNECTED_KEY\":").append(mqttConnected)
     }
 
-    /** True only when the archive records that its writer was connected to MQTT. */
-    fun writerMqttConnected(manifest: JSONObject): Boolean = manifest.opt(MQTT_CONNECTED_KEY) == true
+    /**
+     * True only when an archive from a build before 1.0 records that its writer was connected to Home
+     * Assistant through a broker. The other identity of this app then holds the handover until it reaches
+     * Home Assistant itself; a writer that never was is not held to a connection it never had.
+     */
+    fun legacyWriterConnected(manifest: JSONObject): Boolean = manifest.opt(LEGACY_CONNECTED_KEY) == true
 
     /** The archive's discovery id, or null when it is absent or not a well-formed pseudonym. */
     fun discoveryId(manifest: JSONObject): String? =

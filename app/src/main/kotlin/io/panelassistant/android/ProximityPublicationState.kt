@@ -2,7 +2,7 @@ package io.panelassistant.android
 
 import io.panelassistant.android.sensors.ProximityReportGate
 
-/** Stored MQTT projection of the independently admitted proximity channels. */
+/** Stored Home Assistant projection of the independently admitted proximity channels. */
 internal class ProximityPublicationState {
     @Volatile var near: Boolean? = null
         private set
@@ -11,7 +11,7 @@ internal class ProximityPublicationState {
     @Volatile var available: Boolean? = null
         private set
 
-    /** Serialize an authority decision with the retained MQTT side effects derived from it. */
+    /** Serialize an authority decision with the state side effects derived from it. */
     internal fun <T> serialized(block: ProximityPublicationState.() -> T): T =
         synchronized(this) { block() }
 

@@ -35,3 +35,12 @@ internal fun packageHealthToken(packageName: String): String = " pkg=$packageNam
 
 /** The build number beside the version name, so a reader can tell two builds of one release apart. */
 internal fun versionCodeHealthToken(versionCode: Int): String = " vc=$versionCode"
+
+/**
+ * The native protocol range this build speaks, so Panel Assistant can tell from the health line alone
+ * that a panel needs a newer app before any hello succeeds. A line without it predates protocol 5.
+ */
+internal fun protocolHealthToken(
+    min: Int = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.PROTOCOL_MIN,
+    max: Int = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.PROTOCOL_MAX,
+): String = " proto=$min-$max"

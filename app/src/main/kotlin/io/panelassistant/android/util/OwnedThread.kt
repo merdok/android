@@ -4,7 +4,7 @@ package io.panelassistant.android.util
  * A single service-owned daemon worker thread with a bounded interrupt-then-join stop handoff.
  *
  * The lifecycle field, its lock, and the interrupt/join teardown are the same protocol the
- * MQTT watchdog and kiosk-reassert threads previously hand-rolled independently. Owning it once
+ * watchdog and kiosk-reassert threads previously hand-rolled independently. Owning it once
  * keeps the handoff (publish under lock → self-clear on exit only if still registered → capture,
  * interrupt, bounded join) identical across every caller.
  *

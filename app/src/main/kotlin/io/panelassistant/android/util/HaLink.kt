@@ -15,23 +15,20 @@ import java.io.InputStream
 
 /**
  * Best-effort resolution of this panel's Home Assistant **device-settings URL**, so the info page can offer
- * a one-click "Open in Home Assistant". HA's device-registry id is random (not derivable) and never reported
- * back over MQTT, so it must be read from HA's API.
+ * a one-click "Open in Home Assistant". HA's device-registry id is random (not derivable), so it must be read
+ * from HA's API.
  *
- * The built-in renderer path authenticates with its existing HA access token. Older/external-renderer
- * installations can fall back to the panel's **MQTT username/password** when those credentials are also
- * a real HA account. The device id then comes from the WebSocket command
+ * It authenticates with the built-in renderer's existing HA access token. The device id comes from the
+ * WebSocket command
  * `config/entity_registry/list_for_display` — the SAME command the frontend uses to render entities for
  * **every** user, so it works for **non-admin** accounts too (unlike the admin-only `/api/template`). We find
  * this panel's own entity by its stable panel-id prefix, with its historical friendly-name prefix as a
  * compatibility fallback, and take the entry's `di` (device id).
  *
- * Anonymous brokers and any failure (bad creds, MFA, a non-HA broker login, API unreachable, no matching
- * entity) return null and the link is hidden.
+ * Any failure (a rejected token, API unreachable, no matching entity) returns null and the link is hidden.
  */
 object HaLink {
     private const val TAG = "HaLink"
-    private const val JSON = "application/json"
     private const val FORM = "application/x-www-form-urlencoded"
     internal const val MAX_WS_FRAME_BYTES = 16L * 1024L * 1024L
     internal const val WS_RESOLUTION_DEADLINE_MS = 15_000L
@@ -39,28 +36,6 @@ object HaLink {
     internal const val MAX_TOKEN_RESPONSE_BYTES = 64L * 1024L
     internal const val MAX_OAUTH_TOKEN_CHARS = 16 * 1024
     internal const val MAX_OAUTH_EXPIRES_IN_SEC = 365L * 24L * 60L * 60L
-
-    /** @param base HA origin from zeroconf, e.g. "https://hass.example". @return device-page URL or null. */
-    fun resolve(
-        base: String,
-        user: String,
-        pass: String,
-        deviceNames: Collection<String>,
-        preferIpv4: Boolean,
-        ipv4Only: Boolean,
-    ): String? {
-        if (user.isBlank() || pass.isBlank()) return null // anonymous broker → can't auth
-        return runCatching {
-            val token = login(base, user, pass) ?: return null
-            val slugs = deviceNames.map(::slug).filter(String::isNotBlank).distinct()
-            val devId = deviceIdViaWs(base, token, slugs, preferIpv4, ipv4Only)
-                ?: run { Log.i(TAG, "no HA entity matching ${slugs.joinToString()}"); return null }
-            // Build the link off HA's canonical internal_url (so logging in via the broker host still yields a
-            // tidy hass.example link), falling back to the URL we logged in at.
-            val linkBase = internalUrl(base, token) ?: base
-            "${linkBase.trimEnd('/')}/config/devices/device/$devId".also { Log.i(TAG, "HA device link resolved") }
-        }.onFailure { Log.i(TAG, "resolve failed: ${it.message}") }.getOrNull()
-    }
 
     /** Resolve through the built-in renderer's already-authenticated HA connection. The returned link is
      * deliberately based on [base], not an unrelated advertised internal/external URL: the same native
@@ -223,30 +198,6 @@ object HaLink {
         Refresh.Transient(e.message, HaTransportFault.evidenceOf(e))
     }
 
-    /** HA frontend login flow with username/password → short-lived access token, or null. */
-    private fun login(base: String, user: String, pass: String): String? {
-        val cid = "$base/" // client_id = HA's own origin (the frontend does the same), so no extra fetch
-        val flow = JSONObject(
-            post(
-                "$base/auth/login_flow", null,
-                JSONObject().put("client_id", cid)
-                    .put("handler", JSONArray().put("homeassistant").put(JSONObject.NULL))
-                    .put("redirect_uri", cid).toString(),
-                JSON,
-            ),
-        ).getString("flow_id")
-        val code = JSONObject(
-            post(
-                "$base/auth/login_flow/$flow", null,
-                JSONObject().put("client_id", cid).put("username", user).put("password", pass).toString(), JSON,
-            ),
-        ).optString("result")
-        if (code.isBlank()) { Log.i(TAG, "login: no code (MFA / invalid creds / not an HA user)"); return null }
-        return JSONObject(
-            post("$base/auth/token", null, "grant_type=authorization_code&code=${enc(code)}&client_id=${enc(cid)}", FORM),
-        ).getString("access_token")
-    }
-
     /**
      * Read `config/entity_registry/list_for_display` over the WebSocket API (non-admin-accessible) and return
      * the device id of the first entity whose entity_id object-part starts with a requested slug. Each entry is
@@ -367,12 +318,6 @@ object HaLink {
     /** Slugify a device name the way HA derives entity_ids (lowercase, non-alphanumerics → underscore). */
     private fun slug(s: String) = s.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
 
-    /** HA's canonical base from /api/config (internal_url, else external_url); null if unavailable. */
-    private fun internalUrl(base: String, token: String): String? = runCatching {
-        val c = JSONObject(get("$base/api/config", token))
-        c.optString("internal_url").ifBlank { c.optString("external_url") }.takeIf { it.isNotBlank() }
-    }.getOrNull()
-
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     private fun post(
         url: String,
@@ -381,7 +326,6 @@ object HaLink {
         ctype: String,
         maxResponseBytes: Long = MAX_HTTP_RESPONSE_BYTES,
     ) = req(url, "POST", token, body, ctype, maxResponseBytes)
-    private fun get(url: String, token: String?) = req(url, "GET", token, null, null)
 
     /** Non-2xx HTTP response — typed so callers can tell a definitive server refusal from a network fault. */
     class HttpError(val code: Int, method: String) : RuntimeException("$method -> $code")

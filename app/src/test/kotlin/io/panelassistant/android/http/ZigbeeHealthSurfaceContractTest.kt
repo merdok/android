@@ -5,13 +5,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ZigbeeHealthSurfaceContractTest {
-    // Source-text reason: discovery pins MqttBridge.kt, deleted with the MQTT removal; the join request needs the Android service.
+    // Source-text reason: the join request and retry need the Android service.
 
-    @Test fun mqttDiscoveryPublishesAlwaysPresentDiagnosticHealthSensor() {
-        val source = source("MqttBridge.kt")
-        assertTrue(source.contains("\"sensor\", \"\${panel}_zigbee_gateway_health\""))
-        assertTrue(source.contains("\"json_attributes_topic\":\"\$attrZigbeeHealth\""))
-        assertTrue(source.contains("\"entity_category\":\"diagnostic\""))
+    @Test fun anExplicitZigbeeEnableRetriesTheGateway() {
         assertTrue(source("PanelCommandDispatcher.kt").contains("if (on) onZigbeeExplicitRetry()"))
     }
 

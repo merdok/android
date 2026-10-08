@@ -94,7 +94,7 @@ class ZigbeeController(
     fun present(): Boolean {
         val dir = dir ?: return false
         // Keep the low-overhead control-path checks independent of the management observation. In
-        // particular, MQTT reconciliation must not wait for the diagnostic lane just to read a PID.
+        // particular, state reconciliation must not wait for the diagnostic lane just to read a PID.
         return fileExists("$dir/run_guard_process.sh") || fileExists("$dir/guard_process.sh") ||
             fileExists("$dir/run.sh") || fileExists("$dir/zgateway") || fileExists("$dir/mosquitto") ||
             fileExists("$dir/package_version") || running()

@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * applyAcknowledgedVoiceEnabled is the pure decision behind MqttBridge.handleVoiceEnabled: a
+ * applyAcknowledgedVoiceEnabled is the pure decision behind PanelCommandDispatcher.handleVoiceEnabled: a
  * capability-less panel or a failed durable commit must both report failure (so the caller's
  * LiveSettingApplyResult is FAILED, never APPLIED) and must still reconcile the channel so a stale
  * retained ON is never left echoing a value nothing actually took effect for. Mirrors

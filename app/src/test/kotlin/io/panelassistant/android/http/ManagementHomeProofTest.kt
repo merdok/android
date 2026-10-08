@@ -39,7 +39,6 @@ class ManagementHomeProofTest {
                         route("/api/v1") {
                             managementRoutes(
                                 diagnostics = { error("Not requested") },
-                                onUpdateOwner = {},
                                 admitActiveRead = { admitActiveRead(it) },
                                 refreshUpdates = { events += "updates" },
                                 refreshStorage = { events += "storage"; StorageHealthSnapshot.UNCHECKED },

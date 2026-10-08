@@ -17,7 +17,7 @@ internal sealed class ConfigPostParameters {
 /**
  * Validate and normalize every direct-config value in one pass. Historically the bespoke route
  * normalized only panel_id while malformed booleans became false, numeric values were silently
- * clamped/ignored, and large identity strings could be repeated into every MQTT discovery payload.
+ * clamped/ignored, and large identity strings could be repeated into every published description.
  * Keeping this admission step ahead of applyBatch gives form, JSON and registry command paths the
  * same schema semantics and ensures a bad field cannot produce a partial commit.
  *
@@ -39,7 +39,17 @@ internal fun normalizeConfigPostParameters(
             // against the previous release does not merely lose that key: this admission step is atomic,
             // so the whole request is refused and every other setting in it is dropped too.
             val renamed = rawName == SettingsRegistry.LEGACY_SENSITIVITY_KEY
-            val name = if (renamed) SettingsRegistry.RESPONSE_PERCENT_KEY else rawName
+            // The address family moved key at schema 15 and keeps its values; the new key wins if both are sent.
+            val familyRenamed = rawName == SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY
+            if (familyRenamed && raw.contains(SettingsRegistry.ADDRESS_FAMILY_KEY)) continue
+            // Any other removed setting, the legacy broker address and credentials among them, is dropped rather
+            // than refused, so a request written for an earlier release still applies everything else.
+            if (!familyRenamed && SettingsRegistry.isRetired(rawName)) continue
+            val name = when {
+                renamed -> SettingsRegistry.RESPONSE_PERCENT_KEY
+                familyRenamed -> SettingsRegistry.ADDRESS_FAMILY_KEY
+                else -> rawName
+            }
             val value = if (renamed) {
                 rawValue.trim().toIntOrNull()?.let { Migrations.rescaleSensitivity(it).toString() } ?: rawValue
             } else {

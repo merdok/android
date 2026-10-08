@@ -75,9 +75,6 @@ class SettingsRegistryPresentationTest {
         assertFalse(spec.haExposedByDefault)
         assertEquals("select", spec.ha!!.component)
         assertEquals("navbar", spec.ha!!.objectSuffix)
-        // The body carries the placeholder, not a literal list: the choices are capability-filtered per
-        // panel. What actually reaches Home Assistant is pinned byte-for-byte in DiscoveryParityTest.
-        assertTrue(spec.ha!!.body.contains("\"options\":{options}"))
         assertEquals(listOf("Off", "Always on", "Swipe reveal"), spec.optionsFor(Capabilities()))
         assertEquals(
             listOf("Off", "Always on", "Swipe reveal", "Native"),
@@ -91,7 +88,7 @@ class SettingsRegistryPresentationTest {
         assertEquals("sensor", spec.ha!!.component)
         assertEquals("diag_boot", spec.ha!!.objectSuffix)
         assertEquals("Last boot time", spec.ha!!.name)
-        assertTrue(spec.ha!!.body.contains("\"device_class\":\"timestamp\""))
+        assertEquals("timestamp", spec.ha!!.facts.deviceClass)
         assertTrue(spec.ha!!.readOnly)
     }
 
@@ -174,9 +171,9 @@ class SettingsRegistryPresentationTest {
         assertFalse(ssid.availableWhen(Capabilities(hasWifi = true)))
         assertTrue(ssid.availableWhen(Capabilities(hasWifi = true, hasWifiSsid = true)))
         assertTrue(rssi.availableWhen(Capabilities(hasWifi = true)))
-        assertTrue(rssi.ha!!.body.contains("\"device_class\":\"signal_strength\""))
-        assertTrue(rssi.ha!!.body.contains("\"unit_of_measurement\":\"dBm\""))
-        assertTrue(rssi.ha!!.body.contains("\"entity_category\":\"diagnostic\""))
+        assertEquals("signal_strength", rssi.ha!!.facts.deviceClass)
+        assertEquals("dBm", rssi.ha!!.facts.unit)
+        assertEquals("diagnostic", rssi.ha!!.facts.entityCategory)
     }
 
     /** Outage counters follow the Wi-Fi diagnostics shape: opt-in, capability-gated, diagnostic. */
@@ -188,7 +185,7 @@ class SettingsRegistryPresentationTest {
             assertFalse(spec.availableWhen(Capabilities()))
             assertTrue(spec.availableWhen(Capabilities(hasWifi = true)))
             assertTrue(spec.ha!!.readOnly)
-            assertTrue(spec.ha!!.body.contains("\"entity_category\":\"diagnostic\""))
+            assertEquals("diagnostic", spec.ha!!.facts.entityCategory)
         }
     }
 }

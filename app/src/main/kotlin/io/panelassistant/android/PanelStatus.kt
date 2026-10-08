@@ -7,7 +7,7 @@ import io.panelassistant.android.control.SystemController
  * Tiny process-wide status, shared with the launcher [MainActivity] which has no binding to the
  * service. Projects the two renderer-specific recovery authorities without copying either budget:
  * [BuiltinDashboard] owns built-in WebView retry suppression, while the watchdog owns foreign-app
- * relaunch backoff. Live MQTT connection state stays with [MqttBridge.isConnected].
+ * relaunch backoff. Live Home Assistant connection state stays with the Panel Assistant session.
  */
 object PanelStatus {
     enum class DashboardRecoveryState { NONE, BUILTIN_RENDERER, EXTERNAL_RENDERER }

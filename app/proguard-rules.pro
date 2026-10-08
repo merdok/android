@@ -2,14 +2,6 @@
 # Release build ships unminified for v0.x (isMinifyEnabled = false); these rules are kept
 # so enabling minification later is a one-flag change.
 
-# Netty (transitive via HiveMQ) reflects heavily and references optional codecs.
--dontwarn io.netty.**
--keep class io.netty.** { *; }
-
-# HiveMQ client.
--dontwarn com.hivemq.**
--keep class com.hivemq.** { *; }
-
 # Ktor / kotlinx.coroutines.
 -dontwarn io.ktor.**
 -dontwarn kotlinx.coroutines.**

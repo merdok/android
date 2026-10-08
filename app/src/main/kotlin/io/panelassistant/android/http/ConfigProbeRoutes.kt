@@ -10,25 +10,14 @@ import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal fun Route.configProbeRoutes(config: Config) {
-    get("/config/probe-broker") {
-        // Pre-flight from the PANEL's network vantage — the only one that matters — so
-        // the wizard can name an unresolvable host or closed port in ~2s instead of
-        // committing the save and discovering it minutes into the connect workflow.
-        // Read-only: resolves and touches a TCP port, changes nothing.
-        val url = call.request.queryParameters["url"].orEmpty()
-        val body = withContext(Dispatchers.IO) { probeBrokerJson(url) }
-        call.respondText(body, ContentType.Application.Json)
-    }
     post("/config/probe-log-sink") {
-        // Same pre-flight idea as probe-broker, from the panel's own network vantage,
-        // but deliberately a POST rather than a GET: unlike the broker probe this one
-        // TRANSMITS a caller-supplied record to a caller-supplied host and port, which
+        // A pre-flight from the panel's own network vantage, deliberately a POST rather
+        // than a GET: it TRANSMITS a caller-supplied record to a caller-supplied host and port, which
         // is neither safe nor idempotent, and as a GET it would be a CSRF-reachable
         // packet emitter aimed at the panel's LAN. POST puts it behind the shared
         // state-changing OriginGuard admission applied to every mutating route.
@@ -53,26 +42,12 @@ internal fun Route.configProbeRoutes(config: Config) {
     }
 }
 
-/** See GET /config/probe-broker. Bounded: one DNS resolve + one 2s TCP connect attempt. */
-internal fun probeBrokerJson(url: String): String {
-    val ep = io.panelassistant.android.util.BrokerEndpoint.endpoint(url.trim())
-        ?: return """{"ok":false,"error":"invalid-url"}"""
-    val resolved = runCatching { java.net.InetAddress.getByName(ep.host).hostAddress }.getOrNull()
-        ?: return "{\"ok\":false,\"error\":\"unresolvable\",\"host\":${Json.str(ep.host)}}"
-    val reachable = runCatching {
-        java.net.Socket().use { it.connect(java.net.InetSocketAddress(ep.host, ep.port), 2_000); true }
-    }.getOrDefault(false)
-    return "{\"ok\":$reachable,\"host\":${Json.str(ep.host)},\"port\":${ep.port}," +
-        "\"resolved\":${Json.str(resolved)}" +
-        if (reachable) "}" else ",\"error\":\"unreachable\"}"
-}
-
 /**
  * See POST /config/probe-log-sink. Bounded: one DNS resolve plus one 2s connect and exactly one
  * marked record, in the real wire format of the selected transport.
  *
  * Every transport transmits. An earlier revision reported a bare TCP `connect()` as success, but
- * a connect succeeds against *any* listening socket — an MQTT broker, an SSH daemon, a mistyped
+ * a connect succeeds against *any* listening socket — an SSH daemon, a mistyped
  * port belonging to something else entirely — so "Connected" asserted a working log sink on
  * evidence that could not distinguish one. Writing a real RFC5424 frame or a real NDJSON POST is
  * the cheapest check that actually discriminates.
@@ -84,7 +59,7 @@ internal fun probeBrokerJson(url: String): String {
  * only end-to-end confirmation that exists.
  *
  * Takes [panelId] as a parameter rather than reading `config`, so it stays free of instance state
- * and can be exercised the same way [probeBrokerJson] is, without the Android-backed server graph.
+ * and can be exercised without the Android-backed server graph.
  */
 internal fun probeLogSinkJson(host: String, port: Int, protocol: String, panelId: String): String {
     val ep = LogShipEndpoint.resolve(host, port, protocol)

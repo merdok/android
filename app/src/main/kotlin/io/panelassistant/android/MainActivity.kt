@@ -103,19 +103,15 @@ class MainActivity : AppCompatActivity() {
     private fun applySetupStage(journey: org.json.JSONObject) {
         val complete = journey.optBoolean("complete", false)
         val next = journey.optString("next", "")
-        var connectionDetail = ""
         var rendererDetail = ""
         val steps = journey.optJSONArray("steps")
         if (steps != null) {
             for (i in 0 until steps.length()) {
                 val s = steps.optJSONObject(i) ?: continue
-                when (s.optString("stage")) {
-                    "mqtt_connection" -> connectionDetail = s.optString("detail")
-                    "renderer" -> rendererDetail = s.optString("detail")
-                }
+                if (s.optString("stage") == "renderer") rendererDetail = s.optString("detail")
             }
         }
-        val key = "$complete|$next|$connectionDetail|$rendererDetail"
+        val key = "$complete|$next|$rendererDetail"
         lastJourney = journey
         if (key == lastStageKey) return
         lastStageKey = key
@@ -123,18 +119,6 @@ class MainActivity : AppCompatActivity() {
             complete -> null // the launcher's own auto-return takes over; show the pre-wizard screen
             next == "identity" -> getString(R.string.panel_not_set_up) to
                 getString(R.string.panel_not_set_up_hint, configButtonLabel(configButtonCompact, complete = false))
-            next == "mqtt_broker" || next == "mqtt_credentials" ->
-                if (connectionDetail == "auth_failed") {
-                    getString(R.string.mqtt_could_not_connect) to getString(R.string.mqtt_credentials_rejected_hint)
-                } else {
-                    getString(R.string.waiting_for_mqtt_details) to getString(R.string.someone_configuring_hint)
-                }
-            next == "mqtt_connection" ->
-                if (connectionDetail == "unreachable" || connectionDetail == "config_error") {
-                    getString(R.string.mqtt_could_not_connect) to getString(R.string.mqtt_address_check_hint)
-                } else {
-                    getString(R.string.checking_mqtt_connection) to getString(R.string.takes_few_seconds_hint)
-                }
             // A too-old engine is the one renderer problem a passer-by cannot act on here, so name it as the
             // panel's own fault rather than asking for a choice that would not help.
             next == "renderer" && rendererDetail.startsWith("webview_too_old") ->
@@ -377,9 +361,9 @@ class MainActivity : AppCompatActivity() {
     // deliberate open long afterwards just stays put. A policy-selected changed-version intro also gets
     // this short return even when kiosk was enabled after the APK update timestamp aged out.
     //
-    // POLL rather than check once: after a restart (worst case a whole-fleet restart flooding the broker)
+    // POLL rather than check once: after a restart (worst case a whole-fleet restart flooding Home Assistant)
     // The built-in renderer is ready once its HA URL and launch target exist. A launchable external
-    // renderer owns its own HA readiness; MQTT is optional for both. Re-check every
+    // renderer owns its own HA readiness. Re-check every
     // [AUTO_RETURN_POLL_MS] until the renderer-specific gate opens or the [AUTO_RETURN_WINDOW_MS]
     // window elapses.
     private fun prepareAutoReturn(
@@ -432,7 +416,7 @@ class MainActivity : AppCompatActivity() {
         autoReturn = r
         autoReturnDeadlineMs = schedule.deadlineMs
         autoReturnNextAttemptMs = schedule.firstAttemptMs
-        handler.postDelayed(r, prepared.firstDelayMs) // let a genuine touch cancel + give MQTT a head start
+        handler.postDelayed(r, prepared.firstDelayMs) // let a genuine touch cancel + give the network a head start
     }
 
     private fun cancelAutoReturn() {
@@ -730,7 +714,7 @@ class MainActivity : AppCompatActivity() {
         private const val STATE_AUTO_RETURN_NEXT_REMAINING = "launch_intro_return_next_remaining"
         private const val AUTO_RETURN_RESTORE_GRACE_MS = 250L
         const val AUTO_RETURN_FIRST_MS = 8_000L   // initial delay before the first redirect attempt
-        const val AUTO_RETURN_POLL_MS = 2_000L    // re-check cadence while waiting for MQTT to reconnect
+        const val AUTO_RETURN_POLL_MS = 2_000L    // re-check cadence while waiting for the network to reconnect
         const val AUTO_RETURN_WINDOW_MS = 90_000L // give up after this (genuinely unconfigured panel)
         const val SETUP_POLL_MS = 3_000L          // standing-screen stage refresh (loopback, in-memory read)
     }

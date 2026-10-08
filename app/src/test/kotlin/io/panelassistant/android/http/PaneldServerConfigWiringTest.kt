@@ -1,7 +1,6 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.PanelCommandDispatcher
-import io.panelassistant.android.MqttBridge
 import io.panelassistant.android.config.SettingsRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

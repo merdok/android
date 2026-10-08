@@ -65,7 +65,7 @@ internal enum class StartDisposition {
     /** A successor that must not bind, advertise, connect or claim anything yet. */
     PASSIVE_SUCCESSOR,
 
-    /** A successor starting its ordinary service to restore, with MQTT and mDNS held. */
+    /** A successor starting its ordinary service to restore, with mDNS held. */
     HELD_SUCCESSOR,
 }
 

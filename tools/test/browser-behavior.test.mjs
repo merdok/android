@@ -183,7 +183,7 @@ browserTest('Configure shows each enum option by its served label while preservi
   // The server serves optionLabels beside options; an option without a label record is served as itself.
   const schema = [
     { key: 'navbar_mode', label: '导航栏模式', help: '选择导航栏的显示方式。', group: 'Behaviour', tier: 'BASIC', type: 'ENUM', options: ['Off', 'Always on', 'Swipe reveal', 'Native', 'Future wire'], optionLabels: ['关闭', '始终显示导航栏（本地化长标签）', '滑动显示', '原生', 'Future wire'], available: true },
-    { key: 'mqtt_address_family', label: '地址族', help: '选择连接地址族。', group: 'MQTT', tier: 'ADVANCED', type: 'ENUM', options: ['Automatic', 'Prefer IPv4', 'Force IPv4'], optionLabels: ['自动', '优先 IPv4', '强制 IPv4'], available: true },
+    { key: 'cpu_governor', label: '处理器调速器', help: '选择处理器调速策略。', group: 'System', tier: 'ADVANCED', type: 'ENUM', options: ['Performance', 'Efficiency', 'Auto'], optionLabels: ['性能', '节能', '自动'], available: true },
   ];
   const translations = {};
   const harness = await startHarness(async (path, request) => {
@@ -193,7 +193,7 @@ browserTest('Configure shows each enum option by its served label while preservi
         posts.push(await requestBody(request));
         return json({ status: 'saved' });
       }
-      return json({ settings: { navbar_mode: 'Off', mqtt_address_family: 'Automatic' }, ha_expose: {}, ha_auth: {} });
+      return json({ settings: { navbar_mode: 'Off', cpu_governor: 'Auto' }, ha_expose: {}, ha_auth: {} });
     }
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
@@ -210,7 +210,7 @@ browserTest('Configure shows each enum option by its served label while preservi
   await navbar.waitFor();
   assert.deepEqual(await navbar.locator('option').allTextContents(), ['关闭', '始终显示导航栏（本地化长标签）', '滑动显示', '原生', 'Future wire']);
   assert.deepEqual(await navbar.locator('option').evaluateAll((options) => options.map((option) => option.value)), ['Off', 'Always on', 'Swipe reveal', 'Native', 'Future wire']);
-  assert.deepEqual(await page.locator('#cfg-mqtt_address_family option').allTextContents(), ['自动', '优先 IPv4', '强制 IPv4']);
+  assert.deepEqual(await page.locator('#cfg-cpu_governor option').allTextContents(), ['性能', '节能', '自动']);
 
   await navbar.selectOption('Swipe reveal');
   await page.locator('#savebtn').click();
@@ -223,7 +223,6 @@ browserTest('Configure shows each enum option by its served label while preservi
 
 browserTest('Configure enum labels fit a 1361px viewport at large text in every release locale', async (t) => {
   const enumSpecs = [
-    ['mqtt_address_family', 'MQTT', ['Automatic', 'Prefer IPv4', 'Force IPv4']],
     ['navbar_mode', 'Behaviour', ['Off', 'Always on', 'Swipe reveal', 'Native']],
     ['cpu_governor', 'System', ['Performance', 'Efficiency', 'Auto']],
     ['camera_resolution', 'Camera', ['480p', '720p', '1080p']],
@@ -319,12 +318,12 @@ browserTest('Configure renders translated, fallback and mixed schema fields with
     localizedField('friendly_name', 'Anzeigename', 'de', 'Name dieses Panels.', 'de'),
     localizedField('manufacturer', 'Manufacturer', 'en', 'Optional manufacturer override.', 'en'),
     localizedField('model', 'Modell', 'de', 'Optional model override.', 'en'),
-    localizedField('mqtt_broker', 'MQTT broker', 'en', 'Adresse des MQTT-Brokers.', 'de', 'MQTT'),
+    localizedField('ha_url', 'Home Assistant URL', 'en', 'Adresse von Home Assistant.', 'de', 'Home Assistant connection'),
   ];
   const harness = await startHarness((path) => {
     if (path === '/api/v1/config/schema') return json(schema);
     if (path === '/api/v1/config') return json({
-      settings: { friendly_name: 'Panel', manufacturer: '', model: '', mqtt_broker: '' },
+      settings: { friendly_name: 'Panel', manufacturer: '', model: '', ha_url: '' },
       ha_expose: {}, ha_auth: { configured: false },
     });
     if (path === '/api/v1/apps') return json({ apps: [] });
@@ -336,7 +335,7 @@ browserTest('Configure renders translated, fallback and mixed schema fields with
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.locator('#cfg-mqtt_broker').waitFor();
+  await page.locator('#cfg-ha_url').waitFor();
 
   const rendered = await page.locator('.frow').evaluateAll((rows) => Object.fromEntries(rows.map((row) => {
     const label = row.querySelector('.flabel > span');
@@ -357,8 +356,8 @@ browserTest('Configure renders translated, fallback and mixed schema fields with
   assert.deepEqual(rendered['cfg-model'], {
     label: 'Modell', labelLanguage: 'de', help: 'Optional model override.', helpLanguage: 'en', controlLanguage: 'de',
   });
-  assert.deepEqual(rendered['cfg-mqtt_broker'], {
-    label: 'MQTT broker', labelLanguage: 'en', help: 'Adresse des MQTT-Brokers.', helpLanguage: 'de', controlLanguage: 'en',
+  assert.deepEqual(rendered['cfg-ha_url'], {
+    label: 'Home Assistant URL', labelLanguage: 'en', help: 'Adresse von Home Assistant.', helpLanguage: 'de', controlLanguage: 'en',
   });
 });
 
@@ -769,7 +768,6 @@ function autoSleepHydrationSchema() {
   return [
     field('panel_id', 'Identity'), field('friendly_name', 'Identity'), field('manufacturer', 'Identity'),
     field('model', 'Identity'), field('ha_area', 'Identity', 'STRING', { picker: 'ha_area' }),
-    field('mqtt_broker', 'MQTT'), field('mqtt_user', 'MQTT'), field('mqtt_password', 'MQTT', 'PASSWORD'),
     field('auto_sleep', 'Behaviour', 'BOOL'), field('navbar_mode', 'Behaviour', 'ENUM'),
     field('wake_on_wave', 'Behaviour', 'BOOL'), field('kiosk_lock', 'Behaviour', 'BOOL'),
     field('watchdog_enabled', 'Behaviour', 'BOOL'), field('touch_sound', 'Behaviour', 'BOOL'),
@@ -803,7 +801,7 @@ function autoSleepHydrationSchema() {
 function autoSleepHydrationSettings(source) {
   return {
     panel_id: 'panel-example', friendly_name: 'Example panel', manufacturer: 'Panel maker', model: 'Panel model',
-    ha_area: 'Office', mqtt_broker: 'mqtt.example', mqtt_user: 'panel', mqtt_password: '',
+    ha_area: 'Office',
     ha_url: 'https://ha.example', ha_token: '', home_dashboard: '',
     dashboard_package: 'builtin', dashboard_zoom: '100', auto_sleep: 'true', touch_sound: 'false',
     auto_brightness: 'true', auto_brightness_ha_entity: source, auto_brightness_minimum_percent: '10',
@@ -2653,7 +2651,7 @@ browserTest('Auto-sleep card stays continuously painted across unrelated startup
   const originalDisplayCard = await page.locator('[data-config-group="Display"]').elementHandle();
   assert.deepEqual(await page.locator('#cfg-groups > [data-config-group]').evaluateAll((cards) =>
     cards.map((card) => card.getAttribute('data-config-group'))), [
-    'Identity', 'MQTT', 'Home Assistant connection', 'Dashboard', 'Built-in renderer', 'Behaviour', 'Auto-sleep', 'Display',
+    'Identity', 'Home Assistant connection', 'Dashboard', 'Built-in renderer', 'Behaviour', 'Auto-sleep', 'Display',
     'System', 'Sensors', 'Diagnostics', 'Logging',
   ]);
   await page.locator('#auto-sleep-status').evaluate((panelNode) => panelNode.scrollIntoView({ block: 'center' }));

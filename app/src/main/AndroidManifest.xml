@@ -50,7 +50,7 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-    <!-- Configuration contains MQTT and Home Assistant credentials. Backups are exported only
+    <!-- Configuration contains Home Assistant credentials. Backups are exported only
          through ha-paneld's explicit sealed backup flow, never Android's implicit transport. -->
     <application
         android:name="io.panelassistant.android.HaPaneldApp"
@@ -164,7 +164,7 @@
             android:exported="false"
             android:foregroundServiceType="specialUse|microphone">
             <!-- Android 14+ requires declaring the specialUse subtype. ha-paneld is a
-                 wall-panel hardware agent: a persistent on-LAN command/MQTT listener that
+                 wall-panel hardware agent: a persistent on-LAN command listener that
                  has no analogue in the predefined foreground-service types.
                  microphone is declared so the service can ADD that type for as long as something
                  holds a microphone lease; a type can only be claimed if it is declared here. The
@@ -172,7 +172,7 @@
                  is running, so an idle panel is not a microphone foreground service. -->
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="ha-paneld persistent HTTP/MQTT listener for Home Assistant panel hardware control" />
+                android:value="ha-paneld persistent HTTP listener for Home Assistant panel hardware control" />
         </service>
 
         <service

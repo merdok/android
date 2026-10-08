@@ -41,7 +41,7 @@ Ports below 1024 need root, which is why the defaults are 5514/5515. To listen o
 ```
 2026-07-26 21:14:03.118 UDP 192.0.2.23:41022 214B  user.warning (pri=12 v1)
       ts=2026-07-26T21:14:03.109Z host=panel app=ha-paneld procid=- msgid=- sd=-
-      07-26 21:14:03.108  2913  2913 W ha-paneld/mqtt: reconnecting
+      07-26 21:14:03.108  2913  2913 W ha-paneld/HaSession: reconnecting
 ```
 
 `pri` decodes to a facility and severity — ha-paneld always uses the `user` facility and maps the logcat level onto the severity, so a `W` line arrives as `user.warning`. `host` is the panel's ID. The message keeps the original logcat prefix (timestamp, PID, TID, level, tag), which is why the timestamp appears twice.

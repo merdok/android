@@ -9,8 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The registry shapes a panel meets in the field: registered by MQTT only, by Panel Assistant only (every
- * migrated panel, which matched nothing before this matcher), and by both. Fixtures follow the live
+ * The registry shapes a panel meets in the field. Fixtures follow the live
  * registry: a Panel Assistant device carries only `(panel_assistant, <entry_id>)`, its status sensor and
  * update entity are keyed by the entry id, and every native entity by `<discovery id>_<suffix>`.
  */
@@ -19,7 +18,6 @@ class HaPanelDeviceMatcherTest {
     private val otherDid = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
     private val entry = "01J00000000000000000000AAA"
     private val otherEntry = "01J00000000000000000000BBB"
-    private val clonedAndroidId = "9f86d081884c7d65"
 
     // --- proving the Panel Assistant entry ------------------------------------------------------
 
@@ -40,7 +38,7 @@ class HaPanelDeviceMatcherTest {
 
     @Test fun `only a panel_assistant entity proves an entry`() {
         val foreign = JSONObject().put("result", JSONObject()
-            .put("sensor.x", entityRow("${did}_proximity", entry, platform = "mqtt")))
+            .put("sensor.x", entityRow("${did}_proximity", entry, platform = "zha")))
         assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(foreign, did))
     }
 
@@ -53,7 +51,7 @@ class HaPanelDeviceMatcherTest {
     @Test fun `the probe samples only Panel Assistant entities and a bounded number per device`() {
         val rows = JSONArray()
             .put(display("sensor.status", "pa-device", "panel_assistant"))
-            .put(display("binary_sensor.kitchen_motion", "motion-device", "mqtt"))
+            .put(display("binary_sensor.kitchen_motion", "motion-device", "zha"))
             .put(display("sensor.orphan", "", "panel_assistant"))
         (1..12).forEach { rows.put(display("sensor.other_%02d".format(it), "other-pa-device", "panel_assistant")) }
         val ids = HaPanelDeviceMatcher.probeEntityIds(JSONObject().put("result", JSONObject().put("entities", rows)))
@@ -66,8 +64,8 @@ class HaPanelDeviceMatcherTest {
     }
 
     @Test fun `the probe is skipped when no device is registered by Panel Assistant`() {
-        assertFalse(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(mqttDevice("m", "ha-paneld-uid-abc"))))
-        assertTrue(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(mqttDevice("m", "x"), paDevice("p", entry))))
+        assertFalse(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(otherDevice("m", "ha-paneld-uid-abc"))))
+        assertTrue(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(otherDevice("m", "x"), paDevice("p", entry))))
     }
 
     @Test fun `the probe read asks only what it needs over the registry socket`() = kotlinx.coroutines.runBlocking {
@@ -79,8 +77,8 @@ class HaPanelDeviceMatcherTest {
             if (command.getString("type") == "config/entity_registry/list_for_display") display else probe()
         }
 
-        assertEquals(null, HaPanelDeviceMatcher.readProbe(request, response(mqttDevice("m", "ha-paneld-uid-abc"))))
-        assertEquals("an MQTT-only registry costs no extra reads", 0, sent.size)
+        assertEquals(null, HaPanelDeviceMatcher.readProbe(request, response(otherDevice("m", "ha-paneld-uid-abc"))))
+        assertEquals("a registry without Panel Assistant costs no extra reads", 0, sent.size)
 
         val paOnly = response(paDevice("pa-device", entry))
         assertEquals(setOf(entry), HaPanelDeviceMatcher.panelAssistantEntryIds(
@@ -99,15 +97,7 @@ class HaPanelDeviceMatcherTest {
         )
     }
 
-    // --- the three registry shapes ------------------------------------------------------------
-
-    @Test fun `mqtt only resolves by the minted identity and then by the panel id`() {
-        val minted = listOf(mqttDevice("uid-device", "ha-paneld-uid-abc"))
-        val legacy = listOf(mqttDevice("legacy-device", "ha-paneld-panel"))
-
-        assertEquals("uid-device", found(minted, entries = emptySet()))
-        assertEquals("legacy-device", found(legacy, entries = emptySet()))
-    }
+    // --- which device is the panel ------------------------------------------------------------
 
     @Test fun `panel_assistant only resolves through the proven entry`() {
         val devices = listOf(paDevice("pa-device", entry), paDevice("other-pa-device", otherEntry))
@@ -116,62 +106,44 @@ class HaPanelDeviceMatcherTest {
         assertEquals(
             "without the proof a Panel Assistant device is nobody's",
             HaPanelDeviceMatcher.Match.Missing,
-            HaPanelDeviceMatcher.preferred(devices, "abc", "panel", emptySet()),
+            HaPanelDeviceMatcher.preferred(devices, emptySet()),
         )
     }
 
-    @Test fun `a panel registered by both resolves to exactly one device, the minted identity first`() {
-        val devices = listOf(mqttDevice("mqtt-device", "ha-paneld-uid-abc"), paDevice("pa-device", entry))
-
-        assertEquals("mqtt-device", found(devices, entries = setOf(entry)))
-        assertEquals(
-            listOf("mqtt-device", "pa-device"),
-            HaPanelDeviceMatcher.all(devices, "abc", "panel", setOf(entry)).map { it.getString("id") },
-        )
-    }
-
-    @Test fun `the proven Panel Assistant device outranks the historical panel id`() {
-        val devices = listOf(mqttDevice("merged-device", "ha-paneld-panel"), paDevice("pa-device", entry))
-
-        assertEquals("pa-device", found(devices, entries = setOf(entry)))
-    }
-
-    @Test fun `two devices in the deciding tier are ambiguous, never a guess`() {
+    @Test fun `two proven devices are ambiguous, never a guess`() {
         val devices = listOf(paDevice("pa-device", entry), paDevice("other-pa-device", otherEntry))
 
         assertEquals(
             HaPanelDeviceMatcher.Match.Ambiguous,
-            HaPanelDeviceMatcher.preferred(devices, "abc", "panel", setOf(entry, otherEntry)),
+            HaPanelDeviceMatcher.preferred(devices, setOf(entry, otherEntry)),
         )
     }
 
-    @Test fun `the retired Android id identifier is never a match, in either integration's shape`() {
-        val retired = mqttDevice("merged-device", "ha-paneld-aid-$clonedAndroidId")
+    @Test fun `a registration of the panel by another integration is never its device`() {
+        // Identifiers the panel once published itself still sit on old device rows; only the proven Panel
+        // Assistant entry identifies the panel now.
+        val stale = listOf(
+            otherDevice("uid-device", "ha-paneld-uid-abc"),
+            otherDevice("legacy-device", "ha-paneld-panel"),
+            otherDevice("merged-device", "ha-paneld-aid-9f86d081884c7d65"),
+        )
 
-        assertEquals(
-            HaPanelDeviceMatcher.Match.Missing,
-            HaPanelDeviceMatcher.preferred(listOf(retired), clonedAndroidId, "panel", emptySet()),
-        )
-        assertEquals(
-            "pa-device",
-            found(listOf(retired, paDevice("pa-device", entry)), entries = setOf(entry), uid = clonedAndroidId),
-        )
+        assertEquals(HaPanelDeviceMatcher.Match.Missing, HaPanelDeviceMatcher.preferred(stale, emptySet()))
+        assertEquals("pa-device", found(stale + paDevice("pa-device", entry), entries = setOf(entry)))
         assertEquals(
             listOf("pa-device"),
-            HaPanelDeviceMatcher.all(
-                listOf(retired, paDevice("pa-device", entry)), clonedAndroidId, "panel", setOf(entry),
-            ).map { it.getString("id") },
+            HaPanelDeviceMatcher.all(stale + paDevice("pa-device", entry), setOf(entry)).map { it.getString("id") },
         )
     }
 
     // --- both consumers use it ------------------------------------------------------------------
 
     @Test fun `presence discovery works for a panel registered only by Panel Assistant`() {
-        val devices = response(paDevice("pa-device", entry, area = "study"), mqttDevice("motion-device", "motion", "study"))
+        val devices = response(paDevice("pa-device", entry, area = "study"), otherDevice("motion-device", "motion", "study"))
         val areas = response(JSONObject().put("area_id", "study").put("name", "Study"))
         val entities = JSONObject().put("result", JSONObject().put("entities", JSONArray()
             .put(display("binary_sensor.den_proximity", "pa-device", "panel_assistant"))
-            .put(display("binary_sensor.study_motion", "motion-device", "mqtt"))))
+            .put(display("binary_sensor.study_motion", "motion-device", "zha"))))
         val states = JSONArray()
             .put(state("binary_sensor.den_proximity", "on", "occupancy"))
             .put(state("binary_sensor.study_motion", "off", "motion"))
@@ -186,48 +158,27 @@ class HaPanelDeviceMatcherTest {
         )
     }
 
-    @Test fun `a panel registered by both keeps its own entities out of the sources on both devices`() {
-        val devices = response(
-            mqttDevice("mqtt-device", "ha-paneld-uid-abc", "outside"),
-            paDevice("pa-device", entry, area = "outside"),
-            mqttDevice("motion-device", "motion", "outside"),
-        )
-        val areas = response(JSONObject().put("area_id", "outside").put("name", "Outside"))
-        val entities = JSONObject().put("result", JSONObject().put("entities", JSONArray()
-            .put(display("binary_sensor.mqtt_proximity", "mqtt-device", "mqtt"))
-            .put(display("binary_sensor.native_proximity", "pa-device", "panel_assistant"))
-            .put(display("binary_sensor.yard_motion", "motion-device", "mqtt"))))
-        val states = JSONArray()
-            .put(state("binary_sensor.mqtt_proximity", "on", "occupancy"))
-            .put(state("binary_sensor.native_proximity", "on", "occupancy"))
-            .put(state("binary_sensor.yard_motion", "off", "motion"))
-
-        val projection = project(devices, areas, entities, states)
-
-        assertEquals(listOf("binary_sensor.yard_motion"), projection.candidates.map { it.entityId })
-    }
-
     @Test fun `the Area catalogue finds a panel registered only by Panel Assistant`() {
         val devices = response(paDevice("pa-device", entry, area = "study"))
         val areas = listOf(HaAreaProtocol.HaArea("study", "Study"))
 
-        val area = HaAreaProtocol.panelDeviceArea(devices, areas, "abc", "panel", setOf(entry))
+        val area = HaAreaProtocol.panelDeviceArea(devices, areas, setOf(entry))
 
         assertTrue(area.found)
         assertEquals("pa-device", area.deviceId)
         assertEquals("Study", area.areaName)
-        assertFalse(HaAreaProtocol.panelDeviceArea(devices, areas, "abc", "panel", emptySet()).found)
+        assertFalse(HaAreaProtocol.panelDeviceArea(devices, areas, emptySet()).found)
     }
 
-    private fun found(devices: List<JSONObject>, entries: Set<String>, uid: String = "abc"): String {
-        val match = HaPanelDeviceMatcher.preferred(devices, uid, "panel", entries)
+    private fun found(devices: List<JSONObject>, entries: Set<String>): String {
+        val match = HaPanelDeviceMatcher.preferred(devices, entries)
         assertTrue("expected exactly one device, got $match", match is HaPanelDeviceMatcher.Match.Found)
         return (match as HaPanelDeviceMatcher.Match.Found).device.getString("id")
     }
 
     /** Asserts the projection succeeds, so a lost device match fails as an assertion, not an exception. */
     private fun project(devices: JSONObject, areas: JSONObject, entities: JSONObject, states: JSONArray) =
-        runCatching { HaPresenceProtocol.projectArea(devices, areas, entities, states, "abc", "panel", setOf(entry)) }
+        runCatching { HaPresenceProtocol.projectArea(devices, areas, entities, states, setOf(entry)) }
             .also { assertTrue("projection failed: ${it.exceptionOrNull()?.message}", it.isSuccess) }
             .getOrThrow()
 
@@ -245,7 +196,7 @@ class HaPanelDeviceMatcherTest {
     private fun display(entityId: String, deviceId: String, platform: String) = JSONObject()
         .put("ei", entityId).put("di", deviceId).put("pl", platform)
 
-    private fun mqttDevice(id: String, identifier: String, area: String = "") = device(id, area, "mqtt", identifier)
+    private fun otherDevice(id: String, identifier: String, area: String = "") = device(id, area, "zha", identifier)
 
     private fun paDevice(id: String, entryId: String, area: String = "") = device(id, area, "panel_assistant", entryId)
 

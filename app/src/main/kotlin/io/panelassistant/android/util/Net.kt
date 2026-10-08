@@ -43,7 +43,7 @@ fun localIpv4(): String? {
 /**
  * First global-scope IPv6 address (skips loopback and link-local `fe80::`), with any zone id stripped,
  * or null if none. Covers both ULA (`fd00::/8`) and global-unicast addresses. Informational for the
- * info page — IPv4 stays the primary address for `configuration_url` and MQTT discovery.
+ * info page — IPv4 stays the primary address for `configuration_url`.
  */
 fun localIpv6(): String? {
     runCatching {

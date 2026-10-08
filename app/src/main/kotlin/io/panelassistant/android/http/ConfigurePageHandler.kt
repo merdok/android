@@ -14,7 +14,6 @@ internal class ConfigurePageHandler(
     private val setupState: SetupState,
     private val strategySelectorAllowed: () -> Boolean,
     private val pageHealth: PageHealth,
-    private val mqttState: () -> String,
     private val powerSafetyAdvisory: (PrivilegedRouteObservation) -> PowerSafetyAdvisory,
     private val haSignInNeededForEffectiveDashboard: () -> Boolean,
 ) {
@@ -34,15 +33,6 @@ internal class ConfigurePageHandler(
         val resume = if (setupState.setupNeedsUser()) {
             configureResumeBanner(strings)
         } else ""
-        // MQTT verification runs asynchronously after the save returns, and the Configure tab is where the
-        // user actually is while it happens — but it showed nothing, so a save that was still being checked
-        // looked like a save that had done nothing. SetupBanner already derives this state and is already
-        // rendered on the dashboard; surfacing it here too costs nothing and keeps one authority.
-        val mqttSetupRequired = SetupBanner.mqttSetupRequired(config.panelAssistantAuthority)
-        val mqtt = management.facts["MQTT"] ?: "disabled"
-        SetupBanner.progress(mqtt, config.mqttBroker.isNotBlank(), setupState.dashboardSetupStepPending(), mqttState(), mqttSetupRequired)?.let { progress ->
-            return power + resume + setupProgressBanner(progress, strings)
-        }
         if (haSignInNeededForEffectiveDashboard()) {
             return power + resume + haSignInBanner(strings)
         }

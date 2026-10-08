@@ -4,7 +4,6 @@ import io.panelassistant.android.assist.wakeword.WakeWordCatalog
 import io.panelassistant.android.audio.MicrophoneGain
 import io.panelassistant.android.i18n.AppLocale
 import io.panelassistant.android.util.AndroidInput
-import io.panelassistant.android.util.BrokerEndpoint
 import io.panelassistant.android.util.DashboardPath
 import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.util.LogShipEndpoint
@@ -78,7 +77,7 @@ object SettingsRegistry {
     const val DEFAULT_SILENCE_BOOT_CHIME = true
     const val DEFAULT_ADDRESS_FAMILY = "Automatic"
     const val ADDRESS_FAMILY_KEY = "network_address_family"
-    /** Schema 15 renamed the address family setting: it governs every Home Assistant connection, not only MQTT. */
+    /** The address family key before schema 15, carried forward by migration. */
     const val LEGACY_ADDRESS_FAMILY_KEY = "mqtt_address_family"
     const val DEFAULT_UI_LANGUAGE = "auto"
     val UI_LANGUAGES: List<String> = listOf(DEFAULT_UI_LANGUAGE) + AppLocale.RELEASE_LOCALES
@@ -126,6 +125,8 @@ object SettingsRegistry {
         "${HA_EXPOSE_PREFIX}voice_state",
         "webview_auto_last_version",
         "dashboard_overscroll",
+        // The camera image's exposure flag, whose entity went with the broker client.
+        "${HA_EXPOSE_PREFIX}camera_enabled",
     ) + setOf(
         "self_update",
         "update_channel",
@@ -133,6 +134,30 @@ object SettingsRegistry {
         "companion_update_channel",
         "webview_auto_update",
     ).let { keys -> keys + keys.map { "$HA_EXPOSE_PREFIX$it" } }
+
+    /**
+     * State the removed broker client kept: the persisted Panel Assistant authority and discovery claim,
+     * the update-entity lease, discovery bookkeeping and broker route memory. Every `mqtt_*` key goes too
+     * ([isRetired]), the broker address and credentials among them. None of it is a setting any more, so
+     * an upgrade deletes it and a restore or a write drops it rather than refusing the rest.
+     */
+    val RETIRED_STATE_KEYS: Set<String> = setOf(
+        "panel_assistant_authority",
+        "panel_assistant_mqtt_discovery",
+        "panel_assistant_update_owner_seen_ms",
+        "last_discovery_version",
+        "device_local_legacy_aid_bridge_pending_v1",
+        "device_local_mqtt_family_broker",
+        "device_local_mqtt_family_ipv4",
+        "device_local_mqtt_announcement_boundary_consumed",
+    )
+
+    /** The prefix every removed broker setting and its stored bookkeeping carry. */
+    private const val RETIRED_PREFIX = "mqtt_"
+
+    /** Whether [key] is retired: dropped from the live store, from bundles and backups, and from writes. */
+    fun isRetired(key: String): Boolean =
+        key in RETIRED_KEYS || key in RETIRED_STATE_KEYS || key.startsWith(RETIRED_PREFIX)
 
     /** The retired schema-5 key. Read only by migration, and never registered as a current setting. */
     const val LEGACY_SENSITIVITY_KEY = "auto_brightness_sensitivity"
@@ -202,8 +227,7 @@ object SettingsRegistry {
         return Validation.Ok(normalized.toString())
     }
 
-    // Closed value sets: the stable wire code beside the label MQTT and the stored setting have always
-    // used. Declared ahead of SPECS, which reads them during initialisation.
+    // Closed value sets: the stable wire code beside the label the stored setting has always used. Declared ahead of SPECS, which reads them during initialisation.
     val NAVBAR_OPTIONS = listOf(
         ChannelOption("off", "Off"),
         ChannelOption("always_on", "Always on"),
@@ -222,7 +246,7 @@ object SettingsRegistry {
             key = "panel_id", type = SettingType.STRING, group = "Identity",
             tier = Tier.BASIC, summary = "Stable id used in this panel's entity IDs.",
             label = "Panel ID", default = "", scope = Scope.IDENTITY,
-            help = "Stable id used in entity IDs and MQTT topics (lowercase, digits, underscores; 63 characters maximum).",
+            help = "Stable id used in entity IDs (lowercase, digits, underscores; 63 characters maximum).",
             validate = { raw ->
                 if (raw.length > MAX_PANEL_ID_INPUT_CHARS) {
                     Validation.Bad("panel_id: must be at most $MAX_PANEL_ID_CHARS characters")
@@ -275,40 +299,14 @@ object SettingsRegistry {
             help = "Where this panel lives, by Home Assistant area name. This can only be changed in " +
                 "ha-paneld if your HA user has admin permissions, otherwise change it on your device in HA.",
         ),
-        // ---- MQTT --------------------------------------------------------------------------------
-        SettingSpec(
-            key = "mqtt_broker", type = SettingType.STRING, group = "MQTT",
-            shortDescriptionUsefulInPopover = true,
-            tier = Tier.ADVANCED, summary = "MQTT broker address. Blank finds Home Assistant automatically.",
-            label = "Broker URL", default = "", scope = Scope.PORTABLE,
-            maxChars = 2_048,
-            validate = { raw ->
-                if (raw.isBlank()) Validation.Ok(raw)
-                else BrokerEndpoint.normalize(raw)?.let(Validation::Ok)
-                    ?: Validation.Bad("mqtt_broker: expected a tcp://, mqtt://, ssl://, mqtts://, or tls:// broker URL")
-            },
-        ),
-        SettingSpec(
-            key = "mqtt_user", type = SettingType.STRING, group = "MQTT",
-            tier = Tier.ADVANCED, summary = "MQTT username for this panel.",
-            label = "Username", default = "", scope = Scope.DEVICE,
-            maxChars = 256,
-        ),
-        SettingSpec(
-            key = "mqtt_password", type = SettingType.PASSWORD, group = "MQTT",
-            tier = Tier.ADVANCED, summary = "MQTT password. Blank keeps the current one.",
-            label = "Password", default = "", scope = Scope.DEVICE, secret = true,
-            maxChars = 4_096,
-        ),
         SettingSpec(
             key = ADDRESS_FAMILY_KEY, type = SettingType.ENUM, group = "Dashboard",
-            tier = Tier.ADVANCED, summary = "Use IPv4, IPv6 or both to reach MQTT and Home Assistant.",
-            label = "MQTT + Home Assistant WebSocket address family", default = DEFAULT_ADDRESS_FAMILY,
+            tier = Tier.ADVANCED, summary = "Use IPv4, IPv6 or both to reach Home Assistant.",
+            label = "Home Assistant WebSocket address family", default = DEFAULT_ADDRESS_FAMILY,
             scope = Scope.DEVICE,
             options = listOf(DEFAULT_ADDRESS_FAMILY, "Prefer IPv4", "Force IPv4"),
-            help = "Applies to the MQTT broker connection and the panel's Home Assistant WebSocket " +
-                "connections; plain HTTPS reads always try every published address. Automatic learns " +
-                "a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a " +
+            help = "Applies to the panel's Home Assistant WebSocket connections; plain HTTPS reads " +
+                "always try every published address. Automatic learns a working route and falls back between IPv6 and IPv4. Prefer IPv4 keeps IPv6 as a " +
                 "fallback; Force IPv4 rejects endpoints with no IPv4 address.",
         ),
 
@@ -334,9 +332,6 @@ object SettingsRegistry {
             liveApply = true,
             help = "Switch the screen off after the selected presence mode’s learned delay or the chosen touch inactivity delay. Manual screen control remains separate.",
             ha = haEntity("switch", "auto_sleep", "Auto sleep") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:sleep")
                 entityCategory("config")
             },
         ),
@@ -352,10 +347,7 @@ object SettingsRegistry {
             derivedDefault = ::navbarModeDefault,
             help = "Soft on-screen navigation bar for panels with no native navbar. **Native** leaves navigation to the panel's own Android bar and draws nothing.\n\nHiding the Android system bars, from the built-in renderer's fullscreen setting or the Android dashboard lock, still hides a native bar.",
             ha = haEntity("select", "navbar", "Navbar") {
-                commandTopic()
-                stateTopic()
                 capabilityOptions(NAVBAR_OPTIONS)
-                icon("mdi:gesture-tap-button")
                 entityCategory("config")
             },
         ),
@@ -367,9 +359,6 @@ object SettingsRegistry {
             help = "Wake after a calibrated clear-to-near-to-clear wave. Set up proximity on the panel; touch-to-wake remains available.",
             availableWhen = { it.hasProximity },
             ha = haEntity("switch", "wake_on_wave", "Wake on wave") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:gesture-tap")
                 entityCategory("config")
             },
         ),
@@ -380,9 +369,6 @@ object SettingsRegistry {
             liveApply = true,
             help = "Root-only casual-use lock. Hides Android system bars and returns to the selected dashboard within about 3 seconds when another app or Recents opens. It does not hide Home Assistant navigation.\n\nRelease it:\n\n- here, or from Home Assistant\n- through adb\n- with 7 rapid top-left taps\n- during the 60-second unlocked window after reboot",
             ha = haEntity("switch", "kiosk_lock", "Android dashboard lock") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:lock")
                 entityCategory("config")
             },
         ),
@@ -399,9 +385,6 @@ object SettingsRegistry {
             label = "Touch sound", default = "true", scope = Scope.PORTABLE,
             liveApply = true,
             ha = haEntity("switch", "touch_sound", "Touch sound") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:volume-high")
                 entityCategory("config")
             },
         ),
@@ -451,9 +434,6 @@ object SettingsRegistry {
             liveApply = true,
             help = "On-panel engine maps a lux stream to the backlight (off = HA drives the screen).",
             ha = haEntity("switch", "auto_brightness", "Auto-brightness") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:brightness-auto")
                 entityCategory("config")
             },
         ),
@@ -498,10 +478,7 @@ object SettingsRegistry {
             transient = true,
             availableWhen = { it.cpuGovernors },
             ha = haEntity("select", "cpu_governor", "CPU profile") {
-                commandTopic()
-                stateTopic()
                 options(CPU_GOVERNOR_OPTIONS)
-                icon("mdi:speedometer")
                 entityCategory("config")
             },
         ),
@@ -768,9 +745,6 @@ object SettingsRegistry {
             help = "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside ha-paneld, it must also be disabled there.",
             availableWhen = { it.networkAdb },
             ha = haEntity("switch", "network_adb", "Network ADB") {
-                commandTopic()
-                stateTopic()
-                icon("mdi:adb")
                 entityCategory("config")
             },
         ),
@@ -886,9 +860,6 @@ object SettingsRegistry {
             help = "Current screen state and brightness. Home Assistant presents the light's native 0–255 brightness as a percentage.",
             haExposedByDefault = true,
             ha = haEntity("light", "screen", "Screen", readOnly = true) {
-                raw(""""schema":"json","brightness":true,"supported_color_modes":["brightness"]""")
-                commandTopic()
-                stateTopic()
             },
         ),
         SettingSpec(
@@ -898,12 +869,8 @@ object SettingsRegistry {
             help = "Current panel media volume reported on its native 0–100 percent scale.",
             haExposedByDefault = true,
             ha = haEntity("number", "volume", "Volume", readOnly = true) {
-                commandTopic()
-                stateTopic()
                 range(0, 100, 1)
-                raw(""""mode":"slider"""")
                 unit("%")
-                icon("mdi:volume-high")
             },
         ),
         SettingSpec(
@@ -914,7 +881,6 @@ object SettingsRegistry {
             haExposedByDefault = true,
             availableWhen = { it.hasLight },
             ha = haEntity("sensor", "illuminance", "Illuminance", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("illuminance")
                 unit("lx")
                 stateClass("measurement")
@@ -928,9 +894,7 @@ object SettingsRegistry {
             haExposedByDefault = true,
             availableWhen = { it.hasLearnedProximity },
             ha = haEntity("binary_sensor", "proximity", "Proximity", readOnly = true) {
-                stateTopic()
                 deviceClass("occupancy")
-                raw(""""payload_on":"ON","payload_off":"OFF"""")
             },
         ),
         SettingSpec(
@@ -941,10 +905,8 @@ object SettingsRegistry {
             haExposedByDefault = true,
             availableWhen = { it.hasLearnedProximity },
             ha = haEntity("sensor", "proximity_level", "Proximity level", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 unit("%")
                 stateClass("measurement")
-                icon("mdi:hand-wave")
             },
         ),
         SettingSpec(
@@ -954,10 +916,6 @@ object SettingsRegistry {
             help = "Whether the auto-sleep policy is currently holding the panel awake. The Home Assistant entity provides the activity history timeline.",
             haExposedByDefault = false,
             ha = haEntity("binary_sensor", "auto_sleep_activity", "Auto-sleep activity", readOnly = true) {
-                stateTopic()
-                raw(""""payload_on":"ON","payload_off":"OFF"""")
-                attributesTopic()
-                icon("mdi:motion-sensor")
             },
         ),
         SettingSpec(
@@ -968,7 +926,6 @@ object SettingsRegistry {
             haExposedByDefault = true,
             availableWhen = { it.hasTemperature },
             ha = haEntity("sensor", "temperature", "Temperature", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -982,7 +939,6 @@ object SettingsRegistry {
             haExposedByDefault = true,
             availableWhen = { it.hasHumidity },
             ha = haEntity("sensor", "humidity", "Humidity", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("humidity")
                 unit("%")
                 stateClass("measurement")
@@ -992,7 +948,7 @@ object SettingsRegistry {
         // ---- Diagnostics -------------------------------------------------------------------------
         // Publish-only panel telemetry (readOnly sensors), all OPT-IN (haExposedByDefault=false): the
         // panel stays quiet in HA until a pip is enabled. Values come from [metrics.PanelMetrics] and
-        // are pushed on the heartbeat tick with a deadband so they never flap the broker. (Issue #19)
+        // are pushed on the heartbeat tick with a deadband so they never flap Home Assistant. (Issue #19)
         SettingSpec(
             key = "diag_ip", type = SettingType.STRING, group = "Diagnostics",
             shortDescriptionUsefulInPopover = true,
@@ -1000,8 +956,6 @@ object SettingsRegistry {
             label = "IP address", default = "",
             haExposedByDefault = false,
             ha = haEntity("sensor", "diag_ip", "IP address", readOnly = true) {
-                stateTopic()
-                icon("mdi:ip-network")
                 textValue()
                 entityCategory("diagnostic")
             },
@@ -1013,10 +967,8 @@ object SettingsRegistry {
             help = "Overall CPU busy percentage (root/su panels; unavailable on sandbox-walled panels).",
             haExposedByDefault = false,
             ha = haEntity("sensor", "diag_cpu", "CPU usage", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 unit("%")
                 stateClass("measurement")
-                icon("mdi:cpu-64-bit")
                 entityCategory("diagnostic")
             },
         ),
@@ -1026,10 +978,8 @@ object SettingsRegistry {
             label = "Memory usage", default = "",
             haExposedByDefault = false,
             ha = haEntity("sensor", "diag_memory", "Memory usage", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 unit("%")
                 stateClass("measurement")
-                icon("mdi:memory")
                 entityCategory("diagnostic")
             },
         ),
@@ -1040,7 +990,6 @@ object SettingsRegistry {
             help = "System-on-chip temperature (root/su panels; unavailable on sandbox-walled panels).",
             haExposedByDefault = false,
             ha = haEntity("sensor", "diag_soc_temp", "SoC temperature", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -1054,9 +1003,7 @@ object SettingsRegistry {
             help = "When the panel last booted (a timestamp — HA shows the elapsed uptime).",
             haExposedByDefault = false,
             ha = haEntity("sensor", "diag_boot", "Last boot time", readOnly = true) {
-                stateTopic()
                 deviceClass("timestamp")
-                icon("mdi:clock-start")
                 textValue()
                 entityCategory("diagnostic")
             },
@@ -1069,9 +1016,7 @@ object SettingsRegistry {
             haExposedByDefault = false,
             availableWhen = { it.hasWifiSsid },
             ha = haEntity("sensor", "diag_wifi_ssid", "Wi-Fi network", readOnly = true) {
-                stateTopic()
                 textValue()
-                icon("mdi:wifi")
                 entityCategory("diagnostic")
             },
         ),
@@ -1088,22 +1033,20 @@ object SettingsRegistry {
                 "Wi-Fi signal strength",
                 readOnly = true, periodicRefresh = true,
             ) {
-                stateTopic()
                 deviceClass("signal_strength")
                 unit("dBm")
                 stateClass("measurement")
-                icon("mdi:wifi")
                 entityCategory("diagnostic")
             },
         ),
         // Rolling Wi-Fi outage counts — actual loss of the panel's Wi-Fi default network, observed
-        // through ConnectivityManager. Never derived from the Home Assistant socket or the MQTT
-        // broker, whose restarts are not the network's fault. See control/WifiOutageTracker.kt.
+        // through ConnectivityManager. Never derived from the Home Assistant socket, whose restarts
+        // are not the network's fault. See control/WifiOutageTracker.kt.
         SettingSpec(
             key = "diag_wifi_outages_24h", type = SettingType.INT, group = "Diagnostics",
             tier = Tier.ADVANCED, summary = "Short Wi-Fi dropouts in the last 24 hours.",
             label = "Wi-Fi outages (24 h)", default = "",
-            help = "Short Wi-Fi dropouts in the rolling last 24 hours. Counts loss of the panel's active Wi-Fi connection only — Home Assistant or broker outages are never counted. If the panel had to cap what it stores, the sensor's is_lower_bound attribute says the value is a floor.",
+            help = "Short Wi-Fi dropouts in the rolling last 24 hours. Counts loss of the panel's active Wi-Fi connection only — Home Assistant outages are never counted. If the panel had to cap what it stores, the sensor's is_lower_bound attribute says the value is a floor.",
             haExposedByDefault = false,
             availableWhen = { it.hasWifi },
             ha = haEntity(
@@ -1112,10 +1055,7 @@ object SettingsRegistry {
                 "Wi-Fi outages (24 h)",
                 readOnly = true, periodicRefresh = true,
             ) {
-                stateTopic()
-                attributesTopic()
                 stateClass("measurement")
-                icon("mdi:wifi-alert")
                 entityCategory("diagnostic")
             },
         ),
@@ -1131,7 +1071,6 @@ object SettingsRegistry {
             help = "Room air temperature from the panel's supported climate sensor (calibration offset applied).",
             haExposedByDefault = true, availableWhen = { it.hasCht8305 },
             ha = haEntity("sensor", "room_temp", "Room temperature", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -1144,7 +1083,6 @@ object SettingsRegistry {
             label = "Room humidity", default = "",
             haExposedByDefault = true, availableWhen = { it.hasCht8305 },
             ha = haEntity("sensor", "room_humidity", "Room humidity", readOnly = true, periodicRefresh = true) {
-                stateTopic()
                 deviceClass("humidity")
                 unit("%")
                 stateClass("measurement")
@@ -1197,17 +1135,11 @@ object SettingsRegistry {
      *  SharedPreferences and travel in config bundles, so the string is a stored-format contract —
      *  the sole owner of the parse/construct convention lives here rather than at each call site. */
     const val HA_EXPOSE_PREFIX = "ha_expose_"
-    // Keep the existing MQTT image preference through backup/restore until that image is retired.
-    // It no longer has an HA switch or Configure exposure pip.
-    const val LEGACY_CAMERA_EXPOSURE_KEY = "${HA_EXPOSE_PREFIX}camera_enabled"
-    const val LEGACY_CAMERA_EXPOSURE_DEFAULT = false
-
     fun persistedExposureDefaults(): Map<String, Boolean> =
-        haCapable().associate { exposureKey(it) to it.haExposedByDefault } +
-            (LEGACY_CAMERA_EXPOSURE_KEY to LEGACY_CAMERA_EXPOSURE_DEFAULT)
+        haCapable().associate { exposureKey(it) to it.haExposedByDefault }
 
     fun isPersistedExposure(key: String): Boolean =
-        key == LEGACY_CAMERA_EXPOSURE_KEY || parseExposure(key) != null
+        parseExposure(key) != null
 
     /** Config entities that were implicitly exposed before schema 4; used only to preserve upgrades. */
     val LEGACY_DEFAULT_ON_HA_EXPOSURES: Set<String> = setOf(

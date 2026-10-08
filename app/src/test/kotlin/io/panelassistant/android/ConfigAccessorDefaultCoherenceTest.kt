@@ -41,7 +41,7 @@ class ConfigAccessorDefaultCoherenceTest {
 
         // Strings that historically defaulted to "".
         listOf(
-            c.mqttBroker, c.mqttUser, c.mqttPassword, c.dashboardPackage, c.haUrl, c.haToken,
+            c.dashboardPackage, c.haUrl, c.haToken,
             c.haRefreshToken, c.haClientId, c.launcherPackage, c.tameVendorPackagesRaw, c.homeDashboard,
             c.autoBrightnessHaEntity, c.logShipHost, c.manufacturerRaw, c.modelRaw,
         ).forEach { assertEquals("", it) }
@@ -100,9 +100,6 @@ class ConfigAccessorDefaultCoherenceTest {
         }
 
         val rendered: Map<String, String> = mapOf(
-            "mqtt_broker" to c.mqttBroker,
-            "mqtt_user" to c.mqttUser,
-            "mqtt_password" to c.mqttPassword,
             SettingsRegistry.ADDRESS_FAMILY_KEY to c.addressFamily,
             "dashboard_package" to c.dashboardPackage,
             "ha_url" to c.haUrl,

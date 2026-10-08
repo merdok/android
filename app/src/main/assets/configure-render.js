@@ -74,7 +74,6 @@
   function groupTitle(group) {
     var titles = {
       "Identity": cfg.i18nText("configure.group.identity", "Identity"),
-      "MQTT": "MQTT",
       "Behaviour": cfg.i18nText("configure.group.behaviour", "Behaviour"),
       "Auto-sleep": cfg.i18nText("configure.group.auto_sleep", "Auto-sleep"),
       "Display": cfg.i18nText("configure.group.display", "Display"),
@@ -98,7 +97,7 @@
   var HA_CONNECTION_KEYS = { ha_url: true, ha_token: true };
   var AUTO_SLEEP_KEYS = { auto_sleep_source: true, auto_sleep_touch_delay_seconds: true, auto_sleep: true };
   var CONFIG_LAYOUT_KEYS = {
-    "Identity": "configure-identity", "MQTT": "configure-mqtt", "Behaviour": "configure-behaviour",
+    "Identity": "configure-identity", "Behaviour": "configure-behaviour",
     "Auto-sleep": "configure-auto-sleep",
     "Display": "configure-display", "System": "configure-system", "Sensors": "configure-sensors",
     "Diagnostics": "configure-diagnostics", "Logging": "configure-logging",

@@ -1195,7 +1195,6 @@ class CatalogueTest(unittest.TestCase):
             "dashboard.fact.firmware": "Firmware",
             "dashboard.responsiveness.tap_percentiles": "~p50 {p50} ms · ~p95 {p95} ms",
             "dashboard.sensors.volume": "Volume",
-            "dashboard.runtime.mqtt.seconds": "{seconds}s",
             "dashboard.live.volume": "Volume",
             "entities.disabled.badge": "experimental",
             "install.display.badge.experimental": "experimental",
@@ -1239,12 +1238,6 @@ class CatalogueTest(unittest.TestCase):
                             **candidate["strings"][key], "text": changed_text,
                         }}})
                         with self.assertRaisesRegex(i18n.CatalogueError, "changed placeholders"):
-                            i18n.validate_target(path, source, expected_locale="pt-BR")
-                    if key == "dashboard.runtime.mqtt.seconds":
-                        self.write(path, {**candidate, "strings": {key: {
-                            **candidate["strings"][key], "text": "{seconds} s",
-                        }}})
-                        with self.assertRaisesRegex(i18n.CatalogueError, "unchanged English"):
                             i18n.validate_target(path, source, expected_locale="pt-BR")
                     # A known source key with identical copy still needs its own exception.
                     other_key = key + ".unapproved"
@@ -1336,7 +1329,7 @@ class CatalogueTest(unittest.TestCase):
     def test_portuguese_information_symbol_keeps_other_scripts_and_frozen_literals_closed(self):
         key = "install.presentation.status_no_renderer"
         source = i18n.validate_source(SCRIPT.parents[1] / "app/src/main/assets/i18n/en.json")
-        text = ("ℹ MQTT configurado. Próximo passo: escolha um renderizador de dashboard. "
+        text = ("ℹ Próximo passo: escolha um renderizador de dashboard. "
                 "Selecione o renderizador integrado do ha-paneld, instale o app Home Assistant Companion "
                 "ou configure outro pacote de dashboard.")
         with tempfile.TemporaryDirectory() as directory:
@@ -1349,7 +1342,7 @@ class CatalogueTest(unittest.TestCase):
                 self.write(path, {**candidate, "strings": {key: {**record, "text": changed}}})
                 with self.subTest(text=changed), self.assertRaisesRegex(i18n.CatalogueError, "unexpected script"):
                     i18n.validate_target(path, source, expected_locale="pt-BR")
-            for literal in ("MQTT", "Home Assistant", "ha-paneld"):
+            for literal in ("Home Assistant", "ha-paneld"):
                 self.write(path, {**candidate, "strings": {key: {**record, "text": text.replace(literal, "changed")}}})
                 with self.subTest(literal=literal), self.assertRaisesRegex(i18n.CatalogueError, "changed frozen literal"):
                     i18n.validate_target(path, source, expected_locale="pt-BR")

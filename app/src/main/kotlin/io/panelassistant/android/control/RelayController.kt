@@ -50,7 +50,7 @@ class RelayController(profile: DeviceProfile, private val root: RootShell = Su) 
 
     /** Resolve immutable sysfs topology once. A failed privileged probe is deliberately not cached:
      * root access can become available after boot. State reads still avoid repeating successful
-     * directory probes on every MQTT heartbeat. */
+     * directory probes on every heartbeat. */
     private fun resolveRelays(allowRootProbe: Boolean) {
         if (resolvedRelayCount != null || !allowRootProbe) return
         val cost = FeatureCosts.registry.span(FeatureCostOperation.RELAY_TOPOLOGY_DISCOVERY)

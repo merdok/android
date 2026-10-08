@@ -5,8 +5,6 @@ import android.content.ContextWrapper
 import android.content.SharedPreferences
 import io.panelassistant.android.Config
 import io.panelassistant.android.migration.IdentityMigrationSurface
-import io.panelassistant.android.panelassistant.PanelAssistantTransportFacts
-import io.panelassistant.android.panelassistant.PanelAssistantTransportPhase
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.sensors.SensorReporter
 import io.panelassistant.android.util.guardDbAppStaging
@@ -112,10 +110,6 @@ internal class PaneldServerHttpFixture(
         field("voiceTest", NO_VOICE_TEST)
         field("playAudio", { _: String -> error("Unexpected playback") })
         field("onInstallComponent", installComponent)
-        field("panelAssistantTransportFacts", {
-            PanelAssistantTransportFacts("", "", PanelAssistantTransportPhase.STOPPED, null)
-        })
-        field("releasePanelAssistantTransport", { error("Unexpected transport release") })
         field("haOAuth", HaOAuthRuntime(
             config,
             { CatalogueLoader { name -> File("src/main/assets", name).readText() } },
@@ -196,7 +190,6 @@ internal class PaneldServerHttpFixture(
             config = config,
             system = allocate(io.panelassistant.android.control.SystemController::class.java),
         ),
-        mqttState = { "disconnected" },
         wakeWords = wakeWords,
     )
 
@@ -316,8 +309,8 @@ internal class PaneldServerHttpFixture(
         server.field("setupState", SetupState(
             config, system,
             allocate(io.panelassistant.android.dashboard.EntityLearningManager::class.java),
-            profile, context, { "connecting" }, { 0 },
-            { io.panelassistant.android.DiscoveryResult() }, { false }, { false },
+            profile, context, { 0 },
+            { io.panelassistant.android.DiscoveryResult() }, { false },
             { system.resolveDashboard(config.dashboardPackage) == io.panelassistant.android.control.SystemController.BUILTIN_DASHBOARD },
             scope, io.panelassistant.android.util.RendererPreparationCoordinator(
                 builtinPackage = "builtin", state = { error("Unexpected renderer preparation") },
@@ -329,7 +322,7 @@ internal class PaneldServerHttpFixture(
 
     /** Cached management observations keep Configure on the real banner path without Android probes. */
     fun enableConfigurePage(proximity: Boolean = false, root: Boolean = false) {
-        config.setMqtt("mqtt://contract.invalid:1883", "", "")
+        config.markPanelAssistantConnected()
         val sensor = PaneldServer::class.java.getDeclaredField("sensors").run {
             isAccessible = true
             get(server)

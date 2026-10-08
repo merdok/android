@@ -1,5 +1,6 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
 import io.panelassistant.android.util.SuccessStickyProbe
 import org.junit.Assert.assertEquals
@@ -7,13 +8,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Camera enumeration through the production bridge and the native hello's descriptor/unsupported offer. */
-internal class NativeCameraChannelTest : MqttWireRig() {
+/** Camera enumeration through the production state core and the native hello's descriptor/unsupported offer. */
+internal class NativeCameraChannelTest : PanelRuntimeRig() {
     @Test fun anUnsettledProbeKeepsTheCameraUntilEnumerationSettlesAbsent() {
         var now = 0L
         var enumerated: Boolean? = null
         val probe = SuccessStickyProbe(probe = { enumerated }, nowMs = { now })
-        val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
+        val rig = rig(cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
@@ -34,7 +35,7 @@ internal class NativeCameraChannelTest : MqttWireRig() {
         var now = 0L
         var probes = 0
         val probe = SuccessStickyProbe<Boolean>(probe = { probes++; error("camera service starting") }, nowMs = { now })
-        val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
+        val rig = rig(cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
@@ -54,7 +55,7 @@ internal class NativeCameraChannelTest : MqttWireRig() {
         var now = 0L
         var enumerated: Boolean? = null
         val probe = SuccessStickyProbe(probe = { enumerated }, nowMs = { now })
-        val rig = rig(runtimeBroker = "", cameraAvailability = probe::get)
+        val rig = rig(cameraAvailability = probe::get)
         try {
             val native = PanelAssistantShadowReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
