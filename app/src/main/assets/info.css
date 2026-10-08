@@ -239,9 +239,9 @@ input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disable
 /* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention
    carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is
    the word, never a fill colour. */
-.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text);vertical-align:middle}
+.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;vertical-align:middle}
 .pill.dot::before,.notice-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
-.card h2 .pill{float:right}
+.card h2 .pill{float:right;color:var(--text)}   /* the title bar is accent-coloured; elsewhere a pill takes its context's colour */
 .notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}
 .notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}
 .notice-text{flex:1 1 18rem;min-width:0}
@@ -351,7 +351,7 @@ body.nav-collapsed.nav-open .nav a.active{border-left-color:var(--primary);backg
    items in priority order until it fits: the GitHub icon first, then the name and version beside the mark, then the mark. */
 body.hdr-hide-gh .hdr .gh{display:none}
 body.hdr-hide-brand .hdr .brand{display:none}
-body.hdr-hide-logo .hdr .logo{display:none}
+body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 .hdr h1{min-height:2.73rem}   /* the mark's height, so no hide step moves the header's foot */
 
 /* ---- Configure page ---- */
