@@ -2,11 +2,11 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COLLECTOR="$ROOT/scripts/collect-panel-hardware.sh"
+COLLECTOR="$ROOT/tools/collect-panel-hardware.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin"
-ln -s "$ROOT/scripts/tests/fixtures/hardware-adb" "$TMP/bin/adb"
+ln -s "$ROOT/tools/tests/fixtures/hardware-adb" "$TMP/bin/adb"
 export PATH="$TMP/bin:/usr/bin:/bin"
 export MOCK_CALL_LOG="$TMP/calls.log"
 

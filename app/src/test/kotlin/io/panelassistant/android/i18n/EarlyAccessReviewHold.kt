@@ -4,7 +4,7 @@ import java.io.File
 import org.json.JSONObject
 
 /**
- * Mirrors `held_for_review()` in scripts/i18n_catalogue.py: an early-access locale shows a consequential
+ * Mirrors `held_for_review()` in tools/i18n_catalogue.py: an early-access locale shows a consequential
  * string in English until it has been reviewed, so its record is an exact `english-fallback` of the source.
  */
 internal object EarlyAccessReviewHold {

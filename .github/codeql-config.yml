@@ -7,6 +7,6 @@ name: ha-paneld CodeQL configuration
 # allow-listed `lang` and `theme` values from a loopback URL and reach no untrusted input.
 #
 # Excluding them keeps the alert list meaningful. Everything the product actually ships, in
-# app/, helper/, scripts/ and the rest of tools/, stays in scope.
+# app/, helper/ and the rest of tools/, stays in scope.
 paths-ignore:
   - tools/test

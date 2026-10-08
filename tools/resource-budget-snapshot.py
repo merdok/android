@@ -14,7 +14,7 @@ Two modes:
   capture  <adb-target>            -> one JSON snapshot on stdout / --output
   compare  <baseline> <candidate>  -> pass/fail against tolerances; nonzero exit on regression
 
-The parsers are pure and unit-tested (scripts/tests/resource_budget_snapshot_test.py);
+The parsers are pure and unit-tested (tools/tests/resource_budget_snapshot_test.py);
 only the thin adb layer needs a live panel, which is where on-panel validation
 of the exact command output happens. Output deliberately omits panel id / URL,
 matching the perf collector; a snapshot carries only the build's version code so
@@ -201,7 +201,7 @@ def _read(
     """Run a `/proc` read directly; on a restricted panel retry via the operator-supplied
     root prefix (e.g. `su 0` / `su root`). No su-dialect auto-detection lives here — the
     operator names their panel's join-style form once with --su-prefix, which keeps this a
-    diagnostic and avoids a fourth copy of the fleet su matrix."""
+    diagnostic and avoids a fourth copy of the su invocation matrix."""
     out = runner(target, argv)
     if su_prefix and _denied(out):
         out = runner(target, [*su_prefix.split(), *argv])

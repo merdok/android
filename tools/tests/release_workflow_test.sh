@@ -26,7 +26,7 @@ if ! release_tag_vectors="$(python3 -c 'import json, sys
 tags = json.load(open(sys.argv[1]))["tags"]
 assert {t["kind"] for t in tags} == {"stable", "rc", "build", "refused"}, "every tag kind, and no other"
 assert all(isinstance(t["tag"], str) and t["tag"] and not set(t["tag"]) & set("\t\n") for t in tags)
-for t in tags: print(t["kind"] + "\t" + t["tag"])' "$ROOT/scripts/tests/fixtures/release-identity-corpus.json")"; then
+for t in tags: print(t["kind"] + "\t" + t["tag"])' "$ROOT/tools/tests/fixtures/release-identity-corpus.json")"; then
   printf 'Bail out! the shared release corpus could not be loaded\n' >&2
   exit 1
 fi
@@ -355,11 +355,11 @@ provenance_tag=$(provenance_git rev-parse refs/tags/catalogue-source)
 provenance_real_git=$(command -v git)
 mapfile -t provenance_locales < <(
   PYTHONPATH="$ROOT" python3 -c \
-    'from scripts.i18n_catalogue import LOCALES; print("en"); print(*sorted(LOCALES), sep="\n")'
+    'from tools.i18n_catalogue import LOCALES; print("en"); print(*sorted(LOCALES), sep="\n")'
 )
 provenance_target_locale=$(
   PYTHONPATH="$ROOT" python3 -c \
-    'from scripts.i18n_catalogue import LOCALES; print(sorted(LOCALES)[0])'
+    'from tools.i18n_catalogue import LOCALES; print(sorted(LOCALES)[0])'
 )
 
 make_provenance_case() {
@@ -367,8 +367,8 @@ make_provenance_case() {
   cp -a "$provenance_seed" "$provenance_case"
   provenance_catalogues="$provenance_case/app/src/main/assets/i18n"
   mkdir -p "$provenance_catalogues"
-  mkdir -p "$provenance_case/scripts"
-  cp "$ROOT/scripts/i18n_catalogue.py" "$provenance_case/scripts/i18n_catalogue.py"
+  mkdir -p "$provenance_case/tools"
+  cp "$ROOT/tools/i18n_catalogue.py" "$provenance_case/tools/i18n_catalogue.py"
   for locale in "${provenance_locales[@]}"; do
     printf '{"sourceRevision":"%s"}\n' "$2" > "$provenance_catalogues/$locale.json"
   done
@@ -397,7 +397,7 @@ check_provenance_case() {
 make_provenance_case valid "$provenance_ancestor"
 check_provenance_case 'accepts a valid ancestor' ''
 make_provenance_case next-locale "$provenance_ancestor"
-python3 - "$provenance_case/scripts/i18n_catalogue.py" <<'PY'
+python3 - "$provenance_case/tools/i18n_catalogue.py" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -497,7 +497,7 @@ done
 descriptor_step="$(extract_named_step 'Generate bounded install descriptor without release credentials')"
 proof_step="$(extract_named_step 'Sign and authenticate release proofs')"
 final_step="$(extract_named_step 'Final exact verification before publication')"
-if grep -Fq 'cp scripts/generate_install_descriptor.py release-input/generate_install_descriptor.py' <<<"$package_job" && \
+if grep -Fq 'cp tools/generate_install_descriptor.py release-input/generate_install_descriptor.py' <<<"$package_job" && \
    [ "$(grep -Fc 'generate_install_descriptor.py \' <<<"$package_job")" -eq 1 ] && \
    grep -Fq 'sha256sum android-gradle-runtime.cdx.json generate_install_descriptor.py' <<<"$package_job" && \
    grep -Fq 'generate_install_descriptor.py \' <<<"$publish_job" && \
@@ -578,10 +578,10 @@ fi
 # Without the shared corpus the suite must fail rather than pass its tag checks over nothing. The copy
 # differs only by the missing corpus; the file test stops a copy whose load went silent from recursing.
 mkdir -p "$TMP/no-corpus"
-cp -R "$ROOT/scripts" "$ROOT/.github" "$TMP/no-corpus/"
-rm -f "$TMP/no-corpus/scripts/tests/fixtures/release-identity-corpus.json"
-if [ ! -f "$ROOT/scripts/tests/fixtures/release-identity-corpus.json" ] || \
-   RELEASE_WORKFLOW_UNDER_TEST="$WORKFLOW" bash "$TMP/no-corpus/scripts/tests/release_workflow_test.sh" >/dev/null 2>&1; then
+cp -R "$ROOT/tools" "$ROOT/.github" "$TMP/no-corpus/"
+rm -f "$TMP/no-corpus/tools/tests/fixtures/release-identity-corpus.json"
+if [ ! -f "$ROOT/tools/tests/fixtures/release-identity-corpus.json" ] || \
+   RELEASE_WORKFLOW_UNDER_TEST="$WORKFLOW" bash "$TMP/no-corpus/tools/tests/release_workflow_test.sh" >/dev/null 2>&1; then
   fail_test "the suite fails when the shared release corpus is missing"
 else
   pass "the suite fails when the shared release corpus is missing"
@@ -589,7 +589,7 @@ fi
 if ! grep -Eq '^[[:space:]]*if:[[:space:]]*(\$\{\{[[:space:]]*)?false' <<<"$descriptor_step_yaml$proof_step_yaml$final_step_yaml" && \
    ! grep -Eq '^[[:space:]]*continue-on-error:[[:space:]]*true' <<<"$descriptor_step_yaml$proof_step_yaml$final_step_yaml" && \
    ! grep -Eq '^[[:space:]]*if[[:space:]]+false([[:space:];]|$)' <<<"$descriptor_step" && \
-   grep -Fq 'scripts/tests/release_workflow_test.sh' "$ROOT/.github/workflows/ci.yml"; then
+   grep -Fq 'tools/tests/release_workflow_test.sh' "$ROOT/.github/workflows/ci.yml"; then
   pass "active descriptor step and regular host-CI coverage are explicit"
 else
   fail_test "active descriptor step and regular host-CI coverage are explicit"
@@ -614,7 +614,7 @@ chmod 0755 "$TMP" "$descriptor_case" "$descriptor_case/release-input" "$descript
   "$descriptor_case/android" "$descriptor_case/android/build-tools" \
   "$descriptor_case/android/build-tools/36.0.0" "$descriptor_case/runner-temp"
 chmod 0777 "$descriptor_case/forbidden-write"
-cp "$ROOT/scripts/generate_install_descriptor.py" "$descriptor_case/release-input/generate_install_descriptor.py"
+cp "$ROOT/tools/generate_install_descriptor.py" "$descriptor_case/release-input/generate_install_descriptor.py"
 # `apk_name` is the descriptor's subject, which is the successor. The bridge is published beside
 # it. Both carry a `.bin` suffix so that no updater shipped before Panel Assistant 0.7.1 finds them.
 apk_name=panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin

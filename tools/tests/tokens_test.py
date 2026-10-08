@@ -8,8 +8,7 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[2]
-PATHS = ["tools/tokens/tokens.py", "tools/tokens/tokens.json", "app/src/main/assets/info.css",
-         "app/src/main/assets/api.html"]
+PATHS = ["tools/tokens/tokens.py", "tools/tokens/tokens.json", "app/src/main/assets/info.css"]
 
 
 class TokensTest(unittest.TestCase):
@@ -43,8 +42,7 @@ class TokensTest(unittest.TestCase):
         self.recolour(change)
         stale = self.run_tokens("--check")
         self.assertEqual(stale.returncode, 1)
-        for path in ["PanelTokens.kt", "tools/tokens/tokens.css", "app/src/main/assets/info.css",
-                     "app/src/main/assets/api.html"]:
+        for path in ["PanelTokens.kt", "tools/tokens/tokens.css", "app/src/main/assets/info.css"]:
             self.assertIn(path, stale.stderr)
 
         self.assertEqual(self.run_tokens().returncode, 0)

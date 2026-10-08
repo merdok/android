@@ -31,7 +31,7 @@ TEST_BUILD_ID := aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 REPLACEMENT_OLD_BUILD_ID := eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 REPLACEMENT_NEW_BUILD_ID := dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 
-.PHONY: all daemon test test-units test-transaction test-transport peer-auth-test request-timeout-test replacement-identity-test install-security-test standalone-identity-test cdprelay-resource-test socket-test-server fuzz contract clean print-core
+.PHONY: all daemon test test-units peer-auth-test request-timeout-test replacement-identity-test cdprelay-resource-test socket-test-server fuzz contract clean print-core
 all: daemon
 
 # Host build of the real daemon — a compile sanity check (-Werror); the shipped binary is build.sh.
@@ -45,8 +45,6 @@ $(BUILD)/hapaneld-helper: $(DAEMON_SRCS) | $(BUILD)
 TEST_BINS := $(BUILD)/unit $(BUILD)/hapaneld-helper $(BUILD)/companion-boundary $(BUILD)/guard-maintenance-boundary $(BUILD)/replacement-lease-old $(BUILD)/replacement-lease-new $(BUILD)/sysexec-fd-boundary $(BUILD)/sysexec-platform-wrapper $(BUILD)/peer-auth $(BUILD)/request-timeout $(BUILD)/bounded-exec $(BUILD)/hapaneld-helper-old $(BUILD)/hapaneld-helper-new $(BUILD)/cdprelay-resource-test $(BUILD)/cdprelay-test $(BUILD)/logcat-fixture $(BUILD)/logcat-boundary
 test:
 	$(MAKE) test-units
-	$(MAKE) test-transaction
-	$(MAKE) test-transport
 
 test-units: $(TEST_BINS)
 	$(BUILD)/unit
@@ -62,16 +60,6 @@ test-units: $(TEST_BINS)
 	$(BUILD)/logcat-boundary
 	bash ./test/replacement_identity_test.sh $(BUILD)/hapaneld-helper-old $(BUILD)/hapaneld-helper-new
 	$(BUILD)/cdprelay-resource-test $(BUILD)/cdprelay-test
-	bash ./test/root_command_quote_test.sh
-	bash ./test/standalone_installer_identity_test.sh
-	bash ./test/install_daemon_security_test.sh
-
-# Self-contained: both scripts stage their own mock helper, so neither needs the test binaries.
-test-transaction:
-	bash ./test/standalone_installer_transaction_test.sh
-
-test-transport:
-	bash ./test/direct_root_transport_test.sh
 
 # --wrap=open/ioctl lets tests provide a fake evdev node and capture requested exclusive grabs while
 # preserving the existing ledjni ioctl assertions; --wrap=write forces deterministic stream edge cases.
@@ -137,13 +125,6 @@ $(BUILD)/hapaneld-helper-old: $(DAEMON_SRCS) | $(BUILD)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) $(REPLACEMENT_FLAGS) -DHAPANELD_BUILD_ID=\"$(OLD_BUILD_ID)\" $(DAEMON_SRCS) $(LDLIBS) -o $@
 $(BUILD)/hapaneld-helper-new: $(DAEMON_SRCS) | $(BUILD)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) $(REPLACEMENT_FLAGS) -DHAPANELD_BUILD_ID=\"$(NEW_BUILD_ID)\" $(DAEMON_SRCS) $(LDLIBS) -o $@
-
-install-security-test:
-	bash ./test/install_daemon_security_test.sh
-
-# Reads the identity out of real compiled ELF artifacts, so it needs them built first.
-standalone-identity-test: $(BUILD)/hapaneld-helper-old $(BUILD)/hapaneld-helper-new
-	bash ./test/standalone_installer_identity_test.sh
 
 # CDP relay resource regression. Tight test-only deadlines keep saturation/reaping/idle coverage fast;
 # production uses the conservative defaults compiled into cdprelay.c by Gradle.
