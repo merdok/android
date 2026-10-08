@@ -1342,11 +1342,7 @@ class PaneldService : Service() {
             AndroidScreenPower(this),
             wakeTap = OverlayWakeTap(this),
             route = profile.screenOff,
-            displacedTimeout = object : io.panelassistant.android.control.DisplacedScreenTimeout {
-                override var displacedMs: Int
-                    get() = config.displacedScreenOffTimeout
-                    set(v) { config.displacedScreenOffTimeout = v }
-            },
+            displacedTimeout = io.panelassistant.android.control.ConfigDisplacedScreenTimeout(config),
         )
         autoBright = AutoBrightnessController(
             this, brightness, config, screen::actuateBrightnessIfOn,

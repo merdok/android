@@ -329,6 +329,14 @@ object BuiltinDashboard {
     fun setKeepScreenOnListener(l: (() -> Unit)?) { keepScreenOnListener = l }
     fun clearKeepScreenOnListener(l: () -> Unit) { if (keepScreenOnListener === l) keepScreenOnListener = null }
 
+    private val touches = java.util.concurrent.atomic.AtomicLong()
+
+    /** Touches the renderer has seen, for [ScreenController] to tell a person at the panel from a
+     *  screen timeout that did not take. Only the count changes; nothing about the touch is kept. */
+    val touchCount: Long get() = touches.get()
+
+    fun noteTouch() { touches.incrementAndGet() }
+
     /** [ScreenController] calls this around a screen-timeout off; the renderer re-applies its policy. */
     fun releaseKeepScreenOn(released: Boolean) {
         if (keepScreenOnReleased == released) return

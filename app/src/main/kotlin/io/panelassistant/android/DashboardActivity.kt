@@ -858,6 +858,7 @@ class DashboardActivity : AppCompatActivity() {
         lastTouchAt = SystemClock.elapsedRealtime()
         if (ev?.actionMasked == MotionEvent.ACTION_DOWN) {
             PanelTouchObserver.shared(this).noteActivityTouch()
+            BuiltinDashboard.noteTouch()
         }
         return super.dispatchTouchEvent(ev)
     }

@@ -1396,11 +1396,37 @@ class ScreenControllerTest {
     // --- screen-timeout and device-admin: unprivileged Android sleep ---
 
     private val displaced = InMemoryDisplacedScreenTimeout()
+    private var touches = 0L
 
-    private fun androidSleepController(route: ScreenOff = ScreenOff.SCREEN_TIMEOUT) = ScreenController(
+    private fun androidSleepController(
+        route: ScreenOff = ScreenOff.SCREEN_TIMEOUT,
+        nap: (Long) -> Unit = {},
+    ) = ScreenController(
         backlight, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, route,
-        nap = {}, displacedTimeout = displaced,
+        nap = nap, displacedTimeout = displaced, touchCount = { touches },
     )
+
+    /** A touch while Android counts down means someone is using the panel. The off is cancelled: the
+     *  panel stays awake at its brightness, the timeout goes back, and nothing locks or dims it. */
+    @Test fun aTouchDuringTheScreenTimeoutWaitCancelsTheOffInsteadOfLockingOrDimming() {
+        power.canWrite = true
+        power.shortTimeoutSleeps = false     // Android is still counting down
+        power.adminActive = true
+        power.timeoutMs = 300_000
+        backlight.level = 200
+        var naps = 0
+        val sc = androidSleepController(nap = { if (++naps == 3) touches++ })
+
+        assertNull("a cancelled off owns no automatic epoch", sc.sleepAutomatically())
+        assertEquals("a person at the panel must never be locked out", 0, power.locks)
+        assertTrue("nor dimmed", backlight.calls.isEmpty())
+        assertTrue(power.interactive)
+        assertFalse(sc.isIntendedOff())
+        assertEquals(300_000, power.timeoutMs)
+        assertFalse(BuiltinDashboard.keepScreenOnReleased)
+        assertEquals(ScreenController.REASON_CANCELLED_BY_TOUCH, sc.routeSelection().reason)
+        assertTrue("the wait ends at the touch, not after the full window", naps < 10)
+    }
 
     /** The primary route: the renderer stops holding the screen on, a short timeout lets Android sleep,
      *  and the wake puts back exactly the timeout that was there before. */

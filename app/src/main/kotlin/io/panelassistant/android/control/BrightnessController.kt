@@ -35,8 +35,20 @@ internal class ScreenTimeoutController(
     fun apply(
         enabled: Boolean,
         savedTimeoutMs: Int,
+        displaced: DisplacedScreenTimeout? = null,
         rememberTimeout: (Int) -> Unit,
     ): ScreenTimeoutApplyResult {
+        // While the screen-timeout screen-off has the panel asleep, the live value is its short timeout
+        // and the real one is in the displaced record. Read and change the record, never the live value:
+        // the short timeout must never be remembered as the firmware default, and the new choice takes
+        // effect when the wake restores the record.
+        val held = displaced?.displacedMs?.takeIf { it > 0 }
+        if (held != null) {
+            if (enabled && held in 1 until NEVER_SCREEN_TIMEOUT_MS) rememberTimeout(held)
+            val target = if (enabled) NEVER_SCREEN_TIMEOUT_MS else savedTimeoutMs.takeIf { it > 0 } ?: DEFAULT_SCREEN_TIMEOUT_MS
+            displaced?.displacedMs = target
+            return ScreenTimeoutApplyResult(enabled, target, target, writeAccepted = true)
+        }
         val before = read()
         if (enabled && before in 1 until NEVER_SCREEN_TIMEOUT_MS) rememberTimeout(before)
         val target = if (enabled) {
@@ -241,7 +253,9 @@ class BrightnessController internal constructor(
      * the saved firmware default is restored (60 s if none was captured).
      */
     internal fun applyPreventIdleDim(on: Boolean, config: Config): ScreenTimeoutApplyResult = try {
-        screenTimeout.apply(on, config.savedScreenOffTimeout) { config.savedScreenOffTimeout = it }.also { result ->
+        screenTimeout.apply(on, config.savedScreenOffTimeout, ConfigDisplacedScreenTimeout(config)) {
+            config.savedScreenOffTimeout = it
+        }.also { result ->
             if (result.effective && result.writeAccepted) {
                 Log.d(TAG, "prevent idle dim ${if (on) "ON" else "OFF"}: screen_off_timeout -> ${result.observedMs}")
             } else if (result.effective) {

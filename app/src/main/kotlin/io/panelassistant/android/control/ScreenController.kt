@@ -40,6 +40,13 @@ interface DisplacedScreenTimeout {
 /** Process-local [DisplacedScreenTimeout] for tests and callers with no durable store. */
 class InMemoryDisplacedScreenTimeout(override var displacedMs: Int = -1) : DisplacedScreenTimeout
 
+/** The durable store: shared by the screen-off route and prevent-idle-dim, which must agree on it. */
+class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android.Config) : DisplacedScreenTimeout {
+    override var displacedMs: Int
+        get() = config.displacedScreenOffTimeout
+        set(v) { config.displacedScreenOffTimeout = v }
+}
+
 /**
  * Screen on/off — vendor-free with one serialized transition owner.
  *
@@ -99,6 +106,9 @@ class ScreenController(
     /** Bounded wait between interactivity read-backs. Seamed so tests confirm without real time. */
     private val nap: (Long) -> Unit = { Thread.sleep(it) },
     private val displacedTimeout: DisplacedScreenTimeout = InMemoryDisplacedScreenTimeout(),
+    /** Count of touches the renderer has seen. A change during the screen-timeout wait means a person
+     *  is using the panel, which cancels the off rather than failing it. */
+    private val touchCount: () -> Long = { BuiltinDashboard.touchCount },
 ) {
     init {
         // A process that died while the screen-timeout route had the panel asleep left its short
@@ -357,6 +367,13 @@ class ScreenController(
             ScreenOff.KEYEVENT -> if (sleepByKeyevent()) ScreenOff.KEYEVENT to REASON_DECLARED else null
             ScreenOff.SCREEN_TIMEOUT -> {
                 val timeoutRefusal = sleepByTimeout()
+                if (timeoutRefusal == REFUSAL_TOUCHED) {
+                    // Someone is using the panel: the off is cancelled, not failed. No lock, no dim.
+                    wake()
+                    recordSelection(ScreenOff.SCREEN_TIMEOUT, REASON_CANCELLED_BY_TOUCH)
+                    Log.i(TAG, "screen-timeout off cancelled by a touch")
+                    return null
+                }
                 when {
                     timeoutRefusal == null -> ScreenOff.SCREEN_TIMEOUT to withPinNote(REASON_DECLARED)
                     sleepByLockNow() -> ScreenOff.DEVICE_ADMIN to
@@ -547,7 +564,9 @@ class ScreenController(
      * Android floors the timeout at its own minimum (10 s on AOSP) counted from the last user
      * activity, and releasing the renderer's keep-screen-on flag counts as activity, so this waits
      * [TIMEOUT_CONFIRM_MS] — much longer than the keyevent route, and inside the transition monitor.
-     * A touch during that wait restarts Android's clock and reads here as a timeout that did not take.
+     * A touch during that wait restarts Android's clock because a person is using the panel; that
+     * ends the wait at once as [REFUSAL_TOUCHED], so the caller keeps the panel awake instead of
+     * treating it as a timeout that did not take.
      */
     private fun sleepByTimeout(): String? {
         if (!power.canWriteSystemSettings()) return "WRITE_SETTINGS is not granted"
@@ -556,10 +575,24 @@ class ScreenController(
             if (current <= 0) return "the current screen timeout could not be read"
             displacedTimeout.displacedMs = current
         }
+        val touchesBefore = touchCount()
         BuiltinDashboard.releaseKeepScreenOn(true)
-        if (power.setScreenOffTimeoutMs(SLEEP_TIMEOUT_MS) && awaitInteractive(false, TIMEOUT_CONFIRM_MS)) return null
+        val outcome = if (!power.setScreenOffTimeoutMs(SLEEP_TIMEOUT_MS)) {
+            "the short screen timeout could not be written"
+        } else {
+            var waited = 0L
+            while (true) {
+                if (!power.isInteractive()) return null
+                if (touchCount() != touchesBefore) break
+                if (waited >= TIMEOUT_CONFIRM_MS) break
+                nap(KEYEVENT_POLL_MS)
+                waited += KEYEVENT_POLL_MS
+            }
+            if (touchCount() != touchesBefore) REFUSAL_TOUCHED
+            else "the short screen timeout did not make Android noninteractive"
+        }
         restoreDisplacedTimeout()
-        return "the short screen timeout did not make Android noninteractive"
+        return outcome
     }
 
     /** `lockNow()` as an active device admin, proven by Android leaving the interactive state. */
@@ -782,6 +815,9 @@ class ScreenController(
         internal const val REASON_DECLARED = "matches the declared route"
         internal const val REASON_BRIGHTNESS_ZERO_NEVER_PROBES =
             "matches the declared route; brightness-zero never probes su or the helper daemon"
+        internal const val REASON_CANCELLED_BY_TOUCH =
+            "the off was cancelled by a touch during the screen-timeout wait; the panel stays awake"
+        private const val REFUSAL_TOUCHED = "touched"
         internal const val REASON_UNEXERCISED =
             "not yet exercised; no screen-off has occurred since this controller was constructed"
         private const val DEFAULT_ON = 160
