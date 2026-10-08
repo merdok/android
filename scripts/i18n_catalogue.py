@@ -234,7 +234,6 @@ UNCHANGED_TARGET_EXCEPTIONS = {
     ("it", "settings.zigbee_router.label"): "Router Zigbee",
     ("it", "shell.runtime.duration_minutes"): "{count} min",
     ("it", "shell.runtime.duration_seconds"): "{count} s",
-    ("it", "setup.mqtt.password.label"): "Password",
     ("it", "setup.progress.server"): "Server",
     ("nl", "configure.auto_sleep.value.live"): "Live",
     ("nl", "configure.duration.hours_minutes"): "{hours} h {minutes} min",
@@ -456,7 +455,6 @@ TARGET_LITERAL_EXCEPTIONS = {
     ("zh-Hans", "settings.kiosk_lock.help"): ("root",),
     ("zh-Hans", "settings.voice_enabled.help"): ("Assist",),
     ("zh-Hans", "settings.voice_pipelines.help"): ("Assist", "ID"),
-    ("zh-Hans", "setup.mqtt.help.body"): ("broker",),
 }
 CONTEXT_ROOT_KEYS = {
     "schema", "id", "productContext", "instruction", "license", "notice", "sources", "terms",

@@ -14,8 +14,7 @@ const chrome = process.env.CHROME || '/usr/bin/chromium';
 const browserTest = existsSync(chrome) ? test : test.skip;
 
 const STAGES = [
-  'identity', 'renderer', 'ha_url', 'ha_credentials', 'home_dashboard',
-  'mqtt_broker', 'mqtt_credentials', 'mqtt_connection', 'entity_filter', 'render_proof',
+  'identity', 'renderer', 'ha_url', 'ha_credentials', 'home_dashboard', 'entity_filter', 'render_proof',
 ];
 
 function journey(next, overrides = {}) {
@@ -162,7 +161,7 @@ browserTest('Setup localizes representative cards and stable state tokens with a
     'setup.proof.milestone.reading.one': '读取了 {count} 个实体',
     'setup.proof.milestone.reading.other': '读取了 {count} 个实体（复数）',
     'setup.done.title': '✓ 此面板已设置',
-    'setup.done.status.attested_mqtt': 'MQTT 已连接 · 仪表盘已由你确认。',
+    'setup.done.status.attested': '仪表盘已由你确认。',
   };
   const rig = await openRig(t, { initialJourney: journey('identity'), translations });
 
@@ -216,12 +215,11 @@ browserTest('Setup localizes representative cards and stable state tokens with a
     complete: true,
     statuses: {
       render_proof: { status: 'satisfied', detail: 'user_attested' },
-      mqtt_connection: { status: 'satisfied' },
     },
     entity_filter: { relevant: true, enabled: false },
   }));
   assert.equal(await rig.page.locator('.card h2').textContent(), '✓ 此面板已设置');
-  assert.equal(await rig.page.locator('#wiz-live').textContent(), 'MQTT 已连接 · 仪表盘已由你确认。');
+  assert.equal(await rig.page.locator('#wiz-live').textContent(), '仪表盘已由你确认。');
 
   const fallback = await openRig(t, { initialJourney: journey('identity'), withHelper: false, locale: 'en' });
   assert.equal(await fallback.page.locator('.card h2').textContent(), 'Name this panel');
@@ -503,18 +501,15 @@ browserTest('Setup distinguishes a saved apply-pending 202 from a physical appro
 
 });
 
-browserTest('Setup maps discovery and probe codes to translated messages without translating host or port evidence', async (t) => {
-  const host = 'broker-<east>&west';
-  const port = '28<883>&';
-  const discoveredBroker = 'tcp://[fe80::1234]:1883/path?<>&';
+browserTest('Setup maps discovery codes to translated messages without translating the discovered value', async (t) => {
+  const discoveredUrl = 'http://[fe80::1234]:8123/path?<>&';
   const translations = {
-    'setup.mqtt.title': '连接 MQTT',
+    'setup.ha_url.title': 'HA 地址',
     'setup.discovery.found': '网络中找到：{value}',
     'setup.discovery.unavailable.no_responses_at_all': '未收到任何发现响应。',
-    'setup.mqtt.error.nothing_listening': '{host}:{port} 没有服务，请检查。',
   };
   const rig = await openRig(t, {
-    initialJourney: journey('mqtt_broker', {
+    initialJourney: journey('ha_url', {
       discovery: {
         outcome: 'unavailable', reason: 'no_responses_at_all',
         explanation: 'SERVER ENGLISH MUST NOT LEAK',
@@ -522,33 +517,20 @@ browserTest('Setup maps discovery and probe codes to translated messages without
     }),
     translations,
     discovery: {},
-    route(url) {
-      if (url.pathname === '/api/v1/config/probe-broker') {
-        return json({ ok: false, error: 'nothing-listening', host, port });
-      }
-    },
   });
-  assert.equal(await rig.page.locator('.card h2').textContent(), '连接 MQTT');
+  assert.equal(await rig.page.locator('.card h2').textContent(), 'HA 地址');
   const note = rig.page.locator('#wiz-step .notice[data-severity="note"]');
   assert.equal(await note.locator('.notice-text').textContent(), '未收到任何发现响应。');
   assert.doesNotMatch(await rig.page.locator('#wiz-step').textContent(), /SERVER ENGLISH MUST NOT LEAK/);
 
-  await rig.page.locator('#wiz-mqtt_broker').fill('tcp://broker.example:1883');
-  await rig.page.locator('button.wiz-primary').click();
-  assert.equal(await eventually(
-    () => rig.page.locator('#wiz-err').textContent(),
-    (value) => value.length > 0,
-  ), `${host}:${port} 没有服务，请检查。`);
-  assert.equal(await rig.page.locator('#wiz-step img').count(), 0);
-
   // The fixture's read-only discovery payload remains an opaque URL. A separate rig avoids conflating
   // that payload with the journey's finite discovery reason code.
   const found = await openRig(t, {
-    initialJourney: journey('mqtt_broker'), translations,
-    discovery: { mqtt_broker: discoveredBroker },
+    initialJourney: journey('ha_url'), translations,
+    discovery: { ha_url: discoveredUrl },
   });
-  await found.page.getByText(`网络中找到：${discoveredBroker}`, { exact: true }).waitFor();
-  assert.equal(await found.page.locator('#wiz-mqtt_broker').inputValue(), discoveredBroker);
+  await found.page.getByText(`网络中找到：${discoveredUrl}`, { exact: true }).waitFor();
+  assert.equal(await found.page.locator('#wiz-ha_url').inputValue(), discoveredUrl);
 });
 
 for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) {
@@ -569,20 +551,15 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
 
 for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) {
   const run = existsSync(browserType === chromium ? chrome : browserType.executablePath()) ? test : test.skip;
-  run(`a panel Panel Assistant carries is never told about a broker in ${engine}`, async (t) => {
-    const skipped = { status: 'skipped' };
+  run(`Setup walks five steps and never asks about a broker in ${engine}`, async (t) => {
     const rig = await openRig(t, {
-      initialJourney: journey('identity', {
-        statuses: { mqtt_broker: skipped, mqtt_credentials: skipped, mqtt_connection: skipped },
-      }),
+      initialJourney: journey('identity'),
       withHelper: false,
       locale: 'en',
     }, '/', browserType);
-    assert.doesNotMatch(await rig.page.locator('#wiz-dots').textContent(), /MQTT/);
+    assert.deepEqual(await rig.page.locator('#wiz-dots li').allTextContents(),
+      ['Name', 'Server', 'HA sign-in', 'HA dash', 'Optimize']);
     assert.doesNotMatch(await rig.page.locator('#wiz-step').textContent(), /MQTT|broker/i);
-
-    await reloadJourney(rig, journey('identity'), '/');
-    assert.match(await rig.page.locator('#wiz-dots').textContent(), /MQTT/);
   });
 
 }

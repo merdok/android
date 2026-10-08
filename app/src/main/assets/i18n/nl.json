@@ -10203,11 +10203,6 @@
    "sourceHash": "1bd3ae94a54c3e9446bb243cd96b0f3e7858f8eac7a9b3900fd7314c90d0627c",
    "state": "machine-cross-checked"
   },
-  "setup.discovery.unavailable.broker_not_on_link": {
-   "text": "We konden dit niet automatisch vinden — Home Assistant bevindt zich op een ander netwerksegment dan dit paneel, en automatische detectie werkt alleen binnen één segment. Dat is normaal op sommige netwerken — typ het hieronder in; het werkt precies hetzelfde.",
-   "sourceHash": "60000992bc1cb98758c2f5c927ddf87b6bf01a5710c6c3ff3872363d37e9fe03",
-   "state": "machine-cross-checked"
-  },
   "setup.discovery.unavailable.error": {
    "text": "We konden dit niet automatisch vinden — de netwerkdetectiepoging van dit paneel is mislukt. Dat is normaal op sommige netwerken — typ het hieronder in; het werkt precies hetzelfde.",
    "sourceHash": "7b47377022930368a5a4c581149b3b9edc3f717bf9d85f617183030d78cf3f68",
@@ -10253,22 +10248,12 @@
    "sourceHash": "bb421be7eb8fb60a13c614cf636556c3f10a8f2e43f1f78fff1b89eb5be6c559",
    "state": "machine-cross-checked"
   },
-  "setup.done.status.attested_mqtt": {
-   "text": "MQTT verbonden · Dashboard door jou bevestigd.",
-   "sourceHash": "bf75407b2be24c38c564c7301bf294831d3c6747ffa74c6af2b96efec3b73816",
-   "state": "machine-cross-checked"
-  },
-  "setup.done.status.attested_no_mqtt": {
+  "setup.done.status.attested": {
    "text": "Dashboard door jou bevestigd.",
    "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
    "state": "machine-cross-checked"
   },
-  "setup.done.status.rendering_mqtt": {
-   "text": "MQTT verbonden · Home Assistant wordt weergegeven op het paneel.",
-   "sourceHash": "03a4e83b75b9f9913caca04ebcc4c9649179c283a50a7d37682467d4fe41ebcb",
-   "state": "machine-cross-checked"
-  },
-  "setup.done.status.rendering_no_mqtt": {
+  "setup.done.status.rendering": {
    "text": "Home Assistant wordt weergegeven op het paneel.",
    "sourceHash": "dcd8160cc85f6016d90daf4256a58f4434aa6b9718c3fa0f258323b3d9fa2234",
    "state": "machine-cross-checked"
@@ -10603,209 +10588,9 @@
    "sourceHash": "42054cbac53831e343a3982e3c7326fdeb206ef490271d88aaed7b799f5951d4",
    "state": "machine-cross-checked"
   },
-  "setup.mqtt.action.cancel_edit": {
-   "text": "Annuleer en bewerk deze gegevens",
-   "sourceHash": "f23b12931ce871291c67ed2055c72e93362c6ca6b40ea9478c1b3a5d0e39e23e",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.action.checking_address": {
-   "text": "Het adres wordt gecontroleerd…",
-   "sourceHash": "4e4170d1a4d2acf6a7f3490e6ed813134358d469376d2d8516cb771927beab25",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.action.checking_connection": {
-   "text": "De verbinding wordt gecontroleerd…",
-   "sourceHash": "33f8dde16b75e05f2f08b6617999a7b6ef2568ee2a6e0fc416c27a76ec13cff7",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.action.save_anyway": {
-   "text": "Toch opslaan",
-   "sourceHash": "ef4c87b5083fbe4867b0bfb4e2575ecb106bdd4612160ef40f8f022c415cbdac",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.broker.help": {
-   "text": "Meestal tcp://, dan het adres van je Home Assistant en :1883.",
-   "sourceHash": "3cb757053af4d021d4cb57a1d0e71ac958723841508673850218df3a2d55fb6d",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.broker.label": {
-   "text": "Broker-URL",
-   "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.error.invalid_address": {
-   "text": "Dat adres is geen broker-URL die het paneel kan gebruiken — er zijn tcp:// (of ssl://) en een host nodig.",
-   "sourceHash": "b9add1e3ccf51bf66889b0971c892221981c071133811735c8f221fbd798ee27",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.error.nothing_listening": {
-   "text": "Er luistert niets op {host}:{port} — controleer het adres en de poort. Druk nogmaals om toch op te slaan.",
-   "sourceHash": "1033c7bfa571cbb694463132fd61755a77712535237c1d9263a51eec29295cfe",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.error.scheme": {
-   "text": "De broker-URL moet beginnen met tcp://, mqtt://, ssl://, mqtts:// of tls:// — bijvoorbeeld tcp://192.168.1.10:1883.",
-   "sourceHash": "6b4f430225e310e979907a561eecf28a5269e3c109fe670b681f592d535af389",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.error.unresolvable": {
-   "text": "“{host}” kan niet worden gevonden op het netwerk van het paneel — controleer het adres. Druk nogmaals om toch op te slaan.",
-   "sourceHash": "36c1caa17d21b6c26c66cd820898b653f791775c1a79a23f8806c03a5491d8b0",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.auth.address_ok": {
-   "text": "Goed nieuws: het adres klopt. De inloggegevens niet.",
-   "sourceHash": "3c129ef68b4305b718118c35214716154f0b36739abb6fdc601de84080329c3f",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.auth.retype": {
-   "text": "Het wachtwoord wordt niet weergegeven, dus je kunt het niet met het blote oog controleren — typ het alsjeblieft nog een keer in. De gebruikersnaam is een Home Assistant-gebruikersaccount, niet de naam van de add-on.",
-   "sourceHash": "adf19d688956cedb6b8339461eff10dba0d8c8f57b7278e62331223ad7f9bd0a",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.auth.title": {
-   "text": "De broker is er wel, maar heeft deze gebruikersnaam en dit wachtwoord geweigerd.",
-   "sourceHash": "c513587c0fd73976bf9bc5100afb177486b5cafaea549ce1cc35060868f14213",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.config.explanation": {
-   "text": "Het moet beginnen met tcp://, mqtt://, ssl://, mqtts:// of tls:// — bijvoorbeeld tcp://192.168.1.10:1883.",
-   "sourceHash": "6e83b26eb6fab768d9b4ab0bb65aa4217d4a67bf661f593265033dc44269d8d7",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.config.title": {
-   "text": "Dat adres is geen broker-URL die het paneel kan gebruiken.",
-   "sourceHash": "00e6ecde54d76d867f4e99f5d949a17166bcf2b6f31a911b08bd1d6e765df8cb",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.unreachable.confirmed_body": {
-   "text": "Het paneel heeft het netwerk bereikt, maar vond daar geen MQTT-broker. Controleer: het IP-adres van de broker, de poort (1883 voor onversleuteld, 8883 voor TLS) en of de Mosquitto-add-on draait.",
-   "sourceHash": "c440a30ca8175a84108e62fc8e5639ce768b79ad94e52af2f7a45dcf77a80d43",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.unreachable.confirmed_title": {
-   "text": "Geen antwoord op {host}.",
-   "sourceHash": "a431b7be909e09256dd9b36c8362ca1bdc1de91b7acacccb3bf36fa59167ca0e",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.unreachable.presumed_body": {
-   "text": "Het paneel blijft het op de achtergrond proberen, maar dit betekent meestal dat het adres of de poort niet klopt. Controleer: het IP-adres van de broker, de poort (1883 voor onversleuteld, 8883 voor TLS) en of de Mosquitto-add-on draait.",
-   "sourceHash": "d823f63cb15926469341671ed7b82153de68ba03ce26c4ca440310105c32de4c",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.failure.unreachable.presumed_title": {
-   "text": "We kunnen {host} nog niet bereiken.",
-   "sourceHash": "efec83f6283200c9e00e63f00cc2b7c283b1540801fe38c55d945ddfa98ffddd",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.help.body": {
-   "text": "In Home Assistant: Instellingen → Add-ons → Mosquitto broker. Het adres is meestal tcp:// gevolgd door het IP-adres van je Home Assistant en :1883. De gebruikersnaam en het wachtwoord zijn van een Home Assistant-gebruiker — Instellingen → Personen → Persoon toevoegen, met ‘Inloggen toestaan’ aan.",
-   "sourceHash": "2b6c76952afc7a0b34ae075bacd4113d2c5b79ba562ed3c745847ff2d359b0ef",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.help.title": {
-   "text": "Waar vind ik deze?",
-   "sourceHash": "c8dd4203215d6efdabd359a01e0d9d3d9a363a131e5b4fd6a6f005f06ca85ea2",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.host_fallback": {
-   "text": "de broker",
-   "sourceHash": "a2c667ac11921f76e2ccbc1f3f44478c46c4009c055ec56a52a921fcd6d0c20c",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.lead": {
-   "text": "Via MQTT praten het paneel en Home Assistant met elkaar. Zonder die verbinding kan Home Assistant het paneel helemaal niet zien.",
-   "sourceHash": "4cc11cbe9723c293ed59d810f605e61ed5487255a5ca7fae573ff9f2cf2b78ef",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.password.help_existing": {
-   "text": "Het wachtwoord wordt om veiligheidsredenen niet weergegeven. Laat het veld leeg om het huidige wachtwoord te behouden, of typ een nieuw wachtwoord in.",
-   "sourceHash": "629b0265230fadbeaecd6f7796027888b16a28ae26b971b6fb94120ddfe32f2b",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.password.help_new": {
-   "text": "Het wachtwoord van die Home Assistant-gebruiker.",
-   "sourceHash": "84973d7101c349ba67a750088114547f70b42719491986f5d8de997c77519e8b",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.password.label": {
-   "text": "Wachtwoord",
-   "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.password.unchanged": {
-   "text": "(ongewijzigd)",
-   "sourceHash": "5c0dc8efedbfd8f8e3c437eb42d1a534009fc1318e48f09fa4b5076f05d1100f",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.checking": {
-   "text": "De broker wordt gecontroleerd…",
-   "sourceHash": "a5bcbf22d2c6a0ddf91f7db36d6529776cd7aa4d1d8f8efd3197298448d8d397",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.checking_address": {
-   "text": "Het adres wordt gecontroleerd via het paneel…",
-   "sourceHash": "ffcbb57282f6e961676662a651a6281962148008533d546bfc0d4f6153478d32",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.checking_long": {
-   "text": "De broker wordt gecontroleerd… Dit duurt meestal een seconde of twee.",
-   "sourceHash": "dd3ca5aabdb29d179dcc47e0f41941cf2b97efa2871dfcca214060c06f05c8f8",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.checking_sign_in": {
-   "text": "De aanmelding bij {host} wordt gecontroleerd…",
-   "sourceHash": "9f92b9ba2fd6383f35fa79b612e071fa02ff38057c3e9502fca81d4e58920143",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.connected": {
-   "text": "✓ Verbonden met {host}.",
-   "sourceHash": "27cd4153c8e0745787f861ef4ff98933cf547109339258cf96aa1d5bac8ed80d",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.rebuilding": {
-   "text": "Nog bezig — het paneel is bezig de verbinding met de broker te herstellen.",
-   "sourceHash": "7b451d5ca91bb4ca0e971e6f9e13546fb6c22b9fa0c7bfff4212257225ef1eed",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.saving_details": {
-   "text": "Deze gegevens worden opgeslagen in het paneel…",
-   "sourceHash": "a25153f4225c51889674a8db895ced6aac961a1f7e126c1422967e2e2e330ce9",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.still_trying": {
-   "text": "Nog steeds bezig {host} te bereiken… Een verkeerd adres of een verkeerde poort ziet er meestal zo uit.",
-   "sourceHash": "943b0055672f9d3b19c92735abbed1111a3464da36a85436fcc8effedc744fe5",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.state.unusually_slow": {
-   "text": "Ongewoon traag — het paneel probeert nog steeds {host} te bereiken. Je kunt blijven wachten, of annuleren en de gegevens controleren.",
-   "sourceHash": "6ce83682e6f03ff78a3b0dc32db645a8153ca4d066330759a13bbae3a9400177",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.title": {
-   "text": "Maak verbinding met MQTT",
-   "sourceHash": "5125599de93725fd5360573bc326871a7b490ec9e996b14ecc7e3cdf32ad4d6d",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.username.help": {
-   "text": "Meestal je Home Assistant-inlognaam — de naam die je typt op het inlogscherm van HA, niet de weergavenaam. Veel mensen maken een aparte HA-gebruiker alleen voor panelen.",
-   "sourceHash": "0825a3d176baffd5b5fd5f8e3d7e39c951b07afc8b1605ff585ae155022cdcff",
-   "state": "machine-cross-checked"
-  },
-  "setup.mqtt.username.label": {
-   "text": "Gebruikersnaam",
-   "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-   "state": "machine-cross-checked"
-  },
   "setup.progress.dashboard": {
    "text": "HA-dashboard",
    "sourceHash": "f4e60256299043246476ebc93bb0a35f178a41494faee700dcfcd2a94e211011",
-   "state": "machine-cross-checked"
-  },
-  "setup.progress.mqtt": {
-   "text": "MQTT",
-   "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
    "state": "machine-cross-checked"
   },
   "setup.progress.name": {

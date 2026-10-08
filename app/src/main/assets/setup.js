@@ -6,9 +6,8 @@
  *    output has previously wiped a panel's credentials. Everything posted here was typed on this page
  *    (or accepted from the read-only discovery endpoint into a visibly editable field), and passwords
  *    are never pre-filled.
- *  - A 200 from POST /api/v1/config means "saved", not "working". MQTT verification runs afterwards,
- *    so saving flows into a verifying phase that polls the journey and reports what is actually
- *    happening — and admits, on a schedule, when something is probably wrong.
+ *  - A 200 from POST /api/v1/config means "saved", not "working": after a save the page re-reads the
+ *    journey and shows what the panel actually reports, never an assumed success.
  *  - While saving or verifying, the step's fields are disabled (a native <fieldset> disable), because
  *    the alternative is a user editing other values mid-validation and losing track of what applied.
  *    The escape link to full settings stays live; the wizard never traps.
@@ -22,10 +21,8 @@
   var journey = null;        // last GET /api/v1/setup body
   var typed = {};            // values the user has touched THIS page-load; the only POST source
   var discovery = null;      // one-shot /api/v1/config/discovery result (read-only suggestions)
-  var verify = null;         // {t0, host} while an MQTT save is being checked
   var renderedKey = "";      // what the current DOM was built for — rebuild only on real change
   var pollTimer = null;
-  var ladderTimer = null;
 
   var i18nText = window.HaI18n.t;
 
@@ -83,11 +80,6 @@
     return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 63);
   }
 
-  function brokerHost(url) {
-    var m = /^[a-z+]+:\/\/(\[[^\]]+\]|[^:/]+)/i.exec(String(url || "").trim());
-    return m ? m[1] : "";
-  }
-
   /* ---------- server I/O (POST bodies come from `typed`, never from a GET) ---------- */
 
   function getJourney() {
@@ -133,18 +125,14 @@
    * `next` falls inside — dots before it read done, dots after it stay quiet. Deriving "current" from
    * per-stage status instead was tried and wrong: render_proof staying unknown made the Dashboard dot
    * claim "current" while the user was actually on Sign in. */
-  // Home Assistant BEFORE MQTT: suggested_area applies only at the device's first registration (which
-  // happens the moment MQTT connects), and valid area names are only readable after sign-in — this is
-  // the one order in which a panel lands in its correct HA area for every user, admin or not.
   var DOT_OF_STAGE = {
     identity: 0,
     renderer: 1, ha_url: 1,
     ha_credentials: 2,
     home_dashboard: 3,
-    mqtt_broker: 4, mqtt_credentials: 4, mqtt_connection: 4,
     // The filter question and the render that follows it are the same final dot: the render is what the
     // answer causes, so showing it as a step of its own would claim there is another decision to make.
-    entity_filter: 5, render_proof: 5,
+    entity_filter: 4, render_proof: 4,
   };
 
   function renderDots() {
@@ -156,7 +144,7 @@
     var labels = [
       i18nText("setup.progress.name", "Name"), i18nText("setup.progress.server", "Server"),
       i18nText("setup.progress.sign_in", "HA sign-in"), i18nText("setup.progress.dashboard", "HA dash"),
-      i18nText("setup.progress.mqtt", "MQTT"), i18nText("setup.progress.optimize", "Optimize")
+      i18nText("setup.progress.optimize", "Optimize")
     ];
     var currentIdx = journey.complete ? labels.length : (DOT_OF_STAGE[journey.next] !== undefined ? DOT_OF_STAGE[journey.next] : labels.length);
     var anyInFlight = (journey.steps || []).some(function (s) {
@@ -167,16 +155,14 @@
       if (i === 2 && step("ha_credentials").status === "skipped") return; // foreign renderer signs itself in
       // A foreign renderer navigates itself, so there is no dashboard choice to promise either.
       if (i === 3 && step("home_dashboard").status === "skipped") return;
-      // A panel Panel Assistant carries has no broker to ask about.
-      if (i === 4 && step("mqtt_broker").status === "skipped") return;
       // A foreign renderer owns its own subscription, so there is no filter question to promise.
-      if (i === 5 && step("entity_filter").status === "skipped") return;
+      if (i === 4 && step("entity_filter").status === "skipped") return;
       var done = i < currentIdx || journey.complete;
-      var cls = done ? "done" : i === currentIdx ? ((anyInFlight || verify) ? "busy" : "current") : "";
+      var cls = done ? "done" : i === currentIdx ? (anyInFlight ? "busy" : "current") : "";
       // Completed dots are LINKS back to their step (the strip stays a position indicator; the links are
       // navigation, not state). The current and future dots are not links — there is no skipping ahead,
       // the journey authority owns what comes next. The hash also makes every visitable page
-      // URL-addressable (/setup#broker), so the browser back button and manual deep-links work too.
+      // URL-addressable (/setup#dash), so the browser back button and manual deep-links work too.
       if (done && HASH_OF_DOT[i]) {
         dotsHost.appendChild(el("li", { class: cls }, [el("a", { href: "#" + HASH_OF_DOT[i], text: label, onclick: hashLink })]));
       } else {
@@ -194,10 +180,10 @@
 
   /* Back-navigation: a hash naming a COMPLETED step forces that card; anything else — future steps,
    * unknown names, repair mode — is ignored in favour of the journey's real next. */
-  var HASH_OF_DOT = { 0: "name", 1: "server", 2: "signin", 3: "dash", 4: "mqtt", 5: "optimize" };
+  var HASH_OF_DOT = { 0: "name", 1: "server", 2: "signin", 3: "dash", 4: "optimize" };
   var KEY_OF_HASH = { name: "identity", server: "renderer", signin: "signin",
-    dash: "home_dashboard", mqtt: "mqtt", optimize: "entity_filter" };
-  var DOT_OF_KEY = { identity: 0, renderer: 1, signin: 2, home_dashboard: 3, mqtt: 4, entity_filter: 5 };
+    dash: "home_dashboard", optimize: "entity_filter" };
+  var DOT_OF_KEY = { identity: 0, renderer: 1, signin: 2, home_dashboard: 3, entity_filter: 4 };
   var lastRealNext; // clears a revisit automatically once a re-save moves the real journey
 
   function forcedRevisitKey() {
@@ -298,7 +284,7 @@
     var body = card(i18nText("setup.identity.title", "Name this panel"),
       // Matches the real journey (the dots above): name, what the screen shows, the sign-in and the
       // dashboard. Kept loose ("a few quick questions") rather than a count, because steps are skipped for
-      // a Companion-app renderer, and the broker is never promised: a panel Panel Assistant sets up has none.
+      // a Companion-app renderer.
       i18nText("setup.identity.lead", "A name, your Home Assistant server and sign-in, and the dashboard to show — a few quick questions and you’re done. You can stop and come back; nothing is lost."), [
       el("fieldset", { id: "wiz-fs", style: "border:0;padding:0;margin:0" }, [
         field("panel_id", i18nText("setup.identity.panel_id.label", "Panel ID"),
@@ -337,7 +323,7 @@
       .catch(function (e) { lockStep(false); if (renderedKey === startKey) stepErr(e.message); });
   }
 
-  /* ---------- step 2: connect to MQTT ---------- */
+  /* ---------- discovery suggestions ---------- */
 
   function discoveryNote(forField) {
     var d = journey.discovery || {};
@@ -346,7 +332,6 @@
     }
     if (d.outcome === "unavailable") {
       var reasons = {
-        broker_not_on_link: ["setup.discovery.unavailable.broker_not_on_link", "We couldn’t find this automatically — Home Assistant is on a different network segment from this panel, and automatic discovery only works within one segment. That’s normal on some networks — type it below; it works exactly the same."],
         mdns_not_running: ["setup.discovery.unavailable.mdns_not_running", "We couldn’t find this automatically — this panel’s network discovery service is not running. That’s normal on some networks — type it below; it works exactly the same."],
         no_multicast_lock: ["setup.discovery.unavailable.no_multicast_lock", "We couldn’t find this automatically — this panel cannot receive network discovery traffic. That’s normal on some networks — type it below; it works exactly the same."],
         no_responses_at_all: ["setup.discovery.unavailable.no_responses_at_all", "We couldn’t find this automatically — nothing answered this panel’s discovery request, so Home Assistant may be on another network segment or discovery traffic may be blocked. That’s normal on some networks — type it below; it works exactly the same."],
@@ -358,207 +343,6 @@
         : i18nText("setup.discovery.unavailable.generic", "We couldn’t find this automatically. That’s normal on some networks — type it below; it works exactly the same."));
     }
     return null;
-  }
-
-  function mqttCard(failure) {
-    // A page reload at this step loses the module-state catalog fetched on the dashboard page; refetch
-    // quietly so the username prefill still lands (into an untouched, still-empty field only).
-    if (!hdArea) {
-      fetch("api/v1/config/ha-area", { cache: "no-store" })
-        .then(function (r) { return r.json(); })
-        .then(function (a) {
-          hdArea = a;
-          var f = document.getElementById("wiz-mqtt_user");
-          if (f && !f.value && typed.mqtt_user === undefined && a && a.ha_username) f.value = a.ha_username;
-        })
-        .catch(function () {});
-    }
-    var creds = step("mqtt_credentials");
-    var pwHelp = creds.status === "satisfied"
-      ? i18nText("setup.mqtt.password.help_existing", "The password isn’t shown for security. Leave it blank to keep the current one, or type a new one.")
-      : i18nText("setup.mqtt.password.help_new", "The password for that Home Assistant user.");
-    var kids = [
-      // A failure means an address was already entered — repeating "we couldn't find one automatically"
-      // next to "nothing answered at X" is two banners saying less than one.
-      failure ? null : discoveryNote("mqtt_broker"),
-      failure,
-      el("fieldset", { id: "wiz-fs", style: "border:0;padding:0;margin:0" }, [
-        field("mqtt_broker", i18nText("setup.mqtt.broker.label", "Broker URL"), i18nText("setup.mqtt.broker.help", "Usually tcp:// then your Home Assistant’s address and :1883."),
-          { input: { inputmode: "url", placeholder: "tcp://192.168.1.10:1883" },
-            value: discovery && discovery.mqtt_broker || "" }),
-        // Prefilled with the signed-in account's LOGIN name when readable (admin accounts only — HA
-        // exposes the shortname nowhere else): the Mosquitto add-on authenticates against HA users, so
-        // it is the likely MQTT username. Visibly editable like every suggestion.
-        field("mqtt_user", i18nText("setup.mqtt.username.label", "Username"),
-          i18nText("setup.mqtt.username.help", "Usually your Home Assistant login name — the name typed on HA’s sign-in screen, not the display name. Many people create a dedicated HA user just for panels."),
-          { value: (hdArea && hdArea.ha_username) || "" }),
-        field("mqtt_password", i18nText("setup.mqtt.password.label", "Password"), pwHelp, { input: { type: "password", placeholder: creds.status === "satisfied" ? i18nText("setup.mqtt.password.unchanged", "(unchanged)") : "" } }),
-        el("details", {}, [
-          el("summary", { text: i18nText("setup.mqtt.help.title", "Where do I find these?") }),
-          el("p", { text: i18nText("setup.mqtt.help.body", "In Home Assistant: Settings → Add-ons → Mosquitto broker. The address is usually tcp:// followed by your Home Assistant IP and :1883. The username and password are a Home Assistant user — Settings → People → Add person, with “Allow login” on.") }),
-        ]),
-        primary(i18nText("setup.action.save_continue", "Save and continue"), saveMqtt),
-      ]),
-      el("p", { class: "muted", id: "wiz-err", role: "alert" }),
-    ];
-    show([card(i18nText("setup.mqtt.title", "Connect to MQTT"),
-      i18nText("setup.mqtt.lead", "MQTT is how the panel and Home Assistant talk. Without it, Home Assistant can’t see the panel at all."),
-      kids)], "mqtt" + (failure ? ":fail" : ""));
-  }
-
-  function saveMqtt() {
-    var broker = (typed.mqtt_broker !== undefined ? typed.mqtt_broker : (discovery && discovery.mqtt_broker || "")).trim();
-    if (!/^(tcp|mqtt|ssl|mqtts|tls):\/\//i.test(broker)) {
-      stepErr(i18nText("setup.mqtt.error.scheme", "The broker URL needs to start with tcp://, mqtt://, ssl://, mqtts:// or tls:// — for example tcp://192.168.1.10:1883."));
-      focusField("mqtt_broker");
-      return;
-    }
-    var fields = { mqtt_broker: broker };
-    // An untouched prefill (the signed-in account's login name) must still be what gets saved — typed
-    // only records edits, and the broker suggestion already follows this same accepted-if-shown rule.
-    if (typed.mqtt_user !== undefined) fields.mqtt_user = typed.mqtt_user;
-    else if (hdArea && hdArea.ha_username) fields.mqtt_user = hdArea.ha_username;
-    if (typed.mqtt_password) fields.mqtt_password = typed.mqtt_password; // blank means keep — never send it
-    // The click must answer INSTANTLY — the button itself relabels and visibly disables before any
-    // network round-trip, because a quiet second after pressing save is exactly when people press it
-    // again (seen on hardware review). lockStep disables it; the label change is what makes it read.
-    lockStep(true);
-    var saveBtn = stepHost.querySelector("button.wiz-primary");
-    if (saveBtn) saveBtn.textContent = i18nText("setup.mqtt.action.checking_address", "Checking the address…");
-    setLive(i18nText("setup.mqtt.state.checking_address", "Checking the address from the panel…"));
-    // PRE-FLIGHT before committing anything: the panel resolves the host and touches the port in ~2s,
-    // so a typo'd hostname gets a named verdict immediately instead of a slow connect workflow (user
-    // request after editing the hostname mid-walk). Advisory: a second press saves anyway, and a probe
-    // infrastructure failure never blocks the save.
-    var probe = (mqttPreflightWaived === broker)
-      ? Promise.resolve({ ok: true })
-      : fetch("api/v1/config/probe-broker?url=" + encodeURIComponent(broker), { cache: "no-store" })
-          .then(function (r) { return r.json(); })
-          .catch(function () { return { ok: true }; });
-    probe.then(function (p) {
-      if (!p.ok && p.error !== undefined) {
-        mqttPreflightWaived = broker; // the next press on the SAME address saves anyway
-        lockStep(false);
-        if (saveBtn) saveBtn.textContent = i18nText("setup.mqtt.action.save_anyway", "Save anyway");
-        setLive("");
-        stepErr(p.error === "unresolvable"
-          ? i18nText("setup.mqtt.error.unresolvable", "“{host}” doesn’t resolve on the panel’s network — check the address. Press again to save anyway.", { host: p.host || brokerHost(broker) })
-          : p.error === "invalid-url"
-            ? i18nText("setup.mqtt.error.invalid_address", "That address isn’t a broker URL the panel can use — it needs tcp:// (or ssl://) and a host.")
-            : i18nText("setup.mqtt.error.nothing_listening", "Nothing is listening at {host}:{port} — check the address and port. Press again to save anyway.", { host: p.host || brokerHost(broker), port: p.port || 1883 }));
-        return;
-      }
-      if (saveBtn) saveBtn.textContent = i18nText("setup.state.saving", "Saving…");
-      setLive(i18nText("setup.mqtt.state.saving_details", "Saving these details to the panel…"));
-      postForm("api/v1/config", fields)
-        .then(function () {
-          if (saveBtn) saveBtn.textContent = i18nText("setup.mqtt.action.checking_connection", "Checking the connection…");
-          verify = { t0: Date.now(), host: brokerHost(broker) };
-          runLadder();
-          schedule(1500);
-        })
-        .catch(function (e) {
-          lockStep(false);
-          if (saveBtn) saveBtn.textContent = i18nText("setup.action.save_continue", "Save and continue");
-          setLive("");
-          stepErr(e.message);
-        });
-    });
-  }
-
-  /* The honesty ladder: what "checking" is allowed to claim, and when to stop pretending.
-   * The panel keeps retrying in the background either way — only the PRESENTATION gives up. */
-  function runLadder() {
-    clearInterval(ladderTimer);
-    var host = verify.host || i18nText("setup.mqtt.host_fallback", "the broker");
-    ladderTimer = setInterval(function () {
-      if (!verify) { clearInterval(ladderTimer); return; }
-      var t = Date.now() - verify.t0;
-      var conn = step("mqtt_connection");
-      if (conn.status === "satisfied") {
-        clearInterval(ladderTimer);
-        setLive(i18nText("setup.mqtt.state.connected", "✓ Connected to {host}.", { host: host }), true);
-        setTimeout(function () { verify = null; typed = {}; refresh(); }, 1200);
-        return;
-      }
-      if (conn.status === "blocked" && conn.detail !== "unknown") {
-        // An auth rejection must SETTLE before the card blames the credentials. Seen on hardware:
-        // correct credentials bounced on the very first connect (a broker mid-reload rejects, and the
-        // identical retype then worked), and the wizard's misdiagnosis landed in the most
-        // credibility-sensitive minute of the product's life. The panel keeps retrying underneath, so
-        // give a first rejection a few seconds to recover; only a rejection that persists is a verdict.
-        if (conn.detail === "auth_failed") {
-          if (verify.authSeenAt === undefined) { verify.authSeenAt = t; }
-          if (t - verify.authSeenAt < 5000) {
-            setLive(i18nText("setup.mqtt.state.checking_sign_in", "Checking the sign-in with {host}…", { host: host }));
-            return;
-          }
-        }
-        clearInterval(ladderTimer);
-        verify = null;
-        lockStep(false);
-        mqttCard(mqttFailure(conn.detail, host, false));
-        return;
-      }
-      // While the connection is genuinely mid-flight the ladder must not diagnose. On slow hardware a
-      // save is retire-old-bridge → rebuild → connect (root-shell fences included), so absolute time
-      // alone said "wrong address or port" and then failed the card over a connection that landed
-      // seconds later. A verdict needs a settled state, or a 60s ceiling — whichever
-      // comes first — and the poll keeps running after any card, so a late success still advances.
-      var inFlight = conn.status === "in_flight";
-      // A verdict requires a SETTLED state. Even the ceiling may not diagnose while the journey still
-      // reads in-flight — a live probe caught the red card sitting over a
-      // genuinely connecting bridge. Past the ceiling with the state still moving, the ladder stops
-      // pretending to know and keeps the cancel affordance in reach; the poll runs on either way, so a
-      // late success still advances the journey.
-      // Rungs tightened after the pre-flight + first-configuration fast path landed: a healthy first
-      // save now connects in single-digit seconds even on the slowest supported chip, so anything past
-      // twenty is genuinely wrong and the ladder may say so much sooner.
-      if (t > 20000 && !inFlight) {
-        clearInterval(ladderTimer);
-        verify = null;
-        lockStep(false);
-        mqttCard(mqttFailure("unreachable", host, true));
-      } else if (t > 30000) {
-        setLive(i18nText("setup.mqtt.state.unusually_slow", "Unusually slow — the panel is still trying to reach {host}. You can keep waiting, or cancel and check the details.", { host: host }));
-        revealCancel();
-      } else if (t > 10000) {
-        setLive(inFlight
-          ? i18nText("setup.mqtt.state.rebuilding", "Still working — the panel is rebuilding its broker connection.")
-          : i18nText("setup.mqtt.state.still_trying", "Still trying to reach {host}… A wrong address or port usually looks like this.", { host: host }));
-        revealCancel();
-      } else if (t > 6000) {
-        revealCancel();
-      } else if (t > 3000) {
-        setLive(i18nText("setup.mqtt.state.checking_long", "Checking the broker… This usually takes a second or two."));
-      } else {
-        setLive(i18nText("setup.mqtt.state.checking", "Checking the broker…"));
-      }
-    }, 1000);
-  }
-
-  function mqttFailure(kind, host, presumed) {
-    if (kind === "auth_failed") {
-      typed.mqtt_password = undefined;
-      setTimeout(function () { var f = focusField("mqtt_password"); if (f) f.value = ""; }, 120);
-      return failBanner(i18nText("setup.mqtt.failure.auth.title", "The broker is there, but it rejected this username and password."), [
-        i18nText("setup.mqtt.failure.auth.address_ok", "Good news: the address is right. The credentials aren’t."),
-        i18nText("setup.mqtt.failure.auth.retype", "The password isn’t shown back to you, so it can’t be checked by eye — please type it again. The username is a Home Assistant user account, not the add-on’s name."),
-      ], true);
-    }
-    if (kind === "config_error") {
-      setTimeout(function () { focusField("mqtt_broker"); }, 120);
-      return failBanner(i18nText("setup.mqtt.failure.config.title", "That address isn’t a broker URL the panel can use."), [
-        i18nText("setup.mqtt.failure.config.explanation", "It needs to start with tcp://, mqtt://, ssl://, mqtts:// or tls:// — for example tcp://192.168.1.10:1883."),
-      ], true);
-    }
-    setTimeout(function () { focusField("mqtt_broker"); }, 120);
-    return failBanner(
-      presumed ? i18nText("setup.mqtt.failure.unreachable.presumed_title", "We can’t reach {host} yet.", { host: host })
-        : i18nText("setup.mqtt.failure.unreachable.confirmed_title", "Nothing answered at {host}.", { host: host }),
-      [presumed
-        ? i18nText("setup.mqtt.failure.unreachable.presumed_body", "The panel is still trying in the background, but this usually means the address or port is wrong. Worth checking: the broker’s IP address, the port (1883 for plain, 8883 for TLS), and that the Mosquitto add-on is running.")
-        : i18nText("setup.mqtt.failure.unreachable.confirmed_body", "The panel reached the network but found no MQTT broker there. Worth checking: the broker’s IP address, the port (1883 for plain, 8883 for TLS), and that the Mosquitto add-on is running.")], true);
   }
 
   /* ---------- step 3: renderer (only when genuinely blocked — Auto resolves this for almost everyone) */
@@ -779,7 +563,6 @@
   function wellFormedDashboardPath(path) {
     return new RegExp("^(?:" + DASHBOARD_PATH_PATTERN + ")$").test(String(path || ""));
   }
-  var mqttPreflightWaived = null; // broker URL whose failed pre-flight the user chose to override
 
   function homeDashboardCard() {
     var body = [
@@ -1130,8 +913,8 @@
   }
 
   /* Patch the verdict in place rather than rebuilding the card. A rebuild on every 2s poll would tear down
-   * the buttons under the user's cursor and restart the count from zero — the same class of bug as the MQTT
-   * card's focus loss, which is why the card key stays constant and only these fields change. */
+   * the buttons under the user's cursor and restart the count from zero — a focus loss
+   * that once stole the cursor on every poll, which is why the card key stays constant and only these fields change. */
   function paintEntityFilter() {
     var ef = journey.entity_filter || {};
     var v = document.getElementById("ef-verdict");
@@ -1205,12 +988,11 @@
   function doneCard() {
     var proof = step("render_proof");
     var attested = proof.detail === "user_attested";
-    var mqttOk = step("mqtt_connection").status === "satisfied";
     var ef = journey.entity_filter || {};
 
     var completeStatus = attested
-      ? (mqttOk ? i18nText("setup.done.status.attested_mqtt", "MQTT connected · Dashboard confirmed by you.") : i18nText("setup.done.status.attested_no_mqtt", "Dashboard confirmed by you."))
-      : (mqttOk ? i18nText("setup.done.status.rendering_mqtt", "MQTT connected · Home Assistant is rendering on the panel.") : i18nText("setup.done.status.rendering_no_mqtt", "Home Assistant is rendering on the panel."));
+      ? i18nText("setup.done.status.attested", "Dashboard confirmed by you.")
+      : i18nText("setup.done.status.rendering", "Home Assistant is rendering on the panel.");
     var top = [statusLine(completeStatus, true)];
     // Confirm the filter state so answering the question earlier is never a silent no-op.
     if (ef.relevant && ef.enabled) {
@@ -1247,29 +1029,6 @@
     if (b) b.disabled = locked;
   }
 
-  function revealCancel() {
-    if (document.getElementById("wiz-cancel")) return;
-    var b = el("button", { id: "wiz-cancel", class: "wiz-secondary", type: "button",
-      text: i18nText("setup.mqtt.action.cancel_edit", "Cancel and edit these details"), onclick: function () {
-        clearInterval(ladderTimer);
-        verify = null;
-        // Unlock and FORCE the rebuild: the card key hasn't changed, so a plain refresh() short-circuits
-        // in render() and leaves the locked card exactly as it was — a cancel that visibly did nothing
-        // (hardware review). The user asked to edit; give them editable fields immediately.
-        lockStep(false);
-        renderedKey = "";
-        render();
-        refresh();
-      } });
-    // OUTSIDE the disabled fieldset, always. HTML disables every descendant of a disabled fieldset,
-    // and the one control that exists to ESCAPE the locked state was born dead inside it — seen twice
-    // on hardware ("the cancel button is disabled so has no use"). Never-trap means never.
-    var live = document.getElementById("wiz-live");
-    var fs = document.getElementById("wiz-fs");
-    if (fs && live && fs.contains(live) && fs.parentNode) fs.parentNode.insertBefore(b, fs.nextSibling);
-    else if (live && live.parentNode) live.parentNode.insertBefore(b, live.nextSibling);
-  }
-
   function setLive(text, ok) {
     var live = document.getElementById("wiz-live");
     if (!live) {
@@ -1297,17 +1056,11 @@
   /* ---------- the render decision ---------- */
 
   /* The ONE card the current journey should show, as a stable key. render() rebuilds only when this
-   * changes, which is what stops a 2s in-flight poll from tearing down a field the user is typing in.
-   * The MQTT card is "mqtt" whether the connection is discovering, connecting or announcing — those are
-   * all one card with live inputs — and becomes "mqtt:fail" only when the connection is actually blocked.
-   * The earlier guard compared the STAGE name ("mqtt_broker") against the card's rendered key ("mqtt")
-   * and never matched, so it rebuilt every poll and stole focus to the title. */
+   * changes, which is what stops a 2s in-flight poll from tearing down a field the user is typing in. */
   function desiredKey() {
     if (journey.complete) return "done";
     switch (journey.next) {
       case "identity": return "identity";
-      case "mqtt_broker": case "mqtt_credentials": case "mqtt_connection":
-        return step("mqtt_connection").status === "blocked" ? "mqtt:fail" : "mqtt";
       case "renderer":
         // A too-old engine is a renderer that cannot work, not a renderer that is unchosen.
         return step("renderer").detail.indexOf("webview_too_old") === 0 ? "webview" : "renderer";
@@ -1327,10 +1080,6 @@
     switch (key) {
       case "identity": return identityCard();
       case "entity_filter": return entityFilterCard();
-      case "mqtt": return mqttCard(null);
-      case "mqtt:fail":
-        // A rejected login routes `next` to CREDENTIALS while the detail lives on CONNECTION.
-        return mqttCard(mqttFailure(step("mqtt_connection").detail, brokerHost(typed.mqtt_broker || "") || i18nText("setup.mqtt.host_fallback", "the broker"), false));
       case "webview": return webViewCard();
       case "renderer": return rendererCard();
       case "ha_url": return haUrlCard();
@@ -1345,8 +1094,6 @@
   function render() {
     if (!journey) return;
     renderDots();
-    // During verification the ladder owns the DOM and the status line; a poll must never rebuild under it.
-    if (verify) return;
     // A revisit ends by itself the moment a re-save moves the real journey forward — the user acted, so
     // show them the consequence rather than the old card.
     if (forcedRevisitKey() && lastRealNext !== undefined && journey.next !== lastRealNext) clearRevisit();
@@ -1392,11 +1139,11 @@
 
   function schedule(overrideMs) {
     clearTimeout(pollTimer);
-    if (journey && journey.complete && !verify) return;
+    if (journey && journey.complete) return;
     // A scan in flight is busy even though no STEP is in flight: the count is what is moving, and polling it
     // every ten seconds would make the number lurch instead of climb.
     var counting = journey && journey.entity_filter && journey.entity_filter.counting;
-    var busy = verify || counting ||
+    var busy = counting ||
       ["signin", "proof"].some(function (k) { return renderedKey.indexOf(k) === 0; }) ||
       (journey && journey.steps.some(function (s) { return s.status === "in_flight"; }));
     pollTimer = setTimeout(function () {
@@ -1417,7 +1164,7 @@
     .then(function (d) {
       discovery = d;
       var editing = document.activeElement && document.activeElement.tagName === "INPUT" && stepHost.contains(document.activeElement);
-      if (!editing && (renderedKey === "mqtt" || renderedKey === "ha_url")) { renderedKey = ""; render(); }
+      if (!editing && renderedKey === "ha_url") { renderedKey = ""; render(); }
     })
     .catch(function () { discovery = null; });
 

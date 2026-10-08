@@ -11353,11 +11353,6 @@
       "state": "machine-cross-checked",
       "text": "Trovato sulla rete: {value}. Modificalo se non è corretto."
     },
-    "setup.discovery.unavailable.broker_not_on_link": {
-      "sourceHash": "60000992bc1cb98758c2f5c927ddf87b6bf01a5710c6c3ff3872363d37e9fe03",
-      "state": "machine-cross-checked",
-      "text": "Ricerca automatica non riuscita: Home Assistant è su un segmento di rete diverso e il rilevamento funziona solo nello stesso segmento. È normale su alcune reti: inseriscilo qui sotto, funzionerà allo stesso modo."
-    },
     "setup.discovery.unavailable.error": {
       "sourceHash": "7b47377022930368a5a4c581149b3b9edc3f717bf9d85f617183030d78cf3f68",
       "state": "machine-cross-checked",
@@ -11403,22 +11398,12 @@
       "state": "machine-cross-checked",
       "text": "Il filtro entità è attivo e sta imparando quali entità mostrare; puoi controllare l’elenco in qualsiasi momento nella scheda Entità. Nei primi minuti, mentre si assesta, la dashboard del pannello potrebbe ricaricarsi alcune volte: è normale."
     },
-    "setup.done.status.attested_mqtt": {
-      "sourceHash": "bf75407b2be24c38c564c7301bf294831d3c6747ffa74c6af2b96efec3b73816",
-      "state": "machine-cross-checked",
-      "text": "MQTT connesso · Dashboard confermata da te."
-    },
-    "setup.done.status.attested_no_mqtt": {
+    "setup.done.status.attested": {
       "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
       "state": "machine-cross-checked",
       "text": "Dashboard confermata da te."
     },
-    "setup.done.status.rendering_mqtt": {
-      "sourceHash": "03a4e83b75b9f9913caca04ebcc4c9649179c283a50a7d37682467d4fe41ebcb",
-      "state": "machine-cross-checked",
-      "text": "MQTT connesso · Home Assistant è visualizzato sul pannello."
-    },
-    "setup.done.status.rendering_no_mqtt": {
+    "setup.done.status.rendering": {
       "sourceHash": "dcd8160cc85f6016d90daf4256a58f4434aa6b9718c3fa0f258323b3d9fa2234",
       "state": "machine-cross-checked",
       "text": "Home Assistant è visualizzato sul pannello."
@@ -11753,210 +11738,10 @@
       "state": "machine-cross-checked",
       "text": "Dai un nome al pannello"
     },
-    "setup.mqtt.action.cancel_edit": {
-      "sourceHash": "f23b12931ce871291c67ed2055c72e93362c6ca6b40ea9478c1b3a5d0e39e23e",
-      "state": "machine-cross-checked",
-      "text": "Annulla e modifica i dati"
-    },
-    "setup.mqtt.action.checking_address": {
-      "sourceHash": "4e4170d1a4d2acf6a7f3490e6ed813134358d469376d2d8516cb771927beab25",
-      "state": "machine-cross-checked",
-      "text": "Controllo dell’indirizzo…"
-    },
-    "setup.mqtt.action.checking_connection": {
-      "sourceHash": "33f8dde16b75e05f2f08b6617999a7b6ef2568ee2a6e0fc416c27a76ec13cff7",
-      "state": "machine-cross-checked",
-      "text": "Controllo della connessione…"
-    },
-    "setup.mqtt.action.save_anyway": {
-      "sourceHash": "ef4c87b5083fbe4867b0bfb4e2575ecb106bdd4612160ef40f8f022c415cbdac",
-      "state": "machine-cross-checked",
-      "text": "Salva comunque"
-    },
-    "setup.mqtt.broker.help": {
-      "sourceHash": "3cb757053af4d021d4cb57a1d0e71ac958723841508673850218df3a2d55fb6d",
-      "state": "machine-cross-checked",
-      "text": "Di solito tcp:// seguito dall’indirizzo di Home Assistant e da :1883."
-    },
-    "setup.mqtt.broker.label": {
-      "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-      "state": "machine-cross-checked",
-      "text": "URL del broker"
-    },
-    "setup.mqtt.error.invalid_address": {
-      "sourceHash": "b9add1e3ccf51bf66889b0971c892221981c071133811735c8f221fbd798ee27",
-      "state": "machine-cross-checked",
-      "text": "Questo indirizzo non è un URL del broker utilizzabile dal pannello: servono tcp:// (o ssl://) e un host."
-    },
-    "setup.mqtt.error.nothing_listening": {
-      "sourceHash": "1033c7bfa571cbb694463132fd61755a77712535237c1d9263a51eec29295cfe",
-      "state": "machine-cross-checked",
-      "text": "Nessun servizio in ascolto su {host}:{port}. Controlla indirizzo e porta. Premi di nuovo per salvare comunque."
-    },
-    "setup.mqtt.error.scheme": {
-      "sourceHash": "6b4f430225e310e979907a561eecf28a5269e3c109fe670b681f592d535af389",
-      "state": "machine-cross-checked",
-      "text": "L’URL del broker deve iniziare con tcp://, mqtt://, ssl://, mqtts:// o tls://, ad esempio tcp://192.168.1.10:1883."
-    },
-    "setup.mqtt.error.unresolvable": {
-      "sourceHash": "36c1caa17d21b6c26c66cd820898b653f791775c1a79a23f8806c03a5491d8b0",
-      "state": "machine-cross-checked",
-      "text": "“{host}” non viene risolto sulla rete del pannello: controlla l’indirizzo. Premi di nuovo per salvare comunque."
-    },
-    "setup.mqtt.failure.auth.address_ok": {
-      "sourceHash": "3c129ef68b4305b718118c35214716154f0b36739abb6fdc601de84080329c3f",
-      "state": "machine-cross-checked",
-      "text": "Buone notizie: l’indirizzo è corretto, ma le credenziali no."
-    },
-    "setup.mqtt.failure.auth.retype": {
-      "sourceHash": "adf19d688956cedb6b8339461eff10dba0d8c8f57b7278e62331223ad7f9bd0a",
-      "state": "machine-cross-checked",
-      "text": "La password non viene mostrata, quindi non puoi controllarla a vista: digitala di nuovo. Il nome utente è un account utente di Home Assistant, non il nome dell’add-on."
-    },
-    "setup.mqtt.failure.auth.title": {
-      "sourceHash": "c513587c0fd73976bf9bc5100afb177486b5cafaea549ce1cc35060868f14213",
-      "state": "machine-cross-checked",
-      "text": "Il broker è raggiungibile, ma ha rifiutato nome utente e password."
-    },
-    "setup.mqtt.failure.config.explanation": {
-      "sourceHash": "6e83b26eb6fab768d9b4ab0bb65aa4217d4a67bf661f593265033dc44269d8d7",
-      "state": "machine-cross-checked",
-      "text": "Deve iniziare con tcp://, mqtt://, ssl://, mqtts:// o tls://, ad esempio tcp://192.168.1.10:1883."
-    },
-    "setup.mqtt.failure.config.title": {
-      "sourceHash": "00e6ecde54d76d867f4e99f5d949a17166bcf2b6f31a911b08bd1d6e765df8cb",
-      "state": "machine-cross-checked",
-      "text": "Questo indirizzo non è un URL del broker utilizzabile dal pannello."
-    },
-    "setup.mqtt.failure.unreachable.confirmed_body": {
-      "sourceHash": "c440a30ca8175a84108e62fc8e5639ce768b79ad94e52af2f7a45dcf77a80d43",
-      "state": "machine-cross-checked",
-      "text": "Il pannello ha raggiunto la rete, ma lì non ha trovato alcun broker MQTT. Vale la pena controllare l’indirizzo IP del broker, la porta (1883 in chiaro, 8883 per TLS) e che l’add-on Mosquitto sia in esecuzione."
-    },
-    "setup.mqtt.failure.unreachable.confirmed_title": {
-      "sourceHash": "a431b7be909e09256dd9b36c8362ca1bdc1de91b7acacccb3bf36fa59167ca0e",
-      "state": "machine-cross-checked",
-      "text": "Nessuna risposta da {host}."
-    },
-    "setup.mqtt.failure.unreachable.presumed_body": {
-      "sourceHash": "d823f63cb15926469341671ed7b82153de68ba03ce26c4ca440310105c32de4c",
-      "state": "machine-cross-checked",
-      "text": "Il pannello continua a provare in background, ma di solito questo significa che l’indirizzo o la porta sono errati. Vale la pena controllare l’indirizzo IP del broker, la porta (1883 in chiaro, 8883 per TLS) e che l’add-on Mosquitto sia in esecuzione."
-    },
-    "setup.mqtt.failure.unreachable.presumed_title": {
-      "sourceHash": "efec83f6283200c9e00e63f00cc2b7c283b1540801fe38c55d945ddfa98ffddd",
-      "state": "machine-cross-checked",
-      "text": "{host} non è ancora raggiungibile."
-    },
-    "setup.mqtt.help.body": {
-      "sourceHash": "2b6c76952afc7a0b34ae075bacd4113d2c5b79ba562ed3c745847ff2d359b0ef",
-      "state": "machine-cross-checked",
-      "text": "In Home Assistant: Impostazioni → Componenti aggiuntivi → Mosquitto broker. Di solito l’indirizzo è tcp:// seguito dall’IP di Home Assistant e da :1883. Nome utente e password sono quelli di un utente di Home Assistant: Impostazioni → Persone → Aggiungi persona, con «Consenti l’accesso» attivo."
-    },
-    "setup.mqtt.help.title": {
-      "sourceHash": "c8dd4203215d6efdabd359a01e0d9d3d9a363a131e5b4fd6a6f005f06ca85ea2",
-      "state": "machine-cross-checked",
-      "text": "Dove trovo questi dati?"
-    },
-    "setup.mqtt.host_fallback": {
-      "sourceHash": "a2c667ac11921f76e2ccbc1f3f44478c46c4009c055ec56a52a921fcd6d0c20c",
-      "state": "machine-cross-checked",
-      "text": "il broker"
-    },
-    "setup.mqtt.lead": {
-      "sourceHash": "4cc11cbe9723c293ed59d810f605e61ed5487255a5ca7fae573ff9f2cf2b78ef",
-      "state": "machine-cross-checked",
-      "text": "MQTT è il modo in cui il pannello e Home Assistant comunicano. Senza di esso, Home Assistant non può vedere affatto il pannello."
-    },
-    "setup.mqtt.password.help_existing": {
-      "sourceHash": "629b0265230fadbeaecd6f7796027888b16a28ae26b971b6fb94120ddfe32f2b",
-      "state": "machine-cross-checked",
-      "text": "Per sicurezza, la password non viene mostrata. Lascia vuoto per mantenere quella attuale oppure inseriscine una nuova."
-    },
-    "setup.mqtt.password.help_new": {
-      "sourceHash": "84973d7101c349ba67a750088114547f70b42719491986f5d8de997c77519e8b",
-      "state": "machine-cross-checked",
-      "text": "La password di quell’utente di Home Assistant."
-    },
-    "setup.mqtt.password.label": {
-      "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-      "state": "machine-cross-checked",
-      "text": "Password"
-    },
-    "setup.mqtt.password.unchanged": {
-      "sourceHash": "5c0dc8efedbfd8f8e3c437eb42d1a534009fc1318e48f09fa4b5076f05d1100f",
-      "state": "machine-cross-checked",
-      "text": "(invariata)"
-    },
-    "setup.mqtt.state.checking": {
-      "sourceHash": "a5bcbf22d2c6a0ddf91f7db36d6529776cd7aa4d1d8f8efd3197298448d8d397",
-      "state": "machine-cross-checked",
-      "text": "Controllo del broker…"
-    },
-    "setup.mqtt.state.checking_address": {
-      "sourceHash": "ffcbb57282f6e961676662a651a6281962148008533d546bfc0d4f6153478d32",
-      "state": "machine-cross-checked",
-      "text": "Controllo dell’indirizzo dal pannello…"
-    },
-    "setup.mqtt.state.checking_long": {
-      "sourceHash": "dd3ca5aabdb29d179dcc47e0f41941cf2b97efa2871dfcca214060c06f05c8f8",
-      "state": "machine-cross-checked",
-      "text": "Controllo del broker… Di solito richiede uno o due secondi."
-    },
-    "setup.mqtt.state.checking_sign_in": {
-      "sourceHash": "9f92b9ba2fd6383f35fa79b612e071fa02ff38057c3e9502fca81d4e58920143",
-      "state": "machine-cross-checked",
-      "text": "Controllo dell’accesso con {host}…"
-    },
-    "setup.mqtt.state.connected": {
-      "sourceHash": "27cd4153c8e0745787f861ef4ff98933cf547109339258cf96aa1d5bac8ed80d",
-      "state": "machine-cross-checked",
-      "text": "✓ Connessione con {host} riuscita."
-    },
-    "setup.mqtt.state.rebuilding": {
-      "sourceHash": "7b451d5ca91bb4ca0e971e6f9e13546fb6c22b9fa0c7bfff4212257225ef1eed",
-      "state": "machine-cross-checked",
-      "text": "Operazione ancora in corso: il pannello sta ricreando la connessione al broker."
-    },
-    "setup.mqtt.state.saving_details": {
-      "sourceHash": "a25153f4225c51889674a8db895ced6aac961a1f7e126c1422967e2e2e330ce9",
-      "state": "machine-cross-checked",
-      "text": "Salvataggio dei dati sul pannello…"
-    },
-    "setup.mqtt.state.still_trying": {
-      "sourceHash": "943b0055672f9d3b19c92735abbed1111a3464da36a85436fcc8effedc744fe5",
-      "state": "machine-cross-checked",
-      "text": "Si tenta ancora di raggiungere {host}… Di solito succede con un indirizzo o una porta errati."
-    },
-    "setup.mqtt.state.unusually_slow": {
-      "sourceHash": "6ce83682e6f03ff78a3b0dc32db645a8153ca4d066330759a13bbae3a9400177",
-      "state": "machine-cross-checked",
-      "text": "Tempi insolitamente lunghi: il pannello tenta ancora di raggiungere {host}. Puoi attendere oppure annullare e controllare i dati."
-    },
-    "setup.mqtt.title": {
-      "sourceHash": "5125599de93725fd5360573bc326871a7b490ec9e996b14ecc7e3cdf32ad4d6d",
-      "state": "machine-cross-checked",
-      "text": "Connetti a MQTT"
-    },
-    "setup.mqtt.username.help": {
-      "sourceHash": "0825a3d176baffd5b5fd5f8e3d7e39c951b07afc8b1605ff585ae155022cdcff",
-      "state": "machine-cross-checked",
-      "text": "Di solito è il nome di accesso a Home Assistant, cioè quello digitato nella schermata di accesso di HA, non il nome visualizzato. Molti creano un utente HA dedicato solo ai pannelli."
-    },
-    "setup.mqtt.username.label": {
-      "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-      "state": "machine-cross-checked",
-      "text": "Nome utente"
-    },
     "setup.progress.dashboard": {
       "sourceHash": "f4e60256299043246476ebc93bb0a35f178a41494faee700dcfcd2a94e211011",
       "state": "machine-cross-checked",
       "text": "Dashboard HA"
-    },
-    "setup.progress.mqtt": {
-      "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
-      "state": "machine-cross-checked",
-      "text": "MQTT"
     },
     "setup.progress.name": {
       "sourceHash": "dcd1d5223f73b3a965c07e3ff5dbee3eedcfedb806686a05b9b3868a2c3d6d50",
