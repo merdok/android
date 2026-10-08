@@ -71,8 +71,8 @@ display:
   physical_ppi: 149
 provisioning:
   software: {}
-  display:
-    # Native 160 renders larger than other landscape panels; 140 matches them.
-    density: 140
+  # Native density 160 is kept: 140 matched the dashboard but made Android's own screens
+  # (the admin launcher) blurry. Dashboard scale is set with the app's dashboard zoom instead.
+  display: {}
   packages: []
   recipes: []
