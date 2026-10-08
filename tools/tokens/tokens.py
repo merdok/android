@@ -46,7 +46,13 @@ def css(tokens: dict) -> str:
     themed, fixed = tokens["web"]["themed"], tokens["web"]["fixed"]
 
     def block(selector: str, scheme: str, values: dict) -> str:
-        body = "".join(f"\n  --{name}:{value};" for name, value in values.items())
+        lines, line = [], ""
+        for declaration in (f"--{name}:{value};" for name, value in values.items()):
+            if line and len(line) + len(declaration) > 108:
+                lines.append(line)
+                line = ""
+            line += declaration
+        body = "".join(f"\n  {line}" for line in [*lines, line])
         return f"{selector}{{color-scheme:{scheme};{body}}}"
 
     dark = {name: pair["dark"] for name, pair in themed.items()}
