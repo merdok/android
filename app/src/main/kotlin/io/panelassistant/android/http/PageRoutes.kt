@@ -228,6 +228,7 @@ internal fun Route.apiPageRoute(
                 "<title>ha-paneld · REST API</title>",
                 "<title>${esc(panelBrowserTitle(friendlyName(), "REST API"))}</title>",
             )
+            .replace("__API_BRAND__", brandLockup(asset))
             .replace("__API_LANG__", esc(strings.requestedLocale))
             .replace("__API_BACK_HREF__", esc(localizedHref("./", strings)))
             .replace("__API_I18N_PAYLOAD__", browserI18nPayload(strings, projectionPrefixes))

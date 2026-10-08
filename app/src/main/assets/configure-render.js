@@ -64,9 +64,7 @@
     if ((f.key === "auto_brightness_minimum_percent" || f.key === "auto_brightness_maximum_percent" || f.key === "auto_brightness_response_percent") && cfg.values.auto_brightness !== "true") return false;
     return true;
   }
-  var CARD_BADGES = {
-    "Voice": ["preview", "preview"]
-  };
+  var PREVIEW_CARDS = { "Voice": true };
   var CARD_NOTES = {
     "Sensors": "Home Assistant reporting",
     "Diagnostics": "Home Assistant reporting"
@@ -263,8 +261,7 @@
       // Maturity badges on whole cards; Logging is intentionally no longer experimental.
       var h2kids = [cfg.el("span", { text: groupTitle(g) })];
       if (CARD_NOTES[g]) h2kids.push(cfg.el("small", { text: cfg.i18nText("configure.group.ha_reporting_note", " · Home Assistant reporting") }));
-      var badge = CARD_BADGES[g];
-      if (badge) h2kids.push(cfg.el("span", { class: "cardbadge " + badge[1], text: cfg.i18nText("configure.badge.preview", "preview") }));
+      if (PREVIEW_CARDS[g]) h2kids.push(cfg.el("span", { class: "pill", text: cfg.i18nText("configure.badge.preview", "preview") }));
       var card = cfg.el("div", { class: "card" }, [cfg.el("h2", {}, h2kids)]);
       card.setAttribute("data-config-group", g);
       card.setAttribute("data-layout-key", configLayoutKey(g) + (revealed ? ".adv" : ""));

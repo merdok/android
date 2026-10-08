@@ -8,9 +8,8 @@ Outputs:
   * app/src/main/kotlin/io/panelassistant/android/PanelTokens.kt — every native colour, the scale rule
     and dp();
   * tools/tokens/tokens.css — the web custom properties, the copy Panel Assistant takes;
-  * the same CSS between the `tokens:begin` and `tokens:end` markers in app/src/main/assets/info.css
-    and in the inline style of app/src/main/assets/api.html, so `:8888` gets its tokens without a
-    second render-blocking request.
+  * the same CSS between the `tokens:begin` and `tokens:end` markers in app/src/main/assets/info.css,
+    the one stylesheet every `:8888` page loads, so it gets its tokens without a second request.
 
 tokens.json is the only place a value is written. Its sections:
   * `scale.baselineEdgePx` — the shortest edge, in pixels at density 1, that native baseline sizes
@@ -35,7 +34,6 @@ SOURCE = ROOT / "tools/tokens/tokens.json"
 KOTLIN = ROOT / "app/src/main/kotlin/io/panelassistant/android/PanelTokens.kt"
 CSS = ROOT / "tools/tokens/tokens.css"
 INFO_CSS = ROOT / "app/src/main/assets/info.css"
-API_HTML = ROOT / "app/src/main/assets/api.html"
 BEGIN = "/* tokens:begin"
 END = "/* tokens:end */"
 NOTICE = "Generated from tools/tokens/tokens.json by tools/tokens/tokens.py; do not edit."
@@ -179,7 +177,6 @@ def main(argv: list[str]) -> int:
         KOTLIN: kotlin(tokens),
         CSS: sheet,
         INFO_CSS: with_region(INFO_CSS, sheet),
-        API_HTML: with_region(API_HTML, sheet),
     }
     stale = [path for path, text in wanted.items()
              if not path.exists() or path.read_text(encoding="utf-8") != text]

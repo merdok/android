@@ -54,7 +54,7 @@ ${cameraCard}
 <canvas id="perfchart" width="600" height="96" style="height:96px"></canvas>
 <div class="leg"><span style="color:#4a9eff">■</span> CPU&nbsp;&nbsp;<span style="color:#48c774">■</span> RAM&nbsp;&nbsp;<span style="color:#f5a623">■</span> GPU (${s.t('dashboard.chart.percent_used')}) · ~4&nbsp;min</div>
 <table id="perf"><tr><td style="color:#888">${s.t('dashboard.status.sampling')}</td></tr></table></div>
-<div class="card" data-layout-key="top-processes"><h2>${s.t('dashboard.card.top_processes')} <span class="top-process-modes" role="group" aria-label="${s.t('dashboard.processes.rank_by')}"><button type="button" class="top-process-mode on" data-mode="cpu" aria-pressed="true" onclick="setTopMode('cpu')">CPU</button><button type="button" class="top-process-mode" data-mode="ram" aria-pressed="false" onclick="setTopMode('ram')">RAM</button></span></h2>
+<div class="card" data-layout-key="top-processes"><h2>${s.t('dashboard.card.top_processes')} <span class="seg top-process-modes" role="group" aria-label="${s.t('dashboard.processes.rank_by')}"><button type="button" class="top-process-mode" data-mode="cpu" aria-pressed="true" onclick="setTopMode('cpu')">CPU</button><button type="button" class="top-process-mode" data-mode="ram" aria-pressed="false" onclick="setTopMode('ram')">RAM</button></span></h2>
 <table class="dt" id="topproc"><tr><td style="color:#888">${s.t('dashboard.status.top_processes')}</td></tr></table></div>
 <div class="card" data-layout-key="remote-webview"><h2>${s.t('dashboard.card.remote_webview')} <small id="insthdr"></small></h2>
 <div style="display:flex;gap:8px;margin-bottom:4px">

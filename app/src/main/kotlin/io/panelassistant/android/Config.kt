@@ -1987,7 +1987,7 @@ class Config private constructor(
     }
 
     // --- remote log shipping (opt-in) --------------------------------------------------------------
-    // Forward ha-paneld's OWN process logcat (its Log.* output + the Ktor/HiveMQ SLF4J library logs,
+    // Forward ha-paneld's OWN process logcat (its Log.* output + the Ktor SLF4J library logs,
     // all emitted by this app's uid → readable with no READ_LOGS and no root) to a central aggregator
     // (any syslog- or HTTP-ingesting log collector) for fleet-wide debugging without per-panel `adb logcat`. OFF by default
     // with an EMPTY host — a stock panel ships nothing until deliberately configured. LAN-only by intent;

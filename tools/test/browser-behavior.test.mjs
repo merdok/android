@@ -815,7 +815,7 @@ function screenshotFixture({ hardened = false, supported = true, locale = 'en' }
     <link rel="stylesheet" href="/info.css">${i18nBridge({ locale })}</head><body data-hardened="${hardened ? '1' : '0'}">
     <canvas id="perfchart" width="600" height="96"></canvas><canvas id="respchart" width="600" height="150"></canvas>
     <table id="perf"></table><table id="smtbl"></table><table id="streamtbl"></table>
-    <h2>Top processes <span class="top-process-modes" role="group" aria-label="Rank processes by"><button type="button" class="top-process-mode on" data-mode="cpu" aria-pressed="true" onclick="setTopMode('cpu')">CPU</button><button type="button" class="top-process-mode" data-mode="ram" aria-pressed="false" onclick="setTopMode('ram')">RAM</button></span></h2>
+    <h2>Top processes <span class="seg top-process-modes" role="group" aria-label="Rank processes by"><button type="button" class="top-process-mode" data-mode="cpu" aria-pressed="true" onclick="setTopMode('cpu')">CPU</button><button type="button" class="top-process-mode" data-mode="ram" aria-pressed="false" onclick="setTopMode('ram')">RAM</button></span></h2>
     <table id="topproc"></table><table id="noisyentities"></table>
     <small id="smhdr"></small><small id="perfage"></small><small id="sensage"></small><small id="insthdr"></small>
     <table id="senstbl"></table><p id="insthint"></p><div id="ctlzone"></div>

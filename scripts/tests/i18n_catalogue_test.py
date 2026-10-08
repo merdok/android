@@ -1111,16 +1111,6 @@ class CatalogueTest(unittest.TestCase):
             with self.subTest(key=key, text=text), self.assertRaises(i18n.CatalogueError):
                 i18n.validate_target_language(key, text, "zh-Hans", voice)
 
-        mqtt_help = source["strings"]["setup.mqtt.help.body"]
-        reviewed = "请在 Home Assistant 中打开 Mosquitto broker。"
-        i18n.validate_target_language("setup.mqtt.help.body", reviewed, "zh-Hans", mqtt_help)
-        for key, text in (
-            ("setup.mqtt.help.title", reviewed),
-            ("setup.mqtt.help.body", reviewed.replace("broker", "brokers")),
-        ):
-            with self.subTest(key=key, text=text), self.assertRaises(i18n.CatalogueError):
-                i18n.validate_target_language(key, text, "zh-Hans", mqtt_help)
-
         zh_target = i18n.validate_target(
             catalogue_dir / "zh-Hans.json",
             source,

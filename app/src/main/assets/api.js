@@ -144,7 +144,7 @@
   function endpoint(path, method, operation) {
     var details = el("details", "ep");
     var summary = el("summary");
-    summary.appendChild(el("span", "m " + method, method.toUpperCase()));
+    summary.appendChild(el("span", "pill m", method.toUpperCase()));
     summary.appendChild(el("span", "path", path));
     summary.appendChild(el("span", "sum", operation.summary || "", "en"));
     details.appendChild(summary);

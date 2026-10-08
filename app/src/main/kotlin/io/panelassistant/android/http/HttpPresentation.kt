@@ -34,12 +34,13 @@ internal fun dashboardControlButtonHtml(
     labelHtml: String,
     disabledReason: String?,
     style: String = "",
+    danger: Boolean = false,
 ): String {
     require(action.matches(Regex("[a-z_]+"))) { "invalid Dashboard control action" }
     val styleAttr = style.takeIf(String::isNotBlank)?.let { " style=\"${esc(it)}\"" }.orEmpty()
     val titleAttr = disabledReason?.let { " title=\"${esc(it)}\"" }.orEmpty()
     val disabledAttr = if (disabledReason != null) " disabled" else ""
-    return "<button class=\"pbtn\"$styleAttr$titleAttr onclick=\"act('$action')\"$disabledAttr>$labelHtml</button>"
+    return "<button class=\"pbtn${if (danger) " danger" else ""}\"$styleAttr$titleAttr onclick=\"act('$action')\"$disabledAttr>$labelHtml</button>"
 }
 
 internal fun installFormWantsHtml(accept: String?): Boolean =

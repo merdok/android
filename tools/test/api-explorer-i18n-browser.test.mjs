@@ -102,6 +102,7 @@ async function rig(t, { strings = translations, spec = fixtureSpec(), failSpec =
     languages: Object.fromEntries(Object.keys(strings).map((key) => [key, 'zh-Hans'])),
   }).replaceAll('<', '\\u003c');
   const pageHtml = htmlSource
+    .replace('__API_BRAND__', '')
     .replace('__API_LANG__', 'zh-Hans')
     .replace('__API_BACK_HREF__', '/?lang=zh-Hans')
     .replace('__API_I18N_PAYLOAD__', payload);

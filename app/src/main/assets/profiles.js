@@ -450,7 +450,8 @@
   }
   function badge(label, kind) {
     var item = document.createElement("span");
-    item.className = "profile-badge" + (kind ? " " + kind : "");
+    // A badge is a pill; the states that ask for attention carry its dot.
+    item.className = /\b(risk|warning|pending)\b/.test(kind || "") ? "pill dot" : "pill";
     item.textContent = label;
     return item;
   }

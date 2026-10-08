@@ -1541,7 +1541,7 @@ class PaneldService : Service() {
             persist = config::commitKioskLock,
         )
         // On-device unlock gesture (7 corner taps): persist OFF + clear the lock + tell HA — off the main
-        // thread (the gesture fires on the overlay's touch listener; root + HiveMQ must not run there).
+        // thread (the gesture fires on the overlay's touch listener; root work must not run there).
         kiosk.onUnlockRequested = {
             Thread {
                 if (teardownBoundary.isStopping) return@Thread

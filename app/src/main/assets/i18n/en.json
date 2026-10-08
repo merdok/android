@@ -33886,26 +33886,6 @@
       "softMaxChars": 100,
       "hardMaxChars": 140
     },
-    "setup.discovery.unavailable.broker_not_on_link": {
-      "text": "We couldn’t find this automatically — Home Assistant is on a different network segment from this panel, and automatic discovery only works within one segment. That’s normal on some networks — type it below; it works exactly the same.",
-      "sourceHash": "60000992bc1cb98758c2f5c927ddf87b6bf01a5710c6c3ff3872363d37e9fe03",
-      "surface": "setup",
-      "context": "Setup wizard local-network discovery result; user-visible copy.",
-      "risk": "setup",
-      "siblings": [
-        "setup.discovery.unavailable.error",
-        "setup.discovery.unavailable.generic",
-        "setup.discovery.unavailable.mdns_not_running",
-        "setup.discovery.unavailable.no_multicast_lock",
-        "setup.discovery.unavailable.no_responses_at_all"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant"
-      ],
-      "softMaxChars": 320,
-      "hardMaxChars": 440
-    },
     "setup.discovery.unavailable.error": {
       "text": "We couldn’t find this automatically — this panel’s network discovery attempt failed. That’s normal on some networks — type it below; it works exactly the same.",
       "sourceHash": "7b47377022930368a5a4c581149b3b9edc3f717bf9d85f617183030d78cf3f68",
@@ -33913,7 +33893,6 @@
       "context": "Setup wizard local-network discovery result; validation error.",
       "risk": "setup",
       "siblings": [
-        "setup.discovery.unavailable.broker_not_on_link",
         "setup.discovery.unavailable.generic",
         "setup.discovery.unavailable.mdns_not_running",
         "setup.discovery.unavailable.no_multicast_lock",
@@ -33931,7 +33910,6 @@
       "context": "Setup wizard local-network discovery result; user-visible copy.",
       "risk": "setup",
       "siblings": [
-        "setup.discovery.unavailable.broker_not_on_link",
         "setup.discovery.unavailable.error",
         "setup.discovery.unavailable.mdns_not_running",
         "setup.discovery.unavailable.no_multicast_lock",
@@ -33949,7 +33927,6 @@
       "context": "Setup wizard local-network discovery result; user-visible copy.",
       "risk": "setup",
       "siblings": [
-        "setup.discovery.unavailable.broker_not_on_link",
         "setup.discovery.unavailable.error",
         "setup.discovery.unavailable.generic",
         "setup.discovery.unavailable.no_multicast_lock",
@@ -33967,7 +33944,6 @@
       "context": "Setup wizard local-network discovery result; user-visible copy.",
       "risk": "setup",
       "siblings": [
-        "setup.discovery.unavailable.broker_not_on_link",
         "setup.discovery.unavailable.error",
         "setup.discovery.unavailable.generic",
         "setup.discovery.unavailable.mdns_not_running",
@@ -33985,7 +33961,6 @@
       "context": "Setup wizard local-network discovery result; user-visible copy.",
       "risk": "setup",
       "siblings": [
-        "setup.discovery.unavailable.broker_not_on_link",
         "setup.discovery.unavailable.error",
         "setup.discovery.unavailable.generic",
         "setup.discovery.unavailable.mdns_not_running",
@@ -34060,69 +34035,28 @@
       "softMaxChars": 320,
       "hardMaxChars": 440
     },
-    "setup.done.status.attested_mqtt": {
-      "text": "MQTT connected · Dashboard confirmed by you.",
-      "sourceHash": "bf75407b2be24c38c564c7301bf294831d3c6747ffa74c6af2b96efec3b73816",
-      "surface": "setup",
-      "context": "Setup wizard completion summary; completion status.",
-      "risk": "setup",
-      "siblings": [
-        "setup.done.status.attested_no_mqtt",
-        "setup.done.status.rendering_mqtt",
-        "setup.done.status.rendering_no_mqtt"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.done.status.attested_no_mqtt": {
+    "setup.done.status.attested": {
       "text": "Dashboard confirmed by you.",
       "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
       "surface": "setup",
       "context": "Setup wizard completion summary; completion status.",
       "risk": "setup",
       "siblings": [
-        "setup.done.status.attested_mqtt",
-        "setup.done.status.rendering_mqtt",
-        "setup.done.status.rendering_no_mqtt"
+        "setup.done.status.rendering"
       ],
       "placeholders": [],
       "frozen": [],
       "softMaxChars": 40,
       "hardMaxChars": 64
     },
-    "setup.done.status.rendering_mqtt": {
-      "text": "MQTT connected · Home Assistant is rendering on the panel.",
-      "sourceHash": "03a4e83b75b9f9913caca04ebcc4c9649179c283a50a7d37682467d4fe41ebcb",
-      "surface": "setup",
-      "context": "Setup wizard completion summary; completion status.",
-      "risk": "setup",
-      "siblings": [
-        "setup.done.status.attested_mqtt",
-        "setup.done.status.attested_no_mqtt",
-        "setup.done.status.rendering_no_mqtt"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT"
-      ],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.done.status.rendering_no_mqtt": {
+    "setup.done.status.rendering": {
       "text": "Home Assistant is rendering on the panel.",
       "sourceHash": "dcd8160cc85f6016d90daf4256a58f4434aa6b9718c3fa0f258323b3d9fa2234",
       "surface": "setup",
       "context": "Setup wizard completion summary; completion status.",
       "risk": "setup",
       "siblings": [
-        "setup.done.status.attested_mqtt",
-        "setup.done.status.attested_no_mqtt",
-        "setup.done.status.rendering_mqtt"
+        "setup.done.status.attested"
       ],
       "placeholders": [],
       "frozen": [
@@ -35252,733 +35186,6 @@
       "softMaxChars": 24,
       "hardMaxChars": 40
     },
-    "setup.mqtt.action.cancel_edit": {
-      "text": "Cancel and edit these details",
-      "sourceHash": "f23b12931ce871291c67ed2055c72e93362c6ca6b40ea9478c1b3a5d0e39e23e",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; action label.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.action.checking_address",
-        "setup.mqtt.action.checking_connection",
-        "setup.mqtt.action.save_anyway"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.mqtt.action.checking_address": {
-      "text": "Checking the address…",
-      "sourceHash": "4e4170d1a4d2acf6a7f3490e6ed813134358d469376d2d8516cb771927beab25",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; action label.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.action.cancel_edit",
-        "setup.mqtt.action.checking_connection",
-        "setup.mqtt.action.save_anyway"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.action.checking_connection": {
-      "text": "Checking the connection…",
-      "sourceHash": "33f8dde16b75e05f2f08b6617999a7b6ef2568ee2a6e0fc416c27a76ec13cff7",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; action label.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.action.cancel_edit",
-        "setup.mqtt.action.checking_address",
-        "setup.mqtt.action.save_anyway"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.action.save_anyway": {
-      "text": "Save anyway",
-      "sourceHash": "ef4c87b5083fbe4867b0bfb4e2575ecb106bdd4612160ef40f8f022c415cbdac",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; action label.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.action.cancel_edit",
-        "setup.mqtt.action.checking_address",
-        "setup.mqtt.action.checking_connection"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.broker.help": {
-      "text": "Usually tcp:// then your Home Assistant’s address and :1883.",
-      "sourceHash": "3cb757053af4d021d4cb57a1d0e71ac958723841508673850218df3a2d55fb6d",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; field help.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.broker.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "tcp://",
-        "1883"
-      ],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.broker.label": {
-      "text": "Broker URL",
-      "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; field label.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.broker.help"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "URL"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.error.invalid_address": {
-      "text": "That address isn’t a broker URL the panel can use — it needs tcp:// (or ssl://) and a host.",
-      "sourceHash": "b9add1e3ccf51bf66889b0971c892221981c071133811735c8f221fbd798ee27",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; validation error.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.error.nothing_listening",
-        "setup.mqtt.error.scheme",
-        "setup.mqtt.error.unresolvable"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "tcp://",
-        "ssl://",
-        "URL"
-      ],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.error.nothing_listening": {
-      "text": "Nothing is listening at {host}:{port} — check the address and port. Press again to save anyway.",
-      "sourceHash": "1033c7bfa571cbb694463132fd61755a77712535237c1d9263a51eec29295cfe",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; validation error.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.error.invalid_address",
-        "setup.mqtt.error.scheme",
-        "setup.mqtt.error.unresolvable"
-      ],
-      "placeholders": [
-        "{host}",
-        "{port}"
-      ],
-      "frozen": [],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.error.scheme": {
-      "text": "The broker URL needs to start with tcp://, mqtt://, ssl://, mqtts:// or tls:// — for example tcp://192.168.1.10:1883.",
-      "sourceHash": "6b4f430225e310e979907a561eecf28a5269e3c109fe670b681f592d535af389",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; validation error.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.error.invalid_address",
-        "setup.mqtt.error.nothing_listening",
-        "setup.mqtt.error.unresolvable"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "tcp://",
-        "mqtt://",
-        "ssl://",
-        "mqtts://",
-        "tls://",
-        "1883",
-        "URL",
-        "tcp://192.168.1.10:1883"
-      ],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.error.unresolvable": {
-      "text": "“{host}” doesn’t resolve on the panel’s network — check the address. Press again to save anyway.",
-      "sourceHash": "36c1caa17d21b6c26c66cd820898b653f791775c1a79a23f8806c03a5491d8b0",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; validation error.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.error.invalid_address",
-        "setup.mqtt.error.nothing_listening",
-        "setup.mqtt.error.scheme"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.failure.auth.address_ok": {
-      "text": "Good news: the address is right. The credentials aren’t.",
-      "sourceHash": "3c129ef68b4305b718118c35214716154f0b36739abb6fdc601de84080329c3f",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.auth.retype",
-        "setup.mqtt.failure.auth.title"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.failure.auth.retype": {
-      "text": "The password isn’t shown back to you, so it can’t be checked by eye — please type it again. The username is a Home Assistant user account, not the add-on’s name.",
-      "sourceHash": "adf19d688956cedb6b8339461eff10dba0d8c8f57b7278e62331223ad7f9bd0a",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.auth.address_ok",
-        "setup.mqtt.failure.auth.title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant"
-      ],
-      "softMaxChars": 220,
-      "hardMaxChars": 300
-    },
-    "setup.mqtt.failure.auth.title": {
-      "text": "The broker is there, but it rejected this username and password.",
-      "sourceHash": "c513587c0fd73976bf9bc5100afb177486b5cafaea549ce1cc35060868f14213",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; heading.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.auth.address_ok",
-        "setup.mqtt.failure.auth.retype"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.failure.config.explanation": {
-      "text": "It needs to start with tcp://, mqtt://, ssl://, mqtts:// or tls:// — for example tcp://192.168.1.10:1883.",
-      "sourceHash": "6e83b26eb6fab768d9b4ab0bb65aa4217d4a67bf661f593265033dc44269d8d7",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; explanatory guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.config.title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "tcp://",
-        "mqtt://",
-        "ssl://",
-        "mqtts://",
-        "tls://",
-        "1883",
-        "tcp://192.168.1.10:1883"
-      ],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.failure.config.title": {
-      "text": "That address isn’t a broker URL the panel can use.",
-      "sourceHash": "00e6ecde54d76d867f4e99f5d949a17166bcf2b6f31a911b08bd1d6e765df8cb",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; heading.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.config.explanation"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "URL"
-      ],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.failure.unreachable.confirmed_body": {
-      "text": "The panel reached the network but found no MQTT broker there. Worth checking: the broker’s IP address, the port (1883 for plain, 8883 for TLS), and that the Mosquitto add-on is running.",
-      "sourceHash": "c440a30ca8175a84108e62fc8e5639ce768b79ad94e52af2f7a45dcf77a80d43",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.unreachable.confirmed_title",
-        "setup.mqtt.failure.unreachable.presumed_body",
-        "setup.mqtt.failure.unreachable.presumed_title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Mosquitto",
-        "MQTT",
-        "1883",
-        "8883",
-        "IP",
-        "TLS"
-      ],
-      "softMaxChars": 320,
-      "hardMaxChars": 440
-    },
-    "setup.mqtt.failure.unreachable.confirmed_title": {
-      "text": "Nothing answered at {host}.",
-      "sourceHash": "a431b7be909e09256dd9b36c8362ca1bdc1de91b7acacccb3bf36fa59167ca0e",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.unreachable.confirmed_body",
-        "setup.mqtt.failure.unreachable.presumed_body",
-        "setup.mqtt.failure.unreachable.presumed_title"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.failure.unreachable.presumed_body": {
-      "text": "The panel is still trying in the background, but this usually means the address or port is wrong. Worth checking: the broker’s IP address, the port (1883 for plain, 8883 for TLS), and that the Mosquitto add-on is running.",
-      "sourceHash": "d823f63cb15926469341671ed7b82153de68ba03ce26c4ca440310105c32de4c",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.unreachable.confirmed_body",
-        "setup.mqtt.failure.unreachable.confirmed_title",
-        "setup.mqtt.failure.unreachable.presumed_title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Mosquitto",
-        "1883",
-        "8883",
-        "IP",
-        "TLS"
-      ],
-      "softMaxChars": 320,
-      "hardMaxChars": 440
-    },
-    "setup.mqtt.failure.unreachable.presumed_title": {
-      "text": "We can’t reach {host} yet.",
-      "sourceHash": "efec83f6283200c9e00e63f00cc2b7c283b1540801fe38c55d945ddfa98ffddd",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; failure guidance.",
-      "risk": "consequential",
-      "siblings": [
-        "setup.mqtt.failure.unreachable.confirmed_body",
-        "setup.mqtt.failure.unreachable.confirmed_title",
-        "setup.mqtt.failure.unreachable.presumed_body"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.help.body": {
-      "text": "In Home Assistant: Settings → Add-ons → Mosquitto broker. The address is usually tcp:// followed by your Home Assistant IP and :1883. The username and password are a Home Assistant user — Settings → People → Add person, with “Allow login” on.",
-      "sourceHash": "2b6c76952afc7a0b34ae075bacd4113d2c5b79ba562ed3c745847ff2d359b0ef",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; explanatory body.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.help.title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "Mosquitto",
-        "tcp://",
-        "1883",
-        "→",
-        "IP"
-      ],
-      "softMaxChars": 320,
-      "hardMaxChars": 440
-    },
-    "setup.mqtt.help.title": {
-      "text": "Where do I find these?",
-      "sourceHash": "c8dd4203215d6efdabd359a01e0d9d3d9a363a131e5b4fd6a6f005f06ca85ea2",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; heading.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.help.body"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.host_fallback": {
-      "text": "the broker",
-      "sourceHash": "a2c667ac11921f76e2ccbc1f3f44478c46c4009c055ec56a52a921fcd6d0c20c",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; user-visible copy.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.lead",
-        "setup.mqtt.title"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.lead": {
-      "text": "MQTT is how the panel and Home Assistant talk. Without it, Home Assistant can’t see the panel at all.",
-      "sourceHash": "4cc11cbe9723c293ed59d810f605e61ed5487255a5ca7fae573ff9f2cf2b78ef",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; introductory guidance.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.host_fallback",
-        "setup.mqtt.title"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "MQTT"
-      ],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.password.help_existing": {
-      "text": "The password isn’t shown for security. Leave it blank to keep the current one, or type a new one.",
-      "sourceHash": "629b0265230fadbeaecd6f7796027888b16a28ae26b971b6fb94120ddfe32f2b",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; user-visible copy.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.password.help_new",
-        "setup.mqtt.password.label",
-        "setup.mqtt.password.unchanged"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.password.help_new": {
-      "text": "The password for that Home Assistant user.",
-      "sourceHash": "84973d7101c349ba67a750088114547f70b42719491986f5d8de997c77519e8b",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; user-visible copy.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.password.help_existing",
-        "setup.mqtt.password.label",
-        "setup.mqtt.password.unchanged"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant"
-      ],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.mqtt.password.label": {
-      "text": "Password",
-      "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; field label.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.password.help_existing",
-        "setup.mqtt.password.help_new",
-        "setup.mqtt.password.unchanged"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.password.unchanged": {
-      "text": "(unchanged)",
-      "sourceHash": "5c0dc8efedbfd8f8e3c437eb42d1a534009fc1318e48f09fa4b5076f05d1100f",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; user-visible copy.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.password.help_existing",
-        "setup.mqtt.password.help_new",
-        "setup.mqtt.password.label"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.state.checking": {
-      "text": "Checking the broker…",
-      "sourceHash": "a5bcbf22d2c6a0ddf91f7db36d6529776cd7aa4d1d8f8efd3197298448d8d397",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.state.checking_address": {
-      "text": "Checking the address from the panel…",
-      "sourceHash": "ffcbb57282f6e961676662a651a6281962148008533d546bfc0d4f6153478d32",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.mqtt.state.checking_long": {
-      "text": "Checking the broker… This usually takes a second or two.",
-      "sourceHash": "dd3ca5aabdb29d179dcc47e0f41941cf2b97efa2871dfcca214060c06f05c8f8",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.state.checking_sign_in": {
-      "text": "Checking the sign-in with {host}…",
-      "sourceHash": "9f92b9ba2fd6383f35fa79b612e071fa02ff38057c3e9502fca81d4e58920143",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.mqtt.state.connected": {
-      "text": "✓ Connected to {host}.",
-      "sourceHash": "27cd4153c8e0745787f861ef4ff98933cf547109339258cf96aa1d5bac8ed80d",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [
-        "✓"
-      ],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.mqtt.state.rebuilding": {
-      "text": "Still working — the panel is rebuilding its broker connection.",
-      "sourceHash": "7b451d5ca91bb4ca0e971e6f9e13546fb6c22b9fa0c7bfff4212257225ef1eed",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.state.saving_details": {
-      "text": "Saving these details to the panel…",
-      "sourceHash": "a25153f4225c51889674a8db895ced6aac961a1f7e126c1422967e2e2e330ce9",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.still_trying",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 62,
-      "hardMaxChars": 89
-    },
-    "setup.mqtt.state.still_trying": {
-      "text": "Still trying to reach {host}… A wrong address or port usually looks like this.",
-      "sourceHash": "943b0055672f9d3b19c92735abbed1111a3464da36a85436fcc8effedc744fe5",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.unusually_slow"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 140
-    },
-    "setup.mqtt.state.unusually_slow": {
-      "text": "Unusually slow — the panel is still trying to reach {host}. You can keep waiting, or cancel and check the details.",
-      "sourceHash": "6ce83682e6f03ff78a3b0dc32db645a8153ca4d066330759a13bbae3a9400177",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; live status.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.mqtt.state.checking",
-        "setup.mqtt.state.checking_address",
-        "setup.mqtt.state.checking_long",
-        "setup.mqtt.state.checking_sign_in",
-        "setup.mqtt.state.connected",
-        "setup.mqtt.state.rebuilding",
-        "setup.mqtt.state.saving_details",
-        "setup.mqtt.state.still_trying"
-      ],
-      "placeholders": [
-        "{host}"
-      ],
-      "frozen": [],
-      "softMaxChars": 150,
-      "hardMaxChars": 210
-    },
-    "setup.mqtt.title": {
-      "text": "Connect to MQTT",
-      "sourceHash": "5125599de93725fd5360573bc326871a7b490ec9e996b14ecc7e3cdf32ad4d6d",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; heading.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.host_fallback",
-        "setup.mqtt.lead"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.mqtt.username.help": {
-      "text": "Usually your Home Assistant login name — the name typed on HA’s sign-in screen, not the display name. Many people create a dedicated HA user just for panels.",
-      "sourceHash": "0825a3d176baffd5b5fd5f8e3d7e39c951b07afc8b1605ff585ae155022cdcff",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; field help.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.username.label"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "HA"
-      ],
-      "softMaxChars": 220,
-      "hardMaxChars": 300
-    },
-    "setup.mqtt.username.label": {
-      "text": "Username",
-      "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-      "surface": "setup",
-      "context": "Setup wizard MQTT broker and connection step; field label.",
-      "risk": "setup",
-      "siblings": [
-        "setup.mqtt.username.help"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
     "setup.progress.dashboard": {
       "text": "HA dash",
       "sourceHash": "f4e60256299043246476ebc93bb0a35f178a41494faee700dcfcd2a94e211011",
@@ -35986,7 +35193,6 @@
       "context": "Setup wizard frame, shared action, status, or progress copy; progress label.",
       "risk": "ordinary",
       "siblings": [
-        "setup.progress.mqtt",
         "setup.progress.name",
         "setup.progress.optimize",
         "setup.progress.server",
@@ -35995,26 +35201,6 @@
       "placeholders": [],
       "frozen": [
         "HA"
-      ],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "setup.progress.mqtt": {
-      "text": "MQTT",
-      "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
-      "surface": "setup",
-      "context": "Setup wizard frame, shared action, status, or progress copy; progress label.",
-      "risk": "ordinary",
-      "siblings": [
-        "setup.progress.dashboard",
-        "setup.progress.name",
-        "setup.progress.optimize",
-        "setup.progress.server",
-        "setup.progress.sign_in"
-      ],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
       ],
       "softMaxChars": 24,
       "hardMaxChars": 40
@@ -36027,7 +35213,6 @@
       "risk": "ordinary",
       "siblings": [
         "setup.progress.dashboard",
-        "setup.progress.mqtt",
         "setup.progress.optimize",
         "setup.progress.server",
         "setup.progress.sign_in"
@@ -36045,7 +35230,6 @@
       "risk": "ordinary",
       "siblings": [
         "setup.progress.dashboard",
-        "setup.progress.mqtt",
         "setup.progress.name",
         "setup.progress.server",
         "setup.progress.sign_in"
@@ -36063,7 +35247,6 @@
       "risk": "ordinary",
       "siblings": [
         "setup.progress.dashboard",
-        "setup.progress.mqtt",
         "setup.progress.name",
         "setup.progress.optimize",
         "setup.progress.sign_in"
@@ -36081,7 +35264,6 @@
       "risk": "ordinary",
       "siblings": [
         "setup.progress.dashboard",
-        "setup.progress.mqtt",
         "setup.progress.name",
         "setup.progress.optimize",
         "setup.progress.server"

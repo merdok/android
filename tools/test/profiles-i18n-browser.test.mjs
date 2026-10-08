@@ -211,7 +211,7 @@ browserTest('Profiles localizes catalogue, badges, issues and reports while pres
     ] },
   });
   assert.equal(await page.locator('#profile-select option').textContent(), '样例 <profile>&" · 内置 · abcdef0123 · 已启用');
-  assert.deepEqual(await page.locator('#profile-badges .profile-badge').allTextContents(), ['内置', '✓ 已验证', injection, '上次正常', 'root 路径', 'future_risk']);
+  assert.deepEqual(await page.locator('#profile-badges .pill').allTextContents(), ['内置', '✓ 已验证', injection, '上次正常', 'root 路径', 'future_risk']);
   assert.equal(await page.locator('#profile-badges img').count(), 0);
   assert.equal(await page.evaluate(() => window.__injected), undefined);
   assert.deepEqual(await page.locator('#profile-report .profile-diff-path').allTextContents(), ['匹配字段：型号', 'evidence.future_name']);
@@ -250,8 +250,8 @@ browserTest('Profiles keeps English fallback usable without translations and unk
     report: { items: [{ path: 'evidence.some_new.path', status: 'future_status', value: 'raw_value' }] },
   });
   assert.equal(await page.locator('#profile-select option').textContent(), '样例 <profile>&" · Future_ORIGIN · abcdef0123 · active');
-  assert.deepEqual((await page.locator('#profile-badges .profile-badge').allTextContents()).slice(0, 3), ['Future_ORIGIN', 'Future_Maturity', 'Active']);
-  assert.ok((await page.locator('#profile-badges .profile-badge').allTextContents()).includes('Future_RISK'));
+  assert.deepEqual((await page.locator('#profile-badges .pill').allTextContents()).slice(0, 3), ['Future_ORIGIN', 'Future_Maturity', 'Active']);
+  assert.ok((await page.locator('#profile-badges .pill').allTextContents()).includes('Future_RISK'));
   assert.equal(await page.locator('#profile-catalog-issues .profile-issue-loc').textContent(), 'future_level');
   assert.equal(await page.locator('#profile-catalog-issues .profile-issue span').nth(1).textContent(), compatibility);
   assert.equal(await page.locator('#profile-report .profile-diff-path').textContent(), 'evidence.some_new.path');
@@ -291,7 +291,7 @@ browserTest('Profiles selects every full option template and maps imported origi
   ]);
   await page.selectOption('#profile-select', 'imported-active@0123456789-imported-active');
   await page.waitForFunction(() => document.querySelector('#profile-editor-meta')?.textContent.includes('imported-active'));
-  assert.equal((await page.locator('#profile-badges .profile-badge').allTextContents())[0], '本地');
+  assert.equal((await page.locator('#profile-badges .pill').allTextContents())[0], '本地');
 });
 
 browserTest('Profiles localizes only closed schema descriptions and preserves descriptor identities', async (t) => {

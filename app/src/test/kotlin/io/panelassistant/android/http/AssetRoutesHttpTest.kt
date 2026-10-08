@@ -27,7 +27,8 @@ class AssetRoutesHttpTest {
                 for ((name, media, cache) in cases) {
                     val response = client.get("/$name")
                     assertEquals(name, HttpStatusCode.OK, response.status)
-                    assertArrayEquals(name, File("src/main/assets", name).readBytes(), response.body<ByteArray>())
+                    val file = if (name == "favicon.svg") "icon.svg" else name
+                    assertArrayEquals(name, File("src/main/assets", file).readBytes(), response.body<ByteArray>())
                     assertEquals(name, wireType(media), response.headers[HttpHeaders.ContentType])
                     assertEquals(name, cache, response.headers[HttpHeaders.CacheControl])
                     assertEquals("nosniff", response.headers["X-Content-Type-Options"])
