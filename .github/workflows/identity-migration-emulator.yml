@@ -87,4 +87,4 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: ANDROID_SERIAL=emulator-5554 scripts/tests/identity_migration_emulator.sh "$RUNNER_TEMP/apks/base.apk" "$RUNNER_TEMP/apks/bridge.apk" "$RUNNER_TEMP/apks/successor.apk" "$RUNNER_TEMP/hapaneld-helper"
+          script: ANDROID_SERIAL=emulator-5554 tools/tests/identity_migration_emulator.sh "$RUNNER_TEMP/apks/base.apk" "$RUNNER_TEMP/apks/bridge.apk" "$RUNNER_TEMP/apks/successor.apk" "$RUNNER_TEMP/hapaneld-helper"

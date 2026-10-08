@@ -539,7 +539,7 @@ class DatabaseCompatibilityTest {
         }
 
     private fun vectorFile(): File = listOf(
-        File("../scripts/tests/fixtures/database-compatibility-vectors.tsv"),
-        File("scripts/tests/fixtures/database-compatibility-vectors.tsv"),
+        File("../tools/tests/fixtures/database-compatibility-vectors.tsv"),
+        File("tools/tests/fixtures/database-compatibility-vectors.tsv"),
     ).firstOrNull(File::isFile) ?: error("database compatibility vector fixture not found")
 }

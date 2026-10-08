@@ -55,7 +55,7 @@ updates:
       # `security_updates_only` is set, and neither rule sets `versions`. A rule written with
       # `versions:` instead would silence security proposals as well.
       #
-      # `scripts/tests/dependabot_config_test.py` re-derives all of this from the real version
+      # `tools/tests/dependabot_config_test.py` re-derives all of this from the real version
       # catalog and build files, and fails if a declared dependency ever escapes both patterns or
       # if the wrapper stops escaping them.
       - dependency-name: "*:*"

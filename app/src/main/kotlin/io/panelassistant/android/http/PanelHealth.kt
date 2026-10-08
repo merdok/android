@@ -9,8 +9,7 @@ package io.panelassistant.android.http
  */
 object PanelHealth {
     /** Chromium major below which the current Home Assistant frontend renders blank/broken. 107 was
-     *  verified blank on an NSPanel Pro; the fleet target is 138. Matches the `check_webview` cutoff in
-     *  scripts/provision.sh so the in-app warning and the provisioning warning agree. */
+     *  verified blank on an NSPanel Pro. */
     const val MIN_CHROMIUM = 110
 
     /** Chromium major parsed from a "System WebView" value like "com.android.webview 107.0.5304.105"

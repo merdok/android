@@ -1,6 +1,6 @@
 # hapaneld-helper — root helper daemon for sandbox-walled panels
 
-A tiny root daemon that gives ha-paneld a whitelisted, authenticated control surface for the things a sandboxed Android app can't reach itself: the RGB LED, screen-backlight power, hardware-button and GPIO instrumentation, display density / CPU governor / screencap / perf snapshots, and app reload/start/reboot. It began as an LED-only helper (the former `hapaneld-ledd`) and was **renamed `hapaneld-helper`** to match its broader role; the code is split by capability under [`src/`](#source-layout). Upgrading from an old `hapaneld-ledd` install is handled by `install-daemon.sh` (it removes the old binary + init service so both don't run) — see [Boot persistence](#boot-persistence-init-service).
+A tiny root daemon that gives ha-paneld a whitelisted, authenticated control surface for the things a sandboxed Android app can't reach itself: the RGB LED, screen-backlight power, hardware-button and GPIO instrumentation, display density / CPU governor / screencap / perf snapshots, and app reload/start/reboot. It began as an LED-only helper (the former `hapaneld-ledd`) and was **renamed `hapaneld-helper`** to match its broader role; the code is split by capability under [`src/`](#source-layout). The app installs and updates its bundled helper — see [Boot persistence](#boot-persistence-init-service).
 
 ## Why it exists
 
@@ -154,25 +154,14 @@ make -C helper fuzz      # bounded in-house ASan+UBSan smoke — see fuzz/README
 
 Or compile by hand with any Android NDK: `*-clang -O2 -s -Ihelper/src -o hapaneld-helper helper/src/*.c`.
 
-## Provision (per panel, root/adb)
+## Installation
 
-Install or upgrade the daemon on every rooted supported panel. Sandbox-walled panels need it for their privileged controls, while direct-`su` panels also use the current helper for the descriptor-confined Companion backup/restore protocol. The app and helper therefore form one compatibility unit even when older releases could route some controls through `su`.
-
-```bash
-./helper/build.sh
-./helper/install-daemon.sh <ip:5555>
-```
-
-Do not execute the adb/shell-owned staging copy from `/data/local/tmp` as root. The installer hashes it, copies it to a transaction-unique root-owned candidate, and installs the one canonical live binary as `root:root` mode `0700` at `/data/local/hapaneld-helper`. After stopping the prior daemon it revalidates the complete live topology against its recorded snapshot, then asks the staged candidate for the exact `--replacement-safe` verdict before the live rename. Post-snapshot topology drift is a fail-closed hold: no live file is overwritten and the stale snapshots are never rolled back over the other writer. Native `GUARD_ARMED` is disambiguated through the fixed APK-coupled R1 custody records: present R1 custody retains the prepared journal without rollback, while ordinary armed Guard state with no R1 custody immediately restores and restarts the exact prior helper topology. After a safe swap, the installer launches one supervisor and requires the exact Companion capabilities, autonomous supervised Guard DB capabilities, empty Guard DB status, and build identity before committing.
-
-The standalone transaction journal is version 3 and records the canonical binary, the selected boot registration, every historical helper binary/registration, and authenticated recovery snapshots. Its prepared/mutating/target phases make an interrupted migration recoverable without treating unknown live bytes as this installer's output. A stale v3 rollback checks the same five fixed native R1 custody paths before publishing rollback intent and again before every live restore; custody retains the journal and leaves all helper paths untouched. Existing version 1 and 2 standalone journals retain their original, explicitly version-dispatched topology semantics; because version 1 did not record its target-registration hash, post-swap v1 recovery admits only the exact two registration byte streams that v1 ever published. Across every journal version, an absent record means neither a directory entry nor a broken symlink. Every version publishes rollback bytes through an authenticated same-directory temporary whose hash, ownership, and mode are verified and synced before atomic rename and parent-directory durability, so a power cut during copy leaves either the previous live file or the complete recovery file, not a partial authoritative binary.
+The panel app installs and updates the helper bundled in its APK through `BundledHelperInstaller`. Install and update the app through Panel Assistant; the standalone shell installer is retired.
 
 ## Boot persistence (init service)
 
-The daemon must (re)start in a root domain after every reboot, and the app cannot bootstrap that service itself. Every supported route executes `/data/local/hapaneld-helper --supervise`; system, vendor, and systemless storage contain boot registrations only. `helper/install-daemon.sh` chooses the first verified registration route:
+Every supported route executes `/data/local/hapaneld-helper --supervise`; system, vendor, and systemless storage contain boot registrations only. The app chooses the first verified registration route:
 
 - A writable-system/userdebug panel receives the init registration in `/system/etc/init`.
 - Otherwise, a writable vendor init directory receives the same registration in `/vendor/etc/init`.
 - Otherwise, a read-only-system panel is accepted only when a supported Magisk, KernelSU, or APatch service runner is detected; it receives a `service.d` launcher under `/data/adb/service.d`.
-
-The transaction snapshots and removes historical `/system/bin/hapaneld-helper`, `/data/adb/hapaneld/hapaneld-helper`, old init/service.d registrations, and the former `hapaneld-ledd` layout. They are restored byte-for-byte if migration fails. If no registration route is verified, installation stops without replacing or stopping the existing helper. Reboot the panel when convenient after installation to confirm boot persistence.

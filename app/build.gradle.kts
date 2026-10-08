@@ -508,8 +508,7 @@ val unitTestRuntimeReadFiles = listOf(
     "../helper/test/socket_server.c",
     "../helper/test/sysexec_stub.c",
     "../helper/test/sysexec_stub.h",
-    "../scripts/provision.sh",
-    "../scripts/tests/fixtures/database-compatibility-vectors.tsv",
+    "../tools/tests/fixtures/database-compatibility-vectors.tsv",
     "../tools/test/fixtures/dashboard-path-parity.json",
     "../tools/test/fixtures/info-fixture.html",
     "../tools/profile-editor/package.json", // ProfileUiSourceTest reads these three, never builds the bundle

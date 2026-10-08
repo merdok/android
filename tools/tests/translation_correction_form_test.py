@@ -16,7 +16,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 FORM = ROOT / ".github" / "ISSUE_TEMPLATE" / "translation_correction.yml"
-CATALOGUE_SCRIPT = ROOT / "scripts" / "i18n_catalogue.py"
+CATALOGUE_SCRIPT = ROOT / "tools" / "i18n_catalogue.py"
 
 SPEC = importlib.util.spec_from_file_location("i18n_catalogue", CATALOGUE_SCRIPT)
 assert SPEC and SPEC.loader

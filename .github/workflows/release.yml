@@ -77,7 +77,7 @@ jobs:
           import re
           import subprocess
 
-          from scripts.i18n_catalogue import LOCALES
+          from tools.i18n_catalogue import LOCALES
 
           def fail(message):
               raise SystemExit(f"::error::{message}")
@@ -130,7 +130,7 @@ jobs:
           PY
 
       - name: Test release workflow contracts
-        run: scripts/tests/release_workflow_test.sh
+        run: tools/tests/release_workflow_test.sh
 
       # Expensive app, lint, host, dependency-integrity and security analysis run when the exact source
       # lands on main. The tag workflow consumes their latest results instead of rerunning them, while
@@ -298,7 +298,7 @@ jobs:
           # with the applicationId, and its component fields are build-script constants.
           test -s app/build/reports/cyclonedx-direct/bom.json
           cp app/build/reports/cyclonedx-direct/bom.json release-input/android-gradle-runtime.cdx.json
-          cp scripts/generate_install_descriptor.py release-input/generate_install_descriptor.py
+          cp tools/generate_install_descriptor.py release-input/generate_install_descriptor.py
           bridge_apk_name="ha-paneld-${RELEASE_TAG}-manual-setup-required.apk.bin"
           successor_apk_name="panel-assistant-${RELEASE_TAG}-manual-setup-required.apk.bin"
           echo "BRIDGE_APK_NAME=$bridge_apk_name" >> "$GITHUB_ENV"
