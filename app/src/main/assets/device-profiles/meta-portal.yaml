@@ -9,7 +9,8 @@ metadata:
   maturity: experimental
   tested_firmware: []
   limitations:
-    - Tested only on the Portal 10" (2nd gen), which has its own profile. Other Portal models may differ.
+    - Tested only on the Portal 10" (2nd gen), which has its own profile. Other Portal models may differ; the 1st gen (Android 9) has different sensors.
+    - The Portal TV has no screen and is not supported.
     - Camera and microphone stay off until they are checked on your model.
     - Network ADB does not survive a restart.
     - The ADB switch (Settings › Debug, behind the Meta account PIN) shows no on or off state; tap it until the panel appears on your computer.
@@ -20,16 +21,22 @@ requires:
   drivers:
     - screen.screen-timeout
 match:
-  # Any Portal model; the exact 10" (2nd gen) branch outranks this one.
+  # Portals with a screen, matched on Meta's device codename, never the model string: the
+  # model reads Portal, Portal+ or Portal Mini and the 1st gen also reports Portal.
+  # omni: the Android 10 (2nd gen) image, shared by the 10" (2nd gen) and reportedly the Mini.
+  # aloha: the Android 9 (1st gen) image of the Portal and Portal+.
+  # ripley (Portal TV) has no screen and is deliberately left out.
+  # The exact 10" (2nd gen) branch outranks this one.
   priority: 500
   fallback: false
   any:
     - priority: 900
       all:
-        - field: model
+        - field: device
           op: equals
           values:
-            - portal
+            - omni
+            - aloha
 platform:
   su_form: none
   app_can_su: false

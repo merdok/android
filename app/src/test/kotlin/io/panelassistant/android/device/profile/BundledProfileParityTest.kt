@@ -762,8 +762,12 @@ class BundledProfileParityTest {
         ResolutionFixture("ioctl device", DeviceFacts("rk3576_u", "wf1589t", ""), "wf1589t"),
         ResolutionFixture("vendor firmware", DeviceFacts("foo", "bar", "s9_android_1.1.0"), "s9e"),
         ResolutionFixture("Portal 10 inch second generation", DeviceFacts("portal", "omni", ""), "meta-portal-10-gen2"),
-        ResolutionFixture("other Portal model", DeviceFacts("portal", "aloha", ""), "meta-portal"),
-        ResolutionFixture("Portal device codename without the Portal model", DeviceFacts("unrelated", "omni", ""), "generic"),
+        ResolutionFixture("Portal 1st gen", DeviceFacts("portal", "aloha", ""), "meta-portal"),
+        ResolutionFixture("Portal Mini", DeviceFacts("portal mini", "omni", ""), "meta-portal"),
+        ResolutionFixture("Portal+ 1st gen", DeviceFacts("portal+", "aloha", ""), "meta-portal"),
+        ResolutionFixture("Portal TV has no screen", DeviceFacts("portaltv", "ripley", ""), "generic"),
+        ResolutionFixture("Portal codename under another model name stays in the family", DeviceFacts("unrelated", "omni", ""), "meta-portal"),
+        ResolutionFixture("Portal model name on another device", DeviceFacts("portal", "unrelated", ""), "generic"),
         ResolutionFixture("unknown fallback", DeviceFacts("mysterypanel", "unknowndev", ""), "generic"),
         ResolutionFixture("collision: exact codename over broad reference SoC", DeviceFacts("PX30_EVB", "Jenna", ""), "shelly-wall-display-x2i"),
         ResolutionFixture("collision: exact device over vendor firmware", DeviceFacts("tpa10", "tpa10", "s9_android_1.1.0"), "tpa10"),
@@ -926,7 +930,7 @@ class BundledProfileParityTest {
         )
         val EXPECTED_BUNDLED_SHA256 = mapOf(
             "generic.yaml" to "16088624128aa375bc28fb747e535f93aa43c65881b5041a6fedc3ce4de056d2",
-            "meta-portal.yaml" to "3809a824c9dbed8f2cf11c7e2731a3f604830f3585108f54b29de89e554e6cd6",
+            "meta-portal.yaml" to "2817983e13d4e7d327149caecebf400276afdba02b330d46422bcb8b74ddd5de",
             "meta-portal-10-gen2.yaml" to "7348c9344bb3d3d150060555681afcdd170e4d04e917a2785ee1b7c80019c36e",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
