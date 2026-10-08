@@ -29,7 +29,7 @@ internal fun displayCardHtml(
     val rec = if (!locked && (recommendedDensity != null || recommendedFontScale != null))
         """ <button type="submit" name="action" value="rec"${hardenedApprovalA11yAttrs(strings = strings)} formnovalidate>${esc(strings.get("install.display.ha_optimised"))}</button>""" else ""
     val lock = if (locked) privilegedLockBanner(strings.get("install.display.root_required"), strings) else ""
-    val badge = """<span class="cardbadge exp">${esc(strings.get("install.display.badge.experimental"))}</span>"""
+    val badge = """<span class="pill">${esc(strings.get("install.display.badge.experimental"))}</span>"""
     val title = if (!locked) hardenedApprovalCardTitle(esc(strings.get("install.display.title")), badge, strings = strings) else "<h2>${esc(strings.get("install.display.title"))}$badge</h2>"
     return """<div class="card" id="cfg-display" data-layout-key="display-sizing">$title
 $lock<p class="note">${esc(strings.get("install.display.description"))}</p>

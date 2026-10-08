@@ -18,18 +18,7 @@
 .profile-action-break{display:none}
 .profile-action-group{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .profile-action-group+.profile-action-group{padding-left:12px;border-left:1px solid var(--divider)}
-.profile-actions .danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}
-.profile-actions .primary{background:var(--primary);border-color:var(--profile-primary-border);color:var(--primary-text)}
 .profile-actions button[hidden],.profile-actions label[hidden]{display:none}
-.profile-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-height:24px;margin:10px 2px}
-.profile-badge{font-size:.72rem;font-weight:650;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border:1px solid var(--border);border-radius:999px;color:var(--text-soft);background:var(--input-bg)}
-.profile-badge.active,.profile-badge.lkg{color:var(--profile-ok-fg);border-color:var(--profile-ok-border);background:var(--profile-ok-bg)}
-.profile-badge.pending{color:var(--profile-warn-fg);border-color:var(--profile-warn-border);background:var(--profile-warn-bg)}
-.profile-badge.bundled{color:var(--profile-info-fg);border-color:var(--profile-info-border);background:var(--profile-info-bg)}
-.profile-badge.maturity{color:var(--profile-neutral-fg);border-color:var(--profile-neutral-border);background:var(--profile-neutral-bg)}
-.profile-badge.maturity.verified{color:var(--profile-ok-fg);border-color:var(--profile-ok-border);background:var(--profile-ok-bg);font-weight:700}
-.profile-badge.risk{color:var(--profile-danger-fg);border-color:var(--profile-risk-border);background:var(--profile-risk-bg)}
-.profile-badge.warning{color:var(--profile-warn-fg);border-color:var(--profile-warn-border);background:var(--profile-warn-bg)}
 .profile-links{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:-3px 2px 9px}
 .profile-links[hidden]{display:none}.profile-link{font-size:.78rem;color:var(--accent);overflow-wrap:anywhere}
 .profile-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}

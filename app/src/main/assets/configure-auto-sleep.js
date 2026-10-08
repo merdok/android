@@ -268,9 +268,9 @@
       cfg.autoSleepHistoryWaiting = true;
       cfg.autoSleepHistoryWaitingMessage = cfg.i18nText("configure.auto_sleep.history_preparing", "Preparing activity history…");
     }
-    var windows = cfg.el("div", { class: "auto-sleep-windows", role: "group", "aria-label": cfg.i18nText("configure.auto_sleep.history_period", "Activity history period") });
+    var windows = cfg.el("div", { class: "seg auto-sleep-windows", role: "group", "aria-label": cfg.i18nText("configure.auto_sleep.history_period", "Activity history period") });
     [6, 24, 48].forEach(function (hours) {
-      var button = cfg.el("button", { class: "pbtn", type: "button", text: hours + "h", "data-hours": hours, "aria-pressed": hours === cfg.autoSleepHistoryHours ? "true" : "false" });
+      var button = cfg.el("button", { type: "button", text: hours + "h", "data-hours": hours, "aria-pressed": hours === cfg.autoSleepHistoryHours ? "true" : "false" });
       button.onclick = function () {
         if (autoSleepHistoryBusy() || hours === cfg.autoSleepHistoryHours) return;
         cfg.autoSleepHistoryHours = hours;
@@ -620,7 +620,7 @@
 
   function updateAutoSleepHistory(replaceSnapshot) {
     var message = document.getElementById("auto-sleep-history-message");
-    var windowButtons = document.querySelectorAll(".auto-sleep-windows .pbtn");
+    var windowButtons = document.querySelectorAll(".auto-sleep-windows button");
     var busy = autoSleepHistoryBusy();
     var chartContent = document.querySelector("#auto-sleep-chart .auto-sleep-chart-content");
     var settled = chartContent && chartContent.getAttribute("data-settled") === "true";

@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class PageRoutesHttpTest {
 
@@ -205,6 +206,10 @@ class PageRoutesHttpTest {
                     assertTrue(path, html.contains("Contract &lt;panel&gt;"))
                     assertTrue(path, html.contains("href=\"configure?lang=zh-Hans\""))
                     assertTrue(path, html.contains(marker))
+                    // The header carries the brand lock-up: the name drawn inline from the brand asset set, and the build.
+                    val brand = html.substringAfter("<span class=\"brand\">").substringBefore("</h1>")
+                    assertTrue(path, brand.startsWith("<svg class=\"brand-name\"") && "<path" in brand && "<!--" !in brand)
+                    assertTrue(path, brand.contains(">${io.panelassistant.android.appVersion()}</small>"))
                     assertEquals("DENY", response.headers["X-Frame-Options"])
                     assertTrue(response.headers.getAll(HttpHeaders.Vary).orEmpty().joinToString().contains("Accept-Language"))
                     val refused = client.get("/$path") {
@@ -224,6 +229,10 @@ class PageRoutesHttpTest {
                 assertEquals(HttpStatusCode.OK, api.status)
                 assertTrue(api.bodyAsText().contains("Contract &lt;panel&gt;"))
                 assertFalse(api.bodyAsText().contains("__API_I18N_PAYLOAD__"))
+                // The API explorer shares the shell's stylesheet and header lock-up.
+                // Source-text reason: the shipped name.svg is the expected header payload, not an implementation pin.
+                assertTrue(api.bodyAsText().contains("""<link rel="stylesheet" href="info.css">"""))
+                assertTrue(api.bodyAsText().contains("""<h1>${brandLockup { File("src/main/assets", it).readText() }} <small>"""))
                 val refusedApi = client.get("/api") {
                     header(HttpHeaders.Cookie, "wiz_escape=1")
                     header(HttpHeaders.Host, "elsewhere.example")

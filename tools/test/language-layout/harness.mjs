@@ -139,12 +139,18 @@ const PEERS = [
  * the ?theme= pin script; embedded pages (X-Panel-Assistant-Embed) drop the header and switcher, take
  * the theme from the switch and mark the body data-embedded.
  */
+// The header's inline name, prepared as PageShell.kt's inlineWordmark does.
+const WORDMARK = readFileSync(resolve(ASSETS, 'name.svg'), 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '').trim()
+  .replace('<svg ', '<svg class="brand-name" aria-hidden="true" focusable="false" ');
+/** Mirror of PageShell.kt's brandLockup(), shared by the shell header and the API explorer. */
+export const BRAND_LOCKUP = `<img src="icon.svg" class="logo" alt=""><span class="brand">${WORDMARK}<span class="sr-only">Panel Assistant</span><small class="brand-version">0.0.0 (0)</small></span>`;
+
 export function shellHtml({ s, catalogues, locale, theme, embed, active, sectionTitle, prefixes, bodyAttrs = '', rightControls = '', body, extraScripts = '', setupTab = false }) {
   const title = escapeHtml(sectionTitle ? `${PANEL.name} · ${sectionTitle}` : PANEL.name);
   const themeAttr = embed ? ` data-theme="${theme}"` : '';
   const header = embed
     ? `<span id="pswitch" hidden data-self-id="${PANEL.id}" data-self-name="${PANEL.name}"></span>`
-    : `<div class="hdr"><button id="navburger" class="navburger pbtn" aria-label="${s.t('shell.menu.label')}">☰</button><h1><img src="icon.svg" class="logo" alt=""><span class="brand">ha-paneld</span> <small id="pswitch" data-self-id="${PANEL.id}" data-self-name="${PANEL.name}"><span class="sep">·</span>${PANEL.name}</small></h1>
+    : `<div class="hdr"><button id="navburger" class="navburger pbtn" aria-label="${s.t('shell.menu.label')}">☰</button><h1>${BRAND_LOCKUP} <small id="pswitch" data-self-id="${PANEL.id}" data-self-name="${PANEL.name}"><span class="sep">·</span>${PANEL.name}</small></h1>
  <span style="display:flex;gap:10px;align-items:center">${rightControls}</span></div>
 `;
   const switcher = embed ? '' : '<script src="assets/switcher.js"></script>\n';
@@ -205,7 +211,7 @@ function hostHtml(view, src, theme) {
 }
 
 async function serveAsset(pathname, response) {
-  const aliases = { '/info.css': 'info.css', '/info.js': 'info.js', '/favicon.svg': 'favicon.svg', '/icon.svg': 'icon.svg' };
+  const aliases = { '/info.css': 'info.css', '/info.js': 'info.js', '/favicon.svg': 'icon.svg', '/icon.svg': 'icon.svg' };
   const relativePath = aliases[pathname] || (pathname.startsWith('/assets/') ? pathname.slice('/assets/'.length) : null);
   if (!relativePath) return false;
   const file = resolve(ASSETS, decodeURIComponent(relativePath));

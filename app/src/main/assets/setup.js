@@ -652,7 +652,7 @@
     var embedded = document.body.hasAttribute("data-embedded");
     var browserRoute = embedded ? null : el("div", { class: "wiz-route recommended" }, [
       el("b", { text: i18nText("setup.sign_in.browser.title", "Sign in from this browser") }),
-      el("span", { class: "wiz-badge", text: i18nText("setup.sign_in.recommended", "recommended") }),
+      el("span", { class: "pill", text: i18nText("setup.sign_in.recommended", "recommended") }),
       el("p", { text: i18nText("setup.sign_in.browser.explanation", "You’ll get the Home Assistant login here — sign in as whichever account you want the panel to use. You’ll leave this page and come back automatically.") }),
       el("p", { class: "muted", text: i18nText("setup.sign_in.browser.account_note", "If this browser is already signed in to Home Assistant, the panel may connect as you. To keep the panel on its own account, sign in as that account when the login appears.") }),
       el("button", { class: "wiz-primary", type: "button", text: i18nText("setup.sign_in.browser.action", "Sign in from this browser"), onclick: function (e) {
@@ -726,7 +726,7 @@
       primary(i18nText("setup.attest.yes", "Yes, it’s there"), function () {
         postForm("api/v1/setup/attest", {}).then(refresh).catch(function (e) { stepErr(e.message); });
       }),
-      el("a", { class: "wiz-secondary", style: "display:block;text-align:center;padding:10px", href: internalHref("./"),
+      el("a", { class: "pbtn wiz-secondary", style: "display:block;text-align:center;padding:10px", href: internalHref("./"),
         text: i18nText("setup.attest.no", "No — it’s blank or wrong") }),
       el("p", { class: "muted", id: "wiz-err", role: "alert" }),
     ])], "attest");
@@ -1095,20 +1095,20 @@
           el("b", { id: "ef-head" }),
         ]),
         el("div", { class: "ef-facts" }, [
-          el("p", { class: "ef-fact" }, [
+          el("p", { class: "fact" }, [
             el("span", { text: i18nText("setup.filter.fact.entities", "Entities in Home Assistant") }),
             el("b", {}, [
               el("span", { id: "ef-count", text: "0" }),
               el("span", { class: "ef-counting", id: "ef-counting", text: i18nText("setup.filter.state.still_counting", "still counting") }),
             ]),
           ]),
-          el("p", { class: "ef-fact" }, [
+          el("p", { class: "fact" }, [
             el("span", { text: i18nText("setup.filter.fact.panel", "This panel") }),
             el("b", { id: "ef-panel" }),
           ]),
         ]),
         el("p", { class: "ef-basis", id: "ef-basis" }, [
-          el("span", { class: "tag", id: "ef-tag" }),
+          el("span", { class: "pill", id: "ef-tag" }),
           el("span", { id: "ef-basis-text" }),
         ]),
       ]),
@@ -1116,7 +1116,7 @@
       primary(i18nText("setup.filter.action.enable", "Turn on filtering and load the dashboard"), function (e) {
         answerEntityFilter(true, e.target);
       }),
-      el("button", { class: "wiz-secondary", type: "button", id: "ef-decline",
+      el("button", { class: "pbtn wiz-secondary", type: "button", id: "ef-decline",
         text: i18nText("setup.filter.action.disable", "Load the dashboard unfiltered"), onclick: function (e) { answerEntityFilter(false, e.target); } }),
       el("details", {}, [
         el("summary", { text: i18nText("setup.filter.details.title", "What filtering actually does") }),
@@ -1158,6 +1158,7 @@
     var basis = document.getElementById("ef-basis");
     var tag = document.getElementById("ef-tag");
     var text = document.getElementById("ef-basis-text");
+    tag.className = counting ? "pill dot" : "pill";   // counting is work in progress, so its pill carries the dot
     if (counting) {
       // A verdict that moves while counting must read as measurement in progress, never as the panel
       // changing its mind — so it stays provisional and says so until the scan finishes.
@@ -1249,7 +1250,7 @@
 
   function revealCancel() {
     if (document.getElementById("wiz-cancel")) return;
-    var b = el("button", { id: "wiz-cancel", class: "wiz-secondary", type: "button",
+    var b = el("button", { id: "wiz-cancel", class: "pbtn wiz-secondary", type: "button",
       text: i18nText("setup.mqtt.action.cancel_edit", "Cancel and edit these details"), onclick: function () {
         clearInterval(ladderTimer);
         verify = null;

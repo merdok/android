@@ -16,61 +16,51 @@
   --divider:#2a2a2a;--config-divider:#3a3a3a;--border:#333;--border2:#383838;--border-strong:#444;--text:#eee;
   --text-bright:#fff;--text-soft:#ccc;--tab:#bbb;--dim:#888;--accent:#9af;--accent2:#9cf;--ok-dim:#8a8;
   --icon:#7c8a99;--icon-dim:#6a7a8a;--hover:#1a1a1a;--knob:#eee;--disabled-bg:#222;--disabled-fg:#666;
-  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtag-bg:#2a3340;--vtag-fg:#9cc;
-  --vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;--bexp-bg:#0f2f3a;--bexp-fg:#5cc4e0;--bexp-bd:#1a4a5a;
+  --shadow:#000;--shimA:#141414;--shimB:#1f1f1f;--plot:#0d0d0d;--vtagrec-bg:#1f4d2e;--vtagrec-fg:#8fe0a8;
   --setup-bg:#3a2f10;--setup-bd:#7a5a2a;--setup-fg:#f5c451;--setup-link:#ffd97a;--crit-bg:#3a1512;
-  --crit-bd:#a5342a;--crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;
-  --info-fg:#9cc4ee;--info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;
+  --crit-fg:#ffb3a6;--crit-link:#ffc9bf;--info-bg:#12233a;--info-bd:#2a557a;--info-fg:#9cc4ee;
+  --info-link:#bcd9f5;--api-desc:#667;--api-error:#d9534f;--api-ok:#5ad18a;
   --autobright-band:rgba(74,158,255,.15);--autobright-grid:#343a44;--autobright-label:#888;
   --backup-plain-warn:#c88;--cap-degraded:#d9a528;--cap-none:#d04a3b;--cap-ok:#48c774;--cfglink:#4a6a8a;
   --chart-bg:#0d0d0d;--chart-blocked:#f5a623;--chart-cpu:#4a9eff;--chart-expected:#f1bd52;--chart-gpu:#f5a623;
   --chart-grid:#383838;--chart-interaction:#d04a3b;--chart-label:#888;--chart-observed:#4a9eff;
   --chart-proposed:#b77cff;--chart-ram:#48c774;--chart-updates:#4a9eff;--edge-crit:#e05a48;
   --edge-info:#3d7fd0;--fact-warn:#f5c451;--fg-bad:#d04a3b;--fg-faint:#666;--fg-muted:#888;--fg-ok:#48c774;
-  --fg-warn:#d9a528;--highlight:#4a9eff;--highlight-bg:rgba(74,158,255,.13);--install-rule:#2a2a2a;
-  --link:#9cf;--listbox-shadow:rgba(0,0,0,.28);--log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;
-  --log-warn:#f5c451;--primary-text:#fff;--pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;
-  --pkg-dialog-border:#333;--pkg-dialog-fg:#eee;--pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;
-  --pkg-tame:#7a2e2e;--primary:#2557a7;--primary-glow:rgba(37,87,167,.55);
-  --primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;--profile-danger-fg:#ffb3a6;
-  --profile-editor-active-line:rgba(127,153,204,.09);--profile-editor-selection:rgba(77,121,195,.35);
-  --profile-info-bg:#12233a;--profile-info-border:#2a557a;--profile-info-fg:#9cc4ee;
-  --profile-issue-error:#d05248;--profile-issue-info:#4284bb;--profile-issue-warning:#c6952d;
-  --profile-modal-backdrop:rgba(0,0,0,.66);--profile-modal-shadow:rgba(0,0,0,.5);--profile-neutral-bg:#262b32;
-  --profile-neutral-border:#626a75;--profile-neutral-fg:#d5d9df;--profile-ok-bg:#173521;
-  --profile-ok-border:#326f43;--profile-ok-fg:#9ee5ad;--profile-primary-border:#376dc5;
-  --profile-risk-bg:#3a1512;--profile-risk-border:#a5342a;--profile-warn-bg:#3a2f10;
-  --profile-warn-border:#7a5a2a;--profile-warn-fg:#ffd97a;--pswitch-border:#2a3550;
-  --pswitch-border-hover:#4a6ba0;--reboot-border:#7a3a2a;--reboot-fg:#f5a08a;--reload-border:#7a6330;
-  --reload-fg:#f5cf82;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;
+  --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);
+  --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;
+  --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;
+  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;
+  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;
+  --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);
+  --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;
+  --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);
+  --profile-modal-shadow:rgba(0,0,0,.5);--profile-ok-fg:#9ee5ad;--pswitch-border:#2a3550;
+  --pswitch-border-hover:#4a6ba0;--screenshot-backdrop:rgba(0,0,0,.72);--screenshot-error:#e07868;
   --screenshot-frame-bg:#000;--self-row-border:#2a2a2a;--shot-failed-fg:#a88;--sleep-allow:#9aafc2;
   --sleep-allow-fg:#172533;--sleep-blocked-a:#a33b3b;--sleep-blocked-b:#5b2626;--sleep-detected:#c89a18;
   --sleep-detected-fg:#17130a;--sleep-hold:#287dcc;--sleep-inhibited-stripe:#f1bd52;--sleep-interval-fg:#fff;
   --sleep-loading-overlay:rgba(18,22,28,.76);--sleep-off:#68727f;--sleep-off-fg:#f4f6f8;
   --sleep-policy-lane:rgba(74,158,255,.11);--status-bad:#d34b42;--status-ok:#45a65a;--status-warn:#c58a16;
-  --tame-recommended:#2e6b3f;--uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;
-  --uninstall-select-fg:#eee;--api-get-bg:#173d2a;--api-get-fg:#5ad18a;--api-post-bg:#1b3a5c;
-  --api-post-fg:#6db3ff;--api-response-fg:#cdd;}
+  --uninstall-select-bg:#1c1c1c;--uninstall-select-border:#444;--uninstall-select-fg:#eee;
+  --api-response-fg:#cdd;}
 @media (prefers-color-scheme: light){:root:not([data-theme=dark]),:host(:not([theme=dark])){color-scheme:light;
   --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;
   --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;
   --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;
   --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;
   --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;
-  --plot:#e8ecf0;--vtag-bg:#e2e8ef;--vtag-fg:#33586b;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;
-  --bexp-bg:#ddeef5;--bexp-fg:#0b607f;--bexp-bd:#b3d4e2;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;
-  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-bd:#eab3ac;--crit-fg:#a02c20;
-  --crit-link:#7c1f16;--info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}
+  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;
+  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;
+  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}}
 :root[data-theme=light],:host([theme=light]){color-scheme:light;
   --bg:#f2f3f5;--card:#fff;--card-head:#e7ebef;--input-bg:#f6f7f9;--input-bg2:#fafbfc;--card-border:#d9dde3;
   --divider:#e4e7ec;--config-divider:#e4e7ec;--border:#c9cfd7;--border2:#c4cad2;--border-strong:#b6bec8;
   --text:#1b2430;--text-bright:#000;--text-soft:#2c3644;--tab:#4a5462;--dim:#6a7480;--accent:#1e56a8;
   --accent2:#0b6a8e;--ok-dim:#3f7d49;--icon:#5b6b7a;--icon-dim:#74818f;--hover:#e9ecef;--knob:#fff;
   --disabled-bg:#e2e5e9;--disabled-fg:#9aa3ad;--shadow:rgba(0,0,0,.18);--shimA:#e8eaee;--shimB:#f6f7f9;
-  --plot:#e8ecf0;--vtag-bg:#e2e8ef;--vtag-fg:#33586b;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;
-  --bexp-bg:#ddeef5;--bexp-fg:#0b607f;--bexp-bd:#b3d4e2;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;
-  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-bd:#eab3ac;--crit-fg:#a02c20;
-  --crit-link:#7c1f16;--info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}
+  --plot:#e8ecf0;--vtagrec-bg:#d9efe0;--vtagrec-fg:#1f6b3a;--setup-bg:#fcf4dc;--setup-bd:#e3cf94;
+  --setup-fg:#7a5a10;--setup-link:#8a6400;--crit-bg:#fceceb;--crit-fg:#a02c20;--crit-link:#7c1f16;
+  --info-bg:#e9f1fb;--info-bd:#b9d2ec;--info-fg:#26567e;--info-link:#1a4468;}
 /* tokens:end */
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--text)}
 .wrap{max-width:1860px;margin:0 auto;padding:20px}             /* cap + centre: up to 4 masonry cols on a 1920/2560 panel */
@@ -99,8 +89,14 @@ body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg
 /* No header element ever word-wraps — the brand, the panel-switcher (its "· name" + dropdown) and the
    Open in HA / Reveal buttons stay on one line (they collapse/hide on narrow screens instead). */
 h1{font-size:1.3rem;margin:0 0 .2rem;display:flex;align-items:center} h1 small{color:var(--accent);font-weight:400}
-.logo{width:2.1em;height:2.1em;margin-right:.3em;border-radius:6px;flex:none}
-.brand{white-space:nowrap;flex:none}   /* product name — never wrap/split at the hyphen */
+/* Page header lock-up from the brand asset set (website src/brand): beside a mark H high the name is drawn
+   0.536 H tall (Sora 40 beside a 56 mark; name.svg is its 30-unit ink box), 0.18 H away, with its baseline
+   on the bottom edge of the house, 0.233 H above the mark's foot. The version caption fills that 0.233 H
+   under the name, so the header keeps the old logo's height (H = 2.1 x 1.3rem) and its first-paint size. */
+.logo{height:2.73rem;width:3.64rem;margin-right:.49rem;flex:none}
+.brand{display:flex;flex-direction:column;align-self:flex-end;flex:none;white-space:nowrap;color:var(--text)}
+.brand-name{display:block;height:1.4625rem;width:14.084rem;fill:currentColor}
+.brand-version{display:block;height:.636rem;font-size:11px;line-height:.636rem;color:var(--dim);font-weight:400}
 /* Header panel-switcher: the friendly-name in the title becomes this dropdown when >1 ha-paneld is on the
    LAN. Styled to read like the title (var(--accent)) but clearly a control. Kept as pure header CONTENT so it's
    unaffected by the planned fixed/sticky-header rework. */
@@ -135,9 +131,6 @@ h2 small{text-transform:none;letter-spacing:0;color:var(--ok-dim);font-weight:40
 .card h2{margin:-14px -16px 12px;padding:9px 16px;background:var(--card-head);border-bottom:1px solid var(--divider);border-radius:12px 12px 0 0}
 .card-title-action{float:right;color:var(--accent2);font-size:.78rem;text-transform:none;letter-spacing:0;text-decoration:none;font-weight:500}
 .card-title-action:hover{color:var(--text-bright);text-decoration:underline}
-.cardbadge{float:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 8px;border-radius:10px;margin-top:1px}
-.cardbadge.preview{background:var(--info-bg);color:var(--info-fg);border:1px solid var(--info-bd)}
-.cardbadge.exp{background:var(--bexp-bg);color:var(--bexp-fg);border:1px solid var(--bexp-bd)}
 /* Tighter card spacing on a narrow screen. VERTICAL only, so unlike the page gutter it cannot change a
    content box and cannot cost a column — this literal is a spacing preference, never a layout threshold,
    and nothing may derive one from it. (The horizontal half of this rule became the `.wrap` padding ramp; the
@@ -172,29 +165,25 @@ tr:last-child td,tr:last-child th{border-bottom:0}   /* dividers only BETWEEN ro
 th{color:var(--accent);width:46%;font-weight:600}
 /* charts: darker than the card (var(--card)) + a border, so the line's extent reads against the plot area */
 canvas{width:100%;display:block;background:var(--chart-bg);border:1px solid var(--divider);border-radius:8px;margin-bottom:6px}
-/* Vendor-package tag chips (server-rendered rows use these classes; themed, unlike their old inline styles). */
-.vtag{display:inline-block;background:var(--vtag-bg);color:var(--vtag-fg);border-radius:4px;padding:0 6px;margin-left:5px;font-size:.7em;vertical-align:1px}
 /* Package identifiers are unbreakable tokens: let a long one break rather than run out of its row or card
    (Vendor packages rows, the pending APK preview) when a longer translation narrows the space beside it. */
 #cfg-tame>div>span:first-child,#apk-preview{overflow-wrap:anywhere}
-.vtag.rec{background:var(--vtagrec-bg);color:var(--vtagrec-fg)}
 .leg{font-size:.72rem;color:var(--ok-dim);margin-bottom:6px}
 /* sub-heading + data table (column headers) so an in-card table reads as its own thing */
 .sub{margin:14px 0 2px;padding-top:10px;border-top:1px solid var(--divider);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent2)}
 .dt th{font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--icon);font-weight:600;width:auto;border-bottom:2px solid var(--border)}
 .dt td{color:var(--text-soft);font-weight:400}
 .dt .num{text-align:right;width:32%}
-.top-process-modes{float:right;display:inline-flex;gap:2px;margin-top:-2px}
-.top-process-mode{appearance:none;align-self:auto;padding:2px 7px;border-radius:5px;border:1px solid var(--border-strong);background:var(--input-bg);color:var(--icon);font:inherit;font-size:.68rem;line-height:1.2;letter-spacing:.02em;cursor:pointer}
-.top-process-mode.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
-.top-process-mode:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top-process-modes{float:right;margin-top:-2px}
+.top-process-modes>button{padding:2px 7px;font-size:.68rem;line-height:1.2}
 #noisyentities th:first-child,#noisyentities td:first-child{width:auto}
 #noisyentities .num{white-space:nowrap}
 #noisyentities .rate{width:68px}
 #noisyentities .payload{width:78px}
 /* Install-tab managed-component rows: name on the left, channel/version picker + actions on the right. */
-.comprow{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--divider)}
-.comprow:last-of-type{border-bottom:0}
+/* Fact row: a name or label at the start, its value or controls at the end, a divider between rows. */
+.fact{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin:0;padding:10px 0;border-bottom:1px solid var(--divider)}
+.fact:last-child{border-bottom:0}
 .compname{font-size:.92rem}
 .comppick{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .comppick label{flex-direction:row;align-items:center;gap:5px;color:var(--icon);margin:0}
@@ -220,7 +209,9 @@ button{background:var(--primary);border-color:var(--primary);color:var(--primary
 /* Self-contained so it looks identical on <button> AND <a> (the "Open in HA" link) — anchors don't
    inherit the button{} border/radius/colour, so spell them out + kill the link underline. */
 .pbtn{font-size:.8rem;padding:6px 12px;background:var(--input-bg);border:1px solid var(--border-strong);border-radius:8px;color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;line-height:1.3;font-family:inherit}
-.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
+/* Button: bare <button> and .pbtn.primary are the primary action, .pbtn the quiet one; .on is a pressed quiet button. */
+.pbtn.primary,.pbtn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
+.pbtn.danger{border-color:var(--profile-danger-border);color:var(--profile-danger-fg)}   /* a quiet button whose action cannot be taken back */
 .pbtn:disabled{opacity:.4;cursor:not-allowed}   /* capability missing (no a11y / no root) — shown but inert */
 [data-hardened-approval]::after{content:"";display:inline-block;width:.81rem;height:.95rem;background:currentColor;clip-path:polygon(50% 0,95% 18%,82% 72%,50% 100%,18% 72%,5% 18%);opacity:.72;vertical-align:-.18rem}
 .hardened-label-tail{white-space:nowrap}.hardened-label-tail::after{margin-left:.34rem}
@@ -245,8 +236,12 @@ input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disable
    word (Notice.kt / HaNotice in i18n.js), never a fill: the five that ask for attention carry one accent
    dot, Unavailable and Resolved an outlined pill with none. Narrow widths wrap the action under the text. */
 .notice{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0!important;color:var(--text);font-size:.92rem;overflow-wrap:anywhere}
-.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600}
-.notice-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+/* Pill: one word in an outlined capsule, the one badge on every page. A pill that asks for attention
+   carries the accent dot (.pill.dot; a notice row's pill unless it is Unavailable or Resolved); state is
+   the word, never a fill colour. */
+.pill,.notice-pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;padding:0 10px;line-height:1.3;border-radius:999px;border:1px solid var(--border-strong);font-size:.82rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text);vertical-align:middle}
+.pill.dot::before,.notice-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.card h2 .pill{float:right}
 .notice[data-severity=unavailable] .notice-pill::before,.notice[data-severity=resolved] .notice-pill::before{display:none}
 .notice[data-severity=unavailable],.notice[data-severity=resolved]{color:var(--dim)}
 .notice-text{flex:1 1 18rem;min-width:0}
@@ -312,7 +307,7 @@ body.revealed input.secret,input.secret:focus,input.secret.shown{color:var(--tex
 @media (max-width:857px){.entity-search-row{margin-bottom:10px}}
 /* Two lines are reserved so the per-section counts can wrap on a 480px panel without moving the tables below. */.entity-search-status{min-height:2.7em;margin-top:6px;overflow-wrap:anywhere}
 .entity-action-result{min-height:1.3em;margin-top:9px}.entity-action-result.ok{color:var(--status-ok)}.entity-action-result.error{color:var(--status-bad)}
-.entity-issues{border-left:4px solid var(--border-strong)}.entity-issues.has-blocking{border-left-color:var(--edge-crit)}.entity-issues-list:empty{display:none}.entity-issues-list{display:grid;gap:10px;margin:12px 0}.entity-issue{border:1px solid var(--divider);border-radius:8px;padding:10px 12px;background:var(--input-bg2);overflow-wrap:anywhere}.entity-issue.blocking{border-left:4px solid var(--edge-crit)}.entity-issue.advisory{border-left:4px solid var(--edge-info)}.entity-issue.allowed{border-left:4px solid var(--ok-dim)}.entity-issue-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}.entity-issue-severity{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:10px;background:var(--info-bg);color:var(--info-fg);border:1px solid var(--info-bd)}.entity-issue.blocking .entity-issue-severity{background:var(--crit-bg);color:var(--crit-fg);border-color:var(--crit-bd)}.entity-issue.allowed .entity-issue-severity{background:var(--vtagrec-bg);color:var(--vtagrec-fg);border-color:var(--ok-dim)}.entity-issue-label,.entity-issue-locations>span{color:var(--accent);font-weight:600}.entity-issue code{white-space:normal;word-break:break-word}.entity-issue p{margin:7px 0 0}.entity-issue-recommendation{color:var(--text-soft)}.entity-issue-allow-note{margin:9px 0 0;color:var(--text-soft)}.entity-issue-search{margin-top:7px}.entity-issue-toggle{margin-top:10px}
+.entity-issues{border-left:4px solid var(--border-strong)}.entity-issues.has-blocking{border-left-color:var(--edge-crit)}.entity-issues-list:empty{display:none}.entity-issues-list{display:grid;gap:10px;margin:12px 0}.entity-issue{border:1px solid var(--divider);border-radius:8px;padding:10px 12px;background:var(--input-bg2);overflow-wrap:anywhere}.entity-issue.blocking{border-left:4px solid var(--edge-crit)}.entity-issue.advisory{border-left:4px solid var(--edge-info)}.entity-issue.allowed{border-left:4px solid var(--ok-dim)}.entity-issue-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}.entity-issue-label,.entity-issue-locations>span{color:var(--accent);font-weight:600}.entity-issue code{white-space:normal;word-break:break-word}.entity-issue p{margin:7px 0 0}.entity-issue-recommendation{color:var(--text-soft)}.entity-issue-allow-note{margin:9px 0 0;color:var(--text-soft)}.entity-issue-search{margin-top:7px}.entity-issue-toggle{margin-top:10px}
 .entity-dynamic{margin:14px 0 12px;padding-top:12px;border-top:1px solid var(--divider)}.entity-dynamic[hidden]{display:none}.entity-dynamic h3{margin:0 0 6px;color:var(--accent2);font-size:.86rem;text-transform:uppercase;letter-spacing:.04em}.entity-dynamic-list{display:grid;gap:8px;margin-top:10px}.entity-dynamic-expression{border:1px solid var(--divider);border-radius:8px;padding:9px 11px;background:var(--input-bg2);overflow:hidden}.entity-dynamic-expression pre{margin:7px 0 0;padding:8px;border-radius:6px;background:var(--bg);overflow:auto;white-space:pre-wrap;word-break:break-word}.entity-dynamic-expression code{font-size:.82rem}
 @media(max-width:600px){.entity-issue{padding:9px}.entity-issue-locations code{display:block;margin-top:3px}}
 .tablewrap{overflow:hidden;max-width:100%}.entity-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem}.entity-table th,.entity-table td{padding:8px 10px;border-bottom:1px solid var(--card-border);text-align:left;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.entity-table .col-select{width:34px;padding-left:6px;padding-right:4px}.entity-table .col-entity{width:auto}.entity-table .col-access{width:190px;text-align:center}.entity-table .col-rate{width:185px;text-align:center}.entity-table .col-reason{width:145px}.entity-table .col-last{width:95px}.entity-table .col-override{width:115px}.entity-table code{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.entity-table select{width:100%;max-width:105px}.metric-rank{font-family:inherit;font-variant-numeric:tabular-nums}.rank-low{color:var(--status-ok)}.rank-mid{color:var(--status-warn)}.rank-high{color:var(--status-bad)}.reason-icons{display:none}.reason-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-right:3px;border:1px solid var(--border);border-radius:50%;font-size:.76rem;color:var(--muted)}
@@ -353,26 +348,25 @@ body.nav-collapsed.nav-open .nav a:last-child{border-bottom:0}
 body.nav-collapsed.nav-open .nav a.active{border-left-color:var(--primary);background:var(--card)}
 .nav.nav-measure{flex-wrap:nowrap;overflow:hidden}     /* measurement only — force one line so overflow is detectable */
 /* Progressive header hide to prevent horizontal overflow — switcher.js measures the header and drops
-   items in priority order until it fits: the GitHub icon first, then the "ha-paneld" brand text. */
+   items in priority order until it fits: the GitHub icon first, then the name and version beside the mark, then the mark. */
 body.hdr-hide-gh .hdr .gh{display:none}
 body.hdr-hide-brand .hdr .brand{display:none}
+body.hdr-hide-logo .hdr .logo{display:none}
+.hdr h1{min-height:2.73rem}   /* the mark's height, so no hide step moves the header's foot */
 
 /* ---- Configure page ---- */
 /* Tools row above the card wall: filter, Basic/Advanced, Descriptions and the shown count. */
 .cfg-tools{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin:0 0 14px}
 .cfg-filter{flex:1 1 220px;min-width:0;box-sizing:border-box;height:34px;background:var(--input-bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:6px 10px;font:inherit}
-.cfg-seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden}
-.cfg-seg label{position:relative;padding:6px 14px;cursor:pointer;color:var(--dim);font-size:.88rem}
-.cfg-seg label:has(input:checked){background:var(--primary);color:var(--primary-text)}
-.cfg-seg input{position:absolute;opacity:0;width:0;height:0;margin:0}
-.cfg-seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
+/* Segmented control: radio labels or pressed buttons in one outlined strip; the chosen one is filled. */
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden}
+.seg>label,.seg>button{appearance:none;position:relative;margin:0;padding:6px 14px;border:0;border-radius:0;background:transparent;color:var(--dim);font:inherit;font-size:.88rem;cursor:pointer}
+.seg>label:has(input:checked),.seg>button[aria-pressed=true]{background:var(--primary);color:var(--primary-text)}
+.seg input{position:absolute;opacity:0;width:0;height:0;margin:0}
+.seg>label:has(input:focus-visible),.seg>button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.seg>button:disabled{opacity:.4;cursor:not-allowed}
 .cfg-desc-switch{display:inline-flex;flex-direction:row;white-space:nowrap;margin:0;align-items:center;gap:8px;font-size:.88rem;color:var(--text);cursor:pointer}
 .cfg-desc-switch input{position:absolute;opacity:0;width:0;height:0;margin:0}
-.cfg-desc-track{position:relative;width:36px;height:20px;border-radius:10px;background:var(--border);border:1px solid var(--border-strong);transition:.15s;flex:0 0 auto}
-.cfg-desc-track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--knob);transition:.15s}
-.cfg-desc-switch input:checked+.cfg-desc-track{background:var(--primary);border-color:var(--primary)}
-.cfg-desc-switch input:checked+.cfg-desc-track::after{left:18px}
-.cfg-desc-switch input:focus-visible+.cfg-desc-track{outline:2px solid var(--accent);outline-offset:2px}
 .cfg-count{font-size:.8rem;font-variant-numeric:tabular-nums}
 /* A label's last word, the advanced diamond and the help button never wrap apart. */
 .flabel-tail{white-space:nowrap}
@@ -505,8 +499,7 @@ body.hdr-hide-brand .hdr .brand{display:none}
 .auto-sleep-axis-track span:first-child{transform:none}
 .auto-sleep-axis-track span:last-child{transform:translateX(-100%)}
 .auto-sleep-empty{padding:24px 10px;text-align:center;color:var(--dim);font-size:.74rem}
-.auto-sleep-windows{display:flex;gap:3px}
-.auto-sleep-windows .pbtn[aria-pressed="true"]{border-color:var(--highlight);color:var(--highlight);background:var(--highlight-bg)}
+.auto-sleep-windows>button{padding:5px 8px;font-size:.72rem;white-space:nowrap}
 .auto-sleep-legend .detected::before{height:6px;background:var(--sleep-detected)}
 .auto-sleep-legend .clear::before{height:6px;background:var(--sleep-off)}
 .auto-sleep-legend .inhibited::before{height:6px;background:repeating-linear-gradient(135deg,var(--sleep-inhibited-stripe) 0 2px,transparent 2px 4px)}
@@ -535,19 +528,19 @@ body.hdr-hide-brand .hdr .brand{display:none}
 .pip svg{display:block;width:18px;height:18px}
 .pip.on{color:var(--highlight)}                             /* linked — highlight colour */
 .pip:hover{background:var(--input-bg);border-color:var(--border)}
-.toggle{position:relative;width:42px;height:24px;border-radius:12px;background:var(--border);border:1px solid var(--border-strong);cursor:pointer;transition:.15s;flex:0 0 auto}
-.toggle.on{background:var(--primary);border-color:var(--primary)}
+/* Toggle: a switch element (.on) or the track after a hidden checkbox (input:checked+.toggle). */
+.toggle{position:relative;box-sizing:content-box;width:40px;height:22px;border-radius:12px;background:var(--border);border:1px solid var(--border-strong);cursor:pointer;transition:.15s;flex:0 0 auto}
+.toggle.on,input:checked+.toggle{background:var(--primary);border-color:var(--primary)}
 .toggle.blocked{opacity:.4;cursor:not-allowed}
 .toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--knob);transition:.15s}
-.toggle.on::after{left:20px}
-.toggle:focus-visible,.pip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.toggle.on::after,input:checked+.toggle::after{left:20px}
+.toggle:focus-visible,input:focus-visible+.toggle,.pip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .savebar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;box-sizing:border-box;
   background:var(--bg);padding:12px max(20px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
   border-top:1px solid var(--card-border);box-shadow:0 -8px 18px -12px var(--shadow);display:flex;gap:14px;align-items:center;z-index:25}
 .savebar[hidden]{display:none}
 .cfg-dirty{padding-bottom:76px}
-.savebar button{background:var(--primary);border:1px solid var(--primary);color:var(--primary-text);padding:9px 24px;border-radius:8px;cursor:pointer;font-size:.95rem}
-.savebar button:disabled{background:var(--disabled-bg);border-color:var(--border);color:var(--disabled-fg);cursor:default}
+.savebar button{padding:9px 24px}
 .muted{color:var(--dim)}
 
 @media(max-width:600px){
@@ -632,8 +625,7 @@ body.hdr-hide-brand .hdr .brand{display:none}
 .wiz button.wiz-primary{display:block;width:100%;min-height:46px;font-size:1rem;margin-top:16px}
 /* A pressed save must LOOK pressed: an unstyled disabled state read as "nothing happened" on hardware
    review, and users re-clicked. */
-.wiz button.wiz-primary:disabled,.wiz button.wiz-secondary:disabled{background:var(--disabled-bg);color:var(--disabled-fg);border-color:var(--divider);cursor:default}
-.wiz button.wiz-secondary{display:block;width:100%;min-height:42px;margin-top:8px;background:transparent;color:var(--accent);border:1px solid var(--border-strong)}
+.wiz .wiz-secondary{display:block;width:100%;min-height:42px;margin-top:8px;font-size:.95rem}
 .wiz-dots{display:flex;gap:14px;justify-content:center;list-style:none;margin:4px 0 14px;padding:0;flex-wrap:wrap}
 .wiz-dots li{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--dim)}
 .wiz-dots li::before{content:"";flex:none;width:.55rem;height:.55rem;border-radius:50%;background:var(--dim);opacity:.35}
@@ -658,7 +650,7 @@ body.hdr-hide-brand .hdr .brand{display:none}
 /* Sign-in routes: the recommended one first and visually primary, both honest about the account. */
 .wiz-route{border:1px solid var(--divider);border-radius:10px;padding:12px 14px;margin:10px 0}
 .wiz-route.recommended{border-color:var(--primary)}
-.wiz-route .wiz-badge{display:inline-block;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--primary-text);background:var(--primary);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.wiz-route .pill{margin-left:6px}
 .wiz-route p{margin:6px 0;color:var(--dim);font-size:.9rem;line-height:1.5}
 .wiz-escape{text-align:center;margin:6px 0 0}
 .wiz-escape a{color:var(--dim)}
@@ -677,7 +669,6 @@ body.commissioning.cfg-dirty #savebtn{animation:wiz-throb 2s ease-in-out infinit
    quiet links. Stacks on a narrow panel. */
 .wiz-cta{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
 .wiz-cta .pbtn{flex:1 1 auto;text-align:center;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
-.wiz-cta .pbtn.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
 @media (max-width:600px){.wiz-cta .pbtn{flex-basis:100%}}
 /* Entity-filter verdict (setup step 5). The three tones reuse the entity data-rate rank colours already in
    this file, so a red here means the same thing it means on the Entities tab. Each tone maps onto an existing
@@ -702,11 +693,9 @@ body.commissioning.cfg-dirty #savebtn{animation:wiz-throb 2s ease-in-out infinit
 .ef-verdict.red>.ef-verdict-head{background-color:var(--crit-bg);border-left-color:var(--status-bad)}
 .ef-verdict.red>.ef-verdict-head b{color:var(--crit-fg)}
 .ef-verdict.red .ef-dot{background-color:var(--status-bad)}
-.ef-facts{display:grid;gap:1px;background:var(--divider);border-top:1px solid var(--divider)}
-.ef-fact{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0;
-  padding:8px 12px;background:var(--card);font-size:.86rem}
-.ef-fact>span{color:var(--dim)}
-.ef-fact>b{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.ef-facts{padding:0 12px;border-top:1px solid var(--divider);font-size:.86rem}
+.ef-facts .fact>span{color:var(--dim)}
+.ef-facts .fact>b{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
 .ef-counting{display:inline-flex;align-items:center;gap:6px;font-weight:400;font-size:.78rem;
   color:var(--accent2);margin-left:7px}
 .ef-counting[hidden]{display:none}
@@ -714,10 +703,7 @@ body.commissioning.cfg-dirty #savebtn{animation:wiz-throb 2s ease-in-out infinit
   animation:wiz-breathe 1.6s ease-in-out infinite}
 .ef-basis{margin:0;padding:9px 12px;font-size:.8rem;color:var(--dim);background:var(--card);
   border-top:1px solid var(--divider);line-height:1.5}
-.ef-basis .tag{display:inline-block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;
-  border-radius:4px;padding:1px 5px;margin-right:6px;border:1px solid currentColor;font-weight:600}
-.ef-basis.measured .tag{color:var(--ok-dim)}
-.ef-basis.estimated .tag,.ef-basis.counting .tag{color:var(--accent2)}
+.ef-basis .pill{margin-right:6px}
 /* The text carries the state in every case; the dot and the colour transition are reinforcement only. */
 @media (prefers-reduced-motion:reduce){
   .ef-counting::before{animation:none;opacity:.85}

@@ -8,12 +8,13 @@ class DashboardControlButtonHtmlTest {
     @Test
     fun rebootStyleClosesBeforeTheClickHandler() {
         assertEquals(
-            """<button class="pbtn" style="margin-left:auto;border-color:#7a3a2a;color:#f5a08a" onclick="act('reboot')">⟳ Reboot</button>""",
+            """<button class="pbtn danger" style="margin-left:auto" onclick="act('reboot')">⟳ Reboot</button>""",
             dashboardControlButtonHtml(
                 action = "reboot",
                 labelHtml = "⟳ Reboot",
                 disabledReason = null,
-                style = "margin-left:auto;border-color:#7a3a2a;color:#f5a08a",
+                style = "margin-left:auto",
+                danger = true,
             ),
         )
     }

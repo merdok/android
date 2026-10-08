@@ -123,9 +123,9 @@
   }
 
   // Prevent horizontal overflow of the (nowrap) header by dropping items in priority order until it
-  // fits: the GitHub icon first, then the "ha-paneld" brand text. Reset + re-apply each pass so hidden
+  // fits: the GitHub icon first, then the name and version beside the mark, then the mark. Reset + re-apply each pass so hidden
   // items reappear when the window widens again.
-  var HIDE_ORDER = ['hdr-hide-gh', 'hdr-hide-brand'];
+  var HIDE_ORDER = ['hdr-hide-gh', 'hdr-hide-brand', 'hdr-hide-logo'];
   function fitHeader() {
     if (!hdr) return;
     HIDE_ORDER.forEach(function (c) { body.classList.remove(c); });

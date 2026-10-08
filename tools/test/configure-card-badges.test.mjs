@@ -15,7 +15,7 @@ function page(projection) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <link rel="stylesheet" href="/info.css">${i18nBridge(projection)}</head><body><div class="wrap">
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
-    <div id="cfg-tools" class="cfg-tools" data-app-version="9.9.9-rc1"><input id="cfg-filter" class="cfg-filter" type="search"><div class="cfg-seg" role="radiogroup"><label><input type="radio" name="cfg-tier" id="tier-basic" value="basic" checked>Basic</label><label><input type="radio" name="cfg-tier" id="tier-adv" value="advanced">Advanced</label></div><label class="cfg-desc-switch"><input type="checkbox" id="cfg-desc" checked><span class="cfg-desc-track"></span>Descriptions</label><span id="cfg-count" class="muted cfg-count"></span></div>
+    <div id="cfg-tools" class="cfg-tools" data-app-version="9.9.9-rc1"><input id="cfg-filter" class="cfg-filter" type="search"><div class="seg" role="radiogroup"><label><input type="radio" name="cfg-tier" id="tier-basic" value="basic" checked>Basic</label><label><input type="radio" name="cfg-tier" id="tier-adv" value="advanced">Advanced</label></div><label class="cfg-desc-switch"><input type="checkbox" id="cfg-desc" checked><span class="toggle"></span>Descriptions</label><span id="cfg-count" class="muted cfg-count"></span></div>
     <p id="cfg-msg"></p><p id="cfg-status"></p>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
     <div id="proximity-learning-mount"></div><div id="savebar" class="savebar" hidden><button id="savebtn"></button></div>
@@ -66,20 +66,22 @@ for (const engine of engines) {
       try {
         await p.goto(h.url);
         await p.locator('#cfg-voice_enabled').waitFor();
-        assert.equal(await p.locator('[data-config-group="Display"] h2 .cardbadge').count(), 0, `${locale}: Display has no badge`);
-        const badge = p.locator('[data-config-group="Voice"] h2 .cardbadge');
+        assert.equal(await p.locator('[data-config-group="Display"] h2 .pill').count(), 0, `${locale}: Display has no badge`);
+        const badge = p.locator('[data-config-group="Voice"] h2 .pill');
         assert.equal(await badge.count(), 1, `${locale}: Voice has one badge`);
         const expected = h.projection.strings['configure.badge.preview']?.text;
         assert.ok(expected, `${locale}: catalogue supplies Preview`);
         if (locale === 'en') assert.equal(expected, 'preview');
         assert.equal(await badge.textContent(), expected, `${locale}: Preview is translated`);
         assert.equal(await badge.isVisible(), true);
+        // Configure may re-render the card while hydrating; read the styles from the settled badge.
+        await p.waitForFunction(() => getComputedStyle(document.querySelector('[data-config-group="Voice"] h2 .pill')).color !== '');
         const rendered = await badge.evaluate((el) => {
           const style = getComputedStyle(el), box = el.getBoundingClientRect(), heading = el.closest('h2').getBoundingClientRect();
-          return { background: style.backgroundColor, color: style.color, border: parseFloat(style.borderTopWidth), radius: parseFloat(style.borderTopLeftRadius), inside: box.left >= heading.left && box.right <= heading.right + 0.5, overflow: document.documentElement.scrollWidth > innerWidth };
+          return { surface: getComputedStyle(el.closest('h2')).backgroundColor, color: style.color, border: parseFloat(style.borderTopWidth), radius: parseFloat(style.borderTopLeftRadius), inside: box.left >= heading.left && box.right <= heading.right + 0.5, overflow: document.documentElement.scrollWidth > innerWidth };
         });
-        assert.notEqual(rendered.background, 'rgba(0, 0, 0, 0)', `${locale}: badge has a visible background`);
-        assert.notEqual(rendered.color, rendered.background, `${locale}: badge text contrasts with its background`);
+        // A pill is an outlined word: no fill of its own, so its text must stand out from the title bar it sits on.
+        assert.notEqual(rendered.color, rendered.surface, `${locale}: badge text contrasts with the title bar`);
         assert.ok(rendered.border > 0 && rendered.radius > 0, `${locale}: badge has a border and rounded shape`);
         assert.equal(rendered.inside, true, `${locale}: badge fits its heading`);
         assert.equal(rendered.overflow, false, `${locale}: no horizontal page overflow`);

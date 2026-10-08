@@ -105,7 +105,7 @@ function builders(s, locale) {
   const cardTitle = (title, badge = '', conditional = false) => `<h2 data-hardened-approval${conditional ? '="conditional"' : ''} aria-describedby="${conditional ? 'hardened-approval-section-conditional-description' : 'hardened-approval-section-description'}" title="${s.t(conditional ? 'shell.hardened.section_conditional' : 'shell.hardened.section')}">${title}${badge}</h2>`;
   const installed = (version) => (version != null ? `${s.t('install.shared.installed')} <span class="cver">${version}</span>` : `<span class="cver">${s.t('install.shared.not_installed')}</span>`);
   // pickerRow(installer = true)
-  const pickerRow = (name, label, version) => `<div class="comprow" data-name="${name}">
+  const pickerRow = (name, label, version) => `<div class="fact comprow" data-name="${name}">
 <div class="compname"><b>${label}</b> <span class="muted">${installed(version)}</span></div>
 <div class="comppick">
 <label class="muted">${s.t('install.components.channel')} ${name === 'paneld' ? `<span class="cpa-channel">${s.t('install.components.stable')}</span>` : `<select class="cchan" onchange="loadVersions('${name}')"><option value="stable" selected>${s.t('install.components.stable')}</option><option value="prerelease">${s.t('install.components.prerelease')}</option></select>`}</label>
@@ -113,7 +113,7 @@ function builders(s, locale) {
 <a class="gh gh-inline cnotes" target="_blank" rel="noopener" title="${s.t('install.components.release_notes')}" aria-label="${s.t('install.components.release_notes')}" style="visibility:hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
 <button class="pbtn cinstall"${a11y()} onclick="installSel('${name}',this)" data-root="1" disabled>${s.t('install.components.install')}</button>
 </div></div>`;
-  const simpleRow = (label, version, action) => `<div class="comprow">
+  const simpleRow = (label, version, action) => `<div class="fact comprow">
 <div class="compname"><b>${label}</b> <span class="muted">${installed(version)}</span></div>
 <div class="comppick">${action}</div></div>`;
   return { href, a11y, approval, cardTitle, pickerRow, simpleRow };
@@ -186,8 +186,8 @@ function radioAndAudit(s, b) {
 // tameRowHtml(showState = false, disabled = false)
 function tameRow(s, b, { label, pkg, tags = [], recommended = false, note = '', tamed = false, removable = true }) {
   const tagNames = { core: 'install.tame.tag.core', vendor: 'install.tame.tag.vendor', user: 'install.tame.tag.user', overlay: 'install.tame.tag.overlay' };
-  const tagHtml = tags.map((tag) => `<span class="vtag">${s.t(tagNames[tag])}</span>`).join('');
-  const rec = recommended && !tamed ? `<span class="vtag rec">${s.t('install.tame.badge.recommended')}</span>` : '';
+  const tagHtml = tags.map((tag) => ` <span class="pill">${s.t(tagNames[tag])}</span>`).join('');
+  const rec = recommended && !tamed ? ` <span class="pill">${s.t('install.tame.badge.recommended')}</span>` : '';
   const noteHtml = note ? `<br><small style="color:#9aa">${note}</small>` : '';
   const btn = tamed ? '' : 'background:#7a2e2e;border-color:#7a2e2e';
   const control = !removable
@@ -240,7 +240,7 @@ function handBackHome(){}</script></div>`;
 }
 
 function displayCard(s, b) {
-  const badge = `<span class="cardbadge exp">${s.t('install.display.badge.experimental')}</span>`;
+  const badge = `<span class="pill">${s.t('install.display.badge.experimental')}</span>`;
   return `<div class="card" id="cfg-display" data-layout-key="display-sizing">${b.cardTitle(s.t('install.display.title'), badge)}
 <p class="note">${s.t('install.display.description')}</p>
 <form method="post" action="${b.href('api/v1/display/density')}" class="" style="display:flex;flex-direction:column;gap:10px">
