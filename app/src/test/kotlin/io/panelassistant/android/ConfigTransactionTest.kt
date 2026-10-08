@@ -365,6 +365,22 @@ class ConfigTransactionTest {
         assertTrue(config.autoSleepGeneration > enabledGeneration)
     }
 
+    @Test fun autoSleepSavedOverHttpRefreshesTheControllerOnceBeforeTheBridgeRuns() {
+        val config = Config(fakePreferences(initial = mapOf("auto_sleep_source" to "touch")).instance)
+        val spec = requireNotNull(SettingsRegistry.spec("auto_sleep"))
+        val refreshes = mutableListOf<Boolean>()
+        val refresh = { refreshes += config.autoSleep }
+
+        assertTrue(commitHttpLiveSetting(config, spec, "true", refresh))
+        // The bridge handler that follows on this lane finds the value already durable.
+        applyAutoSleepSetting(true, config::setAutoSleep) { refresh() }
+        assertTrue(commitHttpLiveSetting(config, spec, "true", refresh))
+        assertEquals(listOf(true), refreshes)
+
+        assertTrue(commitHttpLiveSetting(config, spec, "false", refresh))
+        assertEquals(listOf(true, false), refreshes)
+    }
+
     @Test fun localPresenceIsTheFreshDefaultAndSurvivesEnablingAndRestart() {
         val prefs = fakePreferences()
         val config = Config(prefs.instance)
