@@ -23,8 +23,8 @@ class SetupI18nContractTest {
         val frameKeys = literalSetupKeys(serverSource)
         val consumed = browserKeys + frameKeys
 
-        assertTrue("the reviewed Setup source slice must not shrink", sourceKeys.size >= 200)
-        assertTrue("the browser consumer set must not shrink", browserKeys.size >= 197)
+        assertTrue("the reviewed Setup source slice must not shrink", sourceKeys.size >= 157) // 2026-10-08 setup without MQTT: 43 MQTT step keys removed
+        assertTrue("the browser consumer set must not shrink", browserKeys.size >= 154)
         assertEquals("the server frame must consume exactly its three keys", 3, frameKeys.size)
         assertEquals(
             "Every Setup key must have a literal consumer and every literal consumer must be catalogued",
