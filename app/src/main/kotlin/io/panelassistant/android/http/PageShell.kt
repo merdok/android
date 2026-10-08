@@ -179,8 +179,8 @@ internal const val GH_ICON = "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 
 
 /**
  * The page header's lock-up: the mark, the name and the running build under it (info.css `.logo`,
- * `.brand`). `assets/icon.svg` and `assets/name.svg` are copies of the brand asset set, panel-assistant.io
- * `src/brand/` at f843e272fe86, the commit the native wordmark drawables come from.
+ * `.brand`). The published panel-assistant.io/brand/ set supplies the bundled icon and outlined name;
+ * tools/brand/sync.py verifies the copies and generates the native artwork from the same inputs.
  */
 internal fun brandLockup(asset: (String) -> String): String =
     """<img src="icon.svg" class="logo" alt=""><span class="brand">${inlineWordmark(asset("name.svg"))}""" +

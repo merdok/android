@@ -1,0 +1,38 @@
+{
+  "assets": [
+    {
+      "url": "https://panel-assistant.io/brand/icon-tight.svg",
+      "path": "app/src/main/assets/icon.svg",
+      "sha256": "7c67447903573a39586503128cf5cab60989f86ba3fdaa45070a1211990278d7"
+    },
+    {
+      "url": "https://panel-assistant.io/brand/wordmark-on-light.svg",
+      "path": "tools/brand/wordmark-on-light.svg",
+      "sha256": "4ee288ce0e3924ae48c7b808c81902af1ab108e0afcf31ae5f3dfedf1d60fe4a"
+    },
+    {
+      "url": "https://panel-assistant.io/brand/wordmark-on-light-256.png",
+      "path": "app/src/main/res/drawable-nodpi/wordmark.png",
+      "sha256": "7d162a28849599b2f0cc9234cb8eefb4dee4fa2c6c8a0c4f03f17fbe6fe80321"
+    },
+    {
+      "url": "https://panel-assistant.io/brand/wordmark-on-dark-256.png",
+      "path": "app/src/main/res/drawable-night-nodpi/wordmark.png",
+      "sha256": "ba3e417403f234b46200ce283dc5530e3fdd5ff3f466a87ca3e1b077b6b5a175"
+    }
+  ],
+  "derivatives": [
+    {
+      "path": "app/src/main/assets/name.svg",
+      "source": "tools/brand/wordmark-on-light.svg"
+    },
+    {
+      "path": "app/src/main/res/drawable/ic_launcher_foreground.xml",
+      "source": "app/src/main/assets/icon.svg"
+    },
+    {
+      "path": "app/src/main/res/drawable/ic_pa_mark.xml",
+      "source": "app/src/main/assets/icon.svg"
+    }
+  ]
+}
