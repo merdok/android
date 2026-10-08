@@ -20,7 +20,7 @@ metadata:
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
-    - screen.brightness-zero
+    - screen.screen-timeout
     - sensor.android
 match:
   # Lower-case identity reported by the 10" (2nd gen) itself.
@@ -47,7 +47,7 @@ hardware:
   led:
     mechanism: none
     transfer: identity
-  screen_off: brightness-zero
+  screen_off: screen-timeout
   camera: true
   microphone: true
   has_button_backlight: false

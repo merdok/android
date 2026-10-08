@@ -18,7 +18,7 @@ metadata:
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
-    - screen.brightness-zero
+    - screen.screen-timeout
 match:
   # Any Portal model; the exact 10" (2nd gen) branch outranks this one.
   priority: 500
@@ -39,7 +39,7 @@ hardware:
   led:
     mechanism: none
     transfer: identity
-  screen_off: brightness-zero
+  screen_off: screen-timeout
   has_button_backlight: false
 sensors:
   cht8305: false

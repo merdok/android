@@ -926,8 +926,8 @@ class BundledProfileParityTest {
         )
         val EXPECTED_BUNDLED_SHA256 = mapOf(
             "generic.yaml" to "16088624128aa375bc28fb747e535f93aa43c65881b5041a6fedc3ce4de056d2",
-            "meta-portal.yaml" to "7924357c57dc92b7e702bb5ae0242c5aa4ee359d1b5aa878d1cfb68e22b0c1d8",
-            "meta-portal-10-gen2.yaml" to "78c6fd0ff6f4e22df00572d897cd705a068bc14872291b5596485cc9d9e03431",
+            "meta-portal.yaml" to "085b622c81c6a0d4e8f5aadc8813c4502d42ec355cc91de132da51c830ac5380",
+            "meta-portal-10-gen2.yaml" to "bfd2c6ddbc48174f973d2e62d0152e8ec9f46497a7f8e5cd9842353f343b3ae9",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
             "shelly-wall-display-v2.yaml" to "f005b3abd13716930955456c058b891f76c30dbdd31e6e1a1fb022f2d41a3e85",
