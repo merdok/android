@@ -5,7 +5,6 @@ import io.panelassistant.android.PanelStatus
 import io.panelassistant.android.control.CompanionDb
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.control.ZigbeeHealthSnapshot
-import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.i18n.AppLocale
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.i18n.Strings as AppStrings
@@ -27,45 +26,46 @@ internal fun adHocWarnings(
     strings: AppStrings = catalogueLoader.strings(AppLocale.ENGLISH),
 ): String = buildString {
     radioStatus()?.let { z ->
-        zigbeeWarningText(z, config.zigbeeRouterConfigured && config.zigbeeRouterEnabled)?.let { warning ->
-            append(
-                """<div class="setup${if (z.state in setOf(ZigbeeHealthState.RUNAWAY, ZigbeeHealthState.CONTAINMENT_FAILED)) " crit" else ""}">""",
-            )
-            append(localizedZigbeeWarning(z, config.zigbeeRouterConfigured && config.zigbeeRouterEnabled, warning, strings))
-            append("</div>")
-        }
+        zigbeeNotice(z, config.zigbeeRouterConfigured && config.zigbeeRouterEnabled, strings)?.let { append(it.html(strings)) }
     }
     if (io.panelassistant.android.control.BuiltinDashboard.authLatched) append(
-        """<div class="setup crit">⛔ <b>${esc(strings.get("dashboard.banner.auth_rejected.title"))}</b> — """ +
-            """${esc(strings.get("dashboard.banner.auth_rejected.explanation"))} """ +
-            """<a href="${localizedHref("configure#cfg-ha-oauth", strings)}">${esc(strings.get("dashboard.banner.auth_rejected.action"))}</a>; """ +
-            """${esc(strings.get("dashboard.banner.auth_rejected.reload_suffix"))}</div>""",
+        notice(
+            NoticeSeverity.ACTION_NEEDED, strings,
+            title = esc(strings.get("dashboard.banner.auth_rejected.title")),
+            detail = """${esc(strings.get("dashboard.banner.auth_rejected.explanation"))} """ +
+                """<a href="${localizedHref("configure#cfg-ha-oauth", strings)}">${esc(strings.get("dashboard.banner.auth_rejected.action"))}</a>; """ +
+                esc(strings.get("dashboard.banner.auth_rejected.reload_suffix")),
+        ),
     )
-    val recoveryState = dashboardRecoveryState()
-    dashboardRecoveryWarning(recoveryState)?.let { warning ->
-        append("""<div class="setup crit">${localizedRecoveryWarning(recoveryState, warning, strings)}</div>""")
-    }
+    recoveryNotice(dashboardRecoveryState(), strings)?.let { append(it.html(strings)) }
     // Shared companion internal-URL decision (CompanionDb.warning); this surface renders it as a banner
     // with the one-tap repair button ([inlineRepair], Install tab) or an Install-tab link (dashboard).
     when (val w = CompanionDb.warning(config.dashboardPackage, companion, directSuReady)) {
         is CompanionDb.Warning.NeedsRepair -> {
             val action = if (inlineRepair)
-                """<div style="margin-top:10px"><button class="pbtn"${hardenedApprovalAttrs(strings = catalogueLoader.strings(AppLocale.ENGLISH))} onclick="repairCompUrl(this)">⚙ ${esc(strings.get("dashboard.banner.companion_url.repair"))}</button> <span id="cu-fix" class="muted"></span></div>"""
-            else """ <a href="${localizedHref("install", strings)}">${esc(strings.get("dashboard.banner.companion_url.install_action"))}</a>"""
+                """<button class="pbtn"${hardenedApprovalAttrs(strings = catalogueLoader.strings(AppLocale.ENGLISH))} onclick="repairCompUrl(this)">${esc(strings.get("dashboard.banner.companion_url.repair"))}</button> <span id="cu-fix" class="muted"></span>"""
+            else """<a href="${localizedHref("install", strings)}">${esc(strings.get("dashboard.banner.companion_url.install_action"))}</a>"""
             val summaryKey = if (w.affected == 1) {
                 "dashboard.banner.companion_url.summary_one"
             } else {
                 "dashboard.banner.companion_url.summary_many"
             }
             append(
-                """<div class="setup crit">⚠ <b>${esc(strings.get("dashboard.banner.companion_url.title"))}</b> """ +
-                    """${esc(formattedString(strings, summaryKey, "count" to w.affected.toString()))} """ +
-                    """<i>"Missing 'Host' header"</i>. ${esc(strings.get("dashboard.banner.companion_url.explanation"))}$action</div>""",
+                notice(
+                    NoticeSeverity.ACTION_NEEDED, strings,
+                    title = esc(strings.get("dashboard.banner.companion_url.title")),
+                    detail = """${esc(formattedString(strings, summaryKey, "count" to w.affected.toString()))} """ +
+                        """<i>"Missing 'Host' header"</i>. ${esc(strings.get("dashboard.banner.companion_url.explanation"))}""",
+                    action = action,
+                ),
             )
         }
         CompanionDb.Warning.ProbeFailed -> append(
-            """<div class="setup">⚠ <b>${esc(strings.get("dashboard.banner.companion_probe_failed.title"))}</b> — """ +
-                """${esc(strings.get("dashboard.banner.companion_probe_failed.explanation"))}</div>""",
+            notice(
+                NoticeSeverity.WARNING, strings,
+                title = esc(strings.get("dashboard.banner.companion_probe_failed.title")),
+                detail = esc(strings.get("dashboard.banner.companion_probe_failed.explanation")),
+            ),
         )
         null -> {}
     }
@@ -78,13 +78,16 @@ internal fun adHocWarnings(
         // Reset is a plain form POST (no JS), so it works on the dashboard banner too — not just the
         // Install tab. The message already links to the Display-sizing card.
         append(
-            """<div class="setup">⚠ <b>${esc(formattedString(strings, "dashboard.banner.zoom.title", "zoom" to zoom.toString()))}</b> """ +
-                """${esc(strings.get("dashboard.banner.zoom.explanation"))} """ +
-                """<a href="${localizedHref("install#cfg-display", strings)}">${esc(strings.get("dashboard.banner.zoom.display_density"))}</a>, """ +
-                """${esc(strings.get("dashboard.banner.zoom.action_suffix"))}""" +
-                """ <form method="post" action="api/v1/config" style="display:inline">""" +
-                """<input type="hidden" name="dashboard_zoom" value="100">""" +
-                """<button class="pbtn" type="submit">${esc(strings.get("dashboard.banner.zoom.reset"))}</button></form></div>""",
+            notice(
+                NoticeSeverity.WARNING, strings,
+                title = esc(formattedString(strings, "dashboard.banner.zoom.title", "zoom" to zoom.toString())),
+                detail = """${esc(strings.get("dashboard.banner.zoom.explanation"))} """ +
+                    """<a href="${localizedHref("install#cfg-display", strings)}">${esc(strings.get("dashboard.banner.zoom.display_density"))}</a>, """ +
+                    esc(strings.get("dashboard.banner.zoom.action_suffix")),
+                action = """<form method="post" action="api/v1/config" style="display:inline">""" +
+                    """<input type="hidden" name="dashboard_zoom" value="100">""" +
+                    """<button class="pbtn" type="submit">${esc(strings.get("dashboard.banner.zoom.reset"))}</button></form>""",
+            ),
         )
     }
 }

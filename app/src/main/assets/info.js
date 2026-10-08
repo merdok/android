@@ -728,7 +728,7 @@ function localizedInfoUrl(){var locale=window.HaI18n&&typeof window.HaI18n.local
  if(sc&&sc.style.display!=='none'&&sc.getAttribute('data-capture-ok')==='1')showAndRefreshScreenshot(sc,'');})();
 // Dismiss a component-update banner for its current version (POST the label+version; the server keeps
 // it hidden until a newer release ships — see Config.ignoreUpdate). Removes the banner on success.
-function ignoreUpdate(btn){var b=btn.closest('.setup');if(!b)return;
+function ignoreUpdate(btn){var b=btn.closest('.notice');if(!b)return;
  var label=b.getAttribute('data-update')||'',version=b.getAttribute('data-version')||'';
  btn.disabled=true;
  fetch('api/v1/updates/ignore',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},

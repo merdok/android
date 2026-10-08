@@ -49,7 +49,7 @@ internal class PaneldServerHttpFixture(
         override fun getPackageName(): String = "io.github.maxlyth.hapaneld"
         override fun getSharedPreferences(name: String, mode: Int): SharedPreferences = preferences
     }
-    private val values = mutableMapOf<String, Any?>("panel_id" to "contract-panel")
+    internal val values = mutableMapOf<String, Any?>("panel_id" to "contract-panel")
     private val preferences = Proxy.newProxyInstance(
         SharedPreferences::class.java.classLoader,
         arrayOf(SharedPreferences::class.java),

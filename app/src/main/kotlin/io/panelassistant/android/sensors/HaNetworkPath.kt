@@ -492,15 +492,15 @@ internal object HaNetworkPathPresentation {
      * it retracts itself on recovery. Kept here as the single source the contract test compares the
      * script against, so the two cannot drift.
      */
-    const val BANNER_WARNING_PREFIX = "⚠ Probes to Home Assistant are going missing"
+    const val BANNER_WARNING_PREFIX = "Probes to Home Assistant are going missing"
 
     /** Latency-raised copy. The path itself is slow, which is a different thing to go and check. */
-    const val BANNER_WARNING_SLOW_PREFIX = "⚠ The network path to Home Assistant is slow"
-    const val BANNER_SEVERE_SLOW_PREFIX = "⚠ The network path to Home Assistant is very slow"
+    const val BANNER_WARNING_SLOW_PREFIX = "The network path to Home Assistant is slow"
+    const val BANNER_SEVERE_SLOW_PREFIX = "The network path to Home Assistant is very slow"
     const val BANNER_SLOW_ADVICE =
         "Every action waits on this path. It is measured at the network level, so this is not the panel " +
             "or Home Assistant being slow — check the Wi-Fi or the link between them."
-    const val BANNER_SEVERE_PREFIX = "⚠ The network path to Home Assistant is failing"
+    const val BANNER_SEVERE_PREFIX = "The network path to Home Assistant is failing"
     const val BANNER_ADVICE =
         "Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel."
 

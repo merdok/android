@@ -574,9 +574,9 @@
    "state": "machine-cross-checked"
   },
   "configure.badge.preview": {
-    "text": "Wersja zapoznawcza",
-    "sourceHash": "5975cf1bba432391c94667f5886225f69377c0aa8b9fa21fddfb21c89bcf9092",
-    "state": "machine-cross-checked"
+   "text": "Wersja zapoznawcza",
+   "sourceHash": "5975cf1bba432391c94667f5886225f69377c0aa8b9fa21fddfb21c89bcf9092",
+   "state": "machine-cross-checked"
   },
   "configure.brightness.chart_label": {
    "text": "24-godzinny wykres oświetlenia otoczenia: trzy ostatnie dni przedstawione osobno, a reszta tygodnia pokazana jako zacieniony zakres od minimum do maksimum",
@@ -1608,16 +1608,6 @@
    "sourceHash": "06f97d616bdc1eb895f8ae22cd297c486eda4a15e5915f73eb92c9d73a71187b",
    "state": "machine-cross-checked"
   },
-  "configure.setup.ha_signin.body": {
-   "text": "Wybrano wbudowany renderer ha-paneld. Użyj opcji „Logowanie przez przeglądarkę” w karcie „Połączenie z Home Assistant” poniżej lub dokończ logowanie wyświetlone na panelu.",
-   "sourceHash": "b14fe9b7c942a78eb940cb68135e7f4d2c5236919930c977576168e6182a90f5",
-   "state": "machine-cross-checked"
-  },
-  "configure.setup.ha_signin.title": {
-   "text": "MQTT jest skonfigurowane. Dalej: logowanie do Home Assistant.",
-   "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
-   "state": "machine-cross-checked"
-  },
   "configure.setup.link": {
    "text": "Konfiguracja z przewodnikiem",
    "sourceHash": "8ef7823ca89be62373c9a695bd093d6bf0b16744b7302d44447084f39faa0c87",
@@ -1626,21 +1616,6 @@
   "configure.setup.question": {
    "text": "Konfigurujesz ten panel?",
    "sourceHash": "e89482152b7dc5437503de4a0bbe5da7d074a5167b02d10c3682c75edb4ff95f",
-   "state": "machine-cross-checked"
-  },
-  "configure.setup.renderer.body": {
-   "text": "Wybierz wbudowany renderer ha-paneld w karcie Pulpit nawigacyjny poniżej albo skonfiguruj inny pakiet pulpitu. Do tego czasu ten panel nie będzie wyświetlał pulpitu.",
-   "sourceHash": "f0598d3d45b0297c299d992eef987c0f77ad80079f755ff7d74cb02238e1dd3e",
-   "state": "machine-cross-checked"
-  },
-  "configure.setup.renderer.note": {
-   "text": "(Sam ha-paneld działa dobrze bez niego.)",
-   "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
-   "state": "machine-cross-checked"
-  },
-  "configure.setup.renderer.title": {
-   "text": "MQTT jest skonfigurowane. Dalej: wybierz renderer pulpitu nawigacyjnego.",
-   "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
    "state": "machine-cross-checked"
   },
   "configure.setup.strategy_allowed.body": {
@@ -1769,9 +1744,9 @@
    "state": "english-fallback"
   },
   "configure.voice.import_guide": {
-    "text": "Jak wytrenować własne słowo budzące",
-    "sourceHash": "5a8bf4330ceea02e5f36f113f6beac65fbf27c8ac589ac557dcfed326d559913",
-    "state": "machine-cross-checked"
+   "text": "Jak wytrenować własne słowo budzące",
+   "sourceHash": "5a8bf4330ceea02e5f36f113f6beac65fbf27c8ac589ac557dcfed326d559913",
+   "state": "machine-cross-checked"
   },
   "configure.voice.import_help": {
    "text": "Proszę zaimportować wyszkolony model „microWakeWord”: plik manifestu „.json” oraz plik „.tflite”.",
@@ -2014,9 +1989,9 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.panel_bridge_running": {
-    "text": "Na tym panelu w Termux działa mostek Zigbee. Może on zakłócać działanie bramki Zigbee panelu. Sprawdź mostek w Termux przed włączeniem funkcji bramki Zigbee.",
-    "sourceHash": "8f34977d31f04f138f7a744265cece7fa548eb6d9abc3ac55c5a255e009d515a",
-    "state": "machine-cross-checked"
+   "text": "Na tym panelu w Termux działa mostek Zigbee. Może on zakłócać działanie bramki Zigbee panelu. Sprawdź mostek w Termux przed włączeniem funkcji bramki Zigbee.",
+   "sourceHash": "8f34977d31f04f138f7a744265cece7fa548eb6d9abc3ac55c5a255e009d515a",
+   "state": "machine-cross-checked"
   },
   "dashboard.banner.proximity_learning.action": {
    "text": "Otwórz ustawienia zbliżenia",
@@ -2991,11 +2966,6 @@
   "dashboard.controls.root_required": {
    "text": "Wymaga panelu z dostępem root",
    "sourceHash": "d298b76947c6260dab6cc80b19856c12dac0b1fe9f3382804fc254fb3d5946b1",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.controls.root_required_note": {
-   "text": "Launcher, Launcher administratora i Uruchom ponownie wymagają dostępu root — wyłączone na tym panelu.",
-   "sourceHash": "69d1baecdcbf9dfa80c51a89da504b4e82674dddc3d119cbd4169802d858b409",
    "state": "machine-cross-checked"
   },
   "dashboard.controls.unavailable": {
@@ -11153,10 +11123,40 @@
    "sourceHash": "fdab4992846c739bca90b4ed46a981d380e0c759b4974b0ac60631ed171f5cd7",
    "state": "machine-cross-checked"
   },
-  "shell.new_version.refresh_suffix": {
-   "text": "aby odświeżyć tę stronę.",
-   "sourceHash": "26166a881506b072bfe36a83cc670af3b1e28ca411851a3dbd8cbe4033f6366b",
-   "state": "machine-cross-checked"
+  "shell.notice.severity.action_needed": {
+   "text": "Action needed",
+   "sourceHash": "f6b44079c1c82081b2511dc5e6de8a7c72408d3f807e6deddf73d8eb0df0c252",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.note": {
+   "text": "Note",
+   "sourceHash": "d8da2c49df39d91df7ecd199b92da7bf264f026242ccc69b08daeadfe587c45b",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.resolved": {
+   "text": "Resolved",
+   "sourceHash": "5be3c2c8354e1eb924b03a3dcc7fa4172e9aa0f4917b46b44fcc7daf8835d7a7",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.unavailable": {
+   "text": "Unavailable",
+   "sourceHash": "ca184496974204a0bd3fd4925e0540bc4b0df6fcc232994d29754272b7183812",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.update": {
+   "text": "Update",
+   "sourceHash": "c1c1009d3f37ec058070a62e22caf9ac9dae2169d452487c5c271a8bcf57a291",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.warning": {
+   "text": "Warning",
+   "sourceHash": "e981ddae45d8f4ca53f1ccbe613ad254a041dacf65a06026099a6302d332113b",
+   "state": "english-fallback"
+  },
+  "shell.notice.severity.working": {
+   "text": "Working",
+   "sourceHash": "a92f0449a9f7235bf69dc2e8ff7070bfae3f00ec8f8f26e5457a9beac53466ac",
+   "state": "english-fallback"
   },
   "shell.open_in_ha": {
    "text": "Otwórz w HA",
@@ -11184,29 +11184,29 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.duration_hours": {
-    "text": "{value} godz.",
-    "sourceHash": "e169957312ecd6bcde53bcb8ce799073ab75128e063f0b9c9f072fe34cad0789",
-    "state": "machine-cross-checked"
+   "text": "{value} godz.",
+   "sourceHash": "e169957312ecd6bcde53bcb8ce799073ab75128e063f0b9c9f072fe34cad0789",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.duration_minutes": {
-    "text": "{value} min",
-    "sourceHash": "f18fde48b294cb5f9c61142eb0ba22eaf1502b9512590622886217ecaddc83d0",
-    "state": "machine-cross-checked"
+   "text": "{value} min",
+   "sourceHash": "f18fde48b294cb5f9c61142eb0ba22eaf1502b9512590622886217ecaddc83d0",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.duration_seconds": {
-    "text": "{value} s",
-    "sourceHash": "5f7c1b7d1a7a9d1a9093c810748b7ada28cbc551e187ccb0fa377e8bbf1772d8",
-    "state": "machine-cross-checked"
+   "text": "{value} s",
+   "sourceHash": "5f7c1b7d1a7a9d1a9093c810748b7ada28cbc551e187ccb0fa377e8bbf1772d8",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.expected_in": {
-    "text": "Przewidywany powrót za około {duration}",
-    "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",
-    "state": "machine-cross-checked"
+   "text": "Przewidywany powrót za około {duration}",
+   "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.not_measured": {
-    "text": "Czas powrotu nie został jeszcze zmierzony",
-    "sourceHash": "1f976c7946f8069ee2b65c48c51fd5e966a05282e29d6e9c42838ea5279ffbcc",
-    "state": "machine-cross-checked"
+   "text": "Czas powrotu nie został jeszcze zmierzony",
+   "sourceHash": "1f976c7946f8069ee2b65c48c51fd5e966a05282e29d6e9c42838ea5279ffbcc",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.offline": {
    "text": "Home Assistant przeszedł w tryb offline — sterowanie może być chwilowo niedostępne.",
@@ -11214,29 +11214,29 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.overdue": {
-    "text": "{duration} po przewidywanym czasie",
-    "sourceHash": "0cc29cfe82afaf4b37c63bbfcdf9cce00fc3abb62437dd2d77108b91982c857f",
-    "state": "machine-cross-checked"
+   "text": "{duration} po przewidywanym czasie",
+   "sourceHash": "0cc29cfe82afaf4b37c63bbfcdf9cce00fc3abb62437dd2d77108b91982c857f",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.reason_core_update": {
-    "text": "Aktualizacja Home Assistant Core",
-    "sourceHash": "bbb36c7b7262d875fa5be26ea1ad5969fa5e6d2a5caecc1f09b133971b08c217",
-    "state": "machine-cross-checked"
+   "text": "Aktualizacja Home Assistant Core",
+   "sourceHash": "bbb36c7b7262d875fa5be26ea1ad5969fa5e6d2a5caecc1f09b133971b08c217",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.reason_host_reboot": {
-    "text": "Ponowne uruchomienie hosta",
-    "sourceHash": "1c4d13acf0b2d4747fc0f23715c75f182262e5f25b46529c60c77ea4406333c7",
-    "state": "machine-cross-checked"
+   "text": "Ponowne uruchomienie hosta",
+   "sourceHash": "1c4d13acf0b2d4747fc0f23715c75f182262e5f25b46529c60c77ea4406333c7",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.reason_restart": {
-    "text": "Ponowne uruchomienie Home Assistant",
-    "sourceHash": "0613c9a7fd9cd5bfa91d73c76c2bb4b2d3ee136657a8f1ef5294bf8f99a39c0f",
-    "state": "machine-cross-checked"
+   "text": "Ponowne uruchomienie Home Assistant",
+   "sourceHash": "0613c9a7fd9cd5bfa91d73c76c2bb4b2d3ee136657a8f1ef5294bf8f99a39c0f",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.reason_unknown": {
-    "text": "Nieznana przyczyna",
-    "sourceHash": "cf12e4b6973d5aa2768a203ba1cacb82fe4d962d2c56860db3d4674159ea93fa",
-    "state": "machine-cross-checked"
+   "text": "Nieznana przyczyna",
+   "sourceHash": "cf12e4b6973d5aa2768a203ba1cacb82fe4d962d2c56860db3d4674159ea93fa",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.shutting_down": {
    "text": "Home Assistant się wyłącza — elementy sterujące mogą być chwilowo niedostępne.",
@@ -11247,6 +11247,16 @@
    "text": "Home Assistant się uruchamia — sterowanie wkrótce wróci.",
    "sourceHash": "5ba1d019d11a080f325c121c03788d2dd20c17c6e87dae9d6261af2a07233ce3",
    "state": "machine-cross-checked"
+  },
+  "shell.runtime.ha_lifecycle.step_starting": {
+   "text": "Starting",
+   "sourceHash": "aeed4d26bb5f0c312bc8a9ee9ce362899252110089263414690ae7b5d6625427",
+   "state": "english-fallback"
+  },
+  "shell.runtime.ha_lifecycle.step_stopping": {
+   "text": "Stopping",
+   "sourceHash": "a71ee1d4ac5c2b7a820bdc4c3ac45e38885f52b41b4bfd3f5cd1328ce600f940",
+   "state": "english-fallback"
   },
   "shell.runtime.ha_network.banner_severe": {
    "text": "Ścieżka sieciowa do Home Assistant nie działa: {evidence}. Pakiety nie docierają. Sprawdź ścieżkę Wi-Fi między tym panelem a Home Assistant, zanim obwinisz panel.",
@@ -12093,59 +12103,9 @@
    "sourceHash": "0117aa1b31dd5f775fd4a3a105fbed38418eb5f679289dfc65c49ca56fa99084",
    "state": "machine-cross-checked"
   },
-  "install.warning.no_renderer.prefix": {
-   "text": "Wybierz wbudowany renderer ha-paneld w",
-   "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
-   "state": "machine-cross-checked"
-  },
   "install.warning.no_renderer.progress": {
    "text": "Postęp jest widoczny w sekcji „Zarządzane komponenty” poniżej.",
    "sourceHash": "e44a9bcadf0eb8b464b5dcb387834d5eade7ed452fc4ce9b161eb4e41ca6ee6a",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.no_renderer.suffix": {
-   "text": ", zainstaluj Home Assistant Companion lub ustaw tam inny pakiet pulpitu nawigacyjnego.",
-   "sourceHash": "b549f0661d976d7f7a491c492571e2459a614d197633e47ce821e2b5e984afd9",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.no_renderer.title": {
-   "text": "MQTT jest skonfigurowane. Dalej: wybierz renderer pulpitu nawigacyjnego.",
-   "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.schema_rollback.prefix": {
-   "text": "Ta kompilacja otworzyła nowy magazyn stanu, ponieważ jej schemat jest starszy. Niektóre ustawienia mogły zostać zresetowane. Poprzednia baza danych jest zachowana na panelu na potrzeby odzyskiwania. Sprawdź",
-   "sourceHash": "1060ef4b650f103ab5b7f1f76eace082786393841e8bc926a034ab8e3a1cf0f6",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.schema_rollback.suffix": {
-   "text": " lub przywróć kopię zapasową poniżej.",
-   "sourceHash": "909f755050e1a23e3aa37bc3c74d6b3ebce0486db888b50b66519a83d11dbe3a",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.schema_rollback.title": {
-   "text": "Nowsza baza danych zachowana po przejściu na starszą wersję",
-   "sourceHash": "c6b434eb6d5f96ee9185ae968a89e7a1039ba9b2aad65bde00e6555a02b7fc78",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.webview_old.body": {
-   "text": "Pulpit nawigacyjny Home Assistant może wyświetlać się pusty lub nieprawidłowo.",
-   "sourceHash": "cdaa9385ecdff69e20e8fbe71c147fe127a7a896c85f157fd9ac902fb995ebe4",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.webview_old.help": {
-   "text": "Jak i dlaczego warto zaktualizować",
-   "sourceHash": "e47c274a443c3dfb22bfdfa0a49f6908e720d8b1518a6ba71e5d5014f52daea8",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.webview_old.target": {
-   "text": "cel: Chromium {version}+",
-   "sourceHash": "db38fba435a5055d846977c64682f2d278a25417425662847e351907db7d38a7",
-   "state": "machine-cross-checked"
-  },
-  "install.warning.webview_old.title": {
-   "text": "Systemowy WebView jest zbyt stary",
-   "sourceHash": "32f9602603cf386e8accd721782721ab0c29ff77a86e739370a819d2c2ae5d59",
    "state": "machine-cross-checked"
   },
   "profiles.editor.codemirror.all": {
@@ -12279,9 +12239,9 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.taking_longer": {
-    "text": "Trwa dłużej niż zwykle",
-    "sourceHash": "1a5787cd1c50370a5f25674b47d5ccbedd5182efd90dd526dae38c7f732463df",
-    "state": "machine-cross-checked"
+   "text": "Trwa dłużej niż zwykle",
+   "sourceHash": "1a5787cd1c50370a5f25674b47d5ccbedd5182efd90dd526dae38c7f732463df",
+   "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network.banner_latency_severe": {
    "text": "Ścieżka sieciowa do Home Assistant działa bardzo wolno. Każda akcja czeka na tę ścieżkę. Jest to mierzone na poziomie sieci, więc nie chodzi o to, że panel lub Home Assistant działa wolno — sprawdź Wi-Fi lub połączenie między nimi.",

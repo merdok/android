@@ -129,7 +129,7 @@ object HealthAudit {
         val remediationVacuumRefusal: String? = null,
         val summary: String,
         val action: String,
-        /** Additive typed metadata for [warningHtml], absent when this state has no warning. */
+        /** Additive typed metadata for the storage warning ([storageNotice]), absent when this state has no warning. */
         val warningPresentation: InstallPresentation?,
     ) {
         /** Stable flat JSON contract for `/api/v1/status`; state stays first for small shell clients. */
@@ -174,19 +174,6 @@ object HealthAudit {
             field("action", action)
             append('}')
         }
-
-        /** Ready-to-render warning content shared by the status warning list and Dashboard banner. */
-        fun warningHtml(): String? = when (state) {
-            "warning" -> "⚠ <b>Storage pressure: warning</b> — ${esc(summary)} ${esc(action)}"
-            "critical" -> "⛔ <b>Storage pressure: critical</b> — ${esc(summary)} ${esc(action)}"
-            "database_failure" -> "⛔ <b>Database storage failure</b> — ${esc(summary)} ${esc(action)}"
-            else -> null
-        }
-
-        fun bannerHtml(): String = warningHtml()?.let {
-            val critical = state == "critical" || state == "database_failure"
-            "<div class=\"setup${if (critical) " crit" else ""}\">$it</div>"
-        }.orEmpty()
 
         /** One terminal-safe, path-free line for the support dump. */
         fun diagnosticLine(): String = buildString {

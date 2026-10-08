@@ -338,8 +338,12 @@ browserTest('Install warning overlay localizes valid entries and preserves exact
   };
   const { page } = await rig(t, { status });
   await page.evaluate(() => healthAudit({ disabled: false }));
-  await page.waitForFunction(() => document.querySelectorAll('#audit-out .setup').length === 2);
-  const rows = await page.locator('#audit-out .setup').evaluateAll((nodes) => nodes.map((node) => ({ text: node.textContent, lang: node.getAttribute('lang'), html: node.innerHTML })));
+  await page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 2);
+  const rows = await page.locator('#audit-out .notice').evaluateAll((nodes) => nodes.map((node) => {
+    const text = node.querySelector('.notice-text');
+    return { severity: node.dataset.severity, pill: node.querySelector('.notice-pill').textContent, text: text.textContent, lang: text.getAttribute('lang') };
+  }));
+  assert.deepEqual(rows.map((row) => [row.severity, row.pill]), [['warning', 'Warning'], ['warning', 'Warning']], 'no warning_severities: every row is a Warning');
   assert.match(rows[0].text, /^LOC:status-no-renderer:/);
   assert.equal(rows[0].lang, null);
   assert.equal(rows[1].text, 'legacy unknown');
@@ -360,8 +364,8 @@ browserTest('Install power warnings require matching typed advisory state and re
   };
   const { page } = await rig(t, { status });
   await page.evaluate(() => healthAudit({ disabled: false }));
-  await page.waitForFunction(() => document.querySelectorAll('#audit-out .setup').length === 1);
-  const rendered = await page.locator('#audit-out .setup').evaluate((node) => ({
+  await page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 1);
+  const rendered = await page.locator('#audit-out .notice-text').evaluate((node) => ({
     text: node.textContent,
     english: Array.from(node.querySelectorAll('[lang="en"]')).map((part) => part.textContent),
     images: node.querySelectorAll('img').length,
@@ -373,9 +377,26 @@ browserTest('Install power warnings require matching typed advisory state and re
 
   const mismatch = await rig(t, { status: { ...status, power_safety: { ...typed, state: 'at_risk' } } });
   await mismatch.page.evaluate(() => healthAudit({ disabled: false }));
-  await mismatch.page.waitForFunction(() => document.querySelectorAll('#audit-out .setup').length === 1);
-  assert.equal(await mismatch.page.locator('#audit-out .setup').getAttribute('lang'), 'en');
-  assert.equal(await mismatch.page.locator('#audit-out .setup').innerHTML(), '<i>legacy power warning</i>');
+  await mismatch.page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 1);
+  assert.equal(await mismatch.page.locator('#audit-out .notice-text').getAttribute('lang'), 'en');
+  assert.equal(await mismatch.page.locator('#audit-out .notice-text').innerHTML(), '<i>legacy power warning</i>');
+});
+
+browserTest('Install warning rows take their severity from warning_severities and drop the legacy glyph', async (t) => {
+  const aligned = {
+    warnings: ['⛔ <b>stopped</b> now', '⚠ plain', 'ℹ note'],
+    warning_severities: ['action_needed', 'bogus', 'note'],
+  };
+  const { page } = await rig(t, { status: aligned });
+  await page.evaluate(() => healthAudit({ disabled: false }));
+  await page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 3);
+  const rows = await page.locator('#audit-out .notice').evaluateAll((nodes) => nodes.map((node) => [node.dataset.severity, node.querySelector('.notice-pill').textContent, node.querySelector('.notice-text').textContent]));
+  assert.deepEqual(rows, [['action_needed', 'Action needed', 'stopped now'], ['warning', 'Warning', 'plain'], ['note', 'Note', 'note']]);
+
+  const misaligned = await rig(t, { status: { warnings: ['one', 'two'], warning_severities: ['action_needed'] } });
+  await misaligned.page.evaluate(() => healthAudit({ disabled: false }));
+  await misaligned.page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 2);
+  assert.deepEqual(await misaligned.page.locator('#audit-out .notice').evaluateAll((nodes) => nodes.map((node) => node.dataset.severity)), ['warning', 'warning']);
 });
 
 browserTest('Install APK and uninstall results localize their controlled summary while retaining exact legacy evidence', async (t) => {

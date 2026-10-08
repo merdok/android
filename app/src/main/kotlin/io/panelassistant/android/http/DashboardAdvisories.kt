@@ -77,7 +77,7 @@ internal class DashboardAdvisories(
         // ad-hoc warnings link to the Install tab for the fix (their one-tap buttons live there, with install.js).
         // The lifecycle banner leads: while Home Assistant is going away or coming back, that explains
         // most of what else the page is about to report.
-        return localizedStorageBanner(storage, strings) + localizedPowerSafetyBanner(
+        return storageBanner(storage, strings) + powerSafetyBanner(
             advisory = powerSafetyAdvisory(s.privilege),
             inlineRepair = true,
             strings = strings,

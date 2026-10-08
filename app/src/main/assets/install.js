@@ -130,18 +130,33 @@
     if (advisory.action) appendEnglishEvidence(node, advisory.action, ' ');
     return true;
   }
-  function renderWarnings(node, warnings, overlays, powerSafety) {
+  var NOTICE_SEVERITIES = { action_needed: 1, warning: 1, working: 1, update: 1, note: 1, unavailable: 1, resolved: 1 };
+  var NOTICE_GLYPH = /^\s*[⛔⚠ℹ⬆⟳🔒✓]\uFE0F?\s*/u;
+  // The legacy advisory copy still opens with a glyph; the row's severity word replaces it.
+  function stripGlyph(node) {
+    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT), text;
+    while ((text = walker.nextNode())) {
+      if (!text.nodeValue.trim()) continue;
+      text.nodeValue = text.nodeValue.replace(NOTICE_GLYPH, '');
+      return;
+    }
+  }
+  function renderWarnings(node, warnings, overlays, powerSafety, severities) {
     var validOverlay = Array.isArray(overlays) && overlays.length === warnings.length && overlays.length <= 11;
+    var validSeverity = Array.isArray(severities) && severities.length === warnings.length;
     node.textContent = '';
     warnings.forEach(function (legacy, index) {
-      var row = document.createElement('div'); row.className = 'setup';
+      var severity = validSeverity && own.call(NOTICE_SEVERITIES, severities[index]) ? severities[index] : 'warning';
+      var notice = window.HaNotice.row(severity, '', '');
+      var row = notice.querySelector('.notice-text');
       var envelope = validOverlay ? overlays[index] : null;
       var value = presentation(envelope, legacy);
       if (own.call(POWER_PRESENTATION_STATE, envelope && envelope.code)) {
         if (!renderPowerWarning(row, envelope, legacy, powerSafety)) { row.setAttribute('lang', 'en'); row.innerHTML = String(legacy == null ? '' : legacy); }
       } else if (!value.fallback) setPresented(row, envelope, legacy);
       else { row.setAttribute('lang', 'en'); row.innerHTML = String(legacy == null ? '' : legacy); }
-      node.appendChild(row);
+      stripGlyph(row);
+      node.appendChild(notice);
     });
   }
   // Shared only as a frozen renderer so browser tests and future Install-owned fragments exercise the
@@ -334,7 +349,7 @@
       var w = (d && d.warnings) || [];
       if (!out) return;
       if (!w.length) { out.textContent = ''; var clean = document.createElement('p'); clean.className = 'note'; clean.textContent = '✓ ' + t('install.progress.audit_clean', 'No problems detected — this panel looks ready.'); out.appendChild(clean); }
-      else { renderWarnings(out, w, d.warning_presentations, d.power_safety); }
+      else { renderWarnings(out, w, d.warning_presentations, d.power_safety, d.warning_severities); }
       btn.disabled = false; scheduleInstallColumnAlignment();
     }).catch(function () {
       if (out) { out.textContent = ''; var failure = document.createElement('p'); failure.className = 'note'; failure.textContent = t('install.progress.audit_failed', 'Audit failed — try again.'); out.appendChild(failure); }

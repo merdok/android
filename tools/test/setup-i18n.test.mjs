@@ -263,7 +263,9 @@ browserTest('Setup renders translated markup as text and keeps package, dashboar
   assert.equal(await rig.page.locator('.card h2').textContent(), injection);
   assert.equal(await rig.page.locator('#wiz-step img').count(), 0);
   assert.equal(await rig.page.evaluate(() => window.__injected), undefined);
-  assert.equal(await rig.page.locator('.setup p').first().textContent(), `缺少软件包：${packageId}`);
+  const failure = rig.page.locator('#wiz-step .notice');
+  assert.equal(await failure.getAttribute('data-severity'), 'warning');
+  assert.ok((await failure.locator('.notice-detail').textContent()).startsWith(`缺少软件包：${packageId} `), 'package id stays inert text');
   assert.equal(await rig.page.locator('a.pbtn').getAttribute('href'), 'configure?lang=zh-Hans#cfg-dashboard_package');
 
   await reloadJourney(rig, journey('home_dashboard', {
@@ -527,7 +529,8 @@ browserTest('Setup maps discovery and probe codes to translated messages without
     },
   });
   assert.equal(await rig.page.locator('.card h2').textContent(), '连接 MQTT');
-  assert.equal(await rig.page.locator('.setup.info').textContent(), '未收到任何发现响应。');
+  const note = rig.page.locator('#wiz-step .notice[data-severity="note"]');
+  assert.equal(await note.locator('.notice-text').textContent(), '未收到任何发现响应。');
   assert.doesNotMatch(await rig.page.locator('#wiz-step').textContent(), /SERVER ENGLISH MUST NOT LEAK/);
 
   await rig.page.locator('#wiz-mqtt_broker').fill('tcp://broker.example:1883');

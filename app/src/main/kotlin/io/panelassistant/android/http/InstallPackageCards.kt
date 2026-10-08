@@ -16,8 +16,7 @@ internal fun apkCardHtml(root: Boolean, strings: AppStrings, config: Config): St
         """<p class="note">⚠ ${esc(strings.get("install.apk.root_unavailable"))}</p>"""
     } else {
         val allowed = config.apkUploadAllowed
-        """<div class="setup">⚠ <b>${esc(strings.get("install.apk.security_title"))}</b> ${esc(strings.get("install.apk.security_warning"))} """ +
-            """<small>(${esc(strings.get("install.apk.security_future_auth"))})</small></div>
+        notice(NoticeSeverity.WARNING, strings, title = esc(strings.get("install.apk.security_title")), detail = """${esc(strings.get("install.apk.security_warning"))} <small>(${esc(strings.get("install.apk.security_future_auth"))})</small>""") + """
 <label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="apk-allow" ${if (allowed) "checked" else ""} onchange="apkAllow(this)"> ${esc(strings.get("install.apk.enable"))}</label>
 <div id="apk-ui"${if (allowed) "" else " style=\"display:none\""}>
 <label class="pbtn" style="cursor:pointer">⭱ ${esc(strings.get("install.apk.choose"))}<input type="file" id="apk-file" accept=".apk,application/vnd.android.package-archive" style="display:none" onchange="apkPick(this)"></label>

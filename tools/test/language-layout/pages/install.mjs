@@ -58,7 +58,7 @@ export async function exerciseStates(page, { pointer = true } = {}) {
   await press(page, 'button[onclick^="doUninstall"]', pointer);
   await page.waitForFunction(() => document.querySelector('#uninst-msg').textContent.length > 0 && !document.querySelector('button[onclick^="doUninstall"]').disabled);
   await press(page, 'button[onclick^="healthAudit"]', pointer);
-  await page.waitForFunction(() => document.querySelectorAll('#audit-out .setup').length === 2);
+  await page.waitForFunction(() => document.querySelectorAll('#audit-out .notice').length === 2);
   await page.evaluate(() => {
     const input = document.querySelector('#rs-file');
     const transfer = new DataTransfer();

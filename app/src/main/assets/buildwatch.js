@@ -41,8 +41,6 @@
   function banner(key, english) {
     var b = document.getElementById("verbar");
     if (!b) return;
-    clearNode(b);
-    b.appendChild(document.createTextNode("⟳ " + i18nText(key, english) + " — "));
     var reload = document.createElement("a");
     reload.href = "#";
     reload.textContent = i18nText("shell.action.reload", "reload");
@@ -50,8 +48,7 @@
       event.preventDefault();
       location.reload();
     });
-    b.appendChild(reload);
-    b.appendChild(document.createTextNode(" " + i18nText("shell.new_version.refresh_suffix", "to refresh this page.")));
+    window.HaNotice.fill(b, "update", i18nText(key, english), "", reload);
     b.style.display = "";
   }
   function migrationBanner(visible) {
@@ -82,12 +79,12 @@
   // actually observed the state. Panel Assistant reports deliberate shutdown through the native
   // session; a connection loss without that notice claims only that Home Assistant is gone.
   var HA_TEXT = {
-    shutting_down: { key: "shell.runtime.ha_lifecycle.offline", text: "Home Assistant has gone offline — controls may be temporarily unavailable.", glyph: "⚠" },
-    starting: { key: "shell.runtime.ha_lifecycle.starting", text: "Home Assistant is starting — controls will return shortly.", glyph: "⟳" },
-    back_online: { key: "shell.runtime.ha_lifecycle.back_online", text: "Home Assistant is back online.", glyph: "✓" }
+    shutting_down: { key: "shell.runtime.ha_lifecycle.offline", text: "Home Assistant has gone offline — controls may be temporarily unavailable.", step: "stopping" },
+    starting: { key: "shell.runtime.ha_lifecycle.starting", text: "Home Assistant is starting — controls will return shortly.", step: "starting" },
+    back_online: { key: "shell.runtime.ha_lifecycle.back_online", text: "Home Assistant is back online." }
   };
   var HA_TEXT_SOCKET = {
-    shutting_down: { key: "shell.runtime.ha_lifecycle.shutting_down", text: "Home Assistant is shutting down — controls may be temporarily unavailable.", glyph: "⚠" }
+    shutting_down: { key: "shell.runtime.ha_lifecycle.shutting_down", text: "Home Assistant is shutting down — controls may be temporarily unavailable.", step: "stopping" }
   };
   // The diagnostics row's idle wording, kept here so the row and the banner are rendered from the SAME
   // /health observation. A server-rendered advisory used to sit beside them; it could not retract
@@ -119,12 +116,10 @@
     var b = document.getElementById("halifebar");
     if (b) {
       if (!text) { b.style.display = "none"; } else {
-        b.textContent = copy.glyph + " " + text;
-        if (supporting) {
-          var detail = document.createElement("span"); detail.style.display = "block"; detail.textContent = supporting;
-          var timing = document.createElement("small"); timing.style.display = "block"; timing.textContent = forecast;
-          b.appendChild(detail); b.appendChild(timing);
-        }
+        // The pill names the step Home Assistant is in; back online is the resolved row.
+        var STEP_WORDS = { stopping: "Stopping", starting: "Starting" };
+        var word = copy.step ? i18nText("shell.runtime.ha_lifecycle.step_" + copy.step, STEP_WORDS[copy.step]) : null;
+        window.HaNotice.fill(b, copy.step ? "working" : "resolved", text, supporting ? supporting + " · " + forecast : "", null, word);
         b.style.display = "";
       }
     }
@@ -148,11 +143,11 @@
   // Home Assistant network path. /health carries `ha_net=<healthy|warning|severe>` plus terse numbers
   // only while the panel holds a Home Assistant socket, so an absent token means "not measured", and
   // the banner and row are rendered from the SAME observation as the lifecycle pair above. The banner
-  // reuses the existing severe-warning presentation (`setup crit`) for the severe verdict and the soft
-  // amber `setup` tone for a warning; both retract themselves on the next poll after recovery.
+  // is an Action needed notice row for the severe verdict and a Warning row otherwise; both retract
+  // themselves on the next poll after recovery.
   var HA_NET_TEXT = {
-    warning: "⚠ Probes to Home Assistant are going missing",
-    severe: "⚠ The network path to Home Assistant is failing"
+    warning: "Probes to Home Assistant are going missing",
+    severe: "The network path to Home Assistant is failing"
   };
   // Latency-raised copy. The path itself is slow, which sends a person somewhere different to look
   // than lost packets do, so the two are never worded the same.
@@ -229,16 +224,16 @@
       var text = slow ? ownValue(HA_NET_TEXT_SLOW, state) : (knownLossCause ? ownValue(HA_NET_TEXT, state) : null);
       if (!text) { b.style.display = "none"; } else {
         if (slow) {
-          b.textContent = "⚠ " + i18nText(text[0], text[1]);
+          var message = i18nText(text[0], text[1]);
         } else {
           var bannerEvidence = haNetEvidence(p95, n, miss, age);
           var bannerKey = state === "severe"
             ? "shell.runtime.ha_network.banner_severe"
             : "shell.runtime.ha_network.banner_warning";
-          var bannerFallback = text.substring(2) + ": {evidence}. " + HA_NET_ADVICE;
-          b.textContent = "⚠ " + i18nText(bannerKey, bannerFallback, { evidence: bannerEvidence });
+          var bannerFallback = text + ": {evidence}. " + HA_NET_ADVICE;
+          var message = i18nText(bannerKey, bannerFallback, { evidence: bannerEvidence });
         }
-        b.className = state === "severe" ? "setup crit" : "setup";
+        window.HaNotice.fill(b, state === "severe" ? "action_needed" : "warning", "", message.replace(/^\s*[⛔⚠ℹ⬆⟳🔒✓]\uFE0F?\s*/u, ""));
         b.style.display = "";
       }
     }

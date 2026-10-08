@@ -114,16 +114,8 @@ class HtmlUiCatalogueContractTest {
             ),
             "dashboard.controls.admin_launcher" to setOf(
                 "dashboard.controls.no_separate_launcher",
-                "dashboard.controls.root_required_note",
-            ),
-            "dashboard.controls.launcher" to setOf(
-                "dashboard.controls.root_required_note",
-            ),
-            "dashboard.controls.reboot" to setOf(
-                "dashboard.controls.root_required_note",
             ),
             "configure.group.dashboard" to setOf(
-                "configure.setup.renderer.body",
                 "setup.renderer.failure.explanation",
             ),
             "shell.nav.dashboard" to setOf(

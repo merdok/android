@@ -57,7 +57,7 @@ internal class InstallPageHandler(
         // Two warnings not modelled by HealthAudit (crash-looping dashboard, Companion blank internal_url)
         // — shared with the dashboard banner. Here (Install tab, install.js loaded) they get inline buttons.
         val powerAdvisory = powerSafetyAdvisory(management.privilege)
-        val extra = localizedPowerSafetyBanner(
+        val extra = powerSafetyBanner(
             powerAdvisory,
             inlineRepair = true,
             strings = strings,

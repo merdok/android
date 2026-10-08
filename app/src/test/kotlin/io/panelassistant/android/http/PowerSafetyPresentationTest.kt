@@ -71,23 +71,25 @@ class PowerSafetyPresentationTest {
     @Test fun repairableWarningsUseOneSharedSummaryAndOfferOnlyAnExplicitPostRepair() {
         val assessment = assessment(PowerRiskLevel.AT_RISK)
         val advisory = advisory(assessment, PowerRepairCapability.DIRECT_ROOT)
-        val warning = PowerSafetyPresentation.statusWarningHtml(advisory).orEmpty()
-        val banner = PowerSafetyPresentation.bannerHtml(advisory, inlineRepair = true)
+        val notice = requireNotNull(powerSafetyNotice(advisory, inlineRepair = true, strings = englishCatalogue))
+        val banner = powerSafetyBanner(advisory, inlineRepair = true, strings = englishCatalogue)
 
-        assertTrue(warning.contains(assessment.summary))
+        assertEquals(NoticeSeverity.ACTION_NEEDED, notice.severity)
+        assertTrue(banner.contains("data-severity=\"action_needed\" data-power-safety-banner"))
+        assertTrue(notice.wire().startsWith("Panel power safety: at risk — "))
         assertTrue(banner.contains("method=\"post\""))
         assertTrue(banner.contains("action=\"api/v1/power-safety/repair\""))
         assertTrue(banner.contains("data-power-safety-repair"))
         assertTrue(banner.contains("Repair power safety"))
         assertTrue(banner.contains("never reboots"))
         assertFalse(banner.contains("onclick="))
-        assertEquals("", PowerSafetyPresentation.bannerHtml(advisory(assessment(PowerRiskLevel.SAFE)), true))
+        assertEquals("", powerSafetyBanner(advisory(assessment(PowerRiskLevel.SAFE)), true, englishCatalogue))
     }
 
     @Test fun healthyAppOnlyCautionCanBeHiddenWithoutChangingStructuredRiskTruth() {
         val assessment = assessment(PowerRiskLevel.CAUTION)
         val offered = advisory(assessment)
-        val banner = PowerSafetyPresentation.bannerHtml(offered, inlineRepair = true)
+        val banner = powerSafetyBanner(offered, inlineRepair = true, strings = englishCatalogue)
         val json = JSONObject(PowerSafetyPresentation.json(offered))
 
         assertTrue(banner.contains("action=\"api/v1/power-safety/acknowledge\""))
@@ -106,8 +108,9 @@ class PowerSafetyPresentationTest {
             PowerRepairCapability.APP_ONLY,
             offered.acknowledgementFingerprint,
         )
-        assertEquals("", PowerSafetyPresentation.bannerHtml(hidden, inlineRepair = true))
-        assertTrue(PowerSafetyPresentation.statusWarningHtml(hidden).orEmpty().contains("caution"))
+        assertEquals("", powerSafetyBanner(hidden, inlineRepair = true, strings = englishCatalogue))
+        assertEquals(NoticeSeverity.WARNING, powerSafetyNotice(hidden, inlineRepair = false, strings = englishCatalogue)?.severity)
+        assertTrue(powerSafetyNotice(hidden, inlineRepair = false, strings = englishCatalogue)!!.wire().contains("caution"))
         assertTrue(JSONObject(PowerSafetyPresentation.json(hidden)).getBoolean("warning"))
         assertTrue(JSONObject(PowerSafetyPresentation.json(hidden)).getBoolean("acknowledged"))
     }

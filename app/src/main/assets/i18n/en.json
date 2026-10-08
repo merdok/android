@@ -5165,36 +5165,6 @@
       "softMaxChars": 96,
       "hardMaxChars": 192
     },
-    "configure.setup.ha_signin.body": {
-      "text": "ha-paneld's built-in renderer is selected. Use Browser sign-in in the Home Assistant connection card below, or complete the sign-in shown on the panel.",
-      "sourceHash": "b14fe9b7c942a78eb940cb68135e7f4d2c5236919930c977576168e6182a90f5",
-      "surface": "configure",
-      "context": "Home Assistant sign-in banner guidance",
-      "risk": "setup",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "ha-paneld",
-        "Home Assistant"
-      ],
-      "softMaxChars": 190,
-      "hardMaxChars": 380
-    },
-    "configure.setup.ha_signin.title": {
-      "text": "MQTT is configured. Next: Home Assistant sign-in.",
-      "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
-      "surface": "configure",
-      "context": "Home Assistant sign-in banner heading",
-      "risk": "setup",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "MQTT",
-        "Home Assistant"
-      ],
-      "softMaxChars": 72,
-      "hardMaxChars": 144
-    },
     "configure.setup.link": {
       "text": "Guided setup",
       "sourceHash": "8ef7823ca89be62373c9a695bd093d6bf0b16744b7302d44447084f39faa0c87",
@@ -5218,48 +5188,6 @@
       "frozen": [],
       "softMaxChars": 34,
       "hardMaxChars": 68
-    },
-    "configure.setup.renderer.body": {
-      "text": "Select ha-paneld's built-in renderer in the Dashboard card below or configure another dashboard package. Until then, this panel won't display a dashboard.",
-      "sourceHash": "f0598d3d45b0297c299d992eef987c0f77ad80079f755ff7d74cb02238e1dd3e",
-      "surface": "configure",
-      "context": "Renderer selection banner guidance",
-      "risk": "setup",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "ha-paneld"
-      ],
-      "softMaxChars": 190,
-      "hardMaxChars": 380
-    },
-    "configure.setup.renderer.note": {
-      "text": "(ha-paneld itself runs fine without one.)",
-      "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
-      "surface": "configure",
-      "context": "Renderer selection reassurance",
-      "risk": "setup",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "ha-paneld"
-      ],
-      "softMaxChars": 60,
-      "hardMaxChars": 120
-    },
-    "configure.setup.renderer.title": {
-      "text": "MQTT is configured. Next: choose a dashboard renderer.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
-      "surface": "configure",
-      "context": "Renderer selection banner heading",
-      "risk": "setup",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 82,
-      "hardMaxChars": 164
     },
     "configure.setup.strategy_allowed.body": {
       "text": "Home Assistant builds this panel's dashboard from a strategy, and its entity-discovery check is allowed, so cards appear only for entities in the subscription.",
@@ -9318,20 +9246,6 @@
       ],
       "softMaxChars": 34,
       "hardMaxChars": 68
-    },
-    "dashboard.controls.root_required_note": {
-      "text": "Launcher, Admin launcher and Reboot need root — disabled on this panel.",
-      "sourceHash": "69d1baecdcbf9dfa80c51a89da504b4e82674dddc3d119cbd4169802d858b409",
-      "surface": "dashboard",
-      "context": "Visible controls-card privilege note",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "root"
-      ],
-      "softMaxChars": 96,
-      "hardMaxChars": 192
     },
     "dashboard.controls.unavailable": {
       "text": "Unavailable while the dashboard is loading",
@@ -22476,20 +22390,6 @@
       "softMaxChars": 40,
       "hardMaxChars": 80
     },
-    "install.warning.no_renderer.prefix": {
-      "text": "Select ha-paneld's built-in renderer on",
-      "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "ha-paneld"
-      ],
-      "softMaxChars": 78,
-      "hardMaxChars": 156
-    },
     "install.warning.no_renderer.progress": {
       "text": "progress shows in Managed components below.",
       "sourceHash": "e44a9bcadf0eb8b464b5dcb387834d5eade7ed452fc4ce9b161eb4e41ca6ee6a",
@@ -22501,127 +22401,6 @@
       "frozen": [],
       "softMaxChars": 86,
       "hardMaxChars": 172
-    },
-    "install.warning.no_renderer.suffix": {
-      "text": ", install the Home Assistant Companion app, or set another dashboard package there.",
-      "sourceHash": "b549f0661d976d7f7a491c492571e2459a614d197633e47ce821e2b5e984afd9",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant",
-        "Home Assistant Companion"
-      ],
-      "softMaxChars": 166,
-      "hardMaxChars": 332
-    },
-    "install.warning.no_renderer.title": {
-      "text": "MQTT is configured. Next: choose a dashboard renderer.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "MQTT"
-      ],
-      "softMaxChars": 108,
-      "hardMaxChars": 216
-    },
-    "install.warning.schema_rollback.prefix": {
-      "text": "This build opened a fresh state store because its schema is older. Some settings may have reset. The previous database is preserved on the panel for recovery. Check",
-      "sourceHash": "1060ef4b650f103ab5b7f1f76eace082786393841e8bc926a034ab8e3a1cf0f6",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 328,
-      "hardMaxChars": 656
-    },
-    "install.warning.schema_rollback.suffix": {
-      "text": ", or restore a backup below.",
-      "sourceHash": "909f755050e1a23e3aa37bc3c74d6b3ebce0486db888b50b66519a83d11dbe3a",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 56,
-      "hardMaxChars": 112
-    },
-    "install.warning.schema_rollback.title": {
-      "text": "Newer database preserved after a version downgrade",
-      "sourceHash": "c6b434eb6d5f96ee9185ae968a89e7a1039ba9b2aad65bde00e6555a02b7fc78",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 100,
-      "hardMaxChars": 200
-    },
-    "install.warning.webview_old.body": {
-      "text": "The Home Assistant dashboard may render blank or broken.",
-      "sourceHash": "cdaa9385ecdff69e20e8fbe71c147fe127a7a896c85f157fd9ac902fb995ebe4",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "Home Assistant"
-      ],
-      "softMaxChars": 112,
-      "hardMaxChars": 224
-    },
-    "install.warning.webview_old.help": {
-      "text": "How & why to update",
-      "sourceHash": "e47c274a443c3dfb22bfdfa0a49f6908e720d8b1518a6ba71e5d5014f52daea8",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 38,
-      "hardMaxChars": 76
-    },
-    "install.warning.webview_old.target": {
-      "text": "target: Chromium {version}+",
-      "sourceHash": "db38fba435a5055d846977c64682f2d278a25417425662847e351907db7d38a7",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{version}"
-      ],
-      "frozen": [
-        "Chromium"
-      ],
-      "softMaxChars": 54,
-      "hardMaxChars": 108
-    },
-    "install.warning.webview_old.title": {
-      "text": "System WebView is too old",
-      "sourceHash": "32f9602603cf386e8accd721782721ab0c29ff77a86e739370a819d2c2ae5d59",
-      "surface": "install",
-      "context": "Static panel administration interface copy.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [
-        "WebView"
-      ],
-      "softMaxChars": 50,
-      "hardMaxChars": 100
     },
     "logs.action.clear": {
       "text": "Clear",
@@ -37776,18 +37555,6 @@
       "softMaxChars": 44,
       "hardMaxChars": 88
     },
-    "shell.new_version.refresh_suffix": {
-      "text": "to refresh this page.",
-      "sourceHash": "26166a881506b072bfe36a83cc670af3b1e28ca411851a3dbd8cbe4033f6366b",
-      "surface": "shell",
-      "context": "Version refresh banner after action link",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 32,
-      "hardMaxChars": 64
-    },
     "shell.notice.severity.action_needed": {
       "text": "Action needed",
       "sourceHash": "f6b44079c1c82081b2511dc5e6de8a7c72408d3f807e6deddf73d8eb0df0c252",
@@ -38264,6 +38031,34 @@
       ],
       "softMaxChars": 92,
       "hardMaxChars": 116
+    },
+    "shell.runtime.ha_lifecycle.step_starting": {
+      "text": "Starting",
+      "sourceHash": "aeed4d26bb5f0c312bc8a9ee9ce362899252110089263414690ae7b5d6625427",
+      "surface": "shell",
+      "context": "Pill word of the Home Assistant restart row while Home Assistant stops or starts; one word.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.runtime.ha_lifecycle.step_stopping"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 12,
+      "hardMaxChars": 20
+    },
+    "shell.runtime.ha_lifecycle.step_stopping": {
+      "text": "Stopping",
+      "sourceHash": "a71ee1d4ac5c2b7a820bdc4c3ac45e38885f52b41b4bfd3f5cd1328ce600f940",
+      "surface": "shell",
+      "context": "Pill word of the Home Assistant restart row while Home Assistant stops or starts; one word.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.runtime.ha_lifecycle.step_starting"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 12,
+      "hardMaxChars": 20
     },
     "shell.runtime.ha_lifecycle.taking_longer": {
       "text": "Taking longer than usual",

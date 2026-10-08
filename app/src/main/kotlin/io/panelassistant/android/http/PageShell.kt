@@ -91,7 +91,19 @@ internal class PageShell(
      content is parsed and publishes the final header height without causing a post-paint card-wall shift. -->
 <script src="assets/switcher.js"></script>
 """
-        val migrationNotice = """<div id="migrationbar" class="setup"${if (config.migrationNoticeVisible()) "" else " style=\"display:none\""}>⚠ <b>${esc(strings.get("shell.migration.title"))}</b> ${esc(strings.get("shell.migration.body"))} <a href="${MigrationNotice.URL}" target="_blank" rel="noopener">${esc(MigrationNotice.URL)}</a> <button id="migration-dismiss" class="pbtn" type="button">${esc(strings.get("shell.migration.dismiss"))}</button></div>"""
+        val migrationNotice = notice(
+            NoticeSeverity.WARNING, strings,
+            title = esc(strings.get("shell.migration.title")),
+            detail = """${esc(strings.get("shell.migration.body"))} <a href="${MigrationNotice.URL}" target="_blank" rel="noopener">${esc(MigrationNotice.URL)}</a>""",
+            action = """<button id="migration-dismiss" class="pbtn" type="button">${esc(strings.get("shell.migration.dismiss"))}</button>""",
+            attrs = """ id="migrationbar"${if (config.migrationNoticeVisible()) "" else " style=\"display:none\""}""",
+        )
+        val versionNotice = notice(
+            NoticeSeverity.UPDATE, strings,
+            title = esc(strings.get("shell.new_version.installed")),
+            action = """<a href="#" onclick="location.reload();return false">${esc(strings.get("shell.action.reload"))}</a>""",
+            attrs = """ id="verbar" style="display:none"""",
+        )
         return """<!doctype html><html lang="${esc(strings.requestedLocale)}"$themeAttr><head><base href="/"><meta charset="utf-8">
 <script>/* ?theme=light|dark pins the UI theme for testing (else the browser preference rules) */
 (function(){var m=location.search.match(/[?&]theme=(dark|light)\b/);if(m)document.documentElement.setAttribute("data-theme",m[1])})();</script>
@@ -102,10 +114,10 @@ internal class PageShell(
 <script id="ha-i18n" type="application/json">${browserI18nPayload(strings, translationPrefixes)}</script>
 <script src="assets/i18n.js"></script></head><body $bodyAttrs$embedAttr><div class="wrap">
 <div class="topbar">$header${navBar(active, strings, preserveExplicitEnglish, embed?.hiddenTabs.orEmpty())}</div>
-$switcher<div id="halifebar" class="setup" style="display:none"></div>
-<div id="hanetbar" class="setup" style="display:none"></div>
+$switcher<div id="halifebar" class="notice" style="display:none"></div>
+<div id="hanetbar" class="notice" style="display:none"></div>
 $migrationNotice
-<div id="verbar" class="setup" style="display:none">⟳ ${esc(strings.get("shell.new_version.installed"))} — <a href="#" onclick="location.reload();return false">${esc(strings.get("shell.action.reload"))}</a> ${esc(strings.get("shell.new_version.refresh_suffix"))}</div>
+$versionNotice
 $body
 $extraScripts<script src="assets/power-safety.js"></script>
 <script src="assets/buildwatch.js"></script>

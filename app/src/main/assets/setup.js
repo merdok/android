@@ -259,10 +259,7 @@
   }
 
   function failBanner(title, lines, crit) {
-    var d = el("div", { class: "setup" + (crit ? " crit" : "") });
-    d.appendChild(el("b", { text: title }));
-    lines.forEach(function (t) { d.appendChild(el("p", { text: t })); });
-    return d;
+    return window.HaNotice.row(crit ? "action_needed" : "warning", title, lines.join(" "));
   }
 
   function show(kids, key) {
@@ -271,10 +268,9 @@
     // The single most important anti-factory-reset signal: a returning user seeing a step card must be
     // told their settings survived BEFORE they see an empty-looking password field and conclude a wipe.
     if (journey && journey.repair && key !== "done") {
-      stepHost.appendChild(el("div", { class: "setup info" }, [
-        el("b", { text: i18nText("setup.repair.title", "This panel has stopped working fully.") + " " }),
-        document.createTextNode(i18nText("setup.repair.explanation", "Its settings are still here — nothing has been reset. One thing needs attention below.")),
-      ]));
+      stepHost.appendChild(window.HaNotice.row("note",
+        i18nText("setup.repair.title", "This panel has stopped working fully."),
+        i18nText("setup.repair.explanation", "Its settings are still here — nothing has been reset. One thing needs attention below.")));
     }
     kids.forEach(function (k) { if (k) stepHost.appendChild(k); });
     var h = stepHost.querySelector("h2");
@@ -346,7 +342,7 @@
   function discoveryNote(forField) {
     var d = journey.discovery || {};
     if (discovery && discovery[forField] && typed[forField] === undefined) {
-      return el("div", { class: "setup info", text: i18nText("setup.discovery.found", "Found on your network: {value}. Change it if that’s not right.", { value: discovery[forField] }) });
+      return window.HaNotice.row("note", "", i18nText("setup.discovery.found", "Found on your network: {value}. Change it if that’s not right.", { value: discovery[forField] }));
     }
     if (d.outcome === "unavailable") {
       var reasons = {
@@ -357,9 +353,9 @@
         error: ["setup.discovery.unavailable.error", "We couldn’t find this automatically — this panel’s network discovery attempt failed. That’s normal on some networks — type it below; it works exactly the same."]
       };
       var reasonCopy = reasons[d.reason];
-      return el("div", { class: "setup info", text: reasonCopy
+      return window.HaNotice.row("note", "", reasonCopy
         ? i18nText(reasonCopy[0], reasonCopy[1])
-        : i18nText("setup.discovery.unavailable.generic", "We couldn’t find this automatically. That’s normal on some networks — type it below; it works exactly the same.") });
+        : i18nText("setup.discovery.unavailable.generic", "We couldn’t find this automatically. That’s normal on some networks — type it below; it works exactly the same."));
     }
     return null;
   }
@@ -858,22 +854,20 @@
     var def = (hdCatalog && hdCatalog.default) || { explicit: false, path: "" };
     host.textContent = "";
     if (!hdCatalog || !hdCatalog.queried) {
-      host.appendChild(el("div", { class: "setup info" }, [
-        el("b", { text: i18nText("setup.dashboard.fetch_failed.title", "Couldn’t fetch the dashboard list from Home Assistant yet.") + " " }),
-        document.createTextNode(i18nText("setup.dashboard.fetch_failed.explanation", "That can happen right after signing in.") + " "),
+      host.appendChild(window.HaNotice.row("note",
+        i18nText("setup.dashboard.fetch_failed.title", "Couldn’t fetch the dashboard list from Home Assistant yet."),
+        i18nText("setup.dashboard.fetch_failed.explanation", "That can happen right after signing in.") + " " +
+          i18nText("setup.dashboard.fetch_failed.continue", "Continue with the account’s default below."),
         el("a", { href: "#", text: i18nText("setup.dashboard.fetch_failed.retry", "Try again"), onclick: function (ev) {
           ev.preventDefault();
           host.textContent = "";
           host.appendChild(statusLine(i18nText("setup.dashboard.state.fetching", "Fetching your dashboards from Home Assistant…")));
           loadHomeDashboardCatalog();
-        } }),
-        el("span", { text: " " + i18nText("setup.dashboard.fetch_failed.continue", "Continue with the account’s default below.") }),
-      ]));
+        } })));
     } else if (!items.length) {
-      host.appendChild(el("div", { class: "setup problem" }, [
-        el("b", { text: i18nText("setup.dashboard.none_accessible.title", "This account cannot access any Home Assistant dashboards.") + " " }),
-        document.createTextNode(i18nText("setup.dashboard.none_accessible.explanation", "Create a dashboard or grant this account access, then try again.")),
-      ]));
+      host.appendChild(window.HaNotice.row("action_needed",
+        i18nText("setup.dashboard.none_accessible.title", "This account cannot access any Home Assistant dashboards."),
+        i18nText("setup.dashboard.none_accessible.explanation", "Create a dashboard or grant this account access, then try again.")));
     }
     var current = typed.home_dashboard !== undefined ? typed.home_dashboard
       : (journey.home_dashboard && journey.home_dashboard.value || "");
@@ -1373,15 +1367,14 @@
     buildCard(key);
     if (forced) {
       // Revisits must never read as the journey moving backwards: say what this is, offer the way on.
-      stepHost.insertBefore(el("div", { class: "setup info" }, [
-        el("b", { text: i18nText("setup.revisit.notice", "You’re revisiting an earlier step.") + " " }),
+      stepHost.insertBefore(window.HaNotice.row("note",
+        i18nText("setup.revisit.notice", "You’re revisiting an earlier step."), "",
         el("a", { href: "#", text: i18nText("setup.revisit.continue", "Continue setup →"), onclick: function (ev) {
           ev.preventDefault();
           clearRevisit();
           renderedKey = "";
           render();
-        } }),
-      ]), stepHost.firstChild);
+        } })), stepHost.firstChild);
     }
   }
 

@@ -32,3 +32,13 @@ export function i18nHelper(payload, calls) {
   if (!calls) return real;
   return Object.freeze({ ...real, t: (key, fallback, values) => { calls.push(values === undefined ? { key, fallback } : { key, fallback, values }); return real.t(key, fallback, values); } });
 }
+
+// For a node:vm fixture with its own fake document: install the real `window.HaNotice` renderer from
+// i18n.js into that context (it reads `document` and `window.HaI18n` from the context).
+const noticeStart = source.indexOf('window.HaNotice = ');
+const noticeSource = source.slice(noticeStart, source.indexOf('})();', noticeStart) + 5);
+export function installHaNotice(context) {
+  const options = { filename: 'i18n.js#HaNotice' };
+  if (context === globalThis) vm.runInThisContext(noticeSource, options);
+  else vm.runInContext(noticeSource, vm.isContext(context) ? context : vm.createContext(context), options);
+}

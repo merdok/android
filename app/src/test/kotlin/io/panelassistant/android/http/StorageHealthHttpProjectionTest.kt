@@ -68,8 +68,8 @@ class StorageHealthHttpProjectionTest {
         assertTrue(json.isNull("used_percent"))
         assertTrue(json.isNull("checked_at"))
         assertFalse(json.has("failure"))
-        assertNull(projection.warningHtml())
-        assertEquals("", projection.bannerHtml())
+        assertNull(storageNotice(projection, englishCatalogue))
+        assertEquals("", storageBanner(projection, englishCatalogue))
         assertTrue(projection.diagnosticLine().contains("state=unchecked pressure_state=unchecked usable_bytes=unknown"))
     }
 
@@ -94,9 +94,9 @@ class StorageHealthHttpProjectionTest {
         assertFalse(json.has("failure"))
         assertTrue(json.getString("summary").contains("300.0 MiB"))
         assertTrue(json.getString("action").startsWith("Review free space and WAL/database-file growth"))
-        assertTrue(projection.bannerHtml().startsWith("<div class=\"setup\">"))
-        assertTrue(projection.bannerHtml().contains("Storage pressure: warning"))
-        assertFalse(projection.bannerHtml().contains(" crit"))
+        val banner = storageBanner(projection, englishCatalogue)
+        assertTrue(banner.startsWith("<div class=\"notice\" data-severity=\"warning\">"))
+        assertTrue(banner.contains("<b class=\"notice-title\">Storage pressure: warning</b>"))
     }
 
     private fun remediation(verdict: StorageRemediationVerdict) = StorageRemediationSummary(
@@ -138,7 +138,6 @@ class StorageHealthHttpProjectionTest {
             "the operator is told automatic cleanup is spent",
             json.getString("action").startsWith("Automatic cleanup has already removed everything it can safely remove"),
         )
-        assertTrue(projection.bannerHtml().contains("Automatic cleanup has already removed everything"))
         assertTrue(projection.diagnosticLine().contains(
             "remediation=exhausted remediation_at=1700000100000 remediation_freed_bytes=6291456 " +
                 "remediation_retention=pruned remediation_wal_checkpoint=deferred_busy " +
@@ -171,8 +170,8 @@ class StorageHealthHttpProjectionTest {
 
     @Test fun criticalAndDatabaseFailureUsePersistentSeverityCopyWithoutRawFailureText() {
         val critical = HealthAudit.storage(snapshot(StorageHealthSeverity.CRITICAL))
-        assertTrue(critical.bannerHtml().startsWith("<div class=\"setup crit\">"))
-        assertTrue(critical.warningHtml().orEmpty().contains("Recover storage headroom or address WAL growth now"))
+        assertTrue(storageBanner(critical, englishCatalogue).startsWith("<div class=\"notice\" data-severity=\"action_needed\">"))
+        assertTrue(storageNotice(critical, englishCatalogue)!!.wire().contains("Recover storage headroom or address WAL growth now"))
 
         val failure = HealthAudit.storage(
             snapshot(
@@ -184,9 +183,8 @@ class StorageHealthHttpProjectionTest {
         val json = JSONObject(failure.statusJson())
         assertEquals("storage_full", json.getString("failure"))
         assertEquals("critical", json.getString("pressure_state"))
-        assertTrue(failure.bannerHtml().contains("recovery is not yet verified"))
-        assertTrue(failure.bannerHtml().contains("Last measured storage metrics"))
-        assertTrue(failure.bannerHtml().contains("do not delete or recreate the database"))
+        assertTrue(storageBanner(failure, englishCatalogue).contains("recovery is not yet verified"))
+        assertTrue(storageBanner(failure, englishCatalogue).contains("storage-full"))
         assertTrue(failure.diagnosticLine().contains("failure=storage_full"))
         assertFalse(failure.diagnosticLine().contains("config_write"))
 
@@ -198,7 +196,7 @@ class StorageHealthHttpProjectionTest {
             ),
         )
         assertEquals("io", JSONObject(rejected.statusJson()).getString("failure"))
-        assertFalse(rejected.bannerHtml().contains("/data/"))
+        assertFalse(storageBanner(rejected, englishCatalogue).contains("/data/"))
         assertFalse(rejected.diagnosticLine().contains("secret"))
 
         val corruption = HealthAudit.storage(

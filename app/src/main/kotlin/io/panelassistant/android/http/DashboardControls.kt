@@ -48,7 +48,7 @@ internal fun controlsHtml(
     // Launcher / Admin launcher / Reboot need root; a disabled button's tooltip is invisible on a
     // touch panel, so add a visible note that accurately reflects the remaining navigation routes.
     val rootNote = if (!checking && !rootOk)
-        """<div class="setup rootlock" style="margin:0 0 8px">🔒 ${esc(strings.get("dashboard.controls.root_required_note"))}</div>""" else ""
+        rootLockBanner(listOf("launcher", "admin_launcher", "reboot").joinToString(", ") { strings.get("dashboard.controls.$it") }, strings, attrs = """ style="margin:0 0 8px"""") else ""
     return """$rootNote<div class="ctlrow">
  ${pbtn("back", "←<span class=\"lbl\"> ${esc(strings.get("dashboard.controls.back"))}</span>", navigation.backEnabled, "dashboard.controls.input_required")}
  ${pbtn("recents", "▢<span class=\"lbl\"> ${esc(strings.get("dashboard.controls.recents"))}</span>", navigation.recentsEnabled, "dashboard.controls.input_required")}

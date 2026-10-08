@@ -2,17 +2,32 @@
 //
 // Both are rendered from the /health tokens by the ten-second poll, so they retract on recovery and
 // never depend on a server-side render. This fixture feeds the script one /health line at a time and
-// asserts what each surface shows: absent tokens hide and empty, a warning uses the soft tone, severe
-// reuses the existing crit tone, and the wording carries only the terse evidence numbers.
+// asserts what each surface shows: absent tokens hide and empty, a warning is a Warning row, severe is
+// an Action needed row, and the wording carries only the terse evidence numbers.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { i18nHelper } from '../../../../tools/test/fixtures/i18n-bridge.mjs';
+import { i18nHelper, installHaNotice } from '../../../../tools/test/fixtures/i18n-bridge.mjs';
 
 const source = fs.readFileSync(process.argv[2], 'utf8');
 
 function element(id) {
-  return { id, textContent: '', innerHTML: '', className: 'setup', style: { display: 'none' }, getAttribute() { return ''; } };
+  let ownText = '';
+  const children = [];
+  const attributes = {};
+  return {
+    id, innerHTML: '', className: '', style: { display: 'none' }, children,
+    get textContent() { return ownText + children.map((child) => child.textContent).join(''); },
+    set textContent(value) { ownText = String(value); children.splice(0); },
+    appendChild(child) { children.push(child); return child; },
+    setAttribute(name, value) { attributes[name] = String(value); },
+    getAttribute(name) { return attributes[name] ?? ''; },
+  };
+}
+// The row as a person reads it: severity, pill word, and the message.
+function notice(row) {
+  const part = (cls) => row.children.find((child) => child.className === cls);
+  return { severity: row.getAttribute('data-severity'), pill: part('notice-pill')?.textContent, text: part('notice-text')?.textContent ?? '' };
 }
 
 const ids = { hanetbar: element('hanetbar'), hanetcell: element('hanetcell'), halifebar: element('halifebar'), halifecell: element('halifecell') };
@@ -25,6 +40,8 @@ global.document = {
   querySelector: () => null,
   querySelectorAll: () => [],
   addEventListener() {},
+  createElement: (tag) => element(tag),
+  createTextNode: (text) => { const node = element('#text'); node.textContent = text; return node; },
 };
 global.window = { addEventListener() {}, HaI18n: i18nHelper() };
 global.location = { pathname: '/', reload() { throw new Error('reload must not fire'); } };
@@ -32,6 +49,7 @@ global.fetch = () => Promise.resolve({ text: () => Promise.resolve(health) });
 global.setInterval = (fn) => { ticks.push(fn); return 0; };
 global.setTimeout = (fn) => { fn(); return 0; };
 
+installHaNotice(globalThis);
 vm.runInThisContext(source, { filename: 'buildwatch.js' });
 
 async function poll(line) {
@@ -57,11 +75,11 @@ assert.equal(ids.hanetcell.textContent, 'healthy; p95 23 ms, no misses in the la
 // 3. Warning: soft tone, wording names the path and the numbers, no markup.
 await poll(base + ' ha=normal ha_net=warning ha_resp=healthy ha_net_p95=240 ha_net_n=30 ha_net_miss=0');
 assert.equal(ids.hanetbar.style.display, '');
-assert.equal(ids.hanetbar.className, 'setup');
+assert.deepEqual([notice(ids.hanetbar).severity, notice(ids.hanetbar).pill], ['warning', 'Warning']);
 assert.equal(ids.hanetbar.innerHTML, '', 'textContent only');
 assert.equal(
-  ids.hanetbar.textContent,
-  '⚠ Probes to Home Assistant are going missing: p95 240 ms, no misses in the last 5 min. '
+  notice(ids.hanetbar).text,
+  'Probes to Home Assistant are going missing: p95 240 ms, no misses in the last 5 min. '
   + 'Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel.',
 );
 assert.equal(ids.hanetcell.textContent, 'losing probes; p95 240 ms, no misses in the last 5 min');
@@ -70,10 +88,10 @@ assert.equal(ids.halifebar.style.display, 'none');
 
 // 4. Severe: the existing severe-warning tone, misses counted, thousands separated.
 await poll(base + ' ha_net=severe ha_resp=healthy ha_net_p95=4200 ha_net_n=30 ha_net_miss=3');
-assert.equal(ids.hanetbar.className, 'setup crit');
+assert.deepEqual([notice(ids.hanetbar).severity, notice(ids.hanetbar).pill], ['action_needed', 'Action needed']);
 assert.equal(
-  ids.hanetbar.textContent,
-  '⚠ The network path to Home Assistant is failing: p95 4,200 ms, 3 of 30 probes missed in the last 5 min. '
+  notice(ids.hanetbar).text,
+  'The network path to Home Assistant is failing: p95 4,200 ms, 3 of 30 probes missed in the last 5 min. '
   + 'Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel.',
 );
 assert.equal(ids.hanetcell.textContent, 'failing; p95 4,200 ms, 3 of 30 probes missed in the last 5 min');
@@ -142,7 +160,7 @@ assert.equal(ids.hanetcell.textContent, 'slow');
 
 await poll(base + ' ha_net=severe ha_net_cause=latency ha_resp=healthy ha_net_p95=9 ha_net_n=30 ha_net_miss=0');
 assert.ok(/very slow/.test(ids.hanetbar.textContent), ids.hanetbar.textContent);
-assert.equal(ids.hanetbar.className, 'setup crit');
+assert.deepEqual([notice(ids.hanetbar).severity, notice(ids.hanetbar).pill], ['action_needed', 'Action needed']);
 assert.equal(ids.hanetcell.textContent, 'very slow');
 
 await poll(base + ' ha_net=warning ha_net_cause=latency ha_resp=warning ha_net_p95=9 ha_net_n=30 ha_net_miss=0');

@@ -2,7 +2,7 @@
    Every colour is a custom property from tools/tokens/tokens.json, written into the region below by
    tools/tokens/tokens.py; edit the JSON, never the region. The light values override the
    STRUCTURAL roles only. Deliberately theme-agnostic (unchanged in light mode): the primary-action
-   blue (--primary), the .setup callout banners, badges, and the logs/chart panels (.logview
+   blue (--primary), the .notice advisory rows, badges, and the logs/chart panels (.logview
    + canvas keep their dark terminal look in both themes). The theme follows the VIEWING BROWSER's own
    light/dark preference (prefers-color-scheme) — the panel's dark_mode setting governs the panel's own
    screens + the dashboard default, never this UI. */
@@ -600,7 +600,7 @@ body.hdr-hide-brand .hdr .brand{display:none}
 .lg-E,.lg-F{color:var(--log-error)}
 
 /* Guided setup (/setup) — one linear column, deliberately NOT the .cards masonry: a journey has an
-   order, and multi-column layout destroys it. Reuses the theme tokens and the .setup banner family so
+   order, and multi-column layout destroys it. Reuses the theme tokens and the .notice row so
    the wizard inherits dark/light for free. */
 .wiz{max-width:520px;margin:0 auto;padding:4px 0 24px}
 .wiz-step .card{margin:0 0 14px}
@@ -624,7 +624,7 @@ body.hdr-hide-brand .hdr .brand{display:none}
 /* Live entity-id preview and wizard banners can contain maximum-length entity IDs or opaque backend
    values with no break opportunities. Keep those values inside the Setup card without changing the
    wrapping policy of banners on the other management pages. */
-.wiz-preview,.wiz .setup{overflow-wrap:anywhere;word-break:break-word}
+.wiz-preview,.wiz .notice{overflow-wrap:anywhere;word-break:break-word}
 /* Live entity-id preview: the consequence of the panel-id choice, shown rather than explained. */
 .wiz-preview{margin:8px 0 0;padding:8px 10px;background:var(--input-bg);border:1px solid var(--divider);border-radius:8px;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
 .wiz-preview b{color:var(--text);font-weight:600}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
-import { i18nHelper } from './fixtures/i18n-bridge.mjs';
+import { i18nHelper, installHaNotice } from './fixtures/i18n-bridge.mjs';
 
 const asset = new URL('../../app/src/main/assets/buildwatch.js', import.meta.url);
 const englishCatalogueAsset = new URL('../../app/src/main/assets/i18n/en.json', import.meta.url);
@@ -11,10 +11,13 @@ const englishCatalogue = JSON.parse(await readFile(englishCatalogueAsset, 'utf8'
 function node(id = '') {
   let ownText = '';
   const children = [];
+  const attributes = {};
   return {
     id,
     style: { display: 'none' },
-    className: 'setup',
+    className: 'notice',
+    setAttribute(name, value) { attributes[name] = String(value); },
+    getAttribute(name) { return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null; },
     disabled: true,
     children,
     listeners: {},
@@ -26,6 +29,18 @@ function node(id = '') {
     addEventListener(name, listener) { this.listeners[name] = listener; },
   };
 }
+
+// What a notice row says, read the way a person reads it: severity, pill word, message, action.
+function notice(row) {
+  const part = (cls) => row.children.find((child) => child.className === cls);
+  return {
+    severity: row.getAttribute('data-severity'),
+    pill: part('notice-pill')?.textContent ?? null,
+    text: part('notice-text')?.textContent ?? '',
+    action: part('notice-action')?.textContent ?? null,
+  };
+}
+const noticeText = (row) => notice(row).text;
 
 function interpolate(text, values) {
   return text.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name) => (
@@ -72,7 +87,9 @@ async function loadBuildwatch({ translations = {}, locale = 'en', helper = true,
     Intl,
     URL,
   };
-  vm.runInNewContext(source, context, { filename: 'buildwatch.js' });
+  vm.createContext(context);
+  installHaNotice(context);
+  vm.runInContext(source, context, { filename: 'buildwatch.js' });
 
   async function poll(line) {
     health.line = line;
@@ -101,16 +118,18 @@ test('lifecycle copy uses the closed key set, keeps glyphs decorative, and clear
   const rig = await loadBuildwatch({ translations, locale: 'zh-Hans' });
 
   const cases = [
-    ['ha=shutting_down ha_src=mqtt', 'shell.runtime.ha_lifecycle.offline', '⚠ 家庭助理已离线。'],
-    ['ha=starting', 'shell.runtime.ha_lifecycle.starting', '⟳ 家庭助理正在启动。'],
-    ['ha=back_online', 'shell.runtime.ha_lifecycle.back_online', '✓ 家庭助理已恢复在线。'],
-    ['ha=shutting_down ha_src=socket', 'shell.runtime.ha_lifecycle.shutting_down', '⚠ 家庭助理正在关闭。'],
+    ['ha=shutting_down ha_src=mqtt', 'shell.runtime.ha_lifecycle.offline', '家庭助理已离线。', 'working', 'Stopping'],
+    ['ha=starting', 'shell.runtime.ha_lifecycle.starting', '家庭助理正在启动。', 'working', 'Starting'],
+    ['ha=back_online', 'shell.runtime.ha_lifecycle.back_online', '家庭助理已恢复在线。', 'resolved', 'Resolved'],
+    ['ha=shutting_down ha_src=socket', 'shell.runtime.ha_lifecycle.shutting_down', '家庭助理正在关闭。', 'working', 'Stopping'],
   ];
-  for (const [tokens, key, banner] of cases) {
+  for (const [tokens, key, banner, severity, pill] of cases) {
     rig.calls.splice(0);
     await rig.poll(tokens);
-    assert.equal(rig.ids.halifebar.textContent, banner);
-    assert.equal(rig.ids.halifecell.textContent, banner.substring(2), 'CJK row copy must not be stripped');
+    assert.equal(noticeText(rig.ids.halifebar), banner);
+    assert.equal(notice(rig.ids.halifebar).severity, severity);
+    assert.equal(notice(rig.ids.halifebar).pill, pill, 'the pill names the lifecycle step');
+    assert.equal(rig.ids.halifecell.textContent, banner, 'CJK row copy must not be stripped');
     assert.ok(rig.calls.some((call) => call.key === key));
   }
 
@@ -164,8 +183,8 @@ test('network row selects every severity and responsiveness matrix key', async (
   assert.equal(rig.ids.hanetbar.style.display, 'none');
 
   await rig.poll('ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
-  assert.equal(rig.ids.hanetbar.className, 'setup');
-  assert.notEqual(rig.ids.hanetbar.textContent, '');
+  assert.deepEqual([notice(rig.ids.hanetbar).severity, notice(rig.ids.hanetbar).pill], ['warning', 'Warning']);
+  assert.notEqual(noticeText(rig.ids.hanetbar), '');
   for (const inheritedName of ['constructor', '__proto__']) {
     await rig.poll('ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
     assert.equal(rig.ids.hanetbar.style.display, '');
@@ -175,7 +194,7 @@ test('network row selects every severity and responsiveness matrix key', async (
     assert.equal(rig.ids.hanetcell.textContent, '', `${inheritedName} must clear a stale diagnostics row`);
   }
   await rig.poll('ha_net=severe ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=1');
-  assert.equal(rig.ids.hanetbar.className, 'setup crit');
+  assert.deepEqual([notice(rig.ids.hanetbar).severity, notice(rig.ids.hanetbar).pill], ['action_needed', 'Action needed']);
   await rig.poll('ha_net=healthy ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
   assert.equal(rig.ids.hanetbar.style.display, 'none', 'healthy observation must retract an earlier warning');
 });
@@ -202,9 +221,9 @@ test('network evidence uses shell projection keys and locale-formatted bounded n
   assert.ok(rig.calls.some((call) => call.key === 'shell.runtime.duration_minutes'));
 
   await rig.poll('ha_net=severe ha_resp=healthy ha_net_p95=4200 ha_net_n=2000 ha_net_miss=1234');
-  assert.match(rig.ids.hanetbar.textContent, /4\.200/);
-  assert.match(rig.ids.hanetbar.textContent, /1\.234/);
-  assert.match(rig.ids.hanetbar.textContent, /2\.000/);
+  assert.match(noticeText(rig.ids.hanetbar), /4\.200/);
+  assert.match(noticeText(rig.ids.hanetbar), /1\.234/);
+  assert.match(noticeText(rig.ids.hanetbar), /2\.000/);
   assert.ok(rig.calls.some((call) => call.key === 'shell.runtime.ha_network.banner_severe'));
   await rig.poll('ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
   assert.ok(rig.calls.some((call) => call.key === 'shell.runtime.ha_network.banner_warning'));
@@ -239,11 +258,11 @@ test('layer-3 latency uses the closed localized matrix without borrowing WebSock
       rig.calls.splice(0);
       await rig.poll(`ha_net=${state} ha_net_cause=latency ha_resp=${response} ha_net_p95=9876 ha_net_n=4321 ha_net_miss=1234 ha_net_age=7654321`);
       const [bannerKey, rowKey, row] = expected[state][response];
-      assert.equal(rig.ids.hanetbar.textContent, `⚠ ${translations[bannerKey]}`);
+      assert.equal(noticeText(rig.ids.hanetbar), `${translations[bannerKey]}`);
       assert.equal(rig.ids.hanetcell.textContent, row);
       assert.ok(rig.calls.some((call) => call.key === bannerKey));
       assert.ok(rig.calls.some((call) => call.key === rowKey));
-      assert.doesNotMatch(rig.ids.hanetbar.textContent + rig.ids.hanetcell.textContent, /9876|9,876|4321|4,321|1234|1,234|7654321|7,654,321|p95|miss/i);
+      assert.doesNotMatch(noticeText(rig.ids.hanetbar) + rig.ids.hanetcell.textContent, /9876|9,876|4321|4,321|1234|1,234|7654321|7,654,321|p95|miss/i);
     }
   }
 
@@ -259,29 +278,27 @@ test('version and settings banners create a safe localized reload link and prese
     'shell.new_version.installed': '已安装新版本',
     'shell.settings_changed.externally': '设置已在其他位置更改',
     'shell.action.reload': '重新加载',
-    'shell.new_version.refresh_suffix': '以刷新此页面。',
   };
   const version = await loadBuildwatch({ translations, locale: 'zh-Hans', dirty: true });
   await version.poll('build=build-b cfg=cfg-a');
-  assert.equal(version.ids.verbar.textContent, '⟳ 已安装新版本 — 重新加载 以刷新此页面。');
-  assert.equal(version.ids.verbar.children[1].tagName, 'A');
-  assert.equal(version.ids.verbar.children[1].href, '#');
-  version.ids.verbar.children[1].listeners.click({ preventDefault() {} });
+  assert.deepEqual(notice(version.ids.verbar), { severity: 'update', pill: 'Update', text: '已安装新版本', action: '重新加载' });
+  const reload = version.ids.verbar.children.at(-1).children[0];
+  assert.equal(reload.tagName, 'A');
+  assert.equal(reload.href, '#');
+  reload.listeners.click({ preventDefault() {} });
   assert.equal(version.location.reloads, 1);
   await version.poll('build=build-b cfg=cfg-a');
-  assert.equal(version.ids.verbar.textContent, '⟳ 已安装新版本 — 重新加载 以刷新此页面。');
-  assert.equal(version.ids.verbar.children.filter((child) => child.tagName === 'A').length, 1);
+  assert.deepEqual(notice(version.ids.verbar), { severity: 'update', pill: 'Update', text: '已安装新版本', action: '重新加载' });
 
   const settings = await loadBuildwatch({ translations, locale: 'zh-Hans', dirty: true, pathname: '/configure' });
   await settings.poll('build=build-a cfg=cfg-b');
-  assert.equal(settings.ids.verbar.textContent, '⟳ 设置已在其他位置更改 — 重新加载 以刷新此页面。');
+  assert.equal(noticeText(settings.ids.verbar), '设置已在其他位置更改');
   await settings.poll('build=build-a cfg=cfg-b');
-  assert.equal(settings.ids.verbar.textContent, '⟳ 设置已在其他位置更改 — 重新加载 以刷新此页面。');
-  assert.equal(settings.ids.verbar.children.filter((child) => child.tagName === 'A').length, 1);
+  assert.deepEqual(notice(settings.ids.verbar), { severity: 'update', pill: 'Update', text: '设置已在其他位置更改', action: '重新加载' });
 
   const english = await loadBuildwatch({ helper: false, dirty: true });
   await english.poll('build=build-b cfg=cfg-a');
-  assert.equal(english.ids.verbar.textContent, '⟳ A newer ha-paneld is installed — reload to refresh this page.');
+  assert.deepEqual(notice(english.ids.verbar), { severity: 'update', pill: 'Update', text: 'A newer ha-paneld is installed', action: 'reload' });
   assert.doesNotMatch(english.source, /\.innerHTML\s*=/);
   assert.doesNotMatch(english.source, /replace\(\/\^\[\^A-Za-z\]/);
 });
@@ -296,23 +313,22 @@ test('untrusted catalogue strings stay inert text in lifecycle, network, and rel
     'shell.runtime.ha_network_evidence_p95_no_misses': payload,
     'shell.new_version.installed': payload,
     'shell.action.reload': payload,
-    'shell.new_version.refresh_suffix': payload,
   };
   const rig = await loadBuildwatch({ translations, dirty: true });
 
   await rig.poll('ha=starting ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
-  assert.equal(rig.ids.halifebar.textContent, `⟳ ${payload}`);
+  assert.equal(noticeText(rig.ids.halifebar), `${payload}`);
   assert.equal(rig.ids.halifecell.textContent, payload);
-  assert.equal(rig.ids.hanetbar.textContent, `⚠ ${payload} ${payload}`);
+  assert.equal(noticeText(rig.ids.hanetbar), `${payload} ${payload}`);
   assert.equal(rig.ids.hanetcell.textContent, `losing probes; ${payload}`);
 
   await rig.poll('ha_net=warning ha_net_cause=latency ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0');
-  assert.equal(rig.ids.hanetbar.textContent, `⚠ ${payload}`);
+  assert.equal(noticeText(rig.ids.hanetbar), `${payload}`);
   assert.equal(rig.ids.hanetcell.textContent, payload);
 
   await rig.poll('build=build-b cfg=cfg-a');
-  assert.equal(rig.ids.verbar.textContent, `⟳ ${payload} — ${payload} ${payload}`);
-  assert.deepEqual(rig.created.map((element) => element.tagName), ['A']);
+  assert.deepEqual(notice(rig.ids.verbar), { severity: 'update', pill: 'Update', text: payload, action: payload });
+  assert.ok(rig.created.every((element) => element.tagName !== 'IMG'), 'catalogue text never becomes markup');
   assert.doesNotMatch(rig.source, /\.innerHTML\s*=/);
 });
 
@@ -321,14 +337,14 @@ test('untranslated keys preserve exact English runtime copy', async () => {
     const rig = await loadBuildwatch({ ...options, dirty: true });
     await rig.poll('ha=starting ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0 build=build-b cfg=cfg-a');
 
-    assert.equal(rig.ids.halifebar.textContent, '⟳ Home Assistant is starting — controls will return shortly.');
+    assert.equal(noticeText(rig.ids.halifebar), 'Home Assistant is starting — controls will return shortly.');
     assert.equal(rig.ids.halifecell.textContent, 'Home Assistant is starting — controls will return shortly.');
     assert.equal(
-      rig.ids.hanetbar.textContent,
-      '⚠ Probes to Home Assistant are going missing: p95 25 ms, no misses in the last 5 min. Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel.'
+      noticeText(rig.ids.hanetbar),
+      'Probes to Home Assistant are going missing: p95 25 ms, no misses in the last 5 min. Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel.'
     );
     assert.equal(rig.ids.hanetcell.textContent, 'losing probes; p95 25 ms, no misses in the last 5 min');
-    assert.equal(rig.ids.verbar.textContent, '⟳ A newer ha-paneld is installed — reload to refresh this page.');
+    assert.equal(noticeText(rig.ids.verbar), 'A newer ha-paneld is installed');
   }
 });
 
@@ -406,11 +422,11 @@ test('untranslated keys reproduce every English network row and banner compositi
       await rig.poll(`ha_net=${state} ha_net_cause=latency ha_resp=${response} ha_net_p95=9876 ha_net_n=4321 ha_net_miss=1234`);
       assert.equal(rig.ids.hanetcell.textContent, english(key), `${helperLabel}: latency ${state} × ${response}`);
       assert.equal(
-        rig.ids.hanetbar.textContent,
-        `⚠ ${english(`shell.runtime.ha_network.banner_latency_${state}`)}`,
+        noticeText(rig.ids.hanetbar),
+        `${english(`shell.runtime.ha_network.banner_latency_${state}`)}`,
         `${helperLabel}: latency ${state} banner`,
       );
-      assert.doesNotMatch(rig.ids.hanetbar.textContent + rig.ids.hanetcell.textContent, /9876|4321|1234|p95|miss/i);
+      assert.doesNotMatch(noticeText(rig.ids.hanetbar) + rig.ids.hanetcell.textContent, /9876|4321|1234|p95|miss/i);
     }
 
     for (const evidenceCase of evidenceCases) {
@@ -419,8 +435,8 @@ test('untranslated keys reproduce every English network row and banner compositi
         await rig.poll(`ha_net=${state} ha_resp=healthy ${evidenceCase.tokens}`);
         const bannerKey = `shell.runtime.ha_network.banner_${state}`;
         assert.equal(
-          rig.ids.hanetbar.textContent,
-          `⚠ ${english(bannerKey, { evidence })}`,
+          noticeText(rig.ids.hanetbar),
+          `${english(bannerKey, { evidence })}`,
           `${helperLabel}: ${state} banner must compose ${evidenceCase.key} exactly`
         );
         const rowKey = state === 'warning'
@@ -447,13 +463,13 @@ test('offline story waits for grace and shows measured countdown with subdued qu
   assert.match(rig.ids.halifecell.textContent, /Home Assistant Core update/);
   assert.match(rig.ids.halifecell.textContent, /Expected back in about 2 min/);
   await rig.poll('ha=starting ha_src=native ha_reason=restart ha_elapsed_ms=181000 ha_expected_ms=121000');
-  assert.match(rig.ids.halifebar.textContent, /Taking longer than usual/);
-  assert.match(rig.ids.halifebar.textContent, /1 min past the estimate/);
-  assert.equal(rig.ids.halifebar.children.at(-1).tagName, 'SMALL');
+  assert.match(noticeText(rig.ids.halifebar), /Taking longer than usual/);
+  assert.match(noticeText(rig.ids.halifebar), /1 min past the estimate/);
+  assert.equal(notice(rig.ids.halifebar).severity, 'working');
   await rig.poll('ha=starting ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
-  assert.match(rig.ids.halifebar.textContent, /1 h past the estimate/);
+  assert.match(noticeText(rig.ids.halifebar), /1 h past the estimate/);
   await rig.poll('ha=back_online ha_src=native ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
-  assert.doesNotMatch(rig.ids.halifebar.textContent, /Taking longer|past the estimate/);
+  assert.doesNotMatch(noticeText(rig.ids.halifebar), /Taking longer|past the estimate/);
   await rig.poll('ha=normal ha_reason=unknown');
   assert.equal(rig.ids.halifebar.style.display, 'none');
 });

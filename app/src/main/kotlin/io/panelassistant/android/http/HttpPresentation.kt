@@ -3,10 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.i18n.AppLocale
 import io.panelassistant.android.appVersion
 import io.panelassistant.android.BuildConfig
-import io.panelassistant.android.PanelStatus
 import io.panelassistant.android.i18n.Strings as AppStrings
-import io.panelassistant.android.control.ZigbeeHealthSnapshot
-import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.Json
 
@@ -20,17 +17,6 @@ internal fun panelBrowserTitle(
     val suffix = section?.trim().orEmpty()
     val title = if (suffix.isBlank()) panel else "$panel · $suffix"
     return "$title · ${appVersion(versionName, versionCode)}"
-}
-
-/** User-facing remediation for the renderer-specific recovery authority. */
-internal fun dashboardRecoveryWarning(state: PanelStatus.DashboardRecoveryState): String? = when (state) {
-    PanelStatus.DashboardRecoveryState.NONE -> null
-    PanelStatus.DashboardRecoveryState.BUILTIN_RENDERER ->
-        "⛔ <b>Built-in renderer stopped retrying</b> after repeated WebView failures. " +
-            "Update or repair System WebView, then use Reload dashboard from the panel navbar or Dashboard tab."
-    PanelStatus.DashboardRecoveryState.EXTERNAL_RENDERER ->
-        "⛔ <b>Dashboard app is crash-looping</b> — the watchdog stopped relaunching it to avoid a restart storm. " +
-            "Reinstall or downgrade the dashboard/Companion app (see <a href=\"install\">updates</a>), or reboot the panel."
 }
 
 /** Same-order nullable overlay for `/status`; invalid cardinality omits the whole additive field. */
@@ -82,22 +68,4 @@ internal fun browserI18nPayload(strings: AppStrings, prefixes: Set<String>): Str
         .replace("&", "\\u0026")
         .replace("\u2028", "\\u2028")
         .replace("\u2029", "\\u2029")
-}
-
-internal fun zigbeeWarningText(snapshot: ZigbeeHealthSnapshot, configuredOn: Boolean): String? = when {
-    snapshot.state == ZigbeeHealthState.CONTAINED ->
-        "⛔ <b>Zigbee gateway runaway was contained</b> — the router switch was turned OFF after sustained unjoined high CPU or repeated restarts."
-    snapshot.state == ZigbeeHealthState.CONTAINMENT_FAILED ->
-        "⛔ <b>Zigbee gateway containment was incomplete</b> — the respawner was stopped where possible and surviving work was demoted. Review diagnostics before retrying."
-    snapshot.state == ZigbeeHealthState.RUNAWAY ->
-        "⛔ <b>Zigbee gateway is runaway</b> — automatic containment is in progress."
-    snapshot.state == ZigbeeHealthState.DEGRADED_HIGH_CPU ->
-        "⚠ <b>Joined Zigbee gateway has sustained high CPU</b> — it remains running because joined routers are warn-only."
-    snapshot.state == ZigbeeHealthState.DEGRADED_UNJOINED && configuredOn ->
-        "⚠ <b>Zigbee router is enabled but not joined</b> — repeated join retries can consume substantial CPU. " +
-            "Join this panel to your Zigbee coordinator or turn the Zigbee router switch OFF. " +
-            "<a href=\"configure#cfg-zigbee_join\">Resolve Zigbee setup →</a>"
-    snapshot.recursiveWatchdogAssignment ->
-        "⚠ <b>Legacy Zigbee watchdog defect detected</b> — the exact recursive LD_LIBRARY_PATH assignment is present. ha-paneld will not edit the vendor script automatically."
-    else -> null
 }

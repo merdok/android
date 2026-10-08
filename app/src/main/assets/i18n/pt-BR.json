@@ -1968,16 +1968,6 @@
       "sourceHash": "06f97d616bdc1eb895f8ae22cd297c486eda4a15e5915f73eb92c9d73a71187b",
       "state": "machine-cross-checked"
     },
-    "configure.setup.ha_signin.body": {
-      "text": "O renderizador integrado do ha-paneld está selecionado. Use Entrar pelo navegador no cartão Conexão com o Home Assistant abaixo ou conclua o acesso exibido no painel.",
-      "sourceHash": "b14fe9b7c942a78eb940cb68135e7f4d2c5236919930c977576168e6182a90f5",
-      "state": "machine-cross-checked"
-    },
-    "configure.setup.ha_signin.title": {
-      "text": "MQTT configurado. Próximo passo: entrar no Home Assistant.",
-      "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
-      "state": "machine-cross-checked"
-    },
     "configure.setup.link": {
       "text": "Configuração guiada",
       "sourceHash": "8ef7823ca89be62373c9a695bd093d6bf0b16744b7302d44447084f39faa0c87",
@@ -1986,21 +1976,6 @@
     "configure.setup.question": {
       "text": "Configurando este painel?",
       "sourceHash": "e89482152b7dc5437503de4a0bbe5da7d074a5167b02d10c3682c75edb4ff95f",
-      "state": "machine-cross-checked"
-    },
-    "configure.setup.renderer.body": {
-      "text": "Selecione o renderizador integrado do ha-paneld no cartão Painel abaixo ou configure outro pacote de dashboard. Até lá, este painel não exibirá um dashboard.",
-      "sourceHash": "f0598d3d45b0297c299d992eef987c0f77ad80079f755ff7d74cb02238e1dd3e",
-      "state": "machine-cross-checked"
-    },
-    "configure.setup.renderer.note": {
-      "text": "(O próprio ha-paneld funciona normalmente sem um.)",
-      "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
-      "state": "machine-cross-checked"
-    },
-    "configure.setup.renderer.title": {
-      "text": "MQTT configurado. Próximo passo: escolher um renderizador de dashboard.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
       "state": "machine-cross-checked"
     },
     "configure.setup.strategy_allowed.body": {
@@ -3356,11 +3331,6 @@
     "dashboard.controls.root_required": {
       "text": "Precisa de um painel com root",
       "sourceHash": "d298b76947c6260dab6cc80b19856c12dac0b1fe9f3382804fc254fb3d5946b1",
-      "state": "machine-cross-checked"
-    },
-    "dashboard.controls.root_required_note": {
-      "text": "Tela inicial, Launcher de administração e Reiniciar exigem root — desabilitados neste painel.",
-      "sourceHash": "69d1baecdcbf9dfa80c51a89da504b4e82674dddc3d119cbd4169802d858b409",
       "state": "machine-cross-checked"
     },
     "dashboard.controls.unavailable": {
@@ -7858,59 +7828,9 @@
       "sourceHash": "0117aa1b31dd5f775fd4a3a105fbed38418eb5f679289dfc65c49ca56fa99084",
       "state": "machine-cross-checked"
     },
-    "install.warning.no_renderer.prefix": {
-      "text": "Selecione o renderizador integrado do ha-paneld em",
-      "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
-      "state": "machine-cross-checked"
-    },
     "install.warning.no_renderer.progress": {
       "text": "o progresso aparece em Componentes gerenciados abaixo.",
       "sourceHash": "e44a9bcadf0eb8b464b5dcb387834d5eade7ed452fc4ce9b161eb4e41ca6ee6a",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.no_renderer.suffix": {
-      "text": ", instale o app Home Assistant Companion ou defina outro pacote de dashboard ali.",
-      "sourceHash": "b549f0661d976d7f7a491c492571e2459a614d197633e47ce821e2b5e984afd9",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.no_renderer.title": {
-      "text": "MQTT configurado. Próximo passo: escolha um renderizador de dashboard.",
-      "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.schema_rollback.prefix": {
-      "text": "Esta compilação abriu um novo armazenamento de estado porque seu esquema é mais antigo. Algumas configurações podem ter sido redefinidas. O banco de dados anterior está preservado no painel para recuperação. Verifique",
-      "sourceHash": "1060ef4b650f103ab5b7f1f76eace082786393841e8bc926a034ab8e3a1cf0f6",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.schema_rollback.suffix": {
-      "text": ", ou restaure um backup abaixo.",
-      "sourceHash": "909f755050e1a23e3aa37bc3c74d6b3ebce0486db888b50b66519a83d11dbe3a",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.schema_rollback.title": {
-      "text": "Banco de dados mais recente preservado após retorno a uma versão anterior",
-      "sourceHash": "c6b434eb6d5f96ee9185ae968a89e7a1039ba9b2aad65bde00e6555a02b7fc78",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.webview_old.body": {
-      "text": "O dashboard do Home Assistant pode ficar em branco ou aparecer incorretamente.",
-      "sourceHash": "cdaa9385ecdff69e20e8fbe71c147fe127a7a896c85f157fd9ac902fb995ebe4",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.webview_old.help": {
-      "text": "Como e por que atualizar",
-      "sourceHash": "e47c274a443c3dfb22bfdfa0a49f6908e720d8b1518a6ba71e5d5014f52daea8",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.webview_old.target": {
-      "text": "alvo: Chromium {version}+",
-      "sourceHash": "db38fba435a5055d846977c64682f2d278a25417425662847e351907db7d38a7",
-      "state": "machine-cross-checked"
-    },
-    "install.warning.webview_old.title": {
-      "text": "WebView do sistema antigo demais",
-      "sourceHash": "32f9602603cf386e8accd721782721ab0c29ff77a86e739370a819d2c2ae5d59",
       "state": "machine-cross-checked"
     },
     "logs.action.clear": {
@@ -12418,10 +12338,40 @@
       "sourceHash": "fdab4992846c739bca90b4ed46a981d380e0c759b4974b0ac60631ed171f5cd7",
       "state": "machine-cross-checked"
     },
-    "shell.new_version.refresh_suffix": {
-      "text": "para atualizar esta página.",
-      "sourceHash": "26166a881506b072bfe36a83cc670af3b1e28ca411851a3dbd8cbe4033f6366b",
-      "state": "machine-cross-checked"
+    "shell.notice.severity.action_needed": {
+      "text": "Action needed",
+      "sourceHash": "f6b44079c1c82081b2511dc5e6de8a7c72408d3f807e6deddf73d8eb0df0c252",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.note": {
+      "text": "Note",
+      "sourceHash": "d8da2c49df39d91df7ecd199b92da7bf264f026242ccc69b08daeadfe587c45b",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.resolved": {
+      "text": "Resolved",
+      "sourceHash": "5be3c2c8354e1eb924b03a3dcc7fa4172e9aa0f4917b46b44fcc7daf8835d7a7",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.unavailable": {
+      "text": "Unavailable",
+      "sourceHash": "ca184496974204a0bd3fd4925e0540bc4b0df6fcc232994d29754272b7183812",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.update": {
+      "text": "Update",
+      "sourceHash": "c1c1009d3f37ec058070a62e22caf9ac9dae2169d452487c5c271a8bcf57a291",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.warning": {
+      "text": "Warning",
+      "sourceHash": "e981ddae45d8f4ca53f1ccbe613ad254a041dacf65a06026099a6302d332113b",
+      "state": "english-fallback"
+    },
+    "shell.notice.severity.working": {
+      "text": "Working",
+      "sourceHash": "a92f0449a9f7235bf69dc2e8ff7070bfae3f00ec8f8f26e5457a9beac53466ac",
+      "state": "english-fallback"
     },
     "shell.open_in_ha": {
       "text": "Abrir no HA",
@@ -12542,6 +12492,16 @@
       "text": "O Home Assistant está iniciando — os controles voltarão em breve.",
       "sourceHash": "5ba1d019d11a080f325c121c03788d2dd20c17c6e87dae9d6261af2a07233ce3",
       "state": "machine-cross-checked"
+    },
+    "shell.runtime.ha_lifecycle.step_starting": {
+      "text": "Starting",
+      "sourceHash": "aeed4d26bb5f0c312bc8a9ee9ce362899252110089263414690ae7b5d6625427",
+      "state": "english-fallback"
+    },
+    "shell.runtime.ha_lifecycle.step_stopping": {
+      "text": "Stopping",
+      "sourceHash": "a71ee1d4ac5c2b7a820bdc4c3ac45e38885f52b41b4bfd3f5cd1328ce600f940",
+      "state": "english-fallback"
     },
     "shell.runtime.ha_lifecycle.taking_longer": {
       "text": "Está demorando mais que o normal",

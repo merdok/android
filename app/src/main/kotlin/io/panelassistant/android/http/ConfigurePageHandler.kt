@@ -23,7 +23,7 @@ internal class ConfigurePageHandler(
 
     private fun configureSetupBanners(strings: AppStrings): String {
         val management = managementObservations.snapStaleOk()
-        val power = localizedPowerSafetyBanner(
+        val power = powerSafetyBanner(
             powerSafetyAdvisory(management.privilege),
             inlineRepair = true,
             strings = strings,
@@ -44,12 +44,12 @@ internal class ConfigurePageHandler(
             return power + resume + setupProgressBanner(progress, strings)
         }
         if (haSignInNeededForEffectiveDashboard()) {
-            return power + resume + configureSignInBanner(strings)
+            return power + resume + haSignInBanner(strings)
         }
         val noRenderer = pageHealth.healthFindings(pageHealth.healthInputs(), "", emptyList()).any { it.kind == HealthAudit.Kind.NO_RENDERER }
         // Only a panel past setup runs a filtered dashboard, so only this path can carry the strategy note.
         if (!noRenderer) return power + resume + strategySelectorAllowedBanner(strings)
-        return power + resume + configureRendererBanner(strings)
+        return power + resume + noRendererNotice(strings)
     }
 
     // Issue #133 follow-up. With a strategy dashboard's check allowed, cards for entities outside the

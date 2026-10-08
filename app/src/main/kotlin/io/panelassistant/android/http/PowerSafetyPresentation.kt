@@ -11,7 +11,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal object PowerSafetyPresentation {
-    /** Typed metadata for the exact warning emitted by [statusWarningHtml]. */
+    /** Typed metadata for the power-safety status warning ([powerSafetyNotice]). */
     fun warningPresentation(advisory: PowerSafetyAdvisory): InstallPresentation? = when (advisory.assessment.level) {
         PowerRiskLevel.AT_RISK -> InstallPresentation("status-power-at-risk")
         PowerRiskLevel.CAUTION -> InstallPresentation("status-power-caution")
@@ -37,42 +37,6 @@ internal object PowerSafetyPresentation {
         )
         .put("power_safety", jsonObject(advisory))
         .toString()
-
-    fun statusWarningHtml(advisory: PowerSafetyAdvisory): String? {
-        val assessment = advisory.assessment
-        if (!assessment.warning) return null
-        val prefix = when (assessment.level) {
-            PowerRiskLevel.AT_RISK -> "⛔ <b>Panel power safety: at risk</b>"
-            PowerRiskLevel.CAUTION -> "⚠ <b>Panel power safety: caution</b>"
-            PowerRiskLevel.UNKNOWN -> "⚠ <b>Panel power safety: unknown</b>"
-            PowerRiskLevel.SAFE -> return null
-        }
-        return "$prefix — ${assessment.summary} ${actionText(advisory)}"
-    }
-
-    fun bannerHtml(advisory: PowerSafetyAdvisory, inlineRepair: Boolean): String {
-        if (!advisory.bannerVisible) return ""
-        val assessment = advisory.assessment
-        val warning = statusWarningHtml(advisory) ?: return ""
-        val action = when {
-            !inlineRepair -> " <a href=\"configure#cfg-keep_awake\">Review on Configure →</a>"
-            advisory.action == PowerSafetyAdvisoryAction.REPAIR ->
-                """ <form method="post" action="api/v1/power-safety/repair" data-power-safety-repair style="display:inline">""" +
-                    """<button class="pbtn" type="submit" data-hardened-approval """ +
-                    """title="Repair is explicit, read-back verified, and never reboots the panel">Repair power safety</button>""" +
-                    """ <span class="power-safety-repair-result" role="status" aria-live="polite"></span></form>"""
-            advisory.action == PowerSafetyAdvisoryAction.ACKNOWLEDGE -> {
-                val fingerprint = requireNotNull(advisory.acknowledgementFingerprint)
-                """ <form method="post" action="api/v1/power-safety/acknowledge" data-power-safety-acknowledge style="display:inline">""" +
-                    """<input type="hidden" name="fingerprint" value="$fingerprint">""" +
-                    """<button class="pbtn" type="submit" data-hardened-approval title="Hide this unchanged caution in panel web pages; Hardened mode requires physical approval">Hide this caution</button>""" +
-                    """ <span class="power-safety-acknowledge-result" role="status" aria-live="polite"></span></form>"""
-            }
-            else -> ""
-        }
-        val critical = assessment.level == PowerRiskLevel.AT_RISK
-        return "<div class=\"setup${if (critical) " crit" else ""}\" data-power-safety-banner>$warning$action</div>"
-    }
 
     fun diagnosticLine(assessment: PowerSafetyAssessment): String {
         val observation = assessment.observation
