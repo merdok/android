@@ -140,7 +140,6 @@ internal class PaneldServerHttpFixture(
         ))
         observations.densityCache.set(io.panelassistant.android.control.DisplaySizingObservation(240, 320, 1.0f))
         field("managementObservations", observations)
-        field("onPanelAssistantUpdateOwner", {})
         field("storageHealth", { io.panelassistant.android.storage.StorageHealthSnapshot.UNCHECKED })
         val refreshStorage: suspend () -> io.panelassistant.android.storage.StorageHealthSnapshot? = { null }
         field("refreshStorageHealth", refreshStorage)
@@ -239,7 +238,6 @@ internal class PaneldServerHttpFixture(
         }
         server.field("refreshStorageHealth", refresh)
         server.field("mdnsWarningProjection", mdns)
-        server.field("onPanelAssistantUpdateOwner", {})
         server.field("camera", io.panelassistant.android.camera.AbsentCameraSurface)
     }
 
@@ -284,7 +282,6 @@ internal class PaneldServerHttpFixture(
         config.setRaw(requireNotNull(SettingsRegistry.spec("model")), "Contract model")
         config.setDashboardPackage("com.example.dashboard")
         server.field("configLiveValues", { emptyMap<String, String>() })
-        server.field("mqttState", { "connecting" })
         server.field("lastHaDiscovery", io.panelassistant.android.DiscoveryResult())
         server.field("catalogueLoader\$delegate", lazy {
             io.panelassistant.android.i18n.CatalogueLoader { name -> File("src/main/assets", name).readText() }
@@ -323,6 +320,7 @@ internal class PaneldServerHttpFixture(
     /** Cached management observations keep Configure on the real banner path without Android probes. */
     fun enableConfigurePage(proximity: Boolean = false, root: Boolean = false) {
         config.markPanelAssistantConnected()
+        config.setDashboardPackage(io.panelassistant.android.control.SystemController.BUILTIN_DASHBOARD)
         val sensor = PaneldServer::class.java.getDeclaredField("sensors").run {
             isAccessible = true
             get(server)
@@ -336,7 +334,7 @@ internal class PaneldServerHttpFixture(
             helperRootReady = false,
         )
         observations.snapCache.set(ManagementSnapshot(
-            mapOf("MQTT" to "connecting", "Device" to "Warm <panel>", "Device ID" to "secret-value"), emptyMap(),
+            mapOf("Device" to "Warm <panel>", "Device ID" to "secret-value"), emptyMap(),
             io.panelassistant.android.config.Capabilities(), emptyList(),
             privilege, 200, 160, 1.0f, false,
         ))
@@ -364,7 +362,6 @@ internal class PaneldServerHttpFixture(
 
     fun enableInstallPage(root: Boolean = false) {
         enableConfigurePage(root = root)
-        config.setDashboardPackage(io.panelassistant.android.control.SystemController.BUILTIN_DASHBOARD)
         config.setHaConnection("http://ha.invalid:8123", "contract-token")
         val companion = io.panelassistant.android.control.CompanionDb.ServerObservation.EMPTY
         observations.companionServerCache.set(companion)

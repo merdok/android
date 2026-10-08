@@ -124,7 +124,7 @@ class NoticeRowsHttpTest {
                     assertTrue(page, html.contains("""<div id="hanetbar" class="notice" style="display:none"></div>"""))
                     assertTrue(page, html.contains("""data-severity="warning" id="migrationbar""""))
                     val rows = Regex("""<div class="notice"[^>]*>.*?</div>""").findAll(html).map { it.value }.toList()
-                    assertTrue(page, rows.size >= 3)
+                    assertTrue(page, rows.size >= 2)
                     rows.forEach { row -> retiredGlyphs.forEach { assertFalse("$page: $it in $row", row.contains(it)) } }
                 }
                 val install = client.get("/install?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()

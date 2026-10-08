@@ -272,7 +272,6 @@ class DiagCapabilityPolicyTest {
         val privateValue = "private-room-or-network.example"
         val facts = linkedMapOf(
             "ha-paneld" to "0.9.5-rc1 (build 294)",
-            "MQTT state" to "connected · ack 2s ago · ipv4",
             "Security mode" to "Hardened · high-impact remote actions need physical on-panel approval",
             "Prevent idle dim" to "on · timeout 60s (not applied)",
             "Platform" to privateValue,
@@ -282,12 +281,11 @@ class DiagCapabilityPolicyTest {
             "CPU profile" to privateValue,
             "Log shipping" to "tcp://$privateValue:9000",
             "Friendly name" to privateValue,
-            "MQTT" to "$privateValue · connected",
         )
 
         val public = DiagReader.publicPanelFacts(facts)
 
-        assertEquals(listOf("ha-paneld", "MQTT state", "Security mode", "Prevent idle dim"), public.keys.toList())
+        assertEquals(listOf("ha-paneld", "Security mode", "Prevent idle dim"), public.keys.toList())
         assertFalse(public.values.joinToString().contains(privateValue))
     }
 

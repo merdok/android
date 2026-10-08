@@ -38,10 +38,6 @@ internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
                 PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL),
                 submitNative(rig, "not_a_channel", "ON"),
             )
-            assertEquals(
-                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE),
-                submitNative(rig, "update_paneld", "install"),
-            )
         } finally { rig.close() }
     }
 

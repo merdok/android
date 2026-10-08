@@ -24,7 +24,7 @@ class SettingRowFormatterTest {
 
     @Test fun aFormatterCannotBeBuiltForASecretSetting() {
         // A secret resolves to set/— for the same reason, and formatting one would risk rendering it.
-        val failure = runCatching { SettingRowFormatter.of("mqtt_password") { it } }.exceptionOrNull()
+        val failure = runCatching { SettingRowFormatter.of("ha_token") { it } }.exceptionOrNull()
         assertTrue("expected construction to be rejected", failure is IllegalArgumentException)
         assertTrue(failure!!.message!!, failure.message!!.contains("secret"))
     }

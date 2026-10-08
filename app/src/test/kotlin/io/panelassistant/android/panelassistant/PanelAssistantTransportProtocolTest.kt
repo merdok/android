@@ -77,7 +77,7 @@ class PanelAssistantTransportProtocolTest {
         // Pinned as a literal: a digest derived from JSON serialisation could differ between the
         // device's org.json and the JVM's, and the integration records whatever the panel sends.
         assertEquals(
-            "17d41206370d87f19f93ba14005e52f41b23dd80f22780c200fa11594a35ae1d",
+            "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
             PanelAssistantTransportProtocol.CONTRACT_DIGEST,
         )
     }

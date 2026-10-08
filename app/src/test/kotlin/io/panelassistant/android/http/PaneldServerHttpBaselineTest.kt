@@ -62,9 +62,7 @@ class PaneldServerHttpBaselineTest {
         PaneldServerHttpFixture().use { fixture ->
             testApplication {
                 application { fixture.mount(this) }
-                val broker = client.get("/api/v1/config/probe-broker?url=")
-                assertEquals(HttpStatusCode.OK, broker.status)
-                assertEquals("{\"ok\":false,\"error\":\"invalid-url\"}", broker.bodyAsText())
+                assertEquals(HttpStatusCode.NotFound, client.get("/api/v1/config/probe-broker?url=").status)
                 val sink = client.post("/api/v1/config/probe-log-sink") {
                     header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
                     setBody("port=invalid")

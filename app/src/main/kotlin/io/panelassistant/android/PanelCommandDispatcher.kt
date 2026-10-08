@@ -168,7 +168,7 @@ internal class PanelCommandDispatcher(
 
     /**
      * Run one Panel Assistant command. Stateful commands conflate by channel; reload and reboot use the
-     * action queue, and the other actions take no command from it. [done] receives exactly one result.
+     * action queue. [done] receives exactly one result.
      */
     fun submit(command: PanelAssistantCommand, done: (PanelAssistantCommandResult) -> Unit) {
         val answered = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -180,9 +180,7 @@ internal class PanelCommandDispatcher(
         if (command.channel == PanelStateCore.MEDIA_CHANNEL) return submitMediaCommand(command, finish)
         when (kind(command.channel)) {
             null -> return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL))
-            Kind.ACTION -> if (command.channel !in setOf("reload", "reboot"))
-                return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE))
-            Kind.LATEST -> Unit
+            Kind.ACTION, Kind.LATEST -> Unit
         }
         val payload = command.payload.toByteArray(Charsets.UTF_8)
         if (payload.size > MAX_COMMAND_PAYLOAD_BYTES) {

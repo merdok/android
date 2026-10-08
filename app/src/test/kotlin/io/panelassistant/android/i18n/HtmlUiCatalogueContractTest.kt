@@ -62,8 +62,8 @@ class HtmlUiCatalogueContractTest {
             catalogue.getJSONObject(key).getString("surface") in promotedSurfaces
         }
 
-        assertTrue("the source catalogue must not shrink", source.strings.size >= 2515) // 2026-10-08 notice rows: 17 duplicate banner keys removed, 9 added
-        assertTrue("the declared promoted HTML UI preview scope must not shrink silently", expected.size >= 2046) // 2026-10-08 notice rows: duplicate banner keys removed
+        assertTrue("the source catalogue must not shrink", source.strings.size >= 2478) // 2026-10-08 MQTT deleted: 37 broker, setup-progress and runtime keys removed
+        assertTrue("the declared promoted HTML UI preview scope must not shrink silently", expected.size >= 2015) // 2026-10-08 MQTT deleted: broker, setup-progress and runtime keys removed
         releaseTargetLocales.forEach { locale ->
             val target = TargetCatalogue.parse(File(assets, "i18n/$locale.json").readText(), source)
             assertEquals(
@@ -102,7 +102,6 @@ class HtmlUiCatalogueContractTest {
             "shell.nav.configure" to setOf(
                 "dashboard.banner.auth_rejected.action",
                 "dashboard.banner.schema_rollback.configure_action",
-                "dashboard.banner.setup_needs.suffix",
                 "dashboard.camera.configure_link",
                 "dashboard.camera.delivery.short_help",
                 "dashboard.link.edit_configure",

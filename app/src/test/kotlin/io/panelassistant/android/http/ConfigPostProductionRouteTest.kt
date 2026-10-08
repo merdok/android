@@ -397,6 +397,56 @@ class ConfigPostProductionRouteTest {
             }
         }
 
+    @Test fun `a backup written by an MQTT release restores everything but its broker settings`() =
+        withFullReadServer { config, fixture ->
+            config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Original panel")
+            config.setRaw(requireNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY)), "Force IPv4")
+            val builder = fixture.backupBuilder(null, config) { spec, live -> effectiveSettingValue(config, spec, live) }
+            builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
+                // The last MQTT release wrote the same archive at the same schema, plus its broker settings and
+                // whether it was connected.
+                val legacy = Files.createTempFile(artifact.file.parentFile.toPath(), "legacy", ".zip").toFile()
+                java.util.zip.ZipFile(artifact.file).use { source ->
+                    java.util.zip.ZipOutputStream(legacy.outputStream()).use { out ->
+                        source.entries().asSequence().forEach { entry ->
+                            val bytes = source.getInputStream(entry).readBytes()
+                            out.putNextEntry(java.util.zip.ZipEntry(entry.name))
+                            if (entry.name == io.panelassistant.android.backup.PanelBackup.MANIFEST_ENTRY) {
+                                val manifest = JSONObject(String(bytes, Charsets.UTF_8))
+                                manifest.getJSONObject("config")
+                                    .put("mqtt_broker", "tcp://ha.example.test:1883")
+                                    .put("mqtt_user", "ha-paneld")
+                                    .put("mqtt_password", "fixture-password")
+                                manifest.put("mqtt_connected", true)
+                                out.write(manifest.toString().toByteArray(Charsets.UTF_8))
+                            } else {
+                                out.write(bytes)
+                            }
+                            out.closeEntry()
+                        }
+                    }
+                }
+                config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Changed panel")
+                config.setRaw(requireNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY)), "Automatic")
+                setField(fixture.server, "applySetting", { _: String, _: String -> LiveSettingRequestOutcome.APPLIED })
+                setField(fixture.server, "onReconfigure", { _: Set<String> -> })
+                testApplication {
+                    application { fixture.mount(this) }
+                    val restored = client.post("/api/v1/restore") { setBody(legacy.readBytes()) }
+                    assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
+                    kotlinx.coroutines.withTimeout(5_000) {
+                        while (InstallProgress.running) kotlinx.coroutines.delay(10)
+                    }
+                    val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                    assertEquals("succeeded", result.getString("status"), result.toString())
+                    assertEquals("Original panel", config.friendlyName)
+                    assertEquals("Force IPv4", config.addressFamily)
+                    val exported = requireNotNull(ConfigBundle.parse(client.get("/api/v1/config/export").bodyAsText()))
+                    assertTrue(exported.values.keys.none { it.startsWith("mqtt_") }, exported.values.keys.toString())
+                }
+            }
+        }
+
     @Test fun `failed production bundle commit records no revision and starts no live effects`() =
         withRouteConfig { config, persistence, server, live ->
             persistence.failWrites = true

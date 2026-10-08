@@ -42,9 +42,9 @@ internal fun normalizeConfigPostParameters(
             // The address family moved key at schema 15 and keeps its values; the new key wins if both are sent.
             val familyRenamed = rawName == SettingsRegistry.LEGACY_ADDRESS_FAMILY_KEY
             if (familyRenamed && raw.contains(SettingsRegistry.ADDRESS_FAMILY_KEY)) continue
-            // Any other removed setting, the legacy broker address and credentials among them, is dropped rather
-            // than refused, so a request written for an earlier release still applies everything else.
-            if (!familyRenamed && SettingsRegistry.isRetired(rawName)) continue
+            // The removed broker address and credentials are dropped rather than refused, so a request written
+            // for an earlier release still applies everything else.
+            if (!familyRenamed && rawName.startsWith(SettingsRegistry.BROKER_PREFIX)) continue
             val name = when {
                 renamed -> SettingsRegistry.RESPONSE_PERCENT_KEY
                 familyRenamed -> SettingsRegistry.ADDRESS_FAMILY_KEY

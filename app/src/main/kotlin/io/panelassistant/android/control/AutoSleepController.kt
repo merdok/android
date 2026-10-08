@@ -47,7 +47,7 @@ internal data class AutoSleepManagerHandle(
     val setSourceIncluded: (String, String, Boolean) -> HaPresenceSourceUpdate = { _, _, _ ->
         HaPresenceSourceUpdate.UNAVAILABLE
     },
-    val prerequisite: suspend (String, String, String, String?) -> HaPanelAreaPrerequisite = { _, _, _, _ ->
+    val prerequisite: suspend (String, String?) -> HaPanelAreaPrerequisite = { _, _ ->
         HaPanelAreaPrerequisite(
             HaPanelAreaPrerequisitePhase.UNAVAILABLE,
             detail = "Auto-sleep Area discovery is unavailable",

@@ -51,7 +51,7 @@ class HaPresenceSourceManagerTest {
             this, provider, discovery, owner, { true }, dispatcher, ::epochMillis,
         )
 
-        val result = manager.prerequisite()
+        val result = manager.prerequisite(discoveryId = DID)
 
         assertEquals(listOf(false, true), forces)
         assertEquals(HaPanelAreaPrerequisitePhase.ASSIGNED, result.phase)
@@ -255,7 +255,7 @@ class HaPresenceSourceManagerTest {
         val exact = FakeExactTransport(FakeExactConnection())
         val (manager, owner) = manager(dispatcher, discovery, exact, mutableListOf())
 
-        val result = manager.prerequisite()
+        val result = manager.prerequisite(discoveryId = DID)
 
         assertEquals(HaPanelAreaPrerequisitePhase.ASSIGNED, result.phase)
         assertEquals("Room", result.areaName)
@@ -272,7 +272,7 @@ class HaPresenceSourceManagerTest {
         val exact = FakeExactTransport(FakeExactConnection())
         val (manager, owner) = manager(dispatcher, discovery, exact, mutableListOf())
 
-        val result = manager.prerequisite()
+        val result = manager.prerequisite(discoveryId = DID)
 
         assertEquals(HaPanelAreaPrerequisitePhase.UNASSIGNED, result.phase)
         assertFalse(result.eligible)
@@ -902,7 +902,7 @@ class HaPresenceSourceManagerTest {
         val controller = AutoSleepController(
             scope = backgroundScope,
             screen = screen,
-            configuration = { AutoSleepRuntimeConfig(true, "https://ha.example") },
+            configuration = { AutoSleepRuntimeConfig(true, "https://ha.example", discoveryId = DID) },
             learning = object : AutoSleepLearning {
                 override fun learnedLease(partition: String, baseLeaseMs: Long) =
                     AutoSleepLearnedLease(baseLeaseMs, 0, 0, MIN_AUTO_SLEEP_LEASE_MS)
