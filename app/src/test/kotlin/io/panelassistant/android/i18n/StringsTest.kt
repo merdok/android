@@ -12,21 +12,21 @@ class StringsTest {
       "sourceRevision":"e7c01506e9519d51b57fcf0e2b0b969a1ce44a6e",
       "strings":{
         "settings.example.help":{
-          "text":"Keep {name} on MQTT.",
-          "sourceHash":"${sourceHash("Keep {name} on MQTT.")}",
+          "text":"Keep {name} on HTTP.",
+          "sourceHash":"${sourceHash("Keep {name} on HTTP.")}",
           "surface":"settings",
           "context":"Configure example help",
           "risk":"ordinary",
           "siblings":[],
           "placeholders":["{name}"],
-          "frozen":["MQTT"],
+          "frozen":["HTTP"],
           "softMaxChars":40,
           "hardMaxChars":80
         }
       }
     }""".trimIndent()
 
-    private fun target(text: String, state: String, hash: String = sourceHash("Keep {name} on MQTT.")) = """{
+    private fun target(text: String, state: String, hash: String = sourceHash("Keep {name} on HTTP.")) = """{
       "schema":1,
       "locale":"de",
       "sourceRevision":"e7c01506e9519d51b57fcf0e2b0b969a1ce44a6e",
@@ -41,34 +41,34 @@ class StringsTest {
 
     @Test fun `cross checked target resolves while draft falls back to English`() {
         val source = SourceCatalogue.parse(english)
-        val checked = TargetCatalogue.parse(target("{name} auf MQTT behalten.", "machine-cross-checked"), source)
-        val draft = TargetCatalogue.parse(target("{name} auf MQTT behalten.", "machine-draft"), source)
-        assertEquals("{name} auf MQTT behalten.", Strings(source, checked).get("settings.example.help"))
-        assertEquals("Keep {name} on MQTT.", Strings(source, draft).get("settings.example.help"))
+        val checked = TargetCatalogue.parse(target("{name} auf HTTP behalten.", "machine-cross-checked"), source)
+        val draft = TargetCatalogue.parse(target("{name} auf HTTP behalten.", "machine-draft"), source)
+        assertEquals("{name} auf HTTP behalten.", Strings(source, checked).get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", Strings(source, draft).get("settings.example.help"))
     }
 
     @Test fun `Czech and Brazilian Portuguese preview ordinary drafts while held and stale text stays English`() {
         val source = SourceCatalogue.parse(english)
-        for ((locale, translated) in listOf("cs" to "Ponechat {name} v MQTT.", "pt-BR" to "Manter {name} no MQTT.")) {
-            fun catalogue(text: String, state: String, hash: String = sourceHash("Keep {name} on MQTT.")) =
+        for ((locale, translated) in listOf("cs" to "Ponechat {name} v HTTP.", "pt-BR" to "Manter {name} no HTTP.")) {
+            fun catalogue(text: String, state: String, hash: String = sourceHash("Keep {name} on HTTP.")) =
                 TargetCatalogue.parse(target(text, state, hash).replace("\"locale\":\"de\"", "\"locale\":\"$locale\""), source)
             assertEquals(LocalizedText(translated, locale), Strings(source, catalogue(translated, "machine-draft")).resolve("settings.example.help"))
-            assertEquals(LocalizedText("Keep {name} on MQTT.", "en"), Strings(source, catalogue("Keep {name} on MQTT.", "english-fallback")).resolve("settings.example.help"))
-            assertEquals(LocalizedText("Keep {name} on MQTT.", "en"), Strings(source, catalogue(translated, "machine-draft", "0".repeat(64))).resolve("settings.example.help"))
+            assertEquals(LocalizedText("Keep {name} on HTTP.", "en"), Strings(source, catalogue("Keep {name} on HTTP.", "english-fallback")).resolve("settings.example.help"))
+            assertEquals(LocalizedText("Keep {name} on HTTP.", "en"), Strings(source, catalogue(translated, "machine-draft", "0".repeat(64))).resolve("settings.example.help"))
         }
     }
 
     @Test fun `missing target key falls back per key`() {
         val source = SourceCatalogue.parse(english)
-        val emptyTarget = target("{name} auf MQTT behalten.", "machine-draft")
+        val emptyTarget = target("{name} auf HTTP behalten.", "machine-draft")
             .replace(Regex("\"settings\\.example\\.help\"\\s*:\\s*\\{.*?\\n\\s*}", RegexOption.DOT_MATCHES_ALL), "")
             .replace("\"strings\":{\n        \n      }", "\"strings\":{}")
-        assertEquals("Keep {name} on MQTT.", Strings(source, TargetCatalogue.parse(emptyTarget, source)).get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", Strings(source, TargetCatalogue.parse(emptyTarget, source)).get("settings.example.help"))
     }
 
     @Test fun `a future Ukrainian catalogue retains English fallback for a missing record`() {
         val source = SourceCatalogue.parse(english)
-        val emptyUkrainian = target("{name} у MQTT.", "machine-cross-checked")
+        val emptyUkrainian = target("{name} у HTTP.", "machine-cross-checked")
             .replace("\"locale\":\"de\"", "\"locale\":\"uk\"")
             .replace(Regex("\"settings\\.example\\.help\"\\s*:\\s*\\{.*?\\n\\s*}", RegexOption.DOT_MATCHES_ALL), "")
             .replace("\"strings\":{\n        \n      }", "\"strings\":{}")
@@ -80,7 +80,7 @@ class StringsTest {
 
         val strings = Strings(source, target)
         assertEquals("uk", strings.requestedLocale)
-        assertEquals(LocalizedText("Keep {name} on MQTT.", "en"), strings.resolve("settings.example.help"))
+        assertEquals(LocalizedText("Keep {name} on HTTP.", "en"), strings.resolve("settings.example.help"))
     }
 
     @Test fun `web surfaces share the validated catalogue and can be resolved by prefix`() {
@@ -201,7 +201,7 @@ class StringsTest {
     @Test fun `current mechanical violations reject while stale records fall back per key`() {
         val source = SourceCatalogue.parse(english)
         assertThrows(IllegalArgumentException::class.java) {
-            TargetCatalogue.parse(target("Ohne Platzhalter auf MQTT.", "machine-cross-checked"), source)
+            TargetCatalogue.parse(target("Ohne Platzhalter auf HTTP.", "machine-cross-checked"), source)
         }
         assertThrows(IllegalArgumentException::class.java) {
             TargetCatalogue.parse(target("{name} im Broker behalten.", "machine-cross-checked"), source)
@@ -211,19 +211,19 @@ class StringsTest {
                 .replace(source.sourceRevision, "f".repeat(40)),
             source,
         )
-        assertEquals("Keep {name} on MQTT.", Strings(source, stale).get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", Strings(source, stale).get("settings.example.help"))
         assertEquals("en", Strings(source, stale).locale)
         assertThrows(IllegalArgumentException::class.java) {
-            TargetCatalogue.parse(target("{name} auf MQTT MQTT behalten.", "machine-cross-checked"), source)
+            TargetCatalogue.parse(target("{name} auf HTTP HTTP behalten.", "machine-cross-checked"), source)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            TargetCatalogue.parse(target("{name} auf MQTT behalten.", "english-fallback"), source)
+            TargetCatalogue.parse(target("{name} auf HTTP behalten.", "english-fallback"), source)
         }
     }
 
     @Test fun `pseudolocale expands prose without changing placeholders`() {
         val strings = Strings(SourceCatalogue.parse(english), pseudo = true)
-        assertEquals("［Këëp {name} ôn MQTT.］", strings.get("settings.example.help"))
+        assertEquals("［Këëp {name} ôn HTTP.］", strings.get("settings.example.help"))
     }
 
     @Test fun `asset loader rejects a malformed or missing target catalogue to English`() {
@@ -231,16 +231,16 @@ class StringsTest {
         val missing = CatalogueLoader { path ->
             if (path == "i18n/en.json") english else error("missing")
         }
-        assertEquals("Keep {name} on MQTT.", malformed.strings("de").get("settings.example.help"))
-        assertEquals("Keep {name} on MQTT.", missing.strings("de").get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", malformed.strings("de").get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", missing.strings("de").get("settings.example.help"))
     }
 
     @Test fun `asset loader rejects a target whose declared locale differs from its path`() {
         val wrongLocale = CatalogueLoader { path ->
-            if (path == "i18n/en.json") english else target("{name} auf MQTT behalten.", "machine-cross-checked")
+            if (path == "i18n/en.json") english else target("{name} auf HTTP behalten.", "machine-cross-checked")
                 .replace("\"locale\":\"de\"", "\"locale\":\"fr\"")
         }
-        assertEquals("Keep {name} on MQTT.", wrongLocale.strings("de").get("settings.example.help"))
+        assertEquals("Keep {name} on HTTP.", wrongLocale.strings("de").get("settings.example.help"))
         assertEquals("en", wrongLocale.strings("de").locale)
     }
 }

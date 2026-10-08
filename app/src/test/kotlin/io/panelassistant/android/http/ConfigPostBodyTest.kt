@@ -169,7 +169,9 @@ class ConfigPostBodyTest {
             append("mqtt_broker", "tcp://homeassistant.local:1883")
             append("mqtt_user", "panel")
             append("mqtt_password", "secret")
-        }) as ConfigPostParameters.Ok
+        })
+        assertTrue("an MQTT-era request is admitted: $old", old is ConfigPostParameters.Ok)
+        old as ConfigPostParameters.Ok
         assertEquals(setOf("friendly_name", "network_address_family"), old.values.names())
         assertEquals("Force IPv4", old.values["network_address_family"])
 

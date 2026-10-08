@@ -94,7 +94,7 @@ class SettingValueTest {
 
     @Test fun passwordsPreserveLeadingAndTrailingSpacesExactly() {
         val password = spec(SettingType.PASSWORD, maxChars = 32)
-        assertEquals("  mqtt secret  ", ok(SettingValue.validate(password, "  mqtt secret  ")))
+        assertEquals("  some secret  ", ok(SettingValue.validate(password, "  some secret  ")))
     }
 
     @Test fun longValuesRetainTheFullPreferenceRange() {

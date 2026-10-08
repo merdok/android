@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * [LogCapture.redact] is the last line of defence before a log line reaches ANY consumer — the
  * remote [LogShipper] sink and the `:8888` live log viewer both read the same redacted stream — so
- * the secret shapes it strips are pinned here. Capture is the app's own logcat, which can carry MQTT
+ * the secret shapes it strips are pinned here. Capture is the app's own logcat, which can carry broker
  * creds, HA tokens, and URLs with query secrets — none of which should escape verbatim.
  */
 class LogCaptureTest {
@@ -98,7 +98,7 @@ class LogCaptureTest {
     }
 
     @Test fun stripsPasswordAndTokenKeyValues() {
-        assertFalse(redact("mqtt password=hunter2secret").contains("hunter2secret"))
+        assertFalse(redact("device password=hunter2secret").contains("hunter2secret"))
         assertFalse(redact("access_token: aaaaaaaabbbbbbbb").contains("aaaaaaaabbbbbbbb"))
         assertFalse(redact("api_key = ZZZZ9999ZZZZ").contains("ZZZZ9999ZZZZ"))
         // The key label is preserved so the line stays readable.
@@ -107,7 +107,7 @@ class LogCaptureTest {
 
     @Test fun stripsJwtLikeTokens() {
         val jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
-        val out = redact("06-28 10:15:30.123  900  950 I ha-paneld/mqtt: connecting with $jwt")
+        val out = redact("06-28 10:15:30.123  900  950 I ha-paneld/link: connecting with $jwt")
         assertFalse(out.contains(jwt))
         assertTrue(out.contains("***jwt***"))
     }

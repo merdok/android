@@ -96,7 +96,7 @@ class TouchSoundDriftContractTest {
      * moved the controller the state channel would publish the old value straight back and flip the
      * switch in Home Assistant. Persist first, exactly like every other live setting.
      */
-    @Test fun anMqttOriginatedChangePersistsIntentBeforeItActuates() {
+    @Test fun anExternallyOriginatedChangePersistsIntentBeforeItActuates() {
         val commands = source("PanelCommandDispatcher.kt")
         val handler = commands.substring(
             commands.indexOf("override fun handleTouchSound(payload: String)"),

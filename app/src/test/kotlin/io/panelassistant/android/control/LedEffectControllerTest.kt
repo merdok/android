@@ -197,7 +197,7 @@ class LedEffectControllerTest {
 /**
  * The hold: the camera-in-use indication takes the LED while the screen is off, and nothing else may
  * paint over it until the hold is released. Ordinary writes are refused rather than queued, so the
- * MQTT path persists intent and reports the actuation as unknown instead of pretending it happened.
+ * external-command path persists intent and reports the actuation as unknown instead of pretending it happened.
  */
 class LedEffectControllerHoldTest {
 

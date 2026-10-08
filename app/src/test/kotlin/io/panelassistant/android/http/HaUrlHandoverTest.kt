@@ -224,7 +224,7 @@ class HaUrlHandoverTest {
         // An integration that predates the handover sends exactly what it always sent. The panel must
         // behave as it did before, which means no probe, no marker and no rewriting.
         var probed = false
-        val legacy = params("mqtt_broker" to "192.168.1.5", "mqtt_user" to "panel")
+        val legacy = params("friendly_name" to "Panel")
         val result = rewrite(legacy, onVerify = { probed = true })
         assertFalse(probed)
         assertNull(result.outcome)

@@ -59,7 +59,7 @@ class FamilyPlannedDnsTest {
     }
 
     @Test fun forceIpv4OnAnIpv6OnlyHostFailsWithAClearVerdict() {
-        // Mirrors the MQTT planner: a force-IPv4 plan never silently falls back to IPv6, it names
+        // A force-IPv4 plan never silently falls back to IPv6, it names
         // the conflict so the configuration surface can show it.
         try {
             dns(ipv4Only = true, answers = listOf(v6a, v6b)).lookup("ha.example")

@@ -174,8 +174,8 @@ class NoticeRowsHttpTest {
         severity to title
     }
 
-    private fun PaneldServerHttpFixture.snapshot(mqtt: String, densityBase: Int?) = ManagementSnapshot(
-        mapOf("MQTT" to mqtt, "System WebView" to "Chrome 60"), emptyMap(), io.panelassistant.android.config.Capabilities(),
+    private fun PaneldServerHttpFixture.snapshot(link: String, densityBase: Int?) = ManagementSnapshot(
+        mapOf("Link" to link, "System WebView" to "Chrome 60"), emptyMap(), io.panelassistant.android.config.Capabilities(),
         emptyList(), io.panelassistant.android.control.PrivilegedRouteObservation(directSuReady = true, helperRootReady = false),
         200, densityBase, 1.0f, false,
     )

@@ -10,7 +10,7 @@ import org.junit.Test
 /**
  * A failed external actuation must not resurrect the value it replaced.
  *
- * Touch sound persists intent before it actuates, so an MQTT command leaves newer durable truth behind
+ * Touch sound persists intent before it actuates, so an external command leaves newer durable truth behind
  * even when the actuation that follows fails. That failure throws, and the throw skips the supersession
  * step that normally retires the older queued HTTP value — so the stale value survives in the journal
  * and startup replay commits it back over the newer one. These cases drive the real

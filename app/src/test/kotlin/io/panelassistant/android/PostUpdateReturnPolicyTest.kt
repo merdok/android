@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PostUpdateReturnPolicyTest {
-    @Test fun builtInRendererIsReadyWithMqttDisabled() {
+    @Test fun builtInRendererIsReadyWithConfiguredUrl() {
         assertTrue(
             PostUpdateReturnPolicy.dashboardReady(
                 configuredRenderer = SystemController.BUILTIN_DASHBOARD,
@@ -28,7 +28,7 @@ class PostUpdateReturnPolicyTest {
         )
     }
 
-    @Test fun foreignRendererIsReadyWithMqttDisabled() {
+    @Test fun foreignRendererIsReadyWithoutAUrl() {
         assertTrue(
             PostUpdateReturnPolicy.dashboardReady(
                 configuredRenderer = "io.homeassistant.companion.android",

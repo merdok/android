@@ -364,7 +364,7 @@ class SettingsBehaviorContractTest {
         val keySamples = mapOf(
             "dashboard_network_warning" to "false",
             "panel_id" to "Contract Panel",
-            "mqtt_broker" to "tcp://192.0.2.1:1883",
+            "friendly_name" to "Panel",
             "ha_url" to "https://ha.example.test/",
             "home_dashboard" to "/lovelace/contract",
             "dashboard_package" to "io.github.maxlyth.hapaneld.BUILTIN",

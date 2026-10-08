@@ -1177,12 +1177,12 @@ class ScreenControllerTest {
      * A wake nobody here performed has to be adopted without a broker.
      *
      * On this route Android can be woken by its power key or a wake-capable touchscreen with ha-paneld
-     * uninvolved, and until this seam existed the only place that adopted such a wake was the MQTT
+     * uninvolved, and until this seam existed the only place that adopted such a wake was the legacy
      * sync tick. This test constructs no bridge, no broker and no publisher at all: if the recovery
      * needed any of them, the renderer would still be frozen at the end of it, which on a lit panel
      * means a stale dashboard nobody can tap.
      */
-    @Test fun physicalWakeIsAdoptedWithNoMqttInvolvement() {
+    @Test fun physicalWakeIsAdoptedWithNoBrokerInvolvement() {
         val awakeStates = mutableListOf<Boolean>()
         val listener: (Boolean) -> Unit = { awakeStates.add(it) }
         val (sc, _, _) = keyeventController()

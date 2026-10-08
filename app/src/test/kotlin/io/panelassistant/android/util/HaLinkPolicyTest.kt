@@ -55,13 +55,6 @@ class HaLinkPolicyTest {
         assertEquals(-1, target.indexOf('\u0000'))
     }
 
-    @Test fun `native and mqtt servers cannot share a cached device id`() {
-        val native = HaLink.resolutionTarget("https://native.example/ha", "panel")
-        val mqtt = HaLink.resolutionTarget("https://mqtt.example", "panel")
-
-        assertNotEquals(native, mqtt)
-    }
-
     @Test fun `stable panel identity wins over an earlier friendly name match`() {
         val response = """
             {"result":{"entities":[

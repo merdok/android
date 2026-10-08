@@ -1057,7 +1057,7 @@ class SystemControllerTest {
 
     @Test fun builtinReloadWithOwnPackageNameRoutesBuiltin() {
         // The navbar resolves the renderer to our own package name; the foreign-app path would
-        // `am force-stop` ha-paneld itself (killing service+MQTT+web UI). Own package = builtin.
+        // `am force-stop` ha-paneld itself (killing service+web UI). Own package = builtin.
         val (c, root, d) = sc(FakeSystemEnv(), daemon = mapOf("START $OWN/io.panelassistant.android.DashboardActivity" to "OK"))
         c.reloadDashboard(OWN)
         assertTrue("relaunch via START", d.sent.contains("START $OWN/io.panelassistant.android.DashboardActivity"))

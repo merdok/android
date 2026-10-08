@@ -234,10 +234,10 @@ class BootChimeControllerTest {
     }
 
     @Test fun `an unappliable OFF keeps the divergence visible instead of resolving it`() {
-        // Retiring a pending OFF was rejected because it strands divergent hardware, config and MQTT
+        // Retiring a pending OFF was rejected because it strands divergent hardware, config and published
         // state with nothing left to say so. The controller reports the absence and changes nothing:
         // the snapshot is retained for retry, config stays enabled, and isEnabled() — which is what the
-        // MQTT switch state publishes — still reads ON while the user's saved desired value is OFF.
+        // published switch state reads — still reads ON while the user's saved desired value is OFF.
         var configured = true
         val events = mutableListOf<String>()
         val store = FakeBootStore(events).apply { state = prior }
@@ -247,7 +247,7 @@ class BootChimeControllerTest {
         assertEquals(ControlApplyOutcome.UNAVAILABLE, controller.apply(false))
 
         assertTrue("config must not record a transition that did not happen", configured)
-        assertTrue("MQTT keeps publishing the panel's actual state", controller.isEnabled())
+        assertTrue("the published state keeps reporting the panel's actual state", controller.isEnabled())
         assertEquals("the snapshot is retained so a repaired panel can still restore", prior, store.state)
     }
 

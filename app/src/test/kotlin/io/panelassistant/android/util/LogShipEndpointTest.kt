@@ -181,7 +181,7 @@ class LogShipEndpointTest {
 
     @Test fun anUpdateTouchingNoAddressKeyStagesNothing() {
         // The caller skips staging entirely rather than rewriting fields nobody asked to change.
-        assertNull(canonical("log_ship_enabled" to "true", "mqtt_broker" to "tcp://broker"))
+        assertNull(canonical("log_ship_enabled" to "true", "friendly_name" to "Panel"))
         assertNull(LogShipEndpoint.canonicalUpdate(emptyMap(), "stored.lan", 514, SYSLOG_TCP))
     }
 
