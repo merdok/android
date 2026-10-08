@@ -26,7 +26,7 @@ class CatalogueTest(unittest.TestCase):
             source_path = root / "en.json"
             self.write(source_path, self.source())
             source = i18n.validate_source(source_path)
-            for locale, text in (("cs", "Ponechat {name} v MQTT."), ("pt-BR", "Manter {name} no MQTT.")):
+            for locale, text in (("cs", "Ponechat {name} v HTTP."), ("pt-BR", "Manter {name} no HTTP.")):
                 path = root / f"{locale}.json"
                 self.write(path, {
                     "schema": 1, "locale": locale, "sourceRevision": source["sourceRevision"],
@@ -39,10 +39,10 @@ class CatalogueTest(unittest.TestCase):
                     self.assertEqual(i18n.validate_target(path, source)["locale"], locale)
             for locale in ("pt", "pt-PT"):
                 with self.subTest(locale=locale), self.assertRaises(i18n.CatalogueError):
-                    i18n.validate_target_language("settings.example.help", "Manter {name} no MQTT.", locale, source["strings"]["settings.example.help"])
+                    i18n.validate_target_language("settings.example.help", "Manter {name} no HTTP.", locale, source["strings"]["settings.example.help"])
 
     def source(self):
-        text = "Keep {name} on MQTT."
+        text = "Keep {name} on HTTP."
         return {
             "schema": 1,
             "locale": "en",
@@ -56,7 +56,7 @@ class CatalogueTest(unittest.TestCase):
                     "risk": "ordinary",
                     "siblings": [],
                     "placeholders": ["{name}"],
-                    "frozen": ["MQTT"],
+                    "frozen": ["HTTP"],
                     "softMaxChars": 40,
                     "hardMaxChars": 80,
                 }
@@ -146,7 +146,7 @@ class CatalogueTest(unittest.TestCase):
             self.write(target_path, {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
-                    "text": "{name} auf MQTT behalten.",
+                    "text": "{name} auf HTTP behalten.",
                     "sourceHash": source["strings"]["settings.example.help"]["sourceHash"],
                     "state": "machine-draft",
                 }},
@@ -155,14 +155,14 @@ class CatalogueTest(unittest.TestCase):
             i18n.validate_target(target_path, parsed)
 
     def test_settings_help_translation_keeps_markup(self):
-        english = "Keep **{name}** on MQTT.\n\n- Use `mqtt://host` or [the guide](https://example.invalid/g)."
-        kept = "**{name}** auf MQTT behalten.\n\n- `mqtt://host` oder [die Anleitung](https://example.invalid/g) nutzen."
+        english = "Keep **{name}** on HTTP.\n\n- Use `http://host` or [the guide](https://example.invalid/g)."
+        kept = "**{name}** auf HTTP behalten.\n\n- `http://host` oder [die Anleitung](https://example.invalid/g) nutzen."
         broken = {
-            "bold dropped": "{name} auf MQTT behalten.\n\n- `mqtt://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
-            "code translated": "**{name}** auf MQTT behalten.\n\n- `mqtt://Rechner` oder [die Anleitung](https://example.invalid/g) nutzen.",
-            "link moved": "**{name}** auf MQTT behalten.\n\n- `mqtt://host` oder [die Anleitung](https://example.invalid/de) nutzen.",
-            "list flattened": "**{name}** auf MQTT behalten.\n\n`mqtt://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
-            "paragraphs joined": "**{name}** auf MQTT behalten.\n- `mqtt://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
+            "bold dropped": "{name} auf HTTP behalten.\n\n- `http://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
+            "code translated": "**{name}** auf HTTP behalten.\n\n- `http://Rechner` oder [die Anleitung](https://example.invalid/g) nutzen.",
+            "link moved": "**{name}** auf HTTP behalten.\n\n- `http://host` oder [die Anleitung](https://example.invalid/de) nutzen.",
+            "list flattened": "**{name}** auf HTTP behalten.\n\n`http://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
+            "paragraphs joined": "**{name}** auf HTTP behalten.\n- `http://host` oder [die Anleitung](https://example.invalid/g) nutzen.",
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -262,9 +262,9 @@ class CatalogueTest(unittest.TestCase):
             ),
             (
                 "settings.example.help",
-                "Keep MQTT connected.",
-                ["MQTT"],
-                "Зберігати повʼязане з’єднання MQTT.",
+                "Keep HTTP connected.",
+                ["HTTP"],
+                "Зберігати повʼязане з’єднання HTTP.",
             ),
             (
                 "settings.region.label",
@@ -314,7 +314,7 @@ class CatalogueTest(unittest.TestCase):
     def test_ukrainian_policy_checks_additions_to_token_only_sources(self):
         future_locales = {*i18n.LOCALES, "uk"}
         future_policies = {**i18n.TARGET_SCRIPT_POLICIES, "uk": "ukrainian-cyrillic"}
-        frozen_source = {"text": "MQTT", "placeholders": [], "frozen": ["MQTT"]}
+        frozen_source = {"text": "HTTP", "placeholders": [], "frozen": ["HTTP"]}
         placeholder_source = {
             "text": "{detail} · {health}",
             "placeholders": ["{detail}", "{health}"],
@@ -325,7 +325,7 @@ class CatalogueTest(unittest.TestCase):
             mock.patch.object(i18n, "TARGET_SCRIPT_POLICIES", future_policies),
         ):
             i18n.validate_target_language(
-                "settings.protocol.label", "MQTT", "uk", frozen_source
+                "settings.protocol.label", "HTTP", "uk", frozen_source
             )
             i18n.validate_target_language(
                 "settings.status.label",
@@ -334,7 +334,7 @@ class CatalogueTest(unittest.TestCase):
                 placeholder_source,
             )
             for source_record, target_text in (
-                (frozen_source, "Русский MQTT"),
+                (frozen_source, "Русский HTTP"),
                 (placeholder_source, "System {detail} · {health}"),
             ):
                 with (
@@ -350,12 +350,12 @@ class CatalogueTest(unittest.TestCase):
         future_policies = {**i18n.TARGET_SCRIPT_POLICIES, "uk": "ukrainian-cyrillic"}
         source = self.source()
         key = "settings.example.help"
-        diagnostic = "Raw diagnostic ru_RU from MQTT."
+        diagnostic = "Raw diagnostic ru_RU from HTTP."
         source["strings"][key].update({
             "text": diagnostic,
             "sourceHash": i18n.source_hash(diagnostic),
             "placeholders": [],
-            "frozen": ["MQTT"],
+            "frozen": ["HTTP"],
             "hardMaxChars": 80,
         })
         with tempfile.TemporaryDirectory() as directory:
@@ -465,7 +465,7 @@ class CatalogueTest(unittest.TestCase):
             self.write(target_path, {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
-                    "text": "Ohne Namen auf MQTT behalten.",
+                    "text": "Ohne Namen auf HTTP behalten.",
                     "sourceHash": source["strings"]["settings.example.help"]["sourceHash"],
                     "state": "machine-cross-checked",
                 }},
@@ -475,12 +475,12 @@ class CatalogueTest(unittest.TestCase):
 
             target = json.loads(target_path.read_text(encoding="utf-8"))
             record = target["strings"]["settings.example.help"]
-            record["text"] = "{name} auf MQTT MQTT behalten."
+            record["text"] = "{name} auf HTTP HTTP behalten."
             self.write(target_path, target)
             with self.assertRaises(i18n.CatalogueError):
                 i18n.validate_target(target_path, i18n.validate_source(source_path))
 
-            record["text"] = "{name} auf MQTT behalten."
+            record["text"] = "{name} auf HTTP behalten."
             record["state"] = "english-fallback"
             self.write(target_path, target)
             with self.assertRaises(i18n.CatalogueError):
@@ -497,7 +497,7 @@ class CatalogueTest(unittest.TestCase):
                 "targetLocale": "de",
                 "sourceRevision": "e" * 40,
                 "sourceCatalogueHash": source_hash,
-                "translations": [{"key": "settings.example.help", "translation": "{name} auf MQTT behalten."}],
+                "translations": [{"key": "settings.example.help", "translation": "{name} auf HTTP behalten."}],
             })
             i18n.candidate_to_target(source_path, candidate_path, output)
             target = json.loads(output.read_text(encoding="utf-8"))
@@ -566,7 +566,7 @@ class CatalogueTest(unittest.TestCase):
                 "schema": 1, "targetLocale": "de", "sourceRevision": "e" * 40,
                 "sourceCatalogueHash": i18n.hashlib.sha256(source_path.read_bytes()).hexdigest(),
                 "translations": [{
-                    "key": "settings.example.help", "translation": "{name} auf MQTT behalten.",
+                    "key": "settings.example.help", "translation": "{name} auf HTTP behalten.",
                 }],
             })
             base_before = json.loads(base_path.read_text(encoding="utf-8"))
@@ -581,7 +581,7 @@ class CatalogueTest(unittest.TestCase):
 
             protected = json.loads(base_path.read_text(encoding="utf-8"))
             protected["strings"]["settings.example.help"]["sourceHash"] = source["strings"]["settings.example.help"]["sourceHash"]
-            protected["strings"]["settings.example.help"]["text"] = "{name} auf MQTT behalten."
+            protected["strings"]["settings.example.help"]["text"] = "{name} auf HTTP behalten."
             self.write(base_path, protected)
             with self.assertRaises(i18n.CatalogueError):
                 i18n.merge_candidate(source_path, base_path, candidate_path, output)
@@ -605,7 +605,7 @@ class CatalogueTest(unittest.TestCase):
                 "hardMaxChars": 80,
             }
             source["strings"] = dict(sorted(source["strings"].items()))
-            current_text = "{name} auf MQTT behalten."
+            current_text = "{name} auf HTTP behalten."
             base = {
                 "schema": 1,
                 "locale": "de",
@@ -624,7 +624,7 @@ class CatalogueTest(unittest.TestCase):
                 },
             }
             worktree, source_path, base_path = self.committed_catalogues(root, source, "de", base)
-            replacement_path.write_text("{name} in MQTT beibehalten.\n", encoding="utf-8")
+            replacement_path.write_text("{name} in HTTP beibehalten.\n", encoding="utf-8")
 
             i18n.apply_community_correction(
                 worktree,
@@ -642,7 +642,7 @@ class CatalogueTest(unittest.TestCase):
             self.assertEqual(source["sourceRevision"], result["sourceRevision"])
             self.assertEqual(
                 {
-                    "text": "{name} in MQTT beibehalten.",
+                    "text": "{name} in HTTP beibehalten.",
                     "sourceHash": source["strings"]["settings.example.help"]["sourceHash"],
                     "state": "community-corrected",
                 },
@@ -654,7 +654,7 @@ class CatalogueTest(unittest.TestCase):
             report = i18n.catalogue_report(source_path, [output])
             self.assertEqual(1, report["locales"]["de"]["stateCounts"]["community-corrected"])
 
-            replacement_path.write_bytes(b"{name} in MQTT beibehalten.\r\n")
+            replacement_path.write_bytes(b"{name} in HTTP beibehalten.\r\n")
             crlf_output = root / "out" / "de-crlf.json"
             i18n.apply_community_correction(
                 worktree,
@@ -668,21 +668,21 @@ class CatalogueTest(unittest.TestCase):
                 crlf_output,
             )
             self.assertEqual(
-                "{name} in MQTT beibehalten.",
+                "{name} in HTTP beibehalten.",
                 json.loads(crlf_output.read_text(encoding="utf-8"))["strings"]["settings.example.help"]["text"],
             )
 
     def test_apply_community_correction_fails_closed_for_stale_or_invalid_input(self):
         invalid_replacements = {
-            "placeholder": "Ohne Namen auf MQTT behalten.",
+            "placeholder": "Ohne Namen auf HTTP behalten.",
             "frozen": "{name} ohne Broker behalten.",
-            "hard budget": "{name} auf MQTT behalten. " + "x" * 80,
-            "script": "{name} auf MQTT behalten. Ελληνικά",
-            "NUL control": "{name} auf MQTT behalten.\x00",
-            "bidi override": "{name} auf MQTT behalten.\u202e",
-            "embedded newline": "{name} auf\nMQTT behalten.",
-            "double terminal newline": "{name} auf MQTT behalten.\n\n",
-            "bare terminal carriage return": "{name} auf MQTT behalten.\r",
+            "hard budget": "{name} auf HTTP behalten. " + "x" * 80,
+            "script": "{name} auf HTTP behalten. Ελληνικά",
+            "NUL control": "{name} auf HTTP behalten.\x00",
+            "bidi override": "{name} auf HTTP behalten.\u202e",
+            "embedded newline": "{name} auf\nHTTP behalten.",
+            "double terminal newline": "{name} auf HTTP behalten.\n\n",
+            "bare terminal carriage return": "{name} auf HTTP behalten.\r",
             "empty": "",
         }
         for name, replacement in invalid_replacements.items():
@@ -690,7 +690,7 @@ class CatalogueTest(unittest.TestCase):
                 root = Path(directory)
                 replacement_path, output = root / "replacement.txt", root / "out" / "de.json"
                 source = self.source()
-                current_text = "{name} auf MQTT behalten."
+                current_text = "{name} auf HTTP behalten."
                 base = {
                     "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                     "strings": {"settings.example.help": {
@@ -715,7 +715,7 @@ class CatalogueTest(unittest.TestCase):
             root = Path(directory)
             replacement_path, output = root / "replacement.txt", root / "corrected.json"
             source = self.source()
-            current_text = "{name} auf MQTT behalten."
+            current_text = "{name} auf HTTP behalten."
             base = {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
@@ -725,7 +725,7 @@ class CatalogueTest(unittest.TestCase):
                 }},
             }
             worktree, source_path, base_path = self.committed_catalogues(root, source, "de", base)
-            replacement_path.write_text("{name} in MQTT beibehalten.", encoding="utf-8")
+            replacement_path.write_text("{name} in HTTP beibehalten.", encoding="utf-8")
             valid_args = (
                 worktree, source_path, base_path, "de", "settings.example.help",
                 source["strings"]["settings.example.help"]["sourceHash"],
@@ -765,7 +765,7 @@ class CatalogueTest(unittest.TestCase):
                 source = self.source()
                 if case == "oversized":
                     source["strings"]["settings.example.help"]["hardMaxChars"] = 20_000
-                current_text = "{name} auf MQTT behalten."
+                current_text = "{name} auf HTTP behalten."
                 target = {
                     "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                     "strings": {"settings.example.help": {
@@ -780,8 +780,8 @@ class CatalogueTest(unittest.TestCase):
                 worktree, source_path, base_path = self.committed_catalogues(root, source, "de", target)
                 replacement_path, output = root / "replacement.txt", root / "corrected.json"
                 replacement = (
-                    "{name} auf MQTT " + "x" * 16_384
-                    if case == "oversized" else "{name} in MQTT beibehalten."
+                    "{name} auf HTTP " + "x" * 16_384
+                    if case == "oversized" else "{name} in HTTP beibehalten."
                 )
                 replacement_path.write_text(replacement, encoding="utf-8")
                 expected_error = {
@@ -800,7 +800,7 @@ class CatalogueTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = self.source()
-            current_text = "{name} auf MQTT behalten."
+            current_text = "{name} auf HTTP behalten."
             target = {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
@@ -811,7 +811,7 @@ class CatalogueTest(unittest.TestCase):
             }
             worktree, source_path, base_path = self.committed_catalogues(root, source, "de", target)
             replacement_path, output = root / "replacement.txt", root / "corrected.json"
-            replacement_path.write_text("{name} in MQTT beibehalten.", encoding="utf-8")
+            replacement_path.write_text("{name} in HTTP beibehalten.", encoding="utf-8")
             target["sourceRevision"] = "a" * 40
             self.write(base_path, target)
             with self.assertRaisesRegex(i18n.CatalogueError, "clean committed worktree"):
@@ -825,7 +825,7 @@ class CatalogueTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = self.source()
-            current_text = "{name} auf MQTT behalten."
+            current_text = "{name} auf HTTP behalten."
             target = {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
@@ -838,7 +838,7 @@ class CatalogueTest(unittest.TestCase):
             replacement_path = root / "replacement.txt"
             output = root / "out" / "de.json"
             old_staging = output.parent / ".de.json.validation"
-            replacement_path.write_text("{name} in MQTT beibehalten.", encoding="utf-8")
+            replacement_path.write_text("{name} in HTTP beibehalten.", encoding="utf-8")
             old_staging.parent.mkdir(parents=True)
             old_staging.write_text("unrelated marker", encoding="utf-8")
             command = [
@@ -882,10 +882,10 @@ class CatalogueTest(unittest.TestCase):
                 self.requested = size
                 return super().read(size)
 
-        content = RecordingBytes(b"{name} auf MQTT behalten.\n")
+        content = RecordingBytes(b"{name} auf HTTP behalten.\n")
         with mock.patch.object(Path, "open", return_value=content):
             self.assertEqual(
-                "{name} auf MQTT behalten.",
+                "{name} auf HTTP behalten.",
                 i18n.read_community_replacement(Path("unused"), "settings.example.help"),
             )
         self.assertEqual(i18n.MAX_REPLACEMENT_FILE_BYTES + 1, content.requested)
@@ -901,7 +901,7 @@ class CatalogueTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = self.source()
-            current_text = "{name} auf MQTT behalten."
+            current_text = "{name} auf HTTP behalten."
             target = {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
@@ -912,7 +912,7 @@ class CatalogueTest(unittest.TestCase):
             }
             worktree, source_path, base_path = self.committed_catalogues(root, source, "de", target)
             replacement_path, output = root / "replacement.txt", root / "corrected.json"
-            replacement_path.write_text("{name} in MQTT beibehalten.\n", encoding="utf-8")
+            replacement_path.write_text("{name} in HTTP beibehalten.\n", encoding="utf-8")
 
             def racing_link(_source, destination):
                 Path(destination).write_text("concurrent winner", encoding="utf-8")
@@ -979,7 +979,7 @@ class CatalogueTest(unittest.TestCase):
             target = {
                 "schema": 1, "locale": "zh-Hans", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
-                    "text": "在 MQTT 上 keep {name}。",
+                    "text": "在 HTTP 上 keep {name}。",
                     "sourceHash": source["strings"]["settings.example.help"]["sourceHash"],
                     "state": "machine-draft",
                 }},
@@ -987,14 +987,14 @@ class CatalogueTest(unittest.TestCase):
             self.write(target_path, target)
             with self.assertRaises(i18n.CatalogueError):
                 i18n.validate_target(target_path, i18n.validate_source(source_path))
-            target["strings"]["settings.example.help"]["text"] = "在 MQTT 上保留 {name}。"
+            target["strings"]["settings.example.help"]["text"] = "在 HTTP 上保留 {name}。"
             self.write(target_path, target)
             i18n.validate_target(target_path, i18n.validate_source(source_path))
-            target["strings"]["settings.example.help"]["text"] = "在 MQTT 上自动 This {name}。"
+            target["strings"]["settings.example.help"]["text"] = "在 HTTP 上自动 This {name}。"
             self.write(target_path, target)
             with self.assertRaises(i18n.CatalogueError):
                 i18n.validate_target(target_path, i18n.validate_source(source_path))
-            target["strings"]["settings.example.help"]["text"] = "{name} on MQTT."
+            target["strings"]["settings.example.help"]["text"] = "{name} on HTTP."
             self.write(target_path, target)
             with self.assertRaises(i18n.CatalogueError):
                 i18n.validate_target(target_path, i18n.validate_source(source_path))
@@ -1008,7 +1008,7 @@ class CatalogueTest(unittest.TestCase):
             self.write(target_path, {
                 "schema": 1, "locale": "de", "sourceRevision": "e" * 40,
                 "strings": {"settings.example.help": {
-                    "text": "{name} auf MQTT behalten. Ελληνικά",
+                    "text": "{name} auf HTTP behalten. Ελληνικά",
                     "sourceHash": source["strings"]["settings.example.help"]["sourceHash"],
                     "state": "machine-draft",
                 }},
@@ -1294,17 +1294,17 @@ class CatalogueTest(unittest.TestCase):
     def test_install_information_symbol_exception_is_exact_and_key_scoped(self):
         key = "install.presentation.status_no_renderer"
         source_record = {
-            "text": "ℹ MQTT is configured.",
+            "text": "ℹ HTTP is configured.",
             "placeholders": [],
-            "frozen": ["MQTT"],
+            "frozen": ["HTTP"],
         }
         targets = {
-            "cs": "ℹ MQTT je nakonfigurováno.",
-            "de": "ℹ MQTT ist konfiguriert.",
-            "es": "ℹ MQTT está configurado.",
-            "fr": "ℹ MQTT est configuré.",
-            "it": "ℹ MQTT è configurato.",
-            "zh-Hans": "ℹ MQTT 已配置。",
+            "cs": "ℹ HTTP je nakonfigurováno.",
+            "de": "ℹ HTTP ist konfiguriert.",
+            "es": "ℹ HTTP está configurado.",
+            "fr": "ℹ HTTP est configuré.",
+            "it": "ℹ HTTP è configurato.",
+            "zh-Hans": "ℹ HTTP 已配置。",
         }
         for locale, text in targets.items():
             pair = (locale, key)
