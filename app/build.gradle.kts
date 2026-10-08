@@ -501,8 +501,6 @@ val unitTestRuntimeReadFiles = listOf(
     "src/test/resources/panel-assistant-contract/android_producer_v1.json", // producer recorder reads the checked-in corpus
     "../settings.gradle.kts",
     "../gradle/libs.versions.toml",
-    "../docs/api.md",
-    "../docs/built-in-renderer.md",
     "../helper/Makefile", // the socket test server recipe, with the three test sources below
     "../helper/source-id.sh",
     "../helper/test/socket_server.c",
