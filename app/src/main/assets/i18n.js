@@ -101,6 +101,35 @@
   });
 })(window);
 
+// One advisory row, the twin of Notice.kt's notice(): fill(node, severity, title, detail, action) redraws
+// an existing row in place (the shell bars keep their ids); row(...) makes a new one. title and detail are
+// text or a Node; action is a Node. severity is a data-severity word ("warning", "action_needed", ...);
+// word overrides the pill text (the restart row keeps Stopping/Starting/Reloading).
+window.HaNotice = (function () {
+  var WORDS = { action_needed: "Action needed", warning: "Warning", working: "Working", update: "Update", note: "Note", unavailable: "Unavailable", resolved: "Resolved" };
+  function part(tag, cls, content) {
+    var el = document.createElement(tag); el.className = cls;
+    if (content != null && typeof content === "object") el.appendChild(content); else el.textContent = String(content);
+    return el;
+  }
+  function fill(node, severity, title, detail, action, word) {
+    node.className = "notice"; node.setAttribute("data-severity", severity); node.textContent = "";
+    node.appendChild(part("span", "notice-pill", word || window.HaI18n.t("shell.notice.severity." + severity, WORDS[severity] || severity)));
+    var text = part("span", "notice-text", "");
+    var hasTitle = title != null && title !== "", hasDetail = detail != null && detail !== "";
+    if (hasTitle) text.appendChild(part("b", "notice-title", title));
+    if (hasTitle && hasDetail) text.appendChild(document.createTextNode(" "));
+    if (hasDetail) text.appendChild(part("span", "notice-detail", detail));
+    node.appendChild(text);
+    if (action) node.appendChild(part("span", "notice-action", action));
+    return node;
+  }
+  return Object.freeze({
+    fill: fill,
+    row: function (severity, title, detail, action, word) { return fill(document.createElement("div"), severity, title, detail, action, word); }
+  });
+})();
+
 // The resolved value of a tools/tokens/tokens.json web token, for canvas drawing and colour arithmetic,
 // which cannot take var(): cssToken("chart-cpu") gives "#4a9eff", spelled as tokens.json writes it.
 window.cssToken = function (name) {

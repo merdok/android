@@ -37788,6 +37788,139 @@
       "softMaxChars": 32,
       "hardMaxChars": 64
     },
+    "shell.notice.severity.action_needed": {
+      "text": "Action needed",
+      "sourceHash": "f6b44079c1c82081b2511dc5e6de8a7c72408d3f807e6deddf73d8eb0df0c252",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.note",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.update",
+        "shell.notice.severity.warning",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.note": {
+      "text": "Note",
+      "sourceHash": "d8da2c49df39d91df7ecd199b92da7bf264f026242ccc69b08daeadfe587c45b",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.update",
+        "shell.notice.severity.warning",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.resolved": {
+      "text": "Resolved",
+      "sourceHash": "5be3c2c8354e1eb924b03a3dcc7fa4172e9aa0f4917b46b44fcc7daf8835d7a7",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.note",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.update",
+        "shell.notice.severity.warning",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.unavailable": {
+      "text": "Unavailable",
+      "sourceHash": "ca184496974204a0bd3fd4925e0540bc4b0df6fcc232994d29754272b7183812",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.note",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.update",
+        "shell.notice.severity.warning",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.update": {
+      "text": "Update",
+      "sourceHash": "c1c1009d3f37ec058070a62e22caf9ac9dae2169d452487c5c271a8bcf57a291",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.note",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.warning",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.warning": {
+      "text": "Warning",
+      "sourceHash": "e981ddae45d8f4ca53f1ccbe613ad254a041dacf65a06026099a6302d332113b",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.note",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.update",
+        "shell.notice.severity.working"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
+    "shell.notice.severity.working": {
+      "text": "Working",
+      "sourceHash": "a92f0449a9f7235bf69dc2e8ff7070bfae3f00ec8f8f26e5457a9beac53466ac",
+      "surface": "shell",
+      "context": "Severity word in the pill that starts every advisory row on the panel web pages; one or two words, sentence case.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.notice.severity.action_needed",
+        "shell.notice.severity.note",
+        "shell.notice.severity.resolved",
+        "shell.notice.severity.unavailable",
+        "shell.notice.severity.update",
+        "shell.notice.severity.warning"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 16,
+      "hardMaxChars": 24
+    },
     "shell.open_in_ha": {
       "text": "Open in HA",
       "sourceHash": "5dd303715b690c9ae7eee858506460c7b6aad6f57cb148b71d916186b435f51e",
