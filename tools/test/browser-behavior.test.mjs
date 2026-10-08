@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { chromium, webkit } from 'playwright-core';
 import { i18nBridge } from './fixtures/i18n-bridge.mjs';
+import { initialScreenshot, freshScreenshot } from './fixtures/screenshot-images.mjs';
 
 const root = join(process.cwd(), '..', '..', 'app', 'src', 'main', 'assets');
 const chrome = process.env.CHROME || '/usr/bin/chromium';
@@ -910,11 +911,10 @@ async function requestBody(request) {
 
 function screenshotRoutes(options = {}) {
   const calls = options.calls || [];
-  const initial = readFile(join(process.cwd(), '..', '..', 'docs', 'img', 'ui-dashboard-dark.png'));
-  const fresh = readFile(join(process.cwd(), '..', '..', 'docs', 'img', 'icon.png'));
+  const fresh = freshScreenshot;
   return async (path, request) => {
     if (path === '/info.css') return { headers: { 'content-type': 'text/css' }, body: await readFile(join(root, 'info.css')) };
-    if (path === '/initial.png') return { headers: { 'content-type': 'image/png' }, body: await initial };
+    if (path === '/initial.png') return { headers: { 'content-type': 'image/png' }, body: initialScreenshot };
     if (path === '/api/v1/input') {
       calls.push({ method: request.method, path, body: await requestBody(request), contentType: request.headers['content-type'] });
       if (options.input) return options.input(path, request, fresh);
@@ -2400,7 +2400,7 @@ browserTest('Configure reconciles structured partial failure instead of blindly 
 
 browserTest('An older background capture cannot overwrite the post-tap screenshot', async (t) => {
   const calls = [];
-  const oldCapture = readFile(join(process.cwd(), '..', '..', 'docs', 'img', 'ui-dashboard-dark.png'));
+  const oldCapture = initialScreenshot;
   const harness = await startHarness(screenshotRoutes({ calls, screenshot: async () => {
     await new Promise((resolve) => setTimeout(resolve, 350));
     return { status: 200, headers: { 'content-type': 'image/png' }, body: await oldCapture };
