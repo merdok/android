@@ -31,9 +31,17 @@ internal class RendererScreenHold<V : Any>(
 
     private var listener: (() -> Unit)? = null
 
+    // Last value given to the window: [apply] runs on every poll tick of a screen-timeout wait, and
+    // each Window flag write is a relayout round trip even when nothing changes.
+    private var windowKeepScreenOn: Boolean? = null
+
     fun apply() {
         val released = BuiltinDashboard.keepScreenOnReleased
-        setWindowKeepScreenOn(shouldKeepBuiltInRendererScreenOn(preventIdleDim(), released))
+        val keep = shouldKeepBuiltInRendererScreenOn(preventIdleDim(), released)
+        if (keep != windowKeepScreenOn) {
+            setWindowKeepScreenOn(keep)
+            windowKeepScreenOn = keep
+        }
         if (released) {
             var cleared = 0
             forEachView { view ->
