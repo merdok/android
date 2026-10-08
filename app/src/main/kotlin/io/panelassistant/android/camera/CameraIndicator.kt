@@ -1,5 +1,6 @@
 package io.panelassistant.android.camera
 
+import io.panelassistant.android.PanelTokens
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -399,7 +400,7 @@ class CameraIndicator(
 
     /** A red disc with a white ring: legible at walking-past distance, unmistakable as "recording". */
     private class IndicatorView(context: Context, private val lensOffsetPx: Int) : View(context) {
-        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(220, 30, 30) }
+        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PanelTokens.Overlay.CAMERA_RECORDING }
         private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             style = Paint.Style.STROKE

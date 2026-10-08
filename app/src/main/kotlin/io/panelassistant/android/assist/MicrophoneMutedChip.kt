@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.doOnPreDraw
 import io.panelassistant.android.Config
+import io.panelassistant.android.PanelTokens
 import io.panelassistant.android.haNetworkChipTextSizePx
 import io.panelassistant.android.i18n.CatalogueLoader
 
@@ -98,7 +99,7 @@ internal class MicrophoneMutedChip private constructor(
                 background = GradientDrawable().apply {
                     cornerRadius = CORNER_DP * density
                     // Opaque, as the network chip is: the dashboard behind it is arbitrary.
-                    setColor(if (dark) Color.parseColor("#202124") else Color.parseColor("#F1F3F4"))
+                    setColor((if (dark) PanelTokens.Chip.DARK else PanelTokens.Chip.LIGHT).quietSurface)
                 }
                 elevation = 6 * density
                 isClickable = false

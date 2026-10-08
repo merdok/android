@@ -24,18 +24,14 @@ import io.panelassistant.android.sensors.HaNetworkPathSeverity
  * Decide the chip's text size for a display, in pixels.
  *
  * Pure and Android-free so it is assertable without inflating a view — unit-tested in
- * `HaNetworkChipSizingTest`. A fraction of the shortest edge suits the 480x480 panels; past the
- * baseline panel the fraction would keep growing while the reader does not move closer, so it is
- * capped at the logical dp the baseline yields, scaled by [density] so a density override is honoured.
+ * `HaNetworkChipSizingTest`. The baseline size follows [PanelTokens.scale]: it grows with a small
+ * panel and stops at the display density, because the reader does not move closer to a bigger screen.
  */
-internal fun haNetworkChipTextSizePx(shortestEdgePx: Float, density: Float): Float {
-    val scale = if (density > 0f) density else 1f
-    return minOf(shortestEdgePx * HA_NETWORK_CHIP_TEXT_FRACTION, HA_NETWORK_CHIP_MAX_TEXT_DP * scale)
-}
+internal fun haNetworkChipTextSizePx(shortestEdgePx: Float, density: Float): Float =
+    HA_NETWORK_CHIP_TEXT_PX * PanelTokens.scale(shortestEdgePx, density)
 
-private const val HA_NETWORK_CHIP_TEXT_FRACTION = 0.04f
-private const val HA_NETWORK_CHIP_BASELINE_EDGE_PX = 480f
-private const val HA_NETWORK_CHIP_MAX_TEXT_DP = HA_NETWORK_CHIP_BASELINE_EDGE_PX * HA_NETWORK_CHIP_TEXT_FRACTION
+/** The chip's text on the baseline panel: 4% of its 480px edge. */
+private const val HA_NETWORK_CHIP_TEXT_PX = 19.2f
 
 /** One presentation-only decision shared across WebView rebuilds in this process. */
 internal class HaNetworkChipVisibility {
@@ -158,13 +154,12 @@ internal class HaNetworkChip private constructor(
          * two native notices speak one colour language. Opaque per theme for the same reason it is:
          * the surface behind is an arbitrary dashboard and a translucent wash has unpredictable contrast.
          */
-        private fun palette(severity: HaNetworkPathSeverity, dark: Boolean): Palette = when (severity) {
-            HaNetworkPathSeverity.SEVERE -> if (dark)
-                Palette(Color.parseColor("#2E1A1D"), Color.parseColor("#D8474D"), Color.parseColor("#FBEBEC"))
-            else Palette(Color.parseColor("#FDECEE"), Color.parseColor("#B4292F"), Color.parseColor("#3F1114"))
-            else -> if (dark)
-                Palette(Color.parseColor("#2A2418"), Color.parseColor("#D2951F"), Color.parseColor("#FAF2E2"))
-            else Palette(Color.parseColor("#FDF6E7"), Color.parseColor("#A5741A"), Color.parseColor("#3A2A08"))
+        private fun palette(severity: HaNetworkPathSeverity, dark: Boolean): Palette {
+            val t = if (dark) PanelTokens.Chip.DARK else PanelTokens.Chip.LIGHT
+            return when (severity) {
+                HaNetworkPathSeverity.SEVERE -> Palette(t.severeSurface, t.severeBorder, t.severeLabel)
+                else -> Palette(t.warningSurface, t.warningBorder, t.warningLabel)
+            }
         }
 
         private const val BORDER_DP = 2

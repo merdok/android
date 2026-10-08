@@ -100,3 +100,9 @@
     pageFailure: pageFailure
   });
 })(window);
+
+// The resolved value of a tools/tokens/tokens.json web token, for canvas drawing and colour arithmetic,
+// which cannot take var(): cssToken("chart-cpu") gives "#4a9eff", spelled as tokens.json writes it.
+window.cssToken = function (name) {
+  return getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
+};

@@ -1,5 +1,6 @@
 package io.panelassistant.android.assist
 
+import io.panelassistant.android.PanelTokens
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
@@ -17,7 +18,7 @@ internal object VoiceAttention {
     private const val CHIME_TAIL_NS = 100_000_000L
 
     /** Before Home Assistant has assigned any, and for a wake word it has not coloured. */
-    const val DEFAULT_COLOR = 0xFF00FF88.toInt()
+    const val DEFAULT_COLOR = PanelTokens.Overlay.VOICE_ATTENTION
 
     /** Set by the dashboard while it is resumed, so the ripple is drawn in its own window. */
     @Volatile

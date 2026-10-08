@@ -154,6 +154,8 @@ jobs:
         run: |
           find app/src/main/assets -type f -name '*.js' -print0 | xargs -0 -n1 node --check
           find app/src/main/assets -type f -name '*.json' -print0 | xargs -0 -n1 node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))'
+          # Every colour and the scale rule come from tools/tokens/tokens.json; fail when a generated copy lags it.
+          python3 tools/tokens/tokens.py --check
 
       - name: Set up Node.js for the embedded profile editor
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

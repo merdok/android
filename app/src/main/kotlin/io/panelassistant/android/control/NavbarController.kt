@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.PanelTokens
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -1043,7 +1044,7 @@ class NavbarController(
 
     private fun overlayType(): Int = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
-    private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density).toInt()
+    private fun dp(v: Int): Int = PanelTokens.dp(v, context.resources.displayMetrics.density)
 
     private fun normalise(m: String): String =
         MODES.firstOrNull { it.equals(m.trim().trim('"'), ignoreCase = true) } ?: MODE_OFF
@@ -1076,8 +1077,8 @@ class NavbarController(
         private const val OVERSCAN_RECOVERY_FILE = "navbar-overscan-reset-pending"
         private const val ICON_SIZE_DP = 30    // fixed icon size, centred in its cell (uniform across all buttons)
         private const val TIGHTEN = 0.65f      // triple-member cell weight vs nav's 1.0 → ~35% tighter spacing
-        private val BAR_BG = 0xC2282C34.toInt() // charcoal @ ~76% — translucent but still reads solid
-        private val PRESS_TINT = 0x55FFFFFF.toInt() // press-feedback flash (~33% white)
+        private val BAR_BG = PanelTokens.Overlay.NAVBAR_BAR
+        private val PRESS_TINT = PanelTokens.Overlay.NAVBAR_PRESS
         private const val AUTO_HIDE_MS = 5000L  // +25% over 4000 — 4s felt too brief in use
         private const val ANIM_MS = 220L       // swipe-reveal slide in/out duration
         private const val VALUE_WIDTH_THRESHOLD_DP = 600 // wide panels (TPA10) get the % readout; square NSPanels don't
@@ -1085,7 +1086,7 @@ class NavbarController(
         private const val BRIGHT_STEP = 32     // brightness (0–255) per tap ≈ 12.5%
         private const val REPEAT_DELAY_MS = 400L     // hold this long before ramping starts
         private const val REPEAT_INTERVAL_MS = 120L  // then step every this often while held
-        private val SEP_COLOR = 0x99FFFFFF.toInt()   // 60% white group divider — clearly visible
+        private val SEP_COLOR = PanelTokens.Overlay.NAVBAR_SEPARATOR
         private const val SEP_WIDTH_DP = 2
         private const val SEP_HEIGHT_DP = 30
         private const val SEP_MARGIN_DP = 7          // gap each side of the group divider
@@ -1097,7 +1098,7 @@ class NavbarController(
         private const val SLIDER_GAP_DP = 6          // gap between the pop-up and the bar's top edge
         private const val SLIDER_RADIUS_DP = 14
         private const val SLIDER_IDLE_MS = 3000L     // auto-close after this long with no interaction
-        private val SLIDER_TRACK_COLOR = 0x55FFFFFF.toInt() // unfilled track (~33% white)
+        private val SLIDER_TRACK_COLOR = PanelTokens.Overlay.NAVBAR_SLIDER_TRACK
     }
 }
 

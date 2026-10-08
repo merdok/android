@@ -130,9 +130,9 @@ class ProximityWizardActivity : AppCompatActivity() {
     private lateinit var countdownRing: ProximityCountdownView
     private lateinit var rawNumberFormat: NumberFormat
     private lateinit var layoutSpec: ProximityWizardLayoutSpec
-    private val backgroundColor = Color.rgb(14, 23, 37)
-    private val bodyColor = Color.rgb(243, 247, 255)
-    private val accentColor = Color.rgb(133, 186, 255)
+    private val backgroundColor = PanelTokens.Proximity.BACKGROUND
+    private val bodyColor = PanelTokens.Proximity.BODY
+    private val accentColor = PanelTokens.Proximity.ACCENT
 
     private val poll = object : Runnable {
         override fun run() {
@@ -169,7 +169,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         }
     }
 
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int) = PanelTokens.dp(value, resources.displayMetrics.density)
 
     private fun buildUi() {
         val landscape = layoutSpec.mode == ProximityWizardLayoutMode.LANDSCAPE
@@ -195,7 +195,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         }
         root.addView(label(20f, true).apply {
             setText(R.string.proximity_wizard_title)
-            setTextColor(Color.rgb(161, 187, 220))
+            setTextColor(PanelTokens.Proximity.TITLE)
             letterSpacing = 0.06f
         }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(if (compact) 10 else 20) })
         instruction = label(if (compact) 34f else 40f, true).apply {
@@ -205,7 +205,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         detail = label(26f)
         rawLabel = label(if (compactSquare) 18f else 22f, true).apply {
             setText(R.string.proximity_wizard_raw_label)
-            setTextColor(Color.rgb(169, 190, 219))
+            setTextColor(PanelTokens.Proximity.CAPTION)
             letterSpacing = 0.04f
         }
         rawValue = label(layoutSpec.rawValueSp, true).apply {
@@ -219,7 +219,7 @@ class ProximityWizardActivity : AppCompatActivity() {
             setText(R.string.proximity_wizard_raw_waiting)
             gravity = if (compactSquare) Gravity.START else Gravity.CENTER_HORIZONTAL
         }
-        mode = label(24f).apply { setTextColor(Color.rgb(179, 200, 228)) }
+        mode = label(24f).apply { setTextColor(PanelTokens.Proximity.MODE) }
         progress = label(24f, true).apply { setTextColor(accentColor) }
         indicator = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             progressTintList = ColorStateList.valueOf(accentColor)
@@ -229,7 +229,7 @@ class ProximityWizardActivity : AppCompatActivity() {
         cadence = label(56f, true).apply { gravity = Gravity.CENTER }
         cadenceLabel = label(24f).apply {
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(169, 190, 219))
+            setTextColor(PanelTokens.Proximity.CAPTION)
         }
         countdownRing = ProximityCountdownView(this)
         val clock = FrameLayout(this).apply {
@@ -310,13 +310,13 @@ class ProximityWizardActivity : AppCompatActivity() {
             val shape = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
                 setColor(if (filled) accentColor else Color.TRANSPARENT)
-                setStroke(dp(1), if (filled) accentColor else Color.rgb(97, 120, 147))
+                setStroke(dp(1), if (filled) accentColor else PanelTokens.Proximity.ACTION_OUTLINE)
             }
             backgroundTintList = null
-            background = RippleDrawable(ColorStateList.valueOf(Color.argb(50, 243, 247, 255)), shape, null)
+            background = RippleDrawable(ColorStateList.valueOf(PanelTokens.Proximity.ACTION_RIPPLE), shape, null)
             setTextColor(ColorStateList(
                 arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
-                intArrayOf(Color.rgb(104, 124, 151), if (filled) Color.rgb(8, 33, 67) else bodyColor),
+                intArrayOf(PanelTokens.Proximity.ACTION_DISABLED_TEXT, if (filled) PanelTokens.Proximity.ACTION_FILLED_TEXT else bodyColor),
             ))
         }
         cancel = button(false).apply {
@@ -521,9 +521,9 @@ class ProximityWizardActivity : AppCompatActivity() {
         )
         countdownRing.present(
             snapshot.optLong("cueRemainingMs"), snapshot.optLong("cueDurationMs"),
-            if (cue == ProximityWizardCue.WAVE) Color.rgb(200, 173, 255) else accentColor,
+            if (cue == ProximityWizardCue.WAVE) PanelTokens.Proximity.WAVE else accentColor,
         )
-        cadence.setTextColor(if (cue == ProximityWizardCue.WAVE) Color.rgb(227, 213, 255) else bodyColor)
+        cadence.setTextColor(if (cue == ProximityWizardCue.WAVE) PanelTokens.Proximity.WAVE_TEXT else bodyColor)
         cadence.text = countdown?.toString() ?: getString(R.string.proximity_wizard_waiting_symbol)
         cadenceLabel.setText(when {
             countdown == null -> R.string.proximity_wizard_observing

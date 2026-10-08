@@ -85,7 +85,7 @@
     var label = el("label", null, labelText);
     if (parameter.description) {
       var description = el("span", null, " — " + parameter.description, "en");
-      description.style.color = "#667";
+      description.style.color = "var(--api-desc)";
       description.style.fontWeight = "400";
       label.appendChild(description);
     }
@@ -259,7 +259,7 @@
       return response.text().then(function (responseText) {
         status.textContent = "";
         var code = el("b", null, response.status);
-        code.style.color = response.ok ? "#5ad18a" : "#d9534f";
+        code.style.color = response.ok ? "var(--api-ok)" : "var(--api-error)";
         status.appendChild(code);
         status.appendChild(document.createTextNode(
           " " + (response.headers.get("content-type") || "") + " · " + (Date.now() - started) + " ms"
@@ -273,7 +273,7 @@
     }).catch(function (error) {
       status.textContent = "";
       var label = el("b", null, t("api.status.error", "error"));
-      label.style.color = "#d9534f";
+      label.style.color = "var(--api-error)";
       status.appendChild(label);
       status.appendChild(document.createTextNode(" "));
       status.appendChild(el("span", null, error, "und"));

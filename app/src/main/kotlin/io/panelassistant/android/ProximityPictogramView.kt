@@ -95,16 +95,16 @@ internal class ProximityPictogramView(context: Context) : View(context) {
         canvas.scale(scale, scale)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 2f
-        paint.color = Color.rgb(64, 86, 113)
+        paint.color = PanelTokens.Proximity.PICTOGRAM_FLOOR
         canvas.drawLine(8f, 146f, 232f, 146f, paint)
         paint.style = Paint.Style.FILL
-        paint.color = Color.rgb(23, 43, 67)
+        paint.color = PanelTokens.Proximity.PICTOGRAM_PANEL
         canvas.drawRoundRect(185f, 20f, 222f, 142f, 7f, 7f, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 3f
         paint.color = accent
         canvas.drawRoundRect(185f, 20f, 222f, 142f, 7f, 7f, paint)
-        paint.color = Color.rgb(72, 124, 184)
+        paint.color = PanelTokens.Proximity.PICTOGRAM_PANEL_LINE
         canvas.drawLine(191f, 49f, 216f, 49f, paint)
         canvas.drawLine(191f, 120f, 216f, 120f, paint)
         paint.color = accent
@@ -197,7 +197,7 @@ internal class ProximityPictogramView(context: Context) : View(context) {
         }
         outline.close()
         paint.style = Paint.Style.FILL
-        paint.color = Color.argb(opacity, 197, 222, 254)
+        paint.color = (PanelTokens.Proximity.PICTOGRAM_HAND and 0x00FFFFFF) or (opacity shl 24)
         canvas.drawPath(outline, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 2f
@@ -226,7 +226,7 @@ internal class ProximityCountdownView(context: Context) : View(context) {
     }
     private var fraction = 0f
     private var targetFraction = 0f
-    private var accent = Color.rgb(113, 173, 255)
+    private var accent = PanelTokens.Proximity.RING_ACCENT
     private var animator: ValueAnimator? = null
 
     init {
@@ -263,7 +263,7 @@ internal class ProximityCountdownView(context: Context) : View(context) {
         val left = (width - diameter) / 2f
         val top = (height - diameter) / 2f
         paint.strokeWidth = stroke
-        paint.color = Color.rgb(39, 59, 84)
+        paint.color = PanelTokens.Proximity.RING_TRACK
         canvas.drawOval(left, top, left + diameter, top + diameter, paint)
         paint.color = accent
         canvas.drawArc(left, top, left + diameter, top + diameter, -90f, 360f * fraction, false, paint)

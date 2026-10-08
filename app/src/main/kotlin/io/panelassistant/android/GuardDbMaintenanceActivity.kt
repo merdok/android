@@ -171,5 +171,5 @@ class GuardDbMaintenanceActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int = PanelTokens.dp(value, resources.displayMetrics.density)
 }

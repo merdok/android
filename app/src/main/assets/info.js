@@ -30,7 +30,7 @@ function paint(id,rows){
  for(var i=0;i<rows.length;i++){var r=rows[i],tr=t.children[i];
   if(!tr){tr=document.createElement('tr');tr.appendChild(document.createElement('th'));
    var td=document.createElement('td');td.appendChild(document.createElement('span'));
-   td.appendChild(document.createTextNode(' '));var s=document.createElement('span');s.style.color='#888';
+   td.appendChild(document.createTextNode(' '));var s=document.createElement('span');s.style.color='var(--fg-muted)';
    td.appendChild(s);tr.appendChild(td);t.appendChild(tr);}
   var th=tr.children[0],v=tr.children[1].children[0],sf=tr.children[1].children[1];
   if(th.textContent!==r.label)th.textContent=r.label;
@@ -56,8 +56,8 @@ function paintTop(top,msg){
   if(nm.textContent!==p.name)nm.textContent=p.name;nm.title=empty?'':p.name;
   // The observer's own row (ha-paneld + its sampling probes) is excluded from the ranking and shown
   // dimmed at the bottom, so the list reads as the panel's real workload.
-  var dim=empty||p.self;nm.style.color=dim?'#888':'';cp.style.color=p.self?'#888':'';
-  tr.style.borderTop=p.self?'1px solid #2a2a2a':'';
+  var dim=empty||p.self;nm.style.color=dim?'var(--fg-muted)':'';cp.style.color=p.self?'var(--fg-muted)':'';
+  tr.style.borderTop=p.self?'1px solid var(--self-row-border)':'';
   nm.style.fontStyle=p.self?'italic':'';cp.style.fontStyle=p.self?'italic':'';
   var cv=topMode==='ram'?(p.ramMb==null?'':p.ramMb+' MB'):(p.cpu==null?'':p.cpu+'%');if(cp.textContent!==cv)cp.textContent=cv;}
  while(t.children.length>data.length+1)t.removeChild(t.lastChild);
@@ -86,20 +86,20 @@ function paintNoisy(entities,identified){
   if(id.textContent!==e.entityId)id.textContent=e.entityId;id.title=empty?'':e.entityId;
   var uv=empty?'':String(e.updates1h)+'/hr';if(up.textContent!==uv)up.textContent=uv;
   var pv=empty?'':fmtByteTotal(e.payloadBytes1h||0)+'/hr';if(pl.textContent!==pv)pl.textContent=pv;
-  id.style.color=empty?'#888':'';up.style.color='';pl.style.color='';}
+  id.style.color=empty?'var(--fg-muted)':'';up.style.color='';pl.style.color='';}
  while(t.children.length>data.length+1)t.removeChild(t.lastChild);
 }
 // Optional metric latch: once seen, the row stays (showing '–' when momentarily absent) for stable height.
 var pseen={};
 function opt(k,label,ok,val,suf){if(ok&&!pseen[k]){pseen[k]=true;settleCardSizeMemory();}if(!pseen[k])return null;
- return {label:label,val:ok?val:'–',suf:ok?(suf||''):'',col:ok?'':'#888'};}
+ return {label:label,val:ok?val:'–',suf:ok?(suf||''):'',col:ok?'':'var(--fg-muted)'};}
 function draw(){
  var c=document.getElementById('perfchart'),x=c.getContext('2d'),W=c.width,H=c.height;
  x.clearRect(0,0,W,H);
  x.lineWidth=1;x.font='11px system-ui,sans-serif';x.textBaseline='middle';
  [25,50,75].forEach(function(p){var y=H-p/100*H;
-  x.strokeStyle='#383838';x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();
-  x.fillStyle='#0d0d0d';x.fillRect(0,y-7,26,14);x.fillStyle='#888';x.fillText(p+'%',2,y);});
+  x.strokeStyle=cssToken('chart-grid');x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();
+  x.fillStyle=cssToken('chart-bg');x.fillRect(0,y-7,26,14);x.fillStyle=cssToken('chart-label');x.fillText(p+'%',2,y);});
  function line(a,col){
   if(a.length<2)return;
   x.strokeStyle=col;x.lineWidth=2;x.beginPath();
@@ -107,20 +107,20 @@ function draw(){
   for(var i=0;i<n;i++){var px=W-(n-1-i)*sx,py=H-(a[i]/100)*H;i?x.lineTo(px,py):x.moveTo(px,py);}
   x.stroke();
  }
- line(gpuH,'#f5a623');line(ramH,'#48c774');line(cpuH,'#4a9eff');
+ line(gpuH,cssToken('chart-gpu'));line(ramH,cssToken('chart-ram'));line(cpuH,cssToken('chart-cpu'));
 }
 function drawResp(hist){
  var c=document.getElementById('respchart'),x=c.getContext('2d'),W=c.width,H=c.height;
  x.clearRect(0,0,W,H);
  x.font='10px system-ui,sans-serif';x.textBaseline='top';x.lineWidth=1;
  var lanes=[
-  {name:i18nText('dashboard.responsiveness.interaction','interaction'),values:hist&&hist.interactionMs||[],max:1000,col:'#d04a3b',unit:'ms'},
-  {name:i18nText('dashboard.responsiveness.state_updates','state updates'),values:hist&&hist.updatesPerSec||[],max:Math.max(50,Math.max.apply(null,hist&&hist.updatesPerSec||[0])),col:'#4a9eff',unit:'/s'},
-  {name:i18nText('dashboard.responsiveness.main_blocked','main blocked'),values:hist&&hist.blockedMsPerSec||[],max:1000,col:'#f5a623',unit:'ms/s'}];
+  {name:i18nText('dashboard.responsiveness.interaction','interaction'),values:hist&&hist.interactionMs||[],max:1000,col:cssToken('chart-interaction'),unit:'ms'},
+  {name:i18nText('dashboard.responsiveness.state_updates','state updates'),values:hist&&hist.updatesPerSec||[],max:Math.max(50,Math.max.apply(null,hist&&hist.updatesPerSec||[0])),col:cssToken('chart-updates'),unit:'/s'},
+  {name:i18nText('dashboard.responsiveness.main_blocked','main blocked'),values:hist&&hist.blockedMsPerSec||[],max:1000,col:cssToken('chart-blocked'),unit:'ms/s'}];
  var lh=H/lanes.length;
  lanes.forEach(function(lane,index){
-  var top=index*lh,bottom=top+lh-1;x.strokeStyle='#383838';x.beginPath();x.moveTo(0,bottom);x.lineTo(W,bottom);x.stroke();
-  x.fillStyle='#0d0d0d';x.fillRect(0,top,116,14);x.fillStyle='#888';
+  var top=index*lh,bottom=top+lh-1;x.strokeStyle=cssToken('chart-grid');x.beginPath();x.moveTo(0,bottom);x.lineTo(W,bottom);x.stroke();
+  x.fillStyle=cssToken('chart-bg');x.fillRect(0,top,116,14);x.fillStyle=cssToken('chart-label');
   x.fillText(lane.name+' · '+Math.round(lane.max)+' '+lane.unit,3,top+2);
   var a=lane.values,n=a.length;if(n<2)return;var sx=W/47;
   x.beginPath();for(var i=0;i<n;i++){var px=W-(n-1-i)*sx,py=bottom-Math.min(1,a[i]/lane.max)*(lh-17);
@@ -138,16 +138,16 @@ function rendererMeasurement(mode,r){
  var text=typeof i18nText==='function'?i18nText:function(key,fallback,vars){return fallback.replace(/\{([A-Za-z0-9_]+)\}/g,function(all,name){return vars&&vars[name]!=null?String(vars[name]):all;});};
  if(mode==='builtin_unavailable')return {header:text('dashboard.renderer.observer_unavailable_header','· built-in observer unavailable'),
   title:text('dashboard.renderer.observer_unavailable_title','The built-in renderer is active without its live browser observer'),
-  rows:[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.observer_unavailable','built-in live observer unavailable'),col:'#888'},
+  rows:[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.observer_unavailable','built-in live observer unavailable'),col:'var(--fg-muted)'},
    {label:text('dashboard.renderer.restore','How to restore it'),val:text('dashboard.renderer.reload_to_retry','reload the built-in dashboard to retry'),
     suf:text('dashboard.renderer.update_webview','· if this persists, update the panel WebView')}]};
  if(r&&r.status!=='no-renderer'){
-  var rows=[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.cpu_proxy','renderer CPU proxy'),suf:text('dashboard.renderer.not_tap_latency','· not actual tap latency'),col:'#888'},
+  var rows=[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.cpu_proxy','renderer CPU proxy'),suf:text('dashboard.renderer.not_tap_latency','· not actual tap latency'),col:'var(--fg-muted)'},
    {label:text('dashboard.renderer.main_thread','Dashboard main-thread'),val:text('dashboard.renderer.core_percent','{percent}% of one core',{percent:r.mainPct}),suf:text('dashboard.renderer.saturated','· 100% means the renderer thread is saturated'),bold:true}];
   if(r.jankPct!=null)rows.push({label:text('dashboard.renderer.rendering_proxy','Rendering proxy'),val:text('dashboard.renderer.janky_percent','{percent}% janky',{percent:r.jankPct}),suf:text('dashboard.renderer.worst_frame','· worst frame {milliseconds} ms',{milliseconds:r.p99})});
   return {header:text('dashboard.renderer.external_proxy_header','· external renderer proxy'),title:text('dashboard.renderer.measuring','measuring {package}',{package:r.pkg}),rows:rows};
  }
- return {header:'',title:'',rows:[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.needs_root','External renderer proxy needs root/helper access'),col:'#888'}]};
+ return {header:'',title:'',rows:[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.needs_root','External renderer proxy needs root/helper access'),col:'var(--fg-muted)'}]};
 }
 async function perf(){
  if(document.hidden)return;   // a hidden/background tab must not keep the sampler (or panel) busy
@@ -175,15 +175,15 @@ async function perf(){
   var bRows=[],b=d.builtin;
   if(b){
    if(b.ttiColdMs>=0)bRows.push({label:i18nText('dashboard.responsiveness.time_to_interactive','Time to interactive'),val:i18nText('dashboard.responsiveness.cold_seconds','{seconds}s cold',{seconds:(b.ttiColdMs/1000).toFixed(1)}),suf:b.ttiWarmMedianMs>=0?i18nText('dashboard.responsiveness.reload_seconds','· reload {seconds}s',{seconds:(b.ttiWarmMedianMs/1000).toFixed(1)}):i18nText('dashboard.responsiveness.launch_ready','· launch → dashboard ready')});
-   bRows.push({label:i18nText('dashboard.responsiveness.renderer_reloads','Renderer reloads (24h)'),val:''+b.reloads24h,col:b.reloads24h>0?'#d9a528':'#888',suf:b.reloads24h>0?i18nText('dashboard.responsiveness.heap_churn','· heap/OOM churn'):i18nText('dashboard.common.stable','· stable')});
+   bRows.push({label:i18nText('dashboard.responsiveness.renderer_reloads','Renderer reloads (24h)'),val:''+b.reloads24h,col:b.reloads24h>0?'var(--fg-warn)':'var(--fg-muted)',suf:b.reloads24h>0?i18nText('dashboard.responsiveness.heap_churn','· heap/OOM churn'):i18nText('dashboard.common.stable','· stable')});
   }
   if(direct&&dash){
    smh.textContent=i18nText('dashboard.responsiveness.live_instrumentation','· built-in live instrumentation');var it=dash.interaction||{},bl=dash.blocking||{};
-   var causeCol=dash.confidence==='high'?'#d04a3b':(dash.confidence==='medium'?'#d9a528':'#888');
+   var causeCol=dash.confidence==='high'?'var(--fg-bad)':(dash.confidence==='medium'?'var(--fg-warn)':'var(--fg-muted)');
    var sm=[{label:i18nText('dashboard.responsiveness.likely_cause','Likely cause'),val:causeLabel(dash.likelyCause),suf:i18nText('dashboard.responsiveness.confidence','· {level} confidence',{level:dash.confidence}),col:causeCol,bold:true}];
    if(it.count)sm.push({label:i18nText('dashboard.responsiveness.tap_response','Tap response'),val:i18nText('dashboard.responsiveness.tap_percentiles','~p50 {p50} ms · ~p95 {p95} ms',{p50:it.p50Ms,p95:it.p95Ms}),
     suf:i18nText('dashboard.responsiveness.tap_breakdown','· worst {worst} ms = input {input} + handler {handler} + presentation {presentation}',{worst:it.worstMs,input:it.inputDelayMs,handler:it.processingMs,presentation:it.presentationMs})});
-   else sm.push({label:i18nText('dashboard.responsiveness.tap_response','Tap response'),val:i18nText('dashboard.responsiveness.interact_to_measure','interact with the dashboard to measure'),col:'#888'});
+   else sm.push({label:i18nText('dashboard.responsiveness.tap_response','Tap response'),val:i18nText('dashboard.responsiveness.interact_to_measure','interact with the dashboard to measure'),col:'var(--fg-muted)'});
    sm.push({label:i18nText('dashboard.responsiveness.main_thread_blocking','Main-thread blocking'),val:fmtRate(bl.blockedMsPerSec||0,'ms/s'),
     suf:i18nText('dashboard.responsiveness.blocking_detail','· p95 {p95} ms/s · longest frame {longest} ms',{p95:Math.round(bl.blockedP95MsPerSec||0),longest:Math.round(bl.longestFrameMs||0)})});
    paint('smtbl',sm.concat(bRows));drawResp(dash.history||{});
@@ -201,11 +201,11 @@ async function perf(){
     suf:i18nText('dashboard.state_stream.main_thread_detail','· p95 {p95} ms/s · longest {longest} ms',{p95:Math.round(stream.mainThreadP95MsPerSec||0),longest:Math.round(stream.longestStateTaskMs||0)})});
    sr.push({label:i18nText('dashboard.state_stream.initial_hydration','Initial hydration'),val:i18nText('dashboard.common.entity_count','{count} entities',{count:stream.hydrationUpdates||0})});
    sr.push({label:i18nText('dashboard.state_stream.subscription','Subscription'),val:filter.active?i18nText('dashboard.state_stream.filtered','filtered to {count} entities',{count:filter.entityCount}):i18nText('dashboard.state_stream.unfiltered','unfiltered'),
-    col:filter.active?'#48c774':'#d9a528'});
+    col:filter.active?'var(--fg-ok)':'var(--fg-warn)'});
    paintNoisy(dash.topEntities||[],!!filter.active);
-   if(stream.droppedFrames)sr.push({label:i18nText('dashboard.state_stream.measurement_drops','Measurement drops'),val:''+stream.droppedFrames,col:'#d9a528'});
+   if(stream.droppedFrames)sr.push({label:i18nText('dashboard.state_stream.measurement_drops','Measurement drops'),val:''+stream.droppedFrames,col:'var(--fg-warn)'});
   }else{
-   sr.push({label:i18nText('dashboard.state_stream.state_stream','State stream'),val:direct?i18nText('dashboard.state_stream.waiting_ha','waiting for Home Assistant state traffic'):i18nText('dashboard.state_stream.available_builtin','available with the built-in renderer'),col:'#888'});
+   sr.push({label:i18nText('dashboard.state_stream.state_stream','State stream'),val:direct?i18nText('dashboard.state_stream.waiting_ha','waiting for Home Assistant state traffic'):i18nText('dashboard.state_stream.available_builtin','available with the built-in renderer'),col:'var(--fg-muted)'});
    paintNoisy([],false);
   }
   paint('streamtbl',sr);
@@ -250,7 +250,7 @@ function sensorsCard(tbl,age){
    if(d.volume_pct!=null&&d.volume_pct>=0)rows.push({label:i18nText('dashboard.sensors.volume','Volume'),val:d.volume_pct+' %'});
    var brightness=formatBrightness(d.brightness);
    if(brightness!=null)rows.push({label:i18nText('dashboard.sensors.brightness','Brightness'),val:brightness});
-   if(!rows.length)rows.push({label:'',val:i18nText('dashboard.sensors.none','no sensors on this panel'),col:'#888'});
+   if(!rows.length)rows.push({label:'',val:i18nText('dashboard.sensors.none','no sensors on this panel'),col:'var(--fg-muted)'});
    paint(tbl,rows);
    var a=document.getElementById(age);if(a)a.textContent=i18nText('dashboard.common.live','· live');
    cardSizeSourceReady('sensors');
@@ -369,10 +369,10 @@ function cameraCard(tbl,hdr){
    // Nothing is encoding, and WHY differs. "Idle costs nothing" is true only of a camera that is
    // actually closed — a snapshot client holds it open and pays for every frame it converts, and a
    // stream client waiting for its encoder to start is a stream, not a snapshot.
-   if(d.state==='idle')rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.nothing','nothing is being encoded'),col:'#888',suf:i18nText('dashboard.camera.encoding.idle_cost','· an idle camera costs the panel nothing')});
-   else if(streams>0)rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.waiting','waiting for the encoder'),col:'#888',suf:asked?i18nText('dashboard.camera.encoding.waiting_with_rate','· a stream asked for {rate} fps and the encoder has not started yet',{rate:asked}):i18nText('dashboard.camera.encoding.waiting_without_rate','· the stream has not been given an encoder yet')});
-   else if(d.state==='live'||d.state==='opening')rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.no_stream','no stream is encoding'),col:'#888',suf:i18nText('dashboard.camera.encoding.snapshot','· the camera is open for a snapshot')});
-   else rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.no_stream','no stream is encoding'),col:'#888',suf:act?'· '+act:''});
+   if(d.state==='idle')rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.nothing','nothing is being encoded'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.encoding.idle_cost','· an idle camera costs the panel nothing')});
+   else if(streams>0)rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.waiting','waiting for the encoder'),col:'var(--fg-muted)',suf:asked?i18nText('dashboard.camera.encoding.waiting_with_rate','· a stream asked for {rate} fps and the encoder has not started yet',{rate:asked}):i18nText('dashboard.camera.encoding.waiting_without_rate','· the stream has not been given an encoder yet')});
+   else if(d.state==='live'||d.state==='opening')rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.no_stream','no stream is encoding'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.encoding.snapshot','· the camera is open for a snapshot')});
+   else rows.push({label:i18nText('dashboard.camera.label.encoding','Encoding'),val:i18nText('dashboard.camera.encoding.no_stream','no stream is encoding'),col:'var(--fg-muted)',suf:act?'· '+act:''});
    forget();
    head('· '+session(d));
    return rows;
@@ -383,7 +383,7 @@ function cameraCard(tbl,hdr){
   // it wanted is a shortfall the person needs to see, not one the card hides by moving the target.
   var want=asked!=null?asked:bound;
   if(asked!=null&&bound!=null&&asked!==bound){
-   rows.push({label:i18nText('dashboard.camera.label.requested','Requested'),val:i18nText('dashboard.camera.requested.value','{rate} fps asked for',{rate:asked}),col:'#d9a528',bold:true,
+   rows.push({label:i18nText('dashboard.camera.label.requested','Requested'),val:i18nText('dashboard.camera.requested.value','{rate} fps asked for',{rate:asked}),col:'var(--fg-warn)',bold:true,
     suf:i18nText('dashboard.camera.requested.bound','· the session is bound to {rate} fps, set when the camera was opened',{rate:bound})});
   }
   var age=n(d.last_frame_age_ms);
@@ -393,33 +393,33 @@ function cameraCard(tbl,hdr){
   // stream looking like a warming-up one for as long as it stayed broken.
   var stalled=got!=null?null:(fault?i18nText('dashboard.camera.frame_rate.stopped','stopped — {fault}',{fault:fault}):((age!=null&&age>CAMERA_WINDOW_MS)?i18nText('dashboard.camera.frame_rate.no_frames','no frames for {seconds}s',{seconds:Math.round(age/1000)}):null));
   if(stalled){
-   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:stalled,col:'#d9a528',bold:true,suf:want?i18nText('dashboard.camera.frame_rate.asked','· asked for {rate} fps',{rate:want}):''});
+   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:stalled,col:'var(--fg-warn)',bold:true,suf:want?i18nText('dashboard.camera.frame_rate.asked','· asked for {rate} fps',{rate:want}):''});
    forget();
    head('· '+stalled);
   }else if(got==null){
-   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.status.starting','starting…'),col:'#888',suf:want?i18nText('dashboard.camera.frame_rate.asked','· asked for {rate} fps',{rate:want}):i18nText('dashboard.camera.frame_rate.request_unavailable','· requested rate unavailable')});
+   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.status.starting','starting…'),col:'var(--fg-muted)',suf:want?i18nText('dashboard.camera.frame_rate.asked','· asked for {rate} fps',{rate:want}):i18nText('dashboard.camera.frame_rate.request_unavailable','· requested rate unavailable')});
    forget();
    head('· '+i18nText('dashboard.camera.status.starting_plain','starting'));
   }else if(!want){
-   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.frame_rate.delivered','{rate} fps delivered',{rate:one(got)}),suf:i18nText('dashboard.camera.frame_rate.request_unavailable','· requested rate unavailable'),col:'#888'});
+   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.frame_rate.delivered','{rate} fps delivered',{rate:one(got)}),suf:i18nText('dashboard.camera.frame_rate.request_unavailable','· requested rate unavailable'),col:'var(--fg-muted)'});
    forget();
    head('· '+one(got)+' fps');
   }else{
    observe(got<want*CAMERA_SHORTFALL_RATIO,now);
-   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.frame_rate.of_requested','{delivered} of {requested} fps',{delivered:one(got),requested:want}),bold:verdict==='short',col:verdict==='short'?'#d9a528':'',
+   rows.push({label:i18nText('dashboard.camera.label.frame_rate','Frame rate'),val:i18nText('dashboard.camera.frame_rate.of_requested','{delivered} of {requested} fps',{delivered:one(got),requested:want}),bold:verdict==='short',col:verdict==='short'?'var(--fg-warn)':'',
     suf:i18nText('dashboard.camera.frame_rate.comparison','· delivered against what was asked for')});
    head('· '+i18nText('dashboard.camera.frame_rate.of_requested','{delivered} of {requested} fps',{delivered:one(got),requested:want}));
   }
   // Bitrate is a cap, never a target: a still scene needs fewer bits and using fewer is the encoder
   // working, not failing. It is shown for the trade — resolution and rate are what spend it — and it
   // is deliberately kept out of the shortfall verdict, which is about frame rate alone.
-  if(stalled)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.bitrate.nothing','nothing delivered'),col:'#888',suf:cap?i18nText('dashboard.camera.bitrate.cap','· cap {cap} kbps',{cap:cap}):i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
-  else if(gotKbps==null)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.status.starting','starting…'),col:'#888',suf:cap?i18nText('dashboard.camera.bitrate.cap','· cap {cap} kbps',{cap:cap}):i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
-  else if(!cap)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:gotKbps+' kbps',col:'#888',suf:i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
+  if(stalled)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.bitrate.nothing','nothing delivered'),col:'var(--fg-muted)',suf:cap?i18nText('dashboard.camera.bitrate.cap','· cap {cap} kbps',{cap:cap}):i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
+  else if(gotKbps==null)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.status.starting','starting…'),col:'var(--fg-muted)',suf:cap?i18nText('dashboard.camera.bitrate.cap','· cap {cap} kbps',{cap:cap}):i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
+  else if(!cap)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:gotKbps+' kbps',col:'var(--fg-muted)',suf:i18nText('dashboard.camera.bitrate.cap_unavailable','· cap unavailable')});
   // Measured on a WF1589T at 1080p: 4846 kbps against a 2000 kbps cap. The encoder can overshoot the
   // bitrate it was given, so the row cannot assume the delivered figure sits under the cap and call
   // every reading normal — that would print reassurance over the one number that had gone wrong.
-  else if(gotKbps>cap)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.bitrate.of_cap','{delivered} of {cap} kbps cap',{delivered:gotKbps,cap:cap}),col:'#d9a528',bold:true,
+  else if(gotKbps>cap)rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.bitrate.of_cap','{delivered} of {cap} kbps cap',{delivered:gotKbps,cap:cap}),col:'var(--fg-warn)',bold:true,
    suf:i18nText('dashboard.camera.bitrate.over_cap','· over the cap it was given; the encoder is spending more of the network than it was allowed')});
   else rows.push({label:i18nText('dashboard.camera.label.bitrate','Bitrate'),val:i18nText('dashboard.camera.bitrate.of_cap','{delivered} of {cap} kbps cap',{delivered:gotKbps,cap:cap}),suf:i18nText('dashboard.camera.bitrate.under_cap','· under the cap is normal for a still scene')});
   // The verdict states what was observed and what can be done about it. It does not name a cause:
@@ -427,14 +427,14 @@ function cameraCard(tbl,hdr){
   // all candidates, none of them is established here, and guessing in this row would send the person
   // reading it to fix the wrong thing.
   rows.push(stalled
-   ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.not_delivering','not delivering'),col:'#d9a528',bold:true,
+   ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.not_delivering','not delivering'),col:'var(--fg-warn)',bold:true,
      suf:act?'· '+act:i18nText('dashboard.camera.delivery.no_frames','· the encoder is bound to the session but no frames are arriving')}
    :verdict==='short'
-   ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.short','not keeping up'),col:'#d9a528',bold:true,
+   ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.short','not keeping up'),col:'var(--fg-warn)',bold:true,
      suf:i18nText('dashboard.camera.delivery.short_help','· lower the frame rate or the resolution on Configure → Camera, or accept the rate this panel is giving; why it is short is not established here')}
    :verdict==='ok'
-    ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.ok','delivering what it was asked for'),col:'#48c774'}
-    :{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.measuring','measuring…'),col:'#888',suf:i18nText('dashboard.camera.delivery.measuring_help','· waiting for enough consecutive readings to judge')});
+    ?{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.ok','delivering what it was asked for'),col:'var(--fg-ok)'}
+    :{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.measuring','measuring…'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.delivery.measuring_help','· waiting for enough consecutive readings to judge')});
   return rows;
  }
  async function poll(){
@@ -453,7 +453,7 @@ function cameraCard(tbl,hdr){
    // The panel did not answer, so every figure on this card is now of unknown age. Showing the last
    // ones under a live heading would be the reassuring-but-wrong answer; drop them and say so.
    forget();lastReadingAt=0;
-   paint(tbl,[{label:i18nText('dashboard.camera.label.camera','Camera'),val:i18nText('dashboard.camera.error.status_unavailable','status unavailable'),col:'#888',suf:i18nText('dashboard.camera.error.no_answer','· the panel did not answer')}]);hwm(tbl);
+   paint(tbl,[{label:i18nText('dashboard.camera.label.camera','Camera'),val:i18nText('dashboard.camera.error.status_unavailable','status unavailable'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.error.no_answer','· the panel did not answer')}]);hwm(tbl);
    head('· '+i18nText('dashboard.camera.session.unavailable','unavailable'));
   }finally{
    inFlight=false;

@@ -23,10 +23,10 @@ internal fun backupCardHtml(
 <div style="display:flex;flex-direction:column;gap:8px;max-width:440px">
 $compRow
 <input type="password" id="bk-pw" placeholder="${esc(strings.get("install.backup.passphrase.placeholder"))}">
-<label style="display:flex;flex-direction:row;gap:8px;align-items:flex-start;font-size:.85rem;color:#c88"><input type="checkbox" id="bk-plain"> ${esc(strings.get("install.backup.plaintext_zip"))}</label>
+<label style="display:flex;flex-direction:row;gap:8px;align-items:flex-start;font-size:.85rem;color:var(--backup-plain-warn)"><input type="checkbox" id="bk-plain"> ${esc(strings.get("install.backup.plaintext_zip"))}</label>
 <button class="pbtn"${hardenedApprovalA11yAttrs(strings = strings)} onclick="doBackup(this)">⭳ ${esc(strings.get("install.backup.download"))}</button>
 </div>
-<hr style="border:0;border-top:1px solid #2a2a2a;margin:14px 0">
+<hr style="border:0;border-top:1px solid var(--install-rule);margin:14px 0">
 <p class="note"><b>${esc(strings.get("install.backup.restore.title"))}</b> ${esc(strings.get(restoreKey))}</p>
 <div style="display:flex;flex-direction:column;gap:8px;max-width:440px">
 <input type="password" id="rs-pw" placeholder="${esc(strings.get("install.backup.restore.passphrase_placeholder"))}">
@@ -34,7 +34,7 @@ $compRow
 <div id="rs-preview"></div>
 </div>
 <p class="note" id="bk-msg"></p>
-<hr style="border:0;border-top:1px solid #2a2a2a;margin:14px 0">
+<hr style="border:0;border-top:1px solid var(--install-rule);margin:14px 0">
 <p class="note"><b>${esc(strings.get("install.backup.config_bundle.title"))}</b> ${esc(strings.get("install.backup.config_bundle.description"))}</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
  <a class="pbtn" href="api/v1/config/export">⭳ ${esc(strings.get("install.backup.config_bundle.export"))}</a>

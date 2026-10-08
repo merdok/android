@@ -35,11 +35,11 @@ internal fun displayCardHtml(
 $lock<p class="note">${esc(strings.get("install.display.description"))}</p>
 <form method="post" action="${localizedHref("api/v1/display/density", strings)}" class="${if (locked) "locked" else ""}" style="display:flex;flex-direction:column;gap:10px">
  <label style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">
-  <span>${esc(strings.get("install.display.logical_density"))} <small style="color:#888">· ${esc(densityHint)}</small></span>
+  <span>${esc(strings.get("install.display.logical_density"))} <small style="color:var(--fg-muted)">· ${esc(densityHint)}</small></span>
   <input name="density" type="number" min="${DensityController.MIN_DPI}" max="${DensityController.MAX_DPI}" value="$cur" style="width:96px"$dis>
  </label>
  <label style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">
-  <span>${esc(strings.get("install.display.text_size"))} <small style="color:#888">· ${esc(strings.get("install.display.default_scale"))}</small></span>
+  <span>${esc(strings.get("install.display.text_size"))} <small style="color:var(--fg-muted)">· ${esc(strings.get("install.display.default_scale"))}</small></span>
   <input name="font" type="number" step="0.05" min="${DensityController.MIN_FONT}" max="${DensityController.MAX_FONT}" value="$fs" style="width:96px"$dis>
  </label>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">

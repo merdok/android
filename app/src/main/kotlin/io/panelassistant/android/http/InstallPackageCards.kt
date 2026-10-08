@@ -42,7 +42,7 @@ internal fun uninstallCardHtml(root: Boolean, strings: AppStrings): String {
     val body = if (!root) """<p class="note">⚠ ${esc(strings.get("install.uninstall.root_unavailable"))}</p>"""
     else """<p class="note">${esc(strings.get("install.uninstall.description_prefix"))} <a href="${localizedHref("install#cfg-tame", strings)}">${esc(strings.get("install.uninstall.tame_link"))}</a>${esc(strings.get("install.uninstall.description_suffix"))}</p>
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<select id="uninst-pkg" style="min-width:220px;background:#1c1c1c;color:#eee;border:1px solid #444;border-radius:7px;padding:5px 8px"><option>${esc(strings.get("install.shared.loading"))}</option></select>
+<select id="uninst-pkg" style="min-width:220px;background:var(--uninstall-select-bg);color:var(--uninstall-select-fg);border:1px solid var(--uninstall-select-border);border-radius:7px;padding:5px 8px"><option>${esc(strings.get("install.shared.loading"))}</option></select>
 <button class="pbtn"${hardenedApprovalA11yAttrs(strings = strings)} onclick="doUninstall(this)">${esc(strings.get("install.uninstall.action"))}</button>
 </div>
 <p class="note" id="uninst-msg"></p>"""

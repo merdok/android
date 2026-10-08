@@ -39,7 +39,7 @@ import io.panelassistant.android.util.localIpv6
 class MainActivity : AppCompatActivity() {
 
     private val maintenanceFence = GuardDbActivityMaintenanceFence()
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    private fun dp(v: Int): Int = PanelTokens.dp(v, resources.displayMetrics.density)
     private val config by lazy { Config(this) }
 
     /**

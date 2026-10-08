@@ -3,6 +3,7 @@
 // Changed here: the package name, trailing whitespace, and the view no longer takes touches. See assets/voice/THIRD_PARTY.md.
 package io.panelassistant.android.assist
 
+import io.panelassistant.android.PanelTokens
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -26,7 +27,7 @@ class WakeRippleView @JvmOverloads constructor(
     private var time: Float = 0f
     private var origin: PointF = PointF()
     private var maxRadius: Float = 0f
-    private var rippleColor: Int = Color.parseColor("#00FF88")
+    private var rippleColor: Int = PanelTokens.Overlay.VOICE_ATTENTION
 
     private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var animator: ValueAnimator? = null

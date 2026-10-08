@@ -149,26 +149,6 @@ internal fun haExactDuration(ms: Long): HaExactDuration {
 }
 
 /**
- * How much to scale the card's baseline sizes, which are its pixel sizes on the smallest supported
- * panel (480px shortest edge at logical density 1.0).
- *
- * The card grows with a small display, but past the baseline it is capped at the display's logical
- * density: a wall panel is read from across a room, so the card must not keep taking a larger share of
- * a bigger screen (measured on a 1920x1200 panel, where an uncapped notice took ~40% of the height).
- * Logical-density overrides are respected because the cap is the density itself.
- *
- * @param shortestEdgePx the shorter of the display's two pixel dimensions
- * @param density `DisplayMetrics.density` — logical pixels per dp, not measured physical DPI
- */
-internal fun haLifecycleScale(shortestEdgePx: Float, density: Float): Float {
-    // A non-positive density would collapse the card to nothing, which is worse than an oversized one.
-    val cap = if (density > 0f) density else 1f
-    return minOf(shortestEdgePx / HA_LIFECYCLE_BASELINE_EDGE_PX, cap)
-}
-
-private const val HA_LIFECYCLE_BASELINE_EDGE_PX = 480f
-
-/**
  * The native, dashboard-independent Home Assistant restart notice.
  *
  * It is a second child of the renderer's root frame, so the dashboard keeps rendering underneath and
@@ -195,7 +175,7 @@ internal class HaLifecycleBar private constructor(
         val segments: List<ProgressBar>,
         val labels: List<TextView>,
         val footer: TextView,
-        val palette: Palette,
+        val palette: NoticeColours,
         val heroClockPx: Float,
     )
 
@@ -335,40 +315,23 @@ internal class HaLifecycleBar private constructor(
         (view.parent as? ViewGroup)?.removeView(view)
     }
 
-    /**
-     * One palette per dashboard theme, not per state: the step is carried by words, position and label
-     * weight, never by colour alone, so it reads the same to colour-blind viewers.
-     *
-     * The card is INVERTED against the dashboard — light on a dark dashboard, dark on a light one — as
-     * Android's own prominent transient notices are. A card in the dashboard's own tones read as part of
-     * the page rather than a notice (seen on hardware). Every text role keeps WCAG AA 4.5:1 or better over
-     * a pure white, grey or black dashboard at [CARD_ALPHA] (worst 5.4:1, secondary labels on the dark
-     * card); the card's accent marks only the dot and the track, which need 3:1 and get 5.1:1 or better.
-     * Recheck those figures before changing a colour or the opacity.
-     */
-    private class Palette(
-        val surface: Int,
-        val text: Int,
-        val secondary: Int,
-        val muted: Int,
-        val accent: Int,
-    ) {
-        val line: Int get() = withAlpha(text, 0x1F)
-    }
-
     companion object {
-        private val DARK = Palette(
-            surface = Color.parseColor("#16181C"), text = Color.parseColor("#F3F5F7"),
-            secondary = Color.parseColor("#C3CAD1"), muted = Color.parseColor("#A9B2BC"),
-            accent = Color.parseColor("#4FC3F7"),
-        )
-        private val LIGHT = Palette(
-            surface = Color.parseColor("#F7F8FA"), text = Color.parseColor("#15181C"),
-            secondary = Color.parseColor("#3D4650"), muted = Color.parseColor("#46505B"),
-            accent = Color.parseColor("#01579B"),
-        )
+        /**
+         * One palette per dashboard theme, not per state: the step is carried by words, position and
+         * label weight, never by colour alone, so it reads the same to colour-blind viewers.
+         *
+         * The card is INVERTED against the dashboard — light on a dark dashboard, dark on a light one
+         * — as Android's own prominent transient notices are. A card in the dashboard's own tones read
+         * as part of the page rather than a notice (seen on hardware). The colours and their measured
+         * contrast are in [PanelTokens.Notice]; recheck those figures before changing the opacity.
+         */
+        private fun palette(dashboardDark: Boolean) =
+            if (dashboardDark) PanelTokens.Notice.LIGHT else PanelTokens.Notice.DARK
 
-        /** 86% opaque: the inverted palette already makes the card stand out; see [Palette]. */
+        /** The track behind the step segments: the text colour at about 12%. */
+        private fun line(palette: NoticeColours) = withAlpha(palette.text, 0x1F)
+
+        /** 86% opaque: the inverted palette already makes the card stand out; see [palette]. */
         private const val CARD_ALPHA = 0xDB
 
         /**
@@ -384,7 +347,7 @@ internal class HaLifecycleBar private constructor(
         /** How often the card re-reads the snapshot, and so how far ahead a step animates. */
         private const val TICK_MS = 1_000L
 
-        // Baseline sizes: pixels on a 480x480 panel at density 1.0, scaled by [haLifecycleScale].
+        // Baseline sizes: pixels on a 480x480 panel at density 1.0, scaled by [PanelTokens.scale].
         private const val MARGIN = 16f
         private const val PAD_H = 28f
         private const val PAD_V = 24f
@@ -410,11 +373,10 @@ internal class HaLifecycleBar private constructor(
         /** Attach a hidden card to [root]. */
         fun attach(context: Context, root: ViewGroup, onVisibilityChanged: (Boolean) -> Unit = {}): HaLifecycleBar {
             val metrics = context.resources.displayMetrics
-            val s = haLifecycleScale(minOf(metrics.widthPixels, metrics.heightPixels).toFloat(), metrics.density)
+            val s = PanelTokens.scale(minOf(metrics.widthPixels, metrics.heightPixels).toFloat(), metrics.density)
             fun px(base: Float) = (base * s).toInt()
             val dark = runCatching { Config(context).dashboardThemeDark }.getOrNull() ?: true
-            // Inverted against the dashboard: see [Palette].
-            val palette = if (dark) LIGHT else DARK
+            val palette = palette(dark)
 
             fun text(size: Float, colour: Int, face: Typeface = Typeface.DEFAULT) = TextView(context).apply {
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, size * s)
@@ -430,7 +392,7 @@ internal class HaLifecycleBar private constructor(
                 background = GradientDrawable().apply {
                     cornerRadius = CORNER * s
                     setColor(withAlpha(palette.surface, CARD_ALPHA))
-                    setStroke(maxOf(3, (BORDER * s).toInt()), (if (dark) DARK else LIGHT).accent)
+                    setStroke(maxOf(3, (BORDER * s).toInt()), (if (dark) PanelTokens.Notice.DARK else PanelTokens.Notice.LIGHT).accent)
                 }
                 visibility = View.GONE
             }
@@ -489,7 +451,7 @@ internal class HaLifecycleBar private constructor(
                     isIndeterminate = false
                     max = HA_LIFECYCLE_PROGRESS_MAX
                     progressDrawable = LayerDrawable(arrayOf(
-                        GradientDrawable().apply { cornerRadius = corner; setColor(palette.line) },
+                        GradientDrawable().apply { cornerRadius = corner; setColor(line(palette)) },
                         ClipDrawable(GradientDrawable().apply { cornerRadius = corner; setColor(palette.accent) },
                             Gravity.START, ClipDrawable.HORIZONTAL),
                     )).apply {

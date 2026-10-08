@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelTokens
 import io.panelassistant.android.Config
 import io.panelassistant.android.i18n.Strings as AppStrings
 import io.panelassistant.android.PanelStatus
@@ -102,11 +103,15 @@ internal fun managementStatusJson(
             ),
         )
     }
-    val capColor = mapOf("ok" to "#48c774", "degraded" to "#d9a528", "none" to "#d04a3b")
+    val capColor = mapOf(
+        "ok" to PanelTokens.Page.CAPABILITY_OK,
+        "degraded" to PanelTokens.Page.CAPABILITY_DEGRADED,
+        "none" to PanelTokens.Page.CAPABILITY_NONE,
+    )
     // Stale-while-revalidate keeps status polling fast while ensuring a status-only client still
     // admits one background refresh instead of preserving an old capability view indefinitely.
     val caps = management.capabilityRows.joinToString(",") { c ->
-        "{\"name\":${jsonStr(c.name(english))},\"note\":${jsonStr(c.note(english))},\"color\":${jsonStr(capColor[c.status] ?: "#888")}}"
+        "{\"name\":${jsonStr(c.name(english))},\"note\":${jsonStr(c.note(english))},\"color\":${jsonStr(capColor[c.status] ?: PanelTokens.Page.CAPABILITY_UNKNOWN)}}"
     }
     val zigbee = radio?.let {
         JSONObject(it.mqttAttributes()).put("state", it.state.wireValue).toString()

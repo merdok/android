@@ -112,7 +112,7 @@ internal fun factRowsHtml(
         } else if (k == "Display") {
             displayCell(v)
         } else if (k == "System WebView" && webViewTooOld) {
-            """<span style="color:#f5c451">${esc(v)} ⚠</span>"""
+            """<span style="color:var(--fact-warn)">${esc(v)} ⚠</span>"""
         } else if (k in SECRET_FIELDS || (k in ADDRESS_FIELDS && isRoutable(v))) {
             // Blurred by default so a casual screenshot doesn't leak it; "Reveal" un-blurs (screenshot
             // hygiene, not access control — the value is still in the page source).
@@ -128,9 +128,9 @@ internal fun factRowsHtml(
 }
 
 internal fun capRowsHtml(capabilities: List<DiagReader.Cap>, strings: AppStrings): String {
-    val capColor = mapOf("ok" to "#48c774", "degraded" to "#d9a528", "none" to "#d04a3b")
+    val capColor = mapOf("ok" to "var(--cap-ok)", "degraded" to "var(--cap-degraded)", "none" to "var(--cap-none)")
     return capabilities.joinToString("\n") { c ->
-        val col = capColor[c.status] ?: "#888"
+        val col = capColor[c.status] ?: "var(--fg-muted)"
         """<tr><th>${esc(c.name(strings))}</th><td><span style="color:$col">●</span> ${esc(c.note(strings))}</td></tr>"""
     }
 }

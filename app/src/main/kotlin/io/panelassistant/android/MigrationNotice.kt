@@ -58,20 +58,21 @@ internal class MigrationNotice(private val context: Context, private val config:
         }
         val strings = catalogue.strings(CatalogueLoader.nativeLocale(config.uiLanguage))
         val density = context.resources.displayMetrics.density
-        fun dp(value: Int) = (value * density).toInt()
+        fun dp(value: Int) = PanelTokens.dp(value, density)
+        val tone = PanelTokens.Chip.DARK
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(8), dp(8), dp(8))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(42, 36, 24))
+                setColor(tone.warningSurface)
                 cornerRadius = dp(8).toFloat()
-                setStroke(dp(1), Color.rgb(210, 149, 31))
+                setStroke(dp(1), tone.warningBorder)
             }
         }
         fun text(value: String, bold: Boolean = false) = TextView(context).apply {
             text = value
-            setTextColor(Color.rgb(250, 242, 226))
+            setTextColor(tone.warningLabel)
             textSize = if (bold) 15f else 13f
             if (bold) setTypeface(typeface, Typeface.BOLD)
         }

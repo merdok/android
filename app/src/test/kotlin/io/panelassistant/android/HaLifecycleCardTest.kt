@@ -149,12 +149,12 @@ class HaLifecycleCardTest {
         assertEquals("0:01", haLifecycleClock(1L))
     }
 
-    @Test fun theCardScalesWithASmallPanelButIsCappedAtTheLogicalDensity() {
-        assertEquals(1f, haLifecycleScale(480f, 1f), 0.001f)
-        assertEquals(1.4125f, haLifecycleScale(1200f, 1.4125f), 0.001f)
-        assertEquals("a bigger screen alone does not grow the card", 1f, haLifecycleScale(4000f, 1f), 0.001f)
-        assertEquals(2f / 3f, haLifecycleScale(320f, 1f), 0.001f)
-        assertTrue("a broken density never collapses the card", haLifecycleScale(1200f, 0f) > 0f)
+    @Test fun theScaleRuleGrowsWithASmallPanelButIsCappedAtTheLogicalDensity() {
+        assertEquals(1f, PanelTokens.scale(480f, 1f), 0.001f)
+        assertEquals(1.4125f, PanelTokens.scale(1200f, 1.4125f), 0.001f)
+        assertEquals("a bigger screen alone does not grow the card", 1f, PanelTokens.scale(4000f, 1f), 0.001f)
+        assertEquals(2f / 3f, PanelTokens.scale(320f, 1f), 0.001f)
+        assertTrue("a broken density never collapses the card", PanelTokens.scale(1200f, 0f) > 0f)
     }
 
     private fun live(frontendConnected: Boolean) = RendererAdmissionRuntime.Live(1L, null, frontendConnected, null)

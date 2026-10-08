@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelTokens
 import io.panelassistant.android.i18n.Strings as AppStrings
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -19,7 +20,7 @@ internal suspend fun respondInstallFormError(
         return
     }
     call.respondText(
-        "<!doctype html><base href=\"/\"><meta charset=utf-8><body style='font-family:system-ui;background:#111;color:#eee;padding:20px'>" +
+        "<!doctype html><base href=\"/\"><meta charset=utf-8><body style='font-family:system-ui;background:${PanelTokens.Page.BACKGROUND};color:${PanelTokens.Page.TEXT};padding:20px'>" +
             esc(strings.get(key)) + "</body>",
         ContentType.Text.Html,
         status,

@@ -195,7 +195,7 @@
     var ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio);
     ctx.clearRect(0, 0, width, height);
     if (!points.length) {
-      ctx.fillStyle = "#888"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = cssToken("autobright-label"); ctx.font = "13px sans-serif"; ctx.textAlign = "center";
       ctx.fillText(cfg.i18nText("configure.brightness.history_none", "No ambient-light history yet"), width / 2, height / 2);
       return;
     }
@@ -209,7 +209,7 @@
     function x(p) { return pad.left + p.minuteOfDay / 1440 * plotW; }
     function y(value) { return pad.top + plotH - Math.log(Math.max(0, value) + 1) / maxLog * plotH; }
     function yBrightness(value) { return pad.top + plotH - Math.max(0, Math.min(255, value)) / 255 * plotH; }
-    ctx.strokeStyle = "#343a44"; ctx.lineWidth = 1;
+    ctx.strokeStyle = cssToken("autobright-grid"); ctx.lineWidth = 1;
     [0, .5, 1].forEach(function (f) {
       var yy = pad.top + plotH * f; ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
     });
@@ -297,7 +297,7 @@
       span.push(slot);
     });
     if (span.length) spans.push(span);
-    ctx.fillStyle = "rgba(74,158,255,.15)";
+    ctx.fillStyle = cssToken("autobright-band");
     spans.forEach(function (run) {
       if (run.length < 2) return;
       ctx.beginPath();
@@ -314,12 +314,12 @@
     days.filter(function (day) { return day.age < autoBrightnessLineDays(); }).forEach(function (day) {
       var style = autoBrightnessDayStyle(day.age);
       ctx.save();
-      line(day, "mean", autoBrightnessAgedColor("#4a9eff", style.blurPx), style.widthPx, y, style.blurPx);
-      line(day, "expected", autoBrightnessAgedColor("#f1bd52", style.blurPx), style.widthPx, y, style.blurPx);
-      line(day, "brightness", autoBrightnessAgedColor("#b77cff", style.blurPx), style.widthPx, yBrightness, style.blurPx);
+      line(day, "mean", autoBrightnessAgedColor(cssToken("chart-observed"), style.blurPx), style.widthPx, y, style.blurPx);
+      line(day, "expected", autoBrightnessAgedColor(cssToken("chart-expected"), style.blurPx), style.widthPx, y, style.blurPx);
+      line(day, "brightness", autoBrightnessAgedColor(cssToken("chart-proposed"), style.blurPx), style.widthPx, yBrightness, style.blurPx);
       ctx.restore();
     });
-    ctx.fillStyle = "#888"; ctx.font = "11px sans-serif";
+    ctx.fillStyle = cssToken("autobright-label"); ctx.font = "11px sans-serif";
     ctx.textAlign = "left"; ctx.fillText(Math.round(maxLux) + " lx", pad.left + 5, pad.top + 12); ctx.fillText("0", pad.left + 5, pad.top + plotH - 4);
     ctx.textAlign = "right"; ctx.fillText("100%", width - pad.right - 5, pad.top + 12); ctx.fillText("0%", width - pad.right - 5, pad.top + plotH - 4);
     [0, 360, 720, 1080, 1440].forEach(function (minute, index) {

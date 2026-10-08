@@ -1,5 +1,6 @@
 package io.panelassistant.android.assist
 
+import io.panelassistant.android.PanelTokens
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -16,7 +17,7 @@ import android.view.View
 class ListeningGlowView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
-    private var color = Color.parseColor("#00FF88")
+    private var color = PanelTokens.Overlay.VOICE_ATTENTION
     private var animator: ValueAnimator? = null
     private var pulse: ValueAnimator? = null
 

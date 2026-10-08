@@ -32,12 +32,12 @@ internal fun tameRowHtml(
     val tamed = c.blocked || c.disabled
     val state = if (!showState) "" else when {
         !c.installed -> """<span style="width:80px;text-align:right;font-size:.85em;color:var(--dim)">${esc(strings.get("install.shared.not_installed"))}</span>"""
-        c.disabled -> """<span style="width:80px;text-align:right;font-size:.85em;color:#d9a528">${esc(strings.get("install.tame.state.disabled"))}</span>"""
-        else -> """<span style="width:80px;text-align:right;font-size:.85em;color:#3fb950">${esc(strings.get("install.tame.state.active"))}</span>"""
+        c.disabled -> """<span style="width:80px;text-align:right;font-size:.85em;color:var(--fg-warn)">${esc(strings.get("install.tame.state.disabled"))}</span>"""
+        else -> """<span style="width:80px;text-align:right;font-size:.85em;color:var(--pkg-active)">${esc(strings.get("install.tame.state.active"))}</span>"""
     }
     val action = if (tamed) "untame" else "tame"
     val label = strings.get(if (tamed) "install.tame.action.reenable" else "install.tame.action.tame")
-    val btn = if (tamed) "" else "background:#7a2e2e;border-color:#7a2e2e"
+    val btn = if (tamed) "" else "background:var(--pkg-tame);border-color:var(--pkg-tame)"
     // Tags (authored or heuristic: core/vendor/user/overlay) after the label; note below the package id.
     val tags = c.tags.joinToString("") { tag ->
         val localized = when (tag.lowercase(java.util.Locale.ROOT)) {
@@ -54,15 +54,15 @@ internal fun tameRowHtml(
     val recBadge = if (c.recommended && !tamed)
         """<span class="vtag rec">${esc(strings.get("install.tame.badge.recommended"))}</span>""" else ""
     val note = if (c.note.isNotBlank())
-        """<br><small style="color:#9aa">${esc(c.note)}</small>""" else ""
+        """<br><small style="color:var(--pkg-note)">${esc(c.note)}</small>""" else ""
     // A non-removable package (core Android / dashboard / ourselves) is shown for context with a muted
     // "protected" label where the action button would be — no way to disable it.
     val control = if (!c.removable)
-        """<span style="font-size:.8em;color:#777;white-space:nowrap">${esc(strings.get("install.tame.state.protected"))}</span>"""
+        """<span style="font-size:.8em;color:var(--pkg-protected);white-space:nowrap">${esc(strings.get("install.tame.state.protected"))}</span>"""
     else
         """<form method="post" action="${localizedHref("api/v1/tame", strings)}" style="margin:0"><input type="hidden" name="pkg" value="${esc(c.pkg)}"><input type="hidden" name="action" value="$action"><button type="submit"${hardenedApprovalA11yAttrs(strings = strings)} style="$btn;white-space:nowrap"${if (disabled) " disabled" else ""}>${esc(label)}</button></form>"""
-    return """  <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #222">
-   <span style="flex:1;min-width:0;overflow:hidden">${esc(c.label)}$recBadge$tags<br><small style="color:#888">${esc(c.pkg)}</small>$note</span>
+    return """  <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--pkg-divider)">
+   <span style="flex:1;min-width:0;overflow:hidden">${esc(c.label)}$recBadge$tags<br><small style="color:var(--fg-muted)">${esc(c.pkg)}</small>$note</span>
    $state
    $control
   </div>"""
@@ -112,7 +112,7 @@ $body
   <small id="tame-pkg-hint" class="note" style="grid-column:1/-1">${esc(strings.get("install.tame.package_hint"))}</small>
  </form>
 </div>
-<div id="hand-back-home" style="margin-top:16px;padding-top:12px;border-top:1px solid #222">
+<div id="hand-back-home" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--pkg-divider)">
  <h3 style="margin:0 0 4px">${esc(strings.get("install.tame.hand_back.title"))}</h3>
  <p class="note" style="margin:0 0 4px">${esc(strings.get("install.tame.hand_back.description"))}</p>
  <p class="note" style="margin:0 0 4px"><strong>${esc(strings.get("install.tame.hand_back.warning"))}</strong></p>
@@ -120,7 +120,7 @@ $body
  <button id="hand-back-home-button" type="button" onclick="handBackHome()"${hardenedApprovalA11yAttrs(strings = strings)}$dis>${esc(strings.get("install.tame.hand_back.action"))}</button>
  <p id="hand-back-home-status" class="note" role="status" aria-live="polite" style="margin:8px 0 0"></p>
 </div>
-<dialog id="pkgdlg" style="background:#1a1a1a;color:#eee;border:1px solid #333;border-radius:12px;max-width:520px;width:92%;padding:16px">
+<dialog id="pkgdlg" style="background:var(--pkg-dialog-bg);color:var(--pkg-dialog-fg);border:1px solid var(--pkg-dialog-border);border-radius:12px;max-width:520px;width:92%;padding:16px">
  <h3 data-hardened-approval="conditional" aria-describedby="hardened-approval-section-conditional-description" title="${esc(strings.get("shell.hardened.section_conditional"))}" style="margin:0 0 4px">${esc(strings.get("install.tame.dialog.title"))}</h3>
  <p class="note" style="margin:0 0 8px">${esc(strings.get("install.tame.dialog.description"))}</p>
  <div id="pkgdlgbody" style="max-height:55vh;overflow:auto">${esc(strings.get("install.shared.loading"))}</div>

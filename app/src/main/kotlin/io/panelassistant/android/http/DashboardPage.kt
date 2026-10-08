@@ -12,7 +12,7 @@ internal fun dashboardProfileNote(links: List<ProfileLink>, strings: AppStrings)
             .orEmpty()
         """<a href="${esc(link.url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"><bdi class="profile-reference-label" dir="auto">${esc(link.label)}</bdi>$destination</a>"""
     }.takeIf { it.isNotBlank() }?.let { """<br><span class="profile-reference-links">$it</span>""" }.orEmpty()
-    return """<p class="note">${esc(strings.get("dashboard.profile_note.prefix"))} <a href="$DEVICE_PROFILES_DOC" target="_blank" rel="noopener" style="color:#9cf">${esc(strings.get("dashboard.profile_note.link"))}</a>.$profileReferences</p>"""
+    return """<p class="note">${esc(strings.get("dashboard.profile_note.prefix"))} <a href="$DEVICE_PROFILES_DOC" target="_blank" rel="noopener" style="color:var(--link)">${esc(strings.get("dashboard.profile_note.link"))}</a>.$profileReferences</p>"""
 }
 
 internal fun dashboardScreenshotCard(
@@ -46,7 +46,7 @@ internal fun dashboardCameraCard(present: Boolean, strings: AppStrings): String 
     // rule the Camera row in Runtime diagnostics already follows.
     return if (!present) "" else
         """<div class="card" data-layout-key="camera-stream"><h2>${esc(strings.get("dashboard.camera.title"))} <small id="camhdr"></small></h2>
-<table id="camtbl"><tr><td style="color:#888">${esc(strings.get("dashboard.status.reading"))}</td></tr></table>
+<table id="camtbl"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.reading"))}</td></tr></table>
 <p class="note">${esc(strings.get("dashboard.camera.note"))} ${esc(strings.get("dashboard.camera.settings_on"))} <a href="${localizedHref("configure", strings)}">${esc(strings.get("dashboard.camera.configure_link"))}</a>.</p></div>"""
 }
 
@@ -67,7 +67,7 @@ internal fun dashboardBody(
     controls: String,
     rowHtml: (String) -> String?,
 ): String {
-    val placeholder = """<tr><td style="color:#888">${esc(strings.get("dashboard.status.reading"))}</td></tr>"""
+    val placeholder = """<tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.reading"))}</td></tr>"""
     // One facts/value card: cold → placeholder rows (hydration fills or hides); warm → rows, and
     // an EMPTY card is omitted exactly as before.
     fun tcard(id: String, title: String, rows: String?, pre: String = "", post: String = ""): String = when {
@@ -75,7 +75,7 @@ internal fun dashboardBody(
         rows.isBlank() -> ""
         else -> """<div class="card" data-layout-key="$id"><h2>${esc(title)}</h2>$pre<table id="$id">$rows</table>$post</div>"""
     }
-    val capNote = """<p class="note"><a href="api/v1/diag" target="_blank" style="color:#9cf">⭳ ${esc(strings.get("dashboard.diagnostics_dump.link"))}</a> — ${esc(strings.get("dashboard.diagnostics_dump.explanation"))}</p>"""
+    val capNote = """<p class="note"><a href="api/v1/diag" target="_blank" style="color:var(--link)">⭳ ${esc(strings.get("dashboard.diagnostics_dump.link"))}</a> — ${esc(strings.get("dashboard.diagnostics_dump.explanation"))}</p>"""
     return """<div id="bannerzone">${banners}</div>
 <div class="cards" id="dashboard-cards" data-card-size-page="dashboard" data-card-size-epoch="1" data-card-size-restore="1">
 <div class="card" data-layout-key="controls"><h2>${esc(strings.get("dashboard.card.controls"))} <small>· ${esc(strings.get("dashboard.card.software_nav_bar"))}</small></h2>
@@ -88,23 +88,23 @@ ${tcard("contexttbl", strings.get("dashboard.card.runtime_diagnostics"), rowHtml
 ${tcard("captbl", strings.get("dashboard.card.capabilities"), rowHtml("captbl"), post = capNote)}
 <div class="card" data-layout-key="responsiveness"><h2>${esc(strings.get("dashboard.card.responsiveness"))} <small id="smhdr"></small></h2>
 <canvas id="respchart" width="600" height="150" style="height:150px"></canvas>
-<div class="leg"><span style="color:#d04a3b">▬</span> ${esc(strings.get("dashboard.chart.interaction_latency"))}&nbsp;&nbsp;<span style="color:#4a9eff">▬</span> ${esc(strings.get("dashboard.chart.state_updates"))}&nbsp;&nbsp;<span style="color:#f5a623">▬</span> ${esc(strings.get("dashboard.chart.main_thread_blocking"))} · ~4 min</div>
-<table id="smtbl"><tr><td style="color:#888">${esc(strings.get("dashboard.status.measuring"))}</td></tr></table></div>
+<div class="leg"><span style="color:var(--chart-interaction)">▬</span> ${esc(strings.get("dashboard.chart.interaction_latency"))}&nbsp;&nbsp;<span style="color:var(--chart-updates)">▬</span> ${esc(strings.get("dashboard.chart.state_updates"))}&nbsp;&nbsp;<span style="color:var(--chart-blocked)">▬</span> ${esc(strings.get("dashboard.chart.main_thread_blocking"))} · ~4 min</div>
+<table id="smtbl"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.measuring"))}</td></tr></table></div>
 <div class="card" data-layout-key="ha-state-stream"><h2>${esc(strings.get("dashboard.card.ha_state_stream"))} <small>· ${esc(strings.get("dashboard.card.builtin_renderer"))}</small></h2>
-<table id="streamtbl"><tr><td style="color:#888">${esc(strings.get("dashboard.status.waiting_state_traffic"))}</td></tr></table>
-<table class="dt" id="noisyentities"><tr><td style="color:#888">${esc(strings.get("dashboard.status.waiting_entity_contributors"))}</td></tr></table>
+<table id="streamtbl"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.waiting_state_traffic"))}</td></tr></table>
+<table class="dt" id="noisyentities"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.waiting_entity_contributors"))}</td></tr></table>
 <p class="note">${esc(strings.get("dashboard.ha_stream.note"))} <a href="${localizedHref("entities", strings)}">${esc(strings.get("dashboard.ha_stream.open_diagnostics"))}</a>.</p></div>
 <div class="card" data-layout-key="sensors"><h2>${esc(strings.get("dashboard.card.sensors"))} <small id="sensage"></small></h2>
-<table id="senstbl"><tr><td style="color:#888">${esc(strings.get("dashboard.status.reading"))}</td></tr></table>
+<table id="senstbl"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.reading"))}</td></tr></table>
 <p class="note">${esc(strings.get("dashboard.sensors.note"))}</p></div>
 $cameraCard
 <div class="card" data-layout-key="performance"><h2>${esc(strings.get("dashboard.card.performance"))} <small id="perfage"></small></h2>
-<div style="color:#666;font-size:.78rem;margin-bottom:8px">${esc(strings.get("dashboard.performance.samples_note"))}</div>
+<div style="color:var(--fg-faint);font-size:.78rem;margin-bottom:8px">${esc(strings.get("dashboard.performance.samples_note"))}</div>
 <canvas id="perfchart" width="600" height="96" style="height:96px"></canvas>
-<div class="leg"><span style="color:#4a9eff">■</span> CPU&nbsp;&nbsp;<span style="color:#48c774">■</span> RAM&nbsp;&nbsp;<span style="color:#f5a623">■</span> GPU (${esc(strings.get("dashboard.chart.percent_used"))}) · ~4&nbsp;min</div>
-<table id="perf"><tr><td style="color:#888">${esc(strings.get("dashboard.status.sampling"))}</td></tr></table></div>
+<div class="leg"><span style="color:var(--chart-cpu)">■</span> CPU&nbsp;&nbsp;<span style="color:var(--chart-ram)">■</span> RAM&nbsp;&nbsp;<span style="color:var(--chart-gpu)">■</span> GPU (${esc(strings.get("dashboard.chart.percent_used"))}) · ~4&nbsp;min</div>
+<table id="perf"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.sampling"))}</td></tr></table></div>
 <div class="card" data-layout-key="top-processes"><h2>${esc(strings.get("dashboard.card.top_processes"))} <span class="top-process-modes" role="group" aria-label="${esc(strings.get("dashboard.processes.rank_by"))}"><button type="button" class="top-process-mode on" data-mode="cpu" aria-pressed="true" onclick="setTopMode('cpu')">CPU</button><button type="button" class="top-process-mode" data-mode="ram" aria-pressed="false" onclick="setTopMode('ram')">RAM</button></span></h2>
-<table class="dt" id="topproc"><tr><td style="color:#888">${esc(strings.get("dashboard.status.top_processes"))}</td></tr></table></div>
+<table class="dt" id="topproc"><tr><td style="color:var(--fg-muted)">${esc(strings.get("dashboard.status.top_processes"))}</td></tr></table></div>
 <div class="card" data-layout-key="remote-webview"><h2>${esc(strings.get("dashboard.card.remote_webview"))} <small id="insthdr"></small></h2>
 <div style="display:flex;gap:8px;margin-bottom:4px">
  <button id="inspstart" type="button" class="pbtn" onclick="inspStart()"${if (config.hardenedSecurityEnabled) " disabled title=\"${esc(strings.get("dashboard.remote_webview.hardened_unavailable"))}\"" else ""}>${esc(strings.get("dashboard.action.enable"))}</button>
@@ -114,8 +114,8 @@ ${tcard("livetbl", strings.get("dashboard.card.live_state"), rowHtml("livetbl"),
 ${tcard("behavtbl", strings.get("dashboard.card.behaviour"), rowHtml("behavtbl"))}
 ${tcard("disptbl", strings.get("dashboard.card.display_tuning"), rowHtml("disptbl"))}
 </div>
-<p class="note" style="text-align:center;margin-top:18px"><a href="${localizedHref("api", strings)}" style="color:#9cf">${esc(strings.get("dashboard.footer.api_explorer"))}</a>
- · <a href="api/v1/diag" target="_blank" style="color:#9cf">${esc(strings.get("dashboard.footer.diagnostics"))}</a> · <a href="$REPO_URL" target="_blank" rel="noopener" style="color:#9cf">GitHub</a></p>"""
+<p class="note" style="text-align:center;margin-top:18px"><a href="${localizedHref("api", strings)}" style="color:var(--link)">${esc(strings.get("dashboard.footer.api_explorer"))}</a>
+ · <a href="api/v1/diag" target="_blank" style="color:var(--link)">${esc(strings.get("dashboard.footer.diagnostics"))}</a> · <a href="$REPO_URL" target="_blank" rel="noopener" style="color:var(--link)">GitHub</a></p>"""
 }
 
 private const val DEVICE_PROFILES_DOC = "https://panel-assistant.io/go/docs?page=architecture/device-profiles"

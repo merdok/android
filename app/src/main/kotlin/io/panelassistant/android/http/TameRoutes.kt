@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelTokens
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.TamePackagePolicy
@@ -79,7 +80,7 @@ internal class TameRoutes(
             } else {
                 call.respondText(
                     "<!doctype html><base href=\"/\"><meta charset=utf-8><meta http-equiv=refresh content='2;url=${esc(returnTo)}'>" +
-                        "<body style='font-family:system-ui;background:#111;color:#eee;padding:20px'>" +
+                        "<body style='font-family:system-ui;background:${PanelTokens.Page.BACKGROUND};color:${PanelTokens.Page.TEXT};padding:20px'>" +
                         esc(strings.get("install.tame.result.applying_recommended_progress")) + "</body>",
                     ContentType.Text.Html,
                 )
@@ -154,7 +155,7 @@ internal class TameRoutes(
         } else {
             call.respondText(
                 "<!doctype html><base href=\"/\"><meta charset=utf-8><meta http-equiv=refresh content='2;url=${esc(returnTo)}'>" +
-                    "<body style='font-family:system-ui;background:#111;color:#eee;padding:20px'>" +
+                    "<body style='font-family:system-ui;background:${PanelTokens.Page.BACKGROUND};color:${PanelTokens.Page.TEXT};padding:20px'>" +
                     esc(result) + "</body>",
                 ContentType.Text.Html,
             )

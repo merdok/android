@@ -3990,7 +3990,7 @@ class DashboardActivity : AppCompatActivity() {
         private const val RELOAD_HARD_MS = 26 * 60 * 60 * 1000L      // force a visible reload if never idle-dark
         private const val PERIODIC_CHECK_MS = 30 * 60 * 1000L        // how often the memory-ceiling check runs
         private const val DARK_SETTLE_MS = 30_000L              // let a screen-off reload load before freezing
-        private const val BG_DARK = 0xFF121212.toInt()
+        private const val BG_DARK = PanelTokens.Overlay.DASHBOARD_DARK
         private const val LIGHT_REFRESH_SPINNER_MS = 800L       // bus navigate is instant; brief spinner ack
         private const val HARD_REFRESH_WINDOW_MS = 6_000L       // second pull inside this = full hard reload
         private const val CORRECTION_VERIFY_MS = 10_000L        // bus correction must prove itself by then

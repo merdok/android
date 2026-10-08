@@ -155,7 +155,7 @@ internal class StatusBrandHeader(
     palette: StatusPalette,
 ) {
     private val density = activity.resources.displayMetrics.density
-    private fun dp(value: Int): Int = (value * density).toInt()
+    private fun dp(value: Int): Int = PanelTokens.dp(value, density)
 
     private val caption = TextView(activity).apply {
         text = appVersion()
@@ -242,7 +242,7 @@ internal class StatusSurface(
     val spec: StatusSurfaceSpec = specFor(activity)
     val palette: StatusPalette = statusPalette(dark)
 
-    private fun dp(value: Int): Int = (value * density).toInt()
+    private fun dp(value: Int): Int = PanelTokens.dp(value, density)
     private fun color(hex: String): Int = Color.parseColor(hex)
 
     private val header = StatusBrandHeader(activity, dark, spec, palette)

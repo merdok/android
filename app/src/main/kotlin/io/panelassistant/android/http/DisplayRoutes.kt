@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.PanelTokens
 import android.content.Context
 import io.panelassistant.android.control.DensityController
 import io.panelassistant.android.control.DisplaySizingObservation
@@ -114,8 +115,8 @@ internal fun Route.displayRoutes(
             call.respondText(
                 "<!doctype html><base href=\"/\"><meta charset=utf-8>" +
                     (if (ok) "<meta http-equiv=refresh content='1;url=${escapeHtml(returnTo)}'>" else "") +
-                    "<body style='font-family:system-ui;background:#111;color:#eee;padding:20px'>" +
-                    escapeHtml(message) + (if (ok) "…" else " <a href='${escapeHtml(returnTo)}' style='color:#9cf'>${escapeHtml(strings.get("install.display.return"))}</a>") + "</body>",
+                    "<body style='font-family:system-ui;background:${PanelTokens.Page.BACKGROUND};color:${PanelTokens.Page.TEXT};padding:20px'>" +
+                    escapeHtml(message) + (if (ok) "…" else " <a href='${escapeHtml(returnTo)}' style='color:${PanelTokens.Page.LINK}'>${escapeHtml(strings.get("install.display.return"))}</a>") + "</body>",
                 ContentType.Text.Html,
                 responseStatus,
             )

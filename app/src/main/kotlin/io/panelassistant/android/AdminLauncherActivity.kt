@@ -46,7 +46,7 @@ class AdminLauncherActivity : AppCompatActivity() {
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var refreshJob: Job? = null
 
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    private fun dp(v: Int): Int = PanelTokens.dp(v, resources.displayMetrics.density)
 
     /**
      * The same light/dark decision every other ha-paneld screen makes — the panel's configured
@@ -57,15 +57,13 @@ class AdminLauncherActivity : AppCompatActivity() {
     private val dark: Boolean get() = StatusSurface.darkFor(this, Config(this))
 
     /**
-     * Card colours, deliberately NOT the shared status palette.
-     *
-     * This screen is a tile grid, not a status surface: its tiles are drawn in the status palette's
-     * background colour, so the page behind them has to be a shade off it or the cards vanish. The
-     * shared palette is used for everything that is not that relationship.
+     * Page and tile colours come from [PanelTokens.Launcher], not the status palette: this screen is
+     * a tile grid, not a status surface. The status palette covers everything else.
      */
     private val paletteFor get() = statusPalette(dark)
-    private val bg get() = if (dark) paletteFor.background else "#f3f4f6"
-    private val cardBg get() = if (dark) "#1d1f24" else paletteFor.background
+    private val tiles get() = if (dark) PanelTokens.Launcher.DARK else PanelTokens.Launcher.LIGHT
+    private val bg get() = tiles.page
+    private val cardBg get() = tiles.tile
     private val body get() = paletteFor.body
     private val subtle get() = paletteFor.subtle
     private val accent get() = if (dark) paletteFor.actionBackground else paletteFor.accent

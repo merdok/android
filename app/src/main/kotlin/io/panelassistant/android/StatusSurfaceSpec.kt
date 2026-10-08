@@ -1,8 +1,8 @@
 package io.panelassistant.android
 
 /**
- * Layout and colour rules for [StatusSurface], the branded frame every ha-paneld-owned full-screen
- * status screen is built from.
+ * Layout rules for [StatusSurface], the branded frame every ha-paneld-owned full-screen status screen
+ * is built from. Its colours are [PanelTokens.Status].
  *
  * Sizes here are dp and text sizes are sp; the two coincide only at a font scale of 1. Nothing here
  * predicts whether a phase FITS a panel — an earlier version of this file modelled that, and the
@@ -154,78 +154,9 @@ internal fun statusSurfaceSpec(widthDp: Int, heightDp: Int): StatusSurfaceSpec {
     )
 }
 
-/** Colours for one theme. Hex strings, so this file stays free of the Android graphics types. */
-internal data class StatusPalette(
-    val background: String,
-    val body: String,
-    val subtle: String,
-    val accent: String,
-    val track: String,
-    val actionBackground: String,
-    val actionText: String,
-    /** Secondary actions — Retry, Configure, Skip — drawn by the frame rather than the platform. */
-    val actionSurface: String,
-    /**
-     * The edge of a secondary action.
-     *
-     * A secondary fill sits close to the page by design, so the fill alone gave the control about
-     * 1.3–1.5:1 against the background and it barely read as a control at all. The visible boundary is
-     * what carries the contrast: this is held to at least 3:1 against the page, the ratio WCAG asks of
-     * a user-interface component's boundary.
-     */
-    val actionBorder: String,
-    /** The surface while an action is held or focused, so a press is visible. */
-    val actionPressed: String,
-    /** The emphasised action while held or focused. */
-    val actionPrimaryPressed: String,
-    /** The surface of an action that is disabled — the entity-filter recovery disables them while it works. */
-    val actionDisabled: String,
-    /**
-     * The colour a terminal failure's heading is drawn in.
-     *
-     * Theme-aware rather than one shade: the light red that reads well against a near-black panel is
-     * barely legible on white, and the screen it appears on is the one a person is reading in order
-     * to fix something.
-     */
-    val error: String,
-)
-
-internal fun statusPalette(dark: Boolean): StatusPalette = if (dark) {
-    StatusPalette(
-        background = "#111111",
-        body = "#c8ccd2",
-        subtle = "#8a8f99",
-        accent = "#4a9eff",
-        track = "#30343a",
-        // 3.87:1 against the dark page and 4.88:1 for its label. The previous #2557a7 reached only
-        // 2.70:1 against the page — it read as a slab rather than a control, which the arithmetic
-        // -average contrast check could not see.
-        actionBackground = "#2f6fd0",
-        actionText = "#ffffff",
-        actionSurface = "#2a2f36",
-        actionBorder = "#6b737e",
-        actionPressed = "#3b424b",
-        actionPrimaryPressed = "#4a86e0",
-        actionDisabled = "#1c1f24",
-        error = "#ff6b6b",
-    )
-} else {
-    StatusPalette(
-        background = "#ffffff",
-        body = "#2a2e34",
-        subtle = "#5a6068",
-        accent = "#1669d6",
-        track = "#dce1e7",
-        actionBackground = "#2557a7",
-        actionText = "#ffffff",
-        actionSurface = "#eef1f5",
-        actionBorder = "#8a929c",
-        actionPressed = "#dde3ea",
-        actionPrimaryPressed = "#1b4a8f",
-        actionDisabled = "#f4f6f8",
-        error = "#b3261e",
-    )
-}
+/** Colours for one theme; the values are in tools/tokens/tokens.json. */
+internal fun statusPalette(dark: Boolean): StatusPalette =
+    if (dark) PanelTokens.Status.DARK else PanelTokens.Status.LIGHT
 
 /**
  * The one dark/light rule for every status screen.
