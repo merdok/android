@@ -6309,7 +6309,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_power_at_risk": {
-   "text": "⛔ Energiebeheer van het paneel: bereikbaarheid in gevaar — het paneel kan na het uitschakelen van het scherm in slaapstand gaan of Doze activeren, waardoor het via HTTP onbereikbaar wordt en achtergrondtaken stilvallen.",
+   "text": "⛔ Energiebeheer van het paneel: in gevaar — het paneel kan na het uitschakelen van het scherm in slaapstand gaan of Doze activeren, waardoor HTTP en achtergrondtaken onbereikbaar worden.",
    "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
    "state": "machine-cross-checked"
   },

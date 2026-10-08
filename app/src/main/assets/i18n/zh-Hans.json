@@ -7031,7 +7031,7 @@
     "install.presentation.status_no_renderer": {
       "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
       "state": "machine-cross-checked",
-      "text": "ℹ 下一步：选择仪表板渲染器。请选择 ha-paneld 内置渲染器、安装 Home Assistant 配套应用，或配置其他仪表板软件包。"
+      "text": "ℹ 下一步：选择仪表盘渲染器。请选择 ha-paneld 内置渲染器、安装 Home Assistant 配套应用，或配置其他仪表盘软件包。"
     },
     "install.presentation.status_power_at_risk": {
       "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
