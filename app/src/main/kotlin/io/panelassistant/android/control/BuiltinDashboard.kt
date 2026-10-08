@@ -318,6 +318,24 @@ object BuiltinDashboard {
     /** [ScreenController] calls this from sleep()/wake(); no-op when no renderer is listening. */
     fun onScreenAwake(awake: Boolean) { screenAwakeNow = awake; screenListener?.invoke(awake) }
 
+    /** True while a screen-off route that waits for Android's own screen timeout needs the renderer to
+     *  stop holding the screen on (`FLAG_KEEP_SCREEN_ON`). Separate from [screenAwakeNow] on purpose: the
+     *  renderer must keep running until Android has actually gone noninteractive, because a timeout that
+     *  never fires degrades to a visible dim, and a frozen renderer on a lit screen looks alive but is not. */
+    @Volatile var keepScreenOnReleased = false
+        private set
+    @Volatile private var keepScreenOnListener: (() -> Unit)? = null
+
+    fun setKeepScreenOnListener(l: (() -> Unit)?) { keepScreenOnListener = l }
+    fun clearKeepScreenOnListener(l: () -> Unit) { if (keepScreenOnListener === l) keepScreenOnListener = null }
+
+    /** [ScreenController] calls this around a screen-timeout off; the renderer re-applies its policy. */
+    fun releaseKeepScreenOn(released: Boolean) {
+        if (keepScreenOnReleased == released) return
+        keepScreenOnReleased = released
+        keepScreenOnListener?.invoke()
+    }
+
     /** True while the renderer is latched on "HA rejected our login settings" (terminal refresh response /
      *  repeated auth-invalid). Read by the `:8888` health warnings so the failure is visible off-panel;
      *  cleared when a reload/navigate arrives or the frontend connects. */

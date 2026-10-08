@@ -229,6 +229,27 @@ class ProfileYamlSecurityTest {
         }
     }
 
+    /** The unprivileged Android-sleep routes validate on a sandboxed profile, require their own driver,
+     *  and reach their own runtime route. */
+    @Test fun `screen-timeout and device-admin validate without su and reach their routes`() {
+        mapOf("screen-timeout" to ScreenOff.SCREEN_TIMEOUT, "device-admin" to ScreenOff.DEVICE_ADMIN).forEach { (token, route) ->
+            val base = testProfileDocument()
+            val document = base.copy(
+                platform = ProfilePlatform("none", appCanSu = false),
+                hardware = base.hardware.copy(screenOff = token),
+                requires = ProfileRequirements(drivers = setOf("screen.$token")),
+            )
+            assertEquals(token, emptyList<ProfileIssue>(), ProfileValidator.validate(document, "1.0.0", bundled = false))
+            assertTrue(
+                "an undeclared screen.$token driver must be rejected",
+                ProfileValidator.validate(document.copy(requires = ProfileRequirements(drivers = setOf("screen.brightness-zero"))), "1.0.0", bundled = false)
+                    .any { it.path == "requires.drivers" },
+            )
+            val profile = DataDeviceProfile(document = document, productVersion = "1.0.0", revision = "test", trustedBundledContent = false)
+            assertEquals(route, profile.screenOff)
+        }
+    }
+
     /** Validation alone proves nothing about what the runtime does with the value, so the adapter's
      *  own mapping is asserted here: a validated `keyevent` document must reach the keyevent route,
      *  and the permissive `else` that catches unknown text must not be what carries it there. */
@@ -277,7 +298,7 @@ class ProfileYamlSecurityTest {
 
         assertEquals(listOf("none", "android", "toolbox"), ProfileMetadata.schema.fields.single { it.path == "platform.su_form" }.enumValues)
         assertEquals(
-            listOf("brightness-zero", "su-blpower", "daemon-blpower", "keyevent"),
+            listOf("brightness-zero", "su-blpower", "daemon-blpower", "keyevent", "screen-timeout", "device-admin"),
             ProfileMetadata.schema.fields.single { it.path == "hardware.screen_off" }.enumValues,
         )
         assertEquals(SuForm.TOOLBOX, runtime(withSu("toolbox", true)).suForm)

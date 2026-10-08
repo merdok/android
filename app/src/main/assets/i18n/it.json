@@ -2873,6 +2873,11 @@
       "state": "machine-cross-checked",
       "text": "Sospensione Android tramite KEYCODE_SLEEP; Home Assistant lo riattiva sempre, il tocco locale solo se il touchscreen del pannello è una sorgente di riattivazione della piattaforma"
     },
+    "dashboard.capability.note.android_timeout": {
+      "sourceHash": "7589666b9d75687119cb26eea23eb757cf86e84b324701c21e442e26c5743b32",
+      "state": "machine-cross-checked",
+      "text": "Sospensione Android tramite un breve timeout dello schermo; Home Assistant lo riattiva sempre, il tocco locale solo se il touchscreen del pannello è una sorgente di riattivazione della piattaforma"
+    },
     "dashboard.capability.note.available": {
       "sourceHash": "ddd9818abacfde7afed60c93129175401439367a77e69ea93e0ddb3bb38e0bd9",
       "state": "machine-cross-checked",
@@ -2973,6 +2978,16 @@
       "state": "machine-cross-checked",
       "text": "{state} — {detail}"
     },
+    "dashboard.capability.note.device_admin_lock": {
+      "sourceHash": "a416b84983227d3d5b5c7753db52c0c6e08de5a44de5aced6cb28f17ccc86889",
+      "state": "machine-cross-checked",
+      "text": "Sospensione Android tramite il blocco schermo dell’amministratore del dispositivo; Home Assistant lo riattiva sempre, il tocco locale solo se il touchscreen del pannello è una sorgente di riattivazione della piattaforma"
+    },
+    "dashboard.capability.note.dim_android_sleep_grant": {
+      "sourceHash": "9c5a2f2c9f2d61b9b83be94d36dfd1fe35364fae0c7d42ad670d200bd4c0d4de",
+      "state": "machine-cross-checked",
+      "text": "richiede WRITE_SETTINGS o un amministratore del dispositivo attivo per sospendere Android"
+    },
     "dashboard.capability.note.dim_backlight_powered": {
       "sourceHash": "9ad1df56612df39975a440c255b5ab080f918e9212240b5ec22a290c21973621",
       "state": "machine-cross-checked",
@@ -3017,6 +3032,11 @@
       "sourceHash": "5356e1ca4a3a487fb59a9181ed108a1077e53887e3a521aec59c47c3f89da8ef",
       "state": "machine-cross-checked",
       "text": "richiede WRITE_SETTINGS: {command}"
+    },
+    "dashboard.capability.note.pin_on_wake": {
+      "sourceHash": "4b4ec80d3e0a65dc7ef4148085e9e75ba67c8ecebbba3c7e76217aecae8b46a1",
+      "state": "machine-cross-checked",
+      "text": "{route}; è impostato un blocco schermo con PIN, quindi la riattivazione richiede quel PIN"
     },
     "dashboard.capability.note.rockchip_led_direct": {
       "sourceHash": "f5876fe3b48b4aeb1411b01ffc22454d72a3ab77bac26c52751b595f6c5a2dc8",

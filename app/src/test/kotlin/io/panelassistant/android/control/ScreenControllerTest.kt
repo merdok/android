@@ -1392,4 +1392,146 @@ class ScreenControllerTest {
         assertTrue("the later sleep wins once ensureOn has released the monitor", sc.isIntendedOff())
         assertEquals("the sleep, not the ON, made the only write", listOf("raw:0"), backlight.calls)
     }
+
+    // --- screen-timeout and device-admin: unprivileged Android sleep ---
+
+    private val displaced = InMemoryDisplacedScreenTimeout()
+
+    private fun androidSleepController(route: ScreenOff = ScreenOff.SCREEN_TIMEOUT) = ScreenController(
+        backlight, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, route,
+        nap = {}, displacedTimeout = displaced,
+    )
+
+    /** The primary route: the renderer stops holding the screen on, a short timeout lets Android sleep,
+     *  and the wake puts back exactly the timeout that was there before. */
+    @Test fun screenTimeoutSleepsThroughAShortTimeoutAndRestoresThePreviousOneOnWake() {
+        power.canWrite = true
+        power.timeoutMs = 300_000
+        backlight.level = 200
+        val sc = androidSleepController()
+
+        sc.sleep()
+        assertFalse("Android itself is asleep", power.interactive)
+        assertTrue(sc.looksDark())
+        assertTrue("the short timeout is in force while asleep", power.timeoutMs < 60_000)
+        assertTrue("the renderer must stop holding the screen on", BuiltinDashboard.keepScreenOnReleased)
+        assertEquals(RouteSelection(ScreenOff.SCREEN_TIMEOUT, ScreenOff.SCREEN_TIMEOUT, ScreenController.REASON_DECLARED), sc.routeSelection())
+        assertTrue("a true sleep never touches the brightness", backlight.calls.isEmpty())
+
+        sc.wake()
+        assertEquals("the displaced timeout is back", 300_000, power.timeoutMs)
+        assertEquals(1, power.pulses)
+        assertFalse("the renderer holds the screen on again", BuiltinDashboard.keepScreenOnReleased)
+        assertFalse(sc.isIntendedOff())
+        assertTrue("wake must not rewrite a brightness this route never touched", backlight.calls.isEmpty())
+    }
+
+    /** A process that dies while the panel sleeps must not leave the short timeout behind for good:
+     *  the next controller puts the remembered value back as it is constructed. */
+    @Test fun screenTimeoutIsRestoredByTheNextProcessAfterARestartWhileAsleep() {
+        power.canWrite = true
+        power.timeoutMs = Int.MAX_VALUE
+        androidSleepController().sleep()
+        assertTrue(power.timeoutMs < 60_000)
+
+        androidSleepController()          // the replacement process; nobody called wake()
+        assertEquals(Int.MAX_VALUE, power.timeoutMs)
+        assertEquals("nothing is left to restore twice", -1, displaced.displacedMs)
+    }
+
+    /** A wake Android performed itself (double-tap, Meta presence) is adopted, and must also put the
+     *  timeout back, or the panel would fall asleep again moments after someone woke it. */
+    @Test fun screenTimeoutPhysicalWakeRestoresTheTimeout() {
+        power.canWrite = true
+        power.timeoutMs = 600_000
+        val sc = androidSleepController()
+        sc.sleep()
+        power.interactive = true
+        assertTrue(sc.reconcilePhysicalWake())
+        assertEquals(600_000, power.timeoutMs)
+        assertFalse(BuiltinDashboard.keepScreenOnReleased)
+        assertEquals("the platform woke it; no pulse is needed", 0, power.pulses)
+    }
+
+    @Test fun screenTimeoutFallsBackToTheDeviceAdminLockWithoutWriteSettings() {
+        power.canWrite = false
+        power.adminActive = true
+        power.timeoutMs = 300_000
+        val sc = androidSleepController()
+
+        sc.sleep()
+        assertEquals(1, power.locks)
+        assertFalse(power.interactive)
+        assertEquals("the timeout was never touched", 300_000, power.timeoutMs)
+        val selection = sc.routeSelection()
+        assertEquals(ScreenOff.DEVICE_ADMIN, selection.selected)
+        assertTrue(selection.reason, selection.reason.contains("WRITE_SETTINGS"))
+
+        sc.wake()
+        assertEquals(1, power.pulses)
+        assertFalse(sc.isIntendedOff())
+    }
+
+    /** A timeout Android ignores (stay-on-while-plugged, a wakelock elsewhere) is not a sleep: the
+     *  original timeout goes back before the lock is tried. */
+    @Test fun screenTimeoutThatDoesNotSleepRestoresTheTimeoutAndLocksInstead() {
+        power.canWrite = true
+        power.shortTimeoutSleeps = false
+        power.adminActive = true
+        power.timeoutMs = 300_000
+        val sc = androidSleepController()
+
+        sc.sleep()
+        assertEquals(300_000, power.timeoutMs)
+        assertEquals(1, power.locks)
+        assertEquals(ScreenOff.DEVICE_ADMIN, sc.routeSelection().selected)
+        assertTrue(sc.looksDark())
+    }
+
+    /** Neither grant: never-blank holds, so the off is a visible dim and the renderer keeps the screen. */
+    @Test fun screenTimeoutDegradesToTheDimFloorWhenNeitherGrantIsPresent() {
+        backlight.level = 200
+        val sc = androidSleepController()
+
+        sc.sleep()
+        assertEquals(listOf("set:10"), backlight.calls)
+        assertTrue("the device stays interactive", power.interactive)
+        assertFalse(BuiltinDashboard.keepScreenOnReleased)
+        val selection = sc.routeSelection()
+        assertEquals(ScreenOff.BRIGHTNESS_ZERO, selection.selected)
+        assertTrue(selection.reason, selection.reason.contains("no active device admin"))
+
+        backlight.calls.clear()
+        sc.wake()
+        assertEquals(listOf("set:200"), backlight.calls)
+    }
+
+    /** The overlay cannot fire on a noninteractive device, so neither route arms it, whatever the outcome. */
+    @Test fun androidSleepRoutesNeverArmTheTouchOverlay() {
+        wakeTap.canArm = true
+        power.canWrite = true
+        androidSleepController().sleep()
+        assertFalse(wakeTap.armed)
+
+        power.interactive = true
+        power.canWrite = false
+        power.adminActive = true
+        androidSleepController(ScreenOff.DEVICE_ADMIN).sleep()
+        assertFalse(wakeTap.armed)
+
+        power.interactive = true
+        power.adminActive = false
+        androidSleepController(ScreenOff.DEVICE_ADMIN).sleep()
+        assertFalse("not even to justify a degraded off", wakeTap.armed)
+    }
+
+    /** Unlike keyevent, a configured credential is reported rather than refused. */
+    @Test fun androidSleepRoutesSleepASecuredDeviceAndReportThePin() {
+        power.deviceSecure = true
+        power.adminActive = true
+        val sc = androidSleepController(ScreenOff.DEVICE_ADMIN)
+        sc.sleep()
+        assertFalse(power.interactive)
+        assertTrue(sc.routeSelection().reason, sc.routeSelection().reason.contains("PIN"))
+    }
 }

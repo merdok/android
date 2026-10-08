@@ -173,6 +173,30 @@ class FakeScreenPower(
         return true
     }
     override fun isDeviceSecure() = deviceSecure
+
+    // Android-sleep primitives. [timeoutMs] is the live SCREEN_OFF_TIMEOUT; [shortTimeoutSleeps] and
+    // [lockSleeps] model whether the platform actually goes noninteractive when asked.
+    var canWrite = false
+    var timeoutMs = Int.MAX_VALUE
+    var shortTimeoutSleeps = true
+    var adminActive = false
+    var lockSleeps = true
+    var locks = 0
+    override fun canWriteSystemSettings() = canWrite
+    override fun screenOffTimeoutMs() = timeoutMs
+    override fun setScreenOffTimeoutMs(ms: Int): Boolean {
+        if (!canWrite) return false
+        timeoutMs = ms
+        if (ms < 60_000 && shortTimeoutSleeps) interactive = false
+        return true
+    }
+    override fun isDeviceAdminActive() = adminActive
+    override fun lockNow(): Boolean {
+        if (!adminActive) return false
+        locks++
+        if (lockSleeps) interactive = false
+        return true
+    }
 }
 
 /**

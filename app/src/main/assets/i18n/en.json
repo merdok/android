@@ -7959,6 +7959,21 @@
       "softMaxChars": 196,
       "hardMaxChars": 280
     },
+    "dashboard.capability.note.android_timeout": {
+      "text": "Android sleep via a short screen timeout; Home Assistant always wakes it, a local touch only where this panel's touchscreen is a platform wake source",
+      "sourceHash": "7589666b9d75687119cb26eea23eb757cf86e84b324701c21e442e26c5743b32",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant",
+        "Android"
+      ],
+      "softMaxChars": 209,
+      "hardMaxChars": 298
+    },
     "dashboard.capability.note.available": {
       "text": "available",
       "sourceHash": "ddd9818abacfde7afed60c93129175401439367a77e69ea93e0ddb3bb38e0bd9",
@@ -8345,6 +8360,41 @@
       "softMaxChars": 26,
       "hardMaxChars": 36
     },
+    "dashboard.capability.note.device_admin_lock": {
+      "text": "Android sleep via the device-admin screen lock; Home Assistant always wakes it, a local touch only where this panel's touchscreen is a platform wake source",
+      "sourceHash": "a416b84983227d3d5b5c7753db52c0c6e08de5a44de5aced6cb28f17ccc86889",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant",
+        "Android"
+      ],
+      "softMaxChars": 217,
+      "hardMaxChars": 310
+    },
+    "dashboard.capability.note.dim_android_sleep_grant": {
+      "text": "needs WRITE_SETTINGS or an active device admin to let Android sleep",
+      "sourceHash": "9c5a2f2c9f2d61b9b83be94d36dfd1fe35364fae0c7d42ad670d200bd4c0d4de",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [
+        "dashboard.capability.note.dim_backlight_powered",
+        "dashboard.capability.note.dim_brightness_zero",
+        "dashboard.capability.note.dim_keycode_sleep",
+        "dashboard.capability.note.dim_only"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "WRITE_SETTINGS",
+        "Android"
+      ],
+      "softMaxChars": 94,
+      "hardMaxChars": 134
+    },
     "dashboard.capability.note.dim_backlight_powered": {
       "text": "the backlight stays powered; needs su or the helper daemon for a real off",
       "sourceHash": "9ad1df56612df39975a440c255b5ab080f918e9212240b5ec22a290c21973621",
@@ -8352,6 +8402,7 @@
       "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [
+        "dashboard.capability.note.dim_android_sleep_grant",
         "dashboard.capability.note.dim_brightness_zero",
         "dashboard.capability.note.dim_keycode_sleep",
         "dashboard.capability.note.dim_only"
@@ -8370,6 +8421,7 @@
       "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [
+        "dashboard.capability.note.dim_android_sleep_grant",
         "dashboard.capability.note.dim_backlight_powered",
         "dashboard.capability.note.dim_keycode_sleep",
         "dashboard.capability.note.dim_only"
@@ -8386,6 +8438,7 @@
       "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [
+        "dashboard.capability.note.dim_android_sleep_grant",
         "dashboard.capability.note.dim_backlight_powered",
         "dashboard.capability.note.dim_brightness_zero",
         "dashboard.capability.note.dim_only"
@@ -8405,6 +8458,7 @@
       "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [
+        "dashboard.capability.note.dim_android_sleep_grant",
         "dashboard.capability.note.dim_backlight_powered",
         "dashboard.capability.note.dim_brightness_zero",
         "dashboard.capability.note.dim_keycode_sleep"
@@ -8488,6 +8542,22 @@
       ],
       "softMaxChars": 44,
       "hardMaxChars": 62
+    },
+    "dashboard.capability.note.pin_on_wake": {
+      "text": "{route}; a screen lock PIN is set, so waking needs that PIN",
+      "sourceHash": "4b4ec80d3e0a65dc7ef4148085e9e75ba67c8ecebbba3c7e76217aecae8b46a1",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail matched from a closed backend value or structured family; preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{route}"
+      ],
+      "frozen": [
+        "PIN"
+      ],
+      "softMaxChars": 83,
+      "hardMaxChars": 118
     },
     "dashboard.capability.note.rockchip_led_direct": {
       "text": "Rockchip /dev/ledjni (app-direct, no root)",

@@ -2083,6 +2083,15 @@ class Config private constructor(
             prefs.edit().putInt("saved_screen_off_timeout", v).apply()
         }
 
+    // The screen-off timeout (ms) the screen-timeout screen-off route displaced while the panel sleeps;
+    // restored on wake and at the next service start. -1 = nothing displaced. Not [savedScreenOffTimeout]:
+    // that one is the firmware default from before prevent-idle-dim raised it.
+    var displacedScreenOffTimeout: Int
+        get() = prefs.getInt("displaced_screen_off_timeout", -1)
+        set(v) {
+            prefs.edit().putInt("displaced_screen_off_timeout", v).commit()
+        }
+
     // Navigation bar mode: "Off" | "Always on" | "Swipe reveal" | "Native" (NavbarController.MODES).
     // The first three govern ha-paneld's own drawn overlay; "Native" means the firmware's own bar has
     // authority and is only selectable where a declaration or firmware probe confirms one. Persisted so the mode is

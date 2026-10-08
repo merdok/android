@@ -110,7 +110,17 @@ object DiagReader {
             if (usesDaemon) helperDaemonCapability(profile, daemon) else null,
             verifiedOperationsCapability(rootish),
             screenBrightnessCapability(canWrite, su, daemon, pkg),
-            screenOnOffCapability(profile.screenOff, su, daemon),
+            run {
+                val android = if (profile.screenOff.sleepsAndroid) {
+                    io.panelassistant.android.platform.AndroidScreenPower(ctx)
+                } else null
+                screenOnOffCapability(
+                    profile.screenOff, su, daemon,
+                    canWriteSettings = canWrite,
+                    deviceAdminActive = android?.isDeviceAdminActive() == true,
+                    deviceSecure = android?.isDeviceSecure() == true,
+                )
+            },
             if (showLed) rgbLedCapability(rkLed, ledProbe, daemonLed) else null,
             buttonHealth?.let(::hardwareButtonsCapability),
             systemActionsCapability(rootish),
@@ -199,9 +209,23 @@ object DiagReader {
      * The keyevent route also must not borrow the bl_power wording: it sleeps Android itself rather
      * than blanking a backlight, and what a person standing at the panel can do to wake it is
      * genuinely different. That difference is the part worth stating on a panel's own diagnostics.
+     *
+     * The two unprivileged Android-sleep routes report the route that a screen-off will take from the
+     * grants in hand (screen-timeout falls back to the device-admin lock), and add the PIN-on-wake
+     * consequence where a screen lock credential is set. That is a note, not a refusal.
      */
-    internal fun screenOnOffCapability(route: ScreenOff, su: Boolean, daemon: Boolean): Cap {
+    internal fun screenOnOffCapability(
+        route: ScreenOff,
+        su: Boolean,
+        daemon: Boolean,
+        canWriteSettings: Boolean = false,
+        deviceAdminActive: Boolean = false,
+        deviceSecure: Boolean = false,
+    ): Cap {
         val dimOnly = { why: String -> Cap("screen_power", "degraded", note("dim_only", "reason" to note(why))) }
+        val androidSleep = { id: String ->
+            Cap("screen_power", "ok", if (deviceSecure) note("pin_on_wake", "route" to note(id)) else note(id))
+        }
         val blPower = { viaSu: Boolean -> Cap("screen_power", "ok", note(if (viaSu) "backlight_off_su" else "backlight_off_helper")) }
         return when (route) {
             ScreenOff.KEYEVENT ->
@@ -212,6 +236,13 @@ object DiagReader {
             ScreenOff.BRIGHTNESS_ZERO -> dimOnly("dim_brightness_zero")
             ScreenOff.SU_BLPOWER -> if (su || daemon) blPower(su) else dimOnly("dim_backlight_powered")
             ScreenOff.DAEMON_BLPOWER -> if (su || daemon) blPower(!daemon) else dimOnly("dim_backlight_powered")
+            ScreenOff.SCREEN_TIMEOUT -> when {
+                canWriteSettings -> androidSleep("android_timeout")
+                deviceAdminActive -> androidSleep("device_admin_lock")
+                else -> dimOnly("dim_android_sleep_grant")
+            }
+            ScreenOff.DEVICE_ADMIN ->
+                if (deviceAdminActive) androidSleep("device_admin_lock") else dimOnly("dim_android_sleep_grant")
         }
     }
 

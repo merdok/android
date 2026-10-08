@@ -69,6 +69,9 @@ class ProvisioningServiceAdapterTest {
             // Added 2026-08-17: the keyevent route injects through root where the app has it and the
             // helper daemon otherwise, so the helper is a fallback rather than a requirement.
             "screen.keyevent" to ProfileHelperAuthorityDemand.SANDBOX_FALLBACK,
+            // Added 2026-10-08: unprivileged Android sleep (WRITE_SETTINGS, device admin); no helper.
+            "screen.screen-timeout" to ProfileHelperAuthorityDemand.NONE,
+            "screen.device-admin" to ProfileHelperAuthorityDemand.NONE,
             "sensor.android" to ProfileHelperAuthorityDemand.NONE,
             "sensor.cht8305-daemon" to ProfileHelperAuthorityDemand.REQUIRED,
             // Added 2026-08-14: the VI530x range route is helper-only — there is no sandbox path to a

@@ -33,7 +33,8 @@
         android:name="io.github.maxlyth.hapaneld.permission.IDENTITY_MIGRATION"
         android:protectionLevel="signature" />
     <uses-permission android:name="io.github.maxlyth.hapaneld.permission.IDENTITY_MIGRATION" />
-    <!-- Screen brightness via Settings.System (granted at provisioning: appops set WRITE_SETTINGS). -->
+    <!-- Screen brightness and the screen-timeout screen-off via Settings.System (granted at
+         provisioning: appops set WRITE_SETTINGS). -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <!-- Soft navigation-bar overlay (TYPE_APPLICATION_OVERLAY) for panels whose firmware hides the
          native navbar. Not granted by default on the panels; NavbarController grants it via root appops. -->
@@ -195,6 +196,21 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Device admin with the force-lock policy only: the screen-off fallback uses lockNow() when the
+             screen-timeout route is unavailable. Activated at install by Panel Assistant with
+             `dpm set-active-admin io.panelassistant.android/.platform.PanelDeviceAdminReceiver`. -->
+        <receiver
+            android:name="io.panelassistant.android.platform.PanelDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
 

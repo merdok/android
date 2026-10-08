@@ -150,7 +150,10 @@ internal fun invalidEntityFilterFailureDisposition(
 
 internal fun deferReadyEntityBootstrapUntilWake(screenAwake: Boolean): Boolean = !screenAwake
 
-internal fun shouldKeepBuiltInRendererScreenOn(preventIdleDim: Boolean): Boolean = preventIdleDim
+internal fun shouldKeepBuiltInRendererScreenOn(
+    preventIdleDim: Boolean,
+    keepScreenOnReleased: Boolean = BuiltinDashboard.keepScreenOnReleased,
+): Boolean = preventIdleDim && !keepScreenOnReleased
 
 private data class EntityFilterNativeHold(val error: String, val detail: String)
 
@@ -371,6 +374,9 @@ class DashboardActivity : AppCompatActivity() {
     // Stored so onDestroy can clear it by identity — an old instance destroyed after a new one's onCreate
     // must not wipe the new instance's registration (see BuiltinDashboard.clearScreenListener).
     private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { onScreenChanged(awake) } }
+    private val keepScreenOnListener: () -> Unit = {
+        runOnUiThread { if (!destroyed && ::activityConfig.isInitialized) applyRendererScreenPolicy() }
+    }
     // Frontend-handshake watchdog: the page "loading" (onPageFinished) is NOT health — the frontend JS
     // app must post `connection-status: connected` on the external bus. Until it does, we retry with
     // backoff (a panel has no buttons to press). This catches the "loaded onto a blank/dead frontend"
@@ -827,6 +833,7 @@ class DashboardActivity : AppCompatActivity() {
         // Freeze the WebView when the panel screen is off (CPU/heat/memory), and reload the moment
         // connectivity returns if the frontend isn't connected — registered for the activity's lifetime.
         BuiltinDashboard.setScreenListener(screenListener)
+        BuiltinDashboard.setKeepScreenOnListener(keepScreenOnListener)
         BuiltinDashboard.setHaLifecycleListener(haLifecycleListener)
         // Adopt the CURRENT screen state — an instance created while the panel is dark (a relaunch at
         // night) must not assume the screen is on: it would arm the handshake watchdog against a page
@@ -868,6 +875,7 @@ class DashboardActivity : AppCompatActivity() {
         entityFilterLease = null
         BuiltinDashboard.releaseActivityOwner(activityOwner)
         BuiltinDashboard.clearScreenListener(screenListener)
+        BuiltinDashboard.clearKeepScreenOnListener(keepScreenOnListener)
         BuiltinDashboard.clearHaLifecycleListener(haLifecycleListener)
         netCallback?.let { cb -> runCatching { conn?.unregisterNetworkCallback(cb) } }
         main.removeCallbacksAndMessages(null)

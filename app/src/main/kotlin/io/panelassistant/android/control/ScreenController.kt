@@ -29,15 +29,33 @@ value class AutomaticOffEpoch internal constructor(internal val generation: Long
 data class RouteSelection(val declared: ScreenOff, val selected: ScreenOff?, val reason: String)
 
 /**
+ * Durable memory of the `SCREEN_OFF_TIMEOUT` value the [ScreenOff.SCREEN_TIMEOUT] route displaced;
+ * -1 means nothing is displaced. Durable so a process that dies while the panel sleeps still puts the
+ * original timeout back at its next start instead of leaving a short timeout behind for good.
+ */
+interface DisplacedScreenTimeout {
+    var displacedMs: Int
+}
+
+/** Process-local [DisplacedScreenTimeout] for tests and callers with no durable store. */
+class InMemoryDisplacedScreenTimeout(override var displacedMs: Int = -1) : DisplacedScreenTimeout
+
+/**
  * Screen on/off — vendor-free with one serialized transition owner.
  *
- * The active profile selects helper, direct `su`, keyevent, or brightness-zero as the preferred
- * route. The two bl_power routes may fall through to each other and then brightness when unavailable;
- * an explicit brightness-zero profile never probes a privileged actuator.
+ * The active profile selects helper, direct `su`, keyevent, screen-timeout, device-admin or
+ * brightness-zero as the preferred route. The two bl_power routes may fall through to each other and
+ * then brightness when unavailable; screen-timeout falls through to device-admin and then the visible
+ * dim; an explicit brightness-zero profile never probes a privileged actuator.
  *
- * This deliberately avoids `DevicePolicyManager.lockNow()`, which turns the screen off via the
- * keyguard and therefore demands the device PIN on wake. Its collaborators are seamed ([Backlight],
- * [ScreenPower], [RootShell], [Daemon], [WakeTap]) so the never-blank logic is unit-testable without a device.
+ * Whether a screen-off that goes through the keyguard (`DevicePolicyManager.lockNow()`, or any route
+ * that leaves Android noninteractive) is acceptable depends on the panel, not on a fixed rule. On a
+ * vanilla or Google Play build that may carry a PIN, it means the PIN on every wake; on a vendor shell
+ * that hides Android entirely (the Meta Portal) there is normally no credential and it is the only
+ * rootless way to a dark screen. So the profile picks the route, the panel's live keyguard state
+ * decides the consequence, and diagnostics report a PIN-on-wake rather than this class guessing. The
+ * collaborators are seamed ([Backlight], [ScreenPower], [RootShell], [Daemon], [WakeTap],
+ * [DisplacedScreenTimeout]) so the never-blank logic is unit-testable without a device.
  *
  * **Never-blank guarantee: ha-paneld must always be able to undo its own screen-off.** How that is
  * guaranteed is a property of the route, and the two families differ:
@@ -60,8 +78,16 @@ data class RouteSelection(val declared: ScreenOff, val selected: ScreenOff?, val
  *   through [wake], so it is the reason that adoption has to be reachable from a plain platform
  *   screen-on broadcast and not only from the MQTT sync tick — see [reconcilePhysicalWake]. The route
  *   also refuses to sleep a device with a configured credential
- *   ([ScreenPower.isDeviceSecure]), because waking into a lock screen on a wall panel is the same
- *   class of strand as rebooting one.
+ *   ([ScreenPower.isDeviceSecure]): it exists for rooted boards where nothing else reports the PIN.
+ * - [ScreenOff.SCREEN_TIMEOUT] and [ScreenOff.DEVICE_ADMIN] reach the same noninteractive state with
+ *   no privilege and share the keyevent route's way back (the wakelock pulse, and adoption of a
+ *   platform wake through [reconcilePhysicalWake]); the overlay is not armed for the same reason.
+ *   Screen-timeout stops the renderer holding the screen on, writes a short `SCREEN_OFF_TIMEOUT` and
+ *   waits for Android to sleep; the displaced value is restored on every wake and at the next
+ *   construction, so a crash cannot leave the short timeout in force. When `WRITE_SETTINGS` is missing
+ *   or the timeout does not take, it falls back to `lockNow()` if the app is an active device admin,
+ *   else to the visible dim. These two routes sleep a secured device too and record the PIN-on-wake
+ *   consequence in the selection reason.
  */
 class ScreenController(
     private val backlight: Backlight,
@@ -72,7 +98,14 @@ class ScreenController(
     private val route: ScreenOff,
     /** Bounded wait between interactivity read-backs. Seamed so tests confirm without real time. */
     private val nap: (Long) -> Unit = { Thread.sleep(it) },
+    private val displacedTimeout: DisplacedScreenTimeout = InMemoryDisplacedScreenTimeout(),
 ) {
+    init {
+        // A process that died while the screen-timeout route had the panel asleep left its short
+        // timeout in force. Put the original back before anything else reads the setting.
+        restoreDisplacedTimeout()
+    }
+
     // Last known "on" level, used by the brightness fallback. Survives an off/on cycle.
     @Volatile private var savedLevel = DEFAULT_ON
 
@@ -164,7 +197,7 @@ class ScreenController(
             ScreenOff.DAEMON_BLPOWER, ScreenOff.SU_BLPOWER -> observedBlPower()?.let(::fromPower) ?: effective()
             // Android's own interactivity IS this route's screen state; there is no backlight node to
             // read and no third "unknown" answer to give.
-            ScreenOff.KEYEVENT -> !power.isInteractive()
+            ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> !power.isInteractive()
             ScreenOff.BRIGHTNESS_ZERO -> effective()
         }
     }
@@ -180,7 +213,7 @@ class ScreenController(
             ScreenOff.DAEMON_BLPOWER, ScreenOff.SU_BLPOWER -> observedBlPower()?.let { powerState ->
                 if (powerState == 0) effectiveLit() else false
             }
-            ScreenOff.KEYEVENT -> power.isInteractive()
+            ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> power.isInteractive()
             ScreenOff.BRIGHTNESS_ZERO -> effectiveLit()
         }
     }
@@ -192,7 +225,7 @@ class ScreenController(
         ScreenOff.SU_BLPOWER -> root.runOutput(blPowerRead())?.trim()?.toIntOrNull()
             ?.takeIf { it in 0..4 }
             ?: daemon.send("BLPOWER")?.trim()?.toIntOrNull()?.takeIf { it in 0..4 }
-        ScreenOff.KEYEVENT, ScreenOff.BRIGHTNESS_ZERO -> null
+        ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN, ScreenOff.BRIGHTNESS_ZERO -> null
     }
 
     /** Cautious boolean used by the never-blank watchdog: unknown is not grounds to alter hardware. */
@@ -267,6 +300,7 @@ class ScreenController(
     fun sleepAutomatically(): AutomaticOffEpoch? = sleepInternal(automatic = true)
 
     private fun sleepInternal(automatic: Boolean): AutomaticOffEpoch? {
+        var androidSleepRefusal: String? = null
         if (admissionClosed.get() || synchronized(visibleHolds) { visibleHolds.isNotEmpty() } || (automatic && intendedOff)) return null
         intendedOffGeneration = stateGeneration.incrementAndGet()
         automaticOffGeneration = if (automatic) intendedOffGeneration else 0L
@@ -287,6 +321,9 @@ class ScreenController(
             // credential, so a secured device is refused rather than slept.
             ScreenOff.KEYEVENT ->
                 if (power.isDeviceSecure()) "a device credential would gate the wake" else null
+            // Same unprivileged way back as keyevent. A credential is reported, not refused: whether a
+            // PIN on wake is acceptable is the panel owner's call (see the class KDoc).
+            ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> null
             else -> if (
                 wakeTap.canArm() && wakeTap.arm {
                     // A touch observer may hand work to another thread. By the time that worker runs,
@@ -318,6 +355,24 @@ class ScreenController(
                 else -> null
             }
             ScreenOff.KEYEVENT -> if (sleepByKeyevent()) ScreenOff.KEYEVENT to REASON_DECLARED else null
+            ScreenOff.SCREEN_TIMEOUT -> {
+                val timeoutRefusal = sleepByTimeout()
+                when {
+                    timeoutRefusal == null -> ScreenOff.SCREEN_TIMEOUT to withPinNote(REASON_DECLARED)
+                    sleepByLockNow() -> ScreenOff.DEVICE_ADMIN to
+                        withPinNote("the screen timeout was unavailable ($timeoutRefusal); fell back to the device-admin lock")
+                    else -> {
+                        androidSleepRefusal = "$timeoutRefusal, and no active device admin could lock the screen"
+                        null
+                    }
+                }
+            }
+            ScreenOff.DEVICE_ADMIN ->
+                if (sleepByLockNow()) ScreenOff.DEVICE_ADMIN to withPinNote(REASON_DECLARED)
+                else {
+                    androidSleepRefusal = "no active device admin could lock the screen"
+                    null
+                }
             ScreenOff.BRIGHTNESS_ZERO -> null
         }
         if (poweredOff != null) {
@@ -337,6 +392,7 @@ class ScreenController(
         // the wakelock pulse, which nobody standing at the panel can trigger — so it must not reach a
         // dark it cannot let a person out of, and degrades to the visible floor instead.
         if (route == ScreenOff.KEYEVENT) return dimToFloor("an unconfirmed keyevent sleep")
+        if (route.sleepsAndroid) return dimToFloor(androidSleepRefusal ?: "an unconfirmed Android sleep")
         // No daemon, no su — dim to 0 (only a dim on panels that clamp a minimum). Uses the raw setter
         // so it can reach 0: the public setBrightness floors at MIN_VISIBLE to stay never-blank.
         val cur = backlight.getBrightness()
@@ -412,6 +468,8 @@ class ScreenController(
         automaticOffGeneration = 0L
         intendedOff = false
         wakeTap.disarm()
+        // Before the pulse: a wake under the short timeout would fall asleep again moments later.
+        restoreDisplacedTimeout()
         val wakingRoute = appliedOffRoute ?: route
         appliedOffRoute = null
         when (wakingRoute) {
@@ -447,6 +505,11 @@ class ScreenController(
                 )
                 return
             }
+            // Never changed the brightness either; the unprivileged pulse alone is the wake.
+            ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> {
+                completeWake("screen -> on (wakelock pulse; ${wakingRoute.yamlName})")
+                return
+            }
             ScreenOff.BRIGHTNESS_ZERO -> Unit
         }
         backlight.setBrightness(savedLevel.coerceAtLeast(MIN_ON))
@@ -475,6 +538,46 @@ class ScreenController(
             transport.submit("SLEEP")
             awaitInteractive(false, transport.confirmMs)
         }
+
+    /**
+     * Let Android's own screen timeout put the panel to sleep, and prove it did. Null on a confirmed
+     * sleep, else why not. The displaced timeout is recorded durably BEFORE the short one is written,
+     * so a process that dies at any point after the write still finds the value to restore.
+     *
+     * Android floors the timeout at its own minimum (10 s on AOSP) counted from the last user
+     * activity, and releasing the renderer's keep-screen-on flag counts as activity, so this waits
+     * [TIMEOUT_CONFIRM_MS] — much longer than the keyevent route, and inside the transition monitor.
+     * A touch during that wait restarts Android's clock and reads here as a timeout that did not take.
+     */
+    private fun sleepByTimeout(): String? {
+        if (!power.canWriteSystemSettings()) return "WRITE_SETTINGS is not granted"
+        if (displacedTimeout.displacedMs <= 0) {
+            val current = power.screenOffTimeoutMs()
+            if (current <= 0) return "the current screen timeout could not be read"
+            displacedTimeout.displacedMs = current
+        }
+        BuiltinDashboard.releaseKeepScreenOn(true)
+        if (power.setScreenOffTimeoutMs(SLEEP_TIMEOUT_MS) && awaitInteractive(false, TIMEOUT_CONFIRM_MS)) return null
+        restoreDisplacedTimeout()
+        return "the short screen timeout did not make Android noninteractive"
+    }
+
+    /** `lockNow()` as an active device admin, proven by Android leaving the interactive state. */
+    private fun sleepByLockNow(): Boolean =
+        power.isDeviceAdminActive() && power.lockNow() && awaitInteractive(false, LOCK_CONFIRM_MS)
+
+    private fun withPinNote(reason: String): String =
+        if (power.isDeviceSecure()) "$reason; a screen lock credential is set, so waking needs the PIN" else reason
+
+    /** Put back the timeout the screen-timeout route displaced and let the renderer hold the screen
+     *  on again. A failed write keeps the record, so the next wake or start tries again. */
+    private fun restoreDisplacedTimeout() {
+        BuiltinDashboard.releaseKeepScreenOn(false)
+        val displaced = displacedTimeout.displacedMs
+        if (displaced <= 0) return
+        if (power.setScreenOffTimeoutMs(displaced)) displacedTimeout.displacedMs = -1
+        else Log.w(TAG, "could not restore the screen timeout ($displaced ms); will retry on the next wake")
+    }
 
     /** Best-effort wake injection; the caller's wakelock pulse is the actual guarantee. */
     private fun injectKeyevent(name: String): Boolean =
@@ -545,6 +648,7 @@ class ScreenController(
         intendedOff = false
         appliedOffRoute = null
         wakeTap.disarm()
+        restoreDisplacedTimeout()
         BuiltinDashboard.onScreenAwake(true)
         onWakeCompleted?.invoke()
         return true
@@ -699,5 +803,11 @@ class ScreenController(
          */
         private const val DAEMON_CONFIRM_MS = 4_000L
         private const val KEYEVENT_POLL_MS = 100L
+        /** Written as the short timeout; Android raises it to its own minimum. */
+        private const val SLEEP_TIMEOUT_MS = 1_000
+        /** Android's minimum timeout (10 s on AOSP) plus its dim phase and slack. */
+        private const val TIMEOUT_CONFIRM_MS = 20_000L
+        /** `lockNow()` turns the display off at once; this only covers Android acting on it. */
+        private const val LOCK_CONFIRM_MS = 2_000L
     }
 }

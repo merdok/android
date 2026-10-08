@@ -9,4 +9,9 @@ class DashboardScreenPolicyTest {
         assertTrue(shouldKeepBuiltInRendererScreenOn(preventIdleDim = true))
         assertFalse(shouldKeepBuiltInRendererScreenOn(preventIdleDim = false))
     }
+
+    /** The screen-timeout screen-off cannot work while the renderer holds the screen on. */
+    @Test fun aScreenTimeoutOffReleasesTheWindowFlag() {
+        assertFalse(shouldKeepBuiltInRendererScreenOn(preventIdleDim = true, keepScreenOnReleased = true))
+    }
 }

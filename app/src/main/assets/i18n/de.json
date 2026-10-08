@@ -2873,6 +2873,11 @@
       "sourceHash": "e1923775e4c2c360f03fd9f4a5fa04cc2eb3fd63f044804acd8b4ec60250669a",
       "state": "machine-cross-checked"
     },
+    "dashboard.capability.note.android_timeout": {
+      "text": "Android-Ruhezustand per kurzer Bildschirm-Zeitüberschreitung; Home Assistant weckt das Panel immer, lokale Berührung nur, wenn der Touchscreen dieses Panels das Aufwecken unterstützt",
+      "sourceHash": "7589666b9d75687119cb26eea23eb757cf86e84b324701c21e442e26c5743b32",
+      "state": "machine-cross-checked"
+    },
     "dashboard.capability.note.available": {
       "text": "verfügbar",
       "sourceHash": "ddd9818abacfde7afed60c93129175401439367a77e69ea93e0ddb3bb38e0bd9",
@@ -2973,6 +2978,16 @@
       "sourceHash": "1eca5000089aa22f20d14024f9091229385ed498ea04161952a8622e1015641b",
       "state": "machine-cross-checked"
     },
+    "dashboard.capability.note.device_admin_lock": {
+      "text": "Android-Ruhezustand per Bildschirmsperre des Geräteadministrators; Home Assistant weckt das Panel immer, lokale Berührung nur, wenn der Touchscreen dieses Panels das Aufwecken unterstützt",
+      "sourceHash": "a416b84983227d3d5b5c7753db52c0c6e08de5a44de5aced6cb28f17ccc86889",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.dim_android_sleep_grant": {
+      "text": "benötigt WRITE_SETTINGS oder einen aktiven Geräteadministrator, damit Android in den Ruhezustand gehen kann",
+      "sourceHash": "9c5a2f2c9f2d61b9b83be94d36dfd1fe35364fae0c7d42ad670d200bd4c0d4de",
+      "state": "machine-cross-checked"
+    },
     "dashboard.capability.note.dim_backlight_powered": {
       "text": "die Hintergrundbeleuchtung bleibt eingeschaltet; zum echten Ausschalten sind su oder der Hilfs-Daemon nötig",
       "sourceHash": "9ad1df56612df39975a440c255b5ab080f918e9212240b5ec22a290c21973621",
@@ -3016,6 +3031,11 @@
     "dashboard.capability.note.needs_write_settings": {
       "text": "benötigt WRITE_SETTINGS: {command}",
       "sourceHash": "5356e1ca4a3a487fb59a9181ed108a1077e53887e3a521aec59c47c3f89da8ef",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.pin_on_wake": {
+      "text": "{route}; eine Bildschirmsperre mit PIN ist eingerichtet, daher erfordert das Aufwecken diese PIN",
+      "sourceHash": "4b4ec80d3e0a65dc7ef4148085e9e75ba67c8ecebbba3c7e76217aecae8b46a1",
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.rockchip_led_direct": {

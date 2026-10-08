@@ -327,7 +327,10 @@ enum class LedMechanism(val yamlName: String) {
  * The two `*_BLPOWER` routes blank the backlight through `/sys/class/backlight/<dev>/bl_power` while
  * Android stays interactive, so no keyguard is raised and a touch still reaches a window. [KEYEVENT]
  * is for panels that expose no backlight class at all: it injects `KEYCODE_SLEEP`, which puts Android
- * itself noninteractive. That is a different state with different consequences, spelled out on
+ * itself noninteractive. [SCREEN_TIMEOUT] and [DEVICE_ADMIN] reach the same noninteractive state
+ * without any privilege: the first lets Android's own screen timeout expire (needs `WRITE_SETTINGS`),
+ * the second asks the keyguard to lock (`DevicePolicyManager.lockNow`, needs an active device admin).
+ * These are different states with different consequences, spelled out on
  * [io.panelassistant.android.control.ScreenController].
  */
 enum class ScreenOff(val yamlName: String) {
@@ -335,7 +338,12 @@ enum class ScreenOff(val yamlName: String) {
     SU_BLPOWER("su-blpower"),
     DAEMON_BLPOWER("daemon-blpower"),
     KEYEVENT("keyevent"),
+    SCREEN_TIMEOUT("screen-timeout"),
+    DEVICE_ADMIN("device-admin"),
     ;
+
+    /** True for the routes that put Android itself noninteractive rather than blanking a backlight. */
+    val sleepsAndroid: Boolean get() = this == KEYEVENT || this == SCREEN_TIMEOUT || this == DEVICE_ADMIN
 
     companion object {
         /** The one list of accepted `hardware.screen_off` names; null for anything else. */

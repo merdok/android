@@ -1,8 +1,12 @@
 package io.panelassistant.android.platform
 
 import android.app.KeyguardManager
+import android.app.admin.DeviceAdminReceiver
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.os.PowerManager
+import android.provider.Settings
 
 /**
  * The platform power and lock facts [io.panelassistant.android.control.ScreenController] needs — a
@@ -21,18 +25,43 @@ interface ScreenPower {
 
     /**
      * True when a PIN/pattern/password is configured, so leaving Android's interactive state would
-     * put a credential screen between the user and the dashboard. A wall panel has nobody to type
-     * that credential, which is why [io.panelassistant.android.device.ScreenOff.KEYEVENT] refuses
-     * to sleep on a secured device. The bl_power routes are unaffected: they blank the backlight
-     * while the device stays Awake, so no keyguard is ever raised.
+     * put a credential screen between the user and the dashboard. What that means depends on the
+     * route: [io.panelassistant.android.device.ScreenOff.KEYEVENT] refuses to sleep on a secured
+     * device, while the screen-timeout and device-admin routes sleep anyway and report the
+     * PIN-on-wake consequence. The bl_power routes are unaffected: they blank the backlight while the
+     * device stays Awake, so no keyguard is ever raised.
      */
     fun isDeviceSecure(): Boolean = false
+
+    /** Whether the app holds `WRITE_SETTINGS` (`Settings.System.canWrite`). */
+    fun canWriteSystemSettings(): Boolean = false
+
+    /** `Settings.System.SCREEN_OFF_TIMEOUT` in ms, or -1 when it cannot be read. */
+    fun screenOffTimeoutMs(): Int = -1
+
+    /** Write `SCREEN_OFF_TIMEOUT`; true only when the write was accepted and reads back. */
+    fun setScreenOffTimeoutMs(ms: Int): Boolean = false
+
+    /** Whether [PanelDeviceAdminReceiver] is an active device admin. */
+    fun isDeviceAdminActive(): Boolean = false
+
+    /** `DevicePolicyManager.lockNow()`; false when it could not be issued. */
+    fun lockNow(): Boolean = false
 }
+
+/**
+ * Device admin with the force-lock policy only, so the screen-off can use `lockNow()` without root.
+ * Activated by Panel Assistant at install (`dpm set-active-admin`); it does nothing on its own.
+ */
+class PanelDeviceAdminReceiver : DeviceAdminReceiver()
 
 /** Real [ScreenPower] over the Android PowerManager. */
 class AndroidScreenPower(context: Context) : ScreenPower {
+    private val app = context.applicationContext ?: context
     private val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+    private val policy = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+    private val admin = ComponentName(app, PanelDeviceAdminReceiver::class.java)
 
     override fun isInteractive(): Boolean = pm.isInteractive
 
@@ -58,4 +87,24 @@ class AndroidScreenPower(context: Context) : ScreenPower {
     // An unavailable KeyguardManager is treated as secured: refusing to sleep costs a dimmer panel,
     // while guessing "no credential" wrong strands one behind a lock screen nobody can clear.
     override fun isDeviceSecure(): Boolean = keyguard?.isDeviceSecure ?: true
+
+    override fun canWriteSystemSettings(): Boolean = runCatching { Settings.System.canWrite(app) }.getOrDefault(false)
+
+    override fun screenOffTimeoutMs(): Int = runCatching {
+        Settings.System.getInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, -1)
+    }.getOrDefault(-1)
+
+    override fun setScreenOffTimeoutMs(ms: Int): Boolean = runCatching {
+        Settings.System.putInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, ms) &&
+            screenOffTimeoutMs() == ms
+    }.getOrDefault(false)
+
+    override fun isDeviceAdminActive(): Boolean = runCatching { policy?.isAdminActive(admin) == true }.getOrDefault(false)
+
+    override fun lockNow(): Boolean = runCatching {
+        val dpm = policy ?: return false
+        if (!dpm.isAdminActive(admin)) return false
+        dpm.lockNow()
+        true
+    }.getOrDefault(false)
 }

@@ -64,7 +64,8 @@ class DeviceProfileCapabilityTest {
                 // still a privileged route, so a profile with neither is declaring an unreachable one.
                 ScreenOff.KEYEVENT ->
                     assertTrue("KEYEVENT but no privileged route on ${it.id}", it.appCanSu || it.usesDaemon)
-                ScreenOff.BRIGHTNESS_ZERO -> Unit
+                // Unprivileged Android sleep: legal under any privilege.
+                ScreenOff.BRIGHTNESS_ZERO, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> Unit
             }
         }
     }

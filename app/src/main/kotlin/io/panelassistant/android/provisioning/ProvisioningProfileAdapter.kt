@@ -84,6 +84,8 @@ private fun DeviceProfile.provisioningDriverIds(): Set<String> =
                 ScreenOff.DAEMON_BLPOWER -> "screen.daemon-blpower"
                 ScreenOff.KEYEVENT -> "screen.keyevent"
                 ScreenOff.BRIGHTNESS_ZERO -> "screen.brightness-zero"
+                ScreenOff.SCREEN_TIMEOUT -> "screen.screen-timeout"
+                ScreenOff.DEVICE_ADMIN -> "screen.device-admin"
             },
         )
         if (zigbeeGatewayDir != null) add("radio.siliconlabs-host")

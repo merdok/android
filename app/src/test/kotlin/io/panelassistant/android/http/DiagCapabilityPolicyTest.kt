@@ -81,6 +81,31 @@ class DiagCapabilityPolicyTest {
         }
     }
 
+    /** The unprivileged Android-sleep routes name the route a screen-off will take from the grants in
+     *  hand, and add the PIN-on-wake consequence as a note rather than a refusal. */
+    @Test fun androidSleepRoutesReportTheirGrantsAndAPinOnWake() {
+        val timeout = DiagReader.screenOnOffCapability(ScreenOff.SCREEN_TIMEOUT, false, false, canWriteSettings = true)
+        assertEquals("ok", timeout.status)
+        assertTrue(timeout.note(englishCatalogue), timeout.note(englishCatalogue).startsWith("Android sleep via a short screen timeout"))
+
+        val lock = DiagReader.screenOnOffCapability(ScreenOff.SCREEN_TIMEOUT, false, false, deviceAdminActive = true)
+        assertEquals("ok", lock.status)
+        assertTrue(lock.note(englishCatalogue), lock.note(englishCatalogue).contains("device-admin screen lock"))
+
+        listOf(ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN).forEach { route ->
+            val none = DiagReader.screenOnOffCapability(route, su = true, daemon = true)
+            assertEquals("$route: root is not this route's remedy", "degraded", none.status)
+            assertEquals(
+                "DIM ONLY — needs WRITE_SETTINGS or an active device admin to let Android sleep",
+                none.note(englishCatalogue),
+            )
+        }
+
+        val pin = DiagReader.screenOnOffCapability(ScreenOff.DEVICE_ADMIN, false, false, deviceAdminActive = true, deviceSecure = true)
+        assertEquals("ok", pin.status)
+        assertTrue(pin.note(englishCatalogue), pin.note(englishCatalogue).endsWith("a screen lock PIN is set, so waking needs that PIN"))
+    }
+
     @Test fun profileWithoutEvdevButtonsHasNoRequestedStream() {
         assertNull(DiagReader.evdevRequestDescription(fakeProfile()))
     }
