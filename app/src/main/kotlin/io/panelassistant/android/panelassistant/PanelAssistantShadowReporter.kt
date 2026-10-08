@@ -1,8 +1,8 @@
 package io.panelassistant.android.panelassistant
 
 import android.util.Log
-import io.panelassistant.android.mqtt.StateConverger
-import io.panelassistant.android.mqtt.StateSink
+import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.state.StateSink
 import kotlinx.coroutines.channels.Channel
 import org.json.JSONArray
 import org.json.JSONObject

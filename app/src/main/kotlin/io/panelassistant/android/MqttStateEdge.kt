@@ -1,6 +1,7 @@
 package io.panelassistant.android
 
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.mqtt.MqttStateOutbox
+import io.panelassistant.android.state.StateConverger
 
 /** Where one converger channel lands on MQTT. Known only to the MQTT edge, never to the converger. */
 internal data class MqttStateRoute(val topic: String, val retain: Boolean)
@@ -8,6 +9,7 @@ internal data class MqttStateRoute(val topic: String, val retain: Boolean)
 internal data class MqttStateChannel(
     val channel: StateConverger.Channel,
     val route: MqttStateRoute,
+    val policy: MqttStateOutbox.Policy = MqttStateOutbox.Policy(),
 )
 
 internal fun mqttStateChannel(
@@ -19,9 +21,9 @@ internal fun mqttStateChannel(
 ): MqttStateChannel {
     val refreshAfterAckMs = mqttMeasurementRefreshAfterAckMs(key)
     return MqttStateChannel(
-        StateConverger.Channel(
-            key = key,
-            observe = observe,
+        StateConverger.Channel(key = key, observe = observe),
+        MqttStateRoute(topic, retain),
+        MqttStateOutbox.Policy(
             equivalent = equivalent,
             refreshEligible = if (refreshAfterAckMs != null) {
                 ::mqttMeasurementPayloadIsRefreshable
@@ -30,7 +32,6 @@ internal fun mqttStateChannel(
             },
             maxSilenceMs = refreshAfterAckMs,
         ),
-        MqttStateRoute(topic, retain),
     )
 }
 

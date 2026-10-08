@@ -1,4 +1,4 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
 /**
  * Pure helpers for the local-state → MQTT sync ([io.panelassistant.android.MqttBridge.syncLocalState]),

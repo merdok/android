@@ -1,6 +1,6 @@
 package io.panelassistant.android
 
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.state.StateConverger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -143,11 +143,11 @@ class LiveSettingAuthorityTest {
         data class Publication(val payload: String, val done: (Boolean) -> Unit)
         val publications = mutableListOf<Publication>()
         var actual = false
-        val converger = StateConverger(
+        val converger = io.panelassistant.android.testsupport.OutboxConverger(
             sender = { _, observation, done -> publications += Publication(mqttStatePayload(observation), done) },
             schedule = { it() },
         )
-        converger.register(StateConverger.Channel(
+        converger.register(io.panelassistant.android.testsupport.OutboxConverger.Channel(
             "touch_sound",
             observe = { StateConverger.Observation.Known(if (actual) "ON" else "OFF") },
         ))

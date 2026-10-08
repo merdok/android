@@ -7,7 +7,7 @@ import io.panelassistant.android.mqttRetiredStateTopics
 import io.panelassistant.android.hiddenReadOnlyStateTopic
 import io.panelassistant.android.diagnosticObservation
 import io.panelassistant.android.config.SettingsRegistry
-import io.panelassistant.android.mqtt.StateConverger.Observation
+import io.panelassistant.android.state.StateConverger.Observation
 import org.junit.Assert.assertTrue
 import org.junit.Test
 

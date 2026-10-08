@@ -355,11 +355,11 @@ internal fun wifiOutageMqttAttributes(counts: WifiOutageCounts): String =
 internal fun wifiOutageAttributeObservation(
     exposed: Boolean,
     counts: WifiOutageCounts?,
-): io.panelassistant.android.mqtt.StateConverger.Observation =
+): io.panelassistant.android.state.StateConverger.Observation =
     if (!exposed || counts == null) {
-        io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
+        io.panelassistant.android.state.StateConverger.Observation.Unavailable
     } else {
-        io.panelassistant.android.mqtt.StateConverger.Observation.Known(wifiOutageMqttAttributes(counts))
+        io.panelassistant.android.state.StateConverger.Observation.Known(wifiOutageMqttAttributes(counts))
     }
 
 /** Path-free, bounded Home Assistant attributes derived from the shared immutable snapshot. */
@@ -400,11 +400,11 @@ internal fun diagnosticObservation(
     key: String,
     exposed: Boolean,
     value: String?,
-): io.panelassistant.android.mqtt.StateConverger.Observation = when {
+): io.panelassistant.android.state.StateConverger.Observation = when {
     key in WIFI_DIAGNOSTIC_KEYS && (!exposed || value == null) ->
-        io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
-    !exposed -> io.panelassistant.android.mqtt.StateConverger.Observation.Unknown
-    else -> io.panelassistant.android.mqtt.StateConverger.Observation.Known(value ?: "unknown")
+        io.panelassistant.android.state.StateConverger.Observation.Unavailable
+    !exposed -> io.panelassistant.android.state.StateConverger.Observation.Unknown
+    else -> io.panelassistant.android.state.StateConverger.Observation.Known(value ?: "unknown")
 }
 
 internal enum class LearnedProximityRefresh { SKIPPED, ELIGIBLE, INELIGIBLE }
@@ -1342,7 +1342,7 @@ internal class MqttBridge(
     // lifecycle wrapper DROPS tasks after retirement, which would strand the gate's open feature-cost
     // span. Every task runs; cancellation lives inside reconcile, whose own gate no-ops after close().
     private val relayReadbackGate = io.panelassistant.android.mqtt.CommandReadbackGate(
-        schedule = { task -> io.panelassistant.android.mqtt.StateConverger.dispatch(task) },
+        schedule = { task -> io.panelassistant.android.state.StateConverger.dispatch(task) },
         readback = { key, stillCurrent -> stateConverger.reconcile(key, force = true, admit = stillCurrent) },
     )
     private val adbReassertWorker = LatestDispatcher.singleSlot<Unit>("mqtt-adb-reassert", consume = { adb.reassert() })
@@ -1526,7 +1526,7 @@ internal class MqttBridge(
     // when the live sysfs governor is changed by something else (a thermal daemon, another app).
     @Volatile private var lastPublishedGovTier: String? = null
     // Recent "changed outside MQTT" events, surfaced on the info page + /diag for debugging.
-    private val syncLog = io.panelassistant.android.mqtt.SyncLog()
+    private val syncLog = io.panelassistant.android.state.SyncLog()
     private val stateLed = "ha-paneld/$panel/led/state"
     private val stateNavigate = "ha-paneld/$panel/navigate/state"
     private val stateVolume = "ha-paneld/$panel/volume/state"
@@ -1584,7 +1584,7 @@ internal class MqttBridge(
     // no reconcile can reach the sink for a channel without its route. Declared ahead of the converger,
     // whose construction registers channels.
     private val mqttStateRoutes = java.util.concurrent.ConcurrentHashMap<String, MqttStateRoute>()
-    @Volatile private var nativeStateSink: io.panelassistant.android.mqtt.StateSink? = null
+    @Volatile private var nativeStateSink: io.panelassistant.android.state.StateSink? = null
     @Volatile private var nativeEventSink: ((channel: String, event: String) -> Unit)? = null
     // A connected broker can block inside send(). Keep every pump-originated MQTT publication off
     // the shared observation pump; the bounded queue also covers non-converger state topics.
@@ -1593,6 +1593,11 @@ internal class MqttBridge(
         java.util.concurrent.ArrayBlockingQueue(64),
         { task -> Thread(task, "mqtt-state-publish").apply { isDaemon = true } },
         java.util.concurrent.ThreadPoolExecutor.AbortPolicy(),
+    )
+    private val stateOutbox = io.panelassistant.android.mqtt.MqttStateOutbox(
+        sender = ::publishStateObservation,
+        reconcile = { key -> stateConverger.reconcile(key) },
+        schedule = ::dispatchStateWork,
     )
     private val stateConverger = createStateConverger()
     private val zigbeeActuation = MqttZigbeeActuationCoordinators.forController(zigbee)
@@ -1625,29 +1630,27 @@ internal class MqttBridge(
     /** The process-wide convergence pump is only a scheduler; this bridge's lifecycle gate remains the
      * authority for whether a queued observation may touch this concrete generation. */
     private fun dispatchStateWork(action: () -> Unit) {
-        io.panelassistant.android.mqtt.StateConverger.dispatch {
+        io.panelassistant.android.state.StateConverger.dispatch {
             lifecycle.runIfOpen(Unit, action)
         }
     }
 
-    private fun createStateConverger(): io.panelassistant.android.mqtt.StateConverger {
-        val known = { payload: String -> io.panelassistant.android.mqtt.StateConverger.Observation.Known(payload) }
-        val unknown = io.panelassistant.android.mqtt.StateConverger.Observation.Unknown
-        val c = io.panelassistant.android.mqtt.StateConverger(
-            sender = ::publishStateObservation,
-            schedule = ::dispatchStateWork,
-            onObservation = { channel, observation -> nativeStateSink?.invoke(channel, observation) {} },
-        )
+    private fun createStateConverger(): io.panelassistant.android.state.StateConverger {
+        val known = { payload: String -> io.panelassistant.android.state.StateConverger.Observation.Known(payload) }
+        val unknown = io.panelassistant.android.state.StateConverger.Observation.Unknown
+        val c = io.panelassistant.android.state.StateConverger()
+        c.addSink { channel, observation, done -> nativeStateSink?.invoke(channel, observation, done) }
+        c.attach(stateOutbox)
         fun channel(
             key: String,
             topic: String?,
             retain: Boolean = true,
             equivalent: (String, String) -> Boolean = String::equals,
-            observe: () -> io.panelassistant.android.mqtt.StateConverger.Observation,
+            observe: () -> io.panelassistant.android.state.StateConverger.Observation,
         ) {
             val mqtt = mqttStateChannel(key, topic.orEmpty(), retain, equivalent, observe)
             // A null topic is a native-only channel: the converger observes it, MQTT never publishes it.
-            if (topic == null) c.register(mqtt.channel.copy(nativeOnly = true)) else registerStateChannel(c, mqtt)
+            if (topic == null) c.register(mqtt.channel) else registerStateChannel(c, mqtt)
         }
 
         channel("storage_health", stateStorageHealth) {
@@ -1662,7 +1665,7 @@ internal class MqttBridge(
                 SoftwareUpdateEntities.stateTopic(panel, component),
             ) {
                 softwareUpdateInputs(component)?.let { inputs ->
-                    if (SoftwareUpdateEntities.withheld(inputs)) io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
+                    if (SoftwareUpdateEntities.withheld(inputs)) io.panelassistant.android.state.StateConverger.Observation.Unavailable
                     else known(SoftwareUpdateEntities.stateJson(inputs))
                 } ?: unknown
             }
@@ -1719,13 +1722,13 @@ internal class MqttBridge(
         // Native only: MQTT carries the snapshot URL and its availability on their own topics.
         channel("camera_snapshot", topic = null) {
             cameraSnapshotUrl()?.takeIf { config.cameraEnabled && it.isNotBlank() }?.let(known)
-                ?: io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
+                ?: io.panelassistant.android.state.StateConverger.Observation.Unavailable
         }
         // Native only: MQTT publishes its state, attributes and availability itself.
         channel("auto_sleep_activity", topic = null) {
             if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
             val snapshot = autoSleepActivity()
-            if (!config.autoSleep || !snapshot.policyHealthy) io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
+            if (!config.autoSleep || !snapshot.policyHealthy) io.panelassistant.android.state.StateConverger.Observation.Unavailable
             else known(if (snapshot.holdingAwake) "ON" else "OFF")
         }
         // Folded into auto_sleep_activity: the same attributes its MQTT entity carries.
@@ -1747,20 +1750,20 @@ internal class MqttBridge(
         channel(
             "proximity_level",
             stateProximityLevel,
-            equivalent = io.panelassistant.android.mqtt.StateConverger.numericDeadband(4.0),
+            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(4.0),
         ) {
             if (learnedProximityEligible() && config.haExposed("proximity_level", true)) {
                 proximityPublication.level?.let { known(it.toString()) } ?: unknown
             } else unknown
         }
         channel("temperature", stateTemperature, retain = false,
-            equivalent = io.panelassistant.android.mqtt.StateConverger.numericDeadband(0.1)) {
+            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(0.1)) {
             if (config.haExposed("temperature", true)) {
                 lastTemperature?.let { known(String.format(java.util.Locale.US, "%.1f", it)) } ?: unknown
             } else unknown
         }
         channel("humidity", stateHumidity, retain = false,
-            equivalent = io.panelassistant.android.mqtt.StateConverger.numericDeadband(1.0)) {
+            equivalent = io.panelassistant.android.mqtt.MqttStateOutbox.numericDeadband(1.0)) {
             if (config.haExposed("humidity", true)) lastHumidity?.let { known(Math.round(it).toString()) } ?: unknown
             else unknown
         }
@@ -1786,7 +1789,7 @@ internal class MqttBridge(
         for (key in diagKeys) channel(
             key,
             SettingsRegistry.spec(key)!!.ha!!.stateTopic(panel),
-            equivalent = diagDeadband[key]?.let(io.panelassistant.android.mqtt.StateConverger::numericDeadband)
+            equivalent = diagDeadband[key]?.let(io.panelassistant.android.mqtt.MqttStateOutbox::numericDeadband)
                 ?: String::equals,
         ) {
             // Transport-dependent Wi-Fi discovery clears its retained state when unavailable.
@@ -1798,16 +1801,17 @@ internal class MqttBridge(
     }
 
     private fun registerStateChannel(
-        converger: io.panelassistant.android.mqtt.StateConverger,
+        converger: io.panelassistant.android.state.StateConverger,
         mqtt: MqttStateChannel,
     ) {
         // A duplicate keeps the first route, and the converger then refuses the duplicate channel.
         mqttStateRoutes.putIfAbsent(mqtt.channel.key, mqtt.route)
+        stateOutbox.route(mqtt.channel.key, mqtt.policy)
         converger.register(mqtt.channel)
     }
 
     /** Bind the native reporter directly to observations, independently of MQTT delivery capacity. */
-    internal fun addStateSink(sink: io.panelassistant.android.mqtt.StateSink) { nativeStateSink = sink }
+    internal fun addStateSink(sink: io.panelassistant.android.state.StateSink) { nativeStateSink = sink }
 
     /** Hand transient events (button presses) to the native transport; it never blocks the caller. */
     internal fun addEventSink(sink: (channel: String, event: String) -> Unit) { nativeEventSink = sink }
@@ -1859,7 +1863,7 @@ internal class MqttBridge(
     /** The primary state sink: derives the topic, retain flag and payload bytes from the channel. */
     private fun publishStateObservation(
         channel: String,
-        observation: io.panelassistant.android.mqtt.StateConverger.Observation.Reportable,
+        observation: io.panelassistant.android.state.StateConverger.Observation.Reportable,
         done: (Boolean) -> Unit,
     ) {
         val route = checkNotNull(mqttStateRoutes[channel]) { "no MQTT route for state channel $channel" }
@@ -1891,22 +1895,22 @@ internal class MqttBridge(
             // capabilityChannelLock serializes this compound keys/register operation; StateConverger
             // independently synchronizes each registry mutation and observation snapshot.
             val registered = converger.keys()
-            val unknown = io.panelassistant.android.mqtt.StateConverger.Observation.Unknown
-            fun known(payload: String) = io.panelassistant.android.mqtt.StateConverger.Observation.Known(payload)
+            val unknown = io.panelassistant.android.state.StateConverger.Observation.Unknown
+            fun known(payload: String) = io.panelassistant.android.state.StateConverger.Observation.Known(payload)
             fun register(
                 key: String,
                 topic: String?,
-                observe: () -> io.panelassistant.android.mqtt.StateConverger.Observation,
+                observe: () -> io.panelassistant.android.state.StateConverger.Observation,
             ) {
                 // A null topic is a native-only channel, as in createStateConverger.
                 if (key in registered) return
                 if (topic == null) {
-                    converger.register(io.panelassistant.android.mqtt.StateConverger.Channel(key, observe = observe, nativeOnly = true))
+                    converger.register(io.panelassistant.android.state.StateConverger.Channel(key, observe = observe))
                 } else {
                     registerStateChannel(
                         converger,
                         MqttStateChannel(
-                            io.panelassistant.android.mqtt.StateConverger.Channel(key, observe = observe),
+                            io.panelassistant.android.state.StateConverger.Channel(key, observe = observe),
                             MqttStateRoute(topic, retain = true),
                         ),
                     )
@@ -1924,7 +1928,7 @@ internal class MqttBridge(
             }
             // Native only: publishZigbeeHealth sends MQTT its state and attributes directly.
             if (observation.possible.zigbee) register("zigbee_gateway_health", topic = null) {
-                if (!capabilityShape.current().live.zigbee) io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable
+                if (!capabilityShape.current().live.zigbee) io.panelassistant.android.state.StateConverger.Observation.Unavailable
                 else known(zigbeeHealth().state.wireValue)
             }
             if (observation.possible.zigbee) register("zigbee_gateway_health_attributes", topic = null) {
@@ -2322,7 +2326,7 @@ internal class MqttBridge(
                             addressFamily = event.addressFamily,
                             nowMs = SystemClock.elapsedRealtime(),
                         )
-                        stateConverger.markAllDirty()
+                        stateOutbox.markAllDirty()
                     }
                 } ?: return
                 when (connectAnnouncementDispatcher.submit(announcement)) {
@@ -2359,7 +2363,7 @@ internal class MqttBridge(
                     scheduleAuthRetry(retryAt)
                 } else publishRecoveryLifecycleState(event.state)
                 Log.w(TAG, "MQTT disconnected ($state): ${event.causeMessage}")
-                stateConverger.markAllDirty()
+                stateOutbox.markAllDirty()
             }
         }
     }
@@ -2454,7 +2458,7 @@ internal class MqttBridge(
     /** PUBACK callbacks only enqueue this constant state transition; they never wait on bridge work. */
     private fun completeAnnouncementIfReady(announcement: MqttConnectAnnouncement?) {
         announcement ?: return
-        io.panelassistant.android.mqtt.StateConverger.dispatch {
+        io.panelassistant.android.state.StateConverger.dispatch {
             lifecycle.runIfOpen(Unit) {
                 if (state == "announcing" && connectionAnnouncementIsCurrent(announcement)) {
                     publishRecoveryLifecycleState("connected", applicationReadyEver = true)
@@ -4340,7 +4344,7 @@ internal class MqttBridge(
             }
         }
         // Announcement stays on its existing thread and retains its discovery/state wire order.
-        if (!io.panelassistant.android.mqtt.StateConverger.onPumpThread()) {
+        if (!io.panelassistant.android.state.StateConverger.onPumpThread()) {
             send()
             return
         }
@@ -4368,7 +4372,7 @@ internal class MqttBridge(
     /** One queued/running local pass per bridge, independent of broker heartbeat admission. */
     internal fun requestLocalObservation(stillCurrent: () -> Boolean) {
         if (!lifecycle.isOpen() || !localObservationPending.compareAndSet(false, true)) return
-        io.panelassistant.android.mqtt.StateConverger.dispatch {
+        io.panelassistant.android.state.StateConverger.dispatch {
             try {
                 lifecycle.runIfOpen(Unit) {
                     if (stillCurrent()) runCatching { syncLocalState() }
@@ -4382,7 +4386,7 @@ internal class MqttBridge(
     /** Serialize the accepted hello's full observation before native full_begin. */
     internal suspend fun observeForNativeHello(stillCurrent: () -> Boolean): Boolean =
         suspendCancellableCoroutine { waiting ->
-            io.panelassistant.android.mqtt.StateConverger.dispatch {
+            io.panelassistant.android.state.StateConverger.dispatch {
                 val observed = lifecycle.runIfOpen(false) {
                     if (!stillCurrent()) false else runCatching { syncLocalState(); stillCurrent() }.getOrDefault(false)
                 }
@@ -4559,18 +4563,18 @@ internal class MqttBridge(
         }
     }
 
-    /** Sync predicate — delegates to the pure [io.panelassistant.android.mqtt.SyncGate] (unit-tested):
+    /** Sync predicate — delegates to the pure [io.panelassistant.android.state.SyncGate] (unit-tested):
      *  [cur] differs from [published] beyond [deadband] AND isn't still moving fast (within SETTLE_BAND of
      *  the previous tick's read — a mid-flight value waits for the next tick). */
     private fun settled(cur: Int, prevTick: Int, published: Int, deadband: Int): Boolean =
-        io.panelassistant.android.mqtt.SyncGate.settled(cur, prevTick, published, deadband, SETTLE_BAND)
+        io.panelassistant.android.state.SyncGate.settled(cur, prevTick, published, deadband, SETTLE_BAND)
 
     /** Recent local-state sync events (newest first) for the info page + /diag. Empty when nothing has
      *  changed outside MQTT since boot. */
     fun recentSyncEvents(): List<String> = syncLog.recent(SystemClock.elapsedRealtime())
 
-    fun convergenceStatus(): String = stateConverger.status().let {
-        "${it.channels} channels · ${it.dirty} dirty · ${it.inFlight} in-flight · ${it.unknown} unknown · " +
+    fun convergenceStatus(): String = stateOutbox.status().let {
+        "${stateConverger.keys().size} channels · ${it.dirty} dirty · ${it.inFlight} in-flight · ${it.unknown} unknown · " +
             "ack ${it.successes}/${it.failures} · pending ${it.pending.joinToString(",").ifEmpty { "none" }}"
     }
 

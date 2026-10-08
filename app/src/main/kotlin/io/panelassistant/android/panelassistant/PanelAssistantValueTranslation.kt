@@ -1,6 +1,6 @@
 package io.panelassistant.android.panelassistant
 
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.state.StateConverger
 import org.json.JSONException
 import org.json.JSONObject
 

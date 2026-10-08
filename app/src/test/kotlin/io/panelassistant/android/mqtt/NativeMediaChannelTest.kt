@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.media.MediaStream
 import io.panelassistant.android.media.PanelMediaPlayer
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult

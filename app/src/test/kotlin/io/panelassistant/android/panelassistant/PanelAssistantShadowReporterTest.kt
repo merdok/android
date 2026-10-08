@@ -1,7 +1,7 @@
 package io.panelassistant.android.panelassistant
 
-import io.panelassistant.android.mqtt.StateConverger.Observation
-import io.panelassistant.android.mqtt.StateSink
+import io.panelassistant.android.state.StateConverger.Observation
+import io.panelassistant.android.state.StateSink
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

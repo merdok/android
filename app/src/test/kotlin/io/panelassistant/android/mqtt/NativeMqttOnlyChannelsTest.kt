@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.AutoSleepActivitySnapshot
 import io.panelassistant.android.control.ZigbeeContainmentResult
 import io.panelassistant.android.control.ZigbeeHealthSnapshot

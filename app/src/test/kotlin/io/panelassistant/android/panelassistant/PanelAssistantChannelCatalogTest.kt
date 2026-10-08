@@ -2,7 +2,7 @@ package io.panelassistant.android.panelassistant
 
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingsRegistry
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.testsupport.TestSources
 import org.json.JSONArray
 import org.json.JSONObject

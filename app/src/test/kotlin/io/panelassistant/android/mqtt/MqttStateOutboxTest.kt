@@ -1,6 +1,8 @@
 package io.panelassistant.android.mqtt
 
 import io.panelassistant.android.mqttStatePayload
+import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.testsupport.OutboxConverger
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostRegistry
 import io.panelassistant.android.util.MonotonicDeadline
@@ -12,11 +14,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class StateConvergerTest {
+class MqttStateOutboxTest {
     private data class Sent(val channel: String, val observation: StateConverger.Observation.Reportable, val done: (Boolean) -> Unit) {
         val payload: String get() = mqttStatePayload(observation)
     }
-    private fun converger(sent: MutableList<Sent>, monotonicMs: () -> Long = { 0L }) = StateConverger(
+    private fun converger(sent: MutableList<Sent>, monotonicMs: () -> Long = { 0L }) = OutboxConverger(
         sender = { channel, observation, done -> sent += Sent(channel, observation, done) },
         schedule = { it() },
         monotonicMs = monotonicMs,
@@ -26,13 +28,13 @@ class StateConvergerTest {
         val sent = mutableListOf<Sent>()
         val observed = mutableListOf<String>()
         var screenReads = 0
-        val c = StateConverger(
+        val c = OutboxConverger(
             sender = { channel, observation, done -> sent += Sent(channel, observation, done) },
             schedule = { it() },
             onObservation = { channel, observation -> observed += "$channel=${mqttStatePayload(observation)}" },
         )
-        c.register(StateConverger.Channel("screen", observe = { screenReads++; StateConverger.Observation.Known("ON") }))
-        c.register(StateConverger.Channel("media", observe = { StateConverger.Observation.Known("playing") }, nativeOnly = true))
+        c.register(OutboxConverger.Channel("screen", observe = { screenReads++; StateConverger.Observation.Known("ON") }))
+        c.register(OutboxConverger.Channel("media", observe = { StateConverger.Observation.Known("playing") }, nativeOnly = true))
         c.reconcile("screen")
         sent.single().done(false)
         val readsAfterFailure = screenReads
@@ -49,7 +51,7 @@ class StateConvergerTest {
         val release = CountDownLatch(1)
         var observations = 0
         val c = converger(mutableListOf())
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             observations++
             entered.countDown()
             release.await()
@@ -71,14 +73,14 @@ class StateConvergerTest {
     @Test fun closeDeadlineDoesNotPretendABlockedSenderDrained() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val c = StateConverger(
+        val c = OutboxConverger(
             sender = { _, _, _ ->
                 entered.countDown()
                 release.await()
             },
             schedule = { it() },
         )
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
         val worker = Thread { c.reconcile("screen") }.apply { start() }
@@ -96,7 +98,7 @@ class StateConvergerTest {
         var value = "ON"
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = { StateConverger.Observation.Known(value) }))
+        c.register(OutboxConverger.Channel("screen", observe = { StateConverger.Observation.Known(value) }))
 
         c.reconcile("screen")
         sent.single().done(true)
@@ -109,7 +111,7 @@ class StateConvergerTest {
         var now = 0L
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("cpu", observe = {
+        c.register(OutboxConverger.Channel("cpu", observe = {
             StateConverger.Observation.Known("50")
         }, maxSilenceMs = 300_000L))
 
@@ -138,7 +140,7 @@ class StateConvergerTest {
         var now = 0L
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("cpu", observe = {
+        c.register(OutboxConverger.Channel("cpu", observe = {
             StateConverger.Observation.Known("50")
         }, maxSilenceMs = 300_000L))
 
@@ -162,9 +164,9 @@ class StateConvergerTest {
         var value = "50"
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("cpu", observe = {
+        c.register(OutboxConverger.Channel("cpu", observe = {
             StateConverger.Observation.Known(value)
-        }, equivalent = StateConverger.numericDeadband(5.0), maxSilenceMs = 300_000L))
+        }, equivalent = MqttStateOutbox.numericDeadband(5.0), maxSilenceMs = 300_000L))
 
         c.reconcile("cpu")
         sent.single().done(true)
@@ -189,7 +191,7 @@ class StateConvergerTest {
         var now = 0L
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("memory", observe = {
+        c.register(OutboxConverger.Channel("memory", observe = {
             StateConverger.Observation.Known("62")
         }, maxSilenceMs = 300_000L))
 
@@ -209,7 +211,7 @@ class StateConvergerTest {
         var observation: StateConverger.Observation = StateConverger.Observation.Known("62")
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel(
+        c.register(OutboxConverger.Channel(
             "memory",
             observe = { observation },
             maxSilenceMs = 300_000L,
@@ -238,7 +240,7 @@ class StateConvergerTest {
         var observation: StateConverger.Observation = StateConverger.Observation.Known("42")
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("cpu", observe = { observation }, maxSilenceMs = 300_000L))
+        c.register(OutboxConverger.Channel("cpu", observe = { observation }, maxSilenceMs = 300_000L))
 
         c.reconcile("cpu")
         sent.single().done(true)
@@ -261,10 +263,10 @@ class StateConvergerTest {
         var value = "50"
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel(
+        c.register(OutboxConverger.Channel(
             "cpu",
             observe = { StateConverger.Observation.Known(value) },
-            equivalent = StateConverger.numericDeadband(5.0),
+            equivalent = MqttStateOutbox.numericDeadband(5.0),
             refreshEligible = { it.toDoubleOrNull()?.isFinite() == true },
             maxSilenceMs = 300_000L,
         ))
@@ -285,7 +287,7 @@ class StateConvergerTest {
         var now = 0L
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
-        c.register(StateConverger.Channel("cpu", observe = {
+        c.register(OutboxConverger.Channel("cpu", observe = {
             StateConverger.Observation.Known("50")
         }, maxSilenceMs = 300_000L))
 
@@ -309,13 +311,13 @@ class StateConvergerTest {
         var now = 0L
         var publications = 0
         val convergers = List(8) { panel ->
-            StateConverger(
+            OutboxConverger(
                 sender = { _, _, done -> publications++; done(true) },
                 schedule = { it() },
                 monotonicMs = { now },
             ).also { converger ->
                 repeat(11) { sensor ->
-                    converger.register(StateConverger.Channel(
+                    converger.register(OutboxConverger.Channel(
                         key = "p${panel}s$sensor",
                         observe = { StateConverger.Observation.Known("50") },
                         maxSilenceMs = 300_000L,
@@ -340,7 +342,7 @@ class StateConvergerTest {
         val sent = mutableListOf<Sent>()
         val c = converger(sent) { now }
         repeat(11) { sensor ->
-            c.register(StateConverger.Channel(
+            c.register(OutboxConverger.Channel(
                 key = "sensor_$sensor",
                 observe = { StateConverger.Observation.Known("50") },
                 maxSilenceMs = 300_000L,
@@ -372,7 +374,7 @@ class StateConvergerTest {
     @Test fun failedPublishRemainsDirtyAndRetries() {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = { StateConverger.Observation.Known("OFF") }))
+        c.register(OutboxConverger.Channel("screen", observe = { StateConverger.Observation.Known("OFF") }))
 
         c.reconcile("screen")
         sent.last().done(false)
@@ -387,8 +389,8 @@ class StateConvergerTest {
         var relay: StateConverger.Observation = StateConverger.Observation.Unknown
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = { screen }))
-        c.register(StateConverger.Channel("relay", observe = { relay }))
+        c.register(OutboxConverger.Channel("screen", observe = { screen }))
+        c.register(OutboxConverger.Channel("relay", observe = { relay }))
 
         c.reconcileAll()
         assertEquals(listOf("""{"state":"ON","brightness":73}"""), sent.map { it.payload })
@@ -406,7 +408,7 @@ class StateConvergerTest {
     @Test fun statusShowsAcknowledgedConvergence() {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("volume", observe = {
+        c.register(OutboxConverger.Channel("volume", observe = {
             StateConverger.Observation.Known("50")
         }))
         c.reconcile("volume")
@@ -420,7 +422,7 @@ class StateConvergerTest {
         var value = "ON"
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = { StateConverger.Observation.Known(value) }))
+        c.register(OutboxConverger.Channel("screen", observe = { StateConverger.Observation.Known(value) }))
 
         c.reconcile("screen")
         value = "OFF"
@@ -438,7 +440,7 @@ class StateConvergerTest {
         var value = "ON"
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known(value)
         }))
 
@@ -462,7 +464,7 @@ class StateConvergerTest {
     @Test fun connectionInvalidationRejectsOldAckAndRepublishesStableState() {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
 
@@ -488,12 +490,12 @@ class StateConvergerTest {
             threadId = { 1L },
         )
         val sent = mutableListOf<Sent>()
-        val c = StateConverger(
+        val c = OutboxConverger(
             sender = { channel, observation, done -> sent += Sent(channel, observation, done) },
             schedule = { it() },
             featureCosts = costs,
         )
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
 
@@ -514,7 +516,7 @@ class StateConvergerTest {
         var observation: StateConverger.Observation = StateConverger.Observation.Known("ON")
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("relay", observe = { observation }))
+        c.register(OutboxConverger.Channel("relay", observe = { observation }))
 
         c.reconcile("relay")
         sent.single().done(true)
@@ -531,7 +533,7 @@ class StateConvergerTest {
         val sent = mutableListOf<Sent>()
         var observation: StateConverger.Observation = StateConverger.Observation.Unknown
         val c = converger(sent)
-        c.register(StateConverger.Channel("relay", observe = { observation }))
+        c.register(OutboxConverger.Channel("relay", observe = { observation }))
 
         c.reconcile("relay")
         observation = StateConverger.Observation.Unavailable
@@ -546,7 +548,7 @@ class StateConvergerTest {
         var observation: StateConverger.Observation = StateConverger.Observation.Known("Private network")
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("ssid", observe = { observation }))
+        c.register(OutboxConverger.Channel("ssid", observe = { observation }))
 
         c.reconcile("ssid")
         observation = StateConverger.Observation.Unavailable
@@ -565,7 +567,7 @@ class StateConvergerTest {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
         repeat(5) { n ->
-            c.register(StateConverger.Channel("c$n", observe = {
+            c.register(OutboxConverger.Channel("c$n", observe = {
                 if (n == 0) first else StateConverger.Observation.Known(n.toString())
             }))
         }
@@ -585,7 +587,7 @@ class StateConvergerTest {
     @Test fun forceDoesNotDuplicateIdenticalInFlightPayload() {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
         c.reconcile("screen", force = true)
@@ -596,7 +598,7 @@ class StateConvergerTest {
     @Test fun closeRejectsQueuedAuditsAndLateAcknowledgements() {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
 
@@ -618,12 +620,12 @@ class StateConvergerTest {
             threadId = { 1L },
         )
         val sent = mutableListOf<Sent>()
-        val c = StateConverger(
+        val c = OutboxConverger(
             sender = { channel, observation, done -> sent += Sent(channel, observation, done) },
             schedule = { it() },
             featureCosts = costs,
         )
-        c.register(StateConverger.Channel("screen", observe = {
+        c.register(OutboxConverger.Channel("screen", observe = {
             StateConverger.Observation.Known("ON")
         }))
 
@@ -639,12 +641,12 @@ class StateConvergerTest {
 
     @Test fun boundedOutboxPumpsAfterAcknowledgement() {
         val sent = mutableListOf<Sent>()
-        val c = StateConverger(
+        val c = OutboxConverger(
             sender = { channel, observation, done -> sent += Sent(channel, observation, done) },
             schedule = { it() },
         )
         repeat(6) { n ->
-            c.register(StateConverger.Channel("c$n", observe = {
+            c.register(OutboxConverger.Channel("c$n", observe = {
                 StateConverger.Observation.Known(n.toString())
             }))
         }
@@ -660,7 +662,7 @@ class StateConvergerTest {
         var reads = 0
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
-        c.register(StateConverger.Channel("temperature", observe = {
+        c.register(OutboxConverger.Channel("temperature", observe = {
             StateConverger.Observation.Known((reads++).toString())
         }))
         c.reconcile("temperature")
@@ -674,9 +676,9 @@ class StateConvergerTest {
         val sent = mutableListOf<Sent>()
         val c = converger(sent)
         for (n in 1..4) {
-            c.register(StateConverger.Channel("busy$n", observe = { StateConverger.Observation.Known("x") }))
+            c.register(OutboxConverger.Channel("busy$n", observe = { StateConverger.Observation.Known("x") }))
         }
-        c.register(StateConverger.Channel("relay1", observe = { StateConverger.Observation.Known(relay) }))
+        c.register(OutboxConverger.Channel("relay1", observe = { StateConverger.Observation.Known(relay) }))
 
         // Converge every channel CLEAN first — the drop path only existed for a clean channel.
         c.reconcile("busy1")
@@ -705,7 +707,7 @@ class StateConvergerTest {
     }
 
     @Test fun semanticChangeBeatsNumericDeadband() {
-        val equivalent = StateConverger.numericDeadband(5.0)
+        val equivalent = MqttStateOutbox.numericDeadband(5.0)
         assertTrue(equivalent("50", "53"))
         assertEquals(false, equivalent("50", "OFF"))
         assertEquals(false, equivalent("unknown", "50"))

@@ -1,6 +1,9 @@
 package io.panelassistant.android.mqtt
 
-import io.panelassistant.android.mqtt.StateConverger.Observation
+import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.state.StateSink
+import io.panelassistant.android.testsupport.OutboxConverger
+import io.panelassistant.android.state.StateConverger.Observation
 import io.panelassistant.android.panelassistant.PanelAssistantReportResult
 import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
 import org.json.JSONObject
@@ -16,15 +19,15 @@ class NativeObservationDeliveryTest {
         val acknowledgements = mutableListOf<(Boolean) -> Unit>()
         val values = (1..5).associate { "relay$it" to "OFF" }.toMutableMap()
         private lateinit var native: StateSink
-        val converger = StateConverger(
+        val converger = OutboxConverger(
             sender = { channel, value, done -> mqtt += channel to value; acknowledgements += done },
             schedule = { it() },
             onObservation = { channel, value -> native(channel, value) {} },
         )
 
         init {
-            values.keys.forEach { key -> converger.register(StateConverger.Channel(key, { Observation.Known(values.getValue(key)) })) }
-            native = reporter.bind(converger::keys)
+            values.keys.forEach { key -> converger.register(OutboxConverger.Channel(key, { Observation.Known(values.getValue(key)) })) }
+            native = reporter.bind { converger.keys() }
             reporter.open(reporter.descriptors())
             report(1)
             report(2)
@@ -73,16 +76,16 @@ class NativeObservationDeliveryTest {
         var current = true
         val observed = mutableListOf<String>()
         val mqtt = mutableListOf<String>()
-        val converger = StateConverger(
+        val converger = OutboxConverger(
             sender = { channel, _, _ -> mqtt += channel },
             onObservation = { channel, _ -> observed += channel },
         )
         val admitted = (1..4).map { "relay$it" }
         admitted.forEach { channel ->
-            converger.register(StateConverger.Channel(channel, { Observation.Known("OFF") }))
+            converger.register(OutboxConverger.Channel(channel, { Observation.Known("OFF") }))
             converger.reconcile(channel)
         }
-        converger.register(StateConverger.Channel("relay5", {
+        converger.register(OutboxConverger.Channel("relay5", {
             current = false
             Observation.Known("ON")
         }))
@@ -97,11 +100,11 @@ class NativeObservationDeliveryTest {
         var current = true
         val native = mutableListOf<Observation.Reportable>()
         var mqtt = 0
-        val converger = StateConverger(
+        val converger = OutboxConverger(
             sender = { _, _, _ -> mqtt++ },
             onObservation = { _, value -> native += value; current = false },
         )
-        converger.register(StateConverger.Channel("relay1", { Observation.Known("ON") }))
+        converger.register(OutboxConverger.Channel("relay1", { Observation.Known("ON") }))
         converger.reconcile("relay1", force = true, admit = { current })
         assertEquals(listOf(Observation.Known("ON")), native)
         assertEquals(0, mqtt)
@@ -110,8 +113,8 @@ class NativeObservationDeliveryTest {
     @Test fun synchronousMqttCompletionCannotReorderNativeObservations() {
         val native = mutableListOf<Observation.Reportable>()
         var value = "OFF"
-        lateinit var converger: StateConverger
-        converger = StateConverger(
+        lateinit var converger: OutboxConverger
+        converger = OutboxConverger(
             sender = { _, observation, done ->
                 done(true)
                 if (observation == Observation.Known("OFF")) {
@@ -122,18 +125,18 @@ class NativeObservationDeliveryTest {
             schedule = { it() },
             onObservation = { _, observation -> native += observation },
         )
-        converger.register(StateConverger.Channel("relay1", { Observation.Known(value) }))
+        converger.register(OutboxConverger.Channel("relay1", { Observation.Known(value) }))
         converger.reconcile("relay1")
         assertEquals(listOf(Observation.Known("OFF"), Observation.Known("ON")), native)
     }
 
     @Test fun channelIdsFollowTheProtocolGrammar() {
-        val converger = StateConverger(sender = { _, _, _ -> })
+        val converger = OutboxConverger(sender = { _, _, _ -> })
         listOf("screen", "relay3", "button_led3", "a", "a" + "b".repeat(47)).forEach {
-            converger.register(StateConverger.Channel(it, observe = { Observation.Unknown }))
+            converger.register(OutboxConverger.Channel(it, observe = { Observation.Unknown }))
         }
         listOf("", "Screen", "3relay", "screen/state", "http:screen", "a" + "b".repeat(48), "_x").forEach { id ->
-            val refused = runCatching { converger.register(StateConverger.Channel(id, observe = { Observation.Unknown })) }
+            val refused = runCatching { converger.register(OutboxConverger.Channel(id, observe = { Observation.Unknown })) }
             assertTrue("$id must be refused", refused.exceptionOrNull() is IllegalArgumentException)
         }
     }

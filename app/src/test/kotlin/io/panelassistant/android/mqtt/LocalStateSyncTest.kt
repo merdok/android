@@ -1,5 +1,7 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.SyncLog
+import io.panelassistant.android.state.SyncGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

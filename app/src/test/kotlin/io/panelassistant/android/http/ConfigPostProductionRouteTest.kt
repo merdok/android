@@ -19,7 +19,7 @@ import io.panelassistant.android.persistence.StateMutation
 import io.panelassistant.android.persistence.StateNamespacePersistence
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.sensors.SensorReporter
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.util.Cached
@@ -804,7 +804,7 @@ class ConfigPostProductionRouteTest {
             setField(
                 bridge,
                 "stateConverger",
-                StateConverger(sender = { _, _, _ -> error("no state channel should publish") }),
+                StateConverger(),
             )
         }
 

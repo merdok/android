@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.testsupport.TestSources
 import io.panelassistant.android.MqttCommandDispatcher
 import io.panelassistant.android.mqttStatePayload
@@ -85,7 +86,7 @@ class CommandReadbackGateTest {
     @Test fun anObservationOvertakenByANewerCommandIsWithdrawnAtAdmission() {
         val pump = ManualPump()
         val published = Collections.synchronizedList(mutableListOf<String>())
-        val converger = StateConverger(
+        val converger = io.panelassistant.android.testsupport.OutboxConverger(
             sender = { _, observation, done -> published += mqttStatePayload(observation); done(true) },
             schedule = { it() },
         )
@@ -93,7 +94,7 @@ class CommandReadbackGateTest {
         val observeEntered = CountDownLatch(1)
         val observeRelease = CountDownLatch(1)
         converger.register(
-            StateConverger.Channel("relay1", observe = {
+            io.panelassistant.android.testsupport.OutboxConverger.Channel("relay1", observe = {
                 val snapshot = hardware.get()   // captured BEFORE blocking — stale once released
                 observeEntered.countDown()
                 assertTrue(observeRelease.await(5, TimeUnit.SECONDS))

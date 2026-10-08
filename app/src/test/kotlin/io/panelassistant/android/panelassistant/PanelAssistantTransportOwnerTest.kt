@@ -1723,7 +1723,7 @@ class PanelAssistantTransportOwnerTest {
         val reporter = PanelAssistantShadowReporter(log = {})
         private val bound = reporter.bindShape { PanelAssistantChannelShape(keys.toList(), unsupported.toList()) }
 
-        fun sink(channel: String, payload: String) = bound(channel, io.panelassistant.android.mqtt.StateConverger.Observation.Known(payload)) {}
+        fun sink(channel: String, payload: String) = bound(channel, io.panelassistant.android.state.StateConverger.Observation.Known(payload)) {}
     }
 
     /** The panel's persisted authority and discovery value, written through the owner's callbacks. */

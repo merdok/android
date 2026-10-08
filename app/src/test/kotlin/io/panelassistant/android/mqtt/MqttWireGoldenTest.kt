@@ -1,5 +1,6 @@
 package io.panelassistant.android.mqtt
 
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.config.SettingsRegistry
 import android.content.ContentResolver
 import android.content.Context

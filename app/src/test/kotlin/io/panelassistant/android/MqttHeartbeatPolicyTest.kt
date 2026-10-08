@@ -1,7 +1,7 @@
 package io.panelassistant.android
 
 import io.panelassistant.android.config.SettingsRegistry
-import io.panelassistant.android.mqtt.StateConverger
+import io.panelassistant.android.state.StateConverger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -37,11 +37,11 @@ class MqttHeartbeatPolicyTest {
 
         val observation = { StateConverger.Observation.Known("50") }
         val measurement = mqttStateChannel("diag_cpu", "cpu/state", retain = false, observe = observation)
-        assertEquals(MQTT_MEASUREMENT_REFRESH_AFTER_ACK_MS, measurement.channel.maxSilenceMs)
+        assertEquals(MQTT_MEASUREMENT_REFRESH_AFTER_ACK_MS, measurement.policy.maxSilenceMs)
         assertFalse("the channel factory must preserve per-channel retain policy", measurement.route.retain)
-        assertTrue(measurement.channel.refreshEligible("50"))
-        assertFalse(measurement.channel.refreshEligible("unknown"))
-        assertFalse(measurement.channel.refreshEligible("NaN"))
-        assertNull(mqttStateChannel("screen", "screen/state", observe = observation).channel.maxSilenceMs)
+        assertTrue(measurement.policy.refreshEligible("50"))
+        assertFalse(measurement.policy.refreshEligible("unknown"))
+        assertFalse(measurement.policy.refreshEligible("NaN"))
+        assertNull(mqttStateChannel("screen", "screen/state", observe = observation).policy.maxSilenceMs)
     }
 }

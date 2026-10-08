@@ -14,7 +14,7 @@ class PanelAssistantShadowWiringContractTest {
     private val bridge by lazy { TestSources.kotlin("MqttBridge.kt").readText() }
 
     @Test fun everyBridgeGenerationBindsItsConvergerToTheReporter() {
-        assertTrue(bridge.contains("internal fun addStateSink(sink: io.panelassistant.android.mqtt.StateSink) { nativeStateSink = sink }"))
+        assertTrue(bridge.contains("internal fun addStateSink(sink: io.panelassistant.android.state.StateSink) { nativeStateSink = sink }"))
         assertTrue(bridge.contains("onObservation = { channel, observation -> nativeStateSink?.invoke(channel, observation) {} }"))
         assertTrue(bridge.contains("internal fun stateChannelKeys(): Set<String> = stateConverger.keys()"))
     }

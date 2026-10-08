@@ -38,7 +38,7 @@ class SoftwareUpdateWiringContractTest {
         // The state channel must follow the same withheld rule as discovery, or an absent Companion
         // would keep a retained "not installed" payload behind its tombstone.
         val channel = between(bridge, "SoftwareUpdateEntities.stateChannelKey(component),", "channel(\"storage_health_attributes\"")
-        assertTrue(channel.contains("if (SoftwareUpdateEntities.withheld(inputs)) io.panelassistant.android.mqtt.StateConverger.Observation.Unavailable"))
+        assertTrue(channel.contains("if (SoftwareUpdateEntities.withheld(inputs)) io.panelassistant.android.state.StateConverger.Observation.Unavailable"))
     }
 
     @Test fun bridgeSyncAndDiscoveryRepublishTheEntities() {

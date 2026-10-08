@@ -1,6 +1,6 @@
 package io.panelassistant.android
 
-import io.panelassistant.android.mqtt.StateConverger.Observation
+import io.panelassistant.android.state.StateConverger.Observation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
