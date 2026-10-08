@@ -43,6 +43,11 @@ platform:
   app_can_su: false
   has_recents: true
   has_native_navbar: false
+  launcher:
+    # Meta's launcher registers as Home but is a clock face, not an app drawer.
+    # The Launcher button skips it and opens the admin launcher.
+    vendor_home_packages:
+      - com.facebook.alohaapps.launcher
 hardware:
   led:
     mechanism: none
