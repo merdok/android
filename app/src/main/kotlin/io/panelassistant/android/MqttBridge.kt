@@ -6,62 +6,25 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import io.panelassistant.android.control.AdbController
-import io.panelassistant.android.control.AutoBrightnessController
-import io.panelassistant.android.control.BootChimeController
-import io.panelassistant.android.control.BrightnessController
 import io.panelassistant.android.control.CpuController
-import io.panelassistant.android.control.LedEffectController
-import io.panelassistant.android.control.LedCommandPolicy
-import io.panelassistant.android.control.PowerSafetyMutationPolicy
-import io.panelassistant.android.hardware.LedEffects
 import io.panelassistant.android.util.BrokerEndpoint
 import io.panelassistant.android.util.LatestDispatcher
 import io.panelassistant.android.util.submit
 import io.panelassistant.android.util.HaLink
 import io.panelassistant.android.control.NavbarController
-import io.panelassistant.android.control.NavbarModeApplyOutcome
-import io.panelassistant.android.control.NavbarModeApplyStatus
-import io.panelassistant.android.control.NavigateController
-import io.panelassistant.android.control.RelayController
-import io.panelassistant.android.control.ScreenController
-import io.panelassistant.android.control.BuiltinDashboard
-import io.panelassistant.android.control.SystemController
-import io.panelassistant.android.control.WatchdogController
-import io.panelassistant.android.control.TouchSoundController
-import io.panelassistant.android.control.VolumeController
-import io.panelassistant.android.control.ZigbeeController
 import io.panelassistant.android.control.ZigbeeHealthSnapshot
 import io.panelassistant.android.config.Capabilities
-import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
-import io.panelassistant.android.config.Validation
 import io.panelassistant.android.hardware.LedController
-import io.panelassistant.android.hardware.NoOpLedController
-import io.panelassistant.android.input.ButtonBus
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome
 import io.panelassistant.android.metrics.FeatureCosts
-import io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog
-import io.panelassistant.android.panelassistant.PanelAssistantCommand
-import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
-import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
-import io.panelassistant.android.security.ApprovalBroker
-import io.panelassistant.android.security.LocalApprovalBroker
-import io.panelassistant.android.security.SensitiveOperation
-import io.panelassistant.android.sensors.ProximityReportGate
-import io.panelassistant.android.storage.StorageHealthRuntime
-import io.panelassistant.android.storage.StorageHealthSeverity
-import io.panelassistant.android.storage.StorageHealthSnapshot
 import io.panelassistant.android.mqtt.HiveMqTransport
 import io.panelassistant.android.mqtt.MqttCallbacks
 import io.panelassistant.android.mqtt.MqttConnectionLease
 import io.panelassistant.android.mqtt.MqttConnectConfig
 import io.panelassistant.android.mqtt.MqttFinalPublish
-import io.panelassistant.android.metrics.PanelMetrics
-import io.panelassistant.android.control.WifiDiagnosticDemand
-import io.panelassistant.android.control.WifiDiagnosticSnapshot
-import io.panelassistant.android.control.WifiOutageCounts
 import io.panelassistant.android.mqtt.MqttTransport
 import io.panelassistant.android.mqtt.MqttConnectionGeneration
 import io.panelassistant.android.mqtt.MqttFamilyPreference
@@ -71,30 +34,21 @@ import io.panelassistant.android.mqtt.classifyDisconnect
 import io.panelassistant.android.mqtt.mqttFamilyBrokerIdentity
 import io.panelassistant.android.mqtt.AuthRecovery
 import io.panelassistant.android.mqtt.isAuthRecoveryState
-import io.panelassistant.android.mqtt.SoftwareCommandOutcome
 import io.panelassistant.android.state.SoftwareComponent
 import io.panelassistant.android.mqtt.SoftwareDiscoveryShape
 import io.panelassistant.android.mqtt.SoftwareDiscoveryStep
 import io.panelassistant.android.mqtt.SoftwareUpdateEntities
-import io.panelassistant.android.state.SoftwareUpdateInputs
 import io.panelassistant.android.state.SoftwareUpdateSources
-import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.Json
 import io.panelassistant.android.util.MonotonicDeadline
 import io.panelassistant.android.util.RetirableMutationGate
 import io.panelassistant.android.util.ServiceRuntimeOwner
-import io.panelassistant.android.util.interruptAndJoin
 import io.panelassistant.android.util.shutdownNowAndAwait
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.CompletableFuture
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.security.MessageDigest
-import java.util.Locale
-import java.util.WeakHashMap
-import kotlin.coroutines.resume
-import org.json.JSONObject
 
 
 internal fun hiddenReadOnlyStateTopic(key: String, panel: String): String? =
@@ -879,61 +833,28 @@ internal class MqttBridge(
     private val availabilityTopic = "ha-paneld/$panel/availability"
     private val migrationNoticeState = "ha-paneld/$panel/panel_assistant_required/state"
     private val migrationNoticeAttributes = "ha-paneld/$panel/panel_assistant_required/attributes"
-    private val cmdScreen = "ha-paneld/$panel/screen/set"
     private val cmdLed = "ha-paneld/$panel/led/set"
     private val cmdNavigate = "ha-paneld/$panel/navigate/set"
-    private val cmdVolume = "ha-paneld/$panel/volume/set"
     private val cmdReload = "ha-paneld/$panel/reload/set"
     private val cmdHomeDashboard = "ha-paneld/$panel/home_dashboard/set"
     private val stateHomeDashboard = "ha-paneld/$panel/home_dashboard/state"
     private val cmdReboot = "ha-paneld/$panel/reboot/set"
     private val cmdButtons = "ha-paneld/$panel/buttons/set"
     private val stateButtons = "ha-paneld/$panel/buttons/state"
-    private val cmdNavbar = "ha-paneld/$panel/navbar/set"
-    private val stateNavbar = "ha-paneld/$panel/navbar/state"
-    private val cmdWakeOnWave = "ha-paneld/$panel/wake_on_wave/set"
-    private val stateWakeOnWave = "ha-paneld/$panel/wake_on_wave/state"
-    private val cmdAutoSleep = "ha-paneld/$panel/auto_sleep/set"
-    private val stateAutoSleep = "ha-paneld/$panel/auto_sleep/state"
     private val autoSleepAvailabilityTopic = "ha-paneld/$panel/auto_sleep_activity/availability"
-    private val cmdTouchSound = "ha-paneld/$panel/touch_sound/set"
-    private val stateTouchSound = "ha-paneld/$panel/touch_sound/state"
-    private val cmdWatchdog = "ha-paneld/$panel/watchdog/set"
-    private val stateWatchdog = "ha-paneld/$panel/watchdog/state"
-    private val cmdKiosk = "ha-paneld/$panel/kiosk_lock/set"
-    private val stateKiosk = "ha-paneld/$panel/kiosk_lock/state"
     private val cmdUpdateCompanion = "ha-paneld/$panel/update_companion/set"
     private val cmdUpdatePaneld = "ha-paneld/$panel/update_paneld/set"
-    private val cmdSilenceBootChime = "ha-paneld/$panel/silence_boot_chime/set"
-    private val stateSilenceBootChime = "ha-paneld/$panel/silence_boot_chime/state"
-    private val cmdPreventIdleDim = "ha-paneld/$panel/prevent_idle_dim/set"
-    private val statePreventIdleDim = "ha-paneld/$panel/prevent_idle_dim/state"
-    private val cmdZigbee = "ha-paneld/$panel/zigbee_router/set"
-    private val stateZigbee = "ha-paneld/$panel/zigbee_router/state"
-    private val cmdCpuGov = "ha-paneld/$panel/cpu_governor/set"
-    private val stateCpuGov = "ha-paneld/$panel/cpu_governor/state"
-    private val cmdNetAdb = "ha-paneld/$panel/network_adb/set"
-    private val stateNetAdb = "ha-paneld/$panel/network_adb/state"
-    private val stateScreen = "ha-paneld/$panel/screen/state"
     private val stateLed = "ha-paneld/$panel/led/state"
     private val stateNavigate = "ha-paneld/$panel/navigate/state"
-    private val stateVolume = "ha-paneld/$panel/volume/state"
     private val eventButton = "ha-paneld/$panel/button/event"
-    private val stateIlluminance = "ha-paneld/$panel/illuminance/state"
     private val stateProximity = "ha-paneld/$panel/proximity/state"
     private val stateProximityLevel = "ha-paneld/$panel/proximity_level/state"
     private val proximityAvailabilityTopic = "ha-paneld/$panel/proximity/availability"
-    private val stateTemperature = "ha-paneld/$panel/temperature/state"
-    private val stateHumidity = "ha-paneld/$panel/humidity/state"
     private val stateZigbeeHealth = "ha-paneld/$panel/zigbee_gateway_health/state"
     private val attrZigbeeHealth = "ha-paneld/$panel/zigbee_gateway_health/attributes"
     private val stateStorageHealth = "ha-paneld/$panel/storage_health/state"
     private val attrStorageHealth = "ha-paneld/$panel/storage_health/attributes"
     private val attrWifiOutages = "ha-paneld/$panel/diag_wifi_outages_24h/attributes"
-    private val cmdAutoBright = "ha-paneld/$panel/auto_brightness/set"
-    private val stateAutoBright = "ha-paneld/$panel/auto_brightness/state"
-    private val cmdCameraEnabled = "ha-paneld/$panel/camera_enabled/set"
-    private val stateCameraEnabled = "ha-paneld/$panel/camera_enabled/state"
     // The snapshot image entity carries a URL rather than image bytes: the camera contract serves frames
     // only over the panel's own listeners to a client that dialled in, and a retained byte payload would
     // leave a frame sitting on the broker. HA stores this URL and fetches it when somebody actually looks

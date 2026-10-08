@@ -835,7 +835,7 @@ class PaneldService : Service() {
     private var identityMigrationSticky = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // One dedicated transition lane owns initial start, config rebuilds, reconnects, and final teardown.
-    // Observations capture the generation and concrete MQTT/mDNS pair together, so watchdog/network work cannot read a generation from one runtime and then reach a replacement through a mutable field.
+    // Observations capture the generation and its concrete state core, dispatcher, MQTT and mDNS owners together, so watchdog/network work cannot read a generation from one runtime and then reach a replacement through a mutable field.
     private data class NetworkRuntime(
         val core: PanelStateCore,
         val commands: PanelCommandDispatcher,

@@ -35,7 +35,6 @@ import io.panelassistant.android.state.SyncLog
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
 import io.panelassistant.android.state.SoftwareComponent
-import io.panelassistant.android.mqtt.SoftwareUpdateEntities
 import io.panelassistant.android.state.SoftwareUpdateInputs
 import io.panelassistant.android.state.SoftwareUpdateSources
 import io.panelassistant.android.util.HaLink
@@ -1016,7 +1015,7 @@ internal fun wifiOutageAttributes(counts: WifiOutageCounts): String =
  *
  * The attributes share the count's opt-in: hiding the sensor must CLEAR the retained payload rather
  * than leave a stale `is_lower_bound` alive in the broker for an entity nobody exposed. Pure so the
- * expose/hide/reconnect boundary is checked by behaviour, not by reading the bridge's source.
+ * expose/hide/reconnect boundary is checked by behaviour, not by reading source.
  */
 internal fun wifiOutageAttributeObservation(
     exposed: Boolean,
@@ -1113,7 +1112,7 @@ internal fun autoSleepActivityProjection(snapshot: AutoSleepActivitySnapshot): A
     )
 }
 
-/** A mode-change signal carries no truth. The admitted bridge generation samples the service-owned
+/** A mode-change signal carries no truth. The admitted runtime generation samples the service-owned
  * authority immediately before it clears stale state and schedules fresh discovery. */
 internal fun refreshLearnedProximityFromAuthority(
     admitted: Boolean,
@@ -1186,7 +1185,7 @@ internal data class CapabilityObservation(
 /**
  * Separates monotonic channel shape from the latest live probe. Once hardware has been confirmed its
  * MQTT identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
- * the entity. Newly confirmed channels can be registered and announced by the existing bridge.
+ * the entity. Newly confirmed channels can be registered and announced by the existing runtime.
  */
 internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {
     init {

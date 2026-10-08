@@ -318,7 +318,7 @@ internal class PanelCommandDispatcher(
             return null
         } catch (e: Exception) {
             cost.outcome(FeatureCostOutcome.FAILURE)
-            Log.w(TAG, "command failed on $channel (${payloadBytes.size} bytes)", e)
+            Log.w(TAG, "command ${origin.requestId.orEmpty()} from ${origin.peer} failed on $channel (${payloadBytes.size} bytes)", e)
             // The handler may have made newer intent durable before failing to actuate it. Retire the
             // older queued HTTP value anyway — leaving it lets startup replay commit the stale value
             // over the newer one. Best-effort and logged: this is already the failure path, and a
@@ -545,7 +545,7 @@ internal class PanelCommandDispatcher(
 
     // The voice assistant is a Home Assistant satellite through Panel Assistant, never an MQTT entity:
     // this handler is only the live-setting path the panel's own Configure page uses, and an ON on a
-    // bridge generation without a microphone is refused.
+    // runtime generation without a microphone is refused.
     //
     // A refusal or a failed durable commit THROWS rather than returning silently. dispatchSetting runs
     // inside the HTTP live-setting path's command-dispatcher lane, whose exception handling is what
@@ -649,9 +649,9 @@ internal class PanelCommandDispatcher(
     // zgateway, ensures Repeater role); OFF stops the guard + zstack, freeing the radio.
     //
     // The vendor lifecycle is slow — OFF blocks ~8s in the stop script, and ON's gateway spawns on the
-    // guard's ~30s timer (tens of seconds before it answers) — so it must NOT run on the MQTT callback
+    // guard's ~30s timer (tens of seconds before it answers) — so it must NOT run on the command worker
     // thread. We publish the commanded state optimistically, then reconcile to the real running state
-    // on a background thread (polling for the slow ON) so HA ends up correct without stalling MQTT.
+    // on a background thread (polling for the slow ON) so HA ends up correct without stalling the command worker.
     override fun handleZigbee(payload: String) {
         val on = payload.trim().equals("ON", ignoreCase = true)
         if (on) onZigbeeExplicitRetry()
@@ -700,7 +700,7 @@ internal class PanelCommandDispatcher(
             val execution = zigbeeActuation.executeIfCurrent(zigbeeLease) {
                 val reconciled = zigbee.reconcile(desired)
                 if (desired && reconciled) for (i in 0 until 18) {
-                    // A newer bridge generation or command is already authoritative. Stop waiting and
+                    // A newer runtime generation or command is already authoritative. Stop waiting and
                     // release the shared actuator so its latest desired state can run after this one.
                     if (!lifecycle.isOpen() || !zigbeeActuation.isCurrent(zigbeeLease) ||
                         config.zigbeeRouterEnabled != desired || zigbee.running()
@@ -898,7 +898,7 @@ internal class PanelCommandDispatcher(
      * side-effect + state-publish path an MQTT command takes, so a value set over HTTP behaves
      * identically to one set from Home Assistant (persist → drive hardware → publish retained state).
      * [value] is the registry-normalized string ("true"/"false", a number, or an enum label).
-     * Reports whether the setting applied, was not admitted because this bridge is draining, or failed
+     * Reports whether the setting applied, was not admitted because this dispatcher is draining, or failed
      * after admission. Only the admission failure is safe for the service to acknowledge as deferred.
      */
     internal fun applySetting(key: String, value: String, previousValue: String? = null): LiveSettingApplyResult {
@@ -1067,7 +1067,7 @@ internal enum class LiveSettingEffectOwner(val settingKey: String) {
  * settings, keyed by command channel.
  *
  * This is deliberately narrower than [LiveSettingEffectOwner]: HTTP can apply adaptive-brightness
- * tuning/source fields, while `ha_area` is followed by server-owned HA registry work and its bridge
+ * tuning/source fields, while `ha_area` is followed by server-owned HA registry work and its dispatcher
  * owner is intentionally publish-only. The wildcard subscription must not turn those HTTP-only/no-op
  * owners into undocumented remote writers.
  */
@@ -1283,7 +1283,7 @@ internal fun applyAcknowledgedKioskSetting(
 
 /**
  * voice_enabled ON is durable only once [commit] (the durable [io.panelassistant.android.Config.
- * commitVoiceEnabled], never the fire-and-forget async write) accepts it AND the live bridge generation
+ * commitVoiceEnabled], never the fire-and-forget async write) accepts it AND the live runtime generation
  * has a microphone; [reconcile] runs on every path — success, capability refusal, or commit failure —
  * so the voice_enabled channel is never left echoing a value nothing actually took effect for, whether
  * that is a stale retained ON from before a profile switch removed the capability, or an in-memory
@@ -1382,7 +1382,7 @@ internal fun applyAcknowledgedNavbarMode(
 
 private const val NAVBAR_ACK_TIMEOUT_MS = 20_000L
 
-/** Serializes Zigbee actuation across replaceable bridge generations. Invalidation is non-blocking;
+/** Serializes Zigbee actuation across replaceable runtime generations. Invalidation is non-blocking;
  * a newer lease waits behind any old uninterruptible call and therefore always owns the final state. */
 internal class ZigbeeActuationCoordinator {
     class Lease internal constructor()
