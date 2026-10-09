@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-v2
-version: 2.2.0
+version: 2.3.0
 display_name: Shelly Wall Display (modern)
 soc_class: "Model-dependent (known: RK3326-S / RK3566)"
 metadata:
@@ -11,11 +11,12 @@ metadata:
   limitations:
     - SoC and proximity or motion details vary by model and still need live-hardware confirmation.
     - On-board relays are not exposed. The one model examined on hardware routes them through a world-writable sysfs class, but ha-paneld drives relays through its privileged route, and no relay path is established for the other models this profile covers.
-    - The X2i has its own profile. What was learned there is deliberately not projected onto the remaining models.
+    - The X2i has its own profile. Its firmware-level findings are projected onto the remaining models because they share its Stargate firmware line. They are the screen-timeout screen-off route, Recents being absent (the firmware ignores the Recents key) and Stargate's Home registration. Its unit-level facts (SoC, microphone, proximity technology, density and local wake) are not projected.
+    - Screen-off lets Android's own screen timeout turn the display fully off where that is proven on a model; where Android does not go to sleep, or Panel Assistant has not granted WRITE_SECURE_SETTINGS, screen-off falls back to dimming. How a dark panel wakes locally is not declared, because touch wake is unmeasured on these models.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
-    - screen.brightness-zero
+    - screen.screen-timeout
     - sensor.android
 match:
   # Match values are derived from the modern Shelly Wall Display firmware identity.
@@ -62,7 +63,8 @@ platform:
   # The application UID is sandboxed; privileged operations use the helper route.
   su_form: none
   app_can_su: false
-  has_recents: true
+  # Projected from the X2i: the Stargate firmware ignores the Recents key.
+  has_recents: false
   launcher:
     # Shelly's Stargate registers as Home but offers no route to Android Settings.
     # The Launcher button skips it and opens the admin launcher, which lists it as an app.
@@ -72,7 +74,9 @@ hardware:
   led:
     mechanism: none
     transfer: identity
-  screen_off: brightness-zero
+  # Projected from the X2i. Falls back to dimming when Android does not go noninteractive or the
+  # secure-settings grant is missing.
+  screen_off: screen-timeout
   has_button_backlight: false
 sensors:
   light_technology: Ambient light

@@ -355,6 +355,20 @@ class BundledProfileParityTest {
         assertNull(modern.sensors.proximityTechnology)
         assertEquals("Ambient light", legacy.sensors.lightTechnology)
         assertEquals("Ambient light", modern.sensors.lightTechnology)
+        // Unit-level X2i facts stay on the X2i: no microphone, density, geometry or local wake.
+        assertNull(modern.hardware.microphoneDeclared)
+        assertNull(modern.hardware.localWake)
+        assertNull(modern.provisioning.display.density)
+        assertTrue(modern.display.geometry.isEmpty())
+    }
+
+    /** The modern aggregate shares the X2i's Stargate firmware line, so it carries the firmware-level findings. */
+    @Test fun modernShellyProfileCarriesTheStargateFirmwareFindings() {
+        val modern = bundledById.getValue("shelly-wall-display-v2").profile()
+        assertEquals(io.panelassistant.android.device.ScreenOff.SCREEN_TIMEOUT, modern.screenOff)
+        assertTrue("screen-timeout needs its driver", "screen.screen-timeout" in modern.document.requires.drivers)
+        assertFalse("the firmware ignores the Recents key", modern.hasRecents)
+        assertEquals(setOf("cloud.shelly.stargate"), modern.vendorHomePackages)
     }
 
     @Test fun localWakeIsThreeStateAndDeclaredOnlyWhereMeasured() {
@@ -982,7 +996,7 @@ class BundledProfileParityTest {
             "meta-portal-10-gen2.yaml" to "7348c9344bb3d3d150060555681afcdd170e4d04e917a2785ee1b7c80019c36e",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
-            "shelly-wall-display-v2.yaml" to "f005b3abd13716930955456c058b891f76c30dbdd31e6e1a1fb022f2d41a3e85",
+            "shelly-wall-display-v2.yaml" to "1e8d87c5e7f34d76d4abe3fa6f999ecf5a705ae6b12c73fedda00589cfb4c964",
             "shelly-wall-display-x2i.yaml" to "904960f5686388c6adf008c4de69e441c2c0837f9c23a24346db98fa49cdb77c",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",

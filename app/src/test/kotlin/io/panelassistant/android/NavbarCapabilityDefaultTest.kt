@@ -88,13 +88,14 @@ class NavbarCapabilityDefaultTest {
 
     // ---- the catalog is what the rule is aimed at --------------------------------------------
 
-    @Test fun `exactly one bundled profile has no navigation affordance of its own`() {
+    @Test fun `only the Stargate Shelly profiles have no navigation affordance of their own`() {
         val stranded = profiles.filter {
             it.hasNativeNavbar != true && !it.hasRecents && it.evdevButtons.isEmpty()
         }
         assertEquals(
             "a profile joining or leaving this set changes what a fresh panel does on first boot",
-            listOf("shelly-wall-display-x2i"),
+            // The modern Shelly models share the X2i's Stargate firmware, which ignores the Recents key.
+            listOf("shelly-wall-display-v2", "shelly-wall-display-x2i"),
             stranded.map(DeviceProfile::id),
         )
         // The near misses, named so a future edit to either profile has to come through this test.
@@ -191,11 +192,14 @@ class NavbarCapabilityDefaultTest {
     @Test fun `a panel resolves its default through the profile it has attached`() {
         assertEquals("a Config with no profile must derive nothing", "Off", emptyConfig().navbarMode)
 
-        val stranded = emptyConfig()
-        stranded.attachProfile(x2i)
-        assertEquals("Always on", stranded.navbarMode)
+        val strandedIds = setOf("shelly-wall-display-x2i", "shelly-wall-display-v2")
+        for (id in strandedIds) {
+            val stranded = emptyConfig()
+            stranded.attachProfile(BundledProfileFixtures.profile(id))
+            assertEquals(id, "Always on", stranded.navbarMode)
+        }
 
-        for (profile in profiles.filterNot { it.id == "shelly-wall-display-x2i" }) {
+        for (profile in profiles.filterNot { it.id in strandedIds }) {
             val config = emptyConfig()
             config.attachProfile(profile)
             assertEquals(profile.id, when (profile.hasNativeNavbar) { true -> "Native"; false -> "Swipe reveal"; null -> "Off" }, config.navbarMode)
