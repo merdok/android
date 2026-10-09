@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.annotation.StringRes
 import io.panelassistant.android.sensors.HaLifecycle
 import io.panelassistant.android.sensors.HaLifecycleReason
 import io.panelassistant.android.sensors.HaLifecycleRuntime
@@ -120,6 +121,20 @@ internal fun haLifecycleCard(
     )
 }
 
+/**
+ * The card's secondary line, chosen from the card alone so every state is assertable without a view.
+ * Past the usual time it says so in every step: a late reload that still read "Your dashboard is
+ * reloading" under a "+4:40" clock looked frozen (production, 2026-10-09).
+ */
+@StringRes
+internal fun haLifecycleDetail(card: HaLifecycleCard): Int = when {
+    card.step == null -> R.string.ha_offline
+    card.overdueMs != null -> R.string.ha_past_usual
+    card.step == HaRestartStep.RELOADING -> R.string.ha_reloading_detail
+    card.remainingMs != null -> R.string.ha_until_back
+    else -> R.string.ha_not_measured
+}
+
 /** A countdown as minutes and seconds, rounded up so it never reads 0:00 while time remains. */
 internal fun haLifecycleClock(ms: Long): String {
     val seconds = (ms.coerceAtLeast(0L) + 999L) / 1_000L
@@ -214,13 +229,7 @@ internal class HaLifecycleBar private constructor(
         notice.setPill(if (card.overdueMs != null) context.getString(R.string.ha_taking_longer) else stepWord)
         val clock = card.remainingMs?.let(::haLifecycleClock) ?: card.overdueMs?.let { "+" + haLifecycleClock(it) }
         notice.setHero(hero, clock ?: stepWord, word = clock == null)
-        sub.text = context.getString(when {
-            card.step == null -> R.string.ha_offline
-            card.step == HaRestartStep.RELOADING -> R.string.ha_reloading_detail
-            card.overdueMs != null -> R.string.ha_past_usual
-            card.remainingMs != null -> R.string.ha_until_back
-            else -> R.string.ha_not_measured
-        })
+        sub.text = context.getString(haLifecycleDetail(card))
         val reason = context.getString(when (snap?.reason ?: HaLifecycleReason.UNKNOWN) {
             HaLifecycleReason.RESTART -> R.string.ha_reason_restart
             HaLifecycleReason.HOST_REBOOT -> R.string.ha_reason_host_reboot

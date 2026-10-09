@@ -102,6 +102,23 @@ class HaLifecycleCardTest {
             cardAt(tracker.apply { notice(HaLifecyclePhase.READY, 90_000L) }, 91_000L, dashboardConnected = true))
     }
 
+    @Test fun aReloadPastTheUsualTimeSaysItIsLateInsteadOfStillReloading() {
+        // Production 2026-10-09: dashboards reconnected within a minute, Home Assistant reported ready
+        // 395 s after it stopped against a usual 113 s, and the card kept saying the dashboard was
+        // reloading under a "+4:40" clock, so it looked frozen.
+        val tracker = HaLifecycle().apply {
+            notice(HaLifecyclePhase.SHUTTING_DOWN, 0L, expectedMs = 113_000L)
+            notice(HaLifecyclePhase.STARTING, 40_000L, elapsedMs = 40_000L, expectedMs = 113_000L)
+        }
+        val onTime = cardAt(tracker, 80_000L, dashboardConnected = true)!!
+        assertEquals(R.string.ha_reloading_detail, haLifecycleDetail(onTime))
+        val late = cardAt(tracker, 395_000L - 1_000L, dashboardConnected = true)!!
+        assertEquals(HaRestartStep.RELOADING, late.step)
+        assertEquals(R.string.ha_past_usual, haLifecycleDetail(late))
+        assertNull("the card closes at ready with the dashboard connected",
+            cardAt(tracker.apply { notice(HaLifecyclePhase.READY, 395_000L) }, 395_500L, dashboardConnected = true))
+    }
+
     @Test fun backOnlineIsTheReloadingStepAndSaysHowLongTheRestartTook() {
         val tracker = HaLifecycle().apply {
             notice(HaLifecyclePhase.STARTING, 0L, elapsedMs = 50_000L)
