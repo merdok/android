@@ -644,6 +644,7 @@ class PaneldServer internal constructor(
             config, management, companion, powerAdvisory, radio, storage, health,
             { rendererAdmission(appContext, config, autoBrightnessHttpApi) }, camera::presentation, databaseObservationNonce,
             permissions = permissionStatus,
+            proximity = sensors::proximityStatusJson,
             homeProof = if (homeProofRequested) ({
                 val proof = system.homeUiProof(config.dashboardPackage, KioskAdminUi.isVisible())
                 homeUiProofJson(proof.state, proof.reason, proof.evidence)

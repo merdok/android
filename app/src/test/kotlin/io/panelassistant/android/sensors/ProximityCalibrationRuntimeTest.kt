@@ -105,6 +105,38 @@ class ProximityCalibrationRuntimeTest {
         }
     }
 
+    /** The status endpoint's `proximity` component, from which Panel Assistant raises its calibration Repair. */
+    @Test fun statusComponentNamesTheSetupPhaseAndWaveReadiness() {
+        fun component(runtime: ProximityCalibrationRuntime) = JSONObject(runtime.statusJson()).also {
+            assertEquals(setOf("state", "wake_ready"), it.keys().asSequence().toSet())
+            // One definition: the component agrees with the full calibration status.
+            val full = JSONObject(runtime.json())
+            assertEquals(full.getString("phase"), it.getString("state"))
+            assertEquals(full.getBoolean("wakeReady"), it.getBoolean("wake_ready"))
+        }
+
+        var now = 1_000L
+        val untrained = ProximityCalibrationRuntime(SOURCE, PROFILE, null, Store(Backing()),
+            elapsed = { now }, wall = { 1_800_000_000_000L + now })
+        untrained.observe(100f, now, true)
+        assertEquals("calibration_required", component(untrained).getString("state"))
+        assertFalse(component(untrained).getBoolean("wake_ready"))
+
+        val fixture = Fixture()
+        fixture.sample(100f)
+        fixture.advance(200, 100f)
+        assertEquals("ready", component(fixture.runtime).getString("state"))
+        fixture.begin(100f)
+        assertEquals("calibrating", component(fixture.runtime).getString("state"))
+        assertFalse(component(fixture.runtime).getBoolean("wake_ready"))
+
+        val lost = Fixture()
+        lost.sample(100f)
+        lost.runtime.sourceUnavailable(lost.now)
+        assertEquals("source_unavailable", component(lost.runtime).getString("state"))
+        assertFalse(component(lost.runtime).getBoolean("wake_ready"))
+    }
+
     @Test fun learnedSignalIsUnknownWhenTheStoredCalibrationCannotBeRead() {
         // A read failure falls back to the profile baseline, so isLearnedSignal() reads false for a panel that is
         // trained. The settled answer must be unknown: a false is stated to Home Assistant as a missing sensor.

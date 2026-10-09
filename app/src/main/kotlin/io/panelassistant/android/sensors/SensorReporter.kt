@@ -369,6 +369,9 @@ class SensorReporter(
 
     fun proximityReady(): Boolean = proximityRuntime?.isWaveReady() == true
 
+    /** The status endpoint's `proximity` component; null when the panel has no proximity source. */
+    fun proximityStatusJson(): String? = proximityRuntime?.statusJson()
+
     fun proximityPresenceReady(): Boolean = proximityRuntime?.isPresenceReady() == true
 
     fun proximityPresenceNear(): Boolean = proximityRuntime?.isPresenceNear() == true

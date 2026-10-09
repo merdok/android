@@ -44,6 +44,8 @@ internal fun managementStatusJson(
     databaseObservationNonce: String?,
     permissions: () -> Map<PanelPermissionRepair.Grant, PanelPermissionRepair.State>,
     homeProof: (() -> String)? = null,
+    /** The `proximity` component, or null to omit it on a panel with no proximity source. */
+    proximity: () -> String? = { null },
     /** The capability rows' wire text is English, from the same catalogue the dashboard reads. */
     english: AppStrings,
 ): String {
@@ -132,6 +134,7 @@ internal fun managementStatusJson(
         "\"database_observation_nonce\":${jsonStr(it)},"
     }.orEmpty()
     val homeProofJson = homeProof?.let { "\"home_ui\":${it()}," }.orEmpty()
+    val proximityJson = runCatching(proximity).getOrNull()?.let { "\"proximity\":$it," }.orEmpty()
     val presentationOverlay = installWarningPresentationsJson(warns, warningPresentations)
         ?.let { "\"warning_presentations\":$it," }
         .orEmpty()
@@ -167,6 +170,7 @@ internal fun managementStatusJson(
             "\"ha_path_probe\":${PathProbeRuntime.statusJson()}," +
         "\"renderer\":${renderer().statusJson()}," +
         "\"camera\":${camera().statusJson()}," +
+        proximityJson +
         "\"permissions\":${PanelPermissionRepair.statusJson(runCatching(permissions).getOrDefault(emptyMap()))}," +
         "\"power_safety\":${PowerSafetyPresentation.json(powerAdvisory)}}"
 }

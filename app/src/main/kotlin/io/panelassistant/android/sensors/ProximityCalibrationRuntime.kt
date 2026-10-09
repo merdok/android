@@ -193,15 +193,24 @@ internal class ProximityCalibrationRuntime(
         else -> "Calibrated proximity · ${view.mode?.name?.lowercase(Locale.ROOT)}"
     }
 
+    private fun phase(state: ProximityCalibrationEngine.Result): String = when {
+        state.active -> "calibrating"
+        !sourceProven || !state.available -> "source_unavailable"
+        state.calibration == null -> "calibration_required"
+        else -> "ready"
+    }
+
+    /** The `proximity` component of `GET /api/v1/status`, which Panel Assistant reads to raise its
+     *  calibration Repair: the setup phase and whether a wave can wake the panel now. */
+    fun statusJson(): String = JSONObject()
+        .put("state", phase(view))
+        .put("wake_ready", isWaveReady())
+        .toString()
+
     /** Status never waits for a save transaction; the native instruction surface must stay responsive. */
     fun json(raw: Float = Float.NaN, ageSeconds: Long? = null): String {
         val state = view
-        val phase = when {
-            state.active -> "calibrating"
-            !sourceProven || !state.available -> "source_unavailable"
-            state.calibration == null -> "calibration_required"
-            else -> "ready"
-        }
+        val phase = phase(state)
         val mode = (state.mode ?: observedSourceMode)?.name?.lowercase(Locale.ROOT) ?: "unknown"
         val message = failureMessage.ifEmpty {
             if (state.stage == null) summary() else state.message.ifEmpty { summary() }
