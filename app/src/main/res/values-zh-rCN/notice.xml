@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">已保存的登录已失效。</string>
     <string name="notice_line_setup_question">此面板的设置页面上有一个设置问题在等待</string>
     <string name="notice_attention_explanation">Home Assistant 一切正常。面板需要您就读取实体时发现的安全检查作出答复，然后才能打开仪表盘。</string>
-    <string name="notice_attention_explanation_remote">Home Assistant 一切正常。面板需要您就读取实体时发现的安全检查作出答复，然后才能打开仪表盘。您也可以在其他设备上通过 %1$s 进行同样的选择。</string>
     <string name="notice_qr_sign_in">用手机扫码登录</string>
     <string name="notice_qr_sign_in_again">用手机扫码重新登录</string>
     <string name="notice_qr_set_up">用手机扫码设置此面板</string>

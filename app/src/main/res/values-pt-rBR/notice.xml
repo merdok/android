@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">O login salvo parou de funcionar.</string>
     <string name="notice_line_setup_question">Uma pergunta de configuração aguarda na página de configuração deste painel</string>
     <string name="notice_attention_explanation">Não há nada de errado com o Home Assistant. O painel precisa de uma resposta sobre verificações de segurança encontradas ao ler suas entidades antes de poder abrir o dashboard.</string>
-    <string name="notice_attention_explanation_remote">Não há nada de errado com o Home Assistant. O painel precisa de uma resposta sobre verificações de segurança encontradas ao ler suas entidades antes de poder abrir o dashboard. As mesmas opções estão disponíveis em outro dispositivo em %1$s.</string>
     <string name="notice_qr_sign_in">Escaneie para entrar pelo celular</string>
     <string name="notice_qr_sign_in_again">Escaneie para entrar de novo pelo celular</string>
     <string name="notice_qr_set_up">Escaneie para configurar este painel pelo celular</string>

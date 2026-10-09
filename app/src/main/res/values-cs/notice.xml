@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">Uložené přihlášení přestalo fungovat.</string>
     <string name="notice_line_setup_question">Na stránce nastavení tohoto panelu čeká jedna otázka</string>
     <string name="notice_attention_explanation">Home Assistant je v pořádku. Panel potřebuje odpověď ohledně bezpečnostních kontrol nalezených při čtení vašich entit, než bude moci otevřít ovládací panel.</string>
-    <string name="notice_attention_explanation_remote">Home Assistant je v pořádku. Panel potřebuje odpověď ohledně bezpečnostních kontrol nalezených při čtení vašich entit, než bude moci otevřít ovládací panel. Stejné volby jsou dostupné z jiného zařízení na adrese %1$s.</string>
     <string name="notice_qr_sign_in">Naskenováním z telefonu se přihlásíte</string>
     <string name="notice_qr_sign_in_again">Naskenováním z telefonu se přihlásíte znovu</string>
     <string name="notice_qr_set_up">Naskenováním z telefonu nastavíte tento panel</string>

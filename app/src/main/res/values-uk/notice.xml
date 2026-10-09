@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">Збережений вхід перестав працювати.</string>
     <string name="notice_line_setup_question">На сторінці налаштування цієї панелі чекає одне запитання</string>
     <string name="notice_attention_explanation">З Home Assistant усе гаразд. Панелі потрібна відповідь щодо перевірок безпеки, виявлених під час читання ваших сутностей, перш ніж вона зможе відкрити інформаційну панель.</string>
-    <string name="notice_attention_explanation_remote">З Home Assistant усе гаразд. Панелі потрібна відповідь щодо перевірок безпеки, виявлених під час читання ваших сутностей, перш ніж вона зможе відкрити інформаційну панель. Ті самі варіанти доступні з іншого пристрою за адресою %1$s.</string>
     <string name="notice_qr_sign_in">Скануйте, щоб увійти з телефона</string>
     <string name="notice_qr_sign_in_again">Скануйте, щоб увійти знову з телефона</string>
     <string name="notice_qr_set_up">Скануйте, щоб налаштувати цю панель з телефона</string>

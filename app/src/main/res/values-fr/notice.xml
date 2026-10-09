@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">La connexion enregistrée ne fonctionne plus.</string>
     <string name="notice_line_setup_question">Une question de configuration attend sur la page de configuration de ce panneau</string>
     <string name="notice_attention_explanation">Home Assistant fonctionne normalement. Le panneau a besoin d’une réponse sur des contrôles de sécurité détectés pendant la lecture de vos entités avant de pouvoir ouvrir le tableau de bord.</string>
-    <string name="notice_attention_explanation_remote">Home Assistant fonctionne normalement. Le panneau a besoin d’une réponse sur des contrôles de sécurité détectés pendant la lecture de vos entités avant de pouvoir ouvrir le tableau de bord. Les mêmes choix sont disponibles depuis un autre appareil à l’adresse %1$s.</string>
     <string name="notice_qr_sign_in">Scannez pour vous connecter depuis un téléphone</string>
     <string name="notice_qr_sign_in_again">Scannez pour vous reconnecter depuis un téléphone</string>
     <string name="notice_qr_set_up">Scannez pour configurer ce panneau depuis votre téléphone</string>

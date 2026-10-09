@@ -79,7 +79,7 @@
     <string name="finish_browser_optimize">Finish it in your browser to optimise the performance of your dashboards.</string>
     <string name="loading_dashboard">Loading your dashboard…</string>
     <string name="nothing_to_do_here">Nothing to do here.</string>
-    <string name="panel_generic_description">This device is a Home Assistant wall panel powered by Panel Assistant. It provides the on-panel dashboard, app launcher and panel controls, while exposing the screen, LED, buttons, speaker and sensors to Home Assistant over your local network. Configure the panel from a browser using the address below.</string>
+    <string name="panel_generic_description">This device is a Home Assistant wall panel powered by Panel Assistant. It provides the on-panel dashboard, app launcher and panel controls, while exposing the screen, LED, buttons, speaker and sensors to Home Assistant over your local network. Continue setup in Panel Assistant on Home Assistant.</string>
     <string name="retry_dashboard">Retry dashboard</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Sign in to Home Assistant</string>

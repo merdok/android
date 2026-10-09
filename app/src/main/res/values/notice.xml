@@ -30,9 +30,8 @@
     <string name="notice_line_entities_need_decision">entities need a decision before the dashboard opens</string>
     <string name="notice_line_sign_in_needed">Nothing can load until the panel has a Home Assistant login.</string>
     <string name="notice_line_sign_in_stopped">The saved sign-in stopped working.</string>
-    <string name="notice_line_setup_question">One setup question is waiting on this panel’s setup page</string>
+    <string name="notice_line_setup_question">One setup question is waiting in Panel Assistant</string>
     <string name="notice_attention_explanation">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard.</string>
-    <string name="notice_attention_explanation_remote">Nothing is wrong with Home Assistant. The panel needs an answer about safety checks found while reading your entities before it can open the dashboard. The same choices are available from another device at %1$s.</string>
 
     <!-- QR prompts beside the code -->
     <string name="notice_qr_sign_in">Scan to sign in from a phone</string>

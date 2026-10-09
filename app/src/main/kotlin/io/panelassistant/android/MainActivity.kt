@@ -504,7 +504,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildUi(): View {
         val surface = statusSurface()
         val notice = surface.notice
-        // The QR leads: the address is for typing on another device, and the code is the quicker route.
+        // The QR leads; no address is printed, setup is continued from Panel Assistant.
         val qr = notice.qr(url, getString(R.string.config_qr_description, url), getString(R.string.notice_qr_set_up))
         // The line: the live setup stage, the answer to someone walking up to the panel mid-commissioning —
         // what is it doing, and do I need to act? Filled by the loopback journey poll; until it reports, the
@@ -513,8 +513,6 @@ class MainActivity : AppCompatActivity() {
         stageView = line
         val hint = notice.footer("").apply { visibility = View.GONE }
         hintView = hint
-        // The full URL — tappable here, and readable so it can be typed on another device.
-        val address = notice.footer(url).apply { setOnClickListener { openConfig() } }
         // The label follows the journey for the same reason the URL does — on an unfinished panel this opens
         // guided setup, so calling it "configuration" both undersells it and contradicts the hint, which
         // tells the user which button to tap. Updated live by applySetupStage.
@@ -546,7 +544,6 @@ class MainActivity : AppCompatActivity() {
             notice.actions(*listOfNotNull(cfgBtn, haBtn).toTypedArray()),
             signIn,
             hint,
-            address,
         )
         return surface.root
     }

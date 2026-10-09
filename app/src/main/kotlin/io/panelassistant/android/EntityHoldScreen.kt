@@ -32,8 +32,7 @@ internal class EntityLearningViews(val hero: TextView, val line: TextView, val t
 
 /**
  * The rows of one entity hold, in the Notice's order: the count or a hero word, the line, the actions, then
- * the explanation, which stays word for word. [entitiesAddress] is where the same review can be answered
- * from another device, when the panel knows its address; [filterHoldDetail] is the localised reason an
+ * the explanation, which stays word for word. [filterHoldDetail] is the localised reason an
  * unusable filter was held. Disabled-while-working buttons come back only if their action did not start,
  * and only while [alive] holds, so a replaced screen is never touched.
  */
@@ -43,7 +42,6 @@ internal fun entityHoldRows(
     kind: EntityHoldKind,
     blockingIssues: Int,
     filterHoldDetail: String?,
-    entitiesAddress: String?,
     scope: CoroutineScope,
     alive: () -> Boolean,
     actions: EntityHoldActions,
@@ -93,8 +91,7 @@ internal fun entityHoldRows(
                 notice.actions(*buttons.toTypedArray()),
                 notice.footer(
                     if (kind == EntityHoldKind.TOO_MANY) text(R.string.too_many_flagged_entities)
-                    else entitiesAddress?.let { text(R.string.notice_attention_explanation_remote, it) }
-                        ?: text(R.string.notice_attention_explanation),
+                    else text(R.string.notice_attention_explanation),
                 ),
             ) to null
         }

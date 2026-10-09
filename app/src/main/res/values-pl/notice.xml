@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">Zapisane logowanie przestało działać.</string>
     <string name="notice_line_setup_question">Jedno pytanie konfiguracyjne czeka na stronie konfiguracji tego panelu</string>
     <string name="notice_attention_explanation">Z Home Assistant wszystko w porządku. Panel potrzebuje odpowiedzi w sprawie kontroli bezpieczeństwa wykrytych podczas odczytu Twoich encji, zanim będzie mógł otworzyć pulpit nawigacyjny.</string>
-    <string name="notice_attention_explanation_remote">Z Home Assistant wszystko w porządku. Panel potrzebuje odpowiedzi w sprawie kontroli bezpieczeństwa wykrytych podczas odczytu Twoich encji, zanim będzie mógł otworzyć pulpit nawigacyjny. Te same opcje są dostępne z innego urządzenia pod adresem %1$s.</string>
     <string name="notice_qr_sign_in">Zeskanuj, aby zalogować się z telefonu</string>
     <string name="notice_qr_sign_in_again">Zeskanuj, aby zalogować się ponownie z telefonu</string>
     <string name="notice_qr_set_up">Zeskanuj, aby skonfigurować ten panel z telefonu</string>

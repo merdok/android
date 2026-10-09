@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">El inicio de sesión guardado dejó de funcionar.</string>
     <string name="notice_line_setup_question">Hay una pregunta de configuración esperando en la página de configuración de este panel</string>
     <string name="notice_attention_explanation">Home Assistant funciona bien. El panel necesita una respuesta sobre las comprobaciones de seguridad detectadas al leer tus entidades antes de poder abrir el panel de control.</string>
-    <string name="notice_attention_explanation_remote">Home Assistant funciona bien. El panel necesita una respuesta sobre las comprobaciones de seguridad detectadas al leer tus entidades antes de poder abrir el panel de control. Las mismas opciones están disponibles desde otro dispositivo en %1$s.</string>
     <string name="notice_qr_sign_in">Escanea para iniciar sesión desde un teléfono</string>
     <string name="notice_qr_sign_in_again">Escanea para volver a iniciar sesión desde un teléfono</string>
     <string name="notice_qr_set_up">Escanea para configurar este panel desde tu teléfono</string>

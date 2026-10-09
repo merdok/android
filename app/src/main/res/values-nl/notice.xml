@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">De opgeslagen login werkt niet meer.</string>
     <string name="notice_line_setup_question">Er wacht een instelvraag op de instelpagina van dit paneel</string>
     <string name="notice_attention_explanation">Er is niets mis met Home Assistant. Het paneel heeft een antwoord nodig over veiligheidscontroles die zijn gevonden bij het lezen van je entiteiten voordat het het dashboard kan openen.</string>
-    <string name="notice_attention_explanation_remote">Er is niets mis met Home Assistant. Het paneel heeft een antwoord nodig over veiligheidscontroles die zijn gevonden bij het lezen van je entiteiten voordat het het dashboard kan openen. Dezelfde keuzes zijn beschikbaar vanaf een ander apparaat op %1$s.</string>
     <string name="notice_qr_sign_in">Scan om in te loggen vanaf een telefoon</string>
     <string name="notice_qr_sign_in_again">Scan om opnieuw in te loggen vanaf een telefoon</string>
     <string name="notice_qr_set_up">Scan om dit paneel in te stellen vanaf je telefoon</string>

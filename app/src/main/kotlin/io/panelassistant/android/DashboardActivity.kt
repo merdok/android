@@ -3395,10 +3395,6 @@ class DashboardActivity : AppCompatActivity() {
         main.removeCallbacks(entityFilterAnswerCheck)
         teardownWeb()
         val config = Config(this)
-        // The exact page the question is on, so a passer-by does not have to hunt for it. Not a QR: this
-        // screen appears mid-setup when the browser is already open somewhere, so the address is what is
-        // actually useful, and generating a bitmap here would cost a synchronous encode for nothing.
-        val setupUrl = LocalAdminEndpoint.externalUrl(localIpv4(), localIpv6(), config.httpPort, "/setup")
         val surface = statusSurface(config)
         val notice = surface.notice
         surface.setBody(
@@ -3409,7 +3405,6 @@ class DashboardActivity : AppCompatActivity() {
             // the panel with no browser to hand must be able to get a dashboard. Says what it costs, because
             // skipping is the unfiltered load this screen exists to avoid.
             notice.actions(notice.action(getString(R.string.skip_load_dashboard)) { skipEntityFilterQuestion() }),
-            notice.footer(setupUrl),
             notice.footer(getString(R.string.skip_entity_filter_detail)),
         )
         showStatusSurface(surface) { showWaitingForEntityFilterAnswer() }
@@ -3432,12 +3427,6 @@ class DashboardActivity : AppCompatActivity() {
                 if (started && !destroyed) showWaitingForEntityBootstrap()
             }
         }
-    }
-
-    /** Where the decision on the hold screen can also be answered from another device. */
-    private fun entitiesPageAddress(): String? {
-        val ip = io.panelassistant.android.metrics.PanelMetrics.shared.ipAddress()
-        return ip?.let { "http://$it:8888/entities" }
     }
 
     /** Show the first scan's milestone: the count read so far as the hero, the step on the track. */
@@ -3495,7 +3484,7 @@ class DashboardActivity : AppCompatActivity() {
         entityLearningLine = null
         entityLearningTrack = null
         val (rows, learning) = entityHoldRows(
-            this, notice, kind, blockingIssues, filterHold?.let(::localizedEntityFilterHoldDetail), entitiesPageAddress(),
+            this, notice, kind, blockingIssues, filterHold?.let(::localizedEntityFilterHoldDetail),
             activityScope, alive = { !destroyed }, actions = entityHoldActions,
         )
         if (learning != null) {

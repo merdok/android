@@ -25,7 +25,6 @@
     <string name="notice_line_sign_in_stopped">L’accesso salvato ha smesso di funzionare.</string>
     <string name="notice_line_setup_question">Una domanda di configurazione attende nella pagina di configurazione di questo pannello</string>
     <string name="notice_attention_explanation">Home Assistant funziona correttamente. Il pannello ha bisogno di una risposta sui controlli di sicurezza emersi durante la lettura delle tue entità prima di poter aprire la dashboard.</string>
-    <string name="notice_attention_explanation_remote">Home Assistant funziona correttamente. Il pannello ha bisogno di una risposta sui controlli di sicurezza emersi durante la lettura delle tue entità prima di poter aprire la dashboard. Le stesse scelte sono disponibili da un altro dispositivo all’indirizzo %1$s.</string>
     <string name="notice_qr_sign_in">Inquadra per accedere da un telefono</string>
     <string name="notice_qr_sign_in_again">Inquadra per accedere di nuovo da un telefono</string>
     <string name="notice_qr_set_up">Inquadra per configurare questo pannello dal telefono</string>
