@@ -18,7 +18,7 @@ class LaunchScreenWiringContractTest {
         val description = englishString("panel_generic_description")
         assertTrue(description.contains("dashboard, app launcher and panel controls"))
         assertTrue(description.contains("speaker and sensors to Home Assistant over your local network"))
-        assertTrue(description.contains("Continue setup in Panel Assistant on Home Assistant"))
+        assertTrue(description.contains("Scan the code to set up this panel"))
         assertFalse(description.contains("address"))
         assertFalse(description.contains("running in the background"))
         assertFalse(description.contains("runs in the background so Home Assistant can control"))
