@@ -10,7 +10,7 @@ class PanelBrowserTitleTest {
             assertEquals("Example Panel · $version (1136)", panelBrowserTitle("Example Panel", versionName = version, versionCode = 1136))
             assertEquals("Example Panel · Configure · $version (1136)", panelBrowserTitle("Example Panel", "Configure", version, 1136))
             assertEquals("Example Panel · REST API · $version (1136)", panelBrowserTitle("Example Panel", "REST API", version, 1136))
-            assertEquals("ha-paneld · $version (1136)", panelBrowserTitle("   ", versionName = version, versionCode = 1136))
+            assertEquals("Panel Assistant · $version (1136)", panelBrowserTitle("   ", versionName = version, versionCode = 1136))
         }
     }
 }

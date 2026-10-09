@@ -24,7 +24,7 @@ class SettingsRegistryPresentationTest {
         assertTrue(SettingValue.validate(spec, "pt") is Validation.Bad)
         assertTrue(SettingValue.validate(spec, "pt-PT") is Validation.Bad)
         assertEquals(
-            "Language used by ha-paneld's own interface.\n\n**Automatic** uses an explicit page override first. " +
+            "Language used by Panel Assistant's own interface.\n\n**Automatic** uses an explicit page override first. " +
                 "Configure setting labels and help can then follow the connected Home Assistant user's language; " +
                 "browser, device and English are the remaining fallbacks.",
             spec.help,
@@ -46,7 +46,7 @@ class SettingsRegistryPresentationTest {
         assertEquals(
             "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\n" +
                 "Enable only during active maintenance on a trusted network. If ADB was enabled outside " +
-                "ha-paneld, it must also be disabled there.",
+                "Panel Assistant, it must also be disabled there.",
             spec.help,
         )
     }
@@ -60,7 +60,7 @@ class SettingsRegistryPresentationTest {
 
     @Test fun processAndSystemLogShippingRemainSeparateOptIns() {
         assertEquals(
-            "Forward ha-paneld's own process log — not the full system log — to a central sink " +
+            "Forward Panel Assistant's own process log — not the full system log — to a central sink " +
                 "(LAN-only, tokens and passwords redacted).",
             SettingsRegistry.spec("log_ship_enabled")!!.help,
         )

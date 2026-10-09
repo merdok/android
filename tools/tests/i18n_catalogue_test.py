@@ -1198,8 +1198,6 @@ class CatalogueTest(unittest.TestCase):
             "shell.nav.logs": "Logs",
             "shell.runtime.duration_minutes": "{count} min",
             "shell.runtime.duration_seconds": "{count} s",
-            "shell.runtime.ha_lifecycle.duration_hours": "{value} h",
-            "shell.runtime.ha_lifecycle.duration_minutes": "{value} min",
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "pt-BR.json"
@@ -1320,7 +1318,7 @@ class CatalogueTest(unittest.TestCase):
         key = "install.presentation.status_no_renderer"
         source = i18n.validate_source(SCRIPT.parents[1] / "app/src/main/assets/i18n/en.json")
         text = ("ℹ Próximo passo: escolha um renderizador de dashboard. "
-                "Selecione o renderizador integrado do ha-paneld, instale o app Home Assistant Companion "
+                "Selecione o renderizador integrado do Panel Assistant, instale o app Home Assistant Companion "
                 "ou configure outro pacote de dashboard.")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "pt-BR.json"
@@ -1332,7 +1330,7 @@ class CatalogueTest(unittest.TestCase):
                 self.write(path, {**candidate, "strings": {key: {**record, "text": changed}}})
                 with self.subTest(text=changed), self.assertRaisesRegex(i18n.CatalogueError, "unexpected script"):
                     i18n.validate_target(path, source, expected_locale="pt-BR")
-            for literal in ("Home Assistant", "ha-paneld"):
+            for literal in ("Home Assistant", "Panel Assistant"):
                 self.write(path, {**candidate, "strings": {key: {**record, "text": text.replace(literal, "changed")}}})
                 with self.subTest(literal=literal), self.assertRaisesRegex(i18n.CatalogueError, "changed frozen literal"):
                     i18n.validate_target(path, source, expected_locale="pt-BR")

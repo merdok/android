@@ -243,7 +243,7 @@ class DiagCapabilityPolicyTest {
         val cap = DiagReader.rootSuCapability(su = true, daemon = false)
 
         assertEquals("ok", cap.status)
-        assertEquals("available directly to ha-paneld", cap.note(englishCatalogue))
+        assertEquals("available directly to Panel Assistant", cap.note(englishCatalogue))
     }
 
     @Test fun blPowerRoutesReportABacklightOff() {

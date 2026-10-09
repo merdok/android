@@ -135,21 +135,17 @@
     entity_filter: 4, render_proof: 4,
   };
 
-  // Dot 1 covers the renderer choice AND the HA server address; dot 3 is which HA dashboard shows.
-  function dotLabels() {
-    return [
-      i18nText("setup.progress.name", "Name"), i18nText("setup.progress.server", "Server"),
-      i18nText("setup.progress.sign_in", "HA sign-in"), i18nText("setup.progress.dashboard", "HA dash"),
-      i18nText("setup.progress.optimize", "Optimize")
-    ];
-  }
-
   function renderDots() {
     // Repair mode: a numbered journey implies starting over, which is exactly the wrong message on a
     // panel that already worked. One thing broke; the step card names it. No strip.
     if (journey.repair) { dotsHost.textContent = ""; dotsHost.hidden = true; return; }
     dotsHost.hidden = false;
-    var labels = dotLabels();
+    // Dot 1 covers the renderer choice AND the HA server address; dot 3 is which HA dashboard shows.
+    var labels = [
+      i18nText("setup.progress.name", "Name"), i18nText("setup.progress.server", "Server"),
+      i18nText("setup.progress.sign_in", "HA sign-in"), i18nText("setup.progress.dashboard", "HA dash"),
+      i18nText("setup.progress.optimize", "Optimize")
+    ];
     var currentIdx = journey.complete ? labels.length : (DOT_OF_STAGE[journey.next] !== undefined ? DOT_OF_STAGE[journey.next] : labels.length);
     var anyInFlight = (journey.steps || []).some(function (s) {
       return s.status === "in_flight" && DOT_OF_STAGE[s.stage] === currentIdx;
@@ -287,8 +283,8 @@
     paint(id);
     var body = card(i18nText("setup.identity.title", "Name this panel"),
       // Matches the real journey (the dots above): name, what the screen shows, the sign-in and the
-      // dashboard. The count is the number of dots; a Companion-app renderer skips steps but not dots.
-      i18nText("setup.identity.lead", "A name, your Home Assistant server and sign-in, and the dashboard to show — {count} short steps and you’re done. You can stop and come back; nothing is lost.", { count: dotLabels().length }), [
+      // dashboard. No count: a Companion-app renderer skips steps.
+      i18nText("setup.identity.lead", "A name, your Home Assistant server and sign-in, and the dashboard to show — and you’re done. You can stop and come back; nothing is lost."), [
       el("fieldset", { id: "wiz-fs", style: "border:0;padding:0;margin:0" }, [
         field("panel_id", i18nText("setup.identity.panel_id.label", "Panel ID"),
           i18nText("setup.identity.panel_id.help", "Pick something you’ll recognise in a long list — where it is, usually. Lowercase letters, digits and underscores."),

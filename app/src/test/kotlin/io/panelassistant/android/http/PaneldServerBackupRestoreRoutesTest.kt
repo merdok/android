@@ -105,7 +105,7 @@ class PaneldServerBackupRestoreRoutesTest {
                 repeat(2) {
                     val response = client.post("/api/v1/restore?dry_run=1") { setBody("not a backup") }
                     assertEquals(HttpStatusCode.BadRequest, response.status)
-                    assertEquals("not a ha-paneld backup", JSONObject(response.bodyAsText()).getString("error"))
+                    assertEquals("not a Panel Assistant backup", JSONObject(response.bodyAsText()).getString("error"))
                 }
                 val invalid = client.post("/api/v1/restore?dry_run=1") {
                     setBody("""{"kind":"ha-paneld-backup","schema":1,"config":{"panel_id":{}}}""")

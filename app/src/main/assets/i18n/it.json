@@ -1834,9 +1834,9 @@
       "state": "machine-cross-checked"
     },
     "configure.renderer.builtin": {
-      "sourceHash": "838a46e057e83db8885d0761337db9d0f2a7ffb8bd723bfc33fcf495cde873a9",
+      "sourceHash": "d4affb536e8740d6e1dcf2dd16e3d52e92b4d0bb800240b986684c3cd7f03d6e",
       "state": "machine-cross-checked",
-      "text": "Renderer integrato (ha-paneld)"
+      "text": "Renderer integrato (Panel Assistant)"
     },
     "configure.renderer.clear_requested": {
       "sourceHash": "e6a898912dc779815fe42bbd35ade077c360fbfdc49cde43262c7d1960e4afb7",
@@ -2254,9 +2254,9 @@
       "text": "Renderer integrato: accesso a Home Assistant rifiutato"
     },
     "dashboard.banner.companion_probe_failed.explanation": {
-      "sourceHash": "0fb05a33392aa3fc02b14f0a78ba2bd459b43bc4b54e5ba7cd9162443175b1ee",
+      "sourceHash": "c43df8683aaa878ddbd94179f89198c7276fbbcba18f428f25553b1f704d205b",
       "state": "machine-cross-checked",
-      "text": "ha-paneld manterrà l’ultimo risultato noto e riproverà automaticamente."
+      "text": "Panel Assistant manterrà l’ultimo risultato noto e riproverà automaticamente."
     },
     "dashboard.banner.companion_probe_failed.title": {
       "sourceHash": "899526133e9731be0d344d64ff4e7deff296d562694991aa95aa965fec43c354",
@@ -2299,9 +2299,9 @@
       "text": "connetti questo pannello da un browser"
     },
     "dashboard.banner.ha_sign_in.explanation": {
-      "sourceHash": "845b28bc13330df790a1259e165e79ee6d56841495cad3c325bee32c17d49459",
+      "sourceHash": "292e6ed9a5a9232a1799eddeb578c3f5a8d9cd40ebdc43c0f0693ab11ae644f2",
       "state": "machine-cross-checked",
-      "text": "È selezionato il Renderer integrato di ha-paneld. Completa l’accesso mostrato sul pannello oppure"
+      "text": "È selezionato il Renderer integrato di Panel Assistant. Completa l’accesso mostrato sul pannello oppure"
     },
     "dashboard.banner.ha_sign_in.title": {
       "sourceHash": "b29ddcf4f1965861a8a63e77f1877989257930681395f92c3de8a3e266c183b4",
@@ -2314,9 +2314,9 @@
       "text": "Gestisci nella scheda Installa →"
     },
     "dashboard.banner.no_renderer.configure_prefix": {
-      "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
+      "sourceHash": "347dcddfe6ed4b781e2df904a5b062bd74247f2dae27fd9f19f9fb4ffad57070",
       "state": "machine-cross-checked",
-      "text": "Seleziona il Renderer integrato di ha-paneld in"
+      "text": "Seleziona il Renderer integrato di Panel Assistant in"
     },
     "dashboard.banner.no_renderer.explanation": {
       "sourceHash": "5aee351360d4e2deffde50f405e582262d7ac56d4909d5a35be51c8a96123bc3",
@@ -2324,9 +2324,9 @@
       "text": "oppure configura un altro pacchetto per la dashboard. Fino ad allora, questo pannello non mostrerà alcuna dashboard."
     },
     "dashboard.banner.no_renderer.note": {
-      "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
+      "sourceHash": "679bfa171a077cdbe425b11cc5244f97e63558f81ccd1e187ca91782ec765016",
       "state": "machine-cross-checked",
-      "text": "(ha-paneld funziona correttamente anche senza.)"
+      "text": "(Panel Assistant funziona correttamente anche senza.)"
     },
     "dashboard.banner.no_renderer.title": {
       "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
@@ -3009,9 +3009,9 @@
       "text": "Modalità DIM ONLY — {reason}"
     },
     "dashboard.capability.note.helper_routed": {
-      "sourceHash": "e9c4863384d41335b9ae2dea3d0ba01fbacddc489e4271439109765b442b2d1e",
+      "sourceHash": "43516d445b467b00c7a6d5bdea7988277be756766499ad5b90f86bec252ed1d4",
       "state": "machine-cross-checked",
-      "text": "non disponibile direttamente per ha-paneld — le azioni privilegiate passano tramite il daemon ausiliario"
+      "text": "non disponibile direttamente per Panel Assistant — le azioni privilegiate passano tramite il daemon ausiliario"
     },
     "dashboard.capability.note.led_unreachable": {
       "sourceHash": "6c32a3e8242a947d1c8e684587cfa1b63bfdb3c63e108a985bc724f272df055d",
@@ -3054,14 +3054,14 @@
       "text": "disponibile tramite root o il daemon ausiliario"
     },
     "dashboard.capability.note.su_direct": {
-      "sourceHash": "a0ba5183f28168934f6d83d722669ab6cc27b21777617658035d9f9934c3992e",
+      "sourceHash": "7fab146e5b37b4d07a9636d9917ad40f327d1fd8d302535de31e60505e1f7efd",
       "state": "machine-cross-checked",
-      "text": "disponibile direttamente per ha-paneld"
+      "text": "disponibile direttamente per Panel Assistant"
     },
     "dashboard.capability.note.su_unavailable": {
-      "sourceHash": "6c0c02f245f4aabdb395f95353d4565c38affbb4ef9bf4327e70470c5b580c98",
+      "sourceHash": "2420aabc4e11f03cde90ff5e9fd9b95f00a52a417d1b132e0b3bc15997bfbfe1",
       "state": "machine-cross-checked",
-      "text": "non disponibile direttamente per ha-paneld — consulta le singole righe delle funzionalità qui sotto"
+      "text": "non disponibile direttamente per Panel Assistant — consulta le singole righe delle funzionalità qui sotto"
     },
     "dashboard.capability.note.sysfs_led_helper": {
       "sourceHash": "6e48992050b0bb9ef7ad7b482b89a339b779873721ede294ffb3929ccb77e7d8",
@@ -3159,9 +3159,9 @@
       "text": "Prestazioni"
     },
     "dashboard.card.profile": {
-      "sourceHash": "24c0cf5404e8c4ae50ea14e55872d9858651afe321338940214ab9941977db59",
+      "sourceHash": "25eb49e5a8715f10064a3b714e53b6aad67aecc85032bdda976e82fafa90d458",
       "state": "machine-cross-checked",
-      "text": "Profilo ha-paneld"
+      "text": "Profilo Panel Assistant"
     },
     "dashboard.card.remote_webview": {
       "sourceHash": "3351a255be0419bf4e6232c19efd2ba93dd357787e0f5add6c85aa6d74ee3df4",
@@ -4129,9 +4129,9 @@
       "text": "disattivato"
     },
     "dashboard.runtime.external_renderer_unobserved": {
-      "sourceHash": "395098244943c3672f1f291a6bf053b4bcb5dd7f85d71e98886f2ef94a206a26",
+      "sourceHash": "29b56e24a75f4a6383f997457c73f05afbe3b340d56c8d168262435986d36447",
       "state": "machine-cross-checked",
-      "text": "renderer esterno · connessione a Home Assistant non osservata da ha-paneld"
+      "text": "renderer esterno · connessione a Home Assistant non osservata da Panel Assistant"
     },
     "dashboard.runtime.ha_connection_lost": {
       "sourceHash": "fbe3bc3f09bc50985c450238be89be3c60b2291e769203da0f8865d147a0cc36",
@@ -5259,9 +5259,9 @@
       "text": "Modifica suggerita:"
     },
     "entities.issue.template-selector.reason": {
-      "sourceHash": "78fbab96e9baabf4059991f1fa21fbc8cf624e3e409e7b90aa241a026c397837",
+      "sourceHash": "4755146e2a3c04202182895b6c776c7b2d778450321e67b1e08ab63a58b6e8a7",
       "state": "machine-cross-checked",
-      "text": "ha-paneld non valuta i modelli, quindi non può stabilire quali entità restituisca questo filtro. Le entità che il modello si limita a leggere sono gestite da Home Assistant e distribuite al di fuori di questo filtro; è quindi corretto che siano assenti qui e non richiedono alcun intervento."
+      "text": "Panel Assistant non valuta i modelli, quindi non può stabilire quali entità restituisca questo filtro. Le entità che il modello si limita a leggere sono gestite da Home Assistant e distribuite al di fuori di questo filtro; è quindi corretto che siano assenti qui e non richiedono alcun intervento."
     },
     "entities.issue.template-selector.recommendation": {
       "sourceHash": "2698ccb1ebcabb0e1a92b42b0bf165eba907a2cef2922162d496b0786bfa0b5c",
@@ -6099,9 +6099,9 @@
       "text": "Controllo di integrità"
     },
     "install.backup.companion.helper_required": {
-      "sourceHash": "9655f8357363d49834901a88dc543b16cabe4a485846ff774b48cb707f91c315",
+      "sourceHash": "85b4160dad92a2df9525c996031cf0e71ed3f731359463b55e6189927d77977c",
       "state": "machine-cross-checked",
-      "text": "Il backup dell’accesso di HA Companion richiede la versione corrente dell’helper ha-paneld. Aggiorna o esegui nuovamente il provisioning di questo pannello con root per abilitarlo."
+      "text": "Il backup dell’accesso di HA Companion richiede la versione corrente dell’helper Panel Assistant. Aggiorna o esegui nuovamente il provisioning di questo pannello con root per abilitarlo."
     },
     "install.backup.companion.include_login": {
       "sourceHash": "68a40664db6b16ee69214a3af245fb6e43dca89c26430278b7d88047bb5e1ff9",
@@ -6134,14 +6134,14 @@
       "text": "Pacchetto di configurazione"
     },
     "install.backup.description.config_only": {
-      "sourceHash": "91a514241747f8e2e032ef08d16b87793106fb5e0cd5cd42fa464df36395aa45",
+      "sourceHash": "207a767ba27bc28c2683b818d4eb867435fa2c20f2c6e699a65ee9232ba71aa6",
       "state": "machine-cross-checked",
-      "text": "Un pacchetto con la configurazione ha-paneld di questo pannello. I backup contengono credenziali e, per impostazione predefinita, sono crittografati con la tua passphrase; se la perdi, non può essere recuperata."
+      "text": "Un pacchetto con la configurazione Panel Assistant di questo pannello. I backup contengono credenziali e, per impostazione predefinita, sono crittografati con la tua passphrase; se la perdi, non può essere recuperata."
     },
     "install.backup.description.with_companion": {
-      "sourceHash": "743a323157d7632cf19ecd46e2ac14e44c84ea19bf843eea8bc0a73a5ea7e142",
+      "sourceHash": "b88b35b77dcf3f735c462a265bae8493c5b5bdbed8ff59e4a4f3d5b8a36f726d",
       "state": "machine-cross-checked",
-      "text": "Un pacchetto con la configurazione ha-paneld di questo pannello e l’accesso di HA Companion. I backup contengono credenziali e, per impostazione predefinita, sono crittografati con la tua passphrase; se la perdi, non può essere recuperata."
+      "text": "Un pacchetto con la configurazione Panel Assistant di questo pannello e l’accesso di HA Companion. I backup contengono credenziali e, per impostazione predefinita, sono crittografati con la tua passphrase; se la perdi, non può essere recuperata."
     },
     "install.backup.download": {
       "sourceHash": "669211280b637c0855891124d3ac8c013d2de7d2a128402cf3a17ab0e6d7bd91",
@@ -6439,9 +6439,9 @@
       "text": "Scarica APK"
     },
     "install.components.download_apk_help": {
-      "sourceHash": "19393a12c42c93a084c32c1d815cf5f654f4611413757b29b2ae0d9d5f0969fa",
+      "sourceHash": "5029987d53feaab391958a9af73f3b11d5206148d358e2dc8923af40193a2d48",
       "state": "machine-cross-checked",
-      "text": "Questo pannello non dispone di un programma di installazione con privilegi, quindi ha-paneld non può installare direttamente gli APK. Scarica l’APK, quindi installalo dal computer di amministrazione: adb install -r <file>"
+      "text": "Questo pannello non dispone di un programma di installazione con privilegi, quindi Panel Assistant non può installare direttamente gli APK. Scarica l’APK, quindi installalo dal computer di amministrazione: adb install -r <file>"
     },
     "install.components.install": {
       "sourceHash": "569ca49f4aaf7846e952c1d4aeca72febd0b79fa1c4f9db08fd3127551218572",
@@ -6624,9 +6624,9 @@
       "text": "Torna a Dimensioni dello schermo"
     },
     "install.display.root_required": {
-      "sourceHash": "4b9f694dd446966b410427033f5855e75c853c22cb7c3d083e7b095fbfa094b9",
+      "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
       "state": "machine-cross-checked",
-      "text": "Con un accesso privilegiato supportato al pannello, ha-paneld può adattare la densità e le dimensioni del testo della dashboard allo schermo fisico."
+      "text": "Con un accesso privilegiato supportato al pannello, Panel Assistant può adattare la densità e le dimensioni del testo della dashboard allo schermo fisico."
     },
     "install.display.text_size": {
       "sourceHash": "d68761cc1eb296478531e007ff1fda9252fb7be5d24429a97eb05765211dafe5",
@@ -6954,9 +6954,9 @@
       "text": "metadati dell’archivio di backup non validi"
     },
     "install.presentation.restore_companion_helper_required": {
-      "sourceHash": "ae7af3902c71c032bdb03fb0bb6e76424a7a9c29bc377a28c275fed1ebccf702",
+      "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
       "state": "machine-cross-checked",
-      "text": "Il ripristino di Companion richiede l’helper ha-paneld corrente"
+      "text": "Il ripristino di Companion richiede l’helper Panel Assistant corrente"
     },
     "install.presentation.restore_companion_section_invalid": {
       "sourceHash": "92ffed6f90cd1201a409dab6021ac415ef2910d8d9760e68e9c27597483b472a",
@@ -7009,9 +7009,9 @@
       "text": "il backup in formato legacy è troppo grande; crea un nuovo backup prima del ripristino"
     },
     "install.presentation.restore_not_panel_backup": {
-      "sourceHash": "15c0f21ad749e2da90a94c485eb9fc8e11d8bc60b1338784eb687caed026901c",
+      "sourceHash": "7313852704afc4845abafd318f383a45c58eff9fed5030b676e5dac8cdb2be66",
       "state": "machine-cross-checked",
-      "text": "non è un backup di ha-paneld"
+      "text": "non è un backup di Panel Assistant"
     },
     "install.presentation.restore_partial": {
       "sourceHash": "010d07c111632fb5a6625202ca7f1606c3e0d4070fd5e8003893d1cac9bb6339",
@@ -7079,9 +7079,9 @@
       "text": "⛔ Il renderer integrato ha smesso di riprovare dopo ripetuti errori di WebView. Aggiorna o ripara System WebView, quindi usa Ricarica dashboard dalla barra di navigazione del pannello o dalla scheda Dashboard."
     },
     "install.presentation.status_companion_probe_failed": {
-      "sourceHash": "83c7c52039d25735ee5aeee671408b86ec8086c5373cb90639510e03eb1f5c9e",
+      "sourceHash": "d568a904ee6683b88e612118bd29ef49ffdfe30ed6ecbcffcfe90193ceb77b14",
       "state": "machine-cross-checked",
-      "text": "⚠ Impossibile controllare le impostazioni di Home Assistant Companion; ha-paneld manterrà l’ultimo risultato noto e riproverà automaticamente."
+      "text": "⚠ Impossibile controllare le impostazioni di Home Assistant Companion; Panel Assistant manterrà l’ultimo risultato noto e riproverà automaticamente."
     },
     "install.presentation.status_external_renderer_crash_loop": {
       "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
@@ -7089,9 +7089,9 @@
       "text": "⛔ L’app della dashboard continua ad arrestarsi in modo anomalo — il watchdog ha smesso di riavviarla per evitare una sequenza continua di riavvii. Reinstalla o esegui il downgrade dell’app dashboard/Companion oppure riavvia il pannello."
     },
     "install.presentation.status_no_renderer": {
-      "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
+      "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
       "state": "machine-cross-checked",
-      "text": "ℹ Passaggio successivo: scegli un renderer per la dashboard. Seleziona il renderer integrato di ha-paneld, installa l’app Home Assistant Companion oppure configura un altro pacchetto per la dashboard."
+      "text": "ℹ Passaggio successivo: scegli un renderer per la dashboard. Seleziona il renderer integrato di Panel Assistant, installa l’app Home Assistant Companion oppure configura un altro pacchetto per la dashboard."
     },
     "install.presentation.status_power_at_risk": {
       "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
@@ -7154,9 +7154,9 @@
       "text": "⚠ Il gateway Zigbee associato mantiene un uso elevato della CPU — resta in esecuzione perché i router associati generano solo un avviso."
     },
     "install.presentation.status_zigbee_legacy_watchdog": {
-      "sourceHash": "7211ac7681f7033251f8698db5451150506de603c9df900e0d11e33f30455e7c",
+      "sourceHash": "6abc75262af7807330939d0b7370ce47040682e61d387578b8adc9c96fcb2706",
       "state": "machine-cross-checked",
-      "text": "⚠ Rilevato un difetto nel watchdog Zigbee legacy — è presente l’esatta assegnazione ricorsiva LD_LIBRARY_PATH. ha-paneld non modificherà automaticamente lo script del produttore."
+      "text": "⚠ Rilevato un difetto nel watchdog Zigbee legacy — è presente l’esatta assegnazione ricorsiva LD_LIBRARY_PATH. Panel Assistant non modificherà automaticamente lo script del produttore."
     },
     "install.presentation.status_zigbee_not_joined": {
       "sourceHash": "756f12ad96609cfe381d71d0132cd7dcd400cdb9d2aa499bcb86de8aad7fba04",
@@ -7579,9 +7579,9 @@
       "text": "Controllo di {package}."
     },
     "install.tame.root_required": {
-      "sourceHash": "ecd0efd425027a2ac33a1659039be693c803ee8cace28a907789aa48dd2f2b0c",
+      "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
       "state": "machine-cross-checked",
-      "text": "Con root, ha-paneld può nascondere gli elementi superflui del produttore (strumenti di test e launcher del produttore) affinché venga mostrata solo la dashboard."
+      "text": "Con root, Panel Assistant può nascondere gli elementi superflui del produttore (strumenti di test e launcher del produttore) affinché venga mostrata solo la dashboard."
     },
     "install.tame.state.active": {
       "sourceHash": "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
@@ -7644,9 +7644,9 @@
       "text": "Disinstalla"
     },
     "install.uninstall.description_prefix": {
-      "sourceHash": "45d78d103a3468d3c099df705abfae73165f5ce0923ebcde6f8b06b96890a510",
+      "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
       "state": "machine-cross-checked",
-      "text": "Rimuovi un’app installata. Vengono elencate solo le app rimovibili (di terze parti o aggiornate); ha-paneld e le app di sistema preinstallate sono escluse. Per limitarti a nascondere un’app del produttore,"
+      "text": "Rimuovi un’app installata. Vengono elencate solo le app rimovibili (di terze parti o aggiornate); Panel Assistant e le app di sistema preinstallate sono escluse. Per limitarti a nascondere un’app del produttore,"
     },
     "install.uninstall.description_suffix": {
       "sourceHash": "1462a8fa2c5b0daa167e77a39e18f19c323d99aab25200867a59af48ea5b344b",
@@ -7769,8 +7769,8 @@
       "text": "Flusso grezzo:"
     },
     "logs.note.sources": {
-      "text": "App = registro del processo di ha-paneld (root non necessario). Sistema = logcat completo del dispositivo (root). Console del browser = console JavaScript della plancia (richiede l'invio dei log configurato).",
-      "sourceHash": "d6a51774b399c1f36458838d21519b2eae7c45c04bb2ef804d6c2fef4855f3d2",
+      "text": "App = registro del processo di Panel Assistant (root non necessario). Sistema = logcat completo del dispositivo (root). Console del browser = console JavaScript della plancia (richiede l'invio dei log configurato).",
+      "sourceHash": "bc3fafe4a43cf34de976ae7f51161722867dca7fd1ea468c328e5a47a4043a2d",
       "state": "machine-cross-checked"
     },
     "logs.source.app": {
@@ -8264,9 +8264,9 @@
       "text": "Attivazione bloccata: questo profilo importato non corrisponde all'identità immutabile della build di questo dispositivo."
     },
     "profiles.error.auto_rollback": {
-      "sourceHash": "9351181f754e82d7edb3b3c89c24d2e7f67fd4688e1c17983f4bc1a79818e666",
+      "sourceHash": "3b57c670932a72ccb49f158e7e64d09a97887662c0ce068cda2553844affe071",
       "state": "machine-cross-checked",
-      "text": "Il candidato non è diventato funzionante; ha-paneld ha ripristinato automaticamente l'ultimo profilo funzionante noto."
+      "text": "Il candidato non è diventato funzionante; Panel Assistant ha ripristinato automaticamente l'ultimo profilo funzionante noto."
     },
     "profiles.error.build_draft": {
       "sourceHash": "c8b730122d1ca3eaf1f0e9667215ce13d2fe469876be1a98b97a36f0367c151d",
@@ -8444,9 +8444,9 @@
       "text": "Il profilo generico integrato di riserva manca o non è valido; verrà usato il profilo di emergenza privo di funzionalità."
     },
     "profiles.issue.core-version-required": {
-      "sourceHash": "473b036af900c9ff8dd133a0bace84cb8ba61150c2f94db7645bd3914d1d671f",
+      "sourceHash": "ca646b289d70a5952071f7c7bfd1352720f6f5f3c065d925e6d9343877724eb4",
       "state": "machine-cross-checked",
-      "text": "Richiede ha-paneld {required} o versione successiva; questo core è {current}."
+      "text": "Richiede Panel Assistant {required} o versione successiva; questo core è {current}."
     },
     "profiles.issue.cpu-cluster-count-limit": {
       "sourceHash": "76e67d73c6c2e084b74aad1aa83d3e85e003aa44b44d471f399c488063132b16",
@@ -9054,9 +9054,9 @@
       "text": "Profilo: {profile}"
     },
     "profiles.modal.restart_warning": {
-      "sourceHash": "fe3149830ccece16addc3efceb6139b7a5982b1735829871567c1bff519f544b",
+      "sourceHash": "9e5d170f1bd135db3e5579a04d8fc9f5be6139ba2b870e143dd07c67530dbb3f",
       "state": "machine-cross-checked",
-      "text": "Il servizio del pannello verrà riavviato. Se la revisione non risulterà funzionante, ha-paneld tornerà all'ultimo profilo funzionante noto."
+      "text": "Il servizio del pannello verrà riavviato. Se la revisione non risulterà funzionante, Panel Assistant tornerà all'ultimo profilo funzionante noto."
     },
     "profiles.modal.revision_auto_line": {
       "sourceHash": "6b0bbe1c04809906049a2a7ee0be7e25513a77b63f482220f338e57e52b47f06",
@@ -9774,9 +9774,9 @@
       "text": "{attempts} tentativi di recupero"
     },
     "runtime.mdns.not_running": {
-      "sourceHash": "8675c52511c0fbb2209793d8ce5a0e2e97d2f86b18a51e3817bab6abae120d0b",
+      "sourceHash": "01a513fea56bed79f9fcc15d4eef742b1ca0205a07be76f2c652a9e8c5d2a7d9",
       "state": "machine-cross-checked",
-      "text": "⚠ Il rilevamento dei pannelli (mDNS) non è in esecuzione — questo pannello non apparirà nei menu di selezione degli altri pannelli né nel rilevamento di Home Assistant. Riconnetti il pannello alla rete o riavvia ha-paneld."
+      "text": "⚠ Il rilevamento dei pannelli (mDNS) non è in esecuzione — questo pannello non apparirà nei menu di selezione degli altri pannelli né nel rilevamento di Home Assistant. Riconnetti il pannello alla rete o riavvia Panel Assistant."
     },
     "runtime.mdns.recovering": {
       "sourceHash": "c61385635cb7cd2cbbdaf2053f4333441ac1969d38e3d0b91d869aafc2d732e9",
@@ -9789,14 +9789,14 @@
       "text": "⚠ Il rilevamento dei pannelli (mDNS) usa un indirizzo obsoleto ({bound_ip}, ora {lan_ip}) — gli altri pannelli non potranno raggiungerlo dal selettore finché il servizio non si riassocia all’indirizzo."
     },
     "runtime.mdns.unresponsive.one": {
-      "sourceHash": "289dcccea3d8553fd62952feace3548ef6d933d11a2667263bd88d66db965b8a",
+      "sourceHash": "6fab2700d7e21ae092f454eb3fbe172f29cdf49f60827b5ca109ee92ea8c1394",
       "state": "machine-cross-checked",
-      "text": "⚠ Il rilevamento dei pannelli (mDNS) non risponde — il recupero automatico si è fermato dopo {attempts} tentativo ({reason_code}). Riconnetti il pannello alla rete o riavvia ha-paneld."
+      "text": "⚠ Il rilevamento dei pannelli (mDNS) non risponde — il recupero automatico si è fermato dopo {attempts} tentativo ({reason_code}). Riconnetti il pannello alla rete o riavvia Panel Assistant."
     },
     "runtime.mdns.unresponsive.other": {
-      "sourceHash": "ba82d4d04f4d477b6e648db2fb3d6cb4a11e3945c9ca77e601983fb3ba14c726",
+      "sourceHash": "09a443043b7c68887964adec02d812d20ae28e65149626da789193609f60e2b2",
       "state": "machine-cross-checked",
-      "text": "⚠ Il rilevamento dei pannelli (mDNS) non risponde — il recupero automatico si è fermato dopo {attempts} tentativi ({reason_code}). Riconnetti il pannello alla rete o riavvia ha-paneld."
+      "text": "⚠ Il rilevamento dei pannelli (mDNS) non risponde — il recupero automatico si è fermato dopo {attempts} tentativi ({reason_code}). Riconnetti il pannello alla rete o riavvia Panel Assistant."
     },
     "runtime.power_safety.ack.endpoint_failed": {
       "sourceHash": "8db0a9affb0f9ccc6412f17d2e0e8a38c47fd0f4ba8e7692b3031b628a68a4e2",
@@ -9964,8 +9964,8 @@
       "state": "machine-cross-checked"
     },
     "runtime.zigbee.warning.legacy_watchdog": {
-      "text": "Rilevato un difetto nel watchdog Zigbee legacy — è presente l’esatta assegnazione ricorsiva LD_LIBRARY_PATH. ha-paneld non modificherà automaticamente lo script del produttore.",
-      "sourceHash": "cb9f47756c7492c12f1ef735915723ec820b711f086df460a42eeb72302a0719",
+      "text": "Rilevato un difetto nel watchdog Zigbee legacy — è presente l’esatta assegnazione ricorsiva LD_LIBRARY_PATH. Panel Assistant non modificherà automaticamente lo script del produttore.",
+      "sourceHash": "f5181ede16f72e71f611df47240008921b3512bd10e9eb2b5a8c2249b03b0caf",
       "state": "machine-cross-checked"
     },
     "runtime.zigbee.warning.resolve": {
@@ -10189,8 +10189,8 @@
       "state": "machine-cross-checked"
     },
     "settings.dark_mode.help": {
-      "text": "Applica il tema alle schermate di ha-paneld stesso e imposta lo schema colori predefinito della plancia sui pannelli privi di un'impostazione di sistema per la modalità scura (Android 9 e versioni precedenti).\n\nUn tema scelto in Home Assistant sostituisce quello predefinito della plancia; questa UI web segue sempre la preferenza del browser da cui viene visualizzata.",
-      "sourceHash": "853ed1512986d08ad813002d9cb672dbfcb1261b3b2447bfc4b52301b163c2eb",
+      "text": "Applica il tema alle schermate di Panel Assistant stesso e imposta lo schema colori predefinito della plancia sui pannelli privi di un'impostazione di sistema per la modalità scura (Android 9 e versioni precedenti).\n\nUn tema scelto in Home Assistant sostituisce quello predefinito della plancia; questa UI web segue sempre la preferenza del browser da cui viene visualizzata.",
+      "sourceHash": "dcda4e8a160cdb194a9cee3935a90371253c3c2c025a64e8ed23957811d00bee",
       "state": "machine-cross-checked"
     },
     "settings.dark_mode.label": {
@@ -10199,8 +10199,8 @@
       "text": "Modalità scura"
     },
     "settings.dark_mode.summary": {
-      "text": "Tema scuro per le schermate di ha-paneld e predefinito della dashboard.",
-      "sourceHash": "796ecaff6531067757b7a3ac15e2483dcd43e3a85af57f0090224ef0c9f5f22a",
+      "text": "Tema scuro per le schermate di Panel Assistant e predefinito della dashboard.",
+      "sourceHash": "81ad914d6ff0241c84957c90ef6212b0d965e165be49a04c5de163867f57ed93",
       "state": "machine-cross-checked"
     },
     "settings.dashboard_entity_auto_runtime.help": {
@@ -10479,9 +10479,9 @@
       "state": "machine-cross-checked"
     },
     "settings.ha_area.help": {
-      "sourceHash": "92582fd766a9559435e08ee57ca2f1bb48d508a6c2af9ec792e6e3c45a0d1ece",
+      "sourceHash": "511bca0d9133ce234fcc2592eacd03cfca60155df52a3f747e904d6ad1d95885",
       "state": "machine-cross-checked",
-      "text": "Area di Home Assistant in cui si trova il pannello. Può essere modificata in ha-paneld solo se l'utente HA dispone delle autorizzazioni di amministratore; in caso contrario, modificala dal dispositivo in HA."
+      "text": "Area di Home Assistant in cui si trova il pannello. Può essere modificata in Panel Assistant solo se l'utente HA dispone delle autorizzazioni di amministratore; in caso contrario, modificala dal dispositivo in HA."
     },
     "settings.ha_area.label": {
       "sourceHash": "df4a2a5c31455ff3f9226ec4e43b6fc965fc5aa1b12539b97c2282ba3174bce1",
@@ -10494,9 +10494,9 @@
       "state": "machine-cross-checked"
     },
     "settings.ha_client_id.help": {
-      "sourceHash": "ffae29400af4eb9ec15c30c66a9432dd116ddda13f627652a3a57144c0c5f209",
+      "sourceHash": "008cb25d5fd36fec0c5956e4c9f21562a8dc2599fb8926f67531b1573db133b7",
       "state": "machine-cross-checked",
-      "text": "Provenienza interna del token conservata per la compatibilità con l'importazione tramite API o configurazione. I token Companion presi in prestito usano il client Companion di Android; gli accessi dal browser di ha-paneld usano l'origine HTTP del pannello. Non è una preferenza utente."
+      "text": "Provenienza interna del token conservata per la compatibilità con l'importazione tramite API o configurazione. I token Companion presi in prestito usano il client Companion di Android; gli accessi dal browser di Panel Assistant usano l'origine HTTP del pannello. Non è una preferenza utente."
     },
     "settings.ha_client_id.label": {
       "sourceHash": "b7ae84c506919323d0d32b4384e88205efe42a2390d7fecfa778cce2fb0677f6",
@@ -10504,9 +10504,9 @@
       "text": "HA OAuth client_id"
     },
     "settings.ha_refresh_token.help": {
-      "sourceHash": "6366b03a354de30d09782192cf07b058b689b63e893c4b6d2c6ca6178ed23795",
+      "sourceHash": "7bface905329b995c5991d0c46ee23630cde4218d8fa0eb80abf0859c2aae39e",
       "state": "machine-cross-checked",
-      "text": "Stato interno del token conservato per compatibilità con l'API e l'importazione della configurazione. Gli accessi OAuth in prestito da Companion o emessi da ha-paneld lo gestiscono automaticamente."
+      "text": "Stato interno del token conservato per compatibilità con l'API e l'importazione della configurazione. Gli accessi OAuth in prestito da Companion o emessi da Panel Assistant lo gestiscono automaticamente."
     },
     "settings.ha_refresh_token.label": {
       "sourceHash": "9807017e2526d55ffd3ea99555ab867dcfdc6ab59dc56de7d1be68600ea75cc2",
@@ -10614,9 +10614,9 @@
       "state": "machine-cross-checked"
     },
     "settings.launcher_package.help": {
-      "sourceHash": "524f589af2ebe612083fd20f1b6f487d59e929aae5a24cf9cd6bd4792e448395",
+      "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
       "state": "machine-cross-checked",
-      "text": "App portata in primo piano dal pulsante di avvio. Se vuoto, ne viene scelta una automaticamente. Selezionando Amministrazione pannello (ha-paneld), ha-paneld diventa e resta anche l'app Home di Android."
+      "text": "App portata in primo piano dal pulsante di avvio. Se vuoto, ne viene scelta una automaticamente. Selezionando Amministrazione pannello (Panel Assistant), Panel Assistant diventa e resta anche l'app Home di Android."
     },
     "settings.launcher_package.label": {
       "sourceHash": "f97faee7e687e14fb4356160757e11ca90cc6c89b0e2ce2d40e14a3a62ef1bbd",
@@ -10629,9 +10629,9 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_enabled.help": {
-      "sourceHash": "01fd4a6f75c8d1eba5b4765db5c8eb1c9ebc1220b0639982525ab92b2f43e5d7",
+      "sourceHash": "60f6ff8dadcfcb8713602f18ca7137aea30c907013baa2fc0900376a8ac1b9df",
       "state": "machine-cross-checked",
-      "text": "Inoltra il log del processo di ha-paneld, non l'intero log di sistema, a un collettore centrale (LAN-only, con token e password oscurati)."
+      "text": "Inoltra il log del processo di Panel Assistant, non l'intero log di sistema, a un collettore centrale (LAN-only, con token e password oscurati)."
     },
     "settings.log_ship_enabled.label": {
       "sourceHash": "ee4fd7d2333c7de7c8d74fd95cfb065c2be72bd2e52dc3b58cf06c0e1d3d3634",
@@ -10639,8 +10639,8 @@
       "text": "Invia log"
     },
     "settings.log_ship_enabled.summary": {
-      "text": "Invia il log di ha-paneld a un collettore sulla tua rete.",
-      "sourceHash": "d9d0543772220c0f2d59b7a38f1fe26075b0ac588c1534434ec2644c1fac6b98",
+      "text": "Invia il log di Panel Assistant a un collettore sulla tua rete.",
+      "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
       "state": "machine-cross-checked"
     },
     "settings.log_ship_host.help": {
@@ -10759,8 +10759,8 @@
       "state": "machine-cross-checked"
     },
     "settings.network_adb.help": {
-      "text": "**Rischio per la sicurezza:** mantiene l'ADB classico in ascolto sulla porta TCP 5555 anche dopo riavvii e riconnessioni.\n\nAbilitalo solo durante interventi di manutenzione attiva su una rete attendibile. Se ADB è stato abilitato al di fuori di ha-paneld, deve essere disabilitato anche da lì.",
-      "sourceHash": "c1d223177697675bf4eec7603bd73ba99fd866f002410c92177c1e8ee1bca48b",
+      "text": "**Rischio per la sicurezza:** mantiene l'ADB classico in ascolto sulla porta TCP 5555 anche dopo riavvii e riconnessioni.\n\nAbilitalo solo durante interventi di manutenzione attiva su una rete attendibile. Se ADB è stato abilitato al di fuori di Panel Assistant, deve essere disabilitato anche da lì.",
+      "sourceHash": "2c85de428894551b75bb23c876b221c5a6f0b78a4c7c65ca9d60356d820010d6",
       "state": "machine-cross-checked"
     },
     "settings.network_adb.label": {
@@ -10919,8 +10919,8 @@
       "state": "machine-cross-checked"
     },
     "settings.ui_language.help": {
-      "text": "Lingua dell'interfaccia di ha-paneld.\n\n**Automatica** usa prima la lingua forzata per la pagina. Etichette e aiuti delle impostazioni in Configura possono poi seguire la lingua dell'utente Home Assistant connesso; seguono browser, dispositivo e inglese.",
-      "sourceHash": "b7fc0eadebf67c70928a78036d93798c57776e075ff3bf5172197dd40238be34",
+      "text": "Lingua dell'interfaccia di Panel Assistant.\n\n**Automatica** usa prima la lingua forzata per la pagina. Etichette e aiuti delle impostazioni in Configura possono poi seguire la lingua dell'utente Home Assistant connesso; seguono browser, dispositivo e inglese.",
+      "sourceHash": "e0bdd025cead6749d2c8c925f5edf94a92459654d3b6432f25da08a1d6cd8722",
       "state": "machine-cross-checked"
     },
     "settings.ui_language.label": {
@@ -10929,8 +10929,8 @@
       "text": "Lingua dell'interfaccia"
     },
     "settings.ui_language.summary": {
-      "text": "Lingua dell'interfaccia di ha-paneld.",
-      "sourceHash": "fc20faa643f8c9106b287f7179cd85e837766146f59d184785573bdb4bf28d9f",
+      "text": "Lingua dell'interfaccia di Panel Assistant.",
+      "sourceHash": "418c4cdcba9bff721a8d140afd395307d6ea40701b2b43b3ea53b021729d3bbf",
       "state": "machine-cross-checked"
     },
     "settings.voice_audio_source.label": {
@@ -11299,9 +11299,9 @@
       "text": "Home Assistant è visualizzato sul pannello."
     },
     "setup.done.taming_intro": {
-      "sourceHash": "df51327092a8655bdb336547196c85ecc908233391c308ae6085a8e18c2519b8",
+      "sourceHash": "6d14294f68aa2357c0ed5e750772feae399b94b436e5c6604dd0d5e25a4d7a52",
       "state": "machine-cross-checked",
-      "text": "Facoltativo: i pannelli spesso includono app del produttore che compaiono sopra la dashboard. ha-paneld può renderle meno invasive."
+      "text": "Facoltativo: i pannelli spesso includono app del produttore che compaiono sopra la dashboard. Panel Assistant può renderle meno invasive."
     },
     "setup.done.taming_link": {
       "sourceHash": "956a23e9e8dd79a2ed5b094a9725e0ac7d1dbaccd3ca53d7c5389c8faaaaaa89",
@@ -11574,9 +11574,9 @@
       "text": "URL di Home Assistant"
     },
     "setup.ha_url.lead": {
-      "sourceHash": "e71e1d01d14468099c08d3f2123b22e505f3c6b6358779488bc9b3f5419fe4a3",
+      "sourceHash": "62802e2c74f30e9b7534c659689721747fbcedd7a5d97f4943d0062f1dfde510",
       "state": "machine-cross-checked",
-      "text": "ha-paneld usa questo indirizzo per connettersi a Home Assistant."
+      "text": "Panel Assistant usa questo indirizzo per connettersi a Home Assistant."
     },
     "setup.ha_url.title": {
       "sourceHash": "126500fcbadd9986d91fc4d51f440439f6785bdb9e91b34c7f10544468c0aa7e",
@@ -11599,9 +11599,9 @@
       "text": "Nome descrittivo"
     },
     "setup.identity.lead": {
-      "sourceHash": "74ba1c98c447c04e11b8cf8f2267499b2b36c74fd4cc326eff68383bbe7c2f62",
+      "sourceHash": "acc139244fe4230509a2b21f2ad451c65787d637f60920f7d98f76afe9c14c2d",
       "state": "machine-cross-checked",
-      "text": "Un nome, il server Home Assistant e l’accesso, e poi la plancia da mostrare: poche domande rapide e hai finito. Puoi interrompere e riprendere senza perdere nulla."
+      "text": "Un nome, il server Home Assistant e l’accesso, e poi la plancia da mostrare: poi hai finito. Puoi interrompere e riprendere senza perdere nulla."
     },
     "setup.identity.panel_id.consequence": {
       "sourceHash": "11391c9e4db33e3d19c5a78512029ed387422d250909887f45dc4564c19d14a4",
@@ -11729,9 +11729,9 @@
       "text": "Apri l’impostazione Dashboard"
     },
     "setup.renderer.failure.explanation": {
-      "sourceHash": "7231ee927e2894750e5b28a26096bb451b8dbaf5e9a3b0bb87a7929cdb7b1fbf",
+      "sourceHash": "89457edb6167b9b02c6b64d12b9b1816eb9f7fec76ba11facc009ebd59d1d9fa",
       "state": "machine-cross-checked",
-      "text": "Scegli il renderer integrato di ha-paneld (o un’altra app installata) nella scheda Dashboard di Tutte le impostazioni, quindi torna qui."
+      "text": "Scegli il renderer integrato di Panel Assistant (o un’altra app installata) nella scheda Dashboard di Tutte le impostazioni, quindi torna qui."
     },
     "setup.renderer.failure.package_missing": {
       "sourceHash": "70b629f6057b064596a9a4cb7b121cbb963a31ce656d180885977d33164934a1",
@@ -11854,9 +11854,9 @@
       "text": "ricarica"
     },
     "shell.github.title": {
-      "sourceHash": "69474ee0f60dbce1020a6bcd6db49daaeeeb20bf7601151aba213b6fd98d66a6",
+      "sourceHash": "f5a3f0d6d16ca9fe0f1f8cca2494622b9d1b32b33d516463370460f68e71e18c",
       "state": "machine-cross-checked",
-      "text": "ha-paneld su GitHub"
+      "text": "Panel Assistant su GitHub"
     },
     "shell.ha_network.dismiss": {
       "sourceHash": "9623329d5d5b5b5741a136663841b55eecd90bb0bac4bcde34b59c0f2f90f5a7",
@@ -11944,9 +11944,9 @@
       "text": "Configurazione"
     },
     "shell.new_version.installed": {
-      "sourceHash": "fdab4992846c739bca90b4ed46a981d380e0c759b4974b0ac60631ed171f5cd7",
+      "sourceHash": "ba41dd76206c00c1648a9704b306fe5c3904d846b8bed0954010aa897f185f47",
       "state": "machine-cross-checked",
-      "text": "È installata una versione più recente di ha-paneld"
+      "text": "È installata una versione più recente di Panel Assistant"
     },
     "shell.notice.severity.action_needed": {
       "text": "Azione richiesta",
@@ -11989,8 +11989,8 @@
       "text": "Apri in HA"
     },
     "shell.panel_switcher.title": {
-      "text": "Passa a un altro pannello ha-paneld (mantiene la vista corrente)",
-      "sourceHash": "18099935ffa7e381e72b5614358626beac066ee14193dbccb31826af8f30abef",
+      "text": "Passa a un altro pannello (mantiene la vista corrente)",
+      "sourceHash": "2034edeb1cb1522b1c88d589fd68d240cdbb052b8303e62787557e0745ccc8f0",
       "state": "machine-cross-checked"
     },
     "shell.pickles.back": {
@@ -12039,8 +12039,8 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.expected_in": {
-      "text": "Ritorno previsto tra circa {duration}",
-      "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",
+      "text": "Ritorno previsto tra {duration}",
+      "sourceHash": "5fb48607582ca74c0c76d7d4aed7ce6e988e6094b583a6184d20046824e68a71",
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.not_measured": {
@@ -12084,8 +12084,8 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.starting": {
-      "text": "Home Assistant si sta avviando — i controlli torneranno disponibili a breve.",
-      "sourceHash": "5ba1d019d11a080f325c121c03788d2dd20c17c6e87dae9d6261af2a07233ce3",
+      "text": "Home Assistant si sta avviando.",
+      "sourceHash": "0d8f9279bc43086733f4b99c222e66a07a3fbd805dd9b3595ae1c5f784e17fb0",
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_lifecycle.step_starting": {
@@ -12189,9 +12189,9 @@
       "text": "Ripristina la schermata iniziale di questo pannello"
     },
     "install.tame.hand_back.warning": {
-      "sourceHash": "059846970a24d71fe999c618df5a47bc22630aa1d7df17d52250adf65c8e8571",
+      "sourceHash": "8b16c4d51ccdd47fca4d075d3bd39208e6edb450a07bec2cd4c90dbfea65b867",
       "state": "machine-cross-checked",
-      "text": "Fallo prima di rimuovere ha-paneld. Altrimenti il pannello non avrà una schermata iniziale."
+      "text": "Fallo prima di rimuovere Panel Assistant. Altrimenti il pannello non avrà una schermata iniziale."
     },
     "configure.auto_sleep.fixed_delay": {
       "text": "Spegni lo schermo dopo {count} secondi senza tocchi.",

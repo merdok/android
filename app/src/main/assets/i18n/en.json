@@ -20272,7 +20272,7 @@
         "Panel Assistant"
       ],
       "softMaxChars": 22,
-      "hardMaxChars": 40
+      "hardMaxChars": 45
     },
     "install.presentation.restore_partial": {
       "text": "Restore partially completed",
@@ -30855,7 +30855,7 @@
         "Panel Assistant"
       ],
       "softMaxChars": 70,
-      "hardMaxChars": 90
+      "hardMaxChars": 91
     },
     "settings.dashboard_entity_auto_runtime.help": {
       "text": "Missing entities read through hass.states may be added automatically. Evidence remains visible when disabled.",
@@ -35280,8 +35280,8 @@
       "hardMaxChars": 40
     },
     "setup.identity.lead": {
-      "text": "A name, your Home Assistant server and sign-in, and the dashboard to show — {count} short steps and you’re done. You can stop and come back; nothing is lost.",
-      "sourceHash": "d7c3d54178b4e17b68009402f87d31cad0a47ebb5f928b9b3f2099e741dc110e",
+      "text": "A name, your Home Assistant server and sign-in, and the dashboard to show — and you’re done. You can stop and come back; nothing is lost.",
+      "sourceHash": "acc139244fe4230509a2b21f2ad451c65787d637f60920f7d98f76afe9c14c2d",
       "surface": "setup",
       "context": "Setup wizard panel identity step; introductory guidance.",
       "risk": "setup",
@@ -35289,9 +35289,7 @@
         "setup.identity.preview_intro",
         "setup.identity.title"
       ],
-      "placeholders": [
-        "{count}"
-      ],
+      "placeholders": [],
       "frozen": [
         "Home Assistant"
       ],

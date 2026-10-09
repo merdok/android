@@ -1499,8 +1499,8 @@
    "state": "machine-cross-checked"
   },
   "configure.renderer.builtin": {
-   "text": "Вбудований рендерер (ha-paneld)",
-   "sourceHash": "838a46e057e83db8885d0761337db9d0f2a7ffb8bd723bfc33fcf495cde873a9",
+   "text": "Вбудований рендерер (Panel Assistant)",
+   "sourceHash": "d4affb536e8740d6e1dcf2dd16e3d52e92b4d0bb800240b986684c3cd7f03d6e",
    "state": "machine-cross-checked"
   },
   "configure.renderer.clear_requested": {
@@ -1909,8 +1909,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.companion_probe_failed.explanation": {
-   "text": "ha-paneld збереже останній відомий результат і автоматично повторить спробу.",
-   "sourceHash": "0fb05a33392aa3fc02b14f0a78ba2bd459b43bc4b54e5ba7cd9162443175b1ee",
+   "text": "Panel Assistant збереже останній відомий результат і автоматично повторить спробу.",
+   "sourceHash": "c43df8683aaa878ddbd94179f89198c7276fbbcba18f428f25553b1f704d205b",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.companion_probe_failed.title": {
@@ -1954,8 +1954,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.ha_sign_in.explanation": {
-   "text": "Вибрано вбудований рендерер ha-paneld. Завершіть вхід, показаний на панелі, або",
-   "sourceHash": "845b28bc13330df790a1259e165e79ee6d56841495cad3c325bee32c17d49459",
+   "text": "Вибрано вбудований рендерер Panel Assistant. Завершіть вхід, показаний на панелі, або",
+   "sourceHash": "292e6ed9a5a9232a1799eddeb578c3f5a8d9cd40ebdc43c0f0693ab11ae644f2",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.ha_sign_in.title": {
@@ -1969,8 +1969,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.configure_prefix": {
-   "text": "Виберіть вбудований рендерер ha-paneld на",
-   "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
+   "text": "Виберіть вбудований рендерер Panel Assistant на",
+   "sourceHash": "347dcddfe6ed4b781e2df904a5b062bd74247f2dae27fd9f19f9fb4ffad57070",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.explanation": {
@@ -1979,8 +1979,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.note": {
-   "text": "(Сам ha-paneld чудово працює й без нього.)",
-   "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
+   "text": "(Сам Panel Assistant чудово працює й без нього.)",
+   "sourceHash": "679bfa171a077cdbe425b11cc5244f97e63558f81ccd1e187ca91782ec765016",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.title": {
@@ -2659,8 +2659,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.helper_routed": {
-   "text": "недоступно безпосередньо для ha-paneld — привілейовані дії спрямовуються через допоміжний демон",
-   "sourceHash": "e9c4863384d41335b9ae2dea3d0ba01fbacddc489e4271439109765b442b2d1e",
+   "text": "недоступно безпосередньо для Panel Assistant — привілейовані дії спрямовуються через допоміжний демон",
+   "sourceHash": "43516d445b467b00c7a6d5bdea7988277be756766499ad5b90f86bec252ed1d4",
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.led_unreachable": {
@@ -2704,13 +2704,13 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.su_direct": {
-   "text": "доступно безпосередньо для ha-paneld",
-   "sourceHash": "a0ba5183f28168934f6d83d722669ab6cc27b21777617658035d9f9934c3992e",
+   "text": "доступно безпосередньо для Panel Assistant",
+   "sourceHash": "7fab146e5b37b4d07a9636d9917ad40f327d1fd8d302535de31e60505e1f7efd",
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.su_unavailable": {
-   "text": "недоступно безпосередньо для ha-paneld — див. окремі рядки можливостей нижче",
-   "sourceHash": "6c0c02f245f4aabdb395f95353d4565c38affbb4ef9bf4327e70470c5b580c98",
+   "text": "недоступно безпосередньо для Panel Assistant — див. окремі рядки можливостей нижче",
+   "sourceHash": "2420aabc4e11f03cde90ff5e9fd9b95f00a52a417d1b132e0b3bc15997bfbfe1",
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.sysfs_led_helper": {
@@ -2809,8 +2809,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.card.profile": {
-   "text": "Профіль ha-paneld",
-   "sourceHash": "24c0cf5404e8c4ae50ea14e55872d9858651afe321338940214ab9941977db59",
+   "text": "Профіль Panel Assistant",
+   "sourceHash": "25eb49e5a8715f10064a3b714e53b6aad67aecc85032bdda976e82fafa90d458",
    "state": "machine-cross-checked"
   },
   "dashboard.card.remote_webview": {
@@ -3774,8 +3774,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.external_renderer_unobserved": {
-   "text": "зовнішній рендерер · ha-paneld не спостерігає з’єднання з Home Assistant",
-   "sourceHash": "395098244943c3672f1f291a6bf053b4bcb5dd7f85d71e98886f2ef94a206a26",
+   "text": "зовнішній рендерер · Panel Assistant не спостерігає з’єднання з Home Assistant",
+   "sourceHash": "29b56e24a75f4a6383f997457c73f05afbe3b340d56c8d168262435986d36447",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.ha_connection_lost": {
@@ -4864,8 +4864,8 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.template-selector.reason": {
-   "text": "ha-paneld не обчислює шаблони, тому не може визначити, які сутності повертає цей фільтр. Сутності, які він лише зчитує, належать самому Home Assistant і надходять поза цим фільтром, тому їхня відсутність тут правильна, і вони нічого не потребують.",
-   "sourceHash": "78fbab96e9baabf4059991f1fa21fbc8cf624e3e409e7b90aa241a026c397837",
+   "text": "Panel Assistant не обчислює шаблони, тому не може визначити, які сутності повертає цей фільтр. Сутності, які він лише зчитує, належать самому Home Assistant і надходять поза цим фільтром, тому їхня відсутність тут правильна, і вони нічого не потребують.",
+   "sourceHash": "4755146e2a3c04202182895b6c776c7b2d778450321e67b1e08ab63a58b6e8a7",
    "state": "machine-cross-checked"
   },
   "entities.issue.template-selector.recommendation": {
@@ -6234,8 +6234,8 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_companion_helper_required": {
-   "text": "Для відновлення застосунку-компаньйона потрібен актуальний помічник ha-paneld",
-   "sourceHash": "ae7af3902c71c032bdb03fb0bb6e76424a7a9c29bc377a28c275fed1ebccf702",
+   "text": "Для відновлення застосунку-компаньйона потрібен актуальний помічник Panel Assistant",
+   "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_companion_section_invalid": {
@@ -6284,8 +6284,8 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_not_panel_backup": {
-   "text": "не резервна копія ha-paneld",
-   "sourceHash": "15c0f21ad749e2da90a94c485eb9fc8e11d8bc60b1338784eb687caed026901c",
+   "text": "не резервна копія Panel Assistant",
+   "sourceHash": "7313852704afc4845abafd318f383a45c58eff9fed5030b676e5dac8cdb2be66",
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_partial": {
@@ -6354,8 +6354,8 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_companion_probe_failed": {
-   "text": "⚠ Не вдалося перевірити налаштування застосунку-компаньйона Home Assistant; ha-paneld збереже останній відомий результат і автоматично повторить спробу.",
-   "sourceHash": "83c7c52039d25735ee5aeee671408b86ec8086c5373cb90639510e03eb1f5c9e",
+   "text": "⚠ Не вдалося перевірити налаштування застосунку-компаньйона Home Assistant; Panel Assistant збереже останній відомий результат і автоматично повторить спробу.",
+   "sourceHash": "d568a904ee6683b88e612118bd29ef49ffdfe30ed6ecbcffcfe90193ceb77b14",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_external_renderer_crash_loop": {
@@ -6364,8 +6364,8 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_no_renderer": {
-   "text": "ℹ Далі: виберіть рендерер інформаційної панелі. Виберіть вбудований рендерер ha-paneld, установіть застосунок-компаньйон Home Assistant або налаштуйте інший пакет інформаційної панелі.",
-   "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
+   "text": "ℹ Далі: виберіть рендерер інформаційної панелі. Виберіть вбудований рендерер Panel Assistant, установіть застосунок-компаньйон Home Assistant або налаштуйте інший пакет інформаційної панелі.",
+   "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_power_at_risk": {
@@ -6429,8 +6429,8 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_zigbee_legacy_watchdog": {
-   "text": "⚠ Виявлено дефект застарілого сторожового механізму Zigbee — присутнє точне рекурсивне присвоєння LD_LIBRARY_PATH. ha-paneld не редагуватиме скрипт постачальника автоматично.",
-   "sourceHash": "7211ac7681f7033251f8698db5451150506de603c9df900e0d11e33f30455e7c",
+   "text": "⚠ Виявлено дефект застарілого сторожового механізму Zigbee — присутнє точне рекурсивне присвоєння LD_LIBRARY_PATH. Panel Assistant не редагуватиме скрипт постачальника автоматично.",
+   "sourceHash": "6abc75262af7807330939d0b7370ce47040682e61d387578b8adc9c96fcb2706",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_zigbee_not_joined": {
@@ -6764,8 +6764,8 @@
    "state": "machine-cross-checked"
   },
   "logs.note.sources": {
-   "text": "Додаток = власний журнал процесу ha-paneld (root не потрібен). Система = повний logcat пристрою (root). Консоль браузера = консоль JavaScript інформаційної панелі (потрібна доставка журналів).",
-   "sourceHash": "d6a51774b399c1f36458838d21519b2eae7c45c04bb2ef804d6c2fef4855f3d2",
+   "text": "Додаток = власний журнал процесу Panel Assistant (root не потрібен). Система = повний logcat пристрою (root). Консоль браузера = консоль JavaScript інформаційної панелі (потрібна доставка журналів).",
+   "sourceHash": "bc3fafe4a43cf34de976ae7f51161722867dca7fd1ea468c328e5a47a4043a2d",
    "state": "machine-cross-checked"
   },
   "logs.source.app": {
@@ -7129,8 +7129,8 @@
    "state": "machine-cross-checked"
   },
   "profiles.error.auto_rollback": {
-   "text": "Профіль-кандидат не став працездатним; ha-paneld автоматично відновив останній відомий працездатний профіль.",
-   "sourceHash": "9351181f754e82d7edb3b3c89c24d2e7f67fd4688e1c17983f4bc1a79818e666",
+   "text": "Профіль-кандидат не став працездатним; Panel Assistant автоматично відновив останній відомий працездатний профіль.",
+   "sourceHash": "3b57c670932a72ccb49f158e7e64d09a97887662c0ce068cda2553844affe071",
    "state": "machine-cross-checked"
   },
   "profiles.error.build_draft": {
@@ -7309,8 +7309,8 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.core-version-required": {
-   "text": "Потрібна версія ha-paneld {required} або новіша; версія цього ядра — {current}.",
-   "sourceHash": "473b036af900c9ff8dd133a0bace84cb8ba61150c2f94db7645bd3914d1d671f",
+   "text": "Потрібна версія Panel Assistant {required} або новіша; версія цього ядра — {current}.",
+   "sourceHash": "ca646b289d70a5952071f7c7bfd1352720f6f5f3c065d925e6d9343877724eb4",
    "state": "machine-cross-checked"
   },
   "profiles.issue.cpu-cluster-count-limit": {
@@ -7919,8 +7919,8 @@
    "state": "machine-cross-checked"
   },
   "profiles.modal.restart_warning": {
-   "text": "Служба панелі перезапуститься. Якщо версія не стане працездатною, ha-paneld повернеться до останнього відомого працездатного профілю.",
-   "sourceHash": "fe3149830ccece16addc3efceb6139b7a5982b1735829871567c1bff519f544b",
+   "text": "Служба панелі перезапуститься. Якщо версія не стане працездатною, Panel Assistant повернеться до останнього відомого працездатного профілю.",
+   "sourceHash": "9e5d170f1bd135db3e5579a04d8fc9f5be6139ba2b870e143dd07c67530dbb3f",
    "state": "machine-cross-checked"
   },
   "profiles.modal.revision_auto_line": {
@@ -8639,8 +8639,8 @@
    "state": "machine-cross-checked"
   },
   "runtime.mdns.not_running": {
-   "text": "⚠ Виявлення панелі (mDNS) не працює — ця панель не з’являтиметься в меню перемикання інших панелей і у виявленні Home Assistant. Під’єднайте панель до мережі знову або перезапустіть ha-paneld.",
-   "sourceHash": "8675c52511c0fbb2209793d8ce5a0e2e97d2f86b18a51e3817bab6abae120d0b",
+   "text": "⚠ Виявлення панелі (mDNS) не працює — ця панель не з’являтиметься в меню перемикання інших панелей і у виявленні Home Assistant. Під’єднайте панель до мережі знову або перезапустіть Panel Assistant.",
+   "sourceHash": "01a513fea56bed79f9fcc15d4eef742b1ca0205a07be76f2c652a9e8c5d2a7d9",
    "state": "machine-cross-checked"
   },
   "runtime.mdns.recovering": {
@@ -8654,13 +8654,13 @@
    "state": "machine-cross-checked"
   },
   "runtime.mdns.unresponsive.one": {
-   "text": "⚠ Виявлення панелі (mDNS) не відповідає — автоматичне відновлення зупинилося після {attempts} спроби ({reason_code}). Під’єднайте панель до мережі знову або перезапустіть ha-paneld.",
-   "sourceHash": "289dcccea3d8553fd62952feace3548ef6d933d11a2667263bd88d66db965b8a",
+   "text": "⚠ Виявлення панелі (mDNS) не відповідає — автоматичне відновлення зупинилося після {attempts} спроби ({reason_code}). Під’єднайте панель до мережі знову або перезапустіть Panel Assistant.",
+   "sourceHash": "6fab2700d7e21ae092f454eb3fbe172f29cdf49f60827b5ca109ee92ea8c1394",
    "state": "machine-cross-checked"
   },
   "runtime.mdns.unresponsive.other": {
-   "text": "⚠ Виявлення панелі (mDNS) не відповідає — автоматичне відновлення зупинилося після {attempts} спроб ({reason_code}). Під’єднайте панель до мережі знову або перезапустіть ha-paneld.",
-   "sourceHash": "ba82d4d04f4d477b6e648db2fb3d6cb4a11e3945c9ca77e601983fb3ba14c726",
+   "text": "⚠ Виявлення панелі (mDNS) не відповідає — автоматичне відновлення зупинилося після {attempts} спроб ({reason_code}). Під’єднайте панель до мережі знову або перезапустіть Panel Assistant.",
+   "sourceHash": "09a443043b7c68887964adec02d812d20ae28e65149626da789193609f60e2b2",
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.ack.endpoint_failed": {
@@ -8829,8 +8829,8 @@
    "state": "machine-cross-checked"
   },
   "runtime.zigbee.warning.legacy_watchdog": {
-   "text": "Виявлено дефект застарілого сторожового механізму Zigbee — наявне саме те рекурсивне присвоєння змінній LD_LIBRARY_PATH. ha-paneld не редагуватиме скрипт постачальника автоматично.",
-   "sourceHash": "cb9f47756c7492c12f1ef735915723ec820b711f086df460a42eeb72302a0719",
+   "text": "Виявлено дефект застарілого сторожового механізму Zigbee — наявне саме те рекурсивне присвоєння змінній LD_LIBRARY_PATH. Panel Assistant не редагуватиме скрипт постачальника автоматично.",
+   "sourceHash": "f5181ede16f72e71f611df47240008921b3512bd10e9eb2b5a8c2249b03b0caf",
    "state": "machine-cross-checked"
   },
   "runtime.zigbee.warning.resolve": {
@@ -9039,8 +9039,8 @@
    "state": "machine-cross-checked"
   },
   "settings.dark_mode.help": {
-   "text": "Задає тему власних екранів ha-paneld і стандартну колірну схему інформаційної панелі на панелях без системного налаштування темного режиму (Android 9 і старіші).\n\nТема, обрана в Home Assistant, перевизначає стандартну схему інформаційної панелі; цей веб-UI завжди дотримується налаштувань браузера, у якому його переглядають.",
-   "sourceHash": "853ed1512986d08ad813002d9cb672dbfcb1261b3b2447bfc4b52301b163c2eb",
+   "text": "Задає тему власних екранів Panel Assistant і стандартну колірну схему інформаційної панелі на панелях без системного налаштування темного режиму (Android 9 і старіші).\n\nТема, обрана в Home Assistant, перевизначає стандартну схему інформаційної панелі; цей веб-UI завжди дотримується налаштувань браузера, у якому його переглядають.",
+   "sourceHash": "dcda4e8a160cdb194a9cee3935a90371253c3c2c025a64e8ed23957811d00bee",
    "state": "machine-cross-checked"
   },
   "settings.dark_mode.label": {
@@ -9049,8 +9049,8 @@
    "state": "machine-cross-checked"
   },
   "settings.dark_mode.summary": {
-   "text": "Темна тема для власних екранів ha-paneld і типова тема інформаційної панелі.",
-   "sourceHash": "796ecaff6531067757b7a3ac15e2483dcd43e3a85af57f0090224ef0c9f5f22a",
+   "text": "Темна тема для власних екранів Panel Assistant і типова тема інформаційної панелі.",
+   "sourceHash": "81ad914d6ff0241c84957c90ef6212b0d965e165be49a04c5de163867f57ed93",
    "state": "machine-cross-checked"
   },
   "settings.dashboard_entity_auto_runtime.help": {
@@ -9329,8 +9329,8 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_area.help": {
-   "text": "Де розташована ця панель — назва приміщення в Home Assistant. Змінити її в ha-paneld можна лише тоді, коли ваш користувач HA має права адміністратора; інакше змініть її у своєму пристрої в HA.",
-   "sourceHash": "92582fd766a9559435e08ee57ca2f1bb48d508a6c2af9ec792e6e3c45a0d1ece",
+   "text": "Де розташована ця панель — назва приміщення в Home Assistant. Змінити її в Panel Assistant можна лише тоді, коли ваш користувач HA має права адміністратора; інакше змініть її у своєму пристрої в HA.",
+   "sourceHash": "511bca0d9133ce234fcc2592eacd03cfca60155df52a3f747e904d6ad1d95885",
    "state": "machine-cross-checked"
   },
   "settings.ha_area.label": {
@@ -9344,8 +9344,8 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_client_id.help": {
-   "text": "Походження внутрішнього токена зберігається для сумісності з імпортом API/config. Позичені токени Companion використовують клієнт Android Companion; вхід через браузер ha-paneld використовує джерело HTTP панелі. Це не налаштування користувача.",
-   "sourceHash": "ffae29400af4eb9ec15c30c66a9432dd116ddda13f627652a3a57144c0c5f209",
+   "text": "Походження внутрішнього токена зберігається для сумісності з імпортом API/config. Позичені токени Companion використовують клієнт Android Companion; вхід через браузер Panel Assistant використовує джерело HTTP панелі. Це не налаштування користувача.",
+   "sourceHash": "008cb25d5fd36fec0c5956e4c9f21562a8dc2599fb8926f67531b1573db133b7",
    "state": "machine-cross-checked"
   },
   "settings.ha_client_id.label": {
@@ -9354,8 +9354,8 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_refresh_token.help": {
-   "text": "Внутрішній стан токена, що зберігається для сумісності імпорту API/конфігурації. Позичені входи Companion і входи OAuth, видані ha-paneld, керують ним автоматично.",
-   "sourceHash": "6366b03a354de30d09782192cf07b058b689b63e893c4b6d2c6ca6178ed23795",
+   "text": "Внутрішній стан токена, що зберігається для сумісності імпорту API/конфігурації. Позичені входи Companion і входи OAuth, видані Panel Assistant, керують ним автоматично.",
+   "sourceHash": "7bface905329b995c5991d0c46ee23630cde4218d8fa0eb80abf0859c2aae39e",
    "state": "machine-cross-checked"
   },
   "settings.ha_refresh_token.label": {
@@ -9464,8 +9464,8 @@
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.help": {
-   "text": "Застосунок, який виводить на передній план кнопка «Програма запуску». Якщо порожньо, застосунок вибирається автоматично. Вибір «Panel admin» (ha-paneld) також робить ha-paneld домашнім застосунком Android і утримує його таким.",
-   "sourceHash": "524f589af2ebe612083fd20f1b6f487d59e929aae5a24cf9cd6bd4792e448395",
+   "text": "Застосунок, який виводить на передній план кнопка «Програма запуску». Якщо порожньо, застосунок вибирається автоматично. Вибір «Panel admin» (Panel Assistant) також робить Panel Assistant домашнім застосунком Android і утримує його таким.",
+   "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.label": {
@@ -9479,8 +9479,8 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_enabled.help": {
-   "text": "Пересилати власний журнал процесу ha-paneld — а не повний системний журнал — до центрального приймача (LAN-only, токени й паролі приховано).",
-   "sourceHash": "01fd4a6f75c8d1eba5b4765db5c8eb1c9ebc1220b0639982525ab92b2f43e5d7",
+   "text": "Пересилати власний журнал процесу Panel Assistant — а не повний системний журнал — до центрального приймача (LAN-only, токени й паролі приховано).",
+   "sourceHash": "60f6ff8dadcfcb8713602f18ca7137aea30c907013baa2fc0900376a8ac1b9df",
    "state": "machine-cross-checked"
   },
   "settings.log_ship_enabled.label": {
@@ -9489,8 +9489,8 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_enabled.summary": {
-   "text": "Надіслати власний журнал ha-paneld до колектора у вашій мережі.",
-   "sourceHash": "d9d0543772220c0f2d59b7a38f1fe26075b0ac588c1534434ec2644c1fac6b98",
+   "text": "Надіслати власний журнал Panel Assistant до колектора у вашій мережі.",
+   "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
    "state": "machine-cross-checked"
   },
   "settings.log_ship_host.help": {
@@ -9609,8 +9609,8 @@
    "state": "machine-cross-checked"
   },
   "settings.network_adb.help": {
-   "text": "**Ризик безпеки:** ADB залишається в класичному режимі прослуховування на TCP-порту 5555 після перезавантажень і повторних під’єднань.\n\nВмикайте лише під час активного обслуговування в довіреній мережі. Якщо ADB було ввімкнено поза ha-paneld, його також потрібно вимкнути там.",
-   "sourceHash": "c1d223177697675bf4eec7603bd73ba99fd866f002410c92177c1e8ee1bca48b",
+   "text": "**Ризик безпеки:** ADB залишається в класичному режимі прослуховування на TCP-порту 5555 після перезавантажень і повторних під’єднань.\n\nВмикайте лише під час активного обслуговування в довіреній мережі. Якщо ADB було ввімкнено поза Panel Assistant, його також потрібно вимкнути там.",
+   "sourceHash": "2c85de428894551b75bb23c876b221c5a6f0b78a4c7c65ca9d60356d820010d6",
    "state": "machine-cross-checked"
   },
   "settings.network_adb.label": {
@@ -9769,8 +9769,8 @@
    "state": "machine-cross-checked"
   },
   "settings.ui_language.help": {
-   "text": "Мова власного інтерфейсу ha-paneld.\n\n**Автоматично** спершу використовує явне перевизначення сторінки. Потім мітки й довідка налаштувань на вкладці «Налаштування» можуть відповідати мові підключеного користувача Home Assistant; решта резервних варіантів — браузер, пристрій і англійська.",
-   "sourceHash": "b7fc0eadebf67c70928a78036d93798c57776e075ff3bf5172197dd40238be34",
+   "text": "Мова власного інтерфейсу Panel Assistant.\n\n**Автоматично** спершу використовує явне перевизначення сторінки. Потім мітки й довідка налаштувань на вкладці «Налаштування» можуть відповідати мові підключеного користувача Home Assistant; решта резервних варіантів — браузер, пристрій і англійська.",
+   "sourceHash": "e0bdd025cead6749d2c8c925f5edf94a92459654d3b6432f25da08a1d6cd8722",
    "state": "machine-cross-checked"
   },
   "settings.ui_language.label": {
@@ -9779,8 +9779,8 @@
    "state": "machine-cross-checked"
   },
   "settings.ui_language.summary": {
-   "text": "Мова власного інтерфейсу «ha-paneld».",
-   "sourceHash": "fc20faa643f8c9106b287f7179cd85e837766146f59d184785573bdb4bf28d9f",
+   "text": "Мова власного інтерфейсу «Panel Assistant».",
+   "sourceHash": "418c4cdcba9bff721a8d140afd395307d6ea40701b2b43b3ea53b021729d3bbf",
    "state": "machine-cross-checked"
   },
   "settings.voice_audio_source.label": {
@@ -10149,8 +10149,8 @@
    "state": "machine-cross-checked"
   },
   "setup.done.taming_intro": {
-   "text": "Необов’язково: панелі часто постачаються із застосунками виробника, які спливають поверх інформаційної панелі. ha-paneld може їх приборкати.",
-   "sourceHash": "df51327092a8655bdb336547196c85ecc908233391c308ae6085a8e18c2519b8",
+   "text": "Необов’язково: панелі часто постачаються із застосунками виробника, які спливають поверх інформаційної панелі. Panel Assistant може їх приборкати.",
+   "sourceHash": "6d14294f68aa2357c0ed5e750772feae399b94b436e5c6604dd0d5e25a4d7a52",
    "state": "machine-cross-checked"
   },
   "setup.done.taming_link": {
@@ -10424,8 +10424,8 @@
    "state": "machine-cross-checked"
   },
   "setup.ha_url.lead": {
-   "text": "ha-paneld використовує цю адресу для підключення до Home Assistant.",
-   "sourceHash": "e71e1d01d14468099c08d3f2123b22e505f3c6b6358779488bc9b3f5419fe4a3",
+   "text": "Panel Assistant використовує цю адресу для підключення до Home Assistant.",
+   "sourceHash": "62802e2c74f30e9b7534c659689721747fbcedd7a5d97f4943d0062f1dfde510",
    "state": "machine-cross-checked"
   },
   "setup.ha_url.title": {
@@ -10449,8 +10449,8 @@
    "state": "machine-cross-checked"
   },
   "setup.identity.lead": {
-   "text": "Назва, ваш сервер Home Assistant і вхід, потім інформаційна панель для показу — кілька швидких запитань, і готово. Можна зупинитися й повернутися пізніше; нічого не втратиться.",
-   "sourceHash": "74ba1c98c447c04e11b8cf8f2267499b2b36c74fd4cc326eff68383bbe7c2f62",
+   "text": "Назва, ваш сервер Home Assistant і вхід, потім інформаційна панель для показу — і готово. Можна зупинитися й повернутися пізніше; нічого не втратиться.",
+   "sourceHash": "acc139244fe4230509a2b21f2ad451c65787d637f60920f7d98f76afe9c14c2d",
    "state": "machine-cross-checked"
   },
   "setup.identity.panel_id.consequence": {
@@ -10579,8 +10579,8 @@
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.explanation": {
-   "text": "Виберіть вбудований рендерер ha-paneld (або інший встановлений застосунок) у картці «Інформаційна панель» розділу «Усі налаштування», а потім поверніться сюди.",
-   "sourceHash": "7231ee927e2894750e5b28a26096bb451b8dbaf5e9a3b0bb87a7929cdb7b1fbf",
+   "text": "Виберіть вбудований рендерер Panel Assistant (або інший встановлений застосунок) у картці «Інформаційна панель» розділу «Усі налаштування», а потім поверніться сюди.",
+   "sourceHash": "89457edb6167b9b02c6b64d12b9b1816eb9f7fec76ba11facc009ebd59d1d9fa",
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.package_missing": {
@@ -10704,8 +10704,8 @@
    "state": "machine-cross-checked"
   },
   "shell.github.title": {
-   "text": "ha-paneld на GitHub",
-   "sourceHash": "69474ee0f60dbce1020a6bcd6db49daaeeeb20bf7601151aba213b6fd98d66a6",
+   "text": "Panel Assistant на GitHub",
+   "sourceHash": "f5a3f0d6d16ca9fe0f1f8cca2494622b9d1b32b33d516463370460f68e71e18c",
    "state": "machine-cross-checked"
   },
   "shell.ha_network.dismiss": {
@@ -10794,8 +10794,8 @@
    "state": "machine-cross-checked"
   },
   "shell.new_version.installed": {
-   "text": "Встановлено новішу версію ha-paneld",
-   "sourceHash": "fdab4992846c739bca90b4ed46a981d380e0c759b4974b0ac60631ed171f5cd7",
+   "text": "Встановлено новішу версію Panel Assistant",
+   "sourceHash": "ba41dd76206c00c1648a9704b306fe5c3904d846b8bed0954010aa897f185f47",
    "state": "machine-cross-checked"
   },
   "shell.notice.severity.action_needed": {
@@ -10839,8 +10839,8 @@
    "state": "machine-cross-checked"
   },
   "shell.panel_switcher.title": {
-   "text": "Перейти до іншої панелі ha-paneld (поточний вигляд зберігається)",
-   "sourceHash": "18099935ffa7e381e72b5614358626beac066ee14193dbccb31826af8f30abef",
+   "text": "Перейти до іншої панелі (поточний вигляд зберігається)",
+   "sourceHash": "2034edeb1cb1522b1c88d589fd68d240cdbb052b8303e62787557e0745ccc8f0",
    "state": "machine-cross-checked"
   },
   "shell.runtime.duration_minutes": {
@@ -10859,8 +10859,8 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.expected_in": {
-   "text": "Повернення очікується приблизно через {duration}",
-   "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",
+   "text": "Повернення очікується через {duration}",
+   "sourceHash": "5fb48607582ca74c0c76d7d4aed7ce6e988e6094b583a6184d20046824e68a71",
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.not_measured": {
@@ -10904,8 +10904,8 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.starting": {
-   "text": "Home Assistant запускається — елементи керування незабаром повернуться.",
-   "sourceHash": "5ba1d019d11a080f325c121c03788d2dd20c17c6e87dae9d6261af2a07233ce3",
+   "text": "Home Assistant запускається.",
+   "sourceHash": "0d8f9279bc43086733f4b99c222e66a07a3fbd805dd9b3595ae1c5f784e17fb0",
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.step_starting": {
@@ -11219,8 +11219,8 @@
    "state": "machine-cross-checked"
   },
   "install.backup.companion.helper_required": {
-   "text": "Для резервного копіювання входу HA Companion потрібен актуальний помічник ha-paneld. Оновіть або повторно налаштуйте цю панель із правами суперкористувача, щоб це ввімкнути.",
-   "sourceHash": "9655f8357363d49834901a88dc543b16cabe4a485846ff774b48cb707f91c315",
+   "text": "Для резервного копіювання входу HA Companion потрібен актуальний помічник Panel Assistant. Оновіть або повторно налаштуйте цю панель із правами суперкористувача, щоб це ввімкнути.",
+   "sourceHash": "85b4160dad92a2df9525c996031cf0e71ed3f731359463b55e6189927d77977c",
    "state": "machine-cross-checked"
   },
   "install.backup.companion.include_login": {
@@ -11254,13 +11254,13 @@
    "state": "machine-cross-checked"
   },
   "install.backup.description.config_only": {
-   "text": "Пакет конфігурації ha-paneld цієї панелі. Резервні копії містять облікові дані й за замовчуванням шифруються вашою парольною фразою; якщо її втратити, відновити її неможливо.",
-   "sourceHash": "91a514241747f8e2e032ef08d16b87793106fb5e0cd5cd42fa464df36395aa45",
+   "text": "Пакет конфігурації Panel Assistant цієї панелі. Резервні копії містять облікові дані й за замовчуванням шифруються вашою парольною фразою; якщо її втратити, відновити її неможливо.",
+   "sourceHash": "207a767ba27bc28c2683b818d4eb867435fa2c20f2c6e699a65ee9232ba71aa6",
    "state": "machine-cross-checked"
   },
   "install.backup.description.with_companion": {
-   "text": "Пакет конфігурації ha-paneld цієї панелі та вхід HA Companion. Резервні копії містять облікові дані й за замовчуванням шифруються вашою парольною фразою; якщо її втратити, відновити її неможливо.",
-   "sourceHash": "743a323157d7632cf19ecd46e2ac14e44c84ea19bf843eea8bc0a73a5ea7e142",
+   "text": "Пакет конфігурації Panel Assistant цієї панелі та вхід HA Companion. Резервні копії містять облікові дані й за замовчуванням шифруються вашою парольною фразою; якщо її втратити, відновити її неможливо.",
+   "sourceHash": "b88b35b77dcf3f735c462a265bae8493c5b5bdbed8ff59e4a4f3d5b8a36f726d",
    "state": "machine-cross-checked"
   },
   "install.backup.download": {
@@ -11329,8 +11329,8 @@
    "state": "machine-cross-checked"
   },
   "install.components.download_apk_help": {
-   "text": "Ця панель не має привілейованого інсталятора, тому ha-paneld не може сам встановлювати APK — завантажте APK, а потім встановіть його зі свого комп’ютера адміністратора: adb install -r <file>",
-   "sourceHash": "19393a12c42c93a084c32c1d815cf5f654f4611413757b29b2ae0d9d5f0969fa",
+   "text": "Ця панель не має привілейованого інсталятора, тому Panel Assistant не може сам встановлювати APK — завантажте APK, а потім встановіть його зі свого комп’ютера адміністратора: adb install -r <file>",
+   "sourceHash": "5029987d53feaab391958a9af73f3b11d5206148d358e2dc8923af40193a2d48",
    "state": "machine-cross-checked"
   },
   "install.components.play_managed": {
@@ -11439,8 +11439,8 @@
    "state": "machine-cross-checked"
   },
   "install.display.root_required": {
-   "text": "За підтримуваного привілейованого доступу до панелі ha-paneld може узгодити щільність і розмір тексту інформаційної панелі з фізичним екраном.",
-   "sourceHash": "4b9f694dd446966b410427033f5855e75c853c22cb7c3d083e7b095fbfa094b9",
+   "text": "За підтримуваного привілейованого доступу до панелі Panel Assistant може узгодити щільність і розмір тексту інформаційної панелі з фізичним екраном.",
+   "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
    "state": "machine-cross-checked"
   },
   "install.display.text_size": {
@@ -11654,8 +11654,8 @@
    "state": "machine-cross-checked"
   },
   "install.tame.root_required": {
-   "text": "З root ha-paneld може приховати зайві елементи постачальника (інструменти тестування, лаунчер постачальника), щоб показувалася лише ваша інформаційна панель.",
-   "sourceHash": "ecd0efd425027a2ac33a1659039be693c803ee8cace28a907789aa48dd2f2b0c",
+   "text": "З root Panel Assistant може приховати зайві елементи постачальника (інструменти тестування, лаунчер постачальника), щоб показувалася лише ваша інформаційна панель.",
+   "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
    "state": "machine-cross-checked"
   },
   "install.tame.state.active": {
@@ -11719,8 +11719,8 @@
    "state": "machine-cross-checked"
   },
   "install.uninstall.description_prefix": {
-   "text": "Видалити встановлену програму. У списку відображаються лише програми, які можна видалити (сторонні / оновлені) — ha-paneld та стандартні системні програми виключені. Щоб просто приховати програму постачальника,",
-   "sourceHash": "45d78d103a3468d3c099df705abfae73165f5ce0923ebcde6f8b06b96890a510",
+   "text": "Видалити встановлену програму. У списку відображаються лише програми, які можна видалити (сторонні / оновлені) — Panel Assistant та стандартні системні програми виключені. Щоб просто приховати програму постачальника,",
+   "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
    "state": "machine-cross-checked"
   },
   "install.uninstall.description_suffix": {
@@ -12159,8 +12159,8 @@
    "state": "machine-cross-checked"
   },
   "install.tame.hand_back.warning": {
-   "text": "Зробіть це перед тим, як видалити ha-paneld. Інакше панель не матиме головного екрана.",
-   "sourceHash": "059846970a24d71fe999c618df5a47bc22630aa1d7df17d52250adf65c8e8571",
+   "text": "Зробіть це перед тим, як видалити Panel Assistant. Інакше панель не матиме головного екрана.",
+   "sourceHash": "8b16c4d51ccdd47fca4d075d3bd39208e6edb450a07bec2cd4c90dbfea65b867",
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.fixed_delay": {

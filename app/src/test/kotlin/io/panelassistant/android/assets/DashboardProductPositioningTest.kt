@@ -17,7 +17,7 @@ class DashboardProductPositioningTest {
         val title = english("dashboard.banner.ha_sign_in.title")
         val explanation = english("dashboard.banner.ha_sign_in.explanation")
         assertTrue(title.startsWith("Next:"))
-        assertTrue(explanation.contains("ha-paneld's built-in renderer is selected"))
+        assertTrue(explanation.contains("Panel Assistant's built-in renderer is selected"))
         assertFalse(title.contains("failed", ignoreCase = true))
         assertFalse(explanation.contains("failed", ignoreCase = true))
     }
