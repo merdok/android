@@ -142,7 +142,7 @@ internal class RestoreRoutes(
             }
             if (receivedFile.length() <= 0L) return call.respondText(
                 withInstallPresentation(
-                    """{"ok":false,"error":"not a ha-paneld backup"}""",
+                    """{"ok":false,"error":"not a Panel Assistant backup"}""",
                     InstallPresentation("restore-not-panel-backup"),
                 ),
                 ContentType.Application.Json,
@@ -209,7 +209,7 @@ internal class RestoreRoutes(
             if (obj == null || obj.optString("kind") != "ha-paneld-backup") {
                 return call.respondText(
                     withInstallPresentation(
-                        """{"ok":false,"error":"not a ha-paneld backup"}""",
+                        """{"ok":false,"error":"not a Panel Assistant backup"}""",
                         InstallPresentation("restore-not-panel-backup"),
                     ),
                     ContentType.Application.Json,
@@ -531,7 +531,7 @@ internal class RestoreRoutes(
             if (companionPlan != null && !withContext(Dispatchers.IO) { ensureCompanionHelper() }) {
                 return call.respondText(
                     withInstallPresentation(
-                        """{"ok":false,"error":"Companion restore needs the current ha-paneld helper"}""",
+                        """{"ok":false,"error":"Companion restore needs the current Panel Assistant helper"}""",
                         InstallPresentation("restore-companion-helper-required"),
                     ),
                     ContentType.Application.Json,

@@ -76,7 +76,7 @@ class StorageHealthRuntimeSurfaceTest {
                     .copy(databaseFailureOperation = "/data/user/0/private.db write"),
             ) as StorageHealthNotificationDecision.Show
             assertEquals("Panel database needs attention", decision.title)
-            assertTrue(decision.body.contains("ha-paneld"))
+            assertTrue(decision.body.contains("Panel Assistant"))
             assertFalse(decision.body.contains("/data/"))
             assertFalse(decision.body.contains("private.db"))
         }

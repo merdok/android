@@ -13,7 +13,7 @@ internal fun panelBrowserTitle(
     versionName: String = BuildConfig.VERSION_NAME,
     versionCode: Int = BuildConfig.VERSION_CODE,
 ): String {
-    val panel = friendlyName.trim().ifBlank { "ha-paneld" }
+    val panel = friendlyName.trim().ifBlank { "Panel Assistant" }
     val suffix = section?.trim().orEmpty()
     val title = if (suffix.isBlank()) panel else "$panel · $suffix"
     return "$title · ${appVersion(versionName, versionCode)}"

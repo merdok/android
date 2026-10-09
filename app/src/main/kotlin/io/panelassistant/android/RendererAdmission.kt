@@ -331,7 +331,7 @@ internal data class RendererAdmissionPresentation(
         RendererMode.NONE -> null
         // A foreign renderer's connection to Home Assistant belongs to that app. Saying "not
         // observed" is the honest row; claiming health we cannot see is the defect being fixed.
-        RendererMode.EXTERNAL -> "external renderer · Home Assistant connection not observed by ha-paneld"
+        RendererMode.EXTERNAL -> "external renderer · Home Assistant connection not observed by Panel Assistant"
         // The age is the ADMISSION's, and it is labelled as such. It used to read "seen 22h2m ago",
         // which on a panel that had been rendering continuously for those 22 hours told a maintainer
         // the dashboard had last been sighted the previous morning. Admission simply does not re-run
@@ -445,12 +445,12 @@ internal data class RendererAdmissionPresentation(
                     processAgeMs = processAgeMs,
                     packageUpdatedAgeMs = packageUpdatedAgeMs,
                     summary = if (mode == RendererMode.EXTERNAL) {
-                        "an external renderer is configured; ha-paneld does not observe its Home Assistant connection"
+                        "an external renderer is configured; Panel Assistant does not observe its Home Assistant connection"
                     } else {
                         "no dashboard renderer is configured"
                     },
                     action = if (mode == RendererMode.EXTERNAL) {
-                        "Check the dashboard on the panel itself; ha-paneld cannot verify a foreign renderer."
+                        "Check the dashboard on the panel itself; Panel Assistant cannot verify a foreign renderer."
                     } else {
                         "Choose a dashboard renderer in Configure."
                     },

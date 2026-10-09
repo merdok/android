@@ -576,7 +576,7 @@ class DashboardActivity : AppCompatActivity() {
         override fun run() {
             if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || waitingStatus == null) return
             val elapsed = SystemClock.elapsedRealtime() - waitingStartedAt
-            val expected = ((waitingEstimateMs + 2_500L) / 5_000L) * 5L
+            val expected = (waitingEstimateMs + 500L) / 1_000L
             waitingStatus?.text = if (waitingEstimateLearned) {
                 getString(R.string.elapsed_usually, elapsed / 1_000L, expected)
             } else {
@@ -2312,7 +2312,7 @@ class DashboardActivity : AppCompatActivity() {
                 getString(R.string.notice_pill_reconnecting),
                 hero,
                 notice.line(getString(R.string.dashboard_reconnecting)),
-                notice.footer(getString(R.string.dashboard_unreachable_retry)),
+                notice.footer(getString(R.string.dashboard_unreachable_retry, retryPolicy.initialRetryMs / 1_000L, retryPolicy.maxRetryMs / 1_000L)),
                 notice.footer(detail, small = true),
             )
         }
@@ -3509,7 +3509,7 @@ class DashboardActivity : AppCompatActivity() {
             // The happy wait needs an honesty rung of its own: watched live, a stuck first scan held this screen
             // for many minutes with no acknowledgement, indistinguishable from a hang. Text only.
             main.postDelayed({
-                if (!destroyed && learning.hint.isAttachedToWindow) learning.hint.setText(R.string.entity_scan_taking_longer)
+                if (!destroyed && learning.hint.isAttachedToWindow) learning.hint.text = getString(R.string.entity_scan_taking_longer, BOOTSTRAP_HOLD_HONESTY_MS / 1_000L)
             }, BOOTSTRAP_HOLD_HONESTY_MS)
         }
         surface.setBody(getString(kind.pill), *rows.toTypedArray())

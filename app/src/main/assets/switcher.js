@@ -38,7 +38,7 @@
     sel.className = 'pswitch-sel';
     sel.title = i18nText(
       'shell.panel_switcher.title',
-      'Switch to another ha-paneld panel (keeps the current view)'
+      'Switch to another panel (keeps the current view)'
     );
     sel.setAttribute('autocomplete', 'off');   // don't let the browser restore a stale selection
     all.forEach(function (p) {

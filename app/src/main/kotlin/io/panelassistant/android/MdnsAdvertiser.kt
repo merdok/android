@@ -797,14 +797,14 @@ internal fun mdnsHealthWarning(health: MdnsHealth): String? = when {
     health.lanIp == null -> null
     !health.advertising ->
         "⚠ <b>Panel discovery (mDNS) is not running</b> — this panel will not appear in other panels' " +
-            "switcher menus or Home Assistant discovery. Reconnect the panel to the network or restart ha-paneld."
+            "switcher menus or Home Assistant discovery. Reconnect the panel to the network or restart Panel Assistant."
     health.boundIp != health.lanIp ->
         "⚠ <b>Panel discovery (mDNS) has a stale address</b> (${health.boundIp}, now ${health.lanIp}) — " +
             "other panels cannot reach this one from their switcher until it rebinds."
     health.liveness.state == MdnsLivenessState.EXHAUSTED ->
         "⚠ <b>Panel discovery (mDNS) is unresponsive</b> — automatic recovery stopped after " +
             "${health.liveness.recoveryAttempts} attempts (${health.liveness.lastReason ?: "no response"}). " +
-            "Reconnect the panel to the network or restart ha-paneld."
+            "Reconnect the panel to the network or restart Panel Assistant."
     health.liveness.state == MdnsLivenessState.RECOVERING ->
         "⚠ <b>Panel discovery (mDNS) is recovering</b> — ${health.liveness.lastReason ?: "no response"}."
     else -> null

@@ -121,7 +121,7 @@ class ConfigActivity : AppCompatActivity() {
         // is no obvious way off the config page on a kiosk panel with no visible system nav.
         lateinit var securityModeItem: android.view.MenuItem
         val bar = Toolbar(this).apply {
-            title = getString(applicationInfo.labelRes).ifBlank { "ha-paneld" }
+            title = getString(applicationInfo.labelRes).ifBlank { "Panel Assistant" }
             subtitle = getString(R.string.settings)
             navigationIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(
                 this@ConfigActivity, R.drawable.ic_toolbar_back,

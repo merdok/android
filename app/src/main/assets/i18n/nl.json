@@ -10858,21 +10858,6 @@
    "sourceHash": "938f565142c69816f7acb66d1ac9276462f027ce189f7cc78cb626fd6b504c89",
    "state": "machine-cross-checked"
   },
-  "shell.runtime.ha_lifecycle.duration_hours": {
-   "text": "{value} u",
-   "sourceHash": "e169957312ecd6bcde53bcb8ce799073ab75128e063f0b9c9f072fe34cad0789",
-   "state": "machine-cross-checked"
-  },
-  "shell.runtime.ha_lifecycle.duration_minutes": {
-   "text": "{value} min",
-   "sourceHash": "f18fde48b294cb5f9c61142eb0ba22eaf1502b9512590622886217ecaddc83d0",
-   "state": "machine-cross-checked"
-  },
-  "shell.runtime.ha_lifecycle.duration_seconds": {
-   "text": "{value} sec",
-   "sourceHash": "5f7c1b7d1a7a9d1a9093c810748b7ada28cbc551e187ccb0fa377e8bbf1772d8",
-   "state": "machine-cross-checked"
-  },
   "shell.runtime.ha_lifecycle.expected_in": {
    "text": "Naar verwachting terug over ongeveer {duration}",
    "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",

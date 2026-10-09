@@ -279,7 +279,7 @@
       sel.appendChild(cfg.el("option", { value: "", text: cfg.localizedPlaceholder(f.placeholder || "auto") }));
       var seen = { "": true };
       var KNOWN = [
-        { pkg: "builtin", label: cfg.i18nText("configure.renderer.builtin", "Built-in renderer (ha-paneld)") }
+        { pkg: "builtin", label: cfg.i18nText("configure.renderer.builtin", "Built-in renderer (Panel Assistant)") }
       ].concat(cfg.rendererChoices);
       KNOWN.forEach(function (r) {
         if (!r || !r.pkg || seen[r.pkg]) return;

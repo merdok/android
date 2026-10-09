@@ -4854,15 +4854,15 @@
       "hardMaxChars": 45
     },
     "configure.renderer.builtin": {
-      "text": "Built-in renderer (ha-paneld)",
-      "sourceHash": "838a46e057e83db8885d0761337db9d0f2a7ffb8bd723bfc33fcf495cde873a9",
+      "text": "Built-in renderer (Panel Assistant)",
+      "sourceHash": "d4affb536e8740d6e1dcf2dd16e3d52e92b4d0bb800240b986684c3cd7f03d6e",
       "surface": "configure",
       "context": "renderer",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 37,
       "hardMaxChars": 53
@@ -6007,8 +6007,8 @@
       "hardMaxChars": 100
     },
     "dashboard.banner.companion_probe_failed.explanation": {
-      "text": "ha-paneld will retain any last-known result and retry automatically.",
-      "sourceHash": "0fb05a33392aa3fc02b14f0a78ba2bd459b43bc4b54e5ba7cd9162443175b1ee",
+      "text": "Panel Assistant will retain any last-known result and retry automatically.",
+      "sourceHash": "c43df8683aaa878ddbd94179f89198c7276fbbcba18f428f25553b1f704d205b",
       "surface": "dashboard",
       "context": "Dashboard companion probe failed banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6017,7 +6017,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 96,
       "hardMaxChars": 136
@@ -6168,8 +6168,8 @@
       "hardMaxChars": 66
     },
     "dashboard.banner.ha_sign_in.explanation": {
-      "text": "ha-paneld's built-in renderer is selected. Complete the sign-in shown on the panel, or",
-      "sourceHash": "845b28bc13330df790a1259e165e79ee6d56841495cad3c325bee32c17d49459",
+      "text": "Panel Assistant's built-in renderer is selected. Complete the sign-in shown on the panel, or",
+      "sourceHash": "292e6ed9a5a9232a1799eddeb578c3f5a8d9cd40ebdc43c0f0693ab11ae644f2",
       "surface": "dashboard",
       "context": "Dashboard ha sign in banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6179,7 +6179,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 121,
       "hardMaxChars": 172
@@ -6214,8 +6214,8 @@
       "hardMaxChars": 54
     },
     "dashboard.banner.no_renderer.configure_prefix": {
-      "text": "Select ha-paneld's built-in renderer on",
-      "sourceHash": "1f845c25c53535c6a532ad2f042e006fab10260d70bc16df7b7590cc6c1b17ae",
+      "text": "Select Panel Assistant's built-in renderer on",
+      "sourceHash": "347dcddfe6ed4b781e2df904a5b062bd74247f2dae27fd9f19f9fb4ffad57070",
       "surface": "dashboard",
       "context": "Dashboard no renderer banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6226,7 +6226,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 55,
       "hardMaxChars": 78
@@ -6248,8 +6248,8 @@
       "hardMaxChars": 178
     },
     "dashboard.banner.no_renderer.note": {
-      "text": "(ha-paneld itself runs fine without one.)",
-      "sourceHash": "41a82e1a4b2967a3593b4a29619b743402b8885d9d67e2b4474a86ea71880142",
+      "text": "(Panel Assistant itself runs fine without one.)",
+      "sourceHash": "679bfa171a077cdbe425b11cc5244f97e63558f81ccd1e187ca91782ec765016",
       "surface": "dashboard",
       "context": "Dashboard no renderer banner text; preserve the remediation meaning, runtime placeholders and link-boundary grammar, and render as text, not HTML.",
       "risk": "consequential",
@@ -6260,7 +6260,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 58,
       "hardMaxChars": 82
@@ -8361,15 +8361,15 @@
       "hardMaxChars": 38
     },
     "dashboard.capability.note.helper_routed": {
-      "text": "not available directly to ha-paneld — privileged actions are routed through the helper daemon",
-      "sourceHash": "e9c4863384d41335b9ae2dea3d0ba01fbacddc489e4271439109765b442b2d1e",
+      "text": "not available directly to Panel Assistant — privileged actions are routed through the helper daemon",
+      "sourceHash": "43516d445b467b00c7a6d5bdea7988277be756766499ad5b90f86bec252ed1d4",
       "surface": "dashboard",
       "context": "Runtime diagnostics capability detail matched from a closed backend value; preserve privilege and hardware terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 131,
       "hardMaxChars": 186
@@ -8488,29 +8488,29 @@
       "hardMaxChars": 86
     },
     "dashboard.capability.note.su_direct": {
-      "text": "available directly to ha-paneld",
-      "sourceHash": "a0ba5183f28168934f6d83d722669ab6cc27b21777617658035d9f9934c3992e",
+      "text": "available directly to Panel Assistant",
+      "sourceHash": "7fab146e5b37b4d07a9636d9917ad40f327d1fd8d302535de31e60505e1f7efd",
       "surface": "dashboard",
       "context": "Runtime diagnostics capability detail matched from a closed backend value; preserve privilege and hardware terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 44,
       "hardMaxChars": 62
     },
     "dashboard.capability.note.su_unavailable": {
-      "text": "not available directly to ha-paneld — see the individual capability rows below",
-      "sourceHash": "6c0c02f245f4aabdb395f95353d4565c38affbb4ef9bf4327e70470c5b580c98",
+      "text": "not available directly to Panel Assistant — see the individual capability rows below",
+      "sourceHash": "2420aabc4e11f03cde90ff5e9fd9b95f00a52a417d1b132e0b3bc15997bfbfe1",
       "surface": "dashboard",
       "context": "Runtime diagnostics capability detail matched from a closed backend value; preserve privilege and hardware terminology and render as text, not HTML.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 110,
       "hardMaxChars": 156
@@ -8825,15 +8825,15 @@
       "hardMaxChars": 40
     },
     "dashboard.card.profile": {
-      "text": "ha-paneld profile",
-      "sourceHash": "24c0cf5404e8c4ae50ea14e55872d9858651afe321338940214ab9941977db59",
+      "text": "Panel Assistant profile",
+      "sourceHash": "25eb49e5a8715f10064a3b714e53b6aad67aecc85032bdda976e82fafa90d458",
       "surface": "dashboard",
       "context": "Device profile card heading",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 28,
       "hardMaxChars": 56
@@ -11554,8 +11554,8 @@
       "hardMaxChars": 16
     },
     "dashboard.runtime.external_renderer_unobserved": {
-      "text": "external renderer · Home Assistant connection not observed by ha-paneld",
-      "sourceHash": "395098244943c3672f1f291a6bf053b4bcb5dd7f85d71e98886f2ef94a206a26",
+      "text": "external renderer · Home Assistant connection not observed by Panel Assistant",
+      "sourceHash": "29b56e24a75f4a6383f997457c73f05afbe3b340d56c8d168262435986d36447",
       "surface": "dashboard",
       "context": "Runtime diagnostics closed-state value or structured evidence summary; preserve status severity and runtime placeholders and render as text, not HTML.",
       "risk": "ordinary",
@@ -11563,7 +11563,7 @@
       "placeholders": [],
       "frozen": [
         "Home Assistant",
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 100,
       "hardMaxChars": 142
@@ -15226,7 +15226,7 @@
     "entities.issue.template-selector.reason": {
       "context": "DashboardConfigurationLint.TEMPLATE_SELECTOR_REASON: localized presentation for issue code template-selector.",
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "hardMaxChars": 548,
@@ -15237,9 +15237,9 @@
         "entities.issue.template-selector.summary"
       ],
       "softMaxChars": 308,
-      "sourceHash": "78fbab96e9baabf4059991f1fa21fbc8cf624e3e409e7b90aa241a026c397837",
+      "sourceHash": "4755146e2a3c04202182895b6c776c7b2d778450321e67b1e08ab63a58b6e8a7",
       "surface": "entities",
-      "text": "ha-paneld does not evaluate templates, so it cannot tell which entities this filter returns. Entities it only reads are Home Assistant's own, delivered outside this filter, so their absence here is correct and they need nothing."
+      "text": "Panel Assistant does not evaluate templates, so it cannot tell which entities this filter returns. Entities it only reads are Home Assistant's own, delivered outside this filter, so their absence here is correct and they need nothing."
     },
     "entities.issue.template-selector.recommendation": {
       "context": "DashboardConfigurationLint.TEMPLATE_SELECTOR_RECOMMENDATION: localized presentation for issue code template-selector.",
@@ -17899,15 +17899,15 @@
       "hardMaxChars": 48
     },
     "install.backup.companion.helper_required": {
-      "text": "HA Companion login backup needs the current ha-paneld helper. Update or reprovision this rooted panel to enable it.",
-      "sourceHash": "9655f8357363d49834901a88dc543b16cabe4a485846ff774b48cb707f91c315",
+      "text": "HA Companion login backup needs the current Panel Assistant helper. Update or reprovision this rooted panel to enable it.",
+      "sourceHash": "85b4160dad92a2df9525c996031cf0e71ed3f731359463b55e6189927d77977c",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "HA Companion"
       ],
       "softMaxChars": 230,
@@ -17988,29 +17988,29 @@
       "hardMaxChars": 80
     },
     "install.backup.description.config_only": {
-      "text": "A bundle of this panel's ha-paneld config. Backups contain credentials and are encrypted with your passphrase by default; it can't be recovered if lost.",
-      "sourceHash": "91a514241747f8e2e032ef08d16b87793106fb5e0cd5cd42fa464df36395aa45",
+      "text": "A bundle of this panel's Panel Assistant config. Backups contain credentials and are encrypted with your passphrase by default; it can't be recovered if lost.",
+      "sourceHash": "207a767ba27bc28c2683b818d4eb867435fa2c20f2c6e699a65ee9232ba71aa6",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 304,
       "hardMaxChars": 608
     },
     "install.backup.description.with_companion": {
-      "text": "A bundle of this panel's ha-paneld config and the HA Companion login. Backups contain credentials and are encrypted with your passphrase by default; it can't be recovered if lost.",
-      "sourceHash": "743a323157d7632cf19ecd46e2ac14e44c84ea19bf843eea8bc0a73a5ea7e142",
+      "text": "A bundle of this panel's Panel Assistant config and the HA Companion login. Backups contain credentials and are encrypted with your passphrase by default; it can't be recovered if lost.",
+      "sourceHash": "b88b35b77dcf3f735c462a265bae8493c5b5bdbed8ff59e4a4f3d5b8a36f726d",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "HA Companion"
       ],
       "softMaxChars": 358,
@@ -18771,15 +18771,15 @@
       "hardMaxChars": 48
     },
     "install.components.download_apk_help": {
-      "text": "This panel has no privileged installer, so ha-paneld can't install APKs itself — download the APK, then install it from your admin machine: adb install -r <file>",
-      "sourceHash": "19393a12c42c93a084c32c1d815cf5f654f4611413757b29b2ae0d9d5f0969fa",
+      "text": "This panel has no privileged installer, so Panel Assistant can't install APKs itself — download the APK, then install it from your admin machine: adb install -r <file>",
+      "sourceHash": "5029987d53feaab391958a9af73f3b11d5206148d358e2dc8923af40193a2d48",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "APK",
         "adb install -r <file>"
       ],
@@ -19239,15 +19239,15 @@
       "hardMaxChars": 96
     },
     "install.display.root_required": {
-      "text": "With supported privileged panel access, ha-paneld can match the dashboard's density and text size to the physical screen.",
-      "sourceHash": "4b9f694dd446966b410427033f5855e75c853c22cb7c3d083e7b095fbfa094b9",
+      "text": "With supported privileged panel access, Panel Assistant can match the dashboard's density and text size to the physical screen.",
+      "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 242,
       "hardMaxChars": 484
@@ -20125,15 +20125,15 @@
       "hardMaxChars": 56
     },
     "install.presentation.restore_companion_helper_required": {
-      "text": "Companion restore needs the current ha-paneld helper",
-      "sourceHash": "ae7af3902c71c032bdb03fb0bb6e76424a7a9c29bc377a28c275fed1ebccf702",
+      "text": "Companion restore needs the current Panel Assistant helper",
+      "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
       "surface": "install",
       "context": "Backup restore result or refusal shown in the Install page; preserve the exact safety meaning.",
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 52,
       "hardMaxChars": 94
@@ -20261,15 +20261,15 @@
       "hardMaxChars": 116
     },
     "install.presentation.restore_not_panel_backup": {
-      "text": "not a ha-paneld backup",
-      "sourceHash": "15c0f21ad749e2da90a94c485eb9fc8e11d8bc60b1338784eb687caed026901c",
+      "text": "not a Panel Assistant backup",
+      "sourceHash": "7313852704afc4845abafd318f383a45c58eff9fed5030b676e5dac8cdb2be66",
       "surface": "install",
       "context": "Backup restore result or refusal shown in the Install page; preserve the exact safety meaning.",
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 22,
       "hardMaxChars": 40
@@ -20434,15 +20434,15 @@
       "hardMaxChars": 303
     },
     "install.presentation.status_companion_probe_failed": {
-      "text": "⚠ Home Assistant Companion settings could not be inspected; ha-paneld will retain the last-known result and retry automatically.",
-      "sourceHash": "83c7c52039d25735ee5aeee671408b86ec8086c5373cb90639510e03eb1f5c9e",
+      "text": "⚠ Home Assistant Companion settings could not be inspected; Panel Assistant will retain the last-known result and retry automatically.",
+      "sourceHash": "d568a904ee6683b88e612118bd29ef49ffdfe30ed6ecbcffcfe90193ceb77b14",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "softMaxChars": 128,
@@ -20461,15 +20461,15 @@
       "hardMaxChars": 305
     },
     "install.presentation.status_no_renderer": {
-      "text": "ℹ Next: choose a dashboard renderer. Select ha-paneld's built-in renderer, install the Home Assistant Companion app, or configure another dashboard package.",
-      "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
+      "text": "ℹ Next: choose a dashboard renderer. Select Panel Assistant's built-in renderer, install the Home Assistant Companion app, or configure another dashboard package.",
+      "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "softMaxChars": 176,
@@ -20652,15 +20652,15 @@
       "hardMaxChars": 189
     },
     "install.presentation.status_zigbee_legacy_watchdog": {
-      "text": "⚠ Legacy Zigbee watchdog defect detected — the exact recursive LD_LIBRARY_PATH assignment is present. ha-paneld will not edit the vendor script automatically.",
-      "sourceHash": "7211ac7681f7033251f8698db5451150506de603c9df900e0d11e33f30455e7c",
+      "text": "⚠ Legacy Zigbee watchdog defect detected — the exact recursive LD_LIBRARY_PATH assignment is present. Panel Assistant will not edit the vendor script automatically.",
+      "sourceHash": "6abc75262af7807330939d0b7370ce47040682e61d387578b8adc9c96fcb2706",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Zigbee"
       ],
       "softMaxChars": 158,
@@ -21727,15 +21727,15 @@
       "hardMaxChars": 72
     },
     "install.tame.hand_back.warning": {
-      "text": "Do this before you remove ha-paneld. Otherwise the panel has no home screen.",
-      "sourceHash": "059846970a24d71fe999c618df5a47bc22630aa1d7df17d52250adf65c8e8571",
+      "text": "Do this before you remove Panel Assistant. Otherwise the panel has no home screen.",
+      "sourceHash": "8b16c4d51ccdd47fca4d075d3bd39208e6edb450a07bec2cd4c90dbfea65b867",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 76,
       "hardMaxChars": 152
@@ -21834,15 +21834,15 @@
       "hardMaxChars": 68
     },
     "install.tame.root_required": {
-      "text": "With root, ha-paneld can hide vendor clutter (test tools, the vendor launcher) so only your dashboard shows.",
-      "sourceHash": "ecd0efd425027a2ac33a1659039be693c803ee8cace28a907789aa48dd2f2b0c",
+      "text": "With root, Panel Assistant can hide vendor clutter (test tools, the vendor launcher) so only your dashboard shows.",
+      "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "root"
       ],
       "softMaxChars": 216,
@@ -21993,15 +21993,15 @@
       "hardMaxChars": 36
     },
     "install.uninstall.description_prefix": {
-      "text": "Remove an installed app. Only removable (third-party / updated) apps are listed — ha-paneld and stock system apps are excluded. To just hide a vendor app,",
-      "sourceHash": "45d78d103a3468d3c099df705abfae73165f5ce0923ebcde6f8b06b96890a510",
+      "text": "Remove an installed app. Only removable (third-party / updated) apps are listed — Panel Assistant and stock system apps are excluded. To just hide a vendor app,",
+      "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
       "surface": "install",
       "context": "Static panel administration interface copy.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 308,
       "hardMaxChars": 616
@@ -22358,8 +22358,8 @@
       "hardMaxChars": 32
     },
     "logs.note.sources": {
-      "text": "App = ha-paneld's own process log (no root needed). System = the full device logcat (root). Browser console = the dashboard's JavaScript console (needs log shipping).",
-      "sourceHash": "d6a51774b399c1f36458838d21519b2eae7c45c04bb2ef804d6c2fef4855f3d2",
+      "text": "App = Panel Assistant's own process log (no root needed). System = the full device logcat (root). Browser console = the dashboard's JavaScript console (needs log shipping).",
+      "sourceHash": "bc3fafe4a43cf34de976ae7f51161722867dca7fd1ea468c328e5a47a4043a2d",
       "surface": "logs",
       "context": "Explanation of the three selectable live-log sources.",
       "risk": "ordinary",
@@ -22372,7 +22372,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "logcat",
         "root"
       ],
@@ -23993,8 +23993,8 @@
       "hardMaxChars": 360
     },
     "profiles.error.auto_rollback": {
-      "text": "The candidate did not become healthy; ha-paneld automatically restored the last-known-good profile.",
-      "sourceHash": "9351181f754e82d7edb3b3c89c24d2e7f67fd4688e1c17983f4bc1a79818e666",
+      "text": "The candidate did not become healthy; Panel Assistant automatically restored the last-known-good profile.",
+      "sourceHash": "3b57c670932a72ccb49f158e7e64d09a97887662c0ce068cda2553844affe071",
       "surface": "profiles",
       "context": "health-gated rollback result",
       "risk": "consequential",
@@ -24014,7 +24014,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 180,
       "hardMaxChars": 360
@@ -24644,8 +24644,8 @@
       "hardMaxChars": 360
     },
     "profiles.issue.core-version-required": {
-      "text": "Requires ha-paneld {required} or newer; this core is {current}.",
-      "sourceHash": "473b036af900c9ff8dd133a0bace84cb8ba61150c2f94db7645bd3914d1d671f",
+      "text": "Requires Panel Assistant {required} or newer; this core is {current}.",
+      "sourceHash": "ca646b289d70a5952071f7c7bfd1352720f6f5f3c065d925e6d9343877724eb4",
       "surface": "profiles",
       "context": "profile API presentation fallback",
       "risk": "ordinary",
@@ -24657,7 +24657,7 @@
       "frozen": [
         "{required}",
         "{current}",
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 180,
       "hardMaxChars": 360
@@ -26685,8 +26685,8 @@
       "hardMaxChars": 150
     },
     "profiles.modal.restart_warning": {
-      "text": "The panel service will restart. If the revision does not become healthy, ha-paneld will return to the last-known-good profile.",
-      "sourceHash": "fe3149830ccece16addc3efceb6139b7a5982b1735829871567c1bff519f544b",
+      "text": "The panel service will restart. If the revision does not become healthy, Panel Assistant will return to the last-known-good profile.",
+      "sourceHash": "9e5d170f1bd135db3e5579a04d8fc9f5be6139ba2b870e143dd07c67530dbb3f",
       "surface": "profiles",
       "context": "activation guarantee boundary",
       "risk": "consequential",
@@ -26700,7 +26700,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 260,
       "hardMaxChars": 520
@@ -29435,15 +29435,15 @@
       "hardMaxChars": 51
     },
     "runtime.mdns.not_running": {
-      "text": "⚠ Panel discovery (mDNS) is not running — this panel will not appear in other panels' switcher menus or Home Assistant discovery. Reconnect the panel to the network or restart ha-paneld.",
-      "sourceHash": "8675c52511c0fbb2209793d8ce5a0e2e97d2f86b18a51e3817bab6abae120d0b",
+      "text": "⚠ Panel discovery (mDNS) is not running — this panel will not appear in other panels' switcher menus or Home Assistant discovery. Reconnect the panel to the network or restart Panel Assistant.",
+      "sourceHash": "01a513fea56bed79f9fcc15d4eef742b1ca0205a07be76f2c652a9e8c5d2a7d9",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "softMaxChars": 186,
@@ -29479,8 +29479,8 @@
       "hardMaxChars": 263
     },
     "runtime.mdns.unresponsive.one": {
-      "text": "⚠ Panel discovery (mDNS) is unresponsive — automatic recovery stopped after {attempts} attempt ({reason_code}). Reconnect the panel to the network or restart ha-paneld.",
-      "sourceHash": "289dcccea3d8553fd62952feace3548ef6d933d11a2667263bd88d66db965b8a",
+      "text": "⚠ Panel discovery (mDNS) is unresponsive — automatic recovery stopped after {attempts} attempt ({reason_code}). Reconnect the panel to the network or restart Panel Assistant.",
+      "sourceHash": "6fab2700d7e21ae092f454eb3fbe172f29cdf49f60827b5ca109ee92ea8c1394",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
@@ -29490,14 +29490,14 @@
         "{reason_code}"
       ],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 168,
       "hardMaxChars": 303
     },
     "runtime.mdns.unresponsive.other": {
-      "text": "⚠ Panel discovery (mDNS) is unresponsive — automatic recovery stopped after {attempts} attempts ({reason_code}). Reconnect the panel to the network or restart ha-paneld.",
-      "sourceHash": "ba82d4d04f4d477b6e648db2fb3d6cb4a11e3945c9ca77e601983fb3ba14c726",
+      "text": "⚠ Panel discovery (mDNS) is unresponsive — automatic recovery stopped after {attempts} attempts ({reason_code}). Reconnect the panel to the network or restart Panel Assistant.",
+      "sourceHash": "09a443043b7c68887964adec02d812d20ae28e65149626da789193609f60e2b2",
       "surface": "install",
       "context": "Install status warning; semantic presentation replaces the same ordered legacy warning when available.",
       "risk": "setup",
@@ -29507,7 +29507,7 @@
         "{reason_code}"
       ],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 169,
       "hardMaxChars": 305
@@ -30070,8 +30070,8 @@
       "hardMaxChars": 312
     },
     "runtime.zigbee.warning.legacy_watchdog": {
-      "text": "Legacy Zigbee watchdog defect detected — the exact recursive LD_LIBRARY_PATH assignment is present. ha-paneld will not edit the vendor script automatically.",
-      "sourceHash": "cb9f47756c7492c12f1ef735915723ec820b711f086df460a42eeb72302a0719",
+      "text": "Legacy Zigbee watchdog defect detected — the exact recursive LD_LIBRARY_PATH assignment is present. Panel Assistant will not edit the vendor script automatically.",
+      "sourceHash": "f5181ede16f72e71f611df47240008921b3512bd10e9eb2b5a8c2249b03b0caf",
       "surface": "install",
       "context": "Server-rendered runtime warning; rendered as escaped text with server-owned icon, markup, and actions.",
       "risk": "setup",
@@ -30087,7 +30087,7 @@
       "frozen": [
         "Zigbee",
         "LD_LIBRARY_PATH",
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 156,
       "hardMaxChars": 281
@@ -30807,8 +30807,8 @@
       "hardMaxChars": 90
     },
     "settings.dark_mode.help": {
-      "text": "Themes ha-paneld's own screens and sets the dashboard's default colour scheme on panels without a system dark-mode setting (Android 9 and older).\n\nA theme picked inside Home Assistant overrides the dashboard default; this web UI always follows the viewing browser's own preference.",
-      "sourceHash": "853ed1512986d08ad813002d9cb672dbfcb1261b3b2447bfc4b52301b163c2eb",
+      "text": "Themes Panel Assistant's own screens and sets the dashboard's default colour scheme on panels without a system dark-mode setting (Android 9 and older).\n\nA theme picked inside Home Assistant overrides the dashboard default; this web UI always follows the viewing browser's own preference.",
+      "sourceHash": "dcda4e8a160cdb194a9cee3935a90371253c3c2c025a64e8ed23957811d00bee",
       "surface": "settings",
       "context": "Configure > Display > Dark mode: supporting help for the dark_mode setting.",
       "risk": "ordinary",
@@ -30817,7 +30817,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant",
         "Android",
         "UI",
@@ -30841,8 +30841,8 @@
       "hardMaxChars": 32
     },
     "settings.dark_mode.summary": {
-      "text": "Dark theme for ha-paneld's own screens and the dashboard default.",
-      "sourceHash": "796ecaff6531067757b7a3ac15e2483dcd43e3a85af57f0090224ef0c9f5f22a",
+      "text": "Dark theme for Panel Assistant's own screens and the dashboard default.",
+      "sourceHash": "81ad914d6ff0241c84957c90ef6212b0d965e165be49a04c5de163867f57ed93",
       "surface": "settings",
       "context": "Configure > Display: one-line summary shown under the dark_mode setting's label; the full help opens behind an info button. Plain text, one line.",
       "risk": "ordinary",
@@ -30852,7 +30852,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 70,
       "hardMaxChars": 90
@@ -31702,8 +31702,8 @@
       "hardMaxChars": 90
     },
     "settings.ha_area.help": {
-      "text": "Where this panel lives, by Home Assistant area name. This can only be changed in ha-paneld if your HA user has admin permissions, otherwise change it on your device in HA.",
-      "sourceHash": "92582fd766a9559435e08ee57ca2f1bb48d508a6c2af9ec792e6e3c45a0d1ece",
+      "text": "Where this panel lives, by Home Assistant area name. This can only be changed in Panel Assistant if your HA user has admin permissions, otherwise change it on your device in HA.",
+      "sourceHash": "511bca0d9133ce234fcc2592eacd03cfca60155df52a3f747e904d6ad1d95885",
       "surface": "settings",
       "context": "Configure > Identity > Area in Home Assistant: supporting help for the ha_area setting.",
       "risk": "ordinary",
@@ -31712,7 +31712,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant",
         "HA"
       ],
@@ -31754,8 +31754,8 @@
       "hardMaxChars": 90
     },
     "settings.ha_client_id.help": {
-      "text": "Internal token provenance retained for API/config import compatibility. Borrowed Companion tokens use the Android Companion client; ha-paneld browser sign-ins use the panel HTTP origin. Not a user preference.",
-      "sourceHash": "ffae29400af4eb9ec15c30c66a9432dd116ddda13f627652a3a57144c0c5f209",
+      "text": "Internal token provenance retained for API/config import compatibility. Borrowed Companion tokens use the Android Companion client; Panel Assistant browser sign-ins use the panel HTTP origin. Not a user preference.",
+      "sourceHash": "008cb25d5fd36fec0c5956e4c9f21562a8dc2599fb8926f67531b1573db133b7",
       "surface": "settings",
       "context": "Configure > Dashboard > HA OAuth client_id: supporting help for the ha_client_id setting.",
       "risk": "ordinary",
@@ -31764,7 +31764,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Companion",
         "HTTP",
         "API",
@@ -31792,8 +31792,8 @@
       "hardMaxChars": 33
     },
     "settings.ha_refresh_token.help": {
-      "text": "Internal token state retained for API/config import compatibility. Borrowed Companion and ha-paneld-issued OAuth logins manage it automatically.",
-      "sourceHash": "6366b03a354de30d09782192cf07b058b689b63e893c4b6d2c6ca6178ed23795",
+      "text": "Internal token state retained for API/config import compatibility. Borrowed Companion and Panel Assistant-issued OAuth logins manage it automatically.",
+      "sourceHash": "7bface905329b995c5991d0c46ee23630cde4218d8fa0eb80abf0859c2aae39e",
       "surface": "settings",
       "context": "Configure > Dashboard > HA refresh token: supporting help for the ha_refresh_token setting.",
       "risk": "consequential",
@@ -31802,7 +31802,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Companion",
         "API",
         "OAuth"
@@ -32133,8 +32133,8 @@
       "hardMaxChars": 90
     },
     "settings.launcher_package.help": {
-      "text": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (ha-paneld) also makes and keeps ha-paneld the Android Home app.",
-      "sourceHash": "524f589af2ebe612083fd20f1b6f487d59e929aae5a24cf9cd6bd4792e448395",
+      "text": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
+      "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
       "surface": "settings",
       "context": "Configure > System > Launcher app: supporting help for the launcher_package setting.",
       "risk": "ordinary",
@@ -32143,7 +32143,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Android"
       ],
       "softMaxChars": 204,
@@ -32179,8 +32179,8 @@
       "hardMaxChars": 90
     },
     "settings.log_ship_enabled.help": {
-      "text": "Forward ha-paneld's own process log — not the full system log — to a central sink (LAN-only, tokens and passwords redacted).",
-      "sourceHash": "01fd4a6f75c8d1eba5b4765db5c8eb1c9ebc1220b0639982525ab92b2f43e5d7",
+      "text": "Forward Panel Assistant's own process log — not the full system log — to a central sink (LAN-only, tokens and passwords redacted).",
+      "sourceHash": "60f6ff8dadcfcb8713602f18ca7137aea30c907013baa2fc0900376a8ac1b9df",
       "surface": "settings",
       "context": "Configure > Logging > Ship logs: supporting help for the log_ship_enabled setting.",
       "risk": "ordinary",
@@ -32189,7 +32189,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "LAN-only"
       ],
       "softMaxChars": 168,
@@ -32210,8 +32210,8 @@
       "hardMaxChars": 32
     },
     "settings.log_ship_enabled.summary": {
-      "text": "Send ha-paneld's own log to a collector on your network.",
-      "sourceHash": "d9d0543772220c0f2d59b7a38f1fe26075b0ac588c1534434ec2644c1fac6b98",
+      "text": "Send Panel Assistant's own log to a collector on your network.",
+      "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
       "surface": "settings",
       "context": "Configure > Logging: one-line summary shown under the log_ship_enabled setting's label; the full help opens behind an info button. Plain text, one line.",
       "risk": "ordinary",
@@ -32221,7 +32221,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 70,
       "hardMaxChars": 90
@@ -32538,8 +32538,8 @@
       "hardMaxChars": 90
     },
     "settings.network_adb.help": {
-      "text": "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside ha-paneld, it must also be disabled there.",
-      "sourceHash": "c1d223177697675bf4eec7603bd73ba99fd866f002410c92177c1e8ee1bca48b",
+      "text": "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside Panel Assistant, it must also be disabled there.",
+      "sourceHash": "2c85de428894551b75bb23c876b221c5a6f0b78a4c7c65ca9d60356d820010d6",
       "surface": "settings",
       "context": "Configure > System > Network ADB: supporting help for the network_adb setting.",
       "risk": "consequential",
@@ -32548,7 +32548,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "ADB",
         "TCP",
         "5555"
@@ -33060,8 +33060,8 @@
       "hardMaxChars": 90
     },
     "settings.ui_language.help": {
-      "text": "Language used by ha-paneld's own interface.\n\n**Automatic** uses an explicit page override first. Configure setting labels and help can then follow the connected Home Assistant user's language; browser, device and English are the remaining fallbacks.",
-      "sourceHash": "b7fc0eadebf67c70928a78036d93798c57776e075ff3bf5172197dd40238be34",
+      "text": "Language used by Panel Assistant's own interface.\n\n**Automatic** uses an explicit page override first. Configure setting labels and help can then follow the connected Home Assistant user's language; browser, device and English are the remaining fallbacks.",
+      "sourceHash": "e0bdd025cead6749d2c8c925f5edf94a92459654d3b6432f25da08a1d6cd8722",
       "surface": "settings",
       "context": "Configure > System > Interface language: supporting help for the ui_language setting.",
       "risk": "ordinary",
@@ -33070,7 +33070,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "softMaxChars": 255,
@@ -33091,8 +33091,8 @@
       "hardMaxChars": 32
     },
     "settings.ui_language.summary": {
-      "text": "Language of ha-paneld's own interface.",
-      "sourceHash": "fc20faa643f8c9106b287f7179cd85e837766146f59d184785573bdb4bf28d9f",
+      "text": "Language of Panel Assistant's own interface.",
+      "sourceHash": "418c4cdcba9bff721a8d140afd395307d6ea40701b2b43b3ea53b021729d3bbf",
       "surface": "settings",
       "context": "Configure > System: one-line summary shown under the ui_language setting's label; the full help opens behind an info button. Plain text, one line.",
       "risk": "ordinary",
@@ -33102,7 +33102,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 70,
       "hardMaxChars": 90
@@ -34255,8 +34255,8 @@
       "hardMaxChars": 89
     },
     "setup.done.taming_intro": {
-      "text": "Optional: panels often ship with vendor apps that pop up over the dashboard. ha-paneld can quieten them.",
-      "sourceHash": "df51327092a8655bdb336547196c85ecc908233391c308ae6085a8e18c2519b8",
+      "text": "Optional: panels often ship with vendor apps that pop up over the dashboard. Panel Assistant can quieten them.",
+      "sourceHash": "6d14294f68aa2357c0ed5e750772feae399b94b436e5c6604dd0d5e25a4d7a52",
       "surface": "setup",
       "context": "Setup wizard completion summary; user-visible copy.",
       "risk": "setup",
@@ -34268,7 +34268,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 150,
       "hardMaxChars": 210
@@ -35201,8 +35201,8 @@
       "hardMaxChars": 64
     },
     "setup.ha_url.lead": {
-      "text": "ha-paneld uses this address to connect to Home Assistant.",
-      "sourceHash": "e71e1d01d14468099c08d3f2123b22e505f3c6b6358779488bc9b3f5419fe4a3",
+      "text": "Panel Assistant uses this address to connect to Home Assistant.",
+      "sourceHash": "62802e2c74f30e9b7534c659689721747fbcedd7a5d97f4943d0062f1dfde510",
       "surface": "setup",
       "context": "Setup wizard renderer or Home Assistant URL step; introductory guidance.",
       "risk": "setup",
@@ -35213,7 +35213,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "Home Assistant"
       ],
       "softMaxChars": 100,
@@ -35280,8 +35280,8 @@
       "hardMaxChars": 40
     },
     "setup.identity.lead": {
-      "text": "A name, your Home Assistant server and sign-in, and the dashboard to show — a few quick questions and you’re done. You can stop and come back; nothing is lost.",
-      "sourceHash": "74ba1c98c447c04e11b8cf8f2267499b2b36c74fd4cc326eff68383bbe7c2f62",
+      "text": "A name, your Home Assistant server and sign-in, and the dashboard to show — {count} short steps and you’re done. You can stop and come back; nothing is lost.",
+      "sourceHash": "d7c3d54178b4e17b68009402f87d31cad0a47ebb5f928b9b3f2099e741dc110e",
       "surface": "setup",
       "context": "Setup wizard panel identity step; introductory guidance.",
       "risk": "setup",
@@ -35289,7 +35289,9 @@
         "setup.identity.preview_intro",
         "setup.identity.title"
       ],
-      "placeholders": [],
+      "placeholders": [
+        "{count}"
+      ],
       "frozen": [
         "Home Assistant"
       ],
@@ -35735,8 +35737,8 @@
       "hardMaxChars": 64
     },
     "setup.renderer.failure.explanation": {
-      "text": "Pick ha-paneld’s built-in renderer (or another installed app) in the Dashboard card of All settings, then return here.",
-      "sourceHash": "7231ee927e2894750e5b28a26096bb451b8dbaf5e9a3b0bb87a7929cdb7b1fbf",
+      "text": "Pick Panel Assistant’s built-in renderer (or another installed app) in the Dashboard card of All settings, then return here.",
+      "sourceHash": "89457edb6167b9b02c6b64d12b9b1816eb9f7fec76ba11facc009ebd59d1d9fa",
       "surface": "setup",
       "context": "Setup wizard renderer or Home Assistant URL step; explanatory guidance.",
       "risk": "consequential",
@@ -35747,7 +35749,7 @@
       ],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 150,
       "hardMaxChars": 210
@@ -36121,15 +36123,15 @@
       "hardMaxChars": 24
     },
     "shell.github.title": {
-      "text": "ha-paneld on GitHub",
-      "sourceHash": "69474ee0f60dbce1020a6bcd6db49daaeeeb20bf7601151aba213b6fd98d66a6",
+      "text": "Panel Assistant on GitHub",
+      "sourceHash": "f5a3f0d6d16ca9fe0f1f8cca2494622b9d1b32b33d516463370460f68e71e18c",
       "surface": "shell",
       "context": "Repository icon tooltip",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld",
+        "Panel Assistant",
         "GitHub"
       ],
       "softMaxChars": 32,
@@ -36374,15 +36376,15 @@
       "hardMaxChars": 24
     },
     "shell.new_version.installed": {
-      "text": "A newer ha-paneld is installed",
-      "sourceHash": "fdab4992846c739bca90b4ed46a981d380e0c759b4974b0ac60631ed171f5cd7",
+      "text": "A newer Panel Assistant is installed",
+      "sourceHash": "ba41dd76206c00c1648a9704b306fe5c3904d846b8bed0954010aa897f185f47",
       "surface": "shell",
       "context": "Version refresh banner before action link",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
       "frozen": [
-        "ha-paneld"
+        "Panel Assistant"
       ],
       "softMaxChars": 44,
       "hardMaxChars": 88
@@ -36535,16 +36537,14 @@
       "hardMaxChars": 40
     },
     "shell.panel_switcher.title": {
-      "text": "Switch to another ha-paneld panel (keeps the current view)",
-      "sourceHash": "18099935ffa7e381e72b5614358626beac066ee14193dbccb31826af8f30abef",
+      "text": "Switch to another panel (keeps the current view)",
+      "sourceHash": "2034edeb1cb1522b1c88d589fd68d240cdbb052b8303e62787557e0745ccc8f0",
       "surface": "shell",
       "context": "Accessible title for the shared panel switcher; peer names remain untranslated opaque values.",
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
-      "frozen": [
-        "ha-paneld"
-      ],
+      "frozen": [],
       "softMaxChars": 80,
       "hardMaxChars": 112
     },
@@ -36676,51 +36676,9 @@
       "softMaxChars": 48,
       "hardMaxChars": 72
     },
-    "shell.runtime.ha_lifecycle.duration_hours": {
-      "text": "{value} h",
-      "sourceHash": "e169957312ecd6bcde53bcb8ce799073ab75128e063f0b9c9f072fe34cad0789",
-      "surface": "shell",
-      "context": "Shared native and web Home Assistant outage notice. Estimated durations are measured from prior same-kind shutdowns in this Home Assistant installation.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{value}"
-      ],
-      "frozen": [],
-      "softMaxChars": 80,
-      "hardMaxChars": 120
-    },
-    "shell.runtime.ha_lifecycle.duration_minutes": {
-      "text": "{value} min",
-      "sourceHash": "f18fde48b294cb5f9c61142eb0ba22eaf1502b9512590622886217ecaddc83d0",
-      "surface": "shell",
-      "context": "Shared native and web Home Assistant outage notice. Estimated durations are measured from prior same-kind shutdowns in this Home Assistant installation.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{value}"
-      ],
-      "frozen": [],
-      "softMaxChars": 80,
-      "hardMaxChars": 120
-    },
-    "shell.runtime.ha_lifecycle.duration_seconds": {
-      "text": "{value} sec",
-      "sourceHash": "5f7c1b7d1a7a9d1a9093c810748b7ada28cbc551e187ccb0fa377e8bbf1772d8",
-      "surface": "shell",
-      "context": "Shared native and web Home Assistant outage notice. Estimated durations are measured from prior same-kind shutdowns in this Home Assistant installation.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{value}"
-      ],
-      "frozen": [],
-      "softMaxChars": 80,
-      "hardMaxChars": 120
-    },
     "shell.runtime.ha_lifecycle.expected_in": {
-      "text": "Expected back in about {duration}",
-      "sourceHash": "7922065d280489080fbc5ae56506b33f86767d4fbb9556c8450490df6a35c1a4",
+      "text": "Expected back in {duration}",
+      "sourceHash": "5fb48607582ca74c0c76d7d4aed7ce6e988e6094b583a6184d20046824e68a71",
       "surface": "shell",
       "context": "Shared native and web Home Assistant outage notice. Estimated durations are measured from prior same-kind shutdowns in this Home Assistant installation.",
       "risk": "ordinary",
@@ -36847,8 +36805,8 @@
       "hardMaxChars": 144
     },
     "shell.runtime.ha_lifecycle.starting": {
-      "text": "Home Assistant is starting — controls will return shortly.",
-      "sourceHash": "5ba1d019d11a080f325c121c03788d2dd20c17c6e87dae9d6261af2a07233ce3",
+      "text": "Home Assistant is starting.",
+      "sourceHash": "0d8f9279bc43086733f4b99c222e66a07a3fbd805dd9b3595ae1c5f784e17fb0",
       "surface": "shell",
       "context": "Shared Home Assistant lifecycle banner and dashboard diagnostic value while Home Assistant is starting.",
       "risk": "ordinary",

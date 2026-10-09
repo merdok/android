@@ -131,7 +131,7 @@ object SelfUpdater {
                 is AppInstaller.SelfInstallPreparation.Ready -> preparation.prepared.use { prepared ->
                     when (val outcome = AppInstaller.installPrepared(context, prepared)) {
                         InstallOutcome.Succeeded -> managed(
-                            "installing ha-paneld $tag",
+                            "installing Panel Assistant $tag",
                             "managed-update-committed",
                             "version" to version,
                         )
@@ -185,7 +185,7 @@ object SelfUpdater {
                         )
                     is AppInstaller.SelfInstallPreparation.Ready -> ChannelPreparation.Ready(
                         preparation.prepared,
-                        "updating ha-paneld -> ${target.version}",
+                        "updating Panel Assistant -> ${target.version}",
                     )
                 }
             }
@@ -197,7 +197,7 @@ object SelfUpdater {
         prepared: AppInstaller.PreparedSelfInstall,
     ): InstallOperationResult = when (val outcome = AppInstaller.installPrepared(context, prepared)) {
         InstallOutcome.Succeeded -> InstallOperationResult(
-            "updating ha-paneld -> ${prepared.version}",
+            "updating Panel Assistant -> ${prepared.version}",
             presentation = presentation(
                 "managed-update-committed",
                 "version" to prepared.version,

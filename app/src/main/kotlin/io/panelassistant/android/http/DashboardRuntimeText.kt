@@ -24,7 +24,7 @@ private fun runtimeValue(value: String, strings: AppStrings): String = when (val
     "disabled" -> strings.get("dashboard.runtime.disabled")
     "not measured; this panel holds no authenticated Home Assistant socket" ->
         strings.get("dashboard.runtime.ha_network_not_measured")
-    "external renderer · Home Assistant connection not observed by ha-paneld" ->
+    "external renderer · Home Assistant connection not observed by Panel Assistant" ->
         strings.get("dashboard.runtime.external_renderer_unobserved")
     else -> runtimeValueFamily(value, strings)
 }
@@ -44,7 +44,7 @@ private fun localizedHaLifecycle(value: String, strings: AppStrings): String {
     if (parts.size != 3) return runtimeValue(value, strings)
     val headline = when (parts[0]) {
         "Taking longer than usual" -> strings.get("shell.runtime.ha_lifecycle.taking_longer")
-        "Home Assistant is starting — controls will return shortly." -> strings.get("shell.runtime.ha_lifecycle.starting")
+        "Home Assistant is starting." -> strings.get("shell.runtime.ha_lifecycle.starting")
         "Home Assistant is shutting down — controls may be temporarily unavailable." -> strings.get("shell.runtime.ha_lifecycle.shutting_down")
         "Home Assistant has gone offline — controls may be temporarily unavailable." -> strings.get("shell.runtime.ha_lifecycle.offline")
         else -> return value
@@ -58,14 +58,9 @@ private fun localizedHaLifecycle(value: String, strings: AppStrings): String {
     }
     val forecast = if (parts[2] == "Time back has not been measured yet") strings.get("shell.runtime.ha_lifecycle.not_measured")
     else {
-        val duration = Regex("(?:Expected back in about )?(\\d+) (sec|min|h)( past the estimate)?").matchEntire(parts[2]) ?: return value
-        val quantified = strings.get(when (duration.groupValues[2]) {
-            "h" -> "shell.runtime.ha_lifecycle.duration_hours"
-            "min" -> "shell.runtime.ha_lifecycle.duration_minutes"
-            else -> "shell.runtime.ha_lifecycle.duration_seconds"
-        }).replace("{value}", duration.groupValues[1])
-        strings.get(if (duration.groupValues[3].isEmpty()) "shell.runtime.ha_lifecycle.expected_in" else "shell.runtime.ha_lifecycle.overdue")
-            .replace("{duration}", quantified)
+        val clock = Regex("(?:Expected back in )?(\\d+:\\d{2})( past the estimate)?").matchEntire(parts[2]) ?: return value
+        strings.get(if (clock.groupValues[2].isEmpty()) "shell.runtime.ha_lifecycle.expected_in" else "shell.runtime.ha_lifecycle.overdue")
+            .replace("{duration}", clock.groupValues[1])
     }
     return "$headline · $reason · $forecast"
 }

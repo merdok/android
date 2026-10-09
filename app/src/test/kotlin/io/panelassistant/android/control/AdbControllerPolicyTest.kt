@@ -290,7 +290,7 @@ class AdbControllerPolicyTest {
         assertEquals("persistent (5555) · listening", networkAdbDiagnostic(persisted = true, active = true))
         assertTrue(networkAdbDiagnostic(persisted = true, active = false).startsWith("persistent (5555) · NOT listening"))
         assertEquals("persistent (5555) · listener unreadable", networkAdbDiagnostic(persisted = true, active = null))
-        assertEquals("active (5555) · external — not persisted by ha-paneld", networkAdbDiagnostic(persisted = false, active = true))
+        assertEquals("active (5555) · external — not persisted by Panel Assistant", networkAdbDiagnostic(persisted = false, active = true))
         assertEquals("off", networkAdbDiagnostic(persisted = false, active = false))
         assertEquals("off", networkAdbDiagnostic(persisted = false, active = null))
     }

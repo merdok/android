@@ -1181,7 +1181,7 @@ object DashboardConfigurationLint {
      * lives in the Entities page instead of in every record.
      */
     private const val TEMPLATE_SELECTOR_REASON =
-        "ha-paneld does not evaluate templates, so it cannot tell which entities this filter returns. " +
+        "Panel Assistant does not evaluate templates, so it cannot tell which entities this filter returns. " +
             "Entities it only reads are Home Assistant's own, delivered outside this filter, so their " +
             "absence here is correct and they need nothing."
 

@@ -80,7 +80,7 @@
   // session; a connection loss without that notice claims only that Home Assistant is gone.
   var HA_TEXT = {
     shutting_down: { key: "shell.runtime.ha_lifecycle.offline", text: "Home Assistant has gone offline — controls may be temporarily unavailable.", step: "stopping" },
-    starting: { key: "shell.runtime.ha_lifecycle.starting", text: "Home Assistant is starting — controls will return shortly.", step: "starting" },
+    starting: { key: "shell.runtime.ha_lifecycle.starting", text: "Home Assistant is starting.", step: "starting" },
     back_online: { key: "shell.runtime.ha_lifecycle.back_online", text: "Home Assistant is back online." }
   };
   var HA_TEXT_SOCKET = {
@@ -105,12 +105,10 @@
       supporting = i18nText("shell.runtime.ha_lifecycle.reason_" + reason, reasons[reason]);
       forecast = i18nText("shell.runtime.ha_lifecycle.not_measured", "Time back has not been measured yet");
       if (notice.expected !== null && notice.elapsed !== null) {
-        var seconds = Math.max(1, Math.ceil(Math.abs(notice.expected - notice.elapsed) / 1000));
-        var unit = seconds >= 3600 ? "hours" : seconds >= 60 ? "minutes" : "seconds";
-        var value = unit === "hours" ? Math.ceil(seconds / 3600) : unit === "minutes" ? Math.ceil(seconds / 60) : seconds;
-        var duration = i18nText("shell.runtime.ha_lifecycle.duration_" + unit, "{value} " + ({seconds:"sec",minutes:"min",hours:"h"}[unit]), {value:localizedNumber(value)});
+        var seconds = Math.ceil(Math.abs(notice.expected - notice.elapsed) / 1000);
+        var clock = Math.floor(seconds / 60) + ":" + ("0" + (seconds % 60)).slice(-2);
         forecast = i18nText("shell.runtime.ha_lifecycle." + (overdue ? "overdue" : "expected_in"),
-          overdue ? "{duration} past the estimate" : "Expected back in about {duration}", {duration:duration});
+          overdue ? "{duration} past the estimate" : "Expected back in {duration}", {duration:clock});
       }
     }
     var b = document.getElementById("halifebar");
@@ -295,7 +293,7 @@
       haNetBanner(mn ? mn[1] : "", mrs ? mrs[1] : "", mp ? parseInt(mp[1], 10) : -1, mc ? parseInt(mc[1], 10) : 0, mm ? parseInt(mm[1], 10) : 0, ma ? parseInt(ma[1], 10) : -1, mcz ? mcz[1] : "");
       var mb = t.match(/build=(\S+)/);
       if (mb && LB && mb[1] !== LB) {
-        if (dirty()) banner("shell.new_version.installed", "A newer ha-paneld is installed"); else location.reload();
+        if (dirty()) banner("shell.new_version.installed", "A newer Panel Assistant is installed"); else location.reload();
         return;
       }
       var mc = t.match(/cfg=(\S+)/);

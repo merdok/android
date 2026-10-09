@@ -1,5 +1,7 @@
 package io.panelassistant.android.sensors
 
+import io.panelassistant.android.haLifecycleClock
+
 /** Panel Assistant is the only reporter of Home Assistant lifecycle intent. */
 internal enum class HaLifecycleSource { NATIVE }
 
@@ -262,9 +264,8 @@ internal object HaLifecycleMessage {
         }
         val forecast = if (expected == null || elapsed == null) "Time back has not been measured yet"
         else {
-            val duration = haLifecycleDuration(kotlin.math.abs(expected - elapsed))
-            if (overdue) "${duration.value} ${duration.abbreviation} past the estimate"
-            else "Expected back in about ${duration.value} ${duration.abbreviation}"
+            val clock = haLifecycleClock(kotlin.math.abs(expected - elapsed))
+            if (overdue) "$clock past the estimate" else "Expected back in $clock"
         }
         return "$headline · $reason · $forecast"
     }
@@ -275,23 +276,9 @@ internal object HaLifecycleMessage {
             "Home Assistant is shutting down — controls may be temporarily unavailable."
         else "Home Assistant has gone offline — controls may be temporarily unavailable."
         HaLifecycleState.STARTING ->
-            "Home Assistant is starting — controls will return shortly."
+            "Home Assistant is starting."
         HaLifecycleState.BACK_ONLINE ->
             "Home Assistant is back online."
         HaLifecycleState.NORMAL, HaLifecycleState.CONNECTION_LOST -> null
-    }
-}
-
-/** A duration retains its unit, so an hour can never look like a minute. */
-internal data class HaLifecycleDuration(val value: Long, val unit: String) {
-    val abbreviation: String get() = when (unit) { "hours" -> "h"; "minutes" -> "min"; else -> "sec" }
-}
-internal fun haLifecycleDuration(durationMs: Long): HaLifecycleDuration {
-    val milliseconds = durationMs.coerceAtLeast(0L)
-    val seconds = milliseconds / 1_000L + if (milliseconds % 1_000L > 0L) 1L else 0L
-    return when {
-        seconds >= 3_600L -> HaLifecycleDuration((seconds + 3_599L) / 3_600L, "hours")
-        seconds >= 60L -> HaLifecycleDuration((seconds + 59L) / 60L, "minutes")
-        else -> HaLifecycleDuration(seconds, "seconds")
     }
 }

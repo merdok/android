@@ -38,11 +38,10 @@ class HaOfflineNoticeTest {
         val tracker = HaLifecycle()
         tracker.onNativeNotice(notice(HaLifecyclePhase.STARTING, 60_000L).copy(elapsedMs = 20_000L), 5_000L)
         assertEquals(25_000L, tracker.snapshot(10_000L).elapsedMs)
-        assertTrue(HaLifecycleMessage.text(tracker.snapshot(10_000L))!!.contains("Expected back in about 35 sec"))
+        assertTrue(HaLifecycleMessage.text(tracker.snapshot(10_000L))!!.contains("Expected back in 0:35"))
         val overdue = HaLifecycleMessage.text(tracker.snapshot(3_700_000L))!!
         assertTrue(overdue.startsWith("Taking longer than usual"))
-        assertTrue(overdue.contains("h past the estimate"))
-        assertEquals(HaLifecycleDuration(2L, "minutes"), haLifecycleDuration(61_000L))
+        assertTrue(overdue.contains("60:55 past the estimate"))
     }
 
     @Test fun firstRestartReportsNoMeasuredEstimateAndRetiredNativeOwnerCannotStrandIt() {

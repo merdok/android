@@ -182,8 +182,8 @@ class AdbController private constructor(
         val active = activeState()
         return when {
             disableMarker.isPending() -> "disabling (recovery pending)"
-            config.networkAdbEnabled -> "persistent (ha-paneld)"
-            active == true -> "active (external — not ha-paneld)"
+            config.networkAdbEnabled -> "persistent (Panel Assistant)"
+            active == true -> "active (external — not Panel Assistant)"
             active == null -> "unknown"
             else -> "off"
         }
@@ -382,9 +382,9 @@ internal fun completeHardenedNetworkAdbAdmission(
  *  that a firmware or an adbd restart has closed. */
 internal fun networkAdbDiagnostic(persisted: Boolean, active: Boolean?): String = when {
     persisted && active == true -> "persistent (5555) · listening"
-    persisted && active == false -> "persistent (5555) · NOT listening; ha-paneld re-asserts it when it next starts"
+    persisted && active == false -> "persistent (5555) · NOT listening; Panel Assistant re-asserts it when it next starts"
     persisted -> "persistent (5555) · listener unreadable"
-    active == true -> "active (5555) · external — not persisted by ha-paneld"
+    active == true -> "active (5555) · external — not persisted by Panel Assistant"
     else -> "off"
 }
 

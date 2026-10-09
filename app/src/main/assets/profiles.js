@@ -885,7 +885,7 @@
       risks.length ? t("profiles.modal.risks_line", "Privileged/risk flags: {risks}", { risks: riskSummary })
         : t("profiles.modal.no_risks_line", "Privileged/risk flags: none declared"),
       "",
-      t("profiles.modal.restart_warning", "The panel service will restart. If the revision does not become healthy, ha-paneld will return to the last-known-good profile."),
+      t("profiles.modal.restart_warning", "The panel service will restart. If the revision does not become healthy, Panel Assistant will return to the last-known-good profile."),
     ].join("\n");
     openModal(action === "rollback" ? t("profiles.modal.rollback_title", "Roll back profile?") : t("profiles.modal.activate_title", "Activate profile?"), detail, function () {
       model.loading = true; updateActions(); setStatus(action === "rollback" ? t("profiles.status.rollback_starting", "Starting rollback…") : t("profiles.status.activating", "Activating profile…"));
@@ -923,7 +923,7 @@
         var automaticHealthy = !ref && model.status.selection && model.status.selection.mode === "auto" && activation.state === "active";
         var pinnedHealthy = active && refKey(active.ref) === refKey(ref) && activation.state === "active";
         if (automaticHealthy || pinnedHealthy) { setStatus(t("profiles.status.active_healthy", "Profile is active and healthy."), "ok"); loadCatalog(ref); return; }
-        if (activation.state === "rolled_back" || activation.state === "auto_rolled_back") { setStatus(t("profiles.error.auto_rollback", "The candidate did not become healthy; ha-paneld automatically restored the last-known-good profile."), "error"); loadCatalog(active && active.ref); return; }
+        if (activation.state === "rolled_back" || activation.state === "auto_rolled_back") { setStatus(t("profiles.error.auto_rollback", "The candidate did not become healthy; Panel Assistant automatically restored the last-known-good profile."), "error"); loadCatalog(active && active.ref); return; }
         pollAfterRestart(ref, attempt + 1);
       }).catch(function () { pollAfterRestart(ref, attempt + 1); });
     }, attempt < 5 ? 1000 : 2500);

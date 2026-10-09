@@ -225,7 +225,7 @@ internal fun Route.apiPageRoute(
         )
         val html = asset("api.html")
             .replace(
-                "<title>ha-paneld · REST API</title>",
+                "<title>Panel Assistant · REST API</title>",
                 "<title>${esc(panelBrowserTitle(friendlyName(), "REST API"))}</title>",
             )
             .replace("__API_BRAND__", brandLockup(asset))

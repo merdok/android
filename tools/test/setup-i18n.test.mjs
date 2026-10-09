@@ -123,7 +123,7 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
         locale: 'en',
       }, '/', browserType);
       assert.equal(await rig.page.locator('.card h2').textContent(), 'Where is Home Assistant?');
-      assert.equal(await rig.page.locator('.card .wiz-lead').textContent(), 'ha-paneld uses this address to connect to Home Assistant.');
+      assert.equal(await rig.page.locator('.card .wiz-lead').textContent(), 'Panel Assistant uses this address to connect to Home Assistant.');
       assert.equal(await rig.page.locator('#wiz-ha_url').count(), 1);
     }
   });

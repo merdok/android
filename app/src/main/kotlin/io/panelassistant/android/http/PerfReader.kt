@@ -498,7 +498,7 @@ object PerfReader {
             val attributionPkg = RendererResolver.attributionOf(identity.target, identity.ownPackage)
             fun processName(pid: Int): String {
                 var name = trimProcName((nameCache[pid] ?: comm[pid] ?: pid.toString()).replace("\\", "").replace("\"", ""))
-                if (pid == myPid) name = if (attributionPkg == name) "built-in dashboard (ha-paneld)" else "$name (this app)"
+                if (pid == myPid) name = if (attributionPkg == name) "built-in dashboard (Panel Assistant)" else "$name (this app)"
                 return name
             }
             val cpuRows = cpuRanked.map { (pid, delta) ->

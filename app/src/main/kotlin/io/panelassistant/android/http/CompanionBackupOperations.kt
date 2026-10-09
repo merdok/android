@@ -34,7 +34,7 @@ internal class CompanionBackupOperations(
             throw CompanionBackupUnavailable("HA Companion package is not supported")
         }
         if (!ensureCompanionHelper()) {
-            throw CompanionBackupUnavailable("HA Companion backup needs the current ha-paneld helper")
+            throw CompanionBackupUnavailable("HA Companion backup needs the current Panel Assistant helper")
         }
         val lease = when (
             val acquisition = CompanionDataLease.acquireArmed(

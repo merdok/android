@@ -139,7 +139,7 @@ internal object ProfileValidator {
             if (it.length > 64 || !versionPattern.matches(it)) reject("requires.min_core_version", "Expected a bounded dotted release version.", "dotted-release-version-required")
             else if (compareVersions(coreVersion, it) < 0) reject(
                 "requires.min_core_version",
-                "Requires ha-paneld $it or newer; this core is $coreVersion.",
+                "Requires Panel Assistant $it or newer; this core is $coreVersion.",
                 "core-version-required",
                 mapOf("required" to it, "current" to coreVersion),
             )

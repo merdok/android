@@ -49,7 +49,7 @@ global.setInterval = () => 0;
 global.confirm = () => false;
 global.alert = () => {};
 
-const templateReason = 'ha-paneld does not evaluate templates, so it cannot tell which entities this '
+const templateReason = 'Panel Assistant does not evaluate templates, so it cannot tell which entities this '
   + "filter returns. Entities it only reads are Home Assistant's own, delivered outside this filter, so "
   + 'their absence here is correct and they need nothing.';
 const blocking = {

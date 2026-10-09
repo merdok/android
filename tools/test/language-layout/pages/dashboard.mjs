@@ -191,7 +191,7 @@ function behaviourRows(s) {
     ['home_dashboard', s.format('dashboard.value.auto_detail', { value: s.text('dashboard.value.ha_default_view') })],
     ['ha_area', s.format('dashboard.value.local_override', { value: 'hallway' })],
     ['dashboard_package', s.text('dashboard.value.builtin_renderer')],
-    ['launcher_package', s.format('dashboard.value.auto_detail', { value: 'ha-paneld admin launcher' })],
+    ['launcher_package', s.format('dashboard.value.auto_detail', { value: 'Panel Assistant admin launcher' })],
   ].map(([key, shown]) => settingRow(s, key, shown)).join('\n');
 }
 

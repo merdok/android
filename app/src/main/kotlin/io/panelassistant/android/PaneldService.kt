@@ -341,7 +341,7 @@ internal fun storageHealthNotificationDecision(
         StorageHealthNotificationDecision.Show(
             title = "Panel storage/database pressure critical",
             body = "Storage or database-file pressure is critical$capacity. " +
-                "Open ha-paneld and review free space and WAL growth before changing configuration.",
+                "Open Panel Assistant and review free space and WAL growth before changing configuration.",
         )
     }
     StorageHealthSeverity.DATABASE_FAILURE -> {
@@ -352,15 +352,15 @@ internal fun storageHealthNotificationDecision(
             title = "Panel database needs attention",
             body = when (snapshot.databaseFailureKind) {
                 StorageDatabaseFailureKind.STORAGE_FULL ->
-                    "A panel database write$during failed when storage was full. Open ha-paneld; recovery is not yet verified."
+                    "A panel database write$during failed when storage was full. Open Panel Assistant; recovery is not yet verified."
                 StorageDatabaseFailureKind.IO ->
-                    "The panel database reported a disk I/O failure$during. Open ha-paneld; retry only after resolving the cause."
+                    "The panel database reported a disk I/O failure$during. Open Panel Assistant; retry only after resolving the cause."
                 StorageDatabaseFailureKind.CORRUPTION ->
-                    "The panel database failed its integrity check$during. Preserve it and open ha-paneld diagnostics before further writes."
+                    "The panel database failed its integrity check$during. Preserve it and open Panel Assistant diagnostics before further writes."
                 StorageDatabaseFailureKind.BUSY ->
-                    "The panel database remained busy or locked$during. Open ha-paneld diagnostics and wait for a clean check before retrying."
+                    "The panel database remained busy or locked$during. Open Panel Assistant diagnostics and wait for a clean check before retrying."
                 StorageDatabaseFailureKind.UNKNOWN,
-                null -> "The panel database reported a failure$during. Preserve it and open ha-paneld diagnostics before retrying."
+                null -> "The panel database reported a failure$during. Preserve it and open Panel Assistant diagnostics before retrying."
             },
         )
     }
@@ -3041,7 +3041,7 @@ class PaneldService : Service() {
         onStarted: (InstallProgress.Ticket) -> Unit = {},
     ): Boolean {
         val label = when (name) {
-            "paneld" -> "ha-paneld"; "companion" -> "HA Companion"; else -> name
+            "paneld" -> "Panel Assistant"; "companion" -> "HA Companion"; else -> name
         }
         val force = action == "reinstall"
         val tag = version.takeIf { it.isNotBlank() }
@@ -3828,7 +3828,7 @@ class PaneldService : Service() {
         val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = if (silent) SILENT_CHANNEL_ID else CHANNEL_ID
         mgr.createNotificationChannel(
-            NotificationChannel(channelId, "ha-paneld", NotificationManager.IMPORTANCE_MIN).apply {
+            NotificationChannel(channelId, "Panel Assistant", NotificationManager.IMPORTANCE_MIN).apply {
                 description = nativeString(R.string.panel_agent_channel_description)
                 if (silent) {
                     setSound(null, null)

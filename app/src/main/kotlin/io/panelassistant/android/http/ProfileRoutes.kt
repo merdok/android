@@ -257,7 +257,7 @@ private suspend fun handleSelection(
             call,
             SensitiveOperation.PROFILE_ACTIVATE,
             exactHttpApprovalPayload(call, sha256Hex(request.toString().toByteArray(Charsets.UTF_8))),
-            if (rollback) "Roll back to $targetSummary" else "Activate $targetSummary and restart ha-paneld",
+            if (rollback) "Roll back to $targetSummary" else "Activate $targetSummary and restart Panel Assistant",
         )
     ) return
     val mutation = if (rollback) {

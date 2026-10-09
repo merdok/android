@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">ha-paneld</string>
+    <string name="app_name" translatable="false">Panel Assistant</string>
     <string name="wordmark_description" translatable="false">Panel Assistant</string>
     <string name="a11y_description">Reports panel hardware-button presses to Home Assistant and enables tap injection from the panel control UI. Does not read screen content.</string>
     <string name="config_service_starting">Starting the configuration service…</string>
@@ -14,7 +14,7 @@
     <string name="try_again">Try again</string>
     <string name="config_qr_description">QR code for %1$s</string>
 
-    <string name="config_activity_label">ha-paneld configuration</string>
+    <string name="config_activity_label">Panel Assistant configuration</string>
     <string name="guard_db_activity_label">Database recovery maintenance</string>
     <string name="dashboard_activity_label">HA dashboard</string>
     <string name="admin_launcher_activity_label">Panel admin</string>
@@ -30,7 +30,7 @@
     <string name="unable_stop_remote_debugging">Unable to stop remote debugging</string>
     <string name="unable_stop_remote_debugging_detail">Hardened mode was not enabled because the panel could not verify that the LAN DevTools relay and its listener are stopped. Restart the panel, then try again.</string>
     <string name="unable_stop_remote_adb">Unable to stop remote ADB</string>
-    <string name="unable_stop_remote_adb_detail">Hardened mode was not enabled because ha-paneld could not durably clear and verify all owned classic/TLS network ADB state. The disable transition remains pending so startup will retry it; check Developer options, then try again.</string>
+    <string name="unable_stop_remote_adb_detail">Hardened mode was not enabled because Panel Assistant could not durably clear and verify all owned classic/TLS network ADB state. The disable transition remains pending so startup will retry it; check Developer options, then try again.</string>
     <string name="unable_verify_remote_adb">Unable to verify remote ADB</string>
     <string name="unable_verify_remote_adb_detail">Hardened mode was not enabled because the panel could not verify that classic network ADB and Android Wireless debugging are off. Turn off both remote-control paths in Android’s developer settings, then try again.</string>
     <string name="turn_off_remote_adb_first">Turn off remote ADB first</string>
@@ -79,7 +79,7 @@
     <string name="finish_browser_optimize">Finish it in your browser to optimise the performance of your dashboards.</string>
     <string name="loading_dashboard">Loading your dashboard…</string>
     <string name="nothing_to_do_here">Nothing to do here.</string>
-    <string name="panel_generic_description">This device is a Home Assistant wall panel powered by ha-paneld. It provides the on-panel dashboard, app launcher and panel controls, while exposing the screen, LED, buttons, speaker and sensors to Home Assistant over your local network. Configure the panel from a browser using the address below.</string>
+    <string name="panel_generic_description">This device is a Home Assistant wall panel powered by Panel Assistant. It provides the on-panel dashboard, app launcher and panel controls, while exposing the screen, LED, buttons, speaker and sensors to Home Assistant over your local network. Configure the panel from a browser using the address below.</string>
     <string name="retry_dashboard">Retry dashboard</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Sign in to Home Assistant</string>
@@ -92,7 +92,7 @@
     <string name="applying_dashboard_theme">applying your dashboard theme</string>
     <string name="optimizing_entities_restart">optimising which entities it uses (it may reload again as the panel learns)</string>
     <string name="service_running_caption">running</string>
-    <string name="elapsed_usually">%1$d s elapsed · usually about %2$d s</string>
+    <string name="elapsed_usually">%1$d s elapsed · usually %2$d s</string>
     <string name="elapsed_learning">%1$d s elapsed · learning this panel’s timing</string>
     <string name="network_starting_android">Starting Android network services</string>
     <string name="network_waiting_link">Waiting for a network link</string>
@@ -107,7 +107,7 @@
     <string name="sign_in_rejected_terminal_detail">The saved Home Assistant login stopped working, so the panel has stopped retrying it.</string>
     <string name="sign_in_rejected_fix">Fix: open %1$s → Home Assistant connection, then use Browser sign-in. The dashboard reloads automatically when the login changes.</string>
     <string name="dashboard_reconnecting">Reconnecting to Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">The dashboard couldn’t be reached and will keep retrying automatically.</string>
+    <string name="dashboard_unreachable_retry">Trying again every %1$d to %2$d seconds.</string>
     <string name="web_viewer_too_old_title">This panel’s web viewer is too old</string>
     <string name="web_viewer_too_old_detail">The built-in dashboard needs a newer Android System WebView than this panel has. Another dashboard app on the panel may still work.</string>
     <string name="checking_ha_compatibility">Checking Home Assistant compatibility</string>
@@ -157,7 +157,7 @@
     <string name="entity_scan_failed_detail">The scan of your entities did not finish, so the dashboard has not been opened. Check that Home Assistant is running and that the panel is on the network, then try again.</string>
     <string name="entity_scan_preparing_detail">Home Assistant will open when the first filtered entity set is ready.</string>
     <string name="entity_learning_reload_notice">Once Home Assistant opens, it may reload a few times while the panel learns. That is expected.</string>
-    <string name="entity_scan_taking_longer">Taking longer than usual — the panel is still working on it. If this doesn’t finish, the entity filter can be turned off from panel settings.</string>
+    <string name="entity_scan_taking_longer">Taking longer than %1$d seconds — the panel is still working on it. If this doesn’t finish, the entity filter can be turned off from panel settings.</string>
     <string name="ignore_flagged_entities">Ignore flagged entities and continue</string>
     <string name="preparing_dashboard">Preparing dashboard…</string>
     <string name="disable_entity_filter">Disable entity filter</string>
@@ -198,14 +198,14 @@
     <string name="panel_agent_channel_description">Panel hardware agent for Home Assistant</string>
     <string name="storage_pressure_title">Panel storage/database pressure critical</string>
     <string name="storage_capacity_suffix">" (%1$d MiB filesystem free)"</string>
-    <string name="storage_pressure_body">Storage or database-file pressure is critical%1$s. Open ha-paneld and review free space and WAL growth before changing configuration.</string>
+    <string name="storage_pressure_body">Storage or database-file pressure is critical%1$s. Open Panel Assistant and review free space and WAL growth before changing configuration.</string>
     <string name="database_attention_title">Panel database needs attention</string>
     <string name="database_during_suffix">" during %1$s"</string>
-    <string name="database_full_body">A panel database write%1$s failed when storage was full. Open ha-paneld; recovery is not yet verified.</string>
-    <string name="database_io_body">The panel database reported a disk I/O failure%1$s. Open ha-paneld; retry only after resolving the cause.</string>
-    <string name="database_corruption_body">The panel database failed its integrity check%1$s. Preserve it and open ha-paneld diagnostics before further writes.</string>
-    <string name="database_busy_body">The panel database remained busy or locked%1$s. Open ha-paneld diagnostics and wait for a clean check before retrying.</string>
-    <string name="database_failure_body">The panel database reported a failure%1$s. Preserve it and open ha-paneld diagnostics before retrying.</string>
+    <string name="database_full_body">A panel database write%1$s failed when storage was full. Open Panel Assistant; recovery is not yet verified.</string>
+    <string name="database_io_body">The panel database reported a disk I/O failure%1$s. Open Panel Assistant; retry only after resolving the cause.</string>
+    <string name="database_corruption_body">The panel database failed its integrity check%1$s. Preserve it and open Panel Assistant diagnostics before further writes.</string>
+    <string name="database_busy_body">The panel database remained busy or locked%1$s. Open Panel Assistant diagnostics and wait for a clean check before retrying.</string>
+    <string name="database_failure_body">The panel database reported a failure%1$s. Preserve it and open Panel Assistant diagnostics before retrying.</string>
     <string name="database_recovery_channel">Database recovery</string>
     <string name="database_recovery_notification">Same-boot recovery is active; normal panel services are paused</string>
     <string name="starting">Starting…</string>

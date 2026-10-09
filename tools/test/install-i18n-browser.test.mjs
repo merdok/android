@@ -69,7 +69,7 @@ test('Install browser copies the exact frozen v3 presentation and direct-token t
   assert.equal(digest(frozenObject(source, 'RESTORE_OUTCOME')), '69226bae3ec367703099c6136b4ff7b7ef264d8ad6efe6a02428bb155e7662b1');
   assert.equal(digest(frozenObject(source, 'RADIO_STATE')), '9e383eec164a6462adc21aceab958e6e023503e21ddcb16a1a4d3671ebfeec9d');
   assert.equal(digest(frozenObject(source, 'CONFIG_IMPORT_STATUS')), 'b28e9c65c69c405fc4576d46a08920a3272b303624d436fa00883ecf8298ea23');
-  assert.deepEqual(frozenObject(source, 'COMPONENT_LABEL'), { paneld: 'ha-paneld', companion: 'HA Companion', webview: 'System WebView', apk: 'APK' });
+  assert.deepEqual(frozenObject(source, 'COMPONENT_LABEL'), { paneld: 'Panel Assistant', companion: 'HA Companion', webview: 'System WebView', apk: 'APK' });
 });
 
 const samples = Object.freeze({
@@ -277,7 +277,7 @@ browserTest('Install substitutes exact visible names for closed component parame
     code: 'status-update-available', params: { component, current: '1', latest: '2', release_url: 'https://example.invalid/release' },
   }, 'fallback').text));
   assert.deepEqual(outcomes, [
-    'Update ha-paneld: 1 to 2 at https://example.invalid/release',
+    'Update Panel Assistant: 1 to 2 at https://example.invalid/release',
     'Update HA Companion: 1 to 2 at https://example.invalid/release',
     'Update System WebView: 1 to 2 at https://example.invalid/release',
     'Update APK: 1 to 2 at https://example.invalid/release',

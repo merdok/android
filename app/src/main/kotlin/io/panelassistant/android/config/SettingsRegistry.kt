@@ -297,7 +297,7 @@ object SettingsRegistry {
             maxChars = 128,
             validate = { Validation.Ok(normalizedHaAreaName(it)) },
             help = "Where this panel lives, by Home Assistant area name. This can only be changed in " +
-                "ha-paneld if your HA user has admin permissions, otherwise change it on your device in HA.",
+                "Panel Assistant if your HA user has admin permissions, otherwise change it on your device in HA.",
         ),
         SettingSpec(
             key = ADDRESS_FAMILY_KEY, type = SettingType.ENUM, group = "Dashboard",
@@ -397,9 +397,9 @@ object SettingsRegistry {
         // ---- Display -----------------------------------------------------------------------------
         SettingSpec(
             key = "dark_mode", type = SettingType.BOOL, group = "Display",
-            tier = Tier.BASIC, summary = "Dark theme for ha-paneld's own screens and the dashboard default.",
+            tier = Tier.BASIC, summary = "Dark theme for Panel Assistant's own screens and the dashboard default.",
             label = "Dark mode", default = "true", scope = Scope.PORTABLE,
-            help = "Themes ha-paneld's own screens and sets the dashboard's default colour scheme on panels without a system dark-mode setting (Android 9 and older).\n\nA theme picked inside Home Assistant overrides the dashboard default; this web UI always follows the viewing browser's own preference.",
+            help = "Themes Panel Assistant's own screens and sets the dashboard's default colour scheme on panels without a system dark-mode setting (Android 9 and older).\n\nA theme picked inside Home Assistant overrides the dashboard default; this web UI always follows the viewing browser's own preference.",
             // Panels with a native system dark/light control (Android 10+) follow the OS setting for
             // everything, so the toggle is hidden there.
             availableWhen = { !it.hasSystemDarkMode },
@@ -655,7 +655,7 @@ object SettingsRegistry {
             key = "ha_refresh_token", type = SettingType.PASSWORD, group = "Dashboard",
             tier = Tier.ADVANCED,
             label = "HA refresh token", default = "", scope = Scope.DEVICE, secret = true, hidden = true,
-            help = "Internal token state retained for API/config import compatibility. Borrowed Companion and ha-paneld-issued OAuth logins manage it automatically.",
+            help = "Internal token state retained for API/config import compatibility. Borrowed Companion and Panel Assistant-issued OAuth logins manage it automatically.",
         ),
         SettingSpec(
             key = "ha_token_expiry", type = SettingType.LONG, group = "Dashboard",
@@ -669,7 +669,7 @@ object SettingsRegistry {
             tier = Tier.ADVANCED,
             label = "HA OAuth client_id", default = "", scope = Scope.DEVICE, hidden = true,
             maxChars = 2_048,
-            help = "Internal token provenance retained for API/config import compatibility. Borrowed Companion tokens use the Android Companion client; ha-paneld browser sign-ins use the panel HTTP origin. Not a user preference.",
+            help = "Internal token provenance retained for API/config import compatibility. Borrowed Companion tokens use the Android Companion client; Panel Assistant browser sign-ins use the panel HTTP origin. Not a user preference.",
         ),
         SettingSpec(
             key = "dashboard_entity_overrides", type = SettingType.STRING, group = "Dashboard",
@@ -716,18 +716,18 @@ object SettingsRegistry {
         // ---- System ------------------------------------------------------------------------------
         SettingSpec(
             key = "ui_language", type = SettingType.ENUM, group = "System",
-            tier = Tier.BASIC, summary = "Language of ha-paneld's own interface.",
+            tier = Tier.BASIC, summary = "Language of Panel Assistant's own interface.",
             label = "Interface language", default = DEFAULT_UI_LANGUAGE,
             scope = Scope.DEVICE,
             options = UI_LANGUAGES,
-            help = "Language used by ha-paneld's own interface.\n\n**Automatic** uses an explicit page override first. Configure setting labels and help can then follow the connected Home Assistant user's language; browser, device and English are the remaining fallbacks.",
+            help = "Language used by Panel Assistant's own interface.\n\n**Automatic** uses an explicit page override first. Configure setting labels and help can then follow the connected Home Assistant user's language; browser, device and English are the remaining fallbacks.",
         ),
         SettingSpec(
             key = "launcher_package", type = SettingType.STRING, group = "System",
             tier = Tier.ADVANCED, summary = "App the Launcher button opens.",
             label = "Launcher app", default = "", picker = "package", scope = Scope.DEVICE,
             maxChars = 255,
-            help = "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (ha-paneld) also makes and keeps ha-paneld the Android Home app.",
+            help = "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
         ),
         SettingSpec(
             key = "tame_vendor_packages", type = SettingType.STRING, group = "System",
@@ -742,7 +742,7 @@ object SettingsRegistry {
             tier = Tier.ADVANCED, summary = "Security risk. Keep ADB listening on port 5555 across boots.",
             label = "Network ADB", default = "false", scope = Scope.DEVICE,
             liveApply = true,
-            help = "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside ha-paneld, it must also be disabled there.",
+            help = "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside Panel Assistant, it must also be disabled there.",
             availableWhen = { it.networkAdb },
             ha = haEntity("switch", "network_adb", "Network ADB") {
                 entityCategory("config")
@@ -811,11 +811,11 @@ object SettingsRegistry {
         // ---- Logging -----------------------------------------------------------------------------
         SettingSpec(
             key = "log_ship_enabled", type = SettingType.BOOL, group = "Logging",
-            tier = Tier.ADVANCED, summary = "Send ha-paneld's own log to a collector on your network.",
+            tier = Tier.ADVANCED, summary = "Send Panel Assistant's own log to a collector on your network.",
             label = "Ship logs", default = "false", scope = Scope.DEVICE,
             // "its own logcat" was ambiguous: the Logs tab offers App and System sources, so it read
             // as though both were shipped. Only ha-paneld's own process log leaves the panel.
-            help = "Forward ha-paneld's own process log — not the full system log — to a central sink " +
+            help = "Forward Panel Assistant's own process log — not the full system log — to a central sink " +
                 "(LAN-only, tokens and passwords redacted).",
         ),
         SettingSpec(

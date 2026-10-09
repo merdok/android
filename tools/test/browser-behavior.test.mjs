@@ -1431,7 +1431,7 @@ browserTest('Configure renderer picker reflects the installed Companion catalogu
     assert.deepEqual(await pickerOptions(), expected);
   }
   const auto = { value: '', label: 'Auto', selected: false };
-  const builtin = { value: 'builtin', label: 'Built-in renderer (ha-paneld)', selected: true };
+  const builtin = { value: 'builtin', label: 'Built-in renderer (Panel Assistant)', selected: true };
   const fullOption = { value: full.pkg, label: full.label, selected: false };
   const minimalOption = { value: minimal.pkg, label: minimal.label, selected: false };
 

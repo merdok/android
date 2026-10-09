@@ -11,7 +11,7 @@ internal fun dashboardAutoHints(system: SystemController, strings: AppStrings): 
     system.resolveDashboard("").takeIf { it.isNotBlank() }?.let {
         put("dashboard_package", dashboardRendererAutoLabel(it, strings))
     }
-    put("launcher_package", system.resolvedLauncher("") ?: "ha-paneld admin launcher")
+    put("launcher_package", system.resolvedLauncher("") ?: "Panel Assistant admin launcher")
     // Unset home_dashboard = reload/boot land on whatever HA's frontend picks. On this path,
     // resolve the HA user's profile default (or the system fallback) in-band so the UI shows
     // a concrete target instead of an abstract description.

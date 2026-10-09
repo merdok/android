@@ -13,7 +13,7 @@ internal enum class SoftwareComponent(
     val progressLabel: String,
     val entityName: String,
 ) {
-    PANELD("paneld", "ha_paneld", "ha-paneld", "ha-paneld"),
+    PANELD("paneld", "ha_paneld", "Panel Assistant", "Panel Assistant"),
     COMPANION("companion", "ha_companion", "HA Companion", "HA Companion"),
 }
 
@@ -141,7 +141,7 @@ internal object SoftwareUpdates {
     }
 
     private fun title(inputs: SoftwareUpdateInputs): String = when {
-        inputs.component == SoftwareComponent.PANELD -> "ha-paneld"
+        inputs.component == SoftwareComponent.PANELD -> "Panel Assistant"
         inputs.installedVersion == null -> "HA Companion"
         inputs.externallyManaged -> "HA Companion (full)"
         else -> "HA Companion (minimal)"
@@ -151,7 +151,7 @@ internal object SoftwareUpdates {
 
     private fun summary(inputs: SoftwareUpdateInputs): String {
         if (inputs.externallyManaged) {
-            return "Managed by Google Play. ha-paneld does not update the full Companion app."
+            return "Managed by Google Play. Panel Assistant does not update the full Companion app."
         }
         val parts = mutableListOf("${channelLabel(inputs.channel)} channel.")
         val target = inputs.target

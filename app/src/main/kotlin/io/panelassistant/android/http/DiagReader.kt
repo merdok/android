@@ -305,7 +305,7 @@ object DiagReader {
         val su = routes.directSuReady
         val daemon = routes.helperRootReady
         return buildString {
-        appendLine("ha-paneld diagnostics — ${appVersion()}")
+        appendLine("Panel Assistant diagnostics — ${appVersion()}")
         // Capture metadata — a normalise-me line for the regression harness: when this dump was taken +
         // how long the panel has been up (uptime is often more telling than wall-clock on a panel).
         appendLine("[captured] ${java.time.OffsetDateTime.now()} uptime=${fmtUptime(android.os.SystemClock.elapsedRealtime())}")

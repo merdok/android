@@ -189,7 +189,7 @@ class AdminLauncherActivity : AppCompatActivity() {
             startSafely(Intent(Settings.ACTION_SETTINGS))
         })
         // ha-paneld's own front-door screen (wordmark + config URL/QR + dashboard/config buttons).
-        add(Tile("ha-paneld", appIcon(packageName), "cfg") {
+        add(Tile("Panel Assistant", appIcon(packageName), "cfg") {
             startSafely(Intent(this@AdminLauncherActivity, MainActivity::class.java).apply {
                 putExtra(MainActivity.EXTRA_EXPLICIT_ADMIN_ENTRY, true)
             })

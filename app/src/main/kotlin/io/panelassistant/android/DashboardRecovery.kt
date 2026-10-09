@@ -369,8 +369,8 @@ internal enum class HandshakeRecoveryStep { NONE, RELOAD, FRESH_LOAD, RECREATE_W
  * doubling number of misses, capped at [maxEscalationGapMisses], and plain reloads fill the gaps, so
  * every fire still takes exactly one watchdog window. [reset] clears the count with the cadence. */
 internal class DashboardRetryPolicy(
-    private val initialRetryMs: Long = 5_000L,
-    private val maxRetryMs: Long = 60_000L,
+    val initialRetryMs: Long = 5_000L,
+    val maxRetryMs: Long = 60_000L,
     private val connectedGraceMs: Long = 90_000L,
     private val escalateAfterMisses: Int = 3,
     private val maxEscalationGapMisses: Int = 60,

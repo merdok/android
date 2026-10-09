@@ -15,7 +15,7 @@ internal fun componentsCardHtml(
     val paneldCur = appVersion()
     val compFull = compPkg == CompanionInstaller.FULL_PKG
 
-    val paneldRow = pickerRow("paneld", "ha-paneld", paneldCur, installer, strings)
+    val paneldRow = pickerRow("paneld", "Panel Assistant", paneldCur, installer, strings)
     // A Play-managed FULL Companion must never be touched by ha-paneld — show it read-only.
     val compRow = if (compFull)
         simpleRow("HA Companion", compCur, """<span class="muted">${esc(strings.get("install.components.play_managed"))}</span>""", strings)

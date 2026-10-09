@@ -135,17 +135,21 @@
     entity_filter: 4, render_proof: 4,
   };
 
+  // Dot 1 covers the renderer choice AND the HA server address; dot 3 is which HA dashboard shows.
+  function dotLabels() {
+    return [
+      i18nText("setup.progress.name", "Name"), i18nText("setup.progress.server", "Server"),
+      i18nText("setup.progress.sign_in", "HA sign-in"), i18nText("setup.progress.dashboard", "HA dash"),
+      i18nText("setup.progress.optimize", "Optimize")
+    ];
+  }
+
   function renderDots() {
     // Repair mode: a numbered journey implies starting over, which is exactly the wrong message on a
     // panel that already worked. One thing broke; the step card names it. No strip.
     if (journey.repair) { dotsHost.textContent = ""; dotsHost.hidden = true; return; }
     dotsHost.hidden = false;
-    // Dot 1 covers the renderer choice AND the HA server address; dot 3 is which HA dashboard shows.
-    var labels = [
-      i18nText("setup.progress.name", "Name"), i18nText("setup.progress.server", "Server"),
-      i18nText("setup.progress.sign_in", "HA sign-in"), i18nText("setup.progress.dashboard", "HA dash"),
-      i18nText("setup.progress.optimize", "Optimize")
-    ];
+    var labels = dotLabels();
     var currentIdx = journey.complete ? labels.length : (DOT_OF_STAGE[journey.next] !== undefined ? DOT_OF_STAGE[journey.next] : labels.length);
     var anyInFlight = (journey.steps || []).some(function (s) {
       return s.status === "in_flight" && DOT_OF_STAGE[s.stage] === currentIdx;
@@ -283,9 +287,8 @@
     paint(id);
     var body = card(i18nText("setup.identity.title", "Name this panel"),
       // Matches the real journey (the dots above): name, what the screen shows, the sign-in and the
-      // dashboard. Kept loose ("a few quick questions") rather than a count, because steps are skipped for
-      // a Companion-app renderer.
-      i18nText("setup.identity.lead", "A name, your Home Assistant server and sign-in, and the dashboard to show — a few quick questions and you’re done. You can stop and come back; nothing is lost."), [
+      // dashboard. The count is the number of dots; a Companion-app renderer skips steps but not dots.
+      i18nText("setup.identity.lead", "A name, your Home Assistant server and sign-in, and the dashboard to show — {count} short steps and you’re done. You can stop and come back; nothing is lost.", { count: dotLabels().length }), [
       el("fieldset", { id: "wiz-fs", style: "border:0;padding:0;margin:0" }, [
         field("panel_id", i18nText("setup.identity.panel_id.label", "Panel ID"),
           i18nText("setup.identity.panel_id.help", "Pick something you’ll recognise in a long list — where it is, usually. Lowercase letters, digits and underscores."),
@@ -353,7 +356,7 @@
       failBanner(i18nText("setup.renderer.failure.title", "The selected dashboard app isn’t available."), [
         r.detail ? i18nText("setup.renderer.failure.package_missing", "“{package}” is set as the dashboard app but isn’t installed on this panel.", { package: r.detail }) :
           i18nText("setup.renderer.failure.unresolved", "No dashboard app could be resolved for this panel."),
-        i18nText("setup.renderer.failure.explanation", "Pick ha-paneld’s built-in renderer (or another installed app) in the Dashboard card of All settings, then return here."),
+        i18nText("setup.renderer.failure.explanation", "Pick Panel Assistant’s built-in renderer (or another installed app) in the Dashboard card of All settings, then return here."),
       ]),
       el("p", {}, [el("a", { class: "pbtn", href: internalHref("configure#cfg-dashboard_package"), text: i18nText("setup.renderer.action.open_dashboard_setting", "Open the Dashboard setting") })]),
     ])], "renderer");
@@ -403,7 +406,7 @@
     ]));
     kids.push(el("p", { class: "muted", id: "wiz-err", role: "alert" }));
     show([card(i18nText("setup.ha_url.title", "Where is Home Assistant?"),
-      i18nText("setup.ha_url.lead", "ha-paneld uses this address to connect to Home Assistant."), kids)], "ha_url");
+      i18nText("setup.ha_url.lead", "Panel Assistant uses this address to connect to Home Assistant."), kids)], "ha_url");
   }
 
   function haUrlSuggestion() {
@@ -1012,7 +1015,7 @@
     var cards = [card(i18nText("setup.done.title", "✓ This panel is set up"), null, top)];
     // A tip, not a step, and explicitly optional.
     cards.push(el("p", { class: "wiz-lead" }, [
-      document.createTextNode(i18nText("setup.done.taming_intro", "Optional: panels often ship with vendor apps that pop up over the dashboard. ha-paneld can quieten them.") + " "),
+      document.createTextNode(i18nText("setup.done.taming_intro", "Optional: panels often ship with vendor apps that pop up over the dashboard. Panel Assistant can quieten them.") + " "),
       el("a", { href: internalHref("install"), text: i18nText("setup.done.taming_link", "Package taming is on the Install tab.") }),
     ]));
     show(cards, "done");

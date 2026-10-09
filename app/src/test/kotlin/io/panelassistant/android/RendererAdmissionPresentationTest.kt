@@ -190,7 +190,7 @@ class RendererAdmissionPresentationTest {
         val p = present(record = null, mode = RendererMode.EXTERNAL)
         assertEquals("external", json(p).getString("mode"))
         assertEquals("unobserved", json(p).getString("state"))
-        assertTrue(p.statusText()!!.contains("not observed by ha-paneld"))
+        assertTrue(p.statusText()!!.contains("not observed by Panel Assistant"))
         // The battery caught this test passing while an external renderer was routed through the
         // built-in branch: `statusText` switches on the mode by itself, so the row read correctly
         // while the machine-readable summary and action silently described a built-in panel. The

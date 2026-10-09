@@ -8,7 +8,7 @@ import { i18nHelper } from './fixtures/i18n-bridge.mjs';
 
 const defaultAsset = fileURLToPath(new URL('../../app/src/main/assets/switcher.js', import.meta.url));
 const switcherAsset = process.argv[2] ? resolve(process.argv[2]) : defaultAsset;
-const ENGLISH_TITLE = 'Switch to another ha-paneld panel (keeps the current view)';
+const ENGLISH_TITLE = 'Switch to another panel (keeps the current view)';
 
 function classList() {
   return { add() {}, remove() {}, toggle() {}, contains() { return false; } };

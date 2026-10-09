@@ -64,7 +64,7 @@ class NativeLocalizationContractTest {
                 "showBlockedAdmissionScreen|foregroundNotification)\\s*\\()\\s*\"([^\"\\n]*)\"",
         )
         val deliberateNonLanguageLiterals = setOf(
-            "ha-paneld",
+            "Panel Assistant",
             "v\${BuildConfig.VERSION_NAME}",
             "\${(brightness.getCommanded().coerceAtLeast(0) * 100 + 127) / 255}%",
             "\${volume.getPercent()}%",

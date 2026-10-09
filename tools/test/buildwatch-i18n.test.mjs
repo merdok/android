@@ -298,7 +298,7 @@ test('version and settings banners create a safe localized reload link and prese
 
   const english = await loadBuildwatch({ helper: false, dirty: true });
   await english.poll('build=build-b cfg=cfg-a');
-  assert.deepEqual(notice(english.ids.verbar), { severity: 'update', pill: 'Update', text: 'A newer ha-paneld is installed', action: 'reload' });
+  assert.deepEqual(notice(english.ids.verbar), { severity: 'update', pill: 'Update', text: 'A newer Panel Assistant is installed', action: 'reload' });
   assert.doesNotMatch(english.source, /\.innerHTML\s*=/);
   assert.doesNotMatch(english.source, /replace\(\/\^\[\^A-Za-z\]/);
 });
@@ -337,14 +337,14 @@ test('untranslated keys preserve exact English runtime copy', async () => {
     const rig = await loadBuildwatch({ ...options, dirty: true });
     await rig.poll('ha=starting ha_net=warning ha_resp=healthy ha_net_p95=25 ha_net_n=30 ha_net_miss=0 build=build-b cfg=cfg-a');
 
-    assert.equal(noticeText(rig.ids.halifebar), 'Home Assistant is starting — controls will return shortly.');
-    assert.equal(rig.ids.halifecell.textContent, 'Home Assistant is starting — controls will return shortly.');
+    assert.equal(noticeText(rig.ids.halifebar), 'Home Assistant is starting.');
+    assert.equal(rig.ids.halifecell.textContent, 'Home Assistant is starting.');
     assert.equal(
       noticeText(rig.ids.hanetbar),
       'Probes to Home Assistant are going missing: p95 25 ms, no misses in the last 5 min. Packets are not getting through. Check the Wi-Fi path between this panel and Home Assistant before blaming the panel.'
     );
     assert.equal(rig.ids.hanetcell.textContent, 'losing probes; p95 25 ms, no misses in the last 5 min');
-    assert.equal(noticeText(rig.ids.verbar), 'A newer ha-paneld is installed');
+    assert.equal(noticeText(rig.ids.verbar), 'A newer Panel Assistant is installed');
   }
 });
 
@@ -461,13 +461,13 @@ test('offline story waits for grace and shows measured countdown with subdued qu
   assert.match(rig.ids.halifecell.textContent, /Time back has not been measured yet/);
   await rig.poll('ha=shutting_down ha_src=native ha_reason=core_update ha_elapsed_ms=1000 ha_expected_ms=121000');
   assert.match(rig.ids.halifecell.textContent, /Home Assistant Core update/);
-  assert.match(rig.ids.halifecell.textContent, /Expected back in about 2 min/);
+  assert.match(rig.ids.halifecell.textContent, /Expected back in 2:00/);
   await rig.poll('ha=starting ha_src=native ha_reason=restart ha_elapsed_ms=181000 ha_expected_ms=121000');
   assert.match(noticeText(rig.ids.halifebar), /Taking longer than usual/);
-  assert.match(noticeText(rig.ids.halifebar), /1 min past the estimate/);
+  assert.match(noticeText(rig.ids.halifebar), /1:00 past the estimate/);
   assert.equal(notice(rig.ids.halifebar).severity, 'working');
   await rig.poll('ha=starting ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
-  assert.match(noticeText(rig.ids.halifebar), /1 h past the estimate/);
+  assert.match(noticeText(rig.ids.halifebar), /60:00 past the estimate/);
   await rig.poll('ha=back_online ha_src=native ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
   assert.doesNotMatch(noticeText(rig.ids.halifebar), /Taking longer|past the estimate/);
   await rig.poll('ha=normal ha_reason=unknown');

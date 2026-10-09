@@ -49,6 +49,8 @@ private val ADDRESS_FIELDS = setOf("Local IP", "Local IPv6")
 
 internal fun factLabel(key: String, strings: AppStrings): String {
     val suffix = when (key) {
+        // The map key stays `ha-paneld` (status API, public-fact allowlist); only the label owners read changes.
+        "ha-paneld" -> return "Panel Assistant"
         "panel_id" -> "panel_id"
         "Android" -> "android"
         "Firmware" -> "firmware"
