@@ -100,7 +100,7 @@
     <string name="sign_in_rejected_terminal_detail">Uložené přihlašovací údaje pro Home Assistant přestaly fungovat, proto panel přestal opakovat pokusy o přihlášení.</string>
     <string name="sign_in_rejected_fix">Řešení: otevřete %1$s → Připojení k Home Assistant a použijte Přihlášení v prohlížeči. Při změně přihlášení se ovládací panel automaticky znovu načte.</string>
     <string name="dashboard_reconnecting">Opětovné připojování k Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Ovládací panel nebyl dostupný; pokusy se budou automaticky opakovat.</string>
+    <string name="dashboard_unreachable_retry">Nový pokus každých %1$d až %2$d s.</string>
     <string name="web_viewer_too_old_title">Webový prohlížeč tohoto panelu je příliš starý</string>
     <string name="web_viewer_too_old_detail">Vestavěný ovládací panel potřebuje novější Android System WebView, než má tento panel. Jiná aplikace ovládacího panelu může stále fungovat.</string>
     <string name="checking_ha_compatibility">Kontrola kompatibility s Home Assistant</string>
@@ -150,7 +150,7 @@
     <string name="entity_scan_failed_detail">Skenování vašich entit nebylo dokončeno, proto se ovládací panel neotevřel. Zkontrolujte, zda běží služba Home Assistant a zda je panel připojen k síti, a poté to zkuste znovu.</string>
     <string name="entity_scan_preparing_detail">Home Assistant se otevře, jakmile bude připravena první filtrovaná množina entit.</string>
     <string name="entity_learning_reload_notice">Jakmile se otevře Home Assistant, může se během učení panelu několikrát znovu načíst. To je očekávané.</string>
-    <string name="entity_scan_taking_longer">Trvá to déle než obvykle — panel na tom stále pracuje. Pokud se proces nedokončí, lze filtr entit vypnout v nastavení panelu.</string>
+    <string name="entity_scan_taking_longer">Trvá to déle než %1$d s — panel na tom stále pracuje. Pokud se proces nedokončí, lze filtr entit vypnout v nastavení panelu.</string>
     <string name="ignore_flagged_entities">Ignorovat označené entity a pokračovat</string>
     <string name="preparing_dashboard">Příprava hlavního panelu…</string>
     <string name="disable_entity_filter">Zakázat filtr entit</string>

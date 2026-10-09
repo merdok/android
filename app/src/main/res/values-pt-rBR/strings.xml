@@ -100,7 +100,7 @@
     <string name="sign_in_rejected_terminal_detail">As credenciais salvas do Home Assistant pararam de funcionar, então o painel deixou de tentar usá-las novamente.</string>
     <string name="sign_in_rejected_fix">Para corrigir: abra %1$s → Conexão com o Home Assistant e use Entrar pelo navegador. O dashboard recarrega automaticamente quando as credenciais mudam.</string>
     <string name="dashboard_reconnecting">Reconectando ao Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Não foi possível acessar o dashboard. As tentativas continuarão automaticamente.</string>
+    <string name="dashboard_unreachable_retry">Nova tentativa a cada %1$d a %2$d segundos.</string>
     <string name="web_viewer_too_old_title">O visualizador web deste painel é antigo demais</string>
     <string name="web_viewer_too_old_detail">O dashboard integrado precisa de um Android System WebView mais recente do que o deste painel. Outro aplicativo de dashboard no painel ainda pode funcionar.</string>
     <string name="checking_ha_compatibility">Verificando a compatibilidade do Home Assistant</string>
@@ -150,7 +150,7 @@
     <string name="entity_scan_failed_detail">A verificação das suas entidades não terminou, então o dashboard não foi aberto. Verifique se o Home Assistant está em execução e se o painel está conectado à rede. Depois, tente novamente.</string>
     <string name="entity_scan_preparing_detail">O Home Assistant será aberto quando o primeiro conjunto filtrado de entidades estiver pronto.</string>
     <string name="entity_learning_reload_notice">Depois de abrir, o Home Assistant pode recarregar algumas vezes enquanto o painel aprende. Isso é esperado.</string>
-    <string name="entity_scan_taking_longer">Está demorando mais que o normal — o painel ainda está trabalhando. Se não terminar, você pode desabilitar o filtro de entidades nas configurações do painel.</string>
+    <string name="entity_scan_taking_longer">Está demorando mais de %1$d segundos — o painel ainda está trabalhando. Se não terminar, você pode desabilitar o filtro de entidades nas configurações do painel.</string>
     <string name="ignore_flagged_entities">Ignorar entidades sinalizadas e continuar</string>
     <string name="preparing_dashboard">Preparando o dashboard…</string>
     <string name="disable_entity_filter">Desabilitar filtro de entidades</string>

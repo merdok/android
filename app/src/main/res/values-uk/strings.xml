@@ -100,7 +100,7 @@
     <string name="sign_in_rejected_terminal_detail">Збережений вхід у Home Assistant перестав працювати, тому панель припинила повторні спроби.</string>
     <string name="sign_in_rejected_fix">Як виправити: відкрийте %1$s → «З’єднання з Home Assistant», потім скористайтеся входом через браузер. Інформаційна панель автоматично перезавантажиться після зміни даних входу.</string>
     <string name="dashboard_reconnecting">Повторне підключення до Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Не вдалося підключитися до інформаційної панелі; спроби автоматично повторюватимуться.</string>
+    <string name="dashboard_unreachable_retry">Нова спроба кожні %1$d–%2$d с.</string>
     <string name="web_viewer_too_old_title">Веб-переглядач цієї панелі занадто застарілий</string>
     <string name="web_viewer_too_old_detail">Вбудованій інформаційній панелі потрібна новіша версія Android System WebView, ніж є на цій панелі. Інший застосунок інформаційної панелі на цій панелі все ще може працювати.</string>
     <string name="checking_ha_compatibility">Перевірка сумісності з Home Assistant</string>
@@ -150,7 +150,7 @@
     <string name="entity_scan_failed_detail">Сканування ваших сутностей не завершилося, тому інформаційна панель не відкрилася. Перевірте, чи працює Home Assistant і чи підключена панель до мережі, а потім спробуйте ще раз.</string>
     <string name="entity_scan_preparing_detail">Home Assistant відкриється, коли буде готовий перший відфільтрований набір сутностей.</string>
     <string name="entity_learning_reload_notice">Після відкриття Home Assistant може кілька разів перезавантажитися, поки панель навчається. Це нормально.</string>
-    <string name="entity_scan_taking_longer">Триває довше, ніж зазвичай — панель усе ще працює над цим. Якщо процес не завершиться, фільтр сутностей можна вимкнути в налаштуваннях панелі.</string>
+    <string name="entity_scan_taking_longer">Триває довше, ніж %1$d с — панель усе ще працює над цим. Якщо процес не завершиться, фільтр сутностей можна вимкнути в налаштуваннях панелі.</string>
     <string name="ignore_flagged_entities">Ігнорувати позначені сутності й продовжити</string>
     <string name="preparing_dashboard">Підготовка інформаційної панелі…</string>
     <string name="disable_entity_filter">Вимкнути фільтр сутностей</string>

@@ -100,7 +100,7 @@
     <string name="sign_in_rejected_terminal_detail">De opgeslagen Home Assistant-login werkt niet meer, dus het paneel probeert het niet meer opnieuw.</string>
     <string name="sign_in_rejected_fix">Oplossing: open %1$s → Home Assistant-verbinding en gebruik daarna ‘Inloggen via browser’. Het dashboard wordt automatisch opnieuw geladen zodra de inloggegevens veranderen.</string>
     <string name="dashboard_reconnecting">Opnieuw verbinding maken met Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Het dashboard kon niet worden bereikt en het systeem blijft automatisch opnieuw proberen.</string>
+    <string name="dashboard_unreachable_retry">Opnieuw proberen om de %1$d tot %2$d seconden.</string>
     <string name="web_viewer_too_old_title">De webviewer van dit paneel is te oud</string>
     <string name="web_viewer_too_old_detail">Het ingebouwde dashboard heeft een nieuwere Android System WebView nodig dan dit paneel heeft. Een andere dashboard-app op het paneel werkt misschien nog wel.</string>
     <string name="checking_ha_compatibility">Compatibiliteit met Home Assistant controleren</string>
@@ -150,7 +150,7 @@
     <string name="entity_scan_failed_detail">Het scannen van je entiteiten is niet voltooid, dus het dashboard is niet geopend. Controleer of Home Assistant actief is en of het paneel met het netwerk verbonden is, en probeer het daarna nog eens.</string>
     <string name="entity_scan_preparing_detail">Home Assistant wordt geopend zodra de eerste gefilterde entiteitsset klaar is.</string>
     <string name="entity_learning_reload_notice">Zodra Home Assistant geopend is, kan het een paar keer opnieuw laden terwijl het paneel leert. Dat is normaal.</string>
-    <string name="entity_scan_taking_longer">Het duurt langer dan normaal — het paneel is er nog mee bezig. Als dit niet afloopt, kun je het entiteitsfilter uitschakelen via de instellingen van het paneel.</string>
+    <string name="entity_scan_taking_longer">Het duurt langer dan %1$d seconden — het paneel is er nog mee bezig. Als dit niet afloopt, kun je het entiteitsfilter uitschakelen via de instellingen van het paneel.</string>
     <string name="ignore_flagged_entities">Negeer gemarkeerde entiteiten en ga verder</string>
     <string name="preparing_dashboard">Dashboard wordt voorbereid…</string>
     <string name="disable_entity_filter">Entiteitsfilter uitschakelen</string>

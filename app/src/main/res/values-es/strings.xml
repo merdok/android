@@ -105,7 +105,7 @@
     <string name="sign_in_rejected_terminal_detail">El inicio de sesión guardado de Home Assistant dejó de funcionar, por lo que el panel ha dejado de reintentarlo.</string>
     <string name="sign_in_rejected_fix">Solución: abre %1$s → Conexión con Home Assistant y usa Inicio de sesión en el navegador. El panel de control se recarga automáticamente cuando cambia el inicio de sesión.</string>
     <string name="dashboard_reconnecting">Volviendo a conectar con Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">No se pudo acceder al panel de control y se seguirá reintentando automáticamente.</string>
+    <string name="dashboard_unreachable_retry">Nuevo intento cada %1$d a %2$d segundos.</string>
     <string name="web_viewer_too_old_title">El visor web de este panel es demasiado antiguo</string>
     <string name="web_viewer_too_old_detail">El panel de control integrado necesita una versión de Android System WebView más reciente que la instalada en este panel. Es posible que otra aplicación de panel de control siga funcionando.</string>
     <string name="checking_ha_compatibility">Comprobando la compatibilidad con Home Assistant</string>
@@ -155,7 +155,7 @@
     <string name="entity_scan_failed_detail">El análisis de tus entidades no terminó, por lo que el panel de control no se ha abierto. Comprueba que Home Assistant esté en ejecución y que el panel esté conectado a la red y vuelve a intentarlo.</string>
     <string name="entity_scan_preparing_detail">Home Assistant se abrirá cuando esté listo el primer conjunto filtrado de entidades.</string>
     <string name="entity_learning_reload_notice">Una vez abierto, Home Assistant puede recargarse varias veces mientras el panel aprende. Es normal.</string>
-    <string name="entity_scan_taking_longer">Está tardando más de lo habitual; el panel sigue trabajando. Si no termina, puedes desactivar el filtro de entidades desde la configuración del panel.</string>
+    <string name="entity_scan_taking_longer">Está tardando más de %1$d segundos; el panel sigue trabajando. Si no termina, puedes desactivar el filtro de entidades desde la configuración del panel.</string>
     <string name="ignore_flagged_entities">Ignorar las entidades marcadas y continuar</string>
     <string name="preparing_dashboard">Preparando el panel de control…</string>
     <string name="disable_entity_filter">Desactivar filtro de entidades</string>

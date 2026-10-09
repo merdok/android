@@ -100,7 +100,7 @@
     <string name="sign_in_rejected_terminal_detail">Zapisane logowanie do Home Assistant przestało działać, więc panel przestał ponawiać próby.</string>
     <string name="sign_in_rejected_fix">Rozwiązanie: otwórz %1$s → Połączenie z Home Assistant, a następnie użyj opcji „Logowanie przez przeglądarkę”. Pulpit nawigacyjny odświeży się automatycznie po zmianie logowania.</string>
     <string name="dashboard_reconnecting">Ponowne łączenie z Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Nie udało się połączyć z pulpitem nawigacyjnym, system będzie automatycznie ponawiał próbę.</string>
+    <string name="dashboard_unreachable_retry">Ponowna próba co %1$d–%2$d s.</string>
     <string name="web_viewer_too_old_title">Przeglądarka internetowa tego panelu jest zbyt stara</string>
     <string name="web_viewer_too_old_detail">Wbudowany pulpit wymaga nowszej wersji Android System WebView niż zainstalowana na tym panelu. Inna aplikacja pulpitu nawigacyjnego na tym panelu może nadal działać.</string>
     <string name="checking_ha_compatibility">Sprawdzanie zgodności z Home Assistant</string>
@@ -150,7 +150,7 @@
     <string name="entity_scan_failed_detail">Skanowanie twoich encji nie zostało ukończone, więc pulpit nawigacyjny nie został otwarty. Sprawdź, czy Home Assistant działa i czy panel jest podłączony do sieci, a potem spróbuj ponownie.</string>
     <string name="entity_scan_preparing_detail">Home Assistant otworzy się, gdy pierwszy przefiltrowany zestaw encji będzie gotowy.</string>
     <string name="entity_learning_reload_notice">Po otwarciu Home Assistant może kilka razy się przeładować, gdy panel się uczy. To normalne.</string>
-    <string name="entity_scan_taking_longer">Trwa to dłużej niż zwykle — panel wciąż nad tym pracuje. Jeśli proces się nie zakończy, filtr encji można wyłączyć w ustawieniach panelu.</string>
+    <string name="entity_scan_taking_longer">Trwa to dłużej niż %1$d s — panel wciąż nad tym pracuje. Jeśli proces się nie zakończy, filtr encji można wyłączyć w ustawieniach panelu.</string>
     <string name="ignore_flagged_entities">Zignoruj oznaczone encje i kontynuuj</string>
     <string name="preparing_dashboard">Przygotowywanie pulpitu…</string>
     <string name="disable_entity_filter">Wyłącz filtr encji</string>

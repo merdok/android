@@ -105,7 +105,7 @@
     <string name="sign_in_rejected_terminal_detail">Die gespeicherte Home Assistant-Anmeldung funktioniert nicht mehr. Das Panel hat daher weitere Versuche beendet.</string>
     <string name="sign_in_rejected_fix">Behebung: Öffne %1$s → Home Assistant-Verbindung und verwende dann die Browseranmeldung. Das Dashboard wird automatisch neu geladen, wenn sich die Anmeldung ändert.</string>
     <string name="dashboard_reconnecting">Verbindung zu Home Assistant wird wiederhergestellt…</string>
-    <string name="dashboard_unreachable_retry">Das Dashboard war nicht erreichbar und versucht automatisch weiter, eine Verbindung herzustellen.</string>
+    <string name="dashboard_unreachable_retry">Neuer Versuch alle %1$d bis %2$d Sekunden.</string>
     <string name="web_viewer_too_old_title">Die Webansicht dieses Panels ist zu alt</string>
     <string name="web_viewer_too_old_detail">Das integrierte Dashboard benötigt eine neuere Version von Android System WebView als auf diesem Panel vorhanden ist. Eine andere Dashboard-App auf dem Panel funktioniert möglicherweise weiterhin.</string>
     <string name="checking_ha_compatibility">Home Assistant-Kompatibilität wird geprüft</string>
@@ -155,7 +155,7 @@
     <string name="entity_scan_failed_detail">Die Suche nach deinen Entitäten wurde nicht abgeschlossen, daher wurde das Dashboard nicht geöffnet. Prüfe, ob Home Assistant läuft und das Panel mit dem Netzwerk verbunden ist, und versuche es dann erneut.</string>
     <string name="entity_scan_preparing_detail">Home Assistant wird geöffnet, sobald die erste gefilterte Entitätsauswahl bereit ist.</string>
     <string name="entity_learning_reload_notice">Nach dem Öffnen kann Home Assistant einige Male neu laden, während das Panel dazulernt. Das ist normal.</string>
-    <string name="entity_scan_taking_longer">Dies dauert länger als üblich – das Panel arbeitet noch daran. Falls der Vorgang nicht abgeschlossen wird, kann der Entitätsfilter in den Panel-Einstellungen deaktiviert werden.</string>
+    <string name="entity_scan_taking_longer">Dies dauert länger als %1$d Sekunden – das Panel arbeitet noch daran. Falls der Vorgang nicht abgeschlossen wird, kann der Entitätsfilter in den Panel-Einstellungen deaktiviert werden.</string>
     <string name="ignore_flagged_entities">Markierte Entitäten ignorieren und fortfahren</string>
     <string name="preparing_dashboard">Dashboard wird vorbereitet…</string>
     <string name="disable_entity_filter">Entitätsfilter deaktivieren</string>

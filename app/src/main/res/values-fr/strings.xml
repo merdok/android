@@ -105,7 +105,7 @@
     <string name="sign_in_rejected_terminal_detail">La connexion à Home Assistant enregistrée ne fonctionne plus ; le panneau a donc cessé de réessayer.</string>
     <string name="sign_in_rejected_fix">Correction : ouvrez %1$s → Connexion à Home Assistant, puis utilisez Connexion dans le navigateur. Le tableau de bord se recharge automatiquement lorsque la connexion enregistrée change.</string>
     <string name="dashboard_reconnecting">Reconnexion à Home Assistant…</string>
-    <string name="dashboard_unreachable_retry">Le tableau de bord n’a pas pu être joint et continuera de réessayer automatiquement.</string>
+    <string name="dashboard_unreachable_retry">Nouvel essai toutes les %1$d à %2$d secondes.</string>
     <string name="web_viewer_too_old_title">Le navigateur de ce panneau est trop ancien</string>
     <string name="web_viewer_too_old_detail">Le tableau de bord intégré nécessite une version d’Android System WebView plus récente que celle du panneau. Une autre application de tableau de bord installée sur le panneau peut toutefois fonctionner.</string>
     <string name="checking_ha_compatibility">Vérification de la compatibilité avec Home Assistant</string>
@@ -155,7 +155,7 @@
     <string name="entity_scan_failed_detail">L’analyse de vos entités n’a pas abouti ; le tableau de bord ne s’est donc pas ouvert. Vérifiez que Home Assistant fonctionne et que le panneau est connecté au réseau, puis réessayez.</string>
     <string name="entity_scan_preparing_detail">Home Assistant s’ouvrira lorsque le premier ensemble filtré d’entités sera prêt.</string>
     <string name="entity_learning_reload_notice">Une fois ouvert, Home Assistant peut se recharger plusieurs fois pendant que le panneau apprend. C’est normal.</string>
-    <string name="entity_scan_taking_longer">Cela prend plus de temps que d’habitude — le panneau y travaille encore. Si l’opération n’aboutit pas, le filtre d’entités peut être désactivé dans les paramètres du panneau.</string>
+    <string name="entity_scan_taking_longer">Cela prend plus de %1$d secondes — le panneau y travaille encore. Si l’opération n’aboutit pas, le filtre d’entités peut être désactivé dans les paramètres du panneau.</string>
     <string name="ignore_flagged_entities">Ignorer les entités signalées et continuer</string>
     <string name="preparing_dashboard">Préparation du tableau de bord…</string>
     <string name="disable_entity_filter">Désactiver le filtre d’entités</string>
