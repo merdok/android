@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * A backup taken before the voice assistant's MQTT switch and state sensor were removed still carries
+ * A backup taken before the voice assistant's retired switch and state sensor were removed still carries
  * their exposure flags, at the same schema. Restore is all or nothing, so those two stale keys must not
  * cost the owner the backup they took just before updating.
  */

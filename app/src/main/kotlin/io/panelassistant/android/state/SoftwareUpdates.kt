@@ -42,14 +42,12 @@ internal data class SoftwareUpdateInputs(
     val canInstall: Boolean,
     /** This component owns the shared destructive-operation lane right now. */
     val installing: Boolean,
-    /** A Panel Assistant config entry owns the ha-paneld update entity, so MQTT withholds its own. */
-    val suppressed: Boolean = false,
     /** Whether the app is installed could not be read, so a null [installedVersion] is not a settled absence. */
     val presenceUnknown: Boolean = false,
 )
 
 /**
- * Everything the service knows about both components at one instant. The bridge adds only its own
+ * Everything the service knows about both components at one instant. The state core adds only its own
  * install-capability observation, then projects one [SoftwareUpdateInputs] per component.
  */
 internal data class SoftwareUpdateSources(
@@ -65,7 +63,6 @@ internal data class SoftwareUpdateSources(
     val companionTarget: SoftwareTarget?,
     /** The InstallProgress component label while the shared lane is running, otherwise null. */
     val runningOperation: String?,
-    val panelAssistantOwnsPaneldUpdate: Boolean,
     /** A Companion package lookup failed for a reason other than the package being absent. */
     val companionPresenceUnknown: Boolean = false,
 ) {
@@ -77,7 +74,6 @@ internal data class SoftwareUpdateSources(
             channel = paneldChannel,
             canInstall = canInstall,
             installing = runningOperation == component.progressLabel,
-            suppressed = panelAssistantOwnsPaneldUpdate,
         )
         SoftwareComponent.COMPANION -> SoftwareUpdateInputs(
             component = component,
@@ -133,8 +129,8 @@ internal object SoftwareUpdates {
     fun companionAbsent(inputs: SoftwareUpdateInputs): Boolean =
         inputs.component == SoftwareComponent.COMPANION && inputs.installedVersion == null
 
-    /** The entity is not announced at all: withheld for Panel Assistant, or no Companion to report on. */
-    fun withheld(inputs: SoftwareUpdateInputs): Boolean = inputs.suppressed || companionAbsent(inputs)
+    /** The channel reports nothing: no Companion to report on. */
+    fun withheld(inputs: SoftwareUpdateInputs): Boolean = companionAbsent(inputs)
 
     private fun installedPresentation(inputs: SoftwareUpdateInputs): String {
         val installed = inputs.installedVersion ?: return NOT_INSTALLED

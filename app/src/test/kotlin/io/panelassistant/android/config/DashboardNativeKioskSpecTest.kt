@@ -19,7 +19,7 @@ class DashboardNativeKioskSpecTest {
         assertEquals("Hide Home Assistant navigation (native)", spec.label)
     }
 
-    @Test fun `native kiosk is not advertised as an MQTT entity or CSS emulation`() {
+    @Test fun `native kiosk is not advertised as an external entity or CSS emulation`() {
         assertNull(spec.ha)
         assertTrue(spec.help.contains("After Home Assistant 2026.4.2+ connects"))
         assertTrue(spec.help.contains("does not lock Android"))

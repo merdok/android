@@ -18,19 +18,19 @@ import java.util.concurrent.atomic.AtomicReference
  * (one [LedEffects.frame] per [LedEffects.Effect.stepMs] tick). Modelled on [WatchdogController]:
  * a single `@Volatile` job; [start] cancels-and-replaces, [stop] cancels.
  *
- * OWNED BY THE SERVICE, not the MQTT bridge: `PaneldService` holds the single instance and injects it
- * into every [io.panelassistant.android.MqttBridge] it builds. A bridge rebuild (panel_id / broker
+ * OWNED BY THE SERVICE, not the command dispatcher: `PaneldService` holds the single instance and injects it
+ * into every runtime generation it builds. A runtime rebuild (panel_id
  * change via `reconfigure()`) therefore cannot orphan a running loop — there is only ever ONE loop, and
  * it survives the rebuild (the new bridge re-issues [start] with the persisted colour, a seamless
  * cancel-and-replace). Its lifetime matches the LED hardware's, like [led] itself.
  *
  * Runs on [Dispatchers.IO] — mandatory, because the daemon-backed LED HAL
  * ([io.panelassistant.android.hardware.SocketLedController] via `HelperClient`) does blocking socket
- * I/O on every frame. [start]/[stop] are called from the MQTT callback thread (off-main) in `handleLed`.
+ * I/O on every frame. [start]/[stop] are called from the command thread (off-main) in `handleLed`.
  *
  * [start], [setSolid], [setOff], [stop], and [close] are `@Synchronized` and tear the previous job down
  * with **cancel-and-join**, so no in-flight frame can land after its replacement. [close] is terminal:
- * once service teardown begins, a late MQTT callback cannot restart an effect or write a solid value.
+ * once service teardown begins, a late command cannot restart an effect or write a solid value.
  *
  * [scope] is injectable purely so unit tests can drive the loop on a real test dispatcher; production
  * always uses the default IO scope. It must be a real dispatcher, not a virtual-time TestScope — the
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * **Holds.** An indication that must not be overwritten — the camera-in-use light while the screen is
  * off — takes a [Hold]. While one is held, every ordinary write ([start], [setSolid], [setOff], [stop])
- * is refused and returns false, so the MQTT `handleLed` path persists the user's intent and reports the
+ * is refused and returns false, so the `handleLed` path persists the user's intent and reports the
  * actuation as unknown rather than silently painting over the indication. The holder writes through the
  * hold, and releasing it restores nothing: the release caller re-derives the LED from persisted intent,
  * which is the only source that also reflects a command that arrived mid-hold.

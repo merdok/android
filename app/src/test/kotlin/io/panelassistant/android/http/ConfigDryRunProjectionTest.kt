@@ -14,7 +14,7 @@ class ConfigDryRunProjectionTest {
         val proposedPassword = "proposed-password-marker"
         val body = configDryRunJson(
             diff = listOf(
-                ConfigDiff.Change("mqtt_password", currentPassword, proposedPassword),
+                ConfigDiff.Change("ha_refresh_token", currentPassword, proposedPassword),
                 ConfigDiff.Change("ha_token", null, "proposed-token-marker"),
             ),
             skipped = emptyList(),
@@ -33,13 +33,13 @@ class ConfigDryRunProjectionTest {
     }
 
     @Test fun equalAndUnequalSecretGuessesProduceTheSameProjection() {
-        val current = mapOf("mqtt_password" to "stored", "friendly_name" to "Panel Alpha")
-        val equal = configPreviewDiff(current, mapOf("mqtt_password" to "stored"))
-        val unequal = configPreviewDiff(current, mapOf("mqtt_password" to "guess"))
+        val current = mapOf("ha_token" to "stored", "friendly_name" to "Panel Alpha")
+        val equal = configPreviewDiff(current, mapOf("ha_token" to "stored"))
+        val unequal = configPreviewDiff(current, mapOf("ha_token" to "guess"))
 
         assertEquals(equal, unequal)
         assertEquals(1, equal.size)
-        assertEquals("mqtt_password", equal.single().key)
+        assertEquals("ha_token", equal.single().key)
         val equalJson = configDryRunJson(equal, emptyList(), emptyList(), "1234abcd")
         val unequalJson = configDryRunJson(unequal, emptyList(), emptyList(), "1234abcd")
         assertEquals(equalJson, unequalJson)
@@ -49,11 +49,11 @@ class ConfigDryRunProjectionTest {
 
     @Test fun concurrencyProjectionIgnoresSecretsButTracksOrdinarySettings() {
         val baseline = mapOf(
-            "mqtt_password" to "one",
+            "ha_refresh_token" to "one",
             "ha_token" to "token-one",
             "friendly_name" to "Panel Alpha",
         )
-        val secretChange = baseline + ("mqtt_password" to "two") + ("ha_token" to "token-two")
+        val secretChange = baseline + ("ha_refresh_token" to "two") + ("ha_token" to "token-two")
         val ordinaryChange = baseline + ("friendly_name" to "Panel Beta")
 
         assertEquals(configConcurrencyValues(baseline), configConcurrencyValues(secretChange))
@@ -62,7 +62,7 @@ class ConfigDryRunProjectionTest {
             ConfigHash.of(configConcurrencyValues(secretChange)),
         )
         assertTrue(configConcurrencyValues(baseline) != configConcurrencyValues(ordinaryChange))
-        assertFalse(configConcurrencyValues(baseline).containsKey("mqtt_password"))
+        assertFalse(configConcurrencyValues(baseline).containsKey("ha_refresh_token"))
         assertFalse(configConcurrencyValues(baseline).containsKey("ha_token"))
     }
 

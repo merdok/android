@@ -138,21 +138,15 @@ class LiveSettingAuthorityTest {
     }
 
     @Test fun `persisted desired and retained actual converge only after successful replay`() {
-        // The retain flag is no longer something the converger hands its sender: the MQTT edge owns it,
-        // and MqttWireGoldenTest pins touch_sound/state as retained on the wire.
-        data class Publication(val payload: String, val done: (Boolean) -> Unit)
-        val publications = mutableListOf<Publication>()
+        val published = mutableListOf<String>()
         var actual = false
-        val converger = io.panelassistant.android.testsupport.OutboxConverger(
-            sender = { _, observation, done -> publications += Publication(mqttStatePayload(observation), done) },
-            schedule = { it() },
-        )
-        converger.register(io.panelassistant.android.testsupport.OutboxConverger.Channel(
+        val converger = StateConverger()
+        converger.addSink { _, observation, _ -> published += (observation as StateConverger.Observation.Known).payload }
+        converger.register(StateConverger.Channel(
             "touch_sound",
             observe = { StateConverger.Observation.Known(if (actual) "ON" else "OFF") },
         ))
         converger.reconcile("touch_sound")
-        publications.last().done(true)
 
         val journal = FakeJournal()
         val authority = LiveSettingAuthority(setOf("touch_sound"), journal)
@@ -162,21 +156,19 @@ class LiveSettingAuthorityTest {
                 LiveSettingApplyResult.FAILED
             },
         )
-        converger.reconcile("touch_sound", force = true)
-        publications.last().done(true)
-        assertEquals("OFF", publications.last().payload)
+        converger.reconcile("touch_sound")
+        assertEquals("OFF", published.last())
         assertEquals("true", journal.values.getValue("touch_sound").value)
 
         authority.replayKeys(setOf("touch_sound")) { _, _, _, _ -> LiveSettingApplyResult.FAILED }
         assertEquals(mapOf("touch_sound" to "true"), authority.pendingSnapshot())
         authority.replayKeys(setOf("touch_sound")) { _, _, _, _ ->
             actual = true
-            converger.reconcile("touch_sound", force = true)
+            converger.reconcile("touch_sound")
             LiveSettingApplyResult.APPLIED
         }
-        publications.last().done(true)
 
-        assertEquals("ON", publications.last().payload)
+        assertEquals("ON", published.last())
         assertTrue(authority.pendingSnapshot().isEmpty())
         assertTrue(journal.values.isEmpty())
     }

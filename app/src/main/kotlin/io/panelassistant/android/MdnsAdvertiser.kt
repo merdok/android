@@ -603,69 +603,35 @@ class MdnsAdvertiser(
     }
 
     /**
-     * Browse for Home Assistant's own zeroconf advertisement (`_home-assistant._tcp.local.`) and
-     * return the IPv4 of one that actually has the MQTT port (1883) open — so on a LAN with more than
-     * one HA instance we pick the one running a broker, and skip an HA whose broker lives elsewhere.
-     * Falls back to the first HA host if none probe open. Used to default the MQTT broker to
-     * `tcp://<ha-ip>:1883` when none is set. Blocking up to [timeoutMs]; call off the main thread.
-     */
-    fun discoverHaIp(timeoutMs: Long = 4000): String? = ownerGate.runIfOpen<String?>(null) {
-        val dns = jmdns ?: return@runIfOpen null
-        val ips = runCatching {
-            dns.list("_home-assistant._tcp.local.", timeoutMs)
-                ?.mapNotNull { it.inet4Addresses?.firstOrNull()?.hostAddress }?.distinct() ?: emptyList()
-        }.getOrDefault(emptyList())
-        val chosen = ips.firstOrNull { mqttPortOpen(it) } ?: ips.firstOrNull()
-        Log.i(TAG, "HA mDNS discovery: hosts=$ips -> ${chosen ?: "none found"}")
-        chosen
-    }
-
-    /**
      * HA's own advertised base URL (scheme+host+port) from its zeroconf TXT — `internal_url` preferred,
      * then `base_url`, then `external_url`. Authoritative for setups that don't use the default http :8123
      * (e.g. HA Core terminating TLS on :443, or behind a reverse proxy), so callers never have to guess a
      * port/scheme. Null if no HA service is found or it advertises no URL. Blocking; call off the main thread.
      */
-    fun discoverHaBaseUrl(configuredBroker: String, timeoutMs: Long = 4000): String? =
+    fun discoverHaBaseUrl(timeoutMs: Long = 4000): String? =
         ownerGate.runIfOpen<String?>(null) {
         val dns = jmdns ?: return@runIfOpen null
-        val brokerIps = brokerHostIps(configuredBroker) // all of the broker host's addresses (v4 AND v6) — see below
         val url = runCatching {
-            val svcs = dns.list("_home-assistant._tcp.local.", timeoutMs)?.toList() ?: emptyList()
-            // The panel's HA is the one hosting its MQTT broker. Match the configured broker by IP — against
-            // ALL of the service's addresses (v4 + v6), since the broker host commonly resolves to a global
-            // IPv6 first — so on a LAN with several HA instances (a primary + a secondary) we never pick the
-            // wrong one. Else fall back to whichever HA has :1883 open; else give up rather than guess.
-            val pick = svcs.firstOrNull { s ->
-                s.inetAddresses?.any { (it.hostAddress?.substringBefore('%')) in brokerIps } == true
-            } ?: if (configuredBroker.isBlank()) {
-                // No explicit broker → auto-discover: the local HA that runs the broker (:1883 open).
-                svcs.firstOrNull { s -> s.inet4Addresses?.firstOrNull()?.hostAddress?.let { mqttPortOpen(it) } == true }
-            } else {
-                // Explicit broker that matched no local HA (e.g. its HA is across a tunnel) → return null so
-                // the caller's broker-HOST fallback handles it, rather than picking an unrelated local HA.
-                null
-            }
-            pick?.let {
+            dns.list("_home-assistant._tcp.local.", timeoutMs)?.firstOrNull()?.let {
                 val advertised = it.getPropertyString("internal_url") ?: it.getPropertyString("base_url")
                     ?: it.getPropertyString("external_url")
                 val serviceIps = it.inetAddresses.orEmpty()
                     .mapNotNull { address -> address.hostAddress?.substringBefore('%') }
                     .toSet()
                 // An IP-form advertised URL is rewritten to the record's own hostname (same record, same
-                // trust) so downstream suggestions — HA URL and the derived MQTT broker — stay hostname-
-                // shaped and IPv6-capable instead of pinning the panel to one IPv4 address.
+                // trust) so the suggested HA URL stays hostname-shaped and IPv6-capable instead of
+                // pinning the panel to one IPv4 address.
                 HaDiscovery.preferServerHostname(safeAdvertisedHaUrl(advertised, serviceIps), it.server)
             }
         }.getOrNull()
-        Log.i(TAG, "HA mDNS base url (broker=${brokerIps.joinToString(",").ifEmpty { "?" }}): ${url ?: "none"}")
+        Log.i(TAG, "HA mDNS base url: ${url ?: "none"}")
         url
     }
 
     /**
      * Resolve the stable Home Assistant instance id advertised in zeroconf TXT. Identity is accepted only
      * when exactly one valid record matches the configured HA origin or one of [candidateUrls] returned by
-     * that authenticated HA API. IP address, MQTT location and record order are deliberately irrelevant:
+     * that authenticated HA API. IP address and record order are deliberately irrelevant:
      * several HA instances can share a host or reverse proxy. A `<uuid>.local` candidate is also an exact
      * identity match because Home Assistant defines that hostname from the same advertised uuid.
      *
@@ -732,53 +698,21 @@ class MdnsAdvertiser(
      *
      * Blocking for the same budget as [discoverHaBaseUrl]; call off the main thread.
      */
-    fun discoverHaBaseUrlDetailed(configuredBroker: String, timeoutMs: Long = 4000): DiscoveryResult {
+    fun discoverHaBaseUrlDetailed(timeoutMs: Long = 4000): DiscoveryResult {
         val attemptedAtMs = System.currentTimeMillis()
-        val offLink = HaDiscovery.brokerOffLink(brokerHostIps(configuredBroker).toList(), localPrefixes())
-        val url = discoverHaBaseUrl(configuredBroker, timeoutMs)
+        val url = discoverHaBaseUrl(timeoutMs)
         return HaDiscovery.classify(
             mdnsRunning = jmdns != null,
             multicastLockHeld = lock != null,
-            brokerConfigured = configuredBroker.isNotBlank(),
-            brokerOffLink = offLink,
             // The "nothing answered at all" inference stays unwired: counting responses would mean
             // restructuring the browse hot path for the one signal already known to be unreliable (a
             // healthy single-panel LAN whose HA simply does not advertise looks identical). The signals
-            // above are facts or sound inferences; this one would be a guess, so it is not made.
+            // above are facts; this one would be a guess, so it is not made.
             servicesSeen = SERVICES_SEEN_UNKNOWN,
             discoveredUrl = url.orEmpty(),
             attemptedAtMs = attemptedAtMs,
         )
     }
-
-    /**
-     * Local interface prefixes for the off-link judgement. Loopback and down interfaces are excluded, and
-     * an interface that reports no prefix length is left for [HaDiscovery] to treat as unjudgeable rather
-     * than being assumed to be a /24.
-     */
-    private fun localPrefixes(): List<LocalPrefix> = runCatching {
-        java.net.NetworkInterface.getNetworkInterfaces().toList()
-            .filter { runCatching { it.isUp && !it.isLoopback }.getOrDefault(false) }
-            .flatMap { nif ->
-                nif.interfaceAddresses.orEmpty().mapNotNull { ia ->
-                    val host = ia?.address?.hostAddress?.substringBefore('%') ?: return@mapNotNull null
-                    LocalPrefix(host, ia.networkPrefixLength.toInt())
-                }
-            }
-    }.getOrDefault(emptyList())
-
-    /** All of the configured MQTT broker host's IP addresses (v4 + v6), to match against HA mDNS records. */
-    private fun brokerHostIps(configuredBroker: String): Set<String> = runCatching {
-        val host = configuredBroker.substringAfter("://").substringBefore(":").substringBefore("/").trim()
-        if (host.isBlank()) emptySet()
-        else java.net.InetAddress.getAllByName(host).mapNotNull { it.hostAddress?.substringBefore('%') }.toSet()
-    }.getOrDefault(emptySet())
-
-    /** True if TCP 1883 accepts a connection on [ip] within [timeoutMs] (the MQTT broker is there). */
-    private fun mqttPortOpen(ip: String, port: Int = 1883, timeoutMs: Int = 600): Boolean =
-        runCatching {
-            java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, port), timeoutMs) }; true
-        }.getOrDefault(false)
 
     companion object {
         private const val TAG = "ha-paneld/mdns"

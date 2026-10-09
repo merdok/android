@@ -73,32 +73,14 @@ internal fun stageDirectLogShipping(config: Config, posted: Map<String, String>)
     }
 }
 
-/** Stage the direct form's coupled credential groups through their real Config owners. Blank secret
- * placeholders preserve existing credentials except where an owner field is explicitly cleared or the
+/** Stage the direct form's coupled Home Assistant credentials through their real Config owners. Blank
+ * secret placeholders preserve existing credentials except where the URL is explicitly cleared or the
  * Home Assistant origin changes. Kept production-used so mutations to those dependent clears reach the JVM
  * contract instead of surviving behind a per-key writer test. */
 internal fun stageDirectCredentialSettings(
     config: Config,
     posted: Map<String, String>,
 ): DirectCredentialEffects {
-    val broker = posted["mqtt_broker"]
-    val user = posted["mqtt_user"]
-    val mqttAddressFamily = posted[SettingsRegistry.ADDRESS_FAMILY_KEY]
-    val brokerChanged = broker != null && broker != config.mqttBroker
-    val password = when {
-        user != null && user.isEmpty() -> ""
-        brokerChanged && config.hardenedSecurityEnabled -> posted["mqtt_password"]?.takeIf(String::isNotEmpty) ?: ""
-        else -> posted["mqtt_password"]?.takeIf(String::isNotEmpty)
-    }
-    if (broker != null || user != null || password != null || mqttAddressFamily != null) {
-        config.setMqtt(
-            broker ?: config.mqttBroker,
-            user ?: config.mqttUser,
-            password,
-            mqttAddressFamily,
-        )
-    }
-
     val previousUrl = config.haUrl
     val previousToken = config.haToken
     val previousRefresh = config.haRefreshToken

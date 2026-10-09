@@ -59,7 +59,6 @@ internal class AndroidSuccessorMigrationPorts(
     private val state: MigrationState,
     private val environment: Environment,
     private val httpPort: Int,
-    private val mqttState: () -> String = { "disabled" },
     /** Whether this app's Panel Assistant session is connected now. */
     private val panelAssistantConnected: () -> Boolean = { false },
     /** A fresh outcome for one restore attempt, completed by the server when that restore ends. */
@@ -198,9 +197,8 @@ internal class AndroidSuccessorMigrationPorts(
     }.getOrDefault(false)
 
     override fun homeAssistantConverged(): Boolean = homeAssistantConverged(
-        mqttConnected = mqttState() == "connected",
         panelAssistantConnected = panelAssistantConnected(),
-        legacyMqttConnected = { ReceiptVerifier.legacyMqttConnected(state.receipt) },
+        legacyConnected = { ReceiptVerifier.legacyConnected(state.receipt) },
     )
 
     override fun uninstallLegacy(): Boolean =
@@ -247,15 +245,14 @@ internal class AndroidSuccessorMigrationPorts(
     internal companion object {
         /**
          * "Unchanged" is measured against the legacy app, not against an ideal: a panel that was connected
-         * when it wrote the receipt must reach Home Assistant again before the legacy package goes, by MQTT
-         * or by its Panel Assistant session, and a panel that was never connected is not held for ever to
-         * a broker it never had.
+         * when it wrote the receipt must reach Home Assistant again, through its Panel Assistant session,
+         * before the legacy package goes, and a panel that was never connected is not held for ever to a
+         * connection it never had.
          */
         fun homeAssistantConverged(
-            mqttConnected: Boolean,
             panelAssistantConnected: Boolean,
-            legacyMqttConnected: () -> Boolean,
-        ): Boolean = mqttConnected || panelAssistantConnected || !legacyMqttConnected()
+            legacyConnected: () -> Boolean,
+        ): Boolean = panelAssistantConnected || !legacyConnected()
 
         /**
          * Grants the legacy app holds that this app does not. Notifications are the exception: claimed

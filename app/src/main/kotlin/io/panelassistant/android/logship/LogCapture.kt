@@ -29,7 +29,7 @@ import kotlin.math.min
  *
  * Runs only while it has subscribers (idle-stop): with log shipping off and no viewer connected
  * there is no logcat subprocess at all. Two sources exist as separate instances:
- *  - [app]: ha-paneld's own-process logcat (its `Log.*` output + the Ktor/HiveMQ SLF4J lines) —
+ *  - [app]: ha-paneld's own-process logcat (its `Log.*` output + the Ktor SLF4J lines) —
  *    own-uid, so readable with no `READ_LOGS` permission and no root.
  *  - [system]: full system logcat via the profile's su form, or the authenticated helper when the app
  *    cannot use root itself.

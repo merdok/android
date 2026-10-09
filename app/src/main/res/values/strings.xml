@@ -63,19 +63,11 @@
     <string name="approval_op_power_safety_ack">Hide one exact power safety caution</string>
     <string name="approval_op_guard_db">Advance database recovery</string>
     <string name="approval_op_camera_enable">Enable the panel camera</string>
-    <string name="approval_op_transport_release">Hand panel control back to MQTT</string>
 
     <string name="set_up">Set up</string>
     <string name="open_configuration">Open configuration</string>
     <string name="panel_not_set_up">This panel isn’t set up yet.</string>
     <string name="panel_not_set_up_hint">Scan the code or open the address below on your phone or laptop — it takes about two minutes. Or tap %1$s to do it on this screen.</string>
-    <string name="mqtt_could_not_connect">MQTT couldn’t connect.</string>
-    <string name="mqtt_credentials_rejected_hint">The broker rejected the username and password — fix them on the setup page in a browser.</string>
-    <string name="waiting_for_mqtt_details">Waiting for MQTT details.</string>
-    <string name="someone_configuring_hint">Someone’s setting this up in a browser. Nothing to do here.</string>
-    <string name="mqtt_address_check_hint">Check the broker address on the setup page in a browser.</string>
-    <string name="checking_mqtt_connection">Checking the MQTT connection…</string>
-    <string name="takes_few_seconds_hint">This takes a few seconds. Nothing to do here.</string>
     <string name="browser_engine_too_old">This panel’s browser engine is too old.</string>
     <string name="browser_engine_too_old_hint">Home Assistant dashboards need a newer one. Fix it on the setup page in a browser.</string>
     <string name="choose_dashboard_app">Choose a dashboard app.</string>

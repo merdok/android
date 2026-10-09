@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Reads the durable facts behind [startDisposition]. Cheap, and safe before any app state exists. */
 internal object IdentityMigrationGate {
     /**
-     * True for the life of a process that started as a [StartDisposition.HELD_SUCCESSOR]. MQTT and mDNS
+     * True for the life of a process that started as a [StartDisposition.HELD_SUCCESSOR]. mDNS
      * consult it at their own start, because several owners can start them and the point of the hold is
      * that none of them connects or advertises under the identity this app generated before it has
      * restored the panel's real one. The process restarts once the restore is durable, so it never clears.

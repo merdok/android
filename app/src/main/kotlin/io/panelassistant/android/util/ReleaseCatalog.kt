@@ -12,7 +12,7 @@ import java.net.URL
  * filters by channel (stable = non-prerelease only; prerelease = all releases, newest first), and
  * exposes each as a pickable version with its release-notes URL + whether it carries an installable APK
  * asset. Also resolves the APK asset URL for an exact tag (install-a-specific-version). Network — call
- * OFF the main / MQTT thread.
+ * OFF the main / command thread.
  */
 object ReleaseCatalog {
     private const val TAG = "ha-paneld/releases"

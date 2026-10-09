@@ -16,7 +16,7 @@ enum class VoiceState {
  * The voice coordinator drives it via [set]. Default [VoiceState.OFF] — a panel with voice_enabled off, or
  * before any pipeline has run, reports OFF rather than an invented state. [setChangeListener] follows the
  * same pattern as `SensorReporter.setLearnedProximityListener`: the listener is expected to resolve the
- * CURRENT bridge generation (e.g. `runtime.observe()?.value?.mqtt`) rather than close over one, so a
+ * CURRENT bridge generation (e.g. `runtime.observe()?.value`) rather than close over one, so a
  * bridge rebuild (reconfigure) never leaves a stale generation publishing.
  */
 class VoiceStateAuthority {

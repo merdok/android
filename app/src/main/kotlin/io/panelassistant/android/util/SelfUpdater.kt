@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
  * releases to follow: `stable` (GitHub releases/latest — non-prerelease) or `prerelease` (the newest
  * published release, incl. rc builds). Installing a newer build restarts the service (the package's
  * MY_PACKAGE_REPLACED receiver relaunches it); a channel switch may move down a version — allowed by
- * the installer's `-d`. Network + su — call OFF the main / MQTT thread.
+ * the installer's `-d`. Network + su — call OFF the main / command thread.
  */
 object SelfUpdater {
     const val STABLE = "stable"

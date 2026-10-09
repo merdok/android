@@ -28,6 +28,8 @@ class EntityLearningAreaWriteTest {
         val currentArea = AtomicReference("bad-area")
         val updates = ConcurrentLinkedQueue<JSONObject>()
         val commands = ConcurrentLinkedQueue<String>()
+        val deviceUid = "a".repeat(32)
+        val discoveryId = requireNotNull(io.panelassistant.android.panelAssistantDiscoveryId(deviceUid))
         val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
             install(WebSockets)
             routing {
@@ -46,9 +48,16 @@ class EntityLearningAreaWriteTest {
                                 .put(JSONObject().put("area_id", "study").put("name", "Study"))
                             "config/device_registry/list" -> JSONArray().put(
                                 JSONObject().put("id", "panel-device")
-                                    .put("identifiers", JSONArray().put(JSONArray().put("mqtt").put("ha-paneld-uid-test")))
+                                    .put("identifiers", JSONArray().put(JSONArray().put("panel_assistant").put("entry-test")))
                                     .put("area_id", currentArea.get()),
                             )
+                            "config/entity_registry/list_for_display" -> JSONObject().put("entities", JSONArray().put(
+                                JSONObject().put("ei", "sensor.panel_status").put("di", "panel-device").put("pl", "panel_assistant"),
+                            ))
+                            "config/entity_registry/get_entries" -> JSONObject().put("sensor.panel_status", JSONObject()
+                                .put("platform", "panel_assistant")
+                                .put("unique_id", "${discoveryId}_status")
+                                .put("config_entry_id", "entry-test"))
                             "config/device_registry/update" -> {
                                 updates.add(command)
                                 currentArea.set(if (command.isNull("area_id")) "" else command.getString("area_id"))
@@ -74,6 +83,7 @@ class EntityLearningAreaWriteTest {
                     "getString" -> when (args?.get(0)) {
                         "ha_url" -> "http://127.0.0.1:$port"
                         "ha_token" -> "test-token"
+                        Config.DEVICE_UID_PREF -> deviceUid
                         else -> ""
                     }
                     "getAll" -> mapOf("ha_url" to "http://127.0.0.1:$port", "ha_token" to "test-token")
@@ -87,19 +97,19 @@ class EntityLearningAreaWriteTest {
             EntityLearningManager::class.java.getDeclaredField("config").apply { isAccessible = true }
                 .set(manager, config)
 
-            val stale = manager.haAreaCatalog("test", "panel")
+            val stale = manager.haAreaCatalog()
             assertTrue(stale.queried)
             assertTrue(HaAreaProtocol.hasLiteralNullAssignment(stale.device, stale.areas))
             val readsBeforeRepair = commands.count { it == "config/device_registry/list" }
 
             currentArea.set("study") // Another HA owner moves the device after the catalog read.
-            assertFalse(manager.applyRequestedArea("test", "panel", "", stale.ownerKey))
+            assertFalse(manager.applyRequestedArea("", stale.ownerKey))
             assertEquals(readsBeforeRepair + 1, commands.count { it == "config/device_registry/list" })
             assertEquals("study", currentArea.get())
             assertTrue(updates.isEmpty())
 
             currentArea.set("bad-area")
-            assertTrue(manager.applyRequestedArea("test", "panel", "", stale.ownerKey))
+            assertTrue(manager.applyRequestedArea("", stale.ownerKey))
             assertEquals(readsBeforeRepair + 2, commands.count { it == "config/device_registry/list" })
             assertEquals("", currentArea.get())
             assertEquals(1, updates.size)

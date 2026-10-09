@@ -7,7 +7,7 @@ package io.panelassistant.android.control
  * The profile selects the preferred route, not the only route. A failed preferred action falls through
  * to the other live capability, covering stale profile assumptions and a temporarily unbound service.
  *
- * Both calls block on a `su`/binder round-trip — invoke from a background thread (the MQTT command
+ * Both calls block on a `su`/binder round-trip — invoke from a background thread (the command
  * thread is fine; the overlay button offloads to a worker).
  */
 object NavActions {

@@ -115,16 +115,14 @@ internal fun Route.configReadRoutes(
         )
     }
     get("/config/discovery") {
-        val needsMqtt = config.mqttBroker.isBlank()
         val needsHa = config.haUrl.isBlank()
-        val found = if (needsMqtt || needsHa) {
+        val found = if (needsHa) {
             withContext(Dispatchers.IO) { discover() }
                 .also { rememberDiscovery(it.haDiscovery) }
         } else ConfigDiscoverySuggestions()
-        val mqtt = found.mqttBroker.takeIf { needsMqtt && config.mqttBroker.isBlank() }.orEmpty()
         val ha = found.haUrl.takeIf { needsHa && config.haUrl.isBlank() }.orEmpty()
         call.respondText(
-            "{\"mqtt_broker\":${Json.str(mqtt)},\"ha_url\":${Json.str(ha)}}",
+            "{\"ha_url\":${Json.str(ha)}}",
             ContentType.Application.Json,
         )
     }

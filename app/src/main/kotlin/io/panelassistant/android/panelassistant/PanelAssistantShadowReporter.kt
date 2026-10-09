@@ -9,14 +9,14 @@ import org.json.JSONObject
 
 /**
  * Native state reporting (protocol sections 8 and 10): every accepted observation is reported over the
- * native transport independently of MQTT delivery, so the integration can compare values and freshness.
+ * native transport so the integration can compare values and freshness.
  *
  * This keeps its own per-channel state: the latest
  * observation, whether it still needs sending, the request carrying it, and the revision the integration
  * acknowledged or rejected. Channel state is keyed by wire channel; the two attribute channels are folded
  * into their parents.
  *
- * Two sides share it. [bind] hands the live MQTT bridge a [StateSink] whose invocation only records the
+ * Two sides share it. [bind] hands the state converger a [StateSink] whose invocation only records the
  * observation and wakes the session: it never translates, blocks or throws into the convergence pump.
  * Everything else is called by the transport owner's single session coroutine, which also owns every send,
  * so message ids stay strictly increasing in send order.

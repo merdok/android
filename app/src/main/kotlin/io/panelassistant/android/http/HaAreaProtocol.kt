@@ -26,8 +26,8 @@ internal fun haAreaCacheEntryUsable(
  * about what the signed-in account can actually do.
  *
  * The precedence rule: **Home Assistant's value, when set, is
- * canonical.** The local `ha_area` setting records the panel's *requested* area — it seeds the MQTT
- * discovery `suggested_area` (which applies only at first device registration) and drives write-back
+ * canonical.** The local `ha_area` setting records the panel's *requested* area — it seeds the device
+ * registration `suggested_area` (which applies only at first device registration) and drives write-back
  * attempts — but a differing area reported by HA overwrites the local value, never the reverse. That
  * keeps the non-admin story coherent: a non-admin's choice stands only while HA has none, and an admin's
  * later change in HA flows down instead of fighting.
@@ -117,13 +117,11 @@ object HaAreaProtocol {
     fun panelDeviceArea(
         deviceResponse: JSONObject?,
         areas: List<HaArea>,
-        deviceUid: String,
-        panelId: String,
         panelAssistantEntryIds: Set<String>,
     ): PanelDeviceArea {
         val rows = deviceResponse?.optJSONArray("result") ?: return PanelDeviceArea()
         val devices = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
-        val device = (HaPanelDeviceMatcher.preferred(devices, deviceUid, panelId, panelAssistantEntryIds)
+        val device = (HaPanelDeviceMatcher.preferred(devices, panelAssistantEntryIds)
             as? HaPanelDeviceMatcher.Match.Found)?.device ?: return PanelDeviceArea()
         val areaId = device.optString("area_id").trim()
         val areaName = areas.firstOrNull { it.areaId.equals(areaId, ignoreCase = true) }?.name

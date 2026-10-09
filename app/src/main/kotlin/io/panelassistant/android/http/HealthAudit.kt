@@ -32,8 +32,8 @@ object HealthAudit {
      * @param webViewTooOld  engine-aware verdict (`PanelInfo.webViewStatus(...).tooOld`)
      * @param webViewDisplay the WebView version string to show in the WEBVIEW_OLD finding
      * @param hasRenderer    a supported dashboard app (built-in / Companion / configured package) is present
-     * @param homeAssistantConfigured whether the panel is set up for Home Assistant (an MQTT broker, or a
-     *   Panel Assistant connection); renderer setup follows it
+     * @param homeAssistantConfigured whether the panel is set up for Home Assistant (a Panel Assistant
+     *   connection); renderer setup follows it
      * @param updates        available component updates, already filtered + ordered by the caller
      * @param schemaRolledBack   config was reset by a version downgrade (last reconcile was PRESERVED_FRESH)
      * @param schemaRollbackDetail the schema-version detail to show (e.g. "schema 13 → 11")

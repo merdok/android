@@ -1,6 +1,6 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
-import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.hardware.LedController
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
-internal class NativeStartupStateTest : MqttWireRig() {
+internal class NativeStartupStateTest : PanelRuntimeRig() {
     private class Led : LedController {
         var accepted = true
         val writes = mutableListOf<String>()
@@ -22,9 +22,9 @@ internal class NativeStartupStateTest : MqttWireRig() {
         }
     }
 
-    @Test fun freshNativeStartupPublishesAcknowledgedLedOffWithoutBroker() {
+    @Test fun freshStartupReportsAcknowledgedLedOff() {
         val led = Led()
-        val rig = rig(runtimeBroker = "", mqtt = false, led = led)
+        val rig = rig(led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
             rig.core.addStateSink { channel, observation, _ ->
@@ -38,9 +38,9 @@ internal class NativeStartupStateTest : MqttWireRig() {
         } finally { rig.close() }
     }
 
-    @Test fun nativeStartupRestoresStoredLedColorWithoutBroker() {
+    @Test fun startupRestoresStoredLedColor() {
         val led = Led()
-        val rig = rig(runtimeBroker = "", mqtt = false, led = led, configure = { it.lastLed = "1,128,255,0,0" })
+        val rig = rig(led = led, configure = { it.lastLed = "1,128,255,0,0" })
         val states = CopyOnWriteArrayList<String>()
         try {
             rig.core.addStateSink { channel, observation, _ ->
@@ -57,7 +57,7 @@ internal class NativeStartupStateTest : MqttWireRig() {
 
     @Test fun refusedStartupActuationStaysUnknownUntilAcknowledgedRestore() {
         val led = Led().apply { accepted = false }
-        val rig = rig(runtimeBroker = "", mqtt = false, led = led)
+        val rig = rig(led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
             rig.core.addStateSink { channel, observation, _ ->

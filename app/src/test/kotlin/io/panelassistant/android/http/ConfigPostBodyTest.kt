@@ -100,7 +100,7 @@ class ConfigPostBodyTest {
             append("ha_expose_navbar_mode", "1")
             append("tame_vendor_packages", "com.vendor.one, com.vendor.two com.vendor.one")
             append("ha_token_expiry", "42")
-            append("mqtt_password", "  exact password  ")
+            append("ha_token", "  exact password  ")
             append("network_address_family", "prefer ipv4")
         }) as ConfigPostParameters.Ok
         assertEquals("Example Panel", result.values["friendly_name"])
@@ -109,7 +109,7 @@ class ConfigPostBodyTest {
         assertEquals("true", result.values["ha_expose_navbar_mode"])
         assertEquals("com.vendor.one com.vendor.two", result.values["tame_vendor_packages"])
         assertEquals("42", result.values["ha_token_expiry"])
-        assertEquals("  exact password  ", result.values["mqtt_password"])
+        assertEquals("  exact password  ", result.values["ha_token"])
         assertEquals("Prefer IPv4", result.values["network_address_family"])
     }
 
@@ -127,25 +127,6 @@ class ConfigPostBodyTest {
         ).forEach { parameters ->
             assertTrue(normalizeConfigPostParameters(parameters) is ConfigPostParameters.Bad)
         }
-    }
-
-    @Test fun `mqtt onboarding discovers ha url only when user has not posted one`() {
-        assertTrue(shouldDiscoverHaUrlForMqttOnboarding("", Parameters.build {
-            append("mqtt_broker", "tcp://homeassistant.local:1883")
-        }))
-        assertTrue(shouldDiscoverHaUrlForMqttOnboarding("", Parameters.build {
-            append("mqtt_user", "panel")
-        }))
-        assertFalse(shouldDiscoverHaUrlForMqttOnboarding("http://homeassistant.local:8123", Parameters.build {
-            append("mqtt_broker", "tcp://homeassistant.local:1883")
-        }))
-        assertFalse(shouldDiscoverHaUrlForMqttOnboarding("", Parameters.build {
-            append("mqtt_broker", "tcp://homeassistant.local:1883")
-            append("ha_url", "")
-        }))
-        assertFalse(shouldDiscoverHaUrlForMqttOnboarding("", Parameters.build {
-            append("friendly_name", "Alpha")
-        }))
     }
 
     @Test fun `automatic brightness minimum preserves the visible floor at config admission`() {
@@ -180,4 +161,24 @@ class ConfigPostBodyTest {
     }
 
     private companion object { const val TEST_LIMIT = 1_024L }
+
+    @Test fun `a request written for an MQTT release applies everything but the broker`() {
+        val old = normalizeConfigPostParameters(Parameters.build {
+            append("friendly_name", "Alpha")
+            append("mqtt_address_family", "Force IPv4")
+            append("mqtt_broker", "tcp://homeassistant.local:1883")
+            append("mqtt_user", "panel")
+            append("mqtt_password", "secret")
+        })
+        assertTrue("an MQTT-era request is admitted: $old", old is ConfigPostParameters.Ok)
+        old as ConfigPostParameters.Ok
+        assertEquals(setOf("friendly_name", "network_address_family"), old.values.names())
+        assertEquals("Force IPv4", old.values["network_address_family"])
+
+        val both = normalizeConfigPostParameters(Parameters.build {
+            append("mqtt_address_family", "Force IPv4")
+            append("network_address_family", "Prefer IPv4")
+        }) as ConfigPostParameters.Ok
+        assertEquals("the current key wins over the legacy one", listOf("Prefer IPv4"), both.values.getAll("network_address_family"))
+    }
 }

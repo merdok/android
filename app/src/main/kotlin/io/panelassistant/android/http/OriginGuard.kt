@@ -6,7 +6,7 @@ package io.panelassistant.android.http
  * The surface is LAN-source-gated but has no token (the turnkey-UX / LAN-trust model — see
  * https://panel-assistant.io/go/docs?page=architecture/security). The realistic residual threat is *browser-mediated*: a person on
  * the LAN visits a malicious web page, whose JavaScript silently POSTs to the panel's IP to drive a
- * state-changing endpoint — e.g. `POST /config` to repoint MQTT (entity takeover), `/action` to
+ * state-changing endpoint — e.g. `POST /config` to repoint Home Assistant (entity takeover), `/action` to
  * reboot, or `/play` to inject audio. The cross-origin *read* is already blocked by the browser's
  * same-origin policy (no permissive CORS headers are sent), but the *side effect* of a CSRF write
  * still lands.

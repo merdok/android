@@ -341,7 +341,7 @@ class StorageHealthTest {
     @Test fun everyAppStateNamespaceCollapsesToOneStableLabel() {
         assertEquals("app-state-write", sanitizeDatabaseOperation("app_state:renderer"))
         assertEquals("app-state-write", sanitizeDatabaseOperation("app_state"))
-        assertEquals("app-state-write", sanitizeDatabaseOperation(sanitizeDatabaseOperation("app_state:mqtt")))
+        assertEquals("app-state-write", sanitizeDatabaseOperation(sanitizeDatabaseOperation("app_state:link")))
     }
 
     // A label the installer can render must never collapse to the generic "database".

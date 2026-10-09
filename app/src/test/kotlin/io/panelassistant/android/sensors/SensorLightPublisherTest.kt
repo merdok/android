@@ -31,7 +31,7 @@ class SensorLightPublisherTest {
         assertEquals(listOf(123), published)
     }
 
-    @Test fun rawAutoBrightnessSamplesContinueWhileMqttPublicationIsBlocked() {
+    @Test fun rawAutoBrightnessSamplesContinueWhilePublicationIsBlocked() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val rawLux = mutableListOf<Float>()
@@ -61,7 +61,7 @@ class SensorLightPublisherTest {
         assertTrue(publisher.awaitTermination(5_000L))
     }
 
-    @Test fun blockedMqttPublicationDoesNotBlockSamplesAndKeepsLatestPendingLux() {
+    @Test fun blockedPublicationDoesNotBlockSamplesAndKeepsLatestPendingLux() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val finished = CountDownLatch(2)
@@ -88,7 +88,7 @@ class SensorLightPublisherTest {
             submissionsReturned.countDown()
         }.start()
 
-        assertTrue("sensor submissions must not wait for MQTT", submissionsReturned.await(1, TimeUnit.SECONDS))
+        assertTrue("sensor submissions must not wait for publication", submissionsReturned.await(1, TimeUnit.SECONDS))
         release.countDown()
         assertTrue(finished.await(5, TimeUnit.SECONDS))
         publisher.close()

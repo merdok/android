@@ -17,19 +17,9 @@ class MigrationNoticeConfigTest {
     @Test fun `accepted Panel Assistant session clears the notice through the production config writer`() {
         val config = Config(Preferences().preferences)
         assertTrue(config.migrationNoticeVisible(100))
-        config.setPanelAssistantAuthority("mqtt")
-        assertTrue(config.migrationNoticeVisible(100))
         config.markPanelAssistantConnected()
         assertFalse(config.migrationNoticeVisible(100))
         assertFalse(config.migrationNoticeVisible(101))
-    }
-
-    @Test fun `polling integration clears the notice even without a native session`() {
-        val state = Preferences()
-        val config = Config(state.preferences)
-        config.setPanelAssistantUpdateOwnerSeenMs(1234)
-        assertFalse(config.migrationNoticeVisible(100))
-        assertFalse(Config(state.preferences).migrationNoticeVisible(101))
     }
 
     @Test fun `a panel Panel Assistant is adding does not tell its owner to install Panel Assistant`() {
@@ -55,19 +45,11 @@ class MigrationNoticeConfigTest {
         assertTrue(config.migrationNoticeVisible(100))
     }
 
-    @Test fun `restored connection history suppresses the notice without granting transport authority`() {
+    @Test fun `restored connection history suppresses the notice`() {
         val state = Preferences()
         state.preferences.edit().putBoolean("migration_notice_connection_seen", true).commit()
         val successor = Config(state.preferences)
         assertFalse(successor.migrationNoticeVisible(101))
-        assertEquals("", successor.panelAssistantAuthority)
-        assertEquals(0L, successor.panelAssistantUpdateOwnerSeenMs)
-    }
-
-    @Test fun `unrecognized authority is not a Panel Assistant connection`() {
-        val config = Config(Preferences().preferences)
-        config.setPanelAssistantAuthority("unrecognized")
-        assertTrue(config.migrationNoticeVisible(100))
     }
 
     private class Preferences(private val commitSucceeds: Boolean = true) {

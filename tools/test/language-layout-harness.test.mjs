@@ -16,7 +16,7 @@ test.after(() => new Promise((done) => server.close(done)));
 function breakLayout() {
   const card = document.querySelector('#cfg-groups .card');
   // Growth without new text: squeeze the second card's rows so the same words need many more lines.
-  const squeezed = document.querySelector('[data-layout-key="configure-mqtt"]');
+  const squeezed = document.querySelector('[data-layout-key="configure-ha-connection"]');
   squeezed.querySelectorAll('p,small,label,div').forEach((node) => { node.style.maxWidth = '120px'; });
   const long = 'Überlange Beschriftung, die niemals in eine Zeile passt und die Karte deutlich wachsen lässt '.repeat(3);
   card.querySelector('h2').id = 'mutant-title';
@@ -53,7 +53,7 @@ for (const browserName of BROWSERS) {
         assert.equal(found(blocking ? errors : reports, 'b overflow', 'page'), true, `${view.name}: sideways page scroll must be ${blocking ? 'an error' : 'reported'}`);
         assert.equal(found(blocking ? errors : reports, 'b overlap'), true, `${view.name}: overlapping controls must be ${blocking ? 'an error' : 'reported'}`);
         assert.equal(found(blocking ? errors : reports, 'd wraps', 'mutant-title'), true, `${view.name}: a wrapping card title must be ${blocking ? 'an error' : 'reported'}`);
-        assert.equal(found(blocking ? errors : reports, 'd card growth', 'configure-mqtt'), true, `${view.name}: card growth beyond the German scale must be ${blocking ? 'an error' : 'reported'}\n${reports.concat(errors).filter((line) => line.includes('growth')).join('\n')}`);
+        assert.equal(found(blocking ? errors : reports, 'd card growth', 'configure-ha-connection'), true, `${view.name}: card growth beyond the German scale must be ${blocking ? 'an error' : 'reported'}\n${reports.concat(errors).filter((line) => line.includes('growth')).join('\n')}`);
         if (!blocking) {
           assert.ok(!errors.some((line) => /\((b|d) /.test(line)), `${view.name}: panel sizes must not block on overflow or wrapping\n${errors.join('\n')}`);
         }

@@ -41,7 +41,7 @@ class LogSinkProbeTest {
     }
 
     /**
-     * A bare `connect()` succeeds against *any* listening socket — an MQTT broker, an SSH daemon, a
+     * A bare `connect()` succeeds against *any* listening socket — a message broker, an SSH daemon, a
      * mistyped port belonging to something else — so it cannot tell a working log sink from an
      * unrelated service. The probe must put a real RFC5424 frame on the wire and the test must read
      * it back, or "Connected" is an assertion the check never earned.

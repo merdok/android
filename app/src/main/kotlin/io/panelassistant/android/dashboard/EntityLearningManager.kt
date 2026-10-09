@@ -1705,7 +1705,7 @@ class EntityLearningManager(
         val device: io.panelassistant.android.http.HaAreaProtocol.PanelDeviceArea =
             io.panelassistant.android.http.HaAreaProtocol.PanelDeviceArea(),
         /** The signed-in account's LOGIN name (admin sessions only: `config/auth/list` is the sole API
-         *  that exposes it, and it is admin-gated). Blank when unavailable. The wizard prefills the MQTT
+         *  that exposes it, and it is admin-gated). Blank when unavailable. The wizard prefills the
          *  username with it — the Mosquitto add-on authenticates against HA users. */
         val haUsername: String = "",
     )
@@ -1715,7 +1715,7 @@ class EntityLearningManager(
      * are readable by any user; only writes need an admin. `queried=false` means "could not ask Home
      * Assistant", which callers must keep distinct from "device has no area".
      */
-    suspend fun haAreaCatalog(deviceUid: String, panelId: String): HaAreaCatalog = withContext(Dispatchers.IO) {
+    suspend fun haAreaCatalog(): HaAreaCatalog = withContext(Dispatchers.IO) {
         val ownerKey = credentialFingerprint()
         val configuredBase = config.haUrl.trim().trimEnd('/')
         if (configuredBase.isBlank()) return@withContext HaAreaCatalog(ownerKey = ownerKey)
@@ -1735,8 +1735,6 @@ class EntityLearningManager(
                 val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                     deviceRegistry,
                     areas,
-                    deviceUid,
-                    panelId,
                     panelAssistantEntryIds(request, deviceRegistry),
                 )
                 // Login shortname, best-effort: only config/auth/list carries it and only admins may
@@ -1774,8 +1772,6 @@ class EntityLearningManager(
 
     /** Admin write-back of an area request; blank repairs only a current literal-null assignment. */
     suspend fun applyRequestedArea(
-        deviceUid: String,
-        panelId: String,
         areaName: String,
         expectedOwnerKey: String? = null,
     ): Boolean =
@@ -1801,8 +1797,6 @@ class EntityLearningManager(
                     val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                         deviceRegistry,
                         areas,
-                        deviceUid,
-                        panelId,
                         panelAssistantEntryIds(request, deviceRegistry),
                     )
                     if (!device.found || device.deviceId.isBlank()) return@withHaSocket

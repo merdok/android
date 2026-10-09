@@ -23,7 +23,7 @@ class PanelBackupTest {
     }
 
     @get:Rule val temporary = TemporaryFolder()
-    private val plain = """{"kind":"ha-paneld-backup","config":{"mqtt_password":"s3cret"}}""".toByteArray()
+    private val plain = """{"kind":"ha-paneld-backup","config":{"ha_token":"s3cret"}}""".toByteArray()
 
     @Test fun sealThenOpenRoundTrips() {
         val bundle = PanelBackup.seal(plain, "correct horse")

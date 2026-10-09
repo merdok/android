@@ -3,9 +3,9 @@ package io.panelassistant.android.panelassistant
 import io.panelassistant.android.HardenedModeRefusalException
 import io.panelassistant.android.LiveSettingUnavailableException
 import io.panelassistant.android.SensitiveApprovalPendingException
-import io.panelassistant.android.mqtt.MqttWireRig
 import io.panelassistant.android.panelAssistantCommandResult
 import io.panelassistant.android.security.LocalApprovalBroker
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,13 +13,13 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * Native commands through the production command dispatcher, on a runtime with no MQTT bridge at all: the
- * channel's handler reaches the hardware, the outcome reads as the command's result, and a sensitive
- * command asks for its approval under the Panel Assistant peer, which an MQTT approval can never satisfy.
+ * Native commands through the production command dispatcher: the channel's handler reaches the hardware,
+ * the outcome reads as the command's result, and a sensitive command asks for its approval under the
+ * Panel Assistant peer.
  */
-internal class PanelAssistantCommandWiringContractTest : MqttWireRig() {
-    @Test fun aNativeCommandReachesItsHandlerAndReportsWithoutMqtt() {
-        val rig = rig(runtimeBroker = "", mqtt = false)
+internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
+    @Test fun aNativeCommandReachesItsHandlerAndReportsItsResult() {
+        val rig = rig()
         try {
             rig.start()
             val native = PanelAssistantShadowReporter(log = {})
@@ -38,35 +38,21 @@ internal class PanelAssistantCommandWiringContractTest : MqttWireRig() {
                 PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL),
                 submitNative(rig, "not_a_channel", "ON"),
             )
-            assertEquals(
-                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE),
-                submitNative(rig, "update_paneld", "install"),
-            )
         } finally { rig.close() }
     }
 
-    @Test fun aSensitiveCommandIsApprovedUnderItsOwnTransportPeer() {
+    @Test fun aSensitiveCommandWaitsForApprovalUnderThePanelAssistantPeer() {
         val rig = rig(hasCamera = true)
         val broker = LocalApprovalBroker.instance
         val before = broker.pending().map { it.id }.toSet()
         try {
-            rig.announce()
+            rig.start()
             val pending = submitNative(rig, "camera_enabled", "ON")
             assertTrue("$pending", pending is PanelAssistantCommandResult.ApprovalPending)
             val nativeApproval = broker.pending().single { it.id !in before }
             assertEquals("panel_assistant", nativeApproval.peer)
             assertFalse("nothing changed before approval", rig.config.cameraEnabled)
-
-            // The same request arriving over MQTT is a different principal, so the native approval
-            // granted below cannot be consumed by it.
-            rig.transport.deliver("ha-paneld/$PANEL/camera_enabled/set", "ON")
-            barrier(rig, "camera_enabled")
-            val mqttApproval = broker.pending().single { it.id !in before && it.id != nativeApproval.id }
-            assertEquals("mqtt", mqttApproval.peer)
             assertTrue(broker.approve(nativeApproval.id))
-            rig.transport.deliver("ha-paneld/$PANEL/camera_enabled/set", "ON")
-            barrier(rig, "camera_enabled")
-            assertFalse("the MQTT command did not consume the native approval", rig.config.cameraEnabled)
 
             assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "camera_enabled", "ON"))
             assertTrue(rig.config.cameraEnabled)

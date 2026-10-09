@@ -8,8 +8,7 @@ import org.json.JSONObject
  * presence Area prerequisite and the Area catalogue all ask it; two copies of this rule drifted once
  * already, when a panel registered only by Panel Assistant matched in neither.
  *
- * A panel can be registered by two integrations. The MQTT bridge registers identifiers the panel
- * publishes itself. Panel Assistant registers one config-entry-scoped identifier,
+ * Panel Assistant registers the panel's device under one config-entry-scoped identifier,
  * `(panel_assistant, <entry_id>)`. Panel Assistant 0.9.0 and later name the entry in the `hello` reply,
  * and the panel keeps it with the connection it learned ([io.panelassistant.android.HaConnectionRoutes]).
  * An older Panel Assistant does not, and Core's config-entry listing omits the entry's `unique_id`; then
@@ -18,21 +17,12 @@ import org.json.JSONObject
  * full registry rows with [PROBE_COMMAND]. The probe goes once every supported Panel Assistant sends the
  * entry id.
  *
- * Identity tiers, strongest first; the first tier that matches anything decides:
- * 1. MQTT `ha-paneld-uid-<deviceUid>`, minted at random per installation and never shared.
- * 2. `(panel_assistant, <entry_id>)` for an entry proven to be this panel's discovery id. The
- *    discovery id derives from the Android ID, which a cloned factory image can share, so it ranks
- *    below the minted identity.
- * 3. MQTT `ha-paneld-<panelId>`, the historical identifier, which a merged device can carry for
- *    several panels.
- *
- * `ha-paneld-aid-<androidId>` is deliberately never matched: it is duplicated across a cloned fleet
- * (#155), so matching it is what resolved several panels to one device row.
+ * Identifiers other integrations once registered for the panel are deliberately never matched: only the
+ * entry proven to be this panel identifies its device row.
  */
 internal object HaPanelDeviceMatcher {
     const val PANEL_ASSISTANT_DOMAIN = "panel_assistant"
     const val PROBE_COMMAND = "config/entity_registry/get_entries"
-    private const val MQTT_DOMAIN = "mqtt"
 
     /**
      * Probe rows read per Panel Assistant device. Two of a device's entities are keyed by the entry id
@@ -47,30 +37,18 @@ internal object HaPanelDeviceMatcher {
         data object Ambiguous : Match
     }
 
-    /** Every device row that is this panel, in any tier. It is what excludes the panel's own entities. */
-    fun all(
-        devices: List<JSONObject>,
-        deviceUid: String,
-        panelId: String,
-        panelAssistantEntryIds: Set<String>,
-    ): List<JSONObject> {
-        val tiers = tiers(deviceUid, panelId, panelAssistantEntryIds)
-        return devices.filter { device -> tiers.any { it(device) } }
-    }
+    /** Every device row that is this panel. It is what excludes the panel's own entities. */
+    fun all(devices: List<JSONObject>, panelAssistantEntryIds: Set<String>): List<JSONObject> =
+        devices.filter { isPanel(it, panelAssistantEntryIds) }
 
-    /** The single device row that speaks for this panel: the first matching tier, which must be unique. */
-    fun preferred(
-        devices: List<JSONObject>,
-        deviceUid: String,
-        panelId: String,
-        panelAssistantEntryIds: Set<String>,
-    ): Match {
-        for (tier in tiers(deviceUid, panelId, panelAssistantEntryIds)) {
-            val matches = devices.filter(tier)
-            if (matches.size == 1) return Match.Found(matches.single())
-            if (matches.size > 1) return Match.Ambiguous
+    /** The single device row that speaks for this panel, which must be unique. */
+    fun preferred(devices: List<JSONObject>, panelAssistantEntryIds: Set<String>): Match {
+        val matches = all(devices, panelAssistantEntryIds)
+        return when (matches.size) {
+            0 -> Match.Missing
+            1 -> Match.Found(matches.single())
+            else -> Match.Ambiguous
         }
-        return Match.Missing
     }
 
     /**
@@ -148,21 +126,8 @@ internal object HaPanelDeviceMatcher {
         return probeRequest(probeEntityIds(display))?.let { request(it) }
     }
 
-    private fun tiers(
-        deviceUid: String,
-        panelId: String,
-        panelAssistantEntryIds: Set<String>,
-    ): List<(JSONObject) -> Boolean> {
-        val immutable = deviceUid.trim().takeIf(String::isNotEmpty)?.let { "ha-paneld-uid-$it" }
-        val legacy = "ha-paneld-${panelId.trim()}"
-        return listOfNotNull(
-            immutable?.let { id -> { device: JSONObject -> hasIdentifier(device, MQTT_DOMAIN, id) } },
-            { device: JSONObject ->
-                panelAssistantEntryIds.any { hasIdentifier(device, PANEL_ASSISTANT_DOMAIN, it) }
-            },
-            { device: JSONObject -> hasIdentifier(device, MQTT_DOMAIN, legacy) },
-        )
-    }
+    private fun isPanel(device: JSONObject, panelAssistantEntryIds: Set<String>): Boolean =
+        panelAssistantEntryIds.any { hasIdentifier(device, PANEL_ASSISTANT_DOMAIN, it) }
 
     private fun hasIdentifier(device: JSONObject, domain: String, identifier: String): Boolean =
         identifiers(device).any { (d, value) -> d == domain && value == identifier }

@@ -92,11 +92,10 @@ class PaneldServer internal constructor(
     private val volume: VolumeController,
     // Service-owned latest-wins audio lane. False means teardown has closed admission.
     private val playAudio: (String) -> Boolean,
-    // Called after this server has written new settings to [config]; the service rebuilds MQTT/mDNS.
+    // Called after this server has written new settings to [config]; the service rebuilds the network runtime.
     private val onReconfigure: (Set<String>) -> Unit,
-    // Applies a single behaviour setting through the MQTT bridge's command path (persist → drive
-    // hardware → publish HA state). Lets the config API set the formerly MQTT-only keys identically
-    // to an HA command while preserving whether durable desired state is still waiting for actuation.
+    // Applies a single behaviour setting through the command dispatcher (persist → drive hardware →
+    // report HA state). Lets the config API set those keys identically to an HA command while preserving whether durable desired state is still waiting for actuation.
     private val applySetting: (String, String) -> LiveSettingRequestOutcome,
     private val onProximityCalibration: (String, String) -> Boolean = { _, _ -> false },
     private val pendingLiveSettings: () -> Map<String, String> = { emptyMap() },
@@ -138,7 +137,6 @@ class PaneldServer internal constructor(
     // Runs off-thread; progress is reported via InstallProgress. Injected by the service.
     private val onInstallComponent: (String, String, String) -> Boolean = { _, _, _ -> false },
     // A Panel Assistant entry declared on its status poll that it owns the ha-paneld update entity.
-    private val onPanelAssistantUpdateOwner: () -> Unit = {},
     // One read-only Android power assessment shared by every user and diagnostic surface.
     private val powerSafety: () -> PowerSafetyAssessment,
     // Uncached harmless direct-root capability probe. Explicit acknowledgement and repair paths only;
@@ -148,23 +146,17 @@ class PaneldServer internal constructor(
     private val onRepairPowerSafety: () -> PowerSafetyRepairResult,
     // Bounded EFR32 health snapshot, or null when this panel has no radio gateway.
     private val radioStatus: () -> ZigbeeHealthSnapshot? = { null },
-    /**
-     * The MQTT bridge's canonical lifecycle token (a volatile read, so free to poll). Supplied as the raw
-     * token rather than the info page's prose because mapping prose back to a state fails silently: an
-     * unrecognised string reads as "still connecting", so setup guidance stops with no visible symptom.
-     */
-    private val mqttState: () -> String = { "" },
     // Reassert Repeater mode through the service-owned serialized Zigbee actuator. Admitted only when
     // the persisted router switch is explicitly ON; false means the runtime lane is unavailable.
     private val onZigbeeJoinRetry: () -> Boolean = { false },
     // LAN ha-paneld peers discovered over mDNS — powers the header panel switcher. Injected by the service
     // (captures the live MdnsAdvertiser field). Blocking browse; called only through [peersCache] off-thread.
     private val peers: () -> List<io.panelassistant.android.Peer> = { emptyList() },
-    // mDNS can fail independently of HTTP and MQTT, leaving the panel absent from peer switchers.
+    // mDNS can fail independently of HTTP, leaving the panel absent from peer switchers.
     // Legacy text and typed metadata come from one observation so a liveness transition cannot pair
     // one warning with another warning's presentation envelope.
     private val mdnsWarningProjection: () -> Pair<String?, InstallPresentation?> = { null to null },
-    // Proposed values for blank MQTT/HA fields. Discovery is blocking, so the route invokes this on IO;
+    // Proposed value for a blank HA URL field. Discovery is blocking, so the route invokes this on IO;
     // values remain unsaved until the user accepts them with the normal Configure Save action.
     private val configDiscoverySuggestions: () -> ConfigDiscoverySuggestions = { ConfigDiscoverySuggestions() },
     // Shared with the service startup path: serializes renderer config commit → atomic Companion borrow →
@@ -208,7 +200,7 @@ class PaneldServer internal constructor(
     private val refreshStorageHealth: suspend () -> StorageHealthSnapshot? = { null },
     // Camera trial (slice 3): one session owner shared by the snapshot route, /api/v1/status and
     // /api/v1/diag. A stable per-service instance rather than a lambda provider — unlike radioStatus
-    // or mqttState it is never reassigned on reconfigure, so no reconfigure-following indirection is
+    // it is never reassigned on reconfigure, so no reconfigure-following indirection is
     // needed here. AbsentCameraSurface is the default so a board with no camera owner still compiles
     // and answers `absent` truthfully; the service wires the real session owner once profile.hasCamera.
     private val camera: CameraSurface = AbsentCameraSurface,
@@ -224,11 +216,7 @@ class PaneldServer internal constructor(
     // answers 503. [onWakeWordsChanged] rearms the listener and tells Home Assistant after an import.
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog? = null,
     private val onWakeWordsChanged: () -> Unit = {},
-    // The native transport's persisted authority, discovery value and phase, and the panel-local release
-    // that hands entities and commands back to MQTT. Migration scaffolding; deleted with MQTT.
-    private val panelAssistantTransportFacts: () -> io.panelassistant.android.panelassistant.PanelAssistantTransportFacts,
     private val panelAssistantRestartHealth: () -> String = { "" },
-    private val releasePanelAssistantTransport: () -> Unit,
     /** Read a bundled static asset (info.js / info.css) as text. */
     // Platform asset access; JVM HTTP hosts read the same bundled files from disk.
     private val asset: (String) -> String = { name ->
@@ -292,7 +280,7 @@ class PaneldServer internal constructor(
     /**
      * The most recent Home Assistant discovery verdict, so `GET /setup` can explain a blank URL without
      * running a browse of its own. A poll must never start a ~4s multicast sweep; discovery happens on the
-     * paths that already do it (the suggestion route, and the MQTT-onboarding save) and leaves its result
+     * paths that already do it (the suggestion route) and leaves its result
      * here.
      */
     @Volatile private var lastHaDiscovery: DiscoveryResult = DiscoveryResult()
@@ -305,8 +293,8 @@ class PaneldServer internal constructor(
         { setupState.setupNeedsUser() },
     )
     private val setupState = SetupState(
-        config, system, entityLearning, profile, appContext, mqttState, haOAuth::pendingCount,
-        { lastHaDiscovery }, { pageHealth.webViewTooOldOnce }, ::panelAssistantNative,
+        config, system, entityLearning, profile, appContext, haOAuth::pendingCount,
+        { lastHaDiscovery }, { pageHealth.webViewTooOldOnce },
         ::effectiveDashboardIsBuiltin, scope, rendererPreparation,
     )
     private val catalogueLoader by lazy { CatalogueLoader(asset) }
@@ -401,13 +389,6 @@ class PaneldServer internal constructor(
                     ),
                 )
                 identityMigrationRoutes(identityMigration, ::authorizeSensitive)
-                panelAssistantTransportRoutes(
-                    PanelAssistantTransportRouteDependencies(
-                        facts = panelAssistantTransportFacts,
-                        release = releasePanelAssistantTransport,
-                        authorize = ::authorizeSensitive,
-                    ),
-                )
                 guardDbBootstrapRoutes(
                     guardDbBootstrapDependencies(appContext, config, scope, pendingApks, guardDbStaging),
                 )
@@ -534,7 +515,6 @@ class PaneldServer internal constructor(
                     managementRoutes(
                         diagnostics = managementObservations::diagStaleOk,
                         status = ::statusJson,
-                        onUpdateOwner = onPanelAssistantUpdateOwner,
                         admitActiveRead = ::admitActiveRead,
                         refreshUpdates = {
                             UpdateChecker.check(appContext, "stable", profile.companionMaxVersion)
@@ -640,9 +620,6 @@ class PaneldServer internal constructor(
     }
 
 
-    /** Panel Assistant granted native authority, so this panel reaches Home Assistant without MQTT. */
-    private fun panelAssistantNative(): Boolean =
-        config.panelAssistantAuthority == io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.AUTHORITY_NATIVE
 
 
     private fun statusJson(
@@ -708,7 +685,6 @@ class PaneldServer internal constructor(
 
     private fun dashboardAdvisories() = DashboardAdvisories(
         config, appContext, sensors, managementObservations, setupState, pageHealth,
-        mqttState,
         haSignInNeededForEffectiveDashboard = setupState::haSignInNeededForEffectiveDashboard,
         powerSafetyAdvisory = { privilege ->
             pageHealth.powerSafetyAdvisory(privilege, { profile.appCanSu }, powerSafety)
@@ -728,7 +704,6 @@ class PaneldServer internal constructor(
         config, sensors, managementObservations, setupState,
         strategySelectorAllowed = { entityLearning.strategySelectorAllowed() },
         pageHealth = pageHealth,
-        mqttState = mqttState,
         powerSafetyAdvisory = { privilege ->
             pageHealth.powerSafetyAdvisory(privilege, { profile.appCanSu }, powerSafety)
         },
@@ -783,8 +758,7 @@ class PaneldServer internal constructor(
     }
 
     /** What Panel Assistant reads over its session: the same health line and status body HTTP serves. */
-    internal suspend fun managementSnapshot(updateOwner: Boolean) = withContext(Dispatchers.IO) {
-        if (updateOwner) onPanelAssistantUpdateOwner()
+    internal suspend fun managementSnapshot() = withContext(Dispatchers.IO) {
         io.panelassistant.android.panelassistant.PanelAssistantManagementSnapshot(
             healthLine(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantRestartHealth() },
             statusJson(storageHealth()),
@@ -810,12 +784,7 @@ class PaneldServer internal constructor(
         directConfigMutationLock = directConfigMutationLock,
         autoSleepHttpApi = autoSleepHttpApi,
         autoBrightnessHttpApi = autoBrightnessHttpApi,
-        onboarding = DirectConfigOnboarding(
-            config,
-            { configDiscoverySuggestions() },
-            { lastHaDiscovery = it },
-            ::effectiveDashboardIsBuiltin,
-        ),
+        onboarding = DirectConfigOnboarding(config),
         capabilities = { liveCapabilities(managementObservations.snapStaleOk().caps) },
         authorizeSensitive = ::authorizeSensitive,
         rejectHardenedNetworkAdb = ::rejectHardenedNetworkAdb,
@@ -914,7 +883,6 @@ class PaneldServer internal constructor(
             effectiveValue = { spec, live -> configValues().effectiveValue(spec, live) },
             profileAdmin = profileAdmin,
             companion = companionBackupOperations(),
-            mqttState = mqttState,
             wakeWords = wakeWords,
         ).build(request, passphrase)
 

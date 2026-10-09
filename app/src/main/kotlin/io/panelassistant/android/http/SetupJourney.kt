@@ -8,49 +8,26 @@ import io.panelassistant.android.DiscoveryResult
  *
  * Built the way [HealthAudit] is, and for the same reason: the answer was previously re-derived
  * independently by the Configure tab, the dashboard banner, the Install tab, the panel's standing screen
- * and the renderer itself, so they disagreed and each dropped cases the others handled. [SetupBanner]
- * still owns the MQTT progress *wording*; this composes it rather than replacing it.
+ * and the renderer itself, so they disagreed and each dropped cases the others handled.
  *
- * Two properties matter more than the stage list:
- *
- * 1. **In-flight is never presented as a fault.** A broker that is merely mid-connect must not be reported
- *    as needing attention — that false positive is the exact regression [SetupBanner] was extracted to
- *    prevent, and it is what makes a user "fix" something that was about to succeed on its own.
- * 2. **MQTT does not block a dashboard.** `PostUpdateReturnPolicy` already states that MQTT is optional
- *    and must not strand a panel, yet [HealthAudit] gates its no-renderer finding on a configured broker.
- *    Those two readings contradict each other. This model resolves it explicitly with [Step.blocking]:
- *    MQTT gates *control*, not *render*, so a user whose broker is broken can still be walked to a
- *    working dashboard instead of being trapped behind it. Setup asks for Home Assistant BEFORE MQTT —
- *    see the [Stage] doc for why the area mechanism forces that order — but ordering is a walk choice,
- *    not a precondition, and only preconditions may be encoded as blockers.
+ * **In-flight is never presented as a fault.** A sign-in that is merely in progress must not be reported
+ * as needing attention: that false positive is what makes a user "fix" something that was about to succeed
+ * on its own.
  *
  * Nothing here is persisted. Every input is derived from live config and runtime state, which is what lets
- * the journey re-arm by itself when a working panel later loses its broker, its token or its renderer:
+ * the journey re-arm by itself when a working panel later loses its token or its renderer:
  * there is no stored cursor to go stale, so "setup" and "repair" are the same computation.
  *
  * Pure — no Android imports, unit-tested in SetupJourneyTest.
  */
 object SetupJourney {
-    /**
-     * Ordered: earlier stages are prerequisites for later ones — and the order IS the walk order.
-     *
-     * Home Assistant comes BEFORE MQTT, deliberately reversed from the original design ("MQTT first,
-     * it's what the product is for"). The area mechanism forced the choice: `suggested_area` applies
-     * only at the device's FIRST registration, the device registers the moment MQTT connects, and the
-     * valid area names are only readable after HA sign-in. This is the one sequence in which a panel
-     * lands in its correct Home Assistant area for EVERY user — the alternatives were an admin-only
-     * WebSocket move or free-typed phantom areas. MQTT still precedes the entity filter, so the journey
-     * cannot read complete while the broker was never even asked about.
-     */
+    /** Ordered: earlier stages are prerequisites for later ones — and the order IS the walk order. */
     enum class Stage {
         IDENTITY,
         RENDERER,
         HA_URL,
         HA_CREDENTIALS,
         HOME_DASHBOARD,
-        MQTT_BROKER,
-        MQTT_CREDENTIALS,
-        MQTT_CONNECTION,
         ENTITY_FILTER,
         RENDER_PROOF,
     }
@@ -72,10 +49,7 @@ object SetupJourney {
         SKIPPED,
     }
 
-    /**
-     * @param blocking whether a dashboard genuinely cannot render until this is satisfied. False for the
-     *   MQTT stages: they gate Home Assistant control, not rendering.
-     */
+    /** @param blocking whether a dashboard genuinely cannot render until this is satisfied. */
     data class Step(
         val stage: Stage,
         val status: Status,
@@ -104,47 +78,10 @@ object SetupJourney {
          * only unsatisfied stage was `render_proof: awaiting_frontend`.
          *
          * A stage that is BLOCKED is an instruction; IN_FLIGHT means wait. Only the former is a reason to
-         * invite someone into the wizard. A re-armed panel that genuinely lost its broker or its credential
-         * still has a blocked stage, so real repairs keep their entry point.
+         * invite someone into the wizard. A re-armed panel that genuinely lost its credential still has a
+         * blocked stage, so real repairs keep their entry point.
          */
         val needsUser: Boolean get() = steps.any { it.blocking && it.status == Status.BLOCKED }
-    }
-
-    /** Canonical MQTT lifecycle tokens, mapped once so callers never string-match prose. */
-    enum class MqttSetupState {
-        CONNECTED,
-        ANNOUNCING,
-        CONNECTING,
-        DISCOVERING,
-        AUTH_RETRYING,
-        AUTH_FAILED,
-        UNREACHABLE,
-        CONFIG_ERROR,
-        DISABLED,
-        UNKNOWN,
-        ;
-
-        companion object {
-            /**
-             * Map a [io.panelassistant.android.MqttBridge.state] token. Two vocabularies exist in this
-             * codebase — these canonical tokens, and the human prose on the info page — and feeding one
-             * into a reader expecting the other degrades silently to "transient", which reads as "all
-             * fine, keep waiting" forever. SetupJourneyTest pins every documented token to a non-UNKNOWN
-             * value so adding a state cannot quietly disable the guidance.
-             */
-            fun of(canonical: String): MqttSetupState = when (canonical.trim().lowercase()) {
-                "connected" -> CONNECTED
-                "announcing" -> ANNOUNCING
-                "connecting" -> CONNECTING
-                "discovering" -> DISCOVERING
-                "auth-retrying" -> AUTH_RETRYING
-                "auth-failed" -> AUTH_FAILED
-                "unreachable" -> UNREACHABLE
-                "config-error" -> CONFIG_ERROR
-                "disabled" -> DISABLED
-                else -> UNKNOWN
-            }
-        }
     }
 
     sealed interface RendererChoice {
@@ -189,10 +126,6 @@ object SetupJourney {
         /** The user has explicitly accepted the panel identity; a generated value alone is not consent. */
         val identityConfirmed: Boolean,
         val panelId: String,
-        val brokerConfigured: Boolean,
-        val mqttUserConfigured: Boolean,
-        val mqttPasswordConfigured: Boolean,
-        val mqtt: MqttSetupState,
         val renderer: RendererChoice,
         val haUrl: String,
         val haCredentialed: Boolean,
@@ -225,12 +158,6 @@ object SetupJourney {
         val proof: RenderProof = RenderProof(),
         /** Fingerprint of the CURRENT configuration, compared against [RenderProof.fingerprint]. */
         val currentFingerprint: String = "",
-        /**
-         * Panel Assistant granted this panel native authority, or is setting it up now: its entities and
-         * commands travel over Panel Assistant's connection, so the MQTT steps do not apply even when
-         * broker settings remain from an earlier setup.
-         */
-        val panelAssistantNative: Boolean = false,
     )
 
     private val BLOCKING = setOf(
@@ -249,7 +176,6 @@ object SetupJourney {
             add(rendererStep(inputs))
             addAll(haSteps(inputs))
             add(homeDashboardStep(inputs))
-            addAll(mqttSteps(inputs))
             add(entityFilterStep(inputs))
             add(renderProofStep(inputs))
         }
@@ -266,8 +192,8 @@ object SetupJourney {
      *
      * STRICT walk order — blocked or in-flight, whichever comes first. Ranking blocked above in-flight
      * globally was also tried and is also wrong: with a later stage blocked, an in-flight sign-in was
-     * jumped over — the wizard abandoned "waiting for you at the panel" for the broker card while
-     * sign-in was still in progress. The walk never jumps over a step that
+     * jumped over — the wizard abandoned "waiting for you at the panel" for a later card while sign-in
+     * was still in progress. The walk never jumps over a step that
      * is mid-flight; the wizard's own verify ladder owns how a transient is presented. [Status.UNKNOWN]
      * is never reported: it means "not observable", which is not an instruction. Where proof genuinely
      * needs a human it is [Status.BLOCKED] instead, and a non-actionable UNKNOWN can only arise
@@ -287,64 +213,7 @@ object SetupJourney {
         return Step(Stage.IDENTITY, status, blocking = true, detail = inputs.panelId)
     }
 
-    private fun mqttSteps(inputs: Inputs): List<Step> {
-        if (inputs.panelAssistantNative) {
-            return listOf(
-                Step(Stage.MQTT_BROKER, Status.SKIPPED, blocking = false),
-                Step(Stage.MQTT_CREDENTIALS, Status.SKIPPED, blocking = false),
-                Step(Stage.MQTT_CONNECTION, Status.SKIPPED, blocking = false),
-            )
-        }
-        if (inputs.mqtt == MqttSetupState.DISABLED && !inputs.brokerConfigured) {
-            return listOf(
-                Step(Stage.MQTT_BROKER, Status.BLOCKED, blocking = false),
-                Step(Stage.MQTT_CREDENTIALS, Status.BLOCKED, blocking = false),
-                Step(Stage.MQTT_CONNECTION, Status.SKIPPED, blocking = false),
-            )
-        }
-        val broker = Step(
-            Stage.MQTT_BROKER,
-            if (inputs.brokerConfigured) Status.SATISFIED else Status.BLOCKED,
-            blocking = false,
-        )
-        val credentials = Step(
-            Stage.MQTT_CREDENTIALS,
-            when {
-                inputs.mqtt == MqttSetupState.AUTH_FAILED -> Status.BLOCKED
-                // A rejection inside the retry window may still recover; do not send the user after it yet.
-                inputs.mqtt == MqttSetupState.AUTH_RETRYING -> Status.IN_FLIGHT
-                inputs.mqttUserConfigured && inputs.mqttPasswordConfigured -> Status.SATISFIED
-                inputs.brokerConfigured -> Status.BLOCKED
-                else -> Status.BLOCKED
-            },
-            blocking = false,
-        )
-        val connection = Step(
-            Stage.MQTT_CONNECTION,
-            when (inputs.mqtt) {
-                MqttSetupState.CONNECTED -> Status.SATISFIED
-                MqttSetupState.ANNOUNCING,
-                MqttSetupState.CONNECTING,
-                MqttSetupState.DISCOVERING,
-                MqttSetupState.AUTH_RETRYING,
-                -> Status.IN_FLIGHT
-                MqttSetupState.AUTH_FAILED,
-                MqttSetupState.UNREACHABLE,
-                MqttSetupState.CONFIG_ERROR,
-                -> Status.BLOCKED
-                MqttSetupState.DISABLED -> Status.SKIPPED
-                // Configured but the bridge has not reported yet: transient, never a fault.
-                MqttSetupState.UNKNOWN -> if (inputs.brokerConfigured) Status.IN_FLIGHT else Status.BLOCKED
-            },
-            blocking = false,
-            detail = inputs.mqtt.name.lowercase(),
-        )
-        return listOf(broker, credentials, connection)
-    }
-
     private fun rendererStep(inputs: Inputs): Step = when (val choice = inputs.renderer) {
-        // Note this must NOT inherit HealthAudit's "only once a broker is configured" precondition: a
-        // renderer choice is valid, and checkable, before MQTT exists.
         is RendererChoice.Builtin ->
             // An engine below the frontend's floor renders blank or broken however well everything else is
             // configured, so this is a blocked renderer rather than a warning carried to the end. Raised only
@@ -374,8 +243,8 @@ object SetupJourney {
      *
      * A foreign renderer such as the Companion app signs itself in, and these steps used to be skipped for
      * it. But Panel Assistant's connection is this app's own signed-in session, so a panel set up that way
-     * could never run under Panel Assistant: its owner skipped the MQTT page, the wizard ended, and nothing
-     * connected (maintainer, a Companion-app panel on a Home Assistant without MQTT, 2026-09-27).
+     * could never run under Panel Assistant: the wizard ended and nothing connected (maintainer, a
+     * Companion-app panel, 2026-09-27).
      */
     private fun haSteps(inputs: Inputs): List<Step> {
         val url = Step(

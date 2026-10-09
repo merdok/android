@@ -11,7 +11,7 @@ object SettingValue {
 
     fun validate(spec: SettingSpec, raw: String): Validation {
         // Passwords are opaque credential bytes represented as a String. Leading/trailing spaces are
-        // valid MQTT password content and must survive export/import/restore exactly; all other setting
+        // valid credential content and must survive export/import/restore exactly; all other setting
         // types retain their historical whitespace normalization.
         val v = if (spec.type == SettingType.PASSWORD) raw else raw.trim()
         val typed: Validation = when (spec.type) {
@@ -67,7 +67,7 @@ object SettingValue {
         return null
     }
 
-    /** Accepts the common truthy/falsey spellings used across the form, MQTT, and provision.sh. */
+    /** Accepts the common truthy/falsey spellings used across the form, Home Assistant commands and provision.sh. */
     fun parseBool(raw: String): Boolean? = when (raw.trim().lowercase(Locale.ROOT)) {
         "true", "1", "on", "yes" -> true
         "false", "0", "off", "no" -> false

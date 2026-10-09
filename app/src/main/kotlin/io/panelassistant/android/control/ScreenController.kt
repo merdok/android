@@ -93,7 +93,7 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   Android wakes itself and [reconcilePhysicalWake] adopts that wake; where it is not, Home Assistant
  *   is the way back. This is the only route on which a wake can reach the panel without passing
  *   through [wake], so it is the reason that adoption has to be reachable from a plain platform
- *   screen-on broadcast and not only from the MQTT sync tick — see [reconcilePhysicalWake]. The route
+ *   screen-on broadcast and not only from the state sync tick — see [reconcilePhysicalWake]. The route
  *   also refuses to sleep a device with a configured credential
  *   ([ScreenPower.isDeviceSecure]): it exists for rooted boards where nothing else reports the PIN.
  * - [ScreenOff.SCREEN_TIMEOUT] and [ScreenOff.DEVICE_ADMIN] reach the same noninteractive state with
@@ -725,12 +725,12 @@ class ScreenController(
      * Adopt a wake this controller did not perform, from whatever noticed it.
      *
      * [reconcileObservedLit] needs an epoch and a proof of lit, and until now the only place that
-     * assembled both was the MQTT bridge's sync tick. That was sufficient while every route left
+     * assembled both was the state sync tick. That was sufficient while every route left
      * Android interactive, because then nothing outside ha-paneld could light the panel on its own —
      * a physical touch reached the armed overlay and came back through [wake]. [ScreenOff.KEYEVENT]
      * breaks that assumption: Android can wake itself from a power key or a wake-capable touchscreen
-     * with ha-paneld uninvolved. Leaving the adoption inside MQTT would mean a panel that a person
-     * woke by hand stays [intendedOff] with its renderer frozen until the broker is reachable — a lit
+     * with ha-paneld uninvolved. Leaving the adoption inside the sync tick would mean a panel that a person
+     * woke by hand stays [intendedOff] with its renderer frozen until Home Assistant is reachable — a lit
      * screen showing a stale, un-tappable dashboard, which is a worse failure than a dark one because
      * it looks alive.
      *

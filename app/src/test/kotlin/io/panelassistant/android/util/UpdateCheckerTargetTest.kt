@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The always-present, policy-keyed catalog targets behind the MQTT update entities. */
+/** The always-present, policy-keyed catalog targets behind the update entities. */
 class UpdateCheckerTargetTest {
     private val companion = UpdateChecker.ResolvedTarget(
         version = "2026.5.4",

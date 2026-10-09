@@ -136,17 +136,12 @@ class HaCredentialManagerTest {
         val after = config.haAuthSnapshot()
         assertNotEquals("the refresh was stored", before.accessToken, after.accessToken)
 
-        val projection = MqttProjectionIdentity("maker", "model", emptyList())
         assertEquals(
             "no HA-side effect or ambient-source restart follows another consumer's refresh",
-            ConfigRefreshEffects(reannounceMqtt = false, resolveHaLink = false),
-            configRefreshEffects(projection, projection, before.stableOwner(), after.stableOwner()),
-        )
-        val snapshot = NetworkConfigurationSnapshot(
-            NetworkRuntimeIdentity("panel", "Panel", 8_888, "tcp://broker:1883", "user", "secret"),
-            projection,
+            before.stableOwner(),
             after.stableOwner(),
         )
+        val snapshot = NetworkConfigurationSnapshot(NetworkRuntimeIdentity("panel", "Panel", 8_888), after.stableOwner())
         assertFalse("the credential is never printed", snapshot.toString().contains("refresh-live"))
     }
 

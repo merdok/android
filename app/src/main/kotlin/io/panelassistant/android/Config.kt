@@ -39,13 +39,6 @@ import org.json.JSONObject
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
-internal data class MqttCredentialsSnapshot(
-    val broker: String,
-    val user: String,
-    val password: String,
-    val addressFamily: String = SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
-)
-
 internal enum class AutoSleepWriteResult { UNCHANGED, COMMITTED, FAILED }
 
 internal data class HaAuthSnapshot(
@@ -102,7 +95,7 @@ internal fun resolveNativeNavbar(
 }
 
 /** Whether [mode] may be selected on a panel with this capability. Shared by the read-side coercion
- *  and by the HTTP/MQTT write admission, so all three cannot drift apart. */
+ *  and by the HTTP and command write admission, so they cannot drift apart. */
 internal fun navbarModePermitted(mode: String, hasNativeNavbar: Boolean): Boolean =
     hasNativeNavbar || !mode.equals("Native", ignoreCase = true)
 /** Credential ownership that remains stable while a refresh token rotates its current access token. */
@@ -153,9 +146,7 @@ internal data class ProximityLearningSeed(
 
 /**
  * Runtime configuration. Production state is transactional SQLite; the SharedPreferences-shaped
- * interface remains as a test and typed-caller compatibility boundary. The MQTT broker defaults to
- * empty, which disables MQTT — the
- * /play HTTP contract works standalone without a broker, so first-run never blocks on MQTT.
+ * interface remains as a test and typed-caller compatibility boundary.
  */
 class Config private constructor(
     private val prefs: SharedPreferences,
@@ -229,7 +220,7 @@ class Config private constructor(
 
     /**
      * Device-local control-plane posture. This key deliberately lives outside SettingsRegistry, so a
-     * remote config import, backup restore, HTTP request, or MQTT command cannot enable or disable it.
+     * remote config import, backup restore, HTTP request, or Home Assistant command cannot enable or disable it.
      * The non-exported native settings activity is the only UI that changes it.
      */
     val securityMode: SecurityMode
@@ -289,7 +280,7 @@ class Config private constructor(
             // Guided setup OWNS this panel once the identity step has been confirmed — that flag is written by
             // the wizard and nothing else, so its presence proves any config found here was written BY the
             // journey in progress, not by a pre-existing install. Without this gate the retry below read the
-            // wizard's own broker save as upgrade evidence on the first mid-journey service restart and
+            // wizard's own saves as upgrade evidence on the first mid-journey service restart and
             // durably stamped every question answered: the panel rendered unfiltered, the journey reported
             // complete, and the sign-in return dumped the user to Configure with two questions never asked
             // after setup begins. Migration is DONE for such a panel: the wizard records the
@@ -342,7 +333,7 @@ class Config private constructor(
     private fun configuredBeforeSetupQuestionTracking(): Boolean = panelConfiguredBeforeSetupTracking(
         haUrl = haUrl,
         haSetupHandover = haSetupHandover,
-        otherEvidence = dashboardEntityLearningEnabled || mqttBroker.isNotBlank(),
+        otherEvidence = dashboardEntityLearningEnabled,
     )
 
     /**
@@ -382,7 +373,7 @@ class Config private constructor(
      */
     /**
      * Whether this panel has EVER finished setup — the bit that separates "repair" from "first run".
-     * A later broken broker or revoked token re-arms the journey, and the wizard must then read as a
+     * A later revoked token re-arms the journey, and the wizard must then read as a
      * repair of a configured panel, never as a factory reset: the difference between "one thing needs
      * attention" and a user believing everything they built is gone. Stamped by the two completion
      * proofs (frontend-connected, human attestation) and never cleared by re-arming.
@@ -413,74 +404,11 @@ class Config private constructor(
             Unit
         }
 
-    /** Empty => MQTT disabled. e.g. "tcp://192.168.1.10:1883". */
-    val mqttBroker: String get() = stringPref("mqtt_broker")
-    val mqttUser: String get() = stringPref("mqtt_user")
-    val mqttPassword: String get() = stringPref("mqtt_password")
-    /** The address-family policy for every Home Assistant connection, MQTT included. */
+    /** The address-family policy for every Home Assistant connection. */
     val addressFamily: String get() = stringPref(SettingsRegistry.ADDRESS_FAMILY_KEY)
 
-    /** One immutable durable-state generation for connection setup; consumers must not combine
-     * independent broker, credential, and route-policy getters across a concurrent commit. */
-    internal fun mqttCredentialsSnapshot(): MqttCredentialsSnapshot = synchronized(CONFIG_LOCK) {
-        val all = prefs.all
-        MqttCredentialsSnapshot(
-            broker = all["mqtt_broker"] as? String ?: "",
-            user = all["mqtt_user"] as? String ?: "",
-            password = all["mqtt_password"] as? String ?: "",
-            addressFamily = all[SettingsRegistry.ADDRESS_FAMILY_KEY] as? String
-                ?: SettingsRegistry.DEFAULT_ADDRESS_FAMILY,
-        )
-    }
-
-    /** Device-local MQTT route memory. One broker tuple survives a controlled process boundary but is
-     * excluded from config APIs/bundles because it is observed transport state, not user configuration. */
-    internal fun mqttFamilyPreference(brokerIdentity: String): Boolean? = synchronized(CONFIG_LOCK) {
-        if (prefs.getString(MQTT_FAMILY_BROKER_PREF, null) == brokerIdentity) {
-            prefs.getBoolean(MQTT_FAMILY_IPV4_PREF, false)
-        } else {
-            null
-        }
-    }
-
-    internal fun rememberMqttFamilyPreference(brokerIdentity: String, preferIpv4: Boolean): Boolean =
-        synchronized(CONFIG_LOCK) {
-            durableCommit {
-                putString(MQTT_FAMILY_BROKER_PREF, brokerIdentity)
-                putBoolean(MQTT_FAMILY_IPV4_PREF, preferIpv4)
-            }
-        }
-
-    internal fun forgetMqttFamilyPreference(): Boolean = synchronized(CONFIG_LOCK) {
-        if (!prefs.contains(MQTT_FAMILY_BROKER_PREF) && !prefs.contains(MQTT_FAMILY_IPV4_PREF)) {
-            return@synchronized true
-        }
-        durableCommit {
-            remove(MQTT_FAMILY_BROKER_PREF)
-            remove(MQTT_FAMILY_IPV4_PREF)
-        }
-    }
-
-    /** True when this exact MQTT configuration still owns its one announcement-wedge process boundary. */
-    internal fun mqttAnnouncementBoundaryAvailable(identity: String): Boolean = synchronized(CONFIG_LOCK) {
-        val consumed = prefs.getString(MQTT_ANNOUNCEMENT_BOUNDARY_PREF, null) ?: return@synchronized true
-        if (consumed == identity) return@synchronized false
-        // A relevant broker/profile/credential identity change starts a new bounded recovery epoch.
-        durableCommit { remove(MQTT_ANNOUNCEMENT_BOUNDARY_PREF) }
-    }
-
-    internal fun consumeMqttAnnouncementBoundary(identity: String): Boolean = synchronized(CONFIG_LOCK) {
-        if (prefs.getString(MQTT_ANNOUNCEMENT_BOUNDARY_PREF, null) == identity) return@synchronized false
-        durableCommit { putString(MQTT_ANNOUNCEMENT_BOUNDARY_PREF, identity) }
-    }
-
-    internal fun clearMqttAnnouncementBoundary(identity: String): Boolean = synchronized(CONFIG_LOCK) {
-        if (prefs.getString(MQTT_ANNOUNCEMENT_BOUNDARY_PREF, null) != identity) return@synchronized true
-        durableCommit { remove(MQTT_ANNOUNCEMENT_BOUNDARY_PREF) }
-    }
-
-    /** Stable per-panel id used in entity_ids / MQTT topics. A fresh install persists its generated
-     *  identity before the service constructs MQTT or mDNS, so a later Android device-name change cannot
+    /** Stable per-panel id used in entity ids. A fresh install persists its generated identity before the
+     *  service starts mDNS or the Panel Assistant session, so a later Android device-name change cannot
      *  silently rename the panel. The fallback remains for callers that run before service startup. */
     val panelId: String
         get() = prefs.getString("panel_id", null) ?: defaultPanelId()
@@ -505,21 +433,8 @@ class Config private constructor(
         else slug(Build.MODEL) + "_" + defaultPanelIdSuffix()
     }
 
-    /**
-     * The disambiguating suffix a generated panel id carries when the device name is generic.
-     *
-     * Two panels off one factory image report the same model AND the same ANDROID_ID, so the historical
-     * suffix gave them one identical panel id — identical MQTT topics and entity ids, not merely a
-     * merged device. The minted identity fixes that for panels that can still take a new id.
-     *
-     * A panel that already has a broker cannot: it has published entities under the ANDROID_ID-derived
-     * id, and changing it now would rename every entity and discard the customisation attached to it.
-     * That panel keeps the historical suffix. Only an installation that has never had a broker — one
-     * whose `panel_id` was never materialized before this version, so nothing has been published under
-     * it — takes the minted suffix.
-     */
-    private fun defaultPanelIdSuffix(): String =
-        panelIdSuffix(androidId, deviceUid, hasConfiguredBroker = mqttBroker.isNotBlank())
+    /** The disambiguating suffix a generated panel id carries when the device name is generic. */
+    private fun defaultPanelIdSuffix(): String = panelIdSuffix(androidId, deviceUid)
 
     // --- atomic batch writes -----------------------------------------------------------------------
     // Setters normally each fire their own async prefs.edit().apply(). Inside [applyBatch] they instead
@@ -610,8 +525,6 @@ class Config private constructor(
      *  and a replacement HA access token supersedes an old refresh session unless a new refresh token
      *  is supplied beside it. Call after staging the accepted values so these safety clears win. */
     internal fun stageImportDependencies(editor: SharedPreferences.Editor, accepted: Map<String, String>) {
-        if (accepted["mqtt_user"]?.isEmpty() == true) editor.putString("mqtt_password", "")
-
         // The sink's three fields must always describe one destination; see LogShipEndpoint.canonicalUpdate
         // for the precedence and why an embedded address wins. Reconciled here rather than in the caller's
         // per-key loop for two reasons: it reads the whole accepted map, so the result cannot depend on
@@ -774,23 +687,14 @@ class Config private constructor(
 
     /**
      * Materialize [deviceUid] once. Runs before [ensurePanelId], because a generated panel id takes its
-     * suffix from the minted identity, and before MQTT or mDNS read either.
-     *
-     * Also decides, once and durably, whether this panel needs the legacy-identifier bridge: see
-     * [legacyAidBridgePending].
+     * suffix from the minted identity, and before mDNS or the Panel Assistant session read either.
      */
     internal fun ensureDeviceUid(mint: () -> String = ::mintDeviceUid): String = synchronized(CONFIG_LOCK) {
         prefs.getString(DEVICE_UID_PREF, null)?.takeIf { it.isNotBlank() }?.let { return@synchronized it }
         val minted = (runtimeDeviceUid ?: mint()).takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("minted device id is blank")
-        // A panel that has never had a broker cannot have registered an MQTT device in Home Assistant,
-        // so it has nothing to re-attach to and must never publish the shared identifier even once.
-        val bridge = mqttBroker.isNotBlank()
         runtimeDeviceUid = minted
-        val committed = durableCommit {
-            putString(DEVICE_UID_PREF, minted)
-            putBoolean(LEGACY_AID_BRIDGE_PREF, bridge)
-        }
+        val committed = durableCommit { putString(DEVICE_UID_PREF, minted) }
         if (!committed) {
             throw IllegalStateException("could not persist installation identity")
         }
@@ -805,50 +709,10 @@ class Config private constructor(
         durableCommit { putString(DEVICE_UID_PREF, value) }
     }
 
-    /**
-     * Whether this panel still owes Home Assistant one publication of the legacy
-     * `ha-paneld-aid-<androidId>` identifier.
-     *
-     * An installation already registered under that identifier would otherwise become unreachable if it
-     * were renamed before its first publication under the minted identity: the new payload would share
-     * no identifier with the existing device and Home Assistant would mint a duplicate. Publishing it
-     * once lets Home Assistant union the minted identity onto the existing device.
-     * [retireLegacyAidBridge] then stops it for good, because continuing to publish a cloned value
-     * would re-merge a cloned fleet the moment its merged device is deleted.
-     */
-    val legacyAidBridgePending: Boolean
-        get() = prefs.getBoolean(LEGACY_AID_BRIDGE_PREF, false)
-
-    /** Stop publishing the legacy identifier. Called once a discovery publication has carried it. */
-    fun retireLegacyAidBridge() = synchronized(CONFIG_LOCK) {
-        if (!prefs.getBoolean(LEGACY_AID_BRIDGE_PREF, false)) return@synchronized
-        if (durableCommit { putBoolean(LEGACY_AID_BRIDGE_PREF, false) }) {
-            Log.i(TAG, "legacy Android-id device identifier retired after discovery publication")
-        } else {
-            Log.w(TAG, "could not retire legacy Android-id device identifier; it will be republished")
-        }
-        Unit
-    }
-
     /** The device's configured name (Companion's default-name source), else the model. */
     private fun deviceName(): String =
         (Settings.Global.getString(requireNotNull(contentResolver), Settings.Global.DEVICE_NAME)
             ?: Build.MODEL).ifBlank { Build.MODEL }
-
-    /** Persist MQTT settings (used by the HTTP config page). A null password leaves it unchanged. */
-    fun setMqtt(broker: String, user: String, password: String?, addressFamily: String? = null) {
-        val normalizedAddressFamily = addressFamily?.let { raw ->
-            val spec = checkNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY))
-            (SettingValue.validate(spec, raw) as? Validation.Ok)?.normalized
-                ?: throw IllegalArgumentException("${SettingsRegistry.ADDRESS_FAMILY_KEY}: unsupported value")
-        }
-        edit {
-            putString("mqtt_broker", broker)
-            putString("mqtt_user", user)
-            if (password != null) putString("mqtt_password", password)
-            if (normalizedAddressFamily != null) putString(SettingsRegistry.ADDRESS_FAMILY_KEY, normalizedAddressFamily)
-        }
-    }
 
     /** Dashboard renderer selection. Empty means the automatic built-in renderer. */
     val dashboardPackage: String get() = stringPref("dashboard_package")
@@ -879,7 +743,7 @@ class Config private constructor(
      *  This is the single definition of "Home Assistant deployed this panel". Every setup step that
      *  skips a question Home Assistant can already answer reads THIS, never the presence of a value
      *  Home Assistant happened to supply: a handed-over value that failed verification still came from
-     *  Home Assistant, and a later step (MQTT) needs the same predicate with no URL involved at all.
+     *  Home Assistant.
      *  Deriving provenance from a populated field instead would re-collapse that distinction. */
     val haSetupHandover: Boolean get() = prefs.getBoolean("ha_setup_handover", false)
 
@@ -1042,7 +906,7 @@ class Config private constructor(
     }
 
     /** Persist the built-in renderer connection (HTTP config page / provisioning). A null token leaves
-     *  it unchanged, mirroring [setMqtt]'s password semantics. */
+     *  it unchanged. */
     fun setHaConnection(url: String, token: String?) {
         edit {
             val normalized = url.trim().trimEnd('/')
@@ -1156,7 +1020,7 @@ class Config private constructor(
     }
     internal fun setAutoSleep(on: Boolean): AutoSleepWriteResult = synchronized(CONFIG_LOCK) {
         if (boolPref("auto_sleep") == on) return@synchronized AutoSleepWriteResult.UNCHANGED
-        // MQTT immediately asks the runtime to refresh, so durability must precede that refresh.
+        // The caller immediately asks the runtime to refresh, so durability must precede that refresh.
         val generation = nextAutoSleepGenerationLocked()
         if (durableCommit {
                 putString("auto_sleep_source", autoSleepSource)
@@ -1286,8 +1150,8 @@ class Config private constructor(
     }
 
     // Hold a partial wakelock so the SoC + network never suspend (screen still free to sleep). ON by
-    // default: a mains wall panel must never Doze into an unreachable state where the MQTT reactor +
-    // keepalive freeze and the broker connection dies half-open. Toggle off only for a battery panel.
+    // default: a mains wall panel must never Doze into an unreachable state where its Home Assistant
+    // connection freezes and dies half-open. Toggle off only for a battery panel.
     val keepAwake: Boolean get() = boolPref("keep_awake")
     fun setKeepAwake(on: Boolean) {
         edit { putBoolean("keep_awake", on) }
@@ -1323,8 +1187,8 @@ class Config private constructor(
     fun commitTouchSound(on: Boolean): Boolean = commitRaw(specOf("touch_sound"), on.toString())
 
     // Camera trial: the master switch and the hard caps that clamp every stream/snapshot request. The
-    // HTTP config route persists all five through the registry writer; only the MQTT master switch
-    // needs a typed setter.
+    // HTTP config route persists all five through the registry writer; only the master switch needs a
+    // typed setter.
     val cameraEnabled: Boolean get() = boolPref("camera_enabled")
     fun setCameraEnabled(on: Boolean) {
         edit { putBoolean("camera_enabled", on) }
@@ -1406,23 +1270,6 @@ class Config private constructor(
         durableCommit { putBoolean("network_adb_enabled", on) }
     }
 
-    // The ha-paneld version whose discovery set was last published to HA. On an upgrade (this differs
-    // from the running version) MqttBridge prunes any entity a prior version published but this one no
-    // longer does — so a refactored-away entity is actively removed from HA, not left as a zombie.
-    val lastDiscoveryVersion: String get() = prefs.getString("last_discovery_version", "")!!
-    fun setLastDiscoveryVersion(v: String) {
-        prefs.edit().putString("last_discovery_version", v).apply()
-    }
-
-    // Runtime state for the MQTT update entities, never a user setting. The shape is what Home
-    // Assistant was last told about one entity, so a restart can still recreate it when an attribute
-    // HA cannot unset has gone; the lease is the wall-clock time a Panel Assistant entry last claimed
-    // the ha-paneld update entity (PanelAssistantUpdateLease).
-    fun softwareUpdateDiscoveryShape(component: String): String =
-        prefs.getString("mqtt_update_shape_$component", "") ?: ""
-    fun setSoftwareUpdateDiscoveryShape(component: String, encoded: String) {
-        prefs.edit().putString("mqtt_update_shape_$component", encoded).apply()
-    }
     // The last catalog targets (UpdateChecker.persistableTargets), kept only so a restart reports them.
     val softwareUpdateTargets: Pair<String, String> get() =
         (prefs.getString("update_target_paneld", "") ?: "") to (prefs.getString("update_target_companion", "") ?: "")
@@ -1433,35 +1280,12 @@ class Config private constructor(
             .putString("update_target_companion", targets.second)
             .apply()
     }
-    // The authority the Panel Assistant integration last granted this panel (mqtt, shadow or native),
-    // empty before any session. Kept while no session is open, so a Home Assistant outage never lets
-    // MQTT command a panel that was cut over to the native transport.
-    val panelAssistantAuthority: String get() = prefs.getString("panel_assistant_authority", "") ?: ""
-    fun setPanelAssistantAuthority(authority: String) {
-        if (authority == panelAssistantAuthority) return
-        prefs.edit().putString("panel_assistant_authority", authority).apply()
-    }
-    // Whether the integration holds this panel's MQTT discovery entities (withdraw) or has released
-    // them (announce), empty before any session. Kept beside the authority for the same reason: while
-    // it reads withdraw the bridge publishes tombstones instead of discovery on every connect, so an
-    // outage or an uninstalled integration never brings back entities the integration replaced.
-    val panelAssistantMqttDiscovery: String get() = prefs.getString("panel_assistant_mqtt_discovery", "") ?: ""
-    fun setPanelAssistantMqttDiscovery(value: String) {
-        if (value == panelAssistantMqttDiscovery) return
-        prefs.edit().putString("panel_assistant_mqtt_discovery", value).apply()
-    }
-    val panelAssistantUpdateOwnerSeenMs: Long get() = prefs.getLong("panel_assistant_update_owner_seen_ms", 0L)
-    fun setPanelAssistantUpdateOwnerSeenMs(wallMs: Long) {
-        prefs.edit().putLong("panel_assistant_update_owner_seen_ms", wallMs).apply()
-    }
-
-    /** Accepted transport, a declared integration poll or a setup handover proves Panel Assistant manages this panel. */
+    /** An accepted session or a setup handover proves Panel Assistant manages this panel. */
     val panelAssistantConnectionSeen: Boolean
-        get() = panelAssistantAuthority in setOf("shadow", "native") || haSetupHandover ||
-            panelAssistantUpdateOwnerSeenMs > 0L || prefs.getBoolean("migration_notice_connection_seen", false)
+        get() = haSetupHandover || prefs.getBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, false)
 
     fun markPanelAssistantConnected() {
-        prefs.edit().putBoolean("migration_notice_connection_seen", true).apply()
+        prefs.edit().putBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, true).apply()
     }
 
     fun migrationNoticeVisible(versionCode: Int = BuildConfig.VERSION_CODE): Boolean =
@@ -2181,7 +2005,7 @@ class Config private constructor(
     }
 
     // --- remote log shipping (opt-in) --------------------------------------------------------------
-    // Forward ha-paneld's OWN process logcat (its Log.* output + the Ktor/HiveMQ SLF4J library logs,
+    // Forward ha-paneld's OWN process logcat (its Log.* output + the Ktor SLF4J library logs,
     // all emitted by this app's uid → readable with no READ_LOGS and no root) to a central aggregator
     // (any syslog- or HTTP-ingesting log collector) for fleet-wide debugging without per-panel `adb logcat`. OFF by default
     // with an EMPTY host — a stock panel ships nothing until deliberately configured. LAN-only by intent;
@@ -2658,14 +2482,30 @@ class Config private constructor(
     private fun sameOriginDashboardRoute(raw: String): String? =
         sameOriginDashboardRoute(raw, canonicalHaOrigin(haUrl))
 
+    /**
+     * Remove [retired] keys, among them the legacy broker address and credentials. A panel whose last session
+     * was accepted, or whose integration claimed its update entity, keeps that as connection evidence, so
+     * the upgrade never brings back the "install Panel Assistant" notice for a panel it already manages.
+     */
+    private fun SharedPreferences.Editor.retireStoredKeys(retired: List<String>) {
+        val all = prefs.all
+        if (all["panel_assistant_authority"] in setOf("shadow", "native") ||
+            (all["panel_assistant_update_owner_seen_ms"] as? Long ?: 0L) > 0L
+        ) {
+            putBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, true)
+        }
+        retired.forEach(::remove)
+    }
+
     fun migrateLiveStore(): Boolean = synchronized(CONFIG_LOCK) {
         rerootDashboardEntityOwners()
         canonicalizeStoredHomeDashboard()
         val from = storedSchema
+        val retired = prefs.all.keys.filter(SettingsRegistry::isRetired)
         if (from == SettingsRegistry.SCHEMA) {
-            if (SettingsRegistry.RETIRED_KEYS.none(prefs::contains)) return@synchronized true
+            if (retired.isEmpty()) return@synchronized true
             return@synchronized durableCommit {
-                SettingsRegistry.RETIRED_KEYS.forEach(::remove)
+                retireStoredKeys(retired)
                 putInt("config_schema", SettingsRegistry.SCHEMA)
             }
         }
@@ -2720,7 +2560,7 @@ class Config private constructor(
         }
         // Also clean a current-schema store dirtied by a raw legacy restore. Removal and the marker
         // share one commit, so a failed migration leaves everything available for the next retry.
-        SettingsRegistry.RETIRED_KEYS.forEach(ed::remove)
+        ed.retireStoredKeys(retired)
         ed.putInt("config_schema", SettingsRegistry.SCHEMA)
         // The schema marker moves in the SAME transaction as the values it describes, so a failed commit
         // leaves the store wholly at its old schema and the migration is simply retried at the next
@@ -2770,17 +2610,14 @@ class Config private constructor(
     companion object {
         private const val TAG = "ha-paneld/config"
         /** The stored keys [panelAssistantConnectionSeen] reads, for listeners that must notice it turning true. */
-        val PANEL_ASSISTANT_CONNECTION_KEYS = setOf(
-            "panel_assistant_authority", "panel_assistant_update_owner_seen_ms",
-            "migration_notice_connection_seen", "ha_setup_handover",
-        )
+        val PANEL_ASSISTANT_CONNECTION_KEYS = setOf(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, "ha_setup_handover")
+        internal const val PANEL_ASSISTANT_CONNECTION_SEEN_PREF = "migration_notice_connection_seen"
         /** Every Config wrapper addresses one process-wide SQLite namespace, so transaction ownership
          * must be process-wide as well. */
         private val CONFIG_LOCK = Any()
         private const val SECURITY_MODE_PREF = "device_local_hardened_security"
         /** The minted device identity. `device_local_` and unregistered: never exported, never restored. */
         internal const val DEVICE_UID_PREF = "device_local_device_uid_v1"
-        private const val LEGACY_AID_BRIDGE_PREF = "device_local_legacy_aid_bridge_pending_v1"
         private const val DEVICE_UID_BYTES = 16
         private const val SETUP_IDENTITY_CONFIRMED_PREF = "device_local_setup_identity_confirmed"
         private const val SETUP_ENTITY_FILTER_ANSWERED_PREF = "device_local_setup_entity_filter_answered"
@@ -2793,10 +2630,6 @@ class Config private constructor(
         private const val SETUP_RENDER_ATTESTED_PREF = "device_local_setup_render_attested"
         private const val SETUP_EVER_COMPLETED_PREF = "device_local_setup_ever_completed"
         private const val LIGHT_SENSOR_REPORTED_PREF = "device_local_light_sensor_reported"
-        private const val MQTT_FAMILY_BROKER_PREF = "device_local_mqtt_family_broker"
-        private const val MQTT_FAMILY_IPV4_PREF = "device_local_mqtt_family_ipv4"
-        private const val MQTT_ANNOUNCEMENT_BOUNDARY_PREF =
-            "device_local_mqtt_announcement_boundary_consumed"
         private const val AUTO_SLEEP_EXCLUSIONS_PREF = "auto_sleep_source_exclusions_v1"
         private const val AUTO_SLEEP_GENERATION_PREF = "auto_sleep_generation_v1"
         private const val MAX_AUTO_SLEEP_EXCLUSIONS_BYTES = 256 * 1024
@@ -2914,20 +2747,13 @@ internal fun sameOriginDashboardRoute(raw: String, configuredOrigin: String?): S
 /**
  * The disambiguating suffix a generated panel id carries when the device name is too generic to use.
  *
- * Two panels flashed from one factory image report the same model AND the same ANDROID_ID, so the
- * historical suffix gave them one identical panel id — identical MQTT topics and entity ids, not
- * merely a merged device (#155). The minted identity separates them.
+ * Two panels flashed from one factory image report the same model AND the same ANDROID_ID, so a suffix
+ * from the ANDROID_ID gave them one identical panel id (#155). The minted identity separates them. A
+ * panel that already has an id keeps it: [Config.ensurePanelId] persists the first one, and every
+ * build that can upgrade in place has done so since 0.9.6.
  *
- * [hasConfiguredBroker] is the one thing that may not change: a panel with a broker has already
- * published entities under the ANDROID_ID-derived id, and renaming it now would rename every entity
- * and strand the customisation attached to it. Only an installation that has never had a broker —
- * one that cannot have published anything — takes the minted suffix.
- *
- * Falls back to the legacy suffix, and then to a constant, so a panel that can read neither value
+ * Falls back to the ANDROID_ID suffix, and then to a constant, so a panel that can read neither value
  * still gets a well-formed id.
  */
-internal fun panelIdSuffix(androidId: String, deviceUid: String, hasConfiguredBroker: Boolean): String {
-    val legacy = androidId.takeLast(4).ifBlank { "panel" }
-    if (hasConfiguredBroker) return legacy
-    return deviceUid.takeLast(4).ifBlank { legacy }
-}
+internal fun panelIdSuffix(androidId: String, deviceUid: String): String =
+    deviceUid.takeLast(4).ifBlank { androidId.takeLast(4).ifBlank { "panel" } }

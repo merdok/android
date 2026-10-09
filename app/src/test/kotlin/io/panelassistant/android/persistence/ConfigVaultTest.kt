@@ -27,7 +27,7 @@ class ConfigVaultTest {
     @Test fun aWrittenGenerationRoundTripsExactly() {
         val original = export(
             "ha_url" to "https://ha.example.test",
-            "mqtt_broker" to "tcp://broker.example.test:1883",
+            "friendly_name" to "Panel",
             "absent" to null,
             profiles = mapOf("custom-panel.yaml" to "id: custom\nname: Custom"),
         )

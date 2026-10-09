@@ -1051,7 +1051,7 @@ class AutoSleepControllerTest {
         val controller = AutoSleepController(
             scope = scope,
             screen = screen,
-            configuration = { AutoSleepRuntimeConfig(enabledState.get(), "android", "panel", "https://ha", source = source,
+            configuration = { AutoSleepRuntimeConfig(enabledState.get(), "https://ha", source = source,
                 touchDelaySeconds = touchDelaySeconds.get()) },
             learning = learning,
             onNoArea = onNoArea,

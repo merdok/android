@@ -1,6 +1,5 @@
 package io.panelassistant.android.util
 
-import io.panelassistant.android.MqttCommandAdmission
 import io.panelassistant.android.sensors.SensorRunCallbacks
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -9,6 +8,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
@@ -17,11 +18,40 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServiceRuntimeOwnerTest {
+    /** Minimal active-call gate standing in for the network runtime's command admission. */
+    private class CommandAdmission {
+        private val lock = ReentrantLock()
+        private val idle = lock.newCondition()
+        private var accepting = true
+        private var active = 0
+
+        fun run(command: () -> Unit): Boolean {
+            lock.withLock {
+                if (!accepting) return false
+                active++
+            }
+            try {
+                command()
+                return true
+            } finally {
+                lock.withLock {
+                    active--
+                    if (active == 0) idle.signalAll()
+                }
+            }
+        }
+
+        fun closeAndDrain() = lock.withLock {
+            accepting = false
+            while (active > 0) idle.awaitUninterruptibly()
+        }
+    }
+
     private class FakeNetwork(
         val name: String,
         private val events: MutableList<String>,
     ) {
-        val commands = MqttCommandAdmission()
+        val commands = CommandAdmission()
         @Volatile private var stopped = false
 
         fun start() {

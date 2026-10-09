@@ -1,10 +1,8 @@
 package io.panelassistant.android.http
 
-import io.panelassistant.android.testsupport.TestSources
 import io.panelassistant.android.DiscoveryOutcome
 import io.panelassistant.android.DiscoveryReason
 import io.panelassistant.android.DiscoveryResult
-import io.panelassistant.android.http.SetupJourney.MqttSetupState
 import io.panelassistant.android.http.SetupJourney.ProofSource
 import io.panelassistant.android.http.SetupJourney.RenderProof
 import io.panelassistant.android.http.SetupJourney.RendererChoice
@@ -17,13 +15,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SetupJourneyTest {
-    // Source-text reason: pins MqttBridge.kt, deleted with the MQTT removal.
     private fun inputs(
         identityConfirmed: Boolean = true,
-        brokerConfigured: Boolean = true,
-        mqttUserConfigured: Boolean = true,
-        mqttPasswordConfigured: Boolean = true,
-        mqtt: MqttSetupState = MqttSetupState.CONNECTED,
         renderer: RendererChoice = RendererChoice.Builtin,
         haUrl: String = "http://ha.local:8123",
         haCredentialed: Boolean = true,
@@ -38,14 +31,9 @@ class SetupJourneyTest {
         webViewTooOld: Boolean = false,
         proof: RenderProof = RenderProof(ProofSource.BUILTIN_FRONTEND_CONNECTED, certain = true, observedAtMs = 1L),
         currentFingerprint: String = "",
-        panelAssistantNative: Boolean = false,
     ) = SetupJourney.Inputs(
         identityConfirmed = identityConfirmed,
         panelId = "alpha",
-        brokerConfigured = brokerConfigured,
-        mqttUserConfigured = mqttUserConfigured,
-        mqttPasswordConfigured = mqttPasswordConfigured,
-        mqtt = mqtt,
         renderer = renderer,
         haUrl = haUrl,
         haCredentialed = haCredentialed,
@@ -56,7 +44,6 @@ class SetupJourneyTest {
         webViewTooOld = webViewTooOld,
         proof = proof,
         currentFingerprint = currentFingerprint,
-        panelAssistantNative = panelAssistantNative,
     )
 
     @Test fun aFullyConfiguredPanelWithAProvenRenderIsComplete() {
@@ -65,94 +52,31 @@ class SetupJourneyTest {
         assertNull(j.next)
     }
 
-    @Test fun everyDocumentedMqttTokenMapsToAKnownState() {
-        // The canonical vocabulary is documented on MqttBridge.state. If a state is added there and not
-        // here it silently becomes UNKNOWN, which reads as "still connecting" forever and suppresses all
-        // guidance — a failure mode with no visible symptom other than a user waiting indefinitely.
-        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
-        val documented = Regex("""\*\s+\*\s+(connected \| .*?)\.""", RegexOption.DOT_MATCHES_ALL)
-            .find(bridge)?.groupValues?.get(1)
-            ?: bridge.substringAfter("connected | ").substringBefore(".").let { "connected | $it" }
-        val tokens = documented.split("|").map { it.trim().trim('*', ' ', '\n') }.filter { it.isNotEmpty() }
-        assertTrue("could not read the documented token list", tokens.size >= 7)
-        tokens.forEach { token ->
-            assertFalse("undocumented mapping for '$token'", MqttSetupState.of(token) == MqttSetupState.UNKNOWN)
-        }
-        // Two states are produced in code but not in that comment; pin them explicitly.
-        assertEquals(MqttSetupState.AUTH_RETRYING, MqttSetupState.of("auth-retrying"))
-        assertEquals(MqttSetupState.CONFIG_ERROR, MqttSetupState.of("config-error"))
-        assertEquals(MqttSetupState.UNKNOWN, MqttSetupState.of("something-new"))
-    }
-
-    @Test fun mqttNeverBlocksReachingADashboard() {
-        // PostUpdateReturnPolicy states MQTT is optional and must not strand a panel. So a broker that is
-        // unreachable or rejecting must not stop the journey completing, only degrade control.
-        listOf(MqttSetupState.UNREACHABLE, MqttSetupState.AUTH_FAILED, MqttSetupState.CONFIG_ERROR).forEach { state ->
-            val j = SetupJourney.evaluate(inputs(mqtt = state))
-            assertTrue("$state should not block a dashboard", j.complete)
-            assertFalse(j.step(Stage.MQTT_CONNECTION).blocking)
-            assertFalse(j.step(Stage.MQTT_CREDENTIALS).blocking)
-        }
-    }
-
-    @Test fun aRejectedLoginPointsAtCredentialsAndAnUnreachableHostAtTheConnection() {
-        // The two failures have different remedies, so they must not share one message.
-        assertEquals(
-            Stage.MQTT_CREDENTIALS,
-            SetupJourney.evaluate(inputs(mqtt = MqttSetupState.AUTH_FAILED)).next,
-        )
-        listOf(MqttSetupState.UNREACHABLE, MqttSetupState.CONFIG_ERROR).forEach { state ->
-            assertEquals(Stage.MQTT_CONNECTION, SetupJourney.evaluate(inputs(mqtt = state)).next)
-        }
-    }
-
     @Test fun theNextStepFollowsStageOrderRatherThanSeverity() {
         // Ranking blocking stages first made severity reorder the walk under the user's feet. Order is
-        // what setup walks — declaration order alone — and in that order the missing HA credential
-        // (needed by the dashboard/area page AND by the area mechanism at first MQTT registration)
-        // comes before a broken broker, however loud the broker failure is.
-        val j = SetupJourney.evaluate(inputs(mqtt = MqttSetupState.UNREACHABLE, haCredentialed = false))
+        // what setup walks — declaration order alone — so the missing HA credential comes before a
+        // renderer that cannot be confirmed, however loud that is.
+        val j = SetupJourney.evaluate(inputs(
+            renderer = RendererChoice.Foreign("io.homeassistant.companion.android", installed = true),
+            haCredentialed = false,
+            proof = RenderProof(),
+        ))
         assertEquals(Stage.HA_CREDENTIALS, j.next)
         assertFalse(j.complete)
-        // With the credential in place, the broker failure is next in walk order.
-        val mqttOnly = SetupJourney.evaluate(inputs(mqtt = MqttSetupState.UNREACHABLE))
-        assertEquals(Stage.MQTT_CONNECTION, mqttOnly.next)
-        // Completion still ignores the non-blocking failure — only the render-side stages hold it back.
         assertTrue(j.step(Stage.HA_CREDENTIALS).blocking)
     }
 
     @Test fun theWalkNeverJumpsOverAStepThatIsMidFlight() {
         // The moment the panel-side OAuth attempt arms, sign-in reads IN_FLIGHT. Ranking blocked above
-        // in-flight would send the wizard to the LATER blocked broker step and abandon the unfinished
+        // in-flight would send the wizard to a LATER blocked step and abandon the unfinished
         // sign-in. Strict walk order: the first step that is blocked OR in flight is next, full stop.
         val midSignIn = SetupJourney.evaluate(inputs(
             haCredentialed = false, haOAuthInFlight = true,
-            brokerConfigured = false, mqttUserConfigured = false, mqttPasswordConfigured = false,
-            mqtt = MqttSetupState.DISABLED, homeDashboardChosen = false, entityFilterAnswered = false,
+            homeDashboardChosen = false, entityFilterAnswered = false,
             proof = RenderProof(),
         ))
         assertEquals(Status.IN_FLIGHT, midSignIn.step(Stage.HA_CREDENTIALS).status)
         assertEquals(Stage.HA_CREDENTIALS, midSignIn.next)
-    }
-
-    @Test fun transientMqttStatesAreNeverPresentedAsSomethingToFix() {
-        // The regression SetupBanner was extracted to prevent: a mid-connect broker reported as missing.
-        listOf(
-            MqttSetupState.CONNECTING,
-            MqttSetupState.ANNOUNCING,
-            MqttSetupState.DISCOVERING,
-            MqttSetupState.AUTH_RETRYING,
-        ).forEach { state ->
-            val j = SetupJourney.evaluate(inputs(mqtt = state))
-            assertEquals("$state must read as in-flight", Status.IN_FLIGHT, j.step(Stage.MQTT_CONNECTION).status)
-            assertFalse("$state must not be BLOCKED", j.step(Stage.MQTT_CONNECTION).status == Status.BLOCKED)
-        }
-    }
-
-    @Test fun aConfiguredBrokerThatHasNotReportedYetIsTransientNotBroken() {
-        val j = SetupJourney.evaluate(inputs(mqtt = MqttSetupState.UNKNOWN))
-        assertEquals(Status.IN_FLIGHT, j.step(Stage.MQTT_CONNECTION).status)
-        assertTrue(j.complete)
     }
 
     @Test fun anUnconfirmedIdentityBlocksBeforeAnythingElse() {
@@ -206,7 +130,6 @@ class SetupJourneyTest {
     @Test fun noStateEverReportsIncompleteWithNothingToDo() {
         // A dead end is the worst possible outcome: the user is told setup is unfinished and given no
         // action. Sweep the combination space and assert it cannot happen.
-        val mqttStates = MqttSetupState.entries
         val renderers = listOf(
             RendererChoice.Builtin,
             RendererChoice.Unresolved,
@@ -215,17 +138,16 @@ class SetupJourneyTest {
         )
         var checked = 0
         for (identity in listOf(true, false)) {
-            for (broker in listOf(true, false)) {
-                for (mqtt in mqttStates) {
+            for (filter in listOf(true, false)) {
+                for (dashboard in listOf(true, false)) {
                     for (renderer in renderers) {
                         for (url in listOf("http://ha.local:8123", "")) {
                             for (cred in listOf(true, false)) {
                                 for (certain in listOf(true, false)) {
                                     val j = SetupJourney.evaluate(
                                         inputs(
-                                            identityConfirmed = identity, brokerConfigured = broker,
-                                            mqttUserConfigured = broker, mqttPasswordConfigured = broker,
-                                            mqtt = mqtt, renderer = renderer, haUrl = url,
+                                            identityConfirmed = identity, entityFilterAnswered = filter,
+                                            homeDashboardChosen = dashboard, renderer = renderer, haUrl = url,
                                             haCredentialed = cred,
                                             proof = RenderProof(
                                                 if (certain) ProofSource.USER_ATTESTED else ProofSource.NONE,
@@ -236,8 +158,8 @@ class SetupJourneyTest {
                                     checked++
                                     if (!j.complete) {
                                         assertTrue(
-                                            "incomplete with no next step: mqtt=$mqtt renderer=$renderer " +
-                                                "identity=$identity broker=$broker url='$url' cred=$cred " +
+                                            "incomplete with no next step: renderer=$renderer " +
+                                                "identity=$identity filter=$filter dashboard=$dashboard url='$url' cred=$cred " +
                                                 "certain=$certain",
                                             j.next != null,
                                         )
@@ -249,12 +171,12 @@ class SetupJourneyTest {
                 }
             }
         }
-        assertTrue(checked > 500)
+        assertTrue(checked > 250)
     }
 
     @Test fun proofDoesNotSurviveAConfigurationChange() {
-        // Re-arming is what makes "setup" and "repair" the same computation: a moved broker, a revoked
-        // token or a switched renderer must void a proof rather than let the journey coast on it.
+        // Re-arming is what makes "setup" and "repair" the same computation: a moved Home Assistant, a
+        // revoked token or a switched renderer must void a proof rather than let the journey coast on it.
         val j = SetupJourney.evaluate(
             inputs(
                 proof = RenderProof(ProofSource.BUILTIN_FRONTEND_CONNECTED, certain = true, fingerprint = "old"),
@@ -302,22 +224,18 @@ class SetupJourneyTest {
         assertEquals(Stage.HA_CREDENTIALS, j.next)
     }
 
-    @Test fun aFreshPanelAsksForIdentityFirstThenBrokerThenSignIn() {
+    @Test fun aFreshPanelAsksForIdentityFirstThenSignIn() {
         // The whole journey, in order, from a wiped panel on a network where discovery cannot work.
         val hopeless = DiscoveryResult(
             outcome = DiscoveryOutcome.UNAVAILABLE,
-            reason = DiscoveryReason.BROKER_NOT_ON_LINK,
+            reason = DiscoveryReason.NO_RESPONSES_AT_ALL,
         )
         var state = inputs(
-            identityConfirmed = false, brokerConfigured = false, mqttUserConfigured = false,
-            mqttPasswordConfigured = false, mqtt = MqttSetupState.DISABLED, haUrl = "",
+            identityConfirmed = false, haUrl = "",
             haCredentialed = false, discovery = hopeless, proof = RenderProof(),
         )
         assertEquals(Stage.IDENTITY, SetupJourney.evaluate(state).next)
 
-        // Home Assistant comes BEFORE MQTT: suggested_area applies only at the device's first
-        // registration (the moment MQTT connects), and valid area names are only readable after
-        // sign-in — the one order in which every user's panel lands in its correct area.
         state = state.copy(identityConfirmed = true)
         assertEquals(Stage.HA_URL, SetupJourney.evaluate(state).next)
         // The step carries the discovery outcome, so the UI can say why the field is blank rather than
@@ -328,15 +246,11 @@ class SetupJourneyTest {
         assertEquals(Stage.HA_CREDENTIALS, SetupJourney.evaluate(state).next)
 
         state = state.copy(haCredentialed = true, homeDashboardChosen = false, entityFilterAnswered = false)
-        // The dashboard+area page follows sign-in immediately (the lists need the credential) and
-        // precedes MQTT (the area must be chosen before the broker connect registers the device).
+        // The dashboard+area page follows sign-in immediately (the lists need the credential).
         assertEquals(Stage.HOME_DASHBOARD, SetupJourney.evaluate(state).next)
         assertFalse(SetupJourney.evaluate(state).complete)
 
         state = state.copy(homeDashboardChosen = true)
-        assertEquals(Stage.MQTT_BROKER, SetupJourney.evaluate(state).next)
-
-        state = state.copy(brokerConfigured = true, mqttUserConfigured = true, mqttPasswordConfigured = true, mqtt = MqttSetupState.CONNECTED)
         // The filter question comes BEFORE the render, so it is next here and the render is not yet claimed
         // to be loading — the panel is deliberately holding.
         assertEquals(Stage.ENTITY_FILTER, SetupJourney.evaluate(state).next)
@@ -449,18 +363,6 @@ class SetupJourneyTest {
         assertEquals(Stage.entries, steps.map { it.stage })
     }
 
-    @Test fun theDashboardAndAreaAreChosenBeforeTheFirstMqttConnect() {
-        // suggested_area applies only at the device's FIRST registration, which happens the moment MQTT
-        // connects — and the valid area names are only readable after HA sign-in. If MQTT ever moves
-        // ahead of HOME_DASHBOARD again, every non-admin user loses the ability to place their panel in
-        // an area at all.
-        assertTrue(Stage.HOME_DASHBOARD.ordinal < Stage.MQTT_BROKER.ordinal)
-        assertTrue(Stage.HA_CREDENTIALS.ordinal < Stage.HOME_DASHBOARD.ordinal)
-        // MQTT still precedes the filter question, so the journey cannot present as finished while the
-        // broker was never even asked about.
-        assertTrue(Stage.MQTT_CONNECTION.ordinal < Stage.ENTITY_FILTER.ordinal)
-    }
-
     @Test fun aConfiguredPanelReEarningItsRenderProofIsNotWaitingOnAPerson() {
         // Reported on a configured panel: the "Set up" tab and the "Setting up this panel?" banner appeared on a
         // fully configured, working panel. Its only unsatisfied stage was render_proof = awaiting_frontend,
@@ -492,32 +394,5 @@ class SetupJourneyTest {
         assertTrue("engine too old to render", SetupJourney.evaluate(inputs(webViewTooOld = true)).needsUser)
         // And a healthy proven panel needs nobody.
         assertFalse(SetupJourney.evaluate(inputs()).needsUser)
-    }
-
-    /** A panel Panel Assistant runs natively has no MQTT to set up, so setup never sends its owner to a broker. */
-    @Test fun panelAssistantNative_withoutBroker_skipsEveryMqttStep() {
-        val state = inputs(
-            brokerConfigured = false,
-            mqttUserConfigured = false,
-            mqttPasswordConfigured = false,
-            mqtt = MqttSetupState.DISABLED,
-            panelAssistantNative = true,
-        )
-        val journey = SetupJourney.evaluate(state)
-        listOf(Stage.MQTT_BROKER, Stage.MQTT_CREDENTIALS, Stage.MQTT_CONNECTION).forEach {
-            assertEquals(Status.SKIPPED, journey.step(it).status)
-        }
-        assertNull(journey.next)
-    }
-
-    /** Without Panel Assistant's native authority an unconfigured broker is still the next step. */
-    @Test fun withoutPanelAssistantNative_unconfiguredBrokerIsStillNext() {
-        val state = inputs(
-            brokerConfigured = false,
-            mqttUserConfigured = false,
-            mqttPasswordConfigured = false,
-            mqtt = MqttSetupState.DISABLED,
-        )
-        assertEquals(Stage.MQTT_BROKER, SetupJourney.evaluate(state).next)
     }
 }

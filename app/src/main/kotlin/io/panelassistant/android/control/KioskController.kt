@@ -75,7 +75,7 @@ class KioskController(
     @Volatile var onUnlockRequested: (() -> Unit)? = null
 
     /** Apply or clear the lock. Runs the root commands on the CALLING thread (blocking) — call it off the
-     *  main thread (the MQTT thread, a boot coroutine, or the service's unlock thread); the overlay work is
+     *  main thread (a command thread, a boot coroutine, or the service's unlock thread); the overlay work is
      *  posted to the main thread internally. */
     fun apply(on: Boolean): Boolean = synchronized(applyLock) {
         if (on && admissionClosed.get()) return false

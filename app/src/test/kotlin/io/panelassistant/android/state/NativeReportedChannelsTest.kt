@@ -1,6 +1,6 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
-import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.AutoSleepActivitySnapshot
 import io.panelassistant.android.control.ZigbeeContainmentResult
 import io.panelassistant.android.control.ZigbeeHealthSnapshot
@@ -18,10 +18,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** The reports MQTT used to carry alone, reaching the native transport on a panel with no broker. */
-internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
-    @Test fun aButtonPressWithoutBrokerIsReportedAsANativeEvent() {
-        val rig = rig(runtimeBroker = "", mqtt = false)
+/** Button events, auto-sleep activity, the camera snapshot and Zigbee health, reported on the native transport. */
+internal class NativeReportedChannelsTest : PanelRuntimeRig() {
+    @Test fun aButtonPressIsReportedAsANativeEvent() {
+        val rig = rig()
         try {
             val native = bound(rig)
             rig.start()
@@ -43,10 +43,8 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         } finally { rig.close() }
     }
 
-    @Test fun autoSleepActivityIsReportedWithoutBroker() {
+    @Test fun autoSleepActivityIsReportedWithItsAttributes() {
         val rig = rig(
-            runtimeBroker = "",
-            mqtt = false,
             autoSleepActivity = {
                 AutoSleepActivitySnapshot(
                     holdingAwake = true, policyHealthy = true, reason = "presence", learnedDelay = "90s",
@@ -61,7 +59,6 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
             val observation = observation(fullSync(native), "auto_sleep_activity")
             assertEquals("known", observation.getString("state"))
             assertEquals(true, observation.get("value"))
-            // The attributes its MQTT entity carries, so nothing is lost when the panel moves.
             val attributes = observation.getJSONObject("attributes")
             assertEquals("presence", attributes.getString("reason"))
             assertEquals("90s", attributes.getString("learned_delay"))
@@ -73,8 +70,6 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
 
     @Test fun cameraSnapshotIsReportedOnceAndNotRepeatedForFreshness() {
         val rig = rig(
-            runtimeBroker = "",
-            mqtt = false,
             hasCamera = true,
             cameraSnapshotUrl = { "http://192.0.2.10:8888/api/v1/camera/snapshot" },
             configure = { it.setCameraEnabled(true) },
@@ -99,7 +94,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         } finally { rig.close() }
     }
 
-    @Test fun zigbeeGatewayHealthCarriesItsStateAndMqttAttributes() {
+    @Test fun zigbeeGatewayHealthCarriesItsStateAndAttributes() {
         val native = PanelAssistantShadowReporter(log = {})
         val sink = native.bind { listOf("zigbee_gateway_health", "zigbee_gateway_health_attributes") }
         val health = ZigbeeHealthSnapshot(
@@ -124,11 +119,9 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
         assertTrue(attributes.isNull("firmware"))
     }
 
-    @Test fun nativeStartupRestoresTheButtonBacklightWithoutBroker() {
+    @Test fun startupRestoresTheButtonBacklight() {
         val sent = CopyOnWriteArrayList<String>()
         val rig = rig(
-            runtimeBroker = "",
-            mqtt = false,
             helperSend = { command -> sent += command; "OK" },
             configure = {
                 it.attachProfile(io.panelassistant.android.control.fakeProfile(hasButtonBacklight = true))
@@ -143,7 +136,7 @@ internal class NativeMqttOnlyChannelsTest : MqttWireRig() {
 
     @Test fun anUnsetButtonBacklightIsLeftAlone() {
         val sent = CopyOnWriteArrayList<String>()
-        val rig = rig(runtimeBroker = "", mqtt = false, helperSend = { command -> sent += command; "OK" })
+        val rig = rig(helperSend = { command -> sent += command; "OK" })
         try {
             rig.start()
             assertNull(sent.firstOrNull { it.startsWith("BTN ") })

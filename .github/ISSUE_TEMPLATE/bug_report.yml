@@ -61,7 +61,7 @@ body:
         ```
 
         (Or open `http://<panel-ip>:8888/` and copy the **diagnostics / capabilities** section.)
-        It contains no secrets — MQTT credentials are not included.
+        It contains no secrets or credentials.
       render: text
     validations:
       required: true

@@ -61,19 +61,11 @@
     <string name="approval_op_power_safety_ack">Ocultar una precaución concreta de seguridad de alimentación</string>
     <string name="approval_op_guard_db">Avanzar la recuperación de la base de datos</string>
     <string name="approval_op_camera_enable">Activar la cámara del panel</string>
-    <string name="approval_op_transport_release">Devolver el control del panel a MQTT</string>
 
     <string name="set_up">Configurar</string>
     <string name="open_configuration">Abrir configuración</string>
     <string name="panel_not_set_up">Este panel aún no está configurado.</string>
     <string name="panel_not_set_up_hint">Escanea el código o abre la dirección de abajo en tu teléfono u ordenador portátil; tardarás unos dos minutos. También puedes tocar %1$s para hacerlo en esta pantalla.</string>
-    <string name="mqtt_could_not_connect">MQTT no pudo conectarse.</string>
-    <string name="mqtt_credentials_rejected_hint">El bróker rechazó el nombre de usuario y la contraseña; corrígelos en la página de configuración desde un navegador.</string>
-    <string name="waiting_for_mqtt_details">Esperando los datos de MQTT.</string>
-    <string name="someone_configuring_hint">Alguien está configurando esto en un navegador. No tienes que hacer nada aquí.</string>
-    <string name="mqtt_address_check_hint">Comprueba la dirección del bróker en la página de configuración desde un navegador.</string>
-    <string name="checking_mqtt_connection">Comprobando la conexión MQTT…</string>
-    <string name="takes_few_seconds_hint">Esto tarda unos segundos. No tienes que hacer nada aquí.</string>
     <string name="browser_engine_too_old">El motor del navegador de este panel es demasiado antiguo.</string>
     <string name="browser_engine_too_old_hint">Los paneles de control de Home Assistant necesitan uno más reciente. Corrígelo en la página de configuración desde un navegador.</string>
     <string name="choose_dashboard_app">Elige una aplicación de panel de control.</string>

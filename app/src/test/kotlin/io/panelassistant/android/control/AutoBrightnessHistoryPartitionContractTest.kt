@@ -7,10 +7,10 @@ import org.junit.Test
 
 class AutoBrightnessHistoryPartitionContractTest {
     // Source-text reason: the remote handlers need the Android service to construct.
-    private val mqtt = source("PanelCommandDispatcher.kt")
+    private val dispatcher = source("PanelCommandDispatcher.kt")
 
     @Test fun `sensitivity reapplies policy without restarting the ambient source`() {
-        val handler = mqtt.substringAfter("override fun handleAutoBrightnessSensitivity")
+        val handler = dispatcher.substringAfter("override fun handleAutoBrightnessSensitivity")
             .substringBefore("override fun handleAutoBrightnessMinimum")
 
         assertTrue(handler.contains("autoBright.reapplyLatest()"))

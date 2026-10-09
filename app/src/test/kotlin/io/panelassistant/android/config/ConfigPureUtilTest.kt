@@ -68,7 +68,7 @@ class ConfigBundleTest {
     }
     @Test fun roundTripsThroughSerialize() {
         val b = ConfigBundle.fromValues(
-            values = mapOf("mqtt_broker" to "tcp://ha:1883", "friendly_name" to "Front Room"),
+            values = mapOf("dashboard_zoom" to "120", "friendly_name" to "Front Room"),
             schema = 1, exportedAt = "2026-06-29T00:00:00Z", exportedBy = "test",
         )
         val parsed = ConfigBundle.parse(b.serialize())
@@ -89,18 +89,18 @@ class ConfigBundleTest {
 
     @Test fun credentialBundlePreservesPasswordWhitespaceAndOauthExpiry() {
         val values = mapOf(
-            "mqtt_password" to "  exact password bytes  ",
+            "ha_token" to "  exact password bytes  ",
             "ha_token_expiry" to "2345678901",
         )
         val parsed = ConfigBundle.parse(ConfigBundle.fromValues(values).serialize())!!
 
-        assertEquals("  exact password bytes  ", parsed.values["mqtt_password"])
+        assertEquals("  exact password bytes  ", parsed.values["ha_token"])
         assertEquals("2345678901", parsed.values["ha_token_expiry"])
         assertEquals(
             "  exact password bytes  ",
             (SettingValue.validate(
-                SettingsRegistry.spec("mqtt_password")!!,
-                parsed.values.getValue("mqtt_password"),
+                SettingsRegistry.spec("ha_token")!!,
+                parsed.values.getValue("ha_token"),
             ) as Validation.Ok).normalized,
         )
     }
@@ -209,11 +209,15 @@ class MigrationsTest {
         val (migrated, warnings) = Migrations.migrate(bundle.schema, bundle.values)
 
         assertTrue("public 0.9.5 must migrate directly without an unknown intermediate step", warnings.isEmpty())
-        // Current settings carry forward unchanged; retired sensitivity and updater ownership do not.
-        val retired = SettingsRegistry.RETIRED_KEYS + SettingsRegistry.LEGACY_SENSITIVITY_KEY
+        // Current settings carry forward unchanged; retired sensitivity, updater ownership and the broker
+        // settings do not.
         bundle.values.forEach { (key, value) ->
-            if (key !in retired) assertEquals("value changed for $key", value, migrated[key])
+            if (!SettingsRegistry.isRetired(key) && key != SettingsRegistry.LEGACY_SENSITIVITY_KEY) {
+                assertEquals("value changed for $key", value, migrated[key])
+            }
         }
+        assertTrue("the fixture carries the broker settings this release drops", "mqtt_password" in bundle.values)
+        assertTrue("no broker setting survives migration", migrated.keys.none { it.startsWith("mqtt_") })
         assertEquals("50", bundle.values[SettingsRegistry.LEGACY_SENSITIVITY_KEY])
         assertEquals(
             "the schema-5 neutral must become schema-6 full response, preserving its gain exactly",
@@ -244,7 +248,7 @@ class MigrationsTest {
     }
 
     @Test fun schemaSixAddsCameraDefaultsAndPreservesExplicitChoices() {
-        val (defaults, defaultWarnings) = Migrations.migrate(6, mapOf("mqtt_broker" to "tcp://ha:1883"))
+        val (defaults, defaultWarnings) = Migrations.migrate(6, mapOf("friendly_name" to "Front Room"))
 
         assertEquals("false", defaults["camera_enabled"])
         assertEquals("720p", defaults["camera_resolution"])
@@ -265,7 +269,7 @@ class MigrationsTest {
     }
 
     @Test fun schemaNineAddsZeroGainAndExposureDefaultsAndPreservesExplicitValues() {
-        val (defaults, defaultWarnings) = Migrations.migrate(9, mapOf("mqtt_broker" to "tcp://ha:1883"))
+        val (defaults, defaultWarnings) = Migrations.migrate(9, mapOf("friendly_name" to "Front Room"))
 
         // Both zero values preserve what stores predating the keys already did: unity microphone gain
         // and no bias over the camera's own automatic exposure.
@@ -298,7 +302,7 @@ class MigrationsTest {
     }
 
     @Test fun schemaSevenAddsVoiceDefaultsAndPreservesExplicitChoices() {
-        val (defaults, defaultWarnings) = Migrations.migrate(7, mapOf("mqtt_broker" to "tcp://ha:1883"))
+        val (defaults, defaultWarnings) = Migrations.migrate(7, mapOf("friendly_name" to "Front Room"))
 
         assertEquals("false", defaults["voice_enabled"])
         assertEquals("[\"okay_nabu\"]", defaults["voice_wake_words"])
@@ -321,7 +325,7 @@ class MigrationsTest {
     }
 
     @Test fun schemaEightAddsAutomaticUiLanguageAndPreservesExplicitChoices() {
-        val (defaults, defaultWarnings) = Migrations.migrate(8, mapOf("mqtt_broker" to "tcp://ha:1883"))
+        val (defaults, defaultWarnings) = Migrations.migrate(8, mapOf("friendly_name" to "Front Room"))
 
         assertEquals(SettingsRegistry.DEFAULT_UI_LANGUAGE, defaults["ui_language"])
         assertTrue(defaultWarnings.isEmpty())
@@ -333,14 +337,14 @@ class MigrationsTest {
         }
     }
 
-    @Test fun schemaFourAddsAutomaticMqttAddressFamilyPolicy() {
-        val (migrated, warnings) = Migrations.migrate(4, mapOf("mqtt_broker" to "tcp://ha:1883"))
+    @Test fun schemaFourAddsAutomaticAddressFamilyPolicy() {
+        val (migrated, warnings) = Migrations.migrate(4, mapOf("friendly_name" to "Front Room"))
 
         assertEquals("Automatic", migrated[SettingsRegistry.ADDRESS_FAMILY_KEY])
         assertTrue(warnings.isEmpty())
     }
 
-    @Test fun schemaFourPreservesAnExplicitMqttAddressFamilyPolicy() {
+    @Test fun schemaFourPreservesAnExplicitAddressFamilyPolicy() {
         val (migrated, warnings) = Migrations.migrate(
             4,
             mapOf("mqtt_address_family" to "Prefer IPv4"),
@@ -350,7 +354,7 @@ class MigrationsTest {
         assertTrue(warnings.isEmpty())
     }
 
-    @Test fun aSchemaFourteenBackupKeepsItsAddressFamilyUnderTheRenamedKey() {
+    @Test fun aSchemaFourteenBackupKeepsItsAddressFamilyAndDropsItsBroker() {
         val (migrated, warnings) = Migrations.migrate(
             14,
             mapOf("mqtt_address_family" to "Force IPv4", "mqtt_broker" to "tcp://ha:1883"),
@@ -358,7 +362,7 @@ class MigrationsTest {
 
         assertEquals("Force IPv4", migrated[SettingsRegistry.ADDRESS_FAMILY_KEY])
         assertFalse("the retired key cannot reach the restore plan", "mqtt_address_family" in migrated)
-        assertEquals("tcp://ha:1883", migrated["mqtt_broker"])
+        assertFalse("the removed broker setting cannot reach the restore plan", "mqtt_broker" in migrated)
         assertTrue(warnings.isEmpty())
     }
 
@@ -390,7 +394,7 @@ class MigrationsTest {
         // A bundle without the key was written by a panel sitting on the schema-5 default, whose gain
         // was 1.0. Leaving it absent would hand the panel the schema-6 default instead, which is half
         // that — a silent behaviour change on import.
-        val (migrated, _) = Migrations.migrate(5, mapOf("mqtt_broker" to "tcp://ha:1883"))
+        val (migrated, _) = Migrations.migrate(5, mapOf("friendly_name" to "Front Room"))
 
         assertEquals("100", migrated[SettingsRegistry.RESPONSE_PERCENT_KEY])
     }

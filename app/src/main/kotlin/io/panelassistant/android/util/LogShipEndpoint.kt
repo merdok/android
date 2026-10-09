@@ -6,7 +6,7 @@ import java.net.URI
 import java.util.Locale
 
 /**
- * Pure, unit-testable log-sink addressing — the sibling of [BrokerEndpoint] for the remote
+ * Pure, unit-testable log-sink addressing for the remote
  * log-shipping destination, kept out of `logship/LogShipper` so it can be tested without a socket.
  *
  * One parser serves the value a user types into the Configure form, the value stored in preferences,
@@ -65,8 +65,8 @@ object LogShipEndpoint {
     /**
      * Candidate sink addresses in the order they should be tried: **IPv4 first**, then IPv6.
      *
-     * This is deliberately the opposite of the MQTT bridge's IPv6-first preference, because the two
-     * have opposite feedback. MQTT learns — a failed connect flips the preference and the working
+     * This is deliberately the opposite of the Home Assistant link's IPv6-first preference, because the two
+     * have opposite feedback. The Home Assistant link learns — a failed connect flips the preference and the working
      * family is persisted. UDP syslog cannot learn: a datagram sent to an address whose service is
      * not listening succeeds locally and vanishes, so the wrong first choice is a permanent, silent
      * failure with no signal to correct it.

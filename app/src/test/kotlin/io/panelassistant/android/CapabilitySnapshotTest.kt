@@ -11,37 +11,32 @@ import org.junit.Test
 class CapabilitySnapshotTest {
     @Test
     fun `learned proximity notification is truthless and replacement re-reads service authority`() {
-        class FakeDiscoveryTransport {
+        class FakeGeneration {
             var clears = 0
-            var announcements = 0
             fun refresh(admitted: Boolean, authority: () -> Boolean) =
                 refreshLearnedProximityFromAuthority(
                     admitted = admitted,
                     eligible = authority,
                     clearIneligibleState = { clears++ },
-                    reannounce = { announcements++ },
                 )
         }
 
         var eligible = false
-        val old = FakeDiscoveryTransport()
-        val successor = FakeDiscoveryTransport()
+        val old = FakeGeneration()
+        val successor = FakeGeneration()
 
-        // A queued notification reaching the retired generation must not clear or announce anything.
+        // A queued notification reaching the retired generation must not clear anything.
         assertEquals(LearnedProximityRefresh.SKIPPED, old.refresh(admitted = false) { eligible })
         assertEquals(0, old.clears)
-        assertEquals(0, old.announcements)
 
         // No Boolean crossed the handover: the admitted successor samples the newer service truth.
         eligible = true
         assertEquals(LearnedProximityRefresh.ELIGIBLE, successor.refresh(admitted = true) { eligible })
         assertEquals(0, successor.clears)
-        assertEquals(1, successor.announcements)
 
         eligible = false
         assertEquals(LearnedProximityRefresh.INELIGIBLE, successor.refresh(admitted = true) { eligible })
         assertEquals(1, successor.clears)
-        assertEquals(2, successor.announcements)
         val sourceRemains = Capabilities(hasProximity = true, hasLearnedProximity = false)
         assertTrue(SettingsRegistry.spec("wake_on_wave")!!.availableWhen(sourceRemains))
         assertFalse(SettingsRegistry.spec("proximity")!!.availableWhen(sourceRemains))

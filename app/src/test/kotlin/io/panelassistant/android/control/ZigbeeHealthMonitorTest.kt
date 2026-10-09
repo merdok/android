@@ -71,7 +71,7 @@ class ZigbeeHealthMonitorTest {
         assertTrue(command.endsWith("head -c 4097; fi"))
     }
 
-    @Test fun mqttAttributesExcludeRawSensitiveGatewayData() {
+    @Test fun attributesExcludeRawSensitiveGatewayData() {
         val attributes = ZigbeeHealthSnapshot(
             state = ZigbeeHealthState.HEALTHY,
             joined = true,

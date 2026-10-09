@@ -30,10 +30,10 @@ internal class SuccessorMigration(private val ports: Ports, private val markers:
 
     /** Where this pass is running, which bounds how far it may go. */
     enum class Environment {
-        /** Before the legacy app has released the panel: no server, no MQTT, no mDNS, no kiosk. */
+        /** Before the legacy app has released the panel: no server, no mDNS, no kiosk. */
         PASSIVE,
 
-        /** The ordinary service, started with MQTT and mDNS held until the restore is durable. */
+        /** The ordinary service, started with mDNS held until the restore is durable. */
         HELD_SERVICE,
 
         /** The ordinary service running from the restored configuration. */
@@ -236,7 +236,7 @@ internal class SuccessorMigration(private val ports: Ports, private val markers:
         if (!markers.record(Step.UNINSTALL) || !markers.recordComplete()) {
             return Result.Waiting(Step.UNINSTALL, "marker not durable")
         }
-        // The receipt is a plaintext backup holding the broker password and the Home Assistant tokens.
+        // The receipt is a plaintext backup holding the legacy broker password and the Home Assistant tokens.
         // It was kept as long as it could be the only copy; it is that no longer.
         ports.forgetSecrets()
         return Result.Complete

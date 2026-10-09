@@ -14,14 +14,14 @@ internal fun submitIlluminanceIfExposed(
 }
 
 /**
- * Keeps MQTT lifecycle contention off Android's sensor callback thread.
+ * Keeps network runtime lifecycle contention off Android's sensor callback thread.
  *
  * A stalled publication retains at most the newest pending light sample. Raw samples can therefore
- * continue feeding local auto-brightness even while the broker runtime is rebuilding or retiring.
+ * continue feeding local auto-brightness even while the network runtime is rebuilding or retiring.
  */
 internal class SensorLightPublisher(
     publish: (Int) -> Unit,
-    threadName: String = "ha-paneld-light-mqtt",
+    threadName: String = "ha-paneld-light",
 ) : AutoCloseable {
     private val dispatcher = LatestDispatcher.singleSlot(
         threadName = threadName,

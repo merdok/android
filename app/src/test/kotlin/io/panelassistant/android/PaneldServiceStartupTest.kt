@@ -272,11 +272,7 @@ class PaneldServiceStartupTest {
                 panelId = name,
                 friendlyName = "Panel $name",
                 httpPort = 8_888,
-                broker = "tcp://$name:1883",
-                user = "user-$name",
-                password = "secret-$name",
             ),
-            projection = MqttProjectionIdentity("maker", "model-$name", listOf("wake" to true)),
             haLink = HaAuthOwner("http://ha/$name", "refresh-$name", "client-$name", ""),
         )
 
@@ -330,50 +326,12 @@ class PaneldServiceStartupTest {
         }
     }
 
-    @Test fun localConfigRefreshOnlyRunsTheMqttEffectsWhoseProjectionChanged() {
-        val projection = MqttProjectionIdentity("maker", "model", listOf("wake" to true))
-        val ha = HaAuthOwner("http://ha", "refresh", "client", "")
-        assertEquals(ConfigRefreshEffects(false, false), configRefreshEffects(projection, projection, ha, ha))
-        assertEquals(
-            ConfigRefreshEffects(true, false),
-            configRefreshEffects(projection, projection.copy(exposures = listOf("wake" to false)), ha, ha),
-        )
-        assertEquals(
-            ConfigRefreshEffects(true, false),
-            configRefreshEffects(projection, projection.copy(model = "other"), ha, ha),
-        )
-        assertEquals(
-            ConfigRefreshEffects(false, true),
-            configRefreshEffects(projection, projection, ha, HaAuthOwner("http://other", "r", "c", "")),
-        )
-    }
-
     @Test fun ordinaryStartupRecoveryIsBoundedAndResetsAfterWindowOrClockRollback() {
         assertEquals(StartupRecoveryDecision(true, 1), startupRecoveryDecision(0, 0, 1_000))
         assertEquals(StartupRecoveryDecision(true, 3), startupRecoveryDecision(2, 900, 1_000))
         assertEquals(StartupRecoveryDecision(false, 4), startupRecoveryDecision(3, 900, 1_000))
         assertEquals(StartupRecoveryDecision(true, 1), startupRecoveryDecision(9, 1_000, 700_001))
         assertEquals(StartupRecoveryDecision(true, 1), startupRecoveryDecision(9, 2_000, 1_000))
-    }
-
-    @Test fun networkRuntimeIdentityIgnoresLocalSettingsButIncludesConnectionAndAdvertisementValues() {
-        fun identity(
-            panel: String = "panel",
-            friendly: String = "Panel",
-            broker: String = "tcp://ha.local:1883",
-            user: String = "user",
-            password: String = "secret",
-            addressFamily: String = "Automatic",
-        ) = NetworkRuntimeIdentity(panel, friendly, 8888, broker, user, password, addressFamily)
-
-        assertEquals(identity(), identity())
-        assertFalse(identity() == identity(panel = "other"))
-        assertFalse(identity() == identity(friendly = "Other"))
-        assertFalse(identity() == identity(broker = "ssl://ha.local:8883"))
-        assertFalse(identity() == identity(user = "other"))
-        assertFalse(identity() == identity(password = "other"))
-        assertFalse(identity() == identity(addressFamily = "Force IPv4"))
-        assertEquals("NetworkRuntimeIdentity(redacted)", identity().toString())
     }
 
     @Test fun successfulOrdinaryStartupBecomesRunning() {
@@ -406,19 +364,6 @@ class PaneldServiceStartupTest {
             ServiceStartupDisposition.DEGRADED,
             awaitServiceStartup(startup, profileActivationGeneration = null),
         )
-    }
-
-    @Test fun liveReconfigureResolvesNativeHaLinkWithoutWaitingForMqttConnection() {
-        val events = mutableListOf<String>()
-
-        startReconfiguredNetworkRuntime(
-            startMdns = { events += "mdns" },
-            resolveHaLink = { events += "ha-link" },
-            // Models the MQTT-disabled path: start returns without an onConnected callback.
-            startMqtt = { events += "mqtt-disabled" },
-        )
-
-        assertEquals(listOf("mdns", "ha-link", "mqtt-disabled"), events)
     }
 
     @Test fun mdnsStartsBeforeRendererReconciliationAndLearning() {
@@ -527,21 +472,6 @@ class PaneldServiceStartupTest {
 
         assertFalse(committed)
         assertFalse(notified)
-    }
-
-    @Test fun networkReturnRetriesBlankBrokerDiscoveryButNotTerminalOrAuthStates() {
-        assertEquals(
-            NetworkAvailableAction.RETRY_DISCOVERY,
-            networkAvailableAction("discovering", configuredBroker = ""),
-        )
-        assertEquals(
-            NetworkAvailableAction.RECONNECT,
-            networkAvailableAction("reconnecting", configuredBroker = "tcp://ha:1883"),
-        )
-        assertEquals(NetworkAvailableAction.NONE, networkAvailableAction("connected", ""))
-        assertEquals(NetworkAvailableAction.NONE, networkAvailableAction("disabled", ""))
-        assertEquals(NetworkAvailableAction.NONE, networkAvailableAction("config-error", "wss://ha:1883"))
-        assertEquals(NetworkAvailableAction.NONE, networkAvailableAction("auth-retrying", "tcp://ha:1883"))
     }
 
     @Test fun pendingKioskRecoveryRetriesAfterEscapeWindowBeforeEnabling() {

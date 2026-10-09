@@ -29,7 +29,6 @@ internal class PanelBackupBuilder(
     private val effectiveValue: (io.panelassistant.android.config.SettingSpec, Map<String, String>) -> String,
     private val profileAdmin: ProfileAdmin?,
     private val companion: CompanionBackupOperations,
-    private val mqttState: () -> String,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
 ) {
     private data class BackupArchiveParts(
@@ -214,7 +213,6 @@ internal class PanelBackupBuilder(
             BackupIdentity.manifestFragment(
                 panelAssistantDiscoveryId(config.deviceUid),
                 appContext.packageName,
-                mqttConnected = mqttState() == "connected",
             ),
         )
         sb.append(

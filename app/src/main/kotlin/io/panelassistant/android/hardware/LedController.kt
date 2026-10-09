@@ -4,7 +4,7 @@ import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.device.LedMechanism
 
 /**
- * Per-panel RGB LED HAL. The uniform interface lets the MQTT `light.<panel>_led` entity look
+ * Per-panel RGB LED HAL. The uniform interface lets the `light.<panel>_led` entity look
  * identical fleet-wide; the adapter underneath differs by hardware (clean-room NDK ioctl on the
  * rk3576 `/dev/ledjni`, root sysfs elsewhere). r/g/b are HA range 0..255; adapters scale to the
  * panel's native range. [available] is false when the panel has no usable LED backend (no node /

@@ -151,7 +151,7 @@ class AutoSleepAreaFailOffTest {
         assertFalse(bridged)
     }
 
-    @Test fun `deferred fail off superseded by direct MQTT ON cannot replay OFF`() {
+    @Test fun `deferred fail off superseded by direct external ON cannot replay OFF`() {
         val authority = LiveSettingAuthority(setOf("auto_sleep"))
         var generation = 1L
         var enabled = true
@@ -166,7 +166,7 @@ class AutoSleepAreaFailOffTest {
             LiveSettingApplyResult.DEFERRED
         })
 
-        // A direct committed MQTT ON is the newer authority and immediately retires queued OFF.
+        // A direct committed external ON is the newer authority and immediately retires queued OFF.
         enabled = true
         generation = 3L
         var refreshes = 0

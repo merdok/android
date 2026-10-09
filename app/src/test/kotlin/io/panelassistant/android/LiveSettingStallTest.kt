@@ -192,7 +192,7 @@ class LiveSettingStallTest {
     }
 
     @Test fun `a stalled OFF is still reported as the desired value`() {
-        // Retiring a pending OFF was rejected because it strands divergent hardware, config and MQTT
+        // Retiring a pending OFF was rejected because it strands divergent hardware, config and published
         // state with nothing left to say so. The entry stays, and stays visible as desired state.
         val journal = FakeJournal()
         authority(journal, "boot-a")

@@ -1,7 +1,7 @@
 package io.panelassistant.android.input
 
 /**
- * Bridges process-instantiated input sources to the current MQTT bridge. A subscription owns exactly
+ * Bridges process-instantiated input sources to the current state core. A subscription owns exactly
  * the listener it installed: closing an old bridge's subscription cannot clear a replacement bridge's
  * listener after a service reconfiguration.
  */

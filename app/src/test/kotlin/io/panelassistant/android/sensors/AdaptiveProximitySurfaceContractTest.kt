@@ -7,27 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdaptiveProximitySurfaceContractTest {
-    // Source-text reason: the state core and command handlers need the Android service to construct; discovery pins MqttBridge.kt, deleted with the MQTT removal.
-    @Test fun homeAssistantReceivesOnlyAvailableFleetNormalizedState() {
-        val mqtt = source("MqttBridge.kt") + source("PanelStateCore.kt")
-
-        assertTrue(mqtt.contains("normalizedLevel?.coerceIn(0, 100)"))
-        assertTrue(mqtt.contains("registryExposable(\"proximity_level\""))
-        // The proximity_level discovery payload is registry-driven; its % unit now lives in the
-        // single SettingsRegistry descriptor rather than a MqttBridge literal (byte-parity is pinned
-        // by DiscoveryParityTest).
-        assertTrue(
-            SettingsRegistry.spec("proximity_level")!!.ha!!
-                .buildDiscoveryJson("test", "a", "d").contains("\"unit_of_measurement\":\"%\""),
-        )
-        assertTrue(mqtt.contains("availability_mode\":\"all\""))
-        assertTrue(mqtt.contains("\"proximity_level\" -> state(equivalent = deadband(4.0))"))
-        assertTrue(mqtt.contains("publish(stateProximityLevel, \"\", retain = true)"))
-        assertTrue(
-            mqtt.indexOf("publish(proximityAvailabilityTopic") <
-                mqtt.indexOf("publish(availabilityTopic, \"online\""),
-        )
-        assertFalse(mqtt.contains("fun publishProximity(near: Boolean)"))
+    // Source-text reason: the state core needs the Android service to construct.
+    @Test fun homeAssistantReceivesOnlyFleetNormalizedState() {
+        assertTrue(source("PanelStateCore.kt").contains("normalizedLevel?.coerceIn(0, 100)"))
+        assertTrue("%" == SettingsRegistry.spec("proximity_level")!!.ha!!.facts.unit)
     }
 
     @Test fun wakeOnWaveHelpExplainsTheGestureAndTheTouchFallback() {
@@ -36,15 +19,15 @@ class AdaptiveProximitySurfaceContractTest {
         assertTrue(help.contains("touch-to-wake remains available"))
     }
 
-    @Test fun independentReportMaskIsNotCollapsedByTheMqttStateOwner() {
-        val mqtt = source("PanelStateCore.kt")
+    @Test fun independentReportMaskIsNotCollapsedByTheStateOwner() {
+        val core = source("PanelStateCore.kt")
 
-        assertTrue(mqtt.contains("reportMask: Int = ProximityReportGate.BOTH"))
-        assertTrue(mqtt.contains("val admitted = admit(nextNear, level, reportMask)"))
-        assertTrue(mqtt.contains("proximityPublication.near?.let"))
-        assertTrue(mqtt.contains("proximityPublication.level?.let"))
-        assertTrue(mqtt.contains("admitted and ProximityReportGate.PRESENCE != 0"))
-        assertTrue(mqtt.contains("admitted and ProximityReportGate.LEVEL != 0"))
+        assertTrue(core.contains("reportMask: Int = ProximityReportGate.BOTH"))
+        assertTrue(core.contains("val admitted = admit(nextNear, level, reportMask)"))
+        assertTrue(core.contains("proximityPublication.near?.let"))
+        assertTrue(core.contains("proximityPublication.level?.let"))
+        assertTrue(core.contains("admitted and ProximityReportGate.PRESENCE != 0"))
+        assertTrue(core.contains("admitted and ProximityReportGate.LEVEL != 0"))
     }
 
     private fun source(relative: String): String = TestSources.kotlin(relative).readText()

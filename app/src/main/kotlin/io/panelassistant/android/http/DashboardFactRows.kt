@@ -42,7 +42,7 @@ internal fun profileFactKeys(profile: DeviceProfile, facts: Map<String, String>)
 
 // Panel-info rows blurred by default (screenshot hygiene) — identity + network values a casual share
 // shouldn't leak. "Reveal" un-blurs them. Not access control: the values are still in the page source.
-private val SECRET_FIELDS = setOf("Device ID", "MQTT")
+private val SECRET_FIELDS = setOf("Device ID")
 // Address rows blur ONLY when the value is globally ROUTABLE — an unroutable RFC1918 / ULA / link-local
 // address (e.g. the LAN IPv4, or a ULA v6) has no external use, so it stays visible.
 private val ADDRESS_FIELDS = setOf("Local IP", "Local IPv6")
@@ -64,8 +64,6 @@ internal fun factLabel(key: String, strings: AppStrings): String {
         "HTTP port" -> "http_port"
         "Local IP" -> "local_ip"
         "Local IPv6" -> "local_ipv6"
-        "MQTT" -> "mqtt"
-        "MQTT state" -> "mqtt_timing"
         "Security mode" -> "security_mode"
         "mDNS" -> "mdns"
         "Platform" -> "platform"
@@ -85,7 +83,6 @@ internal fun factLabel(key: String, strings: AppStrings): String {
         "Wi-Fi stability" -> "wifi_stability"
         "HA network path" -> "ha_network_path"
         "HA renderer" -> "ha_renderer"
-        "State convergence" -> "state_convergence"
         "Local-state sync" -> "local_state_sync"
         "Camera" -> "camera"
         "HA lifecycle" -> "ha_lifecycle"
@@ -150,7 +147,6 @@ internal fun displayCell(v: String, size: PhysicalDisplayGeometry): String {
 private val FACT_CFG = mapOf(
     "panel_id" to "cfg-panel_id",
     "Friendly name" to "cfg-friendly_name",
-    "MQTT" to "cfg-mqtt_broker",
     "Navbar" to "cfg-navbar_mode",
     "Zigbee" to "cfg-zigbee_router",
     "CPU profile" to "cfg-cpu_governor",

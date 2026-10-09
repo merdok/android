@@ -133,7 +133,7 @@ object Migrations {
                     "unrecognised-shape values may be ignored",
             )
         }
-        m.keys.removeAll(SettingsRegistry.RETIRED_KEYS)
+        m.keys.removeAll(SettingsRegistry::isRetired)
         return m to warnings
     }
 }

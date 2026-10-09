@@ -57,10 +57,10 @@ class PanelAssistantTransportProtocolTest {
                 listOfNotNull(PanelAssistantChannelCatalog.describe("relay3")),
             ),
         )
-        assertEquals(4, hello.getJSONObject("protocol").getInt("min"))
-        assertEquals(4, hello.getJSONObject("protocol").getInt("max"))
+        assertEquals(5, hello.getJSONObject("protocol").getInt("min"))
+        assertEquals(5, hello.getJSONObject("protocol").getInt("max"))
         assertTrue(Regex("^[0-9a-f]{64}$").matches(hello.getString("contract_digest")))
-        assertEquals(listOf("state", "commands", "approval", "mqtt_withdraw", "embed_proof", "voice", "media", "voice_stream_session", "management"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
+        assertEquals(listOf("state", "commands", "approval", "embed_proof", "voice", "media", "voice_stream_session", "management"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
         val relay = hello.getJSONArray("channels").getJSONObject(0)
         assertEquals(listOf("relay3", "switch", "relay", "relay3", "relay", "3"), listOf("channel", "platform", "translation_key", "unique_suffix", "family", "index").map { relay.get(it).toString() })
     }
@@ -77,7 +77,7 @@ class PanelAssistantTransportProtocolTest {
         // Pinned as a literal: a digest derived from JSON serialisation could differ between the
         // device's org.json and the JVM's, and the integration records whatever the panel sends.
         assertEquals(
-            "17d41206370d87f19f93ba14005e52f41b23dd80f22780c200fa11594a35ae1d",
+            "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
             PanelAssistantTransportProtocol.CONTRACT_DIGEST,
         )
     }
@@ -130,7 +130,7 @@ class PanelAssistantTransportProtocolTest {
     }
 
     @Test fun `a disconnected transport cannot admit updates with a remembered session`() {
-        val policy = PanelAssistantUpdatePolicy(1, 4, true)
+        val policy = PanelAssistantUpdatePolicy(5, 5, true)
         val connected = PanelAssistantTransportStatus(phase = PanelAssistantTransportPhase.CONNECTED,
             session = session(accepted()).copy(updatePolicy = policy))
         assertEquals(policy, connected.liveUpdatePolicy())
@@ -144,9 +144,9 @@ class PanelAssistantTransportProtocolTest {
         assertNull(session(accepted()).updatePolicy)
         val frame = accepted().apply {
             getJSONObject("result").put("update_policy", JSONObject()
-                .put("protocolMin", 1).put("protocolMax", 4).put("prerelease", true))
+                .put("protocolMin", 5).put("protocolMax", 5).put("prerelease", true))
         }
-        assertEquals(PanelAssistantUpdatePolicy(1, 4, true), session(frame).updatePolicy)
+        assertEquals(PanelAssistantUpdatePolicy(5, 5, true), session(frame).updatePolicy)
         for (bad in listOf<Any>(JSONObject.NULL, "cached", JSONObject().put("protocolMin", 1)
             .put("protocolMax", 3).put("prerelease", "true"), JSONObject().put("protocolMin", 4)
             .put("protocolMax", 3).put("prerelease", false), JSONObject().put("protocolMin", 1)
@@ -171,9 +171,9 @@ class PanelAssistantTransportProtocolTest {
         }
     }
 
-    @Test fun `a Panel Assistant that speaks only protocol 3 or older gets no session`() {
-        // Panel Assistant 0.7.0 and older know only the old class names; protocol 4 keeps them away.
-        for (old in 1..3) {
+    @Test fun `a Panel Assistant that speaks only protocol 4 or older gets no session`() {
+        // Panel Assistant 0.9.0 and older still serve the broker-era protocol; protocol 5 keeps them away.
+        for (old in 1..4) {
             val frame = accepted().apply { getJSONObject("result").put("protocol", old) }
             try {
                 PanelAssistantTransportProtocol.helloOutcome(frame, 1L)
@@ -186,7 +186,7 @@ class PanelAssistantTransportProtocolTest {
         val outcome = PanelAssistantTransportProtocol.helloOutcome(accepted(), 1L)
         assertEquals(
             PanelAssistantHelloOutcome.Accepted(
-                PanelAssistantSession(4, "opaque", "shadow", emptyList(), "0.3.0"),
+                PanelAssistantSession(5, "opaque", emptyList(), "0.3.0"),
             ),
             outcome,
         )
@@ -275,59 +275,15 @@ class PanelAssistantTransportProtocolTest {
         assertNull(session(frame).embed)
     }
 
-    @Test fun `every build offers mqtt_withdraw`() {
-        assertTrue(PanelAssistantTransportProtocol.CAPABILITIES.contains("mqtt_withdraw"))
-    }
-
-    @Test fun `granting mqtt_withdraw makes a known discovery claim required and binding`() {
-        assertEquals("withdraw", session(accepted().granting("mqtt_withdraw").claiming("withdraw")).mqttDiscovery)
-        assertEquals("announce", session(accepted().granting("mqtt_withdraw").claiming("announce")).mqttDiscovery)
-        listOf<(JSONObject) -> JSONObject>(
-            { it },
-            { it.claiming("hold") },
-            { it.claiming(1) },
-            { it.claiming(JSONObject.NULL) },
-        ).forEachIndexed { index, claim ->
-            try {
-                PanelAssistantTransportProtocol.helloOutcome(claim(accepted().granting("mqtt_withdraw")), 1L)
-                fail("granted case $index was accepted without a valid claim")
-            } catch (expected: PanelAssistantProtocolException) {
-            }
-        }
-    }
-
-    @Test fun `without the mqtt_withdraw grant the discovery field is ignored, present or not`() {
-        assertNull(session(accepted()).mqttDiscovery)
-        assertNull(session(accepted().claiming("withdraw")).mqttDiscovery)
-        assertNull(session(accepted().claiming("announce")).mqttDiscovery)
-        assertNull(session(accepted().granting("state").claiming("withdraw")).mqttDiscovery)
-        assertNull(session(accepted().claiming("hold")).mqttDiscovery)
-    }
-
-    @Test fun `mqtt discovery is released by any authority but native and keyed on the grant under native`() {
-        fun rule(authority: String, granted: Boolean, claim: String?, persisted: String) =
-            PanelAssistantTransportProtocol.mqttDiscovery(
-                PanelAssistantSession(1, "s", authority, if (granted) listOf("mqtt_withdraw") else emptyList(), "0.3.0", claim),
-                persisted,
-            )
-        for (authority in listOf("mqtt", "shadow", "future_mode")) {
-            for (persisted in listOf("", "withdraw", "announce")) {
-                assertEquals("$authority persisted=$persisted", "announce", rule(authority, true, "withdraw", persisted))
-                assertEquals("$authority persisted=$persisted", "announce", rule(authority, false, null, persisted))
-            }
-        }
-        // Granted: the claim, whatever was persisted.
-        assertEquals("withdraw", rule("native", true, "withdraw", ""))
-        assertEquals("withdraw", rule("native", true, "withdraw", "announce"))
-        assertEquals("announce", rule("native", true, "announce", "withdraw"))
-        // Not granted: the persisted value, and a claim that arrived without the grant changes nothing.
-        assertEquals("withdraw", rule("native", false, null, "withdraw"))
-        assertEquals("withdraw", rule("native", false, "announce", "withdraw"))
-        assertEquals("announce", rule("native", false, "withdraw", "announce"))
-        assertEquals("announce", rule("native", false, null, "announce"))
-        // Nothing valid persisted: announce.
-        assertEquals("announce", rule("native", false, "withdraw", ""))
-        assertEquals("announce", rule("native", false, null, "hold"))
+    @Test fun `the hello offers no withdrawal and the retired reply fields are never read`() {
+        assertFalse(PanelAssistantTransportProtocol.CAPABILITIES.contains("mqtt_withdraw"))
+        assertFalse(JSONObject(PanelAssistantTransportProtocol.CANONICAL_CONTRACT).toString().contains("mqtt_withdraw"))
+        // A result without `authority` or `mqtt_discovery` is a session; one still carrying them is the same session.
+        val plain = session(accepted())
+        val legacy = session(accepted().apply {
+            getJSONObject("result").put("authority", "shadow").put("mqtt_discovery", "withdraw")
+        })
+        assertEquals(plain, legacy)
     }
 
     @Test fun `entry_removed is a refusal code`() {
@@ -391,7 +347,6 @@ class PanelAssistantTransportProtocolTest {
         listOf<(JSONObject) -> Unit>(
             { it.put("protocol", 2) },
             { it.put("session", "") },
-            { it.remove("authority") },
             { it.put("capabilities", JSONArray().put("commands")) },
             { it.remove("integration") },
             { it.put("integration", JSONObject().put("version", "not a version")) },
@@ -413,17 +368,14 @@ class PanelAssistantTransportProtocolTest {
         .put(
             "result",
             JSONObject()
-                .put("protocol", 4)
+                .put("protocol", 5)
                 .put("session", "opaque")
-                .put("authority", "shadow")
                 .put("capabilities", JSONArray())
                 .put("integration", JSONObject().put("version", "0.3.0")),
         )
 
     private fun JSONObject.granting(vararg capabilities: String): JSONObject =
         apply { getJSONObject("result").put("capabilities", JSONArray(capabilities.toList())) }
-
-    private fun JSONObject.claiming(value: Any): JSONObject = apply { getJSONObject("result").put("mqtt_discovery", value) }
 
     private fun session(frame: JSONObject): PanelAssistantSession =
         (PanelAssistantTransportProtocol.helloOutcome(frame, 1L) as PanelAssistantHelloOutcome.Accepted).session

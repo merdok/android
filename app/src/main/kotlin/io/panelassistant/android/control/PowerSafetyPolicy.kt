@@ -222,7 +222,7 @@ object PowerSafetyPolicy {
             PowerRiskLevel.CAUTION ->
                 "Panel reachability currently depends on only one observed power guard."
             PowerRiskLevel.AT_RISK ->
-                "The panel can suspend or enter Doze after screen-off, making HTTP, MQTT, and background work unreachable."
+                "The panel can suspend or enter Doze after screen-off, making HTTP and background work unreachable."
             PowerRiskLevel.UNKNOWN ->
                 "Power safety could not be established because one or more Android power probes were unavailable or ambiguous."
         }

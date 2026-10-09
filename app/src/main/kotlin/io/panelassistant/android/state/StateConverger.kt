@@ -32,21 +32,8 @@ class StateConverger {
         val observe: () -> Observation,
     )
 
-    /**
-     * A destination that keeps per-channel delivery state of its own: the MQTT outbox, which acknowledges,
-     * deduplicates and bounds what it publishes, and goes when MQTT does. [register] and [offer] run under
-     * this converger's monitor, in admission order and after every sink; [offer] receives Unknown too,
-     * and returns the send to run once the monitor is released, or null.
-     */
-    interface Delivery {
-        fun register(key: String)
-        fun offer(key: String, observation: Observation, force: Boolean, admit: () -> Boolean): (() -> Unit)?
-        fun close()
-    }
-
     private val channels = linkedMapOf<String, Channel>()
     private val sinks = CopyOnWriteArrayList<StateSink>()
-    private var delivery: Delivery? = null
     private var closed = false
     private val lifecycle = RetirableMutationGate()
 
@@ -56,20 +43,11 @@ class StateConverger {
         require(CHANNEL_ID.matches(channel.key)) { "invalid state channel id ${channel.key}" }
         check(channel.key !in channels) { "duplicate state channel ${channel.key}" }
         channels[channel.key] = channel
-        delivery?.register(channel.key)
     }
 
-    /** Every later admitted observation also reaches [sink]; it never changes delivery state. */
+    /** Every later admitted observation reaches [sink]. */
     fun addSink(sink: StateSink) {
         sinks += sink
-    }
-
-    /** Attach the one [Delivery]; channels registered before it are handed over first. */
-    @Synchronized
-    fun attach(delivery: Delivery) {
-        check(this.delivery == null) { "state delivery already attached" }
-        this.delivery = delivery
-        channels.keys.forEach(delivery::register)
     }
 
     /**
@@ -78,35 +56,33 @@ class StateConverger {
      * a newer command mid-observation). A refused admission changes no channel state: the caller
      * guarantees a later reconcile for the same channel is already ordered behind it.
      */
-    fun reconcile(key: String, force: Boolean = false, admit: () -> Boolean = ALWAYS_ADMIT) {
-        lifecycle.runIfOpen(Unit) { reconcileAdmitted(key, force, admit) }
+    fun reconcile(key: String, admit: () -> Boolean = ALWAYS_ADMIT) {
+        lifecycle.runIfOpen(Unit) { reconcileAdmitted(key, admit) }
     }
 
-    private fun reconcileAdmitted(key: String, force: Boolean, admit: () -> Boolean) {
+    private fun reconcileAdmitted(key: String, admit: () -> Boolean) {
         val channel = synchronized(this) { if (closed) null else channels[key] } ?: return
         val observation = runCatching { channel.observe() }.getOrDefault(Observation.Unknown)
-        val send = synchronized(this) {
+        synchronized(this) {
             if (closed) return
-            // Withdraw superseded command read-backs before any destination receives them. Keep
-            // observation delivery ordered under the monitor, ahead of MQTT's ACK/capacity gates.
+            // Withdraw superseded command read-backs before any sink receives them, and keep observation
+            // delivery ordered under the monitor.
             if (!admit()) return
             if (observation is Observation.Reportable) {
                 for (sink in sinks) {
                     try {
                         sink(key, observation) {}
                     } catch (_: Exception) {
-                        // A sink never changes another destination's admission or acknowledgement state.
+                        // A sink never changes another sink's admission.
                     }
                 }
             }
-            delivery?.offer(key, observation, force, admit)
-        } ?: return
-        send()
+        }
     }
 
-    fun reconcileAll(force: Boolean = false) {
+    fun reconcileAll() {
         val keys = synchronized(this) { if (closed) emptyList() else channels.keys.toList() }
-        keys.forEach { reconcile(it, force) }
+        keys.forEach { reconcile(it) }
     }
 
     /** Terminal owner boundary: reject queued audits and invalidate every late completion. */
@@ -115,7 +91,6 @@ class StateConverger {
         synchronized(this) {
             if (closed) return
             closed = true
-            delivery?.close()
         }
     }
 
@@ -139,7 +114,7 @@ class StateConverger {
 
         internal fun onPumpThread(): Boolean = Thread.currentThread() === pumpThread.get()
 
-        /** Serialize local UI/hardware notifications with acknowledgement-driven outbox pumping. */
+        /** Serialize local UI/hardware notifications on one convergence thread. */
         internal fun dispatch(task: () -> Unit) = PUMP.execute(task)
     }
 }

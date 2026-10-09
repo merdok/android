@@ -64,74 +64,6 @@ class PanelAssistantChannelCatalogTest {
         assertEquals("screen", PanelAssistantChannelCatalog.wireChannel("screen"))
     }
 
-    @Test fun descriptorsMatchTheMqttDiscoveryTheGoldenFixturePins() {
-        val announced = goldenDiscovery()
-        val checked = mutableListOf<String>()
-        for (key in convergerChannels()) {
-            val wire = PanelAssistantChannelCatalog.wireChannel(key) ?: continue
-            val descriptor = described(wire)
-            val discovery = announced[descriptor.uniqueSuffix] ?: continue
-            checked += wire
-            assertEquals("$wire platform", discovery.component, descriptor.platform)
-            val config = discovery.config ?: continue
-            assertEquals("$wire entity_category", config.optString("entity_category").ifEmpty { null }, descriptor.entityCategory)
-            assertEquals("$wire force_update", config.optBoolean("force_update", false), descriptor.forceUpdate)
-            assertEquals("$wire device_class", config.optString("device_class").ifEmpty { null }, descriptor.deviceClass)
-            assertEquals("$wire unit", config.optString("unit_of_measurement").ifEmpty { null }, descriptor.unit)
-            assertEquals("$wire state_class", config.optString("state_class").ifEmpty { null }, descriptor.stateClass)
-            assertEquals("$wire min", config.opt("min"), descriptor.min)
-            assertEquals("$wire max", config.opt("max"), descriptor.max)
-            config.optJSONArray("options")?.let { labels ->
-                val announced = (0 until labels.length()).map(labels::getString)
-                val declared = descriptor.choices.orEmpty().map { it.label }
-                assertTrue("$wire options $announced not in $declared", declared.containsAll(announced))
-            }
-            config.optJSONArray("effect_list")?.let { effects ->
-                assertEquals("$wire effects", (0 until effects.length()).map(effects::getString), descriptor.options)
-            }
-        }
-        // Discovery or a tombstone in the fixture names every converger channel except the families
-        // beyond the fixture's hardware, so the cross-check covers the hand-written literals too.
-        assertTrue("only $checked were cross-checked", checked.containsAll(listOf(
-            "screen", "led", "buttons", "navigate", "home_dashboard", "storage_health", "update_paneld",
-            "update_companion", "navbar", "relay1", "button_led1", "watchdog",
-            "zigbee_router", "cpu_governor", "network_adb", "room_temp", "diag_wifi_outages_24h", "volume",
-        )))
-    }
-
-    @Test fun everyRegistryEntitysFactsAreExactlyTheFieldsItsDiscoveryCarries() {
-        val specs = SettingsRegistry.haCapable()
-        assertTrue("retained entity settings were not exercised", specs.map { it.key }.containsAll(listOf("navbar_mode", "network_adb", "volume")))
-        for (spec in specs) {
-            val entity = spec.ha!!
-            val facts = entity.facts
-            val labels = facts.options?.map { it.label }
-            // Parsing is test-only: production reads the facts and never the rendered body.
-            val body = JSONObject(
-                entity.buildDiscoveryJson("p", "\"availability_topic\":\"a\"", "\"device\":{}", optionsJson = labels?.let { JSONArray(it).toString() }),
-            )
-            val key = spec.key
-            assertEquals("$key device_class", body.optString("device_class").ifEmpty { null }, facts.deviceClass)
-            assertEquals("$key unit", body.optString("unit_of_measurement").ifEmpty { null }, facts.unit)
-            assertEquals("$key state_class", body.optString("state_class").ifEmpty { null }, facts.stateClass)
-            assertEquals("$key entity_category", body.optString("entity_category").ifEmpty { null }, facts.entityCategory)
-            assertEquals("$key min", body.opt("min"), facts.min)
-            assertEquals("$key max", body.opt("max"), facts.max)
-            assertEquals("$key step", body.opt("step"), facts.step)
-            body.optJSONArray("options")?.let { announced ->
-                assertEquals("$key options", (0 until announced.length()).map(announced::getString), labels)
-            }
-            if (!body.has("options") && labels != null) {
-                assertEquals("$key: only a sensor may keep options out of discovery", "sensor", entity.component)
-            }
-            for (field in listOf("state_topic", "command_topic")) {
-                body.optString(field).ifEmpty { null }?.let { topic ->
-                    assertEquals("$key $field channel", entity.channel, topic.split('/')[2])
-                }
-            }
-        }
-    }
-
     @Test fun renamingADisplayLabelChangesNoWireCode() {
         val renamedSelects = SettingsRegistry.haCapable().filter { it.ha!!.facts.options != null }
         assertTrue(renamedSelects.map { it.key }.containsAll(listOf("navbar_mode", "cpu_governor")))
@@ -152,7 +84,7 @@ class PanelAssistantChannelCatalogTest {
         }
     }
 
-    @Test fun uniqueSuffixIsTheMqttUniqueIdAfterThePanelPrefix() {
+    @Test fun uniqueSuffixIsTheHistoricalUniqueIdAfterThePanelPrefix() {
         assertEquals("ha_paneld_update", PanelAssistantChannelCatalog.describe("update_paneld")?.uniqueSuffix)
         assertEquals("ha_companion_update", PanelAssistantChannelCatalog.describe("update_companion")?.uniqueSuffix)
         assertEquals("navbar", PanelAssistantChannelCatalog.describe("navbar")?.uniqueSuffix)
@@ -224,20 +156,7 @@ class PanelAssistantChannelCatalogTest {
         return descriptor!!
     }
 
-    private class Discovery(val component: String, val config: JSONObject?)
 
-    /** Every discovery config and tombstone in the golden fixture, keyed by unique id after the panel prefix. */
-    private fun goldenDiscovery(): Map<String, Discovery> {
-        val fixture = requireNotNull(javaClass.getResourceAsStream("/mqtt-wire-golden/bridge.txt")).bufferedReader().readLines()
-        val topic = Regex("^homeassistant/([a-z_]+)/golden_([a-z0-9_]+)/config$")
-        return fixture.mapNotNull { line ->
-            val parts = line.split('\t')
-            if (parts.size != 3) return@mapNotNull null
-            val match = topic.matchEntire(parts[1]) ?: return@mapNotNull null
-            val payload = if (parts[2] == "-") "" else String(Base64.getDecoder().decode(parts[2]))
-            match.groupValues[2] to Discovery(match.groupValues[1], payload.takeIf(String::isNotEmpty)?.let(::JSONObject))
-        }.toMap()
-    }
 
     companion object {
         /** Every channel the state core registers with its converger, read from the registration sites. */

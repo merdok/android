@@ -5,7 +5,6 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.DiscoveryResult
 import io.panelassistant.android.entityFilterQuestionPending
 import io.panelassistant.android.http.SetupJourney
-import io.panelassistant.android.http.SetupJourney.MqttSetupState
 import io.panelassistant.android.http.SetupJourney.ProofSource
 import io.panelassistant.android.http.SetupJourney.RenderProof
 import io.panelassistant.android.http.SetupJourney.RendererChoice
@@ -50,11 +49,6 @@ class SetupRestartStormTest {
         "ha_url" to { v, _ -> v["ha_url"] = "http://ha.local:8123" },
         "ha_sign_in" to { v, _ -> v["ha_token"] = "test-token" },
         "home_dashboard" to { v, c -> v["home_dashboard"] = "/alpha"; c.setupHomeDashboardChosen = true },
-        "mqtt" to { v, _ ->
-            v["mqtt_broker"] = "tcp://ha.local:1883"
-            v["mqtt_user"] = "panel"
-            v["mqtt_password"] = "secret"
-        },
         "entity_filter" to { v, c -> c.setupEntityFilterAnswered = true },
     )
 
@@ -96,7 +90,7 @@ class SetupRestartStormTest {
                 }
             }
         }
-        assertTrue(checked >= 24)
+        assertEquals((walk.size + 1) * 3, checked)
     }
 
     @Test fun aGenuineUpgradeIsExcusedAndEachNewQuestionNeedsItsOwnMarker() {
@@ -105,7 +99,6 @@ class SetupRestartStormTest {
         // base stops rendering. Each newly introduced question needs its OWN durable marker — reusing v1
         // silently skipped the dashboard migration on every panel that had consumed the earlier release.
         val upgraded = mutableMapOf<String, Any?>(
-            "mqtt_broker" to "tcp://ha.local:1883",
             "ha_url" to "http://ha.local:8123",
         )
         val afterUpgrade = boot(upgraded)
@@ -115,7 +108,6 @@ class SetupRestartStormTest {
 
         // The 0.9.6 fleet state: v1 consumed on an earlier build, the dashboard question introduced after.
         val consumedV1 = mutableMapOf<String, Any?>(
-            "mqtt_broker" to "tcp://ha.local:1883",
             "ha_url" to "http://ha.local:8123",
             "device_local_setup_questions_migrated_v1" to true,
             "device_local_setup_entity_filter_answered" to true,
@@ -145,9 +137,6 @@ class SetupRestartStormTest {
         // That panel must take the upgrade path on its very first boot — nobody is standing there to answer.
         val provisioned = mutableMapOf<String, Any?>(
             "panel_id" to "alpha",
-            "mqtt_broker" to "tcp://ha.local:1883",
-            "mqtt_user" to "panel",
-            "mqtt_password" to "secret",
             "ha_url" to "http://ha.local:8123",
             "ha_token" to "test-token",
             "dashboard_package" to "builtin",
@@ -258,7 +247,7 @@ class SetupRestartStormTest {
 
     @Test fun thePureJourneyStateSweepNeverCompletesBehindTheUsersBackOrDeadEnds() {
         // The product rule: work or fail cleanly. Across every restart point of the walk and every hostile
-        // runtime state we know how to reach — broker rejecting, broker unreachable, Home Assistant
+        // runtime state we know how to reach — Home Assistant
         // credential revoked mid-journey, renderer missing, engine too old, proof never earned — assert
         // that the journey (a) never reports complete while a question the user has not answered is
         // outstanding, and (b) never reports unfinished with nothing for anyone to do.
@@ -278,61 +267,58 @@ class SetupRestartStormTest {
             val userAnsweredDashboard = breakAfter > homeDashboardStepIndex
             val userAnsweredFilter = breakAfter > entityFilterStepIndex
 
-            for (mqtt in MqttSetupState.entries) {
-                for (renderer in renderers) {
-                    for (credentialed in listOf(true, false)) {
-                        for (certain in listOf(true, false)) {
-                            for (tooOld in listOf(false, true)) {
-                                val inputs = journeyInputs(
-                                    config,
-                                    mqtt = mqtt,
-                                    renderer = renderer,
-                                    haCredentialedOverride = credentialed,
-                                    proof = RenderProof(
-                                        if (certain) ProofSource.BUILTIN_FRONTEND_CONNECTED else ProofSource.NONE,
-                                        certain = certain,
-                                    ),
-                                    webViewTooOld = tooOld,
-                                )
-                                val j = SetupJourney.evaluate(inputs)
-                                checked++
-                                val where = "after ${breakAfter.let { if (it == 0) "nothing" else walk[it - 1].first }}: " +
-                                    "mqtt=$mqtt renderer=$renderer cred=$credentialed proof=$certain old=$tooOld"
+            for (renderer in renderers) {
+                for (credentialed in listOf(true, false)) {
+                    for (certain in listOf(true, false)) {
+                        for (tooOld in listOf(false, true)) {
+                            val inputs = journeyInputs(
+                                config,
+                                renderer = renderer,
+                                haCredentialedOverride = credentialed,
+                                proof = RenderProof(
+                                    if (certain) ProofSource.BUILTIN_FRONTEND_CONNECTED else ProofSource.NONE,
+                                    certain = certain,
+                                ),
+                                webViewTooOld = tooOld,
+                            )
+                            val j = SetupJourney.evaluate(inputs)
+                            checked++
+                            val where = "after ${breakAfter.let { if (it == 0) "nothing" else walk[it - 1].first }}: " +
+                                "renderer=$renderer cred=$credentialed proof=$certain old=$tooOld"
 
-                                if (!j.complete) {
-                                    assertNotNull("unfinished with nothing to do — $where", j.next)
-                                    val next = j.step(j.next!!)
-                                    assertTrue(
-                                        "next points at a stage that is neither an instruction nor a wait — $where",
-                                        next.status == Status.BLOCKED || next.status == Status.IN_FLIGHT,
-                                    )
-                                    if (j.steps.none { it.status == Status.IN_FLIGHT }) {
-                                        assertEquals(
-                                            "nothing is in flight, so the journey must name something to DO — $where",
-                                            Status.BLOCKED,
-                                            next.status,
-                                        )
-                                    }
-                                }
-                                // The begin-marker rule, stated as an outcome rather than an implementation:
-                                // a panel the wizard owns cannot be finished unless the person finished it.
-                                if (j.complete && renderer == RendererChoice.Builtin) {
-                                    assertTrue(
-                                        "completed with the dashboard question never answered — $where",
-                                        userAnsweredDashboard,
-                                    )
-                                    assertTrue(
-                                        "completed with the filter question never answered — $where",
-                                        userAnsweredFilter,
+                            if (!j.complete) {
+                                assertNotNull("unfinished with nothing to do — $where", j.next)
+                                val next = j.step(j.next!!)
+                                assertTrue(
+                                    "next points at a stage that is neither an instruction nor a wait — $where",
+                                    next.status == Status.BLOCKED || next.status == Status.IN_FLIGHT,
+                                )
+                                if (j.steps.none { it.status == Status.IN_FLIGHT }) {
+                                    assertEquals(
+                                        "nothing is in flight, so the journey must name something to DO — $where",
+                                        Status.BLOCKED,
+                                        next.status,
                                     )
                                 }
+                            }
+                            // The begin-marker rule, stated as an outcome rather than an implementation:
+                            // a panel the wizard owns cannot be finished unless the person finished it.
+                            if (j.complete && renderer == RendererChoice.Builtin) {
+                                assertTrue(
+                                    "completed with the dashboard question never answered — $where",
+                                    userAnsweredDashboard,
+                                )
+                                assertTrue(
+                                    "completed with the filter question never answered — $where",
+                                    userAnsweredFilter,
+                                )
                             }
                         }
                     }
                 }
             }
         }
-        assertTrue("the sweep must actually be broad", checked > 1000)
+        assertEquals("the sweep must actually be broad", (walk.size + 1) * renderers.size * 8, checked)
     }
 
     // ---- a panel Home Assistant handed a URL to ---------------------------------------------------
@@ -406,10 +392,9 @@ class SetupRestartStormTest {
         assertTrue(config.setupEverCompleted)
     }
 
-    @Test fun `the marker excuses only the URL, never a broker or a learned filter`() {
+    @Test fun `the marker excuses only the URL, never a learned filter`() {
         // A panel Home Assistant adopted that ALSO carries pre-tracking evidence really is pre-existing.
         mapOf(
-            "mqtt_broker" to "tcp://192.0.2.1:1883",
             "dashboard_entity_learning" to true,
         ).forEach { (key, value) ->
             val values = mutableMapOf<String, Any?>(
@@ -434,7 +419,6 @@ class SetupRestartStormTest {
     /** A test-owned input builder for exercising the pure journey authority. */
     private fun journeyInputs(
         config: Config,
-        mqtt: MqttSetupState = MqttSetupState.CONNECTED,
         renderer: RendererChoice = RendererChoice.Builtin,
         haCredentialedOverride: Boolean? = null,
         proof: RenderProof = RenderProof(ProofSource.BUILTIN_FRONTEND_CONNECTED, certain = true, observedAtMs = 1L),
@@ -446,7 +430,7 @@ class SetupRestartStormTest {
         val configuredBeforeTracking = panelConfiguredBeforeSetupTracking(
             haUrl = config.haUrl,
             haSetupHandover = config.haSetupHandover,
-            otherEvidence = config.mqttBroker.isNotBlank() || config.dashboardPackage.isNotBlank(),
+            otherEvidence = config.dashboardPackage.isNotBlank(),
         )
         val preTracking = !config.setupIdentityConfirmed && configuredBeforeTracking
         return SetupJourney.Inputs(
@@ -454,10 +438,6 @@ class SetupRestartStormTest {
             // A real panel always resolves an id: the generated default reads Android settings, which the
             // JVM seam cannot serve. Substituting a stable one keeps the blank-panel case in the sweep.
             panelId = runCatching { config.panelId }.getOrElse { "alpha" },
-            brokerConfigured = config.mqttBroker.isNotBlank(),
-            mqttUserConfigured = config.mqttUser.isNotBlank(),
-            mqttPasswordConfigured = config.mqttPassword.isNotEmpty(),
-            mqtt = mqtt,
             renderer = renderer,
             haUrl = config.haUrl,
             haCredentialed = haCredentialedOverride ?: (config.haToken.isNotBlank() || config.haRefreshToken.isNotBlank()),

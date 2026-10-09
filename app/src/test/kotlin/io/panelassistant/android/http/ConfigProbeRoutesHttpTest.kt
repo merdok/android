@@ -13,25 +13,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ConfigProbeRoutesHttpTest {
-    @Test fun `broker probe reaches a local listener through the production HTTP route`() {
-        java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { listener ->
-            PaneldServerHttpFixture().use { fixture ->
-                testApplication {
-                    application { fixture.mount(this) }
-                    val response = client.get(
-                        "/api/v1/config/probe-broker?url=tcp://127.0.0.1:${listener.localPort}",
-                    )
-                    assertEquals(HttpStatusCode.OK, response.status)
-                    val body = JSONObject(response.bodyAsText())
-                    assertEquals(true, body.getBoolean("ok"))
-                    assertEquals("127.0.0.1", body.getString("host"))
-                    assertEquals("127.0.0.1", body.getString("resolved"))
-                    assertEquals(listener.localPort, body.getInt("port"))
-                    assertEquals(setOf("ok", "host", "port", "resolved"), body.keys().asSequence().toSet())
-                }
-            }
-        }
-    }
 
     @Test fun `log probe emits a datagram without claiming collector acknowledgement`() {
         java.net.DatagramSocket(0, java.net.InetAddress.getByName("127.0.0.1")).use { receiver ->
@@ -69,17 +50,13 @@ class ConfigProbeRoutesHttpTest {
             testApplication {
                 application { fixture.server.mount(this) }
 
-                val broker = client.get("/api/v1/config/probe-broker?url=http://not-an-mqtt-broker.example:1883")
-                assertEquals(HttpStatusCode.OK, broker.status)
-                assertEquals("invalid-url", JSONObject(broker.bodyAsText()).getString("error"))
-                assertEquals("nosniff", broker.headers["X-Content-Type-Options"])
-
                 val badPort = client.submitForm(
                     "/api/v1/config/probe-log-sink",
                     Parameters.build { append("port", "70000") },
                 )
                 assertEquals(HttpStatusCode.OK, badPort.status)
                 assertEquals("invalid-port", JSONObject(badPort.bodyAsText()).getString("error"))
+                assertEquals("nosniff", badPort.headers["X-Content-Type-Options"])
 
                 val blankHost = client.submitForm(
                     "/api/v1/config/probe-log-sink",

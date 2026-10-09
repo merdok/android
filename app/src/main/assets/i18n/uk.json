@@ -1959,8 +1959,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.ha_sign_in.title": {
-   "text": "MQTT налаштовано. Далі: вхід у Home Assistant.",
-   "sourceHash": "180528809c42cbabe179f0f91a557e3d77b0cd39027113ed90ab02554fb44a8c",
+   "text": "Далі: вхід у Home Assistant.",
+   "sourceHash": "b29ddcf4f1965861a8a63e77f1877989257930681395f92c3de8a3e266c183b4",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.manage_install": {
@@ -1984,8 +1984,8 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.title": {
-   "text": "MQTT налаштовано. Далі: виберіть рендерер інформаційної панелі.",
-   "sourceHash": "92a39c3ea0af40d258a4b3cf84fc30e00d5b0432fc9ac43c3eca809119cd18a6",
+   "text": "Далі: виберіть рендерер інформаційної панелі.",
+   "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.panel_bridge_running": {
@@ -2026,46 +2026,6 @@
   "dashboard.banner.schema_rollback.title": {
    "text": "Новіша база даних, збережена після переходу на попередню версію",
    "sourceHash": "c6b434eb6d5f96ee9185ae968a89e7a1039ba9b2aad65bde00e6555a02b7fc78",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.joiner": {
-   "text": "та",
-   "sourceHash": "6201111b83a0cb5b0922cb37cc442b9a40e24e3b1ce100a4bb204f4c63fd2ac0",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.mqtt_configuration": {
-   "text": "конфігурація MQTT",
-   "sourceHash": "dc67038dbc78f5ac4acaf201ff99b74d567c4a570b11c78fbef59a586da566f4",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.prefix": {
-   "text": "Для цієї панелі потрібно:",
-   "sourceHash": "2d9faa88e40af4265de7e9424e308724b1e7b96e30c1ea1f586704a10235225a",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.reachable_broker": {
-   "text": "доступний брокер MQTT",
-   "sourceHash": "045ac1f4b721cd39b484c8273ebd33c7756cdb487214f63888ac86f9490f698f",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.rejected_credentials": {
-   "text": "дійсні облікові дані MQTT (брокер їх відхилив)",
-   "sourceHash": "e3bec86a375b717aa06b9ef49db160cda580cfdebfe9a77fc35a6e1bc79d120d",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.suffix": {
-   "text": "— налаштовується на вкладці «Налаштування».",
-   "sourceHash": "a623aa42d2f1f53aa662a6afe155e3e0c1e47b2b888d5b843985025ef198d430",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.valid_broker_url": {
-   "text": "дійсна URL-адреса брокера MQTT",
-   "sourceHash": "ee8fc48bc75378fd7cad15208047034017bceaff1864019a22416e40b281a734",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.banner.setup_needs.valid_credentials": {
-   "text": "дійсні облікові дані MQTT",
-   "sourceHash": "c3a2944f7904354478c69932bda9ef2ee929ef06cb1728669fc31f31e0524fb3",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.update.available": {
@@ -3143,16 +3103,6 @@
    "sourceHash": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",
    "state": "machine-cross-checked"
   },
-  "dashboard.fact.mqtt": {
-   "text": "MQTT",
-   "sourceHash": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.fact.mqtt_timing": {
-   "text": "Час підключення / автентифікації MQTT",
-   "sourceHash": "e98d05be712824bc204ff342d965a29d937fc75bbec8481fe8c106a992abb89c",
-   "state": "machine-cross-checked"
-  },
   "dashboard.fact.navbar": {
    "text": "Навігаційна панель",
    "sourceHash": "ea22ed8d628dd906c10d91accf3769b68cbf37127f2ecab6a66a1f3d27e6e5a6",
@@ -3201,11 +3151,6 @@
   "dashboard.fact.soc": {
    "text": "SoC",
    "sourceHash": "2600f7e4db554c9760c141813188c03fb71f9694f085ca541eba178333899c5c",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.fact.state_convergence": {
-   "text": "Збіжність станів",
-   "sourceHash": "a952d13f5e5135175bab1d28aeac5d7f6beba372b7ba1a60cd3e38d1689bf212",
    "state": "machine-cross-checked"
   },
   "dashboard.fact.storage": {
@@ -3871,91 +3816,6 @@
   "dashboard.runtime.ha_watching": {
    "text": "спостереження",
    "sourceHash": "19bda4aa00eaf9a162fb92bafdc63160190c0c8387687bb8b23027e7bb886ff6",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.age_never": {
-   "text": "ніколи",
-   "sourceHash": "6497e4b3d7bed16979a343a7db4efa6d57725529f5ac3cec45c1f08fabcbdafc",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.age_seconds_ago": {
-   "text": "{seconds}с тому",
-   "sourceHash": "b5907e4c12962ee59cf2dcdc0690ca8f736d7cdc77f5c546cb75fc84d2781931",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.auth_retry": {
-   "text": "{state} · відхилення {rejects} · спроба {attempt} · далі {next}",
-   "sourceHash": "ab27a09ae2f9439f008c5f90250464af8c2752e203041bb4ac35e75eb6b589fd",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.config_error": {
-   "text": "config-error · недійсний або непідтримуваний URL брокера",
-   "sourceHash": "2b4df44055ce98c13abe97370dae68b9b8c5064008dd177455388e79e61ffc9d",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.family_automatic": {
-   "text": "Автоматично (далі {family})",
-   "sourceHash": "edada581531450033adad40e605a3dfd6211bdbef79fb5159ca89c7b857ec1ab",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.family_force_ipv4": {
-   "text": "Примусово IPv4",
-   "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.family_prefer_ipv4": {
-   "text": "Віддати перевагу IPv4",
-   "sourceHash": "8ae39c17c14dfdfa362d47698eb755f56e43a1ea98df0626f30a90a2c67172a9",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.seconds": {
-   "text": "{seconds}с",
-   "sourceHash": "5307d20dc7c46cc7771e80a1d10417915bcf84ff57f50a15e3f7aea5d1661ed6",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.announcing": {
-   "text": "оголошення",
-   "sourceHash": "67209cabee758ad203e5ea33eae67637767e65aca1a440c111ac283aed2fc3d1",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.auth_failed": {
-   "text": "помилка автентифікації",
-   "sourceHash": "1d75377d4dbd78456c27d8a187ae15d24bc4123a82b83de0596323e0b9525139",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.auth_retrying": {
-   "text": "повторна спроба автентифікації",
-   "sourceHash": "a2653bd8b474cef91ad8f81e15e8d1b10bf8056049c83ac62b835e9b85710403",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.connected": {
-   "text": "підключено",
-   "sourceHash": "12a7bd86e0a430327620a0e2274d0f6f091c783b21c169636ef8997f9f1da76a",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.connecting": {
-   "text": "підключення",
-   "sourceHash": "3d6df245178e60766e3478a821dd81b9702e3e4d4e1319d5484b0351f29c0149",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.disconnected": {
-   "text": "відключено",
-   "sourceHash": "d0cb8d28fd8ddcf3c8bc194941b24815924ef438f9650ad2c41bbc01806d67d8",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.discovering": {
-   "text": "виявлення",
-   "sourceHash": "346e887d310fe3193dc94b94facaab54dea5933f8d593dcc4c67d9000dd5619d",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.state.unreachable": {
-   "text": "недоступний",
-   "sourceHash": "5e6017027437e595ec72adee0718d78f092cddaa8d31048c9d5ba2ed647ded5e",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.mqtt.status": {
-   "text": "{state} · {transport} · востаннє успішно {lastOk} · остання автентифікація {lastAuth} · {auth} · сімейство {family}",
-   "sourceHash": "21b4a9b385928557b8618f562b0b77a974a159b081213524f7a4b24cee066ebe",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.admitted_age": {
@@ -6464,13 +6324,13 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_no_renderer": {
-   "text": "ℹ MQTT налаштовано. Далі: виберіть рендерер інформаційної панелі. Виберіть вбудований рендерер ha-paneld, установіть застосунок-компаньйон Home Assistant або налаштуйте інший пакет інформаційної панелі.",
-   "sourceHash": "5f1d7770181d47b58470733464108f40b48294488714774fa4aa9407d8d2e136",
+   "text": "ℹ Далі: виберіть рендерер інформаційної панелі. Виберіть вбудований рендерер ha-paneld, установіть застосунок-компаньйон Home Assistant або налаштуйте інший пакет інформаційної панелі.",
+   "sourceHash": "fbff25a5cab472694a01cd2f60ec6fbd65ea53f64f6ddd13494d524f8f9494a1",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_power_at_risk": {
-   "text": "⛔ Безпека живлення панелі: під загрозою — після вимкнення екрана панель може призупинити роботу або перейти в режим Doze, через що HTTP, MQTT і фонова робота стануть недоступними.",
-   "sourceHash": "a74da057925352acddd3dd33fbb3024de2c565cbcb5410079024512fbe9ad1ab",
+   "text": "⛔ Безпека живлення панелі: під загрозою — після вимкнення екрана панель може призупинити роботу або перейти в режим Doze, через що HTTP і фонова робота стануть недоступними.",
+   "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_power_caution": {
@@ -8884,8 +8744,8 @@
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.summary.at_risk": {
-   "text": "Після вимкнення екрана панель може призупинитися або перейти в режим Doze, через що HTTP, MQTT і фонова робота стануть недоступними.",
-   "sourceHash": "c3985d94deae2c90693d7b57b50bd842fa613cf16e2c8d34ca8a9aad579d9c13",
+   "text": "Після вимкнення екрана панель може призупинитися або перейти в режим Doze, через що HTTP і фонова робота стануть недоступними.",
+   "sourceHash": "6e885ffabcbb2ba963ffc45120252bcc5b5cb11519f2bd7aabddc11c4e0cee66",
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.summary.caution": {
@@ -9374,8 +9234,8 @@
    "state": "machine-cross-checked"
   },
   "settings.diag_wifi_outages_24h.help": {
-   "text": "Короткі розриви Wi-Fi за останні 24 години (ковзне вікно). Враховується лише втрата активного з’єднання Wi-Fi панелі — збої Home Assistant або брокера ніколи не враховуються. Якщо панелі довелося обмежити обсяг збережених даних, атрибут датчика is_lower_bound вказує, що значення є нижньою межею.",
-   "sourceHash": "cde65f42ed6eec37fb9bb3e2c9d160b951cfc99f8fb7c1f041efe21be3080cfb",
+   "text": "Короткі розриви Wi-Fi за останні 24 години (ковзне вікно). Враховується лише втрата активного з’єднання Wi-Fi панелі — збої Home Assistant ніколи не враховуються. Якщо панелі довелося обмежити обсяг збережених даних, атрибут датчика is_lower_bound вказує, що значення є нижньою межею.",
+   "sourceHash": "783f18ddfc10e7afa41fb5c6334d880121993421496923fcff2c7663363c73ed",
    "state": "machine-cross-checked"
   },
   "settings.diag_wifi_outages_24h.label": {
@@ -9679,48 +9539,18 @@
    "state": "machine-cross-checked"
   },
   "settings.network_address_family.help": {
-   "text": "Застосовується до з’єднання з брокером MQTT і з’єднань WebSocket панелі з Home Assistant; звичайні запити HTTPS завжди пробують кожну опубліковану адресу. «Автоматично» вивчає робочий маршрут і перемикається між IPv6 та IPv4. «Надавати перевагу IPv4» залишає IPv6 як резервний варіант; «Примусово IPv4» відхиляє кінцеві точки без адреси IPv4.",
-   "sourceHash": "fc6094bdf2f4455a719947c9c42ebded23bf17f38e19215fb5e210c8e46b2747",
+   "text": "Застосовується до з’єднань WebSocket панелі з Home Assistant; звичайні запити HTTPS завжди пробують кожну опубліковану адресу. «Автоматично» вивчає робочий маршрут і перемикається між IPv6 та IPv4. «Надавати перевагу IPv4» залишає IPv6 як резервний варіант; «Примусово IPv4» відхиляє кінцеві точки без адреси IPv4.",
+   "sourceHash": "2f44d1ec32f8e5a629bde0c6fb769ab53c9c746816c71317b9218618840a6050",
    "state": "machine-cross-checked"
   },
   "settings.network_address_family.label": {
-   "text": "Сімейство адрес MQTT + Home Assistant WebSocket",
-   "sourceHash": "b8f2ae11be15cc7c5050bfc1331de84dd56d77dae350627d0e1fca419453de71",
+   "text": "Сімейство адрес Home Assistant WebSocket",
+   "sourceHash": "f97bb46f422f8778630da01f9363dde4bf1455af861d866b28d87e329a4bdd98",
    "state": "machine-cross-checked"
   },
   "settings.network_address_family.summary": {
-   "text": "Використовуйте IPv4, IPv6 або обидва для з’єднання з MQTT та Home Assistant.",
-   "sourceHash": "a90e653c938c8ab32ed28f2a4da6e70b54beb5814d7a21b7647926fc3709ff5f",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_broker.label": {
-   "text": "URL брокера",
-   "sourceHash": "cad88e3df28153445c8d1c488bc534a1f3e191acf3d636d9c1a5cc734c0f1675",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_broker.summary": {
-   "text": "Адреса брокера MQTT. Якщо порожньо, Home Assistant знайдеться автоматично.",
-   "sourceHash": "044adf15a77d5bb058f4805811e03bbdd500014b03e4ebef2e688ed516ccb3ee",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_password.label": {
-   "text": "Пароль",
-   "sourceHash": "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_password.summary": {
-   "text": "MQTT пароль. Якщо залишити поле порожнім, буде збережено поточний пароль.",
-   "sourceHash": "7fed95c1c70ef7755667c50ec3e5e1c5bf1b2644ba1dbb1cd6afdfce07939bb2",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_user.label": {
-   "text": "Ім'я користувача",
-   "sourceHash": "e3b89e9d33f88e523083d8b4436adcc3726c89e97fd3179a2e102d765d1b16ed",
-   "state": "machine-cross-checked"
-  },
-  "settings.mqtt_user.summary": {
-   "text": "MQTT Ім’я користувача для цієї панелі.",
-   "sourceHash": "c9051f2d3306c556507ff4d4d714230ec1201407135b13f6acad7f1541d4502e",
+   "text": "Використовуйте IPv4, IPv6 або обидва для з’єднання з Home Assistant.",
+   "sourceHash": "1f9dfb4ea985952ceb8b078a460c33ef6759696c97a87375fc1b789d6d1ea19f",
    "state": "machine-cross-checked"
   },
   "settings.navbar_mode.help": {
@@ -9754,8 +9584,8 @@
    "state": "machine-cross-checked"
   },
   "settings.panel_id.help": {
-   "text": "Стабільний ідентифікатор, що використовується в IDs сутностей і темах MQTT (малі літери, цифри, підкреслення; не більше 63 символів).",
-   "sourceHash": "c32f09aa8a5756c4cfde370f42fc7ce62bb040feb0b9e0375f2932c08988554e",
+   "text": "Стабільний ідентифікатор, що використовується в IDs сутностей (малі літери, цифри, підкреслення; не більше 63 символів).",
+   "sourceHash": "f6f3b34b5d382474a82ac87481b3a630471efddad5ca8ed1b5cccdf94edae85e",
    "state": "machine-cross-checked"
   },
   "settings.panel_id.label": {
@@ -10874,8 +10704,8 @@
    "state": "machine-cross-checked"
   },
   "shell.migration.body": {
-   "text": "Додайте інтеграцію Panel Assistant у Home Assistant, щоб керувати цією панеллю. Підтримку MQTT буде припинено.",
-   "sourceHash": "20339679c60bd71b0416b68306c5b5559ed4beb7a81b0a6173335fdd511311b1",
+   "text": "Додайте інтеграцію Panel Assistant у Home Assistant, щоб керувати цією панеллю.",
+   "sourceHash": "d624e8b4cd2a9f8067e4808c0952370185b235548991a95638208acf4ea0802f",
    "state": "machine-cross-checked"
   },
   "shell.migration.dismiss": {
@@ -11106,21 +10936,6 @@
   "shell.settings_changed.externally": {
    "text": "Налаштування було змінено поза цією сторінкою",
    "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
-   "state": "machine-cross-checked"
-  },
-  "shell.setup_progress.next": {
-   "text": "Далі з’явиться крок налаштування інформаційної панелі.",
-   "sourceHash": "272d0261ca0dc2b0e2a88f17d7c7589b4c1f21ae1e9ae9596e10128a156d609b",
-   "state": "machine-cross-checked"
-  },
-  "shell.setup_progress.publishing": {
-   "text": "MQTT підключено — публікація виявлення Home Assistant.",
-   "sourceHash": "91badffcf3f64548ae77c2860e1ea840212f96d595e4f00ad17d768e1232c201",
-   "state": "machine-cross-checked"
-  },
-  "shell.setup_progress.verifying": {
-   "text": "Налаштування MQTT збережено — перевіряється з’єднання з брокером. Це може тривати недовго після збереження.",
-   "sourceHash": "da508a88ecafb04836ca28a2c351d7f5dfb5864cdad65f7d8fbce4f59e9eb82b",
    "state": "machine-cross-checked"
   },
   "configure.enum.camera_resolution.1080p": {

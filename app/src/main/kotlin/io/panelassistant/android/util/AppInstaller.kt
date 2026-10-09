@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * authority because a timed-out package-manager transaction can still have committed. Panel-app
  * candidates require live Panel Assistant policy and cannot downgrade. Other approved packages retain
  * their existing downgrade behavior.
- * Network + package installation — always call OFF the main / MQTT thread.
+ * Network + package installation — always call OFF the main / command thread.
  */
 object AppInstaller {
     data class Pin(val pkg: String, val certSha256: String, val apkSha256: String? = null)

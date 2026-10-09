@@ -15,7 +15,7 @@ import org.junit.Test
  * it, what happens to a value that becomes invalid, and that nothing treats it as a drawn bar.
  */
 class NativeNavbarModeTest {
-    // Source-text reason: the state core and command handlers need the Android service to construct; discovery pins MqttBridge.kt, deleted with the MQTT removal.
+    // Source-text reason: the state core and command handlers need the Android service to construct.
 
     private val navbarSpec get() = SettingsRegistry.spec("navbar_mode")!!
 
@@ -124,9 +124,9 @@ class NativeNavbarModeTest {
 
     // ---- write admission ---------------------------------------------------------------------
 
-    /** MQTT coerces rather than rejects, and "Native" is recognised once it joins MODES, so the guard
-     *  has to be explicit or a stray command would take a panel's only navigation away. */
-    @Test fun `the mqtt command path refuses native before actuating it`() {
+    /** A remote command coerces rather than rejects, and "Native" is recognised once it joins MODES, so
+     *  the guard has to be explicit or a stray command would take a panel's only navigation away. */
+    @Test fun `the remote command path refuses native before actuating it`() {
         val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
         val handler = bridge.substring(
             bridge.indexOf("override fun handleNavbar(payload: String)"),
@@ -136,21 +136,12 @@ class NativeNavbarModeTest {
         val actuate = handler.indexOf("applyAcknowledgedNavbarMode(")
         assertTrue("handleNavbar must consult navbarModePermitted", guard >= 0)
         assertTrue("the guard must precede actuation", actuate > guard)
-        assertTrue("a refusal must republish the canonical state", handler.contains("core.reconcile(\"navbar\", force = true)\n            return"))
+        assertTrue("a refusal must republish the canonical state", handler.contains("core.reconcile(\"navbar\")\n            return"))
     }
 
     @Test fun `the public api documents native as profile gated wireFormat`() {
         // Source-text reason: the shipped OpenAPI document is the public API contract.
         val openApi = TestSources.appFile("src/main/assets/openapi.json").readText()
         assertTrue(openApi.contains("\"enum\": [\"Off\", \"Always on\", \"Swipe reveal\", \"Native\"]"))
-    }
-
-    /** The five navigation buttons removed in 1657dee8 stay removed; a mode that defers to the system
-     *  bar must not become a reason to publish remote navigation actions again. */
-    @Test fun `no home assistant navigation entity is reintroduced`() {
-        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/MqttBridge.kt").readText()
-        listOf("cmdAdminLauncher", "cmdBack", "cmdHome", "cmdLauncher", "cmdRecents").forEach {
-            assertFalse("$it must not return as an MQTT action", bridge.contains("private val $it ="))
-        }
     }
 }

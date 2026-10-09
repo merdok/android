@@ -34,13 +34,13 @@ test('i18n helper resolves string and catalogue-entry projections with caller-ow
 test('i18n helper preserves unknown placeholders and machine tokens', async () => {
   const i18n = await load(JSON.stringify({
     strings: {
-      'ui.detail': 'MQTT {state} · HA {missing} · io.homeassistant.companion.android',
+      'ui.detail': 'Link {state} · HA {missing} · io.homeassistant.companion.android',
     },
   }));
 
   assert.equal(
     i18n.t('ui.detail', 'fallback', { state: 'online' }),
-    'MQTT online · HA {missing} · io.homeassistant.companion.android',
+    'Link online · HA {missing} · io.homeassistant.companion.android',
   );
   assert.equal(i18n.t('missing', 'Version {version}', { version: '$& 0.9.7-rc3' }), 'Version $& 0.9.7-rc3');
   assert.equal(i18n.t('toString', 'safe fallback'), 'safe fallback');

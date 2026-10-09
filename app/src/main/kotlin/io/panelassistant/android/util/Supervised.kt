@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  *
  * Replaces the several hand-rolled `launch { delay(...); while (isActive) { runCatching { … }; delay(…) } }`
  * loops that each re-implemented (or forgot) the exception boundary and initial-settle delay differently.
- * For loops that must survive dispatcher starvation (the MQTT watchdog) keep the dedicated raw thread —
+ * For loops that must survive dispatcher starvation (a watchdog) keep the dedicated raw thread —
  * this is for the coroutine-scoped periodic tasks.
  */
 fun CoroutineScope.periodic(

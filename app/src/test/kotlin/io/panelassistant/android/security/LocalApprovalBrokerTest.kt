@@ -46,10 +46,10 @@ class LocalApprovalBrokerTest {
         assertEquals(ApprovalBroker.State.APPROVED, broker.state(id))
         assertEquals(ApprovalBroker.State.APPROVED, broker.state(id))
 
-        // The same operation and payload from MQTT is a different request and cannot use this approval.
+        // The same operation and payload from another source is a different request and cannot use this approval.
         assertEquals(
             ApprovalBroker.Decision.PENDING,
-            broker.request(SensitiveOperation.CAMERA_ENABLE, "mqtt", "camera_enabled\u0000enable", "camera").first,
+            broker.request(SensitiveOperation.CAMERA_ENABLE, "external", "camera_enabled\u0000enable", "camera").first,
         )
         assertEquals(
             ApprovalBroker.Decision.APPROVED to id,
@@ -159,7 +159,7 @@ class LocalApprovalBrokerTest {
     fun powerApprovalIsExactPeerPayloadBoundAndOneShot() {
         val broker = ApprovalBroker(random = SecureRandom())
         val payload = "prevent_idle_dim\u0000OFF"
-        val pending = broker.request(SensitiveOperation.POWER_CONFIGURATION, "mqtt", payload, "disable guard")
+        val pending = broker.request(SensitiveOperation.POWER_CONFIGURATION, "external", payload, "disable guard")
         assertTrue(broker.approve(pending.second))
 
         assertEquals(
@@ -168,19 +168,19 @@ class LocalApprovalBrokerTest {
         )
         assertEquals(
             ApprovalBroker.Decision.PENDING,
-            broker.request(SensitiveOperation.POWER_CONFIGURATION, "mqtt", "prevent_idle_dim\u0000off", "disable guard").first,
+            broker.request(SensitiveOperation.POWER_CONFIGURATION, "external", "prevent_idle_dim\u0000off", "disable guard").first,
         )
         assertEquals(
             ApprovalBroker.Decision.PENDING,
-            broker.request(SensitiveOperation.PACKAGE_TAME, "mqtt", payload, "disable guard").first,
+            broker.request(SensitiveOperation.PACKAGE_TAME, "external", payload, "disable guard").first,
         )
         assertEquals(
             ApprovalBroker.Decision.APPROVED,
-            broker.request(SensitiveOperation.POWER_CONFIGURATION, "mqtt", payload, "disable guard").first,
+            broker.request(SensitiveOperation.POWER_CONFIGURATION, "external", payload, "disable guard").first,
         )
         assertEquals(
             ApprovalBroker.Decision.PENDING,
-            broker.request(SensitiveOperation.POWER_CONFIGURATION, "mqtt", payload, "disable guard").first,
+            broker.request(SensitiveOperation.POWER_CONFIGURATION, "external", payload, "disable guard").first,
         )
     }
 }

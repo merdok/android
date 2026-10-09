@@ -72,9 +72,8 @@ internal class PageHealth(
     fun healthInputs(): Inputs = Inputs(
         PanelInfo.webViewStatus(appContext),
         PanelInfo.dashboardRenderers(appContext, config.dashboardPackage, config.haUrl).isNotEmpty(),
-        // Set up for Home Assistant by either transport: a configured broker, or Panel Assistant having
-        // reached this panel. A native-only panel has no broker and is no less set up.
-        config.mqttBroker.isNotBlank() || config.panelAssistantConnectionSeen,
+        // Set up for Home Assistant: Panel Assistant has reached this panel.
+        config.panelAssistantConnectionSeen,
     )
 
     /** The schema-version detail to warn about when a downgrade reset config to defaults (the last

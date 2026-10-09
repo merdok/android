@@ -118,7 +118,7 @@ test('lifecycle copy uses the closed key set, keeps glyphs decorative, and clear
   const rig = await loadBuildwatch({ translations, locale: 'zh-Hans' });
 
   const cases = [
-    ['ha=shutting_down ha_src=mqtt', 'shell.runtime.ha_lifecycle.offline', '家庭助理已离线。', 'working', 'Stopping'],
+    ['ha=shutting_down', 'shell.runtime.ha_lifecycle.offline', '家庭助理已离线。', 'working', 'Stopping'],
     ['ha=starting', 'shell.runtime.ha_lifecycle.starting', '家庭助理正在启动。', 'working', 'Starting'],
     ['ha=back_online', 'shell.runtime.ha_lifecycle.back_online', '家庭助理已恢复在线。', 'resolved', 'Resolved'],
     ['ha=shutting_down ha_src=socket', 'shell.runtime.ha_lifecycle.shutting_down', '家庭助理正在关闭。', 'working', 'Stopping'],

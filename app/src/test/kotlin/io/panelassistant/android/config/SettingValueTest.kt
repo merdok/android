@@ -18,22 +18,6 @@ class SettingValueTest {
         min = min, max = max, maxChars = maxChars, options = options, validate = validate,
     )
 
-    @Test fun mqttBrokerRejectsUnsupportedOrMalformedSchemesBeforePersistence() {
-        val mqtt = SettingsRegistry.spec("mqtt_broker")!!
-
-        assertTrue(SettingValue.validate(mqtt, "tcp://broker.example:1883") is Validation.Ok)
-        assertEquals(
-            "tcp://broker.example:1883",
-            ok(SettingValue.validate(mqtt, "tcp://broker.example:1883/")),
-        )
-        assertTrue(SettingValue.validate(mqtt, "mqtts://broker.example") is Validation.Ok)
-        assertTrue(SettingValue.validate(mqtt, "") is Validation.Ok)
-        assertTrue(SettingValue.validate(mqtt, "wss://broker.example:1883") is Validation.Bad)
-        assertTrue(SettingValue.validate(mqtt, "tcp://") is Validation.Bad)
-        assertTrue(SettingValue.validate(mqtt, "tcp://broker.example:0") is Validation.Bad)
-        assertTrue(SettingValue.validate(mqtt, "tcp://broker.example:1883/path") is Validation.Bad)
-    }
-
     private fun ok(v: Validation): String = (v as Validation.Ok).normalized
 
     @Test fun boolAcceptsCommonSpellings() {
@@ -110,7 +94,7 @@ class SettingValueTest {
 
     @Test fun passwordsPreserveLeadingAndTrailingSpacesExactly() {
         val password = spec(SettingType.PASSWORD, maxChars = 32)
-        assertEquals("  mqtt secret  ", ok(SettingValue.validate(password, "  mqtt secret  ")))
+        assertEquals("  some secret  ", ok(SettingValue.validate(password, "  some secret  ")))
     }
 
     @Test fun longValuesRetainTheFullPreferenceRange() {

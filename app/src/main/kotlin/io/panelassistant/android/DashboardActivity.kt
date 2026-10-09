@@ -468,7 +468,7 @@ class DashboardActivity : AppCompatActivity() {
     private var signInShownForUrl: String? = null
 
     /** Quiet retries before the sign-in surface declares itself unavailable — its start page is served
-     *  by the panel's own HTTP server, which restarts briefly during config/MQTT reconfigures. */
+     *  by the panel's own HTTP server, which restarts briefly during config reconfigures. */
     private var signInLoadRetries = 0
 
     /**
@@ -515,7 +515,7 @@ class DashboardActivity : AppCompatActivity() {
     // Auth-failure latch. A terminal login-settings rejection (refresh token/client id, repeated
     // auth-invalid from the frontend) must not become an infinite reload loop on an unattended panel —
     // no unchanged retry can repair it. Latch: stop the retry machinery and show a clear on-panel
-    // message naming the fix. Unlatched by a new load (MQTT reload/navigate, config change) or a
+    // message naming the fix. Unlatched by a new load (reload/navigate, config change) or a
     // successful connect. Transient failures (HA down) never count toward the latch.
     private var authInvalids = 0
     private var refreshRejects = 0
@@ -2009,7 +2009,7 @@ class DashboardActivity : AppCompatActivity() {
         dispatchBus(externalBus.navigate(session, path))
     }
 
-    /** Every navigation that CHOOSES a target — bus navigates (user, MQTT, idle return, correction),
+    /** Every navigation that CHOOSES a target — bus navigates (user, Home Assistant, idle return, correction),
      *  full loads of a chosen URL, and navigation observed inside the frontend itself — bumps this.
      *  Mechanical reloads of the same target do not. The async cache correction compares against it
      *  so it can never overwrite a navigation that arrived after the provisional page was chosen. */
@@ -2885,7 +2885,7 @@ class DashboardActivity : AppCompatActivity() {
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (!rendererCurrent(generation, view) || !request.isForMainFrame) return
                     // A main-frame error here is usually TRANSIENT: the sign-in start page is served by
-                    // this panel's own local HTTP server, which restarts briefly during an MQTT or config
+                    // this panel's own local HTTP server, which restarts briefly during a config
                     // reconfigure — exactly when a first-run user is mid-setup. On hardware review that
                     // produced a terminal "sign-in unavailable" over a sign-in the user may have been in
                     // the middle of. Retry quietly first; only a persistent failure earns the verdict.
@@ -3180,7 +3180,7 @@ class DashboardActivity : AppCompatActivity() {
                 shownPath == null || web == null -> buildCompatibleAndLoad(currentConfig, resolution.path)
                 HomeDashboardLaunchCache.refreshOutcome(shownPath, resolution) ==
                     HomeDashboardLaunchCache.RefreshOutcome.CORRECTED -> {
-                    // A navigation chosen AFTER the provisional page (MQTT navigate, idle return,
+                    // A navigation chosen AFTER the provisional page (Home Assistant navigate, idle return,
                     // pull-to-refresh target, a relaunch load) outranks the correction: the resolved
                     // value is already stored for every later navigation, but the page the user is
                     // looking at is not yanked back.
@@ -3686,7 +3686,7 @@ class DashboardActivity : AppCompatActivity() {
         webChromeClient = dashboardChromeClient(generation)
         webViewClient = object : WebViewClient() {
             // A dead renderer process must not take the app down with it: rebuild the WebView in place
-            // (else Android kills the whole process + the panel's HTTP/MQTT service), but within a budget
+            // (else Android kills the whole process + the panel's HTTP service), but within a budget
             // so a reliably-crashing page falls back to the admin launcher instead of spinning.
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                 Log.w(TAG, "renderer process gone (crash=${detail.didCrash()})")

@@ -61,19 +61,11 @@
     <string name="approval_op_power_safety_ack">Einen ganz bestimmten Vorsichtshinweis zum Energieschutz ausblenden</string>
     <string name="approval_op_guard_db">Datenbankwiederherstellung fortsetzen</string>
     <string name="approval_op_camera_enable">Panel-Kamera aktivieren</string>
-    <string name="approval_op_transport_release">Panel-Steuerung an MQTT zurückgeben</string>
 
     <string name="set_up">Einrichten</string>
     <string name="open_configuration">Konfiguration öffnen</string>
     <string name="panel_not_set_up">Dieses Panel ist noch nicht eingerichtet.</string>
     <string name="panel_not_set_up_hint">Scanne den Code oder öffne die Adresse unten auf deinem Smartphone oder Laptop – es dauert etwa zwei Minuten. Oder tippe auf %1$s, um es auf diesem Bildschirm einzurichten.</string>
-    <string name="mqtt_could_not_connect">MQTT konnte keine Verbindung herstellen.</string>
-    <string name="mqtt_credentials_rejected_hint">Der Broker hat Benutzername und Passwort abgelehnt – korrigiere sie auf der Einrichtungsseite in einem Browser.</string>
-    <string name="waiting_for_mqtt_details">Warten auf MQTT-Daten.</string>
-    <string name="someone_configuring_hint">Jemand richtet dies in einem Browser ein. Hier ist nichts zu tun.</string>
-    <string name="mqtt_address_check_hint">Prüfe die Broker-Adresse auf der Einrichtungsseite in einem Browser.</string>
-    <string name="checking_mqtt_connection">MQTT-Verbindung wird geprüft…</string>
-    <string name="takes_few_seconds_hint">Dies dauert einige Sekunden. Hier ist nichts zu tun.</string>
     <string name="browser_engine_too_old">Die Browser-Engine dieses Panels ist zu alt.</string>
     <string name="browser_engine_too_old_hint">Home Assistant-Dashboards benötigen eine neuere Version. Behebe dies auf der Einrichtungsseite in einem Browser.</string>
     <string name="choose_dashboard_app">Wähle eine Dashboard-App.</string>

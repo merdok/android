@@ -14,7 +14,7 @@ import kotlin.math.max
  * daylight drift still leaves a trail without flooding the buffer). At the 1 Hz floor [CAP] rows span
  * ~1 hour; bursts shorten that but never grow RAM past the cap (oldest auto-purged).
  *
- * Thread-safe: lux arrives on the sensor + MQTT threads, proximity on the sensor thread, reads on the
+ * Thread-safe: lux arrives on the sensor + command threads, proximity on the sensor thread, reads on the
  * HTTP thread.
  */
 object SensorTrace {

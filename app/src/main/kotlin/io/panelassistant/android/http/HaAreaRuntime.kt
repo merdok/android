@@ -135,7 +135,7 @@ internal class HaAreaRuntime(
                 haAreaCacheEntryUsable(entry.key, key, entry.cachedAtMs, now, HA_AREA_CATALOG_TTL_MS)
             }?.catalog?.let { return it }
         }
-        val catalog = entityLearning.haAreaCatalog(snapshot.deviceUid, snapshot.panelId)
+        val catalog = entityLearning.haAreaCatalog()
         cacheHaAreaCatalog(snapshot, catalog, now)
         return catalog
     }
@@ -175,12 +175,10 @@ internal class HaAreaRuntime(
             HaAreaProtocol.hasLiteralNullAssignment(catalog.device, catalog.areas) &&
             ownsHaAreaSnapshot(snapshot)
         ) {
-            val cleared = entityLearning.applyRequestedArea(
-                snapshot.deviceUid, snapshot.panelId, "", snapshot.ownerKey,
-            )
+            val cleared = entityLearning.applyRequestedArea("", snapshot.ownerKey)
             if (cleared && ownsHaAreaSnapshot(snapshot)) {
                 invalidateHaAreaCatalogCache()
-                val after = entityLearning.haAreaCatalog(snapshot.deviceUid, snapshot.panelId)
+                val after = entityLearning.haAreaCatalog()
                 cacheHaAreaCatalog(snapshot, after)
                 return applyHaAreaPrecedence(snapshot, after, allowWriteBack = false)
             }
@@ -199,15 +197,10 @@ internal class HaAreaRuntime(
                 }
             }
             HaAreaProtocol.ReconcileAction.WRITE_BACK -> if (allowWriteBack && ownsHaAreaSnapshot(snapshot)) {
-                val moved = entityLearning.applyRequestedArea(
-                    snapshot.deviceUid,
-                    snapshot.panelId,
-                    snapshot.localArea,
-                    snapshot.ownerKey,
-                )
+                val moved = entityLearning.applyRequestedArea(snapshot.localArea, snapshot.ownerKey)
                 if (moved && ownsHaAreaSnapshot(snapshot)) {
                     invalidateHaAreaCatalogCache()
-                    val after = entityLearning.haAreaCatalog(snapshot.deviceUid, snapshot.panelId)
+                    val after = entityLearning.haAreaCatalog()
                     cacheHaAreaCatalog(snapshot, after)
                     return applyHaAreaPrecedence(snapshot, after, allowWriteBack = false)
                 }
@@ -284,7 +277,7 @@ internal class HaAreaRuntime(
 
     companion object {
         private const val TAG = "ha-paneld/http"
-        // Late enough that the first pass does not compete with boot (renderer, MQTT, profile activation),
+        // Late enough that the first pass does not compete with boot (renderer, network runtime, profile activation),
         // early enough that a panel is correct long before anybody opens a settings page.
         // Long enough that a round of page reloads costs one Home Assistant read, short enough that an
         // admin who moves the device in HA sees it here without waiting for the six-hourly pass.

@@ -50,41 +50,15 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import org.json.JSONObject
 
-/**
- * Transitions a transport projects onto addresses of its own, beyond the channels it receives as state.
- * The core calls each at the point the transition happens, on the caller's thread and inside any
- * serialization that orders it (proximity). Only the MQTT bridge projects; the dispatcher follows capability
- * changes. Every method returns promptly.
- */
-internal interface StateCoreListener {
-    /** A local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
-    fun onCapabilitiesObserved(observation: CapabilityObservation) {}
-
-    /** A light or learned-proximity answer changed what the panel can describe. */
-    fun onDescriptionInputsChanged() {}
-
-    /** Learned proximity became [available] or not; false also clears what was last stated. */
-    fun onProximityAvailability(available: Boolean) {}
-
-    fun onCameraSnapshot(refreshUrl: Boolean) {}
-
-    fun onZigbeeHealth(snapshot: ZigbeeHealthSnapshot?) {}
-
-    fun onAutoSleepActivity(exposed: Boolean, snapshot: AutoSleepActivitySnapshot) {}
-
-    fun onButton(event: String) {}
-
-    /** Software update inputs may have changed; the update channels are reconciled by whoever projects them. */
-    fun onSoftwareUpdatesDue() {}
-
-    /** Resolve the "Open in HA" link without a native Home Assistant session; runs on the link worker. */
-    fun resolveHaLinkWithoutNativeSession() {}
+/** Notified when a local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
+internal fun interface StateCoreListener {
+    fun onCapabilitiesObserved(observation: CapabilityObservation)
 }
 
 /**
  * The panel's one state owner for a network runtime generation: every state channel's authoritative
  * observation, the local observation pass, and what the panel can describe. Output leaves only through
- * [addStateSink] and the attached delivery; nothing here knows a transport's addressing.
+ * [addStateSink] and [addEventSink]; nothing here knows a transport's addressing.
  */
 internal class PanelStateCore(
     private val config: Config,
@@ -330,11 +304,8 @@ internal class PanelStateCore(
 
     fun addListener(listener: StateCoreListener) { listeners += listener }
 
-    /** Attach a transport's own delivery bookkeeping (MQTT's acknowledged outbox). */
-    fun attach(delivery: StateConverger.Delivery) = converger.attach(delivery)
 
-    fun reconcile(key: String, force: Boolean = false, admit: () -> Boolean = { true }) =
-        converger.reconcile(key, force, admit)
+    fun reconcile(key: String, admit: () -> Boolean = { true }) = converger.reconcile(key, admit)
 
     fun reconcileAll() = converger.reconcileAll()
 
@@ -358,11 +329,9 @@ internal class PanelStateCore(
     }
 
     /**
-     * Whether this panel can fill a hardware-gated entity: the one definition MQTT discovery (its
-     * availability override, which publishes an empty config when false) and the native describe (which
-     * states the channel unsupported when false) share. Null when [key] is not hardware-gated here, or when
-     * its answer is not settled; MQTT passes learned proximity from its announcement snapshot, the native
-     * describe from the live, settled source.
+     * Whether this panel can fill a hardware-gated entity; the native describe states the channel
+     * unsupported when false. Null when [key] is not hardware-gated here, or when its answer is not
+     * settled; [learnedProximity] comes from the live, settled source.
      */
     fun hardwareAvailability(key: String, learnedProximity: Boolean?): Boolean? = when (key) {
         "temperature" -> hasTemperature
@@ -465,7 +434,7 @@ internal class PanelStateCore(
      */
     fun restoreAndReconcile() {
         volume.getPercent().let { lastPublishedVolume = it }
-        reconcile("screen", force = true)
+        reconcile("screen")
         reapplyStoredLed()
         restoreButtonBacklight()
     }
@@ -501,13 +470,13 @@ internal class PanelStateCore(
             // without driving it leaves HA and the physical LED disagreeing (seen on rk3576).
             ledEffect.setOff()
         }
-        reconcile("led", force = true)
+        reconcile("led")
     }
 
     /**
      * Resolve this panel's HA device-settings URL. A configured built-in renderer is authoritative: use
      * its exact endpoint and current access token, even when another transport's credentials belong to
-     * another HA instance. Without a native renderer connection, a listener may resolve it otherwise.
+     * another HA instance. Without one there is nothing to resolve.
      * Legacy cache entries have no [Config.haDeviceLinkTarget], so an upgrade immediately repairs them
      * rather than trusting their old random registry id for another 6h.
      */
@@ -518,10 +487,7 @@ internal class PanelStateCore(
             worker = Thread {
                 try {
                     val nativeBase = config.haUrl.trim().trimEnd('/')
-                    if (nativeBase.isBlank()) {
-                        listeners.forEach { it.resolveHaLinkWithoutNativeSession() }
-                        return@Thread
-                    }
+                    if (nativeBase.isBlank()) return@Thread
                     val target = HaLink.resolutionTarget(nativeBase, panelId)
                     if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return@Thread
                     val stillCurrent = {
@@ -554,7 +520,7 @@ internal class PanelStateCore(
         }
     }
 
-    /** Whether this generation still admits work: a listener's own late writes check it too. */
+    /** Whether this generation still admits work. */
     fun isOpen(): Boolean = lifecycle.isOpen()
 
     // ---- local events ----
@@ -562,7 +528,6 @@ internal class PanelStateCore(
     private fun publishButton(event: String) {
         lifecycle.runIfOpen(Unit) {
             runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event) }
-            listeners.forEach { it.onButton(event) }
         }
     }
 
@@ -581,55 +546,53 @@ internal class PanelStateCore(
 
     /** Report the current volume after a LOCAL change (e.g. navbar Volume ±). */
     fun publishVolume() {
-        dispatchStateWork { reconcile("volume", force = true) }
+        dispatchStateWork { reconcile("volume") }
     }
 
     /** A volume command settled: baseline the local pass on it and report it. */
     fun noteVolumeCommanded() {
         volume.getPercent().let { lastPublishedVolume = it }
-        reconcile("volume", force = true)
+        reconcile("volume")
     }
 
     /** Report the kiosk-lock state — used by the on-device unlock gesture, which turns it OFF outside the
      *  command path and must still tell HA. */
     fun publishKioskState() {
-        dispatchStateWork { reconcile("kiosk_lock", force = true) }
+        dispatchStateWork { reconcile("kiosk_lock") }
     }
 
-    /** The camera snapshot channel, and — on a fresh enable only — a transport's URL refresh. Nothing here
-     *  is periodic; the camera opens when a person looks at the card, never because the panel reported. */
-    fun publishCameraSnapshot(refreshUrl: Boolean) {
-        reconcile("camera_snapshot", force = true)
-        listeners.forEach { it.onCameraSnapshot(refreshUrl) }
+    /** The camera snapshot channel. Nothing here is periodic; the camera opens when a person looks at the
+     *  card, never because the panel reported. */
+    fun publishCameraSnapshot() {
+        reconcile("camera_snapshot")
     }
 
     /** Re-report the camera surface after a change made outside a command (the Configure page, a bundle
      *  import, provisioning). */
     fun publishCameraState() {
         dispatchStateWork {
-            reconcile("camera_enabled", force = true)
-            publishCameraSnapshot(refreshUrl = config.cameraEnabled)
+            reconcile("camera_enabled")
+            publishCameraSnapshot()
         }
     }
 
     fun publishZigbeeRouterState() {
-        lifecycle.runIfOpen(Unit) { reconcile("zigbee_router", force = true) }
+        lifecycle.runIfOpen(Unit) { reconcile("zigbee_router") }
     }
 
-    fun publishZigbeeHealth(snapshot: ZigbeeHealthSnapshot? = null) {
+    fun publishZigbeeHealth() {
         lifecycle.runIfOpen(Unit) {
             // The attributes first, so the native report carries them with the state.
-            reconcile("zigbee_gateway_health_attributes", force = true)
-            reconcile("zigbee_gateway_health", force = true)
-            listeners.forEach { it.onZigbeeHealth(snapshot) }
+            reconcile("zigbee_gateway_health_attributes")
+            reconcile("zigbee_gateway_health")
         }
     }
 
     /** Re-project the shared authority after a startup/daily observation or immediate database failure. */
     fun publishStorageHealth() {
         lifecycle.runIfOpen(Unit) {
-            reconcile("storage_health", force = true)
-            reconcile("storage_health_attributes", force = true)
+            reconcile("storage_health")
+            reconcile("storage_health_attributes")
         }
     }
 
@@ -658,13 +621,12 @@ internal class PanelStateCore(
                 val available = nextNear != null && level != null
                 val admitted = admit(nextNear, level, reportMask)
                 val availabilityChanged = admitted and ProximityPublicationState.AVAILABILITY_CHANGED != 0
-                if (availabilityChanged) listeners.forEach { it.onProximityAvailability(available) }
                 if (!available) return@proximity
                 if (admitted and ProximityReportGate.PRESENCE != 0) {
-                    reconcile("proximity", force = availabilityChanged)
+                    reconcile("proximity")
                 }
                 if (admitted and ProximityReportGate.LEVEL != 0) {
-                    reconcile("proximity_level", force = availabilityChanged)
+                    reconcile("proximity_level")
                 }
             }
         }
@@ -680,7 +642,6 @@ internal class PanelStateCore(
     fun notifyLightAvailabilityChanged() {
         lifecycle.runIfOpen(Unit) {
             capabilities.invalidate()
-            listeners.forEach { it.onDescriptionInputsChanged() }
         }
     }
 
@@ -691,8 +652,7 @@ internal class PanelStateCore(
             refreshLearnedProximityFromAuthority(
                 admitted = true,
                 eligible = learnedProximityEligibility,
-                clearIneligibleState = { clearProximityState(force = true) },
-                reannounce = { listeners.forEach { it.onDescriptionInputsChanged() } },
+                clearIneligibleState = ::clearProximityState,
             )
         }
     }
@@ -700,13 +660,12 @@ internal class PanelStateCore(
     private fun learnedProximityEligible(): Boolean =
         runCatching(learnedProximityEligibility).getOrDefault(false)
 
-    private fun clearProximityState(force: Boolean = false) {
-        proximityPublication.serialized { clearProximityStateLocked(force) }
+    private fun clearProximityState() {
+        proximityPublication.serialized { clearProximityStateLocked() }
     }
 
-    private fun ProximityPublicationState.clearProximityStateLocked(force: Boolean = false) {
-        val hadState = clear()
-        if (force || hadState) listeners.forEach { it.onProximityAvailability(false) }
+    private fun ProximityPublicationState.clearProximityStateLocked() {
+        clear()
     }
 
     // Rounded at report (1dp temp, integer humidity) so precision wobble can't create recorder rows.
@@ -734,10 +693,9 @@ internal class PanelStateCore(
         val snapshot = if (!exposed) AutoSleepActivitySnapshot() else runCatching(autoSleepActivity)
             .onFailure { Log.w(TAG, "auto-sleep policy snapshot failed; reporting unavailable", it) }
             .getOrDefault(AutoSleepActivitySnapshot())
-        listeners.forEach { it.onAutoSleepActivity(exposed, snapshot) }
         // The attributes first, so the native report carries them with the state.
-        reconcile("auto_sleep_activity_attributes", force = true)
-        reconcile("auto_sleep_activity", force = true)
+        reconcile("auto_sleep_activity_attributes")
+        reconcile("auto_sleep_activity")
     }
 
     /** The media player's state changed: re-observe the `media` channel. */
@@ -746,7 +704,7 @@ internal class PanelStateCore(
     }
 
     /** Report the service-owned return after the Companion accepted its panel-home deep link. */
-    fun reconcileNavigateState() = reconcile("navigate", force = true)
+    fun reconcileNavigateState() = reconcile("navigate")
 
     /** Re-evaluate both update channels: catalog refreshes, install start and finish, package changes. */
     fun publishSoftwareUpdates() {
@@ -754,7 +712,9 @@ internal class PanelStateCore(
     }
 
     /** [publishSoftwareUpdates] on the caller's thread, for a command that must report its own outcome. */
-    fun reconcileSoftwareUpdatesNow() = listeners.forEach { it.onSoftwareUpdatesDue() }
+    fun reconcileSoftwareUpdatesNow() = SoftwareComponent.entries.forEach {
+        reconcile(SoftwareUpdates.stateChannelKey(it))
+    }
 
     fun softwareUpdateInputs(component: SoftwareComponent): SoftwareUpdateInputs? {
         val sources = softwareUpdateSources ?: return null
@@ -776,7 +736,7 @@ internal class PanelStateCore(
     fun publishScreenOff() {
         lastScreenBrightness = -1
         screenEffectiveBaseline = -1
-        reconcile("screen", force = true)
+        reconcile("screen")
     }
 
     /** Report screen=ON at [level] and remember it as the last-reported brightness (the reconcile
@@ -784,7 +744,7 @@ internal class PanelStateCore(
     fun publishScreenBrightness(level: Int) {
         lastScreenBrightness = level
         screenEffectiveBaseline = -1   // re-capture on the next tick, after the framework settles
-        reconcile("screen", force = true)
+        reconcile("screen")
     }
 
     // ---- local observation ----
@@ -830,7 +790,7 @@ internal class PanelStateCore(
                 capabilities.snapshot(CAPABILITY_RECOVERY_PROBE_MS),
             )
             capabilityObservation.changedKeys().forEach {
-                reconcile(it, force = true)
+                reconcile(it)
             }
             listeners.forEach { it.onCapabilitiesObserved(capabilityObservation) }
         }
@@ -892,7 +852,7 @@ internal class PanelStateCore(
                 Log.i(TAG, "local volume changed outside the panel's API: $lastPublishedVolume -> $cur — syncing")
                 syncLog.record(SystemClock.elapsedRealtime(), "volume $lastPublishedVolume→$cur")
                 lastPublishedVolume = cur
-                reconcile("volume", force = true)
+                reconcile("volume")
             }
             prevTickVolume = cur
         }
@@ -907,7 +867,7 @@ internal class PanelStateCore(
                     Log.i(TAG, "cpu governor changed outside the panel's API: $lastPublishedGovTier -> $tier — syncing")
                     syncLog.record(SystemClock.elapsedRealtime(), "cpu_governor $lastPublishedGovTier→$tier")
                     lastPublishedGovTier = tier
-                    reconcile("cpu_governor", force = true)
+                    reconcile("cpu_governor")
                 }
             }
         }
@@ -915,9 +875,9 @@ internal class PanelStateCore(
         // Diagnostic sensors — refresh each exposed one.
         runCatching { syncDiagnostics() }
 
-        // Update entities: a Companion installed or removed outside ha-paneld, an expired Panel
-        // Assistant lease or a changed install route all surface here within one tick.
-        runCatching { listeners.forEach { it.onSoftwareUpdatesDue() } }
+        // Update channels: a Companion installed or removed outside ha-paneld or a changed install
+        // route surface here within one tick.
+        runCatching { reconcileSoftwareUpdatesNow() }
 
         // Architectural safety net: audit every registered state channel from its declared authority.
         runCatching { converger.reconcileAll() }
@@ -1011,10 +971,10 @@ internal fun wifiOutageAttributes(counts: WifiOutageCounts): String =
     JSONObject().put("is_lower_bound", counts.saturated).toString()
 
 /**
- * What the outage-attributes topic should carry right now.
+ * What the outage-attributes channel should carry right now.
  *
- * The attributes share the count's opt-in: hiding the sensor must CLEAR the retained payload rather
- * than leave a stale `is_lower_bound` alive in the broker for an entity nobody exposed. Pure so the
+ * The attributes share the count's opt-in: hiding the sensor makes them unavailable rather than
+ * leave a stale `is_lower_bound` for an entity nobody exposed. Pure so the
  * expose/hide/reconnect boundary is checked by behaviour, not by reading source.
  */
 internal fun wifiOutageAttributeObservation(
@@ -1118,12 +1078,10 @@ internal fun refreshLearnedProximityFromAuthority(
     admitted: Boolean,
     eligible: () -> Boolean,
     clearIneligibleState: () -> Unit,
-    reannounce: () -> Unit,
 ): LearnedProximityRefresh {
     if (!admitted) return LearnedProximityRefresh.SKIPPED
     val current = runCatching(eligible).getOrDefault(false)
     if (!current) clearIneligibleState()
-    reannounce()
     return if (current) LearnedProximityRefresh.ELIGIBLE else LearnedProximityRefresh.INELIGIBLE
 }
 
@@ -1184,7 +1142,7 @@ internal data class CapabilityObservation(
 
 /**
  * Separates monotonic channel shape from the latest live probe. Once hardware has been confirmed its
- * MQTT identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
+ * channel identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
  * the entity. Newly confirmed channels can be registered and announced by the existing runtime.
  */
 internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {

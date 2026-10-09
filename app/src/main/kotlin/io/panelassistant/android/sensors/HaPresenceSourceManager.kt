@@ -30,8 +30,6 @@ import java.util.concurrent.atomic.AtomicLong
 
 internal data class HaPresenceRequest(
     val enabled: Boolean,
-    val deviceUid: String,
-    val panelId: String,
     val controllerEpoch: Long = 0L,
     /** The panel's locally configured area name; when set it names the room presence sources come from. */
     val preferredAreaName: String = "",
@@ -295,8 +293,6 @@ internal class HaPresenceSourceManager(
     }
 
     suspend fun prerequisite(
-        deviceUid: String,
-        panelId: String,
         preferredAreaName: String = "",
         discoveryId: String? = null,
     ): HaPanelAreaPrerequisite {
@@ -316,8 +312,6 @@ internal class HaPresenceSourceManager(
             val area = HaPresenceProtocol.projectPanelArea(
                 snapshot.devices,
                 snapshot.areas,
-                deviceUid,
-                panelId,
                 HaPanelDeviceMatcher.panelAssistantEntryIds(snapshot.panelAssistantProbe, discoveryId, panelAssistantEntryId()),
                 preferredAreaName,
             )
@@ -577,8 +571,6 @@ internal class HaPresenceSourceManager(
             HaPresenceProtocol.projectPanelArea(
                 snapshot.devices,
                 snapshot.areas,
-                requested.deviceUid,
-                requested.panelId,
                 panelAssistantEntryIds,
                 requested.preferredAreaName,
             ).name
@@ -589,8 +581,6 @@ internal class HaPresenceSourceManager(
                 snapshot.areas,
                 snapshot.entities,
                 snapshot.states,
-                requested.deviceUid,
-                requested.panelId,
                 panelAssistantEntryIds,
                 requested.preferredAreaName,
             )
@@ -856,9 +846,7 @@ internal class HaPresenceSourceManager(
         fun registryBackoffMs(failures: Int): Long =
             (REGISTRY_BACKOFF_BASE_MS shl (failures - 1).coerceIn(0, 5)).coerceAtMost(REGISTRY_BACKOFF_MAX_MS)
 
-        fun disabledRequest() = HaPresenceRequest(
-            false, "", "",
-        )
+        fun disabledRequest() = HaPresenceRequest(false)
     }
 }
 

@@ -3,7 +3,7 @@ package io.panelassistant.android.util
 import kotlinx.coroutines.Job
 
 /**
- * Process-wide ownership and progress for destructive control-plane operations. HTTP, MQTT, and scheduled
+ * Process-wide ownership and progress for destructive control-plane operations. HTTP, Home Assistant, and scheduled
  * callers all acquire the same single slot before installs, uninstall, repair, or restore; the web UI polls
  * GET /api/v1/install/status for the current owner and result.
  */
@@ -59,7 +59,7 @@ object InstallProgress {
 
     /**
      * Told after every claim or release of the visible operation lane, outside this object's monitor.
-     * The service republishes the MQTT update entities' progress from it; this object stays MQTT-free.
+     * The service republishes the Home Assistant update entities' progress from it; this object stays transport-free.
      */
     @Volatile var observer: (() -> Unit)? = null
 

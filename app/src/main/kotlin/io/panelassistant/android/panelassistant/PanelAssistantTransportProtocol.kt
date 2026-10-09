@@ -22,15 +22,8 @@ internal data class PanelAssistantUpdatePolicy(val protocolMin: Int, val protoco
 internal data class PanelAssistantSession(
     val protocol: Int,
     val token: String,
-    val authority: String,
     val capabilities: List<String>,
     val integrationVersion: String,
-    /**
-     * The integration's claim on this panel's MQTT discovery entities (`withdraw`) or its release of
-     * them (`announce`). Present exactly when the session granted `mqtt_withdraw`; null otherwise, whatever
-     * the reply carried, because only the grant makes the field binding.
-     */
-    val mqttDiscovery: String? = null,
     /** The sidebar proof key, present exactly when the session granted `embed_proof`. Never logged. */
     val embed: PanelAssistantEmbedGrant? = null,
     val connection: io.panelassistant.android.HaConnectionAdvertisement? = null,
@@ -47,8 +40,7 @@ internal data class PanelAssistantSession(
 ) {
     /** The session token is a bearer for this session's requests, and the embed key a secret; keep both out of logs. */
     override fun toString(): String =
-        "PanelAssistantSession(protocol=$protocol, authority=$authority, capabilities=$capabilities, " +
-            "integrationVersion=$integrationVersion, mqttDiscovery=$mqttDiscovery)"
+        "PanelAssistantSession(protocol=$protocol, capabilities=$capabilities, integrationVersion=$integrationVersion)"
 }
 
 /** The key Panel Assistant issued for proving sidebar requests (`hello` result field `embed`). */
@@ -108,7 +100,6 @@ internal sealed interface PanelAssistantSessionEvent {
         val commandId: String,
         val session: String?,
         val op: String,
-        val updateOwner: Boolean,
         val settings: Map<String, String>?,
         val deadlineMs: Long?,
     ) : PanelAssistantSessionEvent
@@ -136,38 +127,20 @@ internal sealed interface PanelAssistantReportResult {
  * so the owner's lifecycle can be tested without a socket.
  */
 internal object PanelAssistantTransportProtocol {
-    // Protocol 4 is protocol 3 on the wire. The range moved when the Kotlin package did (0.9.10), so
-    // a Panel Assistant that knows only the old class names (0.7.0 and earlier) refuses this build
-    // instead of driving components that no longer exist.
-    const val PROTOCOL_MIN = 4
-    const val PROTOCOL_MAX = 4
+    // Protocol 5 is the 1.0 protocol. Panel Assistant offers and installs a build only when its range
+    // overlaps this one, so a Panel Assistant serving protocol 4 at most (0.9.0 and earlier) never
+    // installs this build.
+    const val PROTOCOL_MIN = 5
+    const val PROTOCOL_MAX = 5
     const val COMMAND_HELLO = "panel_assistant/hello"
     const val COMMAND_REPORT_STATE = "panel_assistant/report_state"
     const val COMMAND_COMMAND_RESULT = "panel_assistant/command_result"
     const val COMMAND_RESTART_NOTICE = "panel_assistant/restart_notice"
     const val COMMAND_REPORT_EVENT = "panel_assistant/report_event"
 
-    const val AUTHORITY_MQTT = "mqtt"
-    const val AUTHORITY_SHADOW = "shadow"
-    const val AUTHORITY_NATIVE = "native"
-    val AUTHORITIES: Set<String> = setOf(AUTHORITY_MQTT, AUTHORITY_SHADOW, AUTHORITY_NATIVE)
-
-    /** The panel's MQTT discovery entities are removed from Home Assistant and stay removed. */
-    const val MQTT_DISCOVERY_WITHDRAW = "withdraw"
-    /** The panel announces its MQTT discovery entities as it always has. */
-    const val MQTT_DISCOVERY_ANNOUNCE = "announce"
-    val MQTT_DISCOVERY_VALUES: Set<String> = setOf(MQTT_DISCOVERY_WITHDRAW, MQTT_DISCOVERY_ANNOUNCE)
-
     const val CAPABILITY_STATE = "state"
     const val CAPABILITY_COMMANDS = "commands"
     const val CAPABILITY_APPROVAL = "approval"
-
-    /**
-     * Offered in every hello: this panel can withdraw its MQTT discovery entities when the integration
-     * claims them. Granting it makes the reply's `mqtt_discovery` required and binding. Migration
-     * scaffolding for moving entities off MQTT; it is deleted with MQTT.
-     */
-    const val CAPABILITY_MQTT_WITHDRAW = "mqtt_withdraw"
 
     /**
      * This panel verifies Panel Assistant's sidebar request proofs. Granting it makes the reply's `embed` key
@@ -226,25 +199,20 @@ internal object PanelAssistantTransportProtocol {
     const val CODE_INVALID_FORMAT = "invalid_format"
     const val CODE_SESSION_UNKNOWN = "session_unknown"
 
-    /**
-     * The entry that held this panel was removed, so nothing holds its entities any more and the panel
-     * hands them back to MQTT. Migration scaffolding; it is deleted with MQTT.
-     */
+    /** The entry that held this panel was removed; the panel retries slowly until it is added again. */
     const val CODE_ENTRY_REMOVED = "entry_removed"
 
     const val REASON_SUPERSEDED = "superseded"
 
     /**
-     * Capabilities a fully wired build serves: state reporting, commands with panel-side approval, and the
-     * MQTT discovery withdrawal. It reports no events, and advertising a capability it cannot serve would
-     * leave the integration waiting.
+     * Capabilities a fully wired build serves. Advertising a capability it cannot serve would leave the
+     * integration waiting.
      */
     val CAPABILITIES: List<String> =
         listOf(
             CAPABILITY_STATE,
             CAPABILITY_COMMANDS,
             CAPABILITY_APPROVAL,
-            CAPABILITY_MQTT_WITHDRAW,
             CAPABILITY_EMBED_PROOF,
             CAPABILITY_VOICE,
             CAPABILITY_MEDIA,
@@ -258,7 +226,7 @@ internal object PanelAssistantTransportProtocol {
      * text, so a change to the handshake vocabulary changes the digest the integration records.
      */
     internal const val CANONICAL_CONTRACT: String =
-        """{"protocol":{"min":3,"max":3},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop"],"capabilities":["state","commands","approval","mqtt_withdraw","embed_proof","voice","media","voice_stream_session","management"]}"""
+        """{"protocol":{"min":5,"max":5},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop"],"capabilities":["state","commands","approval","embed_proof","voice","media","voice_stream_session","management"]}"""
 
     val CONTRACT_DIGEST: String = MessageDigest.getInstance("SHA-256")
         .digest(CANONICAL_CONTRACT.toByteArray(Charsets.UTF_8))
@@ -414,8 +382,6 @@ internal object PanelAssistantTransportProtocol {
         if (token.isNullOrEmpty() || token.length > MAX_SESSION_TOKEN_CHARS) {
             throw PanelAssistantProtocolException("hello result has no usable session")
         }
-        val authority = (result.opt("authority") as? String)?.takeIf(CODE::matches)
-            ?: throw PanelAssistantProtocolException("hello result has no authority")
         val capabilityArray = result.optJSONArray("capabilities")
             ?: throw PanelAssistantProtocolException("hello result has no capabilities")
         if (capabilityArray.length() > MAX_CAPABILITIES) {
@@ -431,15 +397,6 @@ internal object PanelAssistantTransportProtocol {
         val integrationVersion = (result.optJSONObject("integration")?.opt("version") as? String)
             ?.takeIf(VERSION::matches)
             ?: throw PanelAssistantProtocolException("hello result has no integration version")
-        // The claim is negotiated, never inferred from a missing field. Granting mqtt_withdraw makes it
-        // required, so a reply without a valid value is a protocol failure the owner retries; without the
-        // grant, as from an integration that predates it, the field is ignored whatever it says.
-        val mqttDiscovery = if (CAPABILITY_MQTT_WITHDRAW in capabilities) {
-            (result.opt("mqtt_discovery") as? String)?.takeIf { it in MQTT_DISCOVERY_VALUES }
-                ?: throw PanelAssistantProtocolException("hello result grants mqtt_withdraw without a discovery claim")
-        } else {
-            null
-        }
         val embed = if (CAPABILITY_EMBED_PROOF in capabilities) {
             embedGrant(result.optJSONObject("embed"))
                 ?: throw PanelAssistantProtocolException("hello result grants embed_proof without a usable key")
@@ -453,32 +410,13 @@ internal object PanelAssistantTransportProtocol {
             null
         }
         return PanelAssistantHelloOutcome.Accepted(
-            PanelAssistantSession(protocol, token, authority, capabilities, integrationVersion, mqttDiscovery, embed,
+            PanelAssistantSession(protocol, token, capabilities, integrationVersion, embed,
                 io.panelassistant.android.HaConnectionAdvertisement.parse(result.optJSONObject("connection")),
                 lifecycleNotice(result.optJSONObject("lifecycle")),
                 updatePolicy(result, protocol),
                 voiceStream,
                 (result.opt("entry_id") as? String)?.takeIf(ENTRY_ID::matches)),
         )
-    }
-
-    /**
-     * What the panel's MQTT discovery does after accepting [session], given the [persisted] value from the
-     * last session (empty before any). The release is unconditional: any authority but `native` announces,
-     * whatever the reply says. Under `native` the rule is keyed on the `mqtt_withdraw` grant, never on
-     * whether the field is present: granted, the reply's claim is taken as sent; not granted, as by an
-     * integration that predates it, the persisted value is kept, because the registry entries of a panel
-     * that has withdrawn belong to the integration and announcing them again would duplicate every entity.
-     * A panel that never persisted anything announces. Migration scaffolding; it is deleted with MQTT.
-     */
-    fun mqttDiscovery(session: PanelAssistantSession, persisted: String): String {
-        val claim = session.mqttDiscovery
-        return when {
-            session.authority != AUTHORITY_NATIVE -> MQTT_DISCOVERY_ANNOUNCE
-            CAPABILITY_MQTT_WITHDRAW in session.capabilities && claim != null -> claim
-            persisted in MQTT_DISCOVERY_VALUES -> persisted
-            else -> MQTT_DISCOVERY_ANNOUNCE
-        }
     }
 
     private fun embedGrant(embed: JSONObject?): PanelAssistantEmbedGrant? {
@@ -571,7 +509,6 @@ internal object PanelAssistantTransportProtocol {
             commandId = commandId,
             session = event.opt("session") as? String,
             op = (event.opt("op") as? String)?.takeIf(CODE::matches).orEmpty(),
-            updateOwner = event.opt("update_owner") == true,
             settings = settings,
             deadlineMs = deadline(event),
         )

@@ -98,14 +98,13 @@
           "version": "0.9.8-rc2"
         },
         "protocol": {
-          "min": 4,
-          "max": 4
+          "min": 5,
+          "max": 5
         },
         "capabilities": [
           "state",
           "commands",
           "approval",
-          "mqtt_withdraw",
           "embed_proof",
           "voice",
           "media",
@@ -139,7 +138,7 @@
           "family": "relay",
           "force_update": false
         }],
-        "contract_digest": "17d41206370d87f19f93ba14005e52f41b23dd80f22780c200fa11594a35ae1d",
+        "contract_digest": "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
         "id": 1,
         "type": "panel_assistant/hello",
         "did": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -193,7 +192,7 @@
       }
     }
   ],
-  "sourceRevision": "88b99a5eed540107c2e82142b04056c9491130cf",
+  "sourceRevision": "b76fdaf723ff89397b98a2bda57ac78138296acb",
   "channelDescriptors": [
     {
       "entity_category": "config",

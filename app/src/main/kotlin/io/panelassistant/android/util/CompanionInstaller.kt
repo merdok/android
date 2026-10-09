@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
  * HA Companion app installer / updater. The panels have no Play Store, so the **minimal**
  * Companion never auto-updates — ha-paneld is the only update path. Self-heals a missing or
  * out-of-date Companion via the shared [AppInstaller] (pinned signer + package allowlist). Leaves a
- * Play-managed *full* Companion alone. Network + su — call OFF the main / MQTT thread.
+ * Play-managed *full* Companion alone. Network + su — call OFF the main / command thread.
  */
 object CompanionInstaller {
     const val FULL_PKG = "io.homeassistant.companion.android"

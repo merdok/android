@@ -1,4 +1,4 @@
-package io.panelassistant.android.mqtt
+package io.panelassistant.android.state
 
 import io.panelassistant.android.state.SyncLog
 import io.panelassistant.android.state.SyncGate

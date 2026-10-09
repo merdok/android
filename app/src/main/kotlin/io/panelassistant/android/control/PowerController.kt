@@ -10,7 +10,7 @@ import android.util.Log
  *  - a `PARTIAL_WAKE_LOCK` so the SoC never Doze/suspends (the screen is still free to sleep), and
  *  - a **Wi-Fi lock** (`WIFI_MODE_FULL_HIGH_PERF`) so the Wi-Fi radio never enters power-save.
  *
- * Both matter for the 2026-07-01 fleet stall: without the wakelock, suspend freezes the MQTT reactor +
+ * Both matter for the 2026-07-01 fleet stall: without the wakelock, suspend freezes the network reactor +
  * keepalive; without the Wi-Fi lock, the radio's power-save stalls idle traffic — the leading cause of
  * the PX30/Android-8.1 panels' idle-TCP-over-IPv6 timeouts (ICMPv6 stayed fine; only sustained TCP
  * died). A partial wakelock does NOT keep the radio awake, so the Wi-Fi lock is a separate, necessary

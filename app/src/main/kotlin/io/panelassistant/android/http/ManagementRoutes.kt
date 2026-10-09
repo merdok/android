@@ -1,7 +1,6 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.storage.StorageHealthSnapshot
-import io.panelassistant.android.util.PanelAssistantUpdateLease
 import io.ktor.http.ContentType
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
@@ -15,7 +14,6 @@ import kotlinx.coroutines.withContext
 internal fun Route.managementRoutes(
     diagnostics: () -> String,
     status: (StorageHealthSnapshot, String?, Boolean) -> String,
-    onUpdateOwner: () -> Unit,
     admitActiveRead: suspend (ApplicationCall) -> Boolean,
     refreshUpdates: suspend () -> Unit,
     refreshStorage: suspend () -> StorageHealthSnapshot?,
@@ -31,10 +29,6 @@ internal fun Route.managementRoutes(
     // variant's Install/health section client-side. ?refresh=1 forces both the GitHub
     // update check and a serialized SQLite observation for this exact response.
     get("/status") {
-        // Only the exact agreed value counts; it hides one MQTT entity and grants nothing.
-        if (PanelAssistantUpdateLease.declares(call.request.headers[PanelAssistantUpdateLease.HEADER])) {
-            onUpdateOwner()
-        }
         val updateRefreshRequested = call.request.queryParameters["refresh"] == "1"
         val homeProofRequested = call.request.queryParameters["home_proof"] == "1"
         val observationNonce = call.request.queryParameters["database_observation_nonce"]

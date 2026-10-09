@@ -146,7 +146,7 @@ class LiveSettingHandlerBindingTest {
         assertEquals(emptyList<Invocation>(), invocations)
     }
 
-    @Test fun `admitted MQTT topic leaves resolve to their exact registry owner keys`() {
+    @Test fun `admitted external command channels resolve to their exact registry owner keys`() {
         val panel = "contract-panel"
         val expected = linkedMapOf(
             "cpu_governor" to "cpu_governor",
@@ -180,13 +180,13 @@ class LiveSettingHandlerBindingTest {
         assertEquals(emptyList<Invocation>(), invocations)
     }
 
-    @Test fun `HTTP-only and publish-only live owners are rejected from external MQTT admission`() {
+    @Test fun `HTTP-only and publish-only live owners are rejected from external command admission`() {
         val panel = "contract-panel"
         val admitted = externalLiveSettingOwners.values.toSet()
         val rejected = LiveSettingEffectOwner.settingKeys - admitted
         val expectedRejected = setOf(
             "auto_sleep_source",
-            // The voice assistant is a Home Assistant satellite, never an MQTT switch.
+            // The voice assistant is a Home Assistant satellite, never an external command switch.
             "voice_enabled",
             "auto_brightness_minimum_percent",
             "auto_brightness_maximum_percent",

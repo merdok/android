@@ -83,7 +83,7 @@ class HomeDashboardSpecTest {
     }
 
     @Test fun `the shapes a command path used to coerce are canonicalized or refused, never rewritten`() {
-        // MQTT persisted through a weaker conversion than the API's, so these two shapes could be
+        // The external path persisted through a weaker conversion than the API's, so these two shapes could be
         // retained in a form the renderer and Configure then disagreed about. One authority now decides:
         // a trailing slash is canonicalized away, and traversal is refused outright rather than flattened
         // into some other dashboard's route.

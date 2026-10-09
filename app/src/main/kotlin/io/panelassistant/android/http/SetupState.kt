@@ -23,11 +23,9 @@ internal class SetupState(
     private val entityLearning: EntityLearningManager,
     private val profile: DeviceProfile,
     private val appContext: Context,
-    private val mqttState: () -> String,
     private val haOAuthPending: () -> Int,
     private val lastHaDiscovery: () -> DiscoveryResult,
     private val webViewTooOldOnce: () -> Boolean,
-    private val panelAssistantNative: () -> Boolean,
     private val effectiveDashboardIsBuiltin: () -> Boolean,
     private val scope: CoroutineScope,
     private val rendererPreparation: RendererPreparationCoordinator,
@@ -100,27 +98,9 @@ internal class SetupState(
     /** Whether setup is waiting on a person — the one gate every first-run affordance shares. */
     fun setupNeedsUser(): Boolean = SetupJourney.evaluate(setupJourneyInputs()).needsUser
 
-    /**
-     * Whether setup genuinely still owes the user a dashboard/renderer step.
-     *
-     * The MQTT progress banner may only promise "the dashboard setup step appears next" when that is true.
-     * Every MQTT reconnect re-announces discovery, including the one after an ordinary upgrade, so without
-     * this a fully configured panel was promised a step that did not exist. Derived from the journey's
-     * RENDERER stage rather than from `dashboard_package` directly, so a blocked renderer — an uninstalled
-     * foreign app, or an engine too old to render — still counts as outstanding, which it is.
-     */
-    fun dashboardSetupStepPending(): Boolean =
-        SetupJourney.evaluate(setupJourneyInputs()).step(SetupJourney.Stage.RENDERER).status !=
-            SetupJourney.Status.SATISFIED
-
     /** Page shells and liveness use only persisted/non-privileged controller state. */
     /**
      * Live inputs for [SetupJourney], all read from memory.
-     *
-     * The MQTT state arrives as its canonical token rather than the info page's prose. Mapping prose back
-     * to a state would reintroduce exactly the two-vocabulary drift the adapter exists to remove, and its
-     * failure mode is invisible: an unrecognised string reads as "still connecting", so guidance silently
-     * stops and the user waits forever.
      *
      * The renderer snapshot uses the same resolver the launcher does, so what setup reports and what the
      * panel actually opens cannot disagree.
@@ -154,7 +134,7 @@ internal class SetupState(
             else -> SetupJourney.RenderProof()
         }
         // The pre-existing-install inference is only valid BEFORE guided setup has begun. The wizard
-        // itself writes a broker at step 2, so inferring "upgraded install" from durable config alone
+        // itself writes configuration as it goes, so inferring "upgraded install" from durable config alone
         // force-satisfied the later question stages MID-JOURNEY: on the first hardware walk the journey
         // reported complete the instant the HA token committed, the sign-in callback sent the browser to
         // Configure, the dashboard and filter pages never showed, and the panel deadlocked on its hold
@@ -168,14 +148,7 @@ internal class SetupState(
         return SetupJourney.Inputs(
             identityConfirmed = config.setupIdentityConfirmed || panelConfiguredBeforeSetupTracking(),
             panelId = config.panelId,
-            brokerConfigured = config.mqttBroker.isNotBlank(),
-            mqttUserConfigured = config.mqttUser.isNotBlank(),
-            mqttPasswordConfigured = config.mqttPassword.isNotEmpty(),
-            mqtt = SetupJourney.MqttSetupState.of(mqttState()),
             renderer = renderer,
-            // A handed-over panel is joining Panel Assistant, which grants native authority only after this
-            // setup completes; waiting for that grant before dropping the broker step deadlocked first run.
-            panelAssistantNative = panelAssistantNative() || config.haSetupHandover,
             haUrl = config.haUrl,
             haCredentialed = config.haToken.isNotBlank() || config.haRefreshToken.isNotBlank(),
             haOAuthInFlight = haOAuthPending() > 0,
@@ -250,7 +223,7 @@ internal class SetupState(
      * it would drag a finished journey back to step one. Found immediately on the first canary deploy: an
      * established panel reported `next: identity` while its real gap was a missing Home Assistant login.
      *
-     * Durable configuration is the evidence. A broker, a Home Assistant URL or an explicit renderer can
+     * Durable configuration is the evidence. A Home Assistant URL or an explicit renderer can
      * only be present because somebody configured this panel, and a genuinely fresh install has none of
      * them — so an upgrade infers the consent it could not have recorded, while a new panel still asks.
      * Read-only by design: a GET must not write, and the inference is stable enough not to need storing.
@@ -268,7 +241,7 @@ internal class SetupState(
         io.panelassistant.android.panelConfiguredBeforeSetupTracking(
             haUrl = config.haUrl,
             haSetupHandover = config.haSetupHandover,
-            otherEvidence = config.mqttBroker.isNotBlank() || config.dashboardPackage.isNotBlank(),
+            otherEvidence = config.dashboardPackage.isNotBlank(),
         )
 
     /**

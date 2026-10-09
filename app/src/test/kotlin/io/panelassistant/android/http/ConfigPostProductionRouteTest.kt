@@ -53,6 +53,7 @@ import org.json.JSONArray
 import org.junit.Test
 import sun.misc.Unsafe
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ConfigPostProductionRouteTest {
@@ -142,16 +143,17 @@ class ConfigPostProductionRouteTest {
 
     @Test fun `full mount config reads redact secrets preserve source separation and localize schema`() =
         withFullReadServer { config, fixture ->
-            config.setMqtt("", "reader", "private-test-password")
+            config.setHaConnection("http://ha.test", "private-test-password")
             setField(fixture.server, "configLiveValues", { mapOf("keep_awake" to "false") })
             testApplication {
                 application { fixture.mount(this) }
                 val response = client.get("/api/v1/config")
                 assertEquals(HttpStatusCode.OK, response.status)
                 assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
-                val body = JSONObject(response.bodyAsText())
-                assertTrue(body.getBoolean("mqtt_password_set"))
-                assertEquals("", body.getJSONObject("settings").getString("mqtt_password"))
+                val text = response.bodyAsText()
+                val body = JSONObject(text)
+                assertFalse(text.contains("private-test-password"), "a credential is never read back")
+                assertEquals("", body.getJSONObject("settings").getString("ha_token"))
                 assertEquals(config.keepAwake, body.getJSONObject("settings").getBoolean("keep_awake"))
                 val exported = ConfigBundle.parse(client.get("/api/v1/config/export").bodyAsText())!!
                 assertEquals("false", exported.values["keep_awake"])
@@ -194,7 +196,7 @@ class ConfigPostProductionRouteTest {
             var discoveries = 0
             setField(fixture.server, "configDiscoverySuggestions", {
                 discoveries++
-                ConfigDiscoverySuggestions(mqttBroker = "mqtt.test", haUrl = "http://ha.test")
+                ConfigDiscoverySuggestions(haUrl = "http://ha.test")
             })
             testApplication {
                 application { fixture.mount(this) }
@@ -205,14 +207,11 @@ class ConfigPostProductionRouteTest {
                 assertEquals(0, dashboards.getJSONArray("items").length())
                 assertEquals(false, dashboards.getJSONObject("default").getBoolean("explicit"))
                 val found = JSONObject(client.get("/api/v1/config/discovery").bodyAsText())
-                assertEquals("mqtt.test", found.getString("mqtt_broker"))
+                assertEquals(setOf("ha_url"), found.keys().asSequence().toSet())
                 assertEquals("http://ha.test", found.getString("ha_url"))
-                assertEquals("", config.mqttBroker)
                 assertEquals("", config.haUrl)
-                config.setMqtt("configured.test", "", "")
                 config.setHaConnection("http://configured.test", null)
                 val configured = JSONObject(client.get("/api/v1/config/discovery").bodyAsText())
-                assertEquals("", configured.getString("mqtt_broker"))
                 assertEquals("", configured.getString("ha_url"))
                 assertEquals(1, discoveries)
             }
@@ -258,8 +257,8 @@ class ConfigPostProductionRouteTest {
 
     @Test fun `production bundle import exports redacted values and revision restore undoes the commit`() =
         withRouteConfig { config, _, server, _ ->
-            assertTrue(config.applyBatch { config.setMqtt("", "test-user", "private-test-value") })
-            config.setHaExposed("camera_enabled", true)
+            config.setHaConnection("http://ha.test", "private-test-value")
+            config.setHaExposed("touch_sound", true)
             testApplication {
                 application {
                     paneldRoot({ emptySet() }, { false }, { "/setup" }) {
@@ -270,27 +269,26 @@ class ConfigPostProductionRouteTest {
                 assertEquals(HttpStatusCode.OK, exported.status)
                 val bundle = requireNotNull(ConfigBundle.parse(exported.bodyAsText()))
                 assertEquals("Contract panel", bundle.values["friendly_name"])
-                assertTrue("mqtt_password" !in bundle.values)
-                assertEquals("true", bundle.values["ha_expose_camera_enabled"])
-                assertEquals(null, SettingsRegistry.parseExposure("ha_expose_camera_enabled"))
+                assertTrue("ha_token" !in bundle.values)
+                assertEquals("true", bundle.values["ha_expose_touch_sound"])
                 val imported = client.post("/api/v1/config/import") {
                     header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     setBody(ConfigBundle.fromValues(mapOf(
-                        "friendly_name" to "Imported panel", "ha_expose_camera_enabled" to "false",
+                        "friendly_name" to "Imported panel", "ha_expose_touch_sound" to "false",
                     )).serialize())
                 }
                 assertEquals(HttpStatusCode.OK, imported.status, imported.bodyAsText())
                 assertEquals("applied", JSONObject(imported.bodyAsText()).getString("status"))
                 assertEquals("Imported panel", config.friendlyName)
-                assertEquals(false, config.haExposed("camera_enabled", false))
+                assertEquals(false, config.haExposed("touch_sound", true))
                 val revisions = JSONArray(client.get("/api/v1/config/revisions").bodyAsText())
                 assertEquals(1, revisions.length())
                 val restored = client.post("/api/v1/config/revisions/${revisions.getJSONObject(0).getLong("id")}/restore")
                 assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
                 assertEquals("restored", JSONObject(restored.bodyAsText()).getString("status"))
                 assertEquals("Contract panel", config.friendlyName)
-                assertEquals(true, config.haExposed("camera_enabled", false))
-                assertEquals("test-user", config.mqttUser)
+                assertEquals(true, config.haExposed("touch_sound", false))
+                assertEquals("private-test-value", config.haToken)
                 assertEquals(2, JSONArray(client.get("/api/v1/config/revisions").bodyAsText()).length())
             }
         }
@@ -369,19 +367,17 @@ class ConfigPostProductionRouteTest {
         "webview_auto_update" to "true",
     )
 
-    @Test fun `production backup restores retained camera exposure and ordinary stored values`() =
+    @Test fun `production backup restores exposure choices and ordinary stored values`() =
         withFullReadServer { config, fixture ->
-            config.setHaExposed("camera_enabled", true)
+            config.setHaExposed("touch_sound", false)
             config.setPanelId("retained_panel")
             config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Original panel")
-            config.setMqtt("", "retained-user", "retained-password")
             val panelId = config.panelId
             val builder = fixture.backupBuilder(null, config) { spec, live -> effectiveSettingValue(config, spec, live) }
             builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
                 val manifest = JSONObject(io.panelassistant.android.backup.PanelBackup.readManifest(artifact.file, 1024 * 1024)!!)
-                assertTrue(manifest.getJSONObject("config").has("ha_expose_camera_enabled"))
-                assertEquals("true", manifest.getJSONObject("config").getString("ha_expose_camera_enabled"))
-                config.setHaExposed("camera_enabled", false)
+                assertEquals("false", manifest.getJSONObject("config").getString("ha_expose_touch_sound"))
+                config.setHaExposed("touch_sound", true)
                 config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Changed panel")
                 setField(fixture.server, "applySetting", { _: String, _: String -> LiveSettingRequestOutcome.APPLIED })
                 setField(fixture.server, "onReconfigure", { _: Set<String> -> })
@@ -394,11 +390,59 @@ class ConfigPostProductionRouteTest {
                     }
                     val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                     assertEquals("succeeded", result.getString("status"), result.toString())
-                    assertEquals(true, config.haExposed("camera_enabled", false))
+                    assertEquals(false, config.haExposed("touch_sound", true))
                     assertEquals("Original panel", config.friendlyName)
-                    assertEquals("retained-user", config.mqttUser)
-                    assertEquals("retained-password", config.mqttPassword)
                     assertEquals(panelId, config.panelId)
+                }
+            }
+        }
+
+    @Test fun `a backup written by an MQTT release restores everything but its broker settings`() =
+        withFullReadServer { config, fixture ->
+            config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Original panel")
+            config.setRaw(requireNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY)), "Force IPv4")
+            val builder = fixture.backupBuilder(null, config) { spec, live -> effectiveSettingValue(config, spec, live) }
+            builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
+                // The last MQTT release wrote the same archive at the same schema, plus its broker settings and
+                // whether it was connected.
+                val legacy = Files.createTempFile(artifact.file.parentFile.toPath(), "legacy", ".zip").toFile()
+                java.util.zip.ZipFile(artifact.file).use { source ->
+                    java.util.zip.ZipOutputStream(legacy.outputStream()).use { out ->
+                        source.entries().asSequence().forEach { entry ->
+                            val bytes = source.getInputStream(entry).readBytes()
+                            out.putNextEntry(java.util.zip.ZipEntry(entry.name))
+                            if (entry.name == io.panelassistant.android.backup.PanelBackup.MANIFEST_ENTRY) {
+                                val manifest = JSONObject(String(bytes, Charsets.UTF_8))
+                                manifest.getJSONObject("config")
+                                    .put("mqtt_broker", "tcp://ha.example.test:1883")
+                                    .put("mqtt_user", "ha-paneld")
+                                    .put("mqtt_password", "fixture-password")
+                                manifest.put("mqtt_connected", true)
+                                out.write(manifest.toString().toByteArray(Charsets.UTF_8))
+                            } else {
+                                out.write(bytes)
+                            }
+                            out.closeEntry()
+                        }
+                    }
+                }
+                config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Changed panel")
+                config.setRaw(requireNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY)), "Automatic")
+                setField(fixture.server, "applySetting", { _: String, _: String -> LiveSettingRequestOutcome.APPLIED })
+                setField(fixture.server, "onReconfigure", { _: Set<String> -> })
+                testApplication {
+                    application { fixture.mount(this) }
+                    val restored = client.post("/api/v1/restore") { setBody(legacy.readBytes()) }
+                    assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
+                    kotlinx.coroutines.withTimeout(5_000) {
+                        while (InstallProgress.running) kotlinx.coroutines.delay(10)
+                    }
+                    val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                    assertEquals("succeeded", result.getString("status"), result.toString())
+                    assertEquals("Original panel", config.friendlyName)
+                    assertEquals("Force IPv4", config.addressFamily)
+                    val exported = requireNotNull(ConfigBundle.parse(client.get("/api/v1/config/export").bodyAsText()))
+                    assertTrue(exported.values.keys.none { it.startsWith("mqtt_") }, exported.values.keys.toString())
                 }
             }
         }
