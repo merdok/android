@@ -421,7 +421,7 @@ class StatusSurfaceInstrumentedTest {
                             n.action(activity.getText(R.string.disable_entity_filter)) {},
                             n.action(activity.getText(R.string.open_entity_settings)) {},
                         ),
-                        n.footer(activity.getString(R.string.notice_attention_explanation_remote, "http://192.0.2.123:8888/entities")),
+                        n.footer(activity.getString(R.string.notice_attention_explanation)),
                     ),
                     listOf(
                         n.hero("0:14"),
