@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.0.4
+version: 2.1.0
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -25,10 +25,11 @@ metadata:
     - On-board relays are present at /sys/class/strelay and switch real contacts, but ha-paneld drives relays through its privileged route, so no relay capability is offered on this unprivileged panel.
     - Relay terminals are inert while the panel is powered over USB instead of mains, so any future relay support must state that condition.
     - Evidence comes from one unit, exercised on factory firmware 2.5.4 and again after updating it to 2.7.4. The update is one-way and installs a Shelly device-owner policy, which was measured to leave the launcher, the sensors and the adb posture alone; the vendor launcher is a protected package that cannot be disabled on either firmware.
-    - Screen-off lets Android's own screen timeout turn the display fully off, with no root. Android wakes it on any touch; a wave or approach wakes it through ha-paneld only after proximity has been calibrated on the panel. The firmware keeps the screen on while plugged in, so the full-off route needs Panel Assistant to grant WRITE_SECURE_SETTINGS at install; without that grant screen-off dims to the floor instead.
+    - Screen-off lets Android's own screen timeout turn the display fully off, with no root. The firmware keeps the screen on while plugged in, so the full-off route needs Panel Assistant to grant WRITE_SECURE_SETTINGS at install; without that grant screen-off dims to the floor instead.
+    - The recommended density of 216 renders the dashboard as the factory density of 240 does at a 90 % renderer zoom, the setting chosen on this unit because text was too large at 240.
     - The panel declares camera features that no camera backs; ha-paneld offers the camera only when Android enumerates one, so no suppression is declared here.
 requires:
-  min_core_version: 0.9.5-rc1
+  min_core_version: 0.9.8-rc2
   drivers:
     - screen.screen-timeout
     - sensor.android
@@ -71,6 +72,11 @@ hardware:
   # The backlight sysfs node refuses an unprivileged write, but this route writes
   # Settings.System instead and never touches it.
   screen_off: screen-timeout
+  # From full screen-off, Android wakes on any touch (WAKE_REASON_WAKE_MOTION); a wave wakes it
+  # through ha-paneld once proximity is calibrated. The panel has no button.
+  local_wake:
+    - touch
+    - proximity
   # An ES7202 PDM microphone, the codec the WF1589T uses. Android opens it as a 16 kHz stereo
   # stream and hands the app the mono capture it asks for.
   microphone: true
@@ -87,9 +93,18 @@ identity:
 input:
   evdev_buttons: []
 cpu: {}
-display: {}
+display:
+  geometry:
+    - width_px: 720
+      height_px: 1440
+      active_diagonal_in: 6.95
+      factory_base_dpi: 240
+      evidence: specification
+      evidence_note: Shelly Wall Display X2i specification, 6.95-inch 720x1440, about 232 ppi. The firmware's reported 268.9x302.3 dpi is not the glass.
 provisioning:
   software: {}
-  display: {}
+  display:
+    density: 216
+    font_scale: 1.0
   packages: []
   recipes: []

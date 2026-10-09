@@ -387,6 +387,24 @@ class BundledProfileParityTest {
         }
     }
 
+    /** Density 216 at zoom 100 renders as the factory 240 did at the 90 % zoom chosen on the bench unit. */
+    @Test fun x2iDeclaresItsWakeSourcesSizingAndGlass() {
+        val x2i = bundledById.getValue("shelly-wall-display-x2i").profile()
+        // Measured on the bench unit: any touch wakes it from full-off, a wave once proximity is calibrated.
+        assertEquals(listOf("touch", "proximity"), x2i.document.hardware.localWake)
+        assertEquals(
+            setOf(io.panelassistant.android.device.LocalWake.TOUCH, io.panelassistant.android.device.LocalWake.PROXIMITY),
+            x2i.localWake,
+        )
+        assertEquals(216, x2i.recommendedDensity)
+        assertEquals(1.0f, x2i.recommendedFontScale)
+        val geometry = requireNotNull(x2i.displayGeometry(720, 1440))
+        assertEquals(240, geometry.factoryBaseDpi)
+        val physical = requireNotNull(geometry.physical)
+        assertEquals(231.6, physical.ppi, 0.1)
+        assertEquals(DisplayGeometryEvidence.SPECIFICATION, physical.evidence)
+    }
+
     @Test fun resolverReturnsDataBackedProfilesWithTheExactRawYamlRevision() {
         resolutionMatrix().forEach { fixture ->
             val resolved = resolve(fixture.facts)
@@ -965,7 +983,7 @@ class BundledProfileParityTest {
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
             "shelly-wall-display-v2.yaml" to "f005b3abd13716930955456c058b891f76c30dbdd31e6e1a1fb022f2d41a3e85",
-            "shelly-wall-display-x2i.yaml" to "0dea2dbe63bf38544298a39feed2f2a79f1061b8198dadcd0f844131697debe4",
+            "shelly-wall-display-x2i.yaml" to "904960f5686388c6adf008c4de69e441c2c0837f9c23a24346db98fa49cdb77c",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",
             "tpa10.yaml" to "077ff9cb33f483e6497c149d2dc01ba6db49d85f4c4ac0965d7087a58577aa3a",
