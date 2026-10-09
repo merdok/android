@@ -26,6 +26,8 @@ internal fun Route.displayRoutes(
     densityCache: Cached<DisplaySizingObservation>,
     recommendedDensity: Int?,
     recommendedFontScale: Float?,
+    /** Whether a su or helper route can apply sizing here: the Install card's sizing readiness. */
+    privilegedSizing: () -> Boolean,
     requestStrings: (ApplicationCall) -> Strings,
     snapInvalidate: () -> Unit,
     authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
@@ -46,7 +48,10 @@ internal fun Route.displayRoutes(
         }
         val profiled = profile.displayGeometry(observation.physicalWidthPx, observation.physicalHeightPx)
         call.respondText(
-            DisplayGeometryReport.json(observation, profiled, recommendedDensity).toString(),
+            DisplayGeometryReport.json(
+                observation, profiled, recommendedDensity, recommendedFontScale,
+                privilegedSizing = withContext(Dispatchers.IO) { privilegedSizing() },
+            ).toString(),
             ContentType.Application.Json,
         )
     }

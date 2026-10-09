@@ -46,7 +46,18 @@ internal object DisplayGeometryReport {
         null
     }
 
-    fun json(observation: DisplayObservation, profiled: ProfiledDisplayGeometry?, recommendedDpi: Int?): JSONObject {
+    /**
+     * [recommendedFontScale] joins [recommendedDpi] as the profile's sizing recommendation, which Panel
+     * Assistant applies at install; [privilegedSizing] says whether this panel can apply sizing itself
+     * (the readiness that unlocks the Install card's sizing controls).
+     */
+    fun json(
+        observation: DisplayObservation,
+        profiled: ProfiledDisplayGeometry?,
+        recommendedDpi: Int?,
+        recommendedFontScale: Float? = null,
+        privilegedSizing: Boolean = false,
+    ): JSONObject {
         val result = JSONObject()
             .put(
                 "physical_pixels",
@@ -74,6 +85,14 @@ internal object DisplayGeometryReport {
                 .putOpt("current", observation.currentDpi)
                 .putOpt("recommended", recommendedDpi),
         )
+        result.put(
+            "recommended",
+            JSONObject()
+                .put("density", recommendedDpi ?: JSONObject.NULL)
+                // Through its decimal text, so 1.1f is written as 1.1 rather than 1.100000023841858.
+                .put("font_scale", recommendedFontScale?.toString()?.toDouble() ?: JSONObject.NULL),
+        )
+        result.put("privileged_sizing", privilegedSizing)
         observation.currentDpi?.let { dpi ->
             val scale = dpi / DisplayMetrics.DENSITY_DEFAULT.toDouble()
             result.put(

@@ -23,12 +23,46 @@ class DisplayGeometryReportTest {
     )
 
     /** The same route composition the server uses: resolve by physical mode, then render. */
-    private fun report(observation: DisplayObservation, profile: io.panelassistant.android.device.DeviceProfile): JSONObject =
+    private fun report(
+        observation: DisplayObservation,
+        profile: io.panelassistant.android.device.DeviceProfile,
+        privilegedSizing: Boolean = false,
+    ): JSONObject =
         DisplayGeometryReport.json(
             observation,
             profile.displayGeometry(observation.physicalWidthPx, observation.physicalHeightPx),
             profile.recommendedDensity,
+            profile.recommendedFontScale,
+            privilegedSizing,
         )
+
+    /** Panel Assistant applies the recommendation at install, and needs to know whether the panel can size itself. */
+    @Test fun reportCarriesTheProfileRecommendationAndPrivilegedSizing() {
+        val x2i = BundledProfileFixtures.bundledById.getValue("shelly-wall-display-x2i").profile()
+        val json = report(observation(720, 1440, 240, factoryBaseDpi = 240), x2i)
+        val recommended = json.obj("recommended")
+        assertEquals(216, recommended.int("density"))
+        assertEquals(1.0, recommended.getDouble("font_scale"), 0.0)
+        assertEquals(setOf("density", "font_scale"), recommended.keys().asSequence().toSet())
+        assertFalse(json.getBoolean("privileged_sizing"))
+        assertTrue(report(observation(720, 1440, 240), x2i, privilegedSizing = true).getBoolean("privileged_sizing"))
+        // The X2i declares its glass: 6.95 in over 720x1440, not the firmware's reported dpi.
+        assertEquals(231.7, json.obj("physical_size").getDouble("ppi"), 0.0)
+
+        // A strategy resolves to the integer it means for this panel.
+        val nspanel120 = BundledProfileFixtures.bundledById.getValue("nspanel-pro").profile("NSPanel120P_1.1.7")
+        assertEquals(250, report(observation(750, 1334, 250), nspanel120).obj("recommended").int("density"))
+        assertEquals(160, report(observation(480, 480, 160), nspanel).obj("recommended").int("density"))
+
+        // No recommendation is null, not absent and not zero.
+        val generic = report(observation(1280, 800, 160), BundledProfileFixtures.bundledById.getValue("generic").profile())
+        val none = generic.obj("recommended")
+        assertTrue(none.isNull("density"))
+        assertTrue(none.isNull("font_scale"))
+        val schema = JSONObject(TestSources.appFile("src/main/assets/openapi.json").readText())
+            .getJSONObject("components").getJSONObject("schemas").getJSONObject("DisplayGeometry")
+        assertConforms("DisplayGeometry", schema, generic)
+    }
 
     @Test fun changingRenderingDpiCannotMovePhysicalDiagonalOrPpi() {
         listOf(
@@ -121,6 +155,10 @@ class DisplayGeometryReportTest {
             assertTrue("$path.$key is not documented", properties.has(key))
             val property = properties.getJSONObject(key)
             val item = value.get(key)
+            if (item == JSONObject.NULL) {
+                assertTrue("$path.$key is null but not nullable", property.optBoolean("nullable"))
+                return@forEach
+            }
             when (property.optString("type")) {
                 "object" -> assertConforms("$path.$key", property, item as JSONObject)
                 "integer" -> assertTrue("$path.$key is not an integer", item is Int)

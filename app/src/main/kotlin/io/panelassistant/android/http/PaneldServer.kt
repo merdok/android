@@ -570,6 +570,7 @@ class PaneldServer internal constructor(
                     }
                     displayRoutes(
                         appContext, profile, density, managementObservations.densityCache, recommendedDensity, recommendedFontScale,
+                        privilegedSizing = { managementObservations.snapStaleOk().privilege.rootControlReady },
                         requestStrings = ::requestStrings,
                         snapInvalidate = ::snapInvalidate,
                         authorizeSensitive = ::authorizeSensitive,

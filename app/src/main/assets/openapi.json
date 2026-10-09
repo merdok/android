@@ -22,7 +22,7 @@
         "description": "The panel's physical display and its logical rendering density, kept separate. Logical DPI is a rendering setting, never measured pixel density; physical_size is omitted whenever no trustworthy profile evidence selects this panel.",
         "type": "object",
         "additionalProperties": false,
-        "required": ["physical_pixels", "logical_dpi"],
+        "required": ["physical_pixels", "logical_dpi", "recommended", "privileged_sizing"],
         "properties": {
           "physical_pixels": {
             "description": "The physical display mode, unaffected by any wm size or wm density override.",
@@ -68,7 +68,18 @@
               "height": { "type": "number" },
               "density_scale": { "type": "number", "description": "current logical DPI / 160." }
             }
-          }
+          },
+          "recommended": {
+            "description": "The profile's sizing recommendation for this panel, which Panel Assistant applies at install. A value is null when the profile recommends none or its strategy cannot resolve for this panel.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["density", "font_scale"],
+            "properties": {
+              "density": { "type": "integer", "nullable": true, "description": "Recommended logical DPI (wm density)." },
+              "font_scale": { "type": "number", "nullable": true, "description": "Recommended Android font scale." }
+            }
+          },
+          "privileged_sizing": { "type": "boolean", "description": "True when a su or root-helper route can apply display sizing on this panel itself, the readiness that unlocks the Install card's sizing controls." }
         }
       },
       "ProfileRef": {
