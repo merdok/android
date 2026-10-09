@@ -116,6 +116,12 @@ data class ProfileHardware(
     val led: ProfileLed,
     val screenOff: String,
     val hasButtonBacklight: Boolean = false,
+    /**
+     * How a fully dark panel wakes locally (`hardware.local_wake`): values from touch, proximity and
+     * button. Null (the key absent) is undeclared and unknown; an empty list declares that only Home
+     * Assistant wakes it. A platform property, declared rather than probed.
+     */
+    val localWake: List<String>? = null,
     val zigbeeGatewayDir: String? = null,
     val relayBase: String? = null,
     val relayBaseFallbacks: List<String> = emptyList(),

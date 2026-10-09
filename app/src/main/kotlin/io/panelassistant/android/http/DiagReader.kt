@@ -13,6 +13,7 @@ import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.i18n.CatalogueText
 import io.panelassistant.android.i18n.Strings as AppStrings
 import io.panelassistant.android.device.LedMechanism
+import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.hardware.NativeLed
 import io.panelassistant.android.input.ButtonCaptureHealth
@@ -121,6 +122,7 @@ object DiagReader {
                     deviceSecure = android?.isDeviceSecure() == true,
                     stayOnDefeatsTimeout = android != null &&
                         android.stayOnWhilePluggedInMask() > 0 && !android.canWriteSecureSettings(),
+                    localWake = profile.localWake,
                 )
             },
             if (showLed) rgbLedCapability(rkLed, ledProbe, daemonLed) else null,
@@ -227,15 +229,18 @@ object DiagReader {
         deviceSecure: Boolean = false,
         /** `stay_on_while_plugged_in` is set and the app cannot clear it, so the timeout cannot sleep. */
         stayOnDefeatsTimeout: Boolean = false,
+        /** The profile's `hardware.local_wake`; null keeps the generic wake wording. */
+        localWake: Set<LocalWake>? = null,
     ): Cap {
+        val sleepNote = { id: String -> localWake?.let { note("${id}_wake", "wake" to localWakeNote(it)) } ?: note(id) }
         val dimOnly = { why: String -> Cap("screen_power", "degraded", note("dim_only", "reason" to note(why))) }
         val androidSleep = { id: String ->
-            Cap("screen_power", "ok", if (deviceSecure) note("pin_on_wake", "route" to note(id)) else note(id))
+            Cap("screen_power", "ok", if (deviceSecure) note("pin_on_wake", "route" to sleepNote(id)) else sleepNote(id))
         }
         val blPower = { viaSu: Boolean -> Cap("screen_power", "ok", note(if (viaSu) "backlight_off_su" else "backlight_off_helper")) }
         return when (route) {
             ScreenOff.KEYEVENT ->
-                if (daemon || su) Cap("screen_power", "ok", note("android_sleep"))
+                if (daemon || su) Cap("screen_power", "ok", sleepNote("android_sleep"))
                 else dimOnly("dim_keycode_sleep")
             // Not a privilege problem, so do not offer su or the helper as the remedy: this panel's
             // profile selects brightness zero, and only a different profile route changes it.
@@ -251,6 +256,13 @@ object DiagReader {
                 if (deviceAdminActive) androidSleep("device_admin_lock") else dimOnly("dim_android_sleep_grant")
         }
     }
+
+    /** Each declared local wake source as one clause, ending with Home Assistant, which always wakes it. */
+    private fun localWakeNote(sources: Set<LocalWake>): CatalogueText =
+        if (sources.isEmpty()) note("wake_home_assistant_only")
+        else sources.sortedBy { it.ordinal }.foldRight(note("wake_home_assistant_always")) { source, then ->
+            note("wake_${source.yamlName}", "then" to then)
+        }
 
     private fun daemonRequirement(profile: DeviceProfile, running: Boolean): CatalogueText = note(
         "daemon_state",

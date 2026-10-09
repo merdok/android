@@ -152,6 +152,10 @@ interface DeviceProfile {
     /** Preferred true-screen-off path (runtime tiering still falls back as needed). */
     val screenOff: ScreenOff
 
+    /** How a fully dark panel can be woken locally, as the profile declares it (`hardware.local_wake`).
+     *  Null is undeclared (unknown); empty means only Home Assistant wakes it. */
+    val localWake: Set<LocalWake>? get() = null
+
     /** Sonoff Zigbee gateway dir, or null if the panel has no managed Zigbee gateway. */
     val zigbeeGatewayDir: String?
 
@@ -348,6 +352,25 @@ enum class ScreenOff(val yamlName: String) {
     companion object {
         /** The one list of accepted `hardware.screen_off` names; null for anything else. */
         fun ofYaml(name: String): ScreenOff? = entries.firstOrNull { it.yamlName == name }
+    }
+}
+
+/**
+ * A local way to wake a panel whose display is fully off (`hardware.local_wake`).
+ *
+ * [TOUCH]: any touch wakes it, because the touchscreen is a platform wake source. [PROXIMITY]: the app
+ * wakes it on a wave once proximity has been calibrated on the panel. [BUTTON]: a hardware button wakes it.
+ * Home Assistant can always wake it, so it is never listed.
+ */
+enum class LocalWake(val yamlName: String) {
+    TOUCH("touch"),
+    PROXIMITY("proximity"),
+    BUTTON("button"),
+    ;
+
+    companion object {
+        /** The one list of accepted `hardware.local_wake` values; null for anything else. */
+        fun ofYaml(name: String): LocalWake? = entries.firstOrNull { it.yamlName == name }
     }
 }
 

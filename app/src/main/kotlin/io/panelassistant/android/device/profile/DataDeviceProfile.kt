@@ -4,6 +4,7 @@ import io.panelassistant.android.device.BacklightRoute
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.device.EvdevButton
 import io.panelassistant.android.device.LedMechanism
+import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.PackageDesiredState
 import io.panelassistant.android.device.PackageIntent
 import io.panelassistant.android.device.ProvisioningImportance
@@ -50,6 +51,7 @@ class DataDeviceProfile internal constructor(
     override val buttonBacklightTransfer: TransferCurve = validCurve(document.hardware.buttonBacklight)
     override val screenOff = ScreenOff.ofYaml(document.hardware.screenOff) ?: ScreenOff.BRIGHTNESS_ZERO
     override val hasButtonBacklight = document.hardware.hasButtonBacklight
+    override val localWake = document.hardware.localWake?.mapNotNullTo(mutableSetOf()) { LocalWake.ofYaml(it) }
     override val cameraDeclared = document.hardware.cameraDeclared
     override val microphoneDeclared = document.hardware.microphoneDeclared
     override val hasSpeaker = document.hardware.hasSpeaker

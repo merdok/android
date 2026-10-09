@@ -2853,6 +2853,46 @@
       "sourceHash": "7589666b9d75687119cb26eea23eb757cf86e84b324701c21e442e26c5743b32",
       "state": "machine-cross-checked"
     },
+    "dashboard.capability.note.android_sleep_wake": {
+      "text": "Suspensão do Android via KEYCODE_SLEEP; {wake}",
+      "sourceHash": "0de62b88b78d9c24fb9a80ad0c53f2f9d33a14de0d6610c2b932742abef77c5c",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.android_timeout_wake": {
+      "text": "Suspensão do Android via um tempo limite de tela curto; {wake}",
+      "sourceHash": "c11df05c1e8f72209f97e19f6b725cf016b12e8de1aef0777a30b2eead4e07b4",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.device_admin_lock_wake": {
+      "text": "Suspensão do Android via o bloqueio de tela do administrador do dispositivo; {wake}",
+      "sourceHash": "fa8f7213beff957b15ba0b4ecd951c502acebe1b1e8ae59ab8035a9d11fe13d5",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.wake_button": {
+      "text": "seu botão o desperta; {then}",
+      "sourceHash": "2369e96708f9ca17eeb1c91a091a77acae7cb01f5e80dd9cd50c2a2e6cf96068",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.wake_home_assistant_always": {
+      "text": "o Home Assistant sempre o desperta",
+      "sourceHash": "435191558295fd9deac5e85a22d7fd263c3f7ce91840c51ed206dd85f818d5d7",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.wake_home_assistant_only": {
+      "text": "só o Home Assistant o desperta",
+      "sourceHash": "5d754a0f861c847a94599d977b368421aea6ba7efad6b9513874410170918848",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.wake_proximity": {
+      "text": "um aceno o desperta depois que o sensor de proximidade for calibrado; {then}",
+      "sourceHash": "8d7a14d630917fbd7f7f1b7182698e3e5353508d4230b8425b2607a2a9420d51",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.capability.note.wake_touch": {
+      "text": "qualquer toque o desperta; {then}",
+      "sourceHash": "880ebf6dbaf52b62badfce62ff1996ad20ed8b0eae63cc5132ee6d2a883211b2",
+      "state": "machine-cross-checked"
+    },
     "dashboard.capability.note.available": {
       "text": "disponível",
       "sourceHash": "ddd9818abacfde7afed60c93129175401439367a77e69ea93e0ddb3bb38e0bd9",

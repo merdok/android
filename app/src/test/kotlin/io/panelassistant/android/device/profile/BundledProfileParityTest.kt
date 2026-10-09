@@ -357,6 +357,36 @@ class BundledProfileParityTest {
         assertEquals("Ambient light", modern.sensors.lightTechnology)
     }
 
+    @Test fun localWakeIsThreeStateAndDeclaredOnlyWhereMeasured() {
+        val descriptor = ProfileMetadata.schema.fields.singleOrNull { it.path == "hardware.local_wake" }
+        assertNotNull("hardware.local_wake must be described to the profile editor", descriptor)
+        assertFalse(descriptor!!.required)
+        assertEquals(listOf("touch", "proximity", "button"), descriptor.enumValues)
+
+        assertNull(bundledById.getValue("generic").profile().localWake)
+
+        // Undeclared and "Home Assistant only" are different declarations and both survive a round trip.
+        val generic = bundledById.getValue("generic").document
+        for (declaration in listOf(null, emptyList(), listOf("button"), listOf("touch", "proximity"))) {
+            val document = generic.copy(hardware = generic.hardware.copy(localWake = declaration))
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(document))
+            assertEquals("$declaration", emptyList<ProfileIssue>(), parsed.issues)
+            assertEquals("$declaration", declaration, parsed.document!!.hardware.localWake)
+            assertTrue(ProfileValidator.validate(parsed.document!!, CORE_VERSION, bundled = false).none { it.path.startsWith("hardware.local_wake") })
+            assertEquals(
+                declaration?.map { io.panelassistant.android.device.LocalWake.ofYaml(it) }?.toSet(),
+                DataDeviceProfile(parsed.document!!, "", "test", trustedBundledContent = true).localWake,
+            )
+        }
+        for (bad in listOf(listOf("wave"), listOf("touch", "touch"))) {
+            val document = generic.copy(hardware = generic.hardware.copy(localWake = bad))
+            assertTrue(
+                "$bad must be refused",
+                ProfileValidator.validate(document, CORE_VERSION, bundled = false).any { it.path.startsWith("hardware.local_wake[") },
+            )
+        }
+    }
+
     @Test fun resolverReturnsDataBackedProfilesWithTheExactRawYamlRevision() {
         resolutionMatrix().forEach { fixture ->
             val resolved = resolve(fixture.facts)

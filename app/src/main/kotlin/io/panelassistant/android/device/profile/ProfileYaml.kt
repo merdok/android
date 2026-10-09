@@ -193,7 +193,7 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
         val platform = map(root["platform"], "platform", setOf("su_form", "app_can_su", "has_recents", "has_native_navbar", "launcher"), required = true).orEmpty()
         val launcher = map(platform["launcher"], "platform.launcher", setOf("vendor_home_packages")).orEmpty()
         val hardware = map(root["hardware"], "hardware", setOf(
-            "led", "screen_off", "has_button_backlight", "zigbee_gateway_dir", "relay_base",
+            "led", "screen_off", "has_button_backlight", "local_wake", "zigbee_gateway_dir", "relay_base",
             "relay_base_fallbacks", "button_led_gpio_base", "touch_click_gain", "camera", "microphone", "speaker",
             "camera_lens_offset_px", "backlight", "button_backlight",
         ), required = true).orEmpty()
@@ -300,6 +300,8 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
                 },
                 screenOff = string(hardware, "screen_off", "hardware", required = true).orEmpty(),
                 hasButtonBacklight = boolean(hardware, "has_button_backlight", "hardware") ?: false,
+                // Absent stays null (undeclared); an explicit empty list is a declaration of its own.
+                localWake = if (hardware.containsKey("local_wake")) stringList(hardware["local_wake"], "hardware.local_wake") else null,
                 zigbeeGatewayDir = string(hardware, "zigbee_gateway_dir", "hardware"),
                 relayBase = string(hardware, "relay_base", "hardware"),
                 relayBaseFallbacks = stringList(hardware["relay_base_fallbacks"], "hardware.relay_base_fallbacks"),
@@ -760,6 +762,8 @@ internal fun ProfileDocument.toYamlMap(): Map<String, Any?> = linkedMapOf(
             .apply { putAll(hardware.led.curve.toYamlFields()) }.withoutNullValues(),
         "screen_off" to hardware.screenOff,
         "has_button_backlight" to hardware.hasButtonBacklight,
+        // Null is dropped and an empty list is written, so undeclared and "Home Assistant only" both survive.
+        "local_wake" to hardware.localWake,
         "zigbee_gateway_dir" to hardware.zigbeeGatewayDir,
         "relay_base" to hardware.relayBase,
         "relay_base_fallbacks" to hardware.relayBaseFallbacks.takeIf { it.isNotEmpty() },

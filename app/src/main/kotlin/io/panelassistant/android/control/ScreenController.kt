@@ -89,7 +89,8 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   does not. The touch overlay is deliberately NOT armed on this route: a noninteractive device does
  *   not dispatch touches to windows, so arming it would claim a local wake the route cannot provide.
  *   **Local touch wake on this route is a platform property, declared by the profile rather than
- *   probed** (the same rule as `hasNativeNavbar`): where the touchscreen is a kernel wake source
+ *   probed** (`hardware.local_wake`, read as [io.panelassistant.android.device.DeviceProfile.localWake]; the same rule as
+ *   `hasNativeNavbar`). It informs what the owner is told and changes no behaviour here: where the touchscreen is a kernel wake source
  *   Android wakes itself and [reconcilePhysicalWake] adopts that wake; where it is not, Home Assistant
  *   is the way back. This is the only route on which a wake can reach the panel without passing
  *   through [wake], so it is the reason that adoption has to be reachable from a plain platform

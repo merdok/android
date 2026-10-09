@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.control.fakeProfile
 import io.panelassistant.android.control.TameController
 import io.panelassistant.android.device.EvdevButton
+import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.device.profile.BundledProfileFixtures
 import org.junit.Assert.assertEquals
@@ -111,6 +112,35 @@ class DiagCapabilityPolicyTest {
         val pin = DiagReader.screenOnOffCapability(ScreenOff.DEVICE_ADMIN, false, false, deviceAdminActive = true, deviceSecure = true)
         assertEquals("ok", pin.status)
         assertTrue(pin.note(englishCatalogue), pin.note(englishCatalogue).endsWith("a screen lock PIN is set, so waking needs that PIN"))
+    }
+
+    /** A profile's `hardware.local_wake` replaces the generic "only where the touchscreen is a wake source" wording. */
+    @Test fun aDeclaredLocalWakeTellsTheOwnerHowTheDarkPanelWakes() {
+        val x2i = setOf(LocalWake.TOUCH, LocalWake.PROXIMITY)
+        assertEquals(
+            "Android sleep via a short screen timeout; any touch wakes it; a wave wakes it once proximity is calibrated; Home Assistant always wakes it",
+            DiagReader.screenOnOffCapability(ScreenOff.SCREEN_TIMEOUT, false, false, canWriteSettings = true, localWake = x2i)
+                .note(englishCatalogue),
+        )
+        assertEquals(
+            "Android sleep via KEYCODE_SLEEP; only Home Assistant wakes it",
+            DiagReader.screenOnOffCapability(ScreenOff.KEYEVENT, su = true, daemon = false, localWake = emptySet()).note(englishCatalogue),
+        )
+        assertEquals(
+            "Android sleep via the device-admin screen lock; its button wakes it; Home Assistant always wakes it; a screen lock PIN is set, so waking needs that PIN",
+            DiagReader.screenOnOffCapability(
+                ScreenOff.DEVICE_ADMIN, false, false, deviceAdminActive = true, deviceSecure = true, localWake = setOf(LocalWake.BUTTON),
+            ).note(englishCatalogue),
+        )
+        // Undeclared keeps the generic wording, and a dim-only route says nothing about waking.
+        assertTrue(
+            DiagReader.screenOnOffCapability(ScreenOff.SCREEN_TIMEOUT, false, false, canWriteSettings = true, localWake = null)
+                .note(englishCatalogue).endsWith("a local touch only where this panel's touchscreen is a platform wake source"),
+        )
+        assertEquals(
+            "DIM ONLY — needs WRITE_SETTINGS or an active device admin to let Android sleep",
+            DiagReader.screenOnOffCapability(ScreenOff.SCREEN_TIMEOUT, false, false, localWake = x2i).note(englishCatalogue),
+        )
     }
 
     @Test fun profileWithoutEvdevButtonsHasNoRequestedStream() {

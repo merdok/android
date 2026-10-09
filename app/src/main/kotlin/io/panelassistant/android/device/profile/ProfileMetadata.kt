@@ -3,6 +3,7 @@ package io.panelassistant.android.device.profile
 import io.panelassistant.android.device.LedMechanism
 import io.panelassistant.android.hardware.LedTransfer
 import io.panelassistant.android.device.SuForm
+import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.ScreenOff
 
 /** Core-owned vocabulary available to untrusted profile files. */
@@ -115,6 +116,7 @@ object ProfileMetadata {
             field("hardware.button_backlight.floor", "integer", false, "Hardware level, 0 through 127, that the lowest non-zero level lands on; not with points."),
             field("hardware.screen_off", "enum", true, "Preferred screen-off route.", ScreenOff.entries.map { it.yamlName }),
             field("hardware.has_button_backlight", "boolean", false, "Helper-backed button backlight capability."),
+            field("hardware.local_wake", "string[]", false, "How a fully dark panel wakes locally: touch, proximity (a wave once calibrated), button. Omit when unknown; an empty list means only Home Assistant wakes it.", LocalWake.entries.map { it.yamlName }),
             field("hardware.camera", "boolean", false, "Board carries a usable camera."),
             field("hardware.microphone", "boolean", false, "Board carries a usable microphone; independent of hardware.camera."),
             field("hardware.speaker", "boolean", false, "Board carries a loudspeaker, offered as a media player; defaults to true, so only a board without one declares false."),

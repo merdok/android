@@ -7798,6 +7798,23 @@
       "softMaxChars": 196,
       "hardMaxChars": 280
     },
+    "dashboard.capability.note.android_sleep_wake": {
+      "text": "Android sleep via KEYCODE_SLEEP; {wake}",
+      "sourceHash": "0de62b88b78d9c24fb9a80ad0c53f2f9d33a14de0d6610c2b932742abef77c5c",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail for a screen-off route that puts Android to sleep, matched from a closed backend value; {wake} is the clause list saying how a dark panel wakes, as this panel's profile declares it. Preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{wake}"
+      ],
+      "frozen": [
+        "Android",
+        "KEYCODE_SLEEP"
+      ],
+      "softMaxChars": 55,
+      "hardMaxChars": 78
+    },
     "dashboard.capability.note.android_timeout": {
       "text": "Android sleep via a short screen timeout; Home Assistant always wakes it, a local touch only where this panel's touchscreen is a platform wake source",
       "sourceHash": "7589666b9d75687119cb26eea23eb757cf86e84b324701c21e442e26c5743b32",
@@ -7812,6 +7829,22 @@
       ],
       "softMaxChars": 209,
       "hardMaxChars": 298
+    },
+    "dashboard.capability.note.android_timeout_wake": {
+      "text": "Android sleep via a short screen timeout; {wake}",
+      "sourceHash": "c11df05c1e8f72209f97e19f6b725cf016b12e8de1aef0777a30b2eead4e07b4",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail for a screen-off route that puts Android to sleep, matched from a closed backend value; {wake} is the clause list saying how a dark panel wakes, as this panel's profile declares it. Preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{wake}"
+      ],
+      "frozen": [
+        "Android"
+      ],
+      "softMaxChars": 68,
+      "hardMaxChars": 96
     },
     "dashboard.capability.note.available": {
       "text": "available",
@@ -8214,6 +8247,22 @@
       "softMaxChars": 217,
       "hardMaxChars": 310
     },
+    "dashboard.capability.note.device_admin_lock_wake": {
+      "text": "Android sleep via the device-admin screen lock; {wake}",
+      "sourceHash": "fa8f7213beff957b15ba0b4ecd951c502acebe1b1e8ae59ab8035a9d11fe13d5",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail for a screen-off route that puts Android to sleep, matched from a closed backend value; {wake} is the clause list saying how a dark panel wakes, as this panel's profile declares it. Preserve privilege, hardware, command and placeholder terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{wake}"
+      ],
+      "frozen": [
+        "Android"
+      ],
+      "softMaxChars": 76,
+      "hardMaxChars": 108
+    },
     "dashboard.capability.note.dim_android_sleep_grant": {
       "text": "needs WRITE_SETTINGS or an active device admin to let Android sleep",
       "sourceHash": "9c5a2f2c9f2d61b9b83be94d36dfd1fe35364fae0c7d42ad670d200bd4c0d4de",
@@ -8480,6 +8529,76 @@
       ],
       "softMaxChars": 44,
       "hardMaxChars": 62
+    },
+    "dashboard.capability.note.wake_button": {
+      "text": "its button wakes it; {then}",
+      "sourceHash": "2369e96708f9ca17eeb1c91a091a77acae7cb01f5e80dd9cd50c2a2e6cf96068",
+      "surface": "dashboard",
+      "context": "One clause of a runtime diagnostics screen-power detail saying how a dark panel wakes, as its profile declares it; it refers to the panel. {then} is the next clause and keeps the clause separator before it. Render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{then}"
+      ],
+      "frozen": [],
+      "softMaxChars": 38,
+      "hardMaxChars": 54
+    },
+    "dashboard.capability.note.wake_home_assistant_always": {
+      "text": "Home Assistant always wakes it",
+      "sourceHash": "435191558295fd9deac5e85a22d7fd263c3f7ce91840c51ed206dd85f818d5d7",
+      "surface": "dashboard",
+      "context": "Final clause of a runtime diagnostics screen-power detail saying how a dark panel wakes, as its profile declares it; it refers to the panel. Render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant"
+      ],
+      "softMaxChars": 42,
+      "hardMaxChars": 60
+    },
+    "dashboard.capability.note.wake_home_assistant_only": {
+      "text": "only Home Assistant wakes it",
+      "sourceHash": "5d754a0f861c847a94599d977b368421aea6ba7efad6b9513874410170918848",
+      "surface": "dashboard",
+      "context": "Final clause of a runtime diagnostics screen-power detail saying how a dark panel wakes, as its profile declares it; it refers to the panel. Render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Home Assistant"
+      ],
+      "softMaxChars": 40,
+      "hardMaxChars": 56
+    },
+    "dashboard.capability.note.wake_proximity": {
+      "text": "a wave wakes it once proximity is calibrated; {then}",
+      "sourceHash": "8d7a14d630917fbd7f7f1b7182698e3e5353508d4230b8425b2607a2a9420d51",
+      "surface": "dashboard",
+      "context": "One clause of a runtime diagnostics screen-power detail saying how a dark panel wakes, as its profile declares it; it refers to the panel. {then} is the next clause and keeps the clause separator before it. Render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{then}"
+      ],
+      "frozen": [],
+      "softMaxChars": 73,
+      "hardMaxChars": 104
+    },
+    "dashboard.capability.note.wake_touch": {
+      "text": "any touch wakes it; {then}",
+      "sourceHash": "880ebf6dbaf52b62badfce62ff1996ad20ed8b0eae63cc5132ee6d2a883211b2",
+      "surface": "dashboard",
+      "context": "One clause of a runtime diagnostics screen-power detail saying how a dark panel wakes, as its profile declares it; it refers to the panel. {then} is the next clause and keeps the clause separator before it. Render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [
+        "{then}"
+      ],
+      "frozen": [],
+      "softMaxChars": 37,
+      "hardMaxChars": 52
     },
     "dashboard.capability.note.write_settings_granted": {
       "text": "WRITE_SETTINGS granted",

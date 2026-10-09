@@ -1,6 +1,7 @@
 package io.panelassistant.android.device.profile
 
 import io.panelassistant.android.device.LedMechanism
+import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.device.SuForm
 import io.panelassistant.android.hardware.LedTransfer
@@ -188,6 +189,12 @@ internal object ProfileValidator {
             }
         }
         if (document.hardware.led.transfer !in LedTransfer.NAMES) reject("hardware.led.transfer", "Unknown core transfer '${document.hardware.led.transfer}'.", "unknown-core-transfer", mapOf("value" to document.hardware.led.transfer))
+        val localWake = document.hardware.localWake.orEmpty()
+        localWake.forEachIndexed { index, value ->
+            val path = "hardware.local_wake[$index]"
+            if (LocalWake.ofYaml(value) == null) reject(path, "Unknown local wake source '$value'; expected touch, proximity or button.", "unknown-value", mapOf("value" to value))
+            else if (localWake.indexOf(value) != index) reject(path, "Duplicate local wake source.")
+        }
         val screenOff = ScreenOff.ofYaml(document.hardware.screenOff)
         if (screenOff == null) reject("hardware.screen_off", "Unknown screen-off route '${document.hardware.screenOff}'.", "unknown-screen-off-route", mapOf("value" to document.hardware.screenOff))
         if (screenOff == ScreenOff.SU_BLPOWER && !document.platform.appCanSu) reject("hardware.screen_off", "su-blpower requires app_can_su: true.", "su-blpower-needs-app-su")
