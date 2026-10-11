@@ -132,6 +132,21 @@ class ScreenControllerVendorRpcTest {
         assertEquals("a deliberately dark panel stays dark", 0, vendor.node)
     }
 
+    /** Shelly 2.8.2: the wake relit, the app's level went on, and Stargate's 25 replaced it within 2 s. */
+    @Test fun aLateVendorWriteAfterTheWakeDoesNotKeepTheAppsLevelOff() {
+        val stargate = FakeVendorScreen(node = 151, onLevel = 25).apply { lateOverwriteMs = 1_500 }
+        val setting = SettingBacklight(stargate, setting = 151)
+        val sc = ScreenController(
+            setting, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            nap = stargate::advance, vendor = stargate,
+        )
+        sc.sleep()
+        wakeTap.fireTap()
+        stargate.advance(10_000)
+        assertEquals(151, stargate.node)
+        assertEquals(151, setting.setting)
+    }
+
     @Test fun aDarkNodeNobodyAskedForIsRelitThroughTheVendor() {
         val sc = controller()
         vendor.node = 0

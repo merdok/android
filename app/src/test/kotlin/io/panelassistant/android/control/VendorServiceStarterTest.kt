@@ -110,6 +110,18 @@ class VendorServiceStarterTest {
         assertTrue(panel.clock >= VendorServiceStarter.START_TIMEOUT_MS)
     }
 
+    /** Shelly 2.8.2 opened its listener after the covered wait; the start then still counts, uncovered. */
+    @Test fun aListenerThatOpensAfterTheCoveredWaitStillCountsAndRunsTheFollowUp() {
+        val polls = (VendorServiceStarter.START_TIMEOUT_MS / VendorServiceStarter.POLL_MS).toInt() + 5
+        val panel = Panel(opensAfterPolls = polls)
+        var ups = 0
+        val starter = VendorServiceStarter(stargate, panel, direct, onUp = { ups++ })
+        starter.request()
+        assertEquals(VendorServiceStarter.State.STARTED, starter.state)
+        assertEquals(1, ups)
+        assertEquals("one start, and the cover is gone before the late watch", listOf("cover", "start:cloud.shelly.stargate.activities.MainActivity", "dashboard", "uncover"), panel.events)
+    }
+
     @Test fun aThrowingVendorStartStillLiftsTheCoverAndNeverEscapes() {
         val panel = object : VendorServiceStarter.Seams by Panel() {
             val events = mutableListOf<String>()

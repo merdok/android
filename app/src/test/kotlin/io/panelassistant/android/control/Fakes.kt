@@ -275,9 +275,19 @@ class FakeVendorScreen(
         calls += on
         if (!answers) return false
         if (blanks || on) node = if (on) onLevel else 0
+        if (on) sinceOnMs = 0
         return true
     }
-    override fun lit(): Boolean? = if (readable) node > 0 else null
+    /** Stargate 2.8.2: [lateOverwriteMs] after `on=true` its own level lands on the node again, once. */
+    var lateOverwriteMs: Long? = null
+    private var sinceOnMs: Long? = null
+    /** Let [ms] pass; the controller's nap and the test both call this. */
+    fun advance(ms: Long) {
+        val before = sinceOnMs ?: return
+        sinceOnMs = before + ms
+        lateOverwriteMs?.let { at -> if (before < at && before + ms >= at) node = onLevel }
+    }
+    override fun level(): Int? = if (readable) node else null
     var holds = 0
     override fun holdBrightness(): Boolean { holds++; return answers }
 }

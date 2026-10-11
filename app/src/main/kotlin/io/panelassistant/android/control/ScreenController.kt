@@ -526,7 +526,24 @@ class ScreenController(
     fun restoreLevelOverVendor() {
         if (intendedOff || admissionClosed.get()) return
         val level = backlight.getCommanded()
-        if (level > 0 && backlight.getBrightness() != level) stepSettingTo(level)
+        if (level > 0 && vendor.level() != level) settleAtAppLevel(level)
+    }
+
+    /**
+     * Step the setting to [level], then hold it there for [VENDOR_SETTLE_MS] against a vendor write that
+     * lands after the step: on Shelly 2.8.2 `Ui.Screen.Set` relit the node, the step put the app's level
+     * on, and Stargate's own level (25) replaced it within 2 s. Assumes the node and the setting share a
+     * scale, as on the Shelly profiles (identity transfer: setting 151 drives node 151).
+     */
+    private fun settleAtAppLevel(level: Int) {
+        stepSettingTo(level)
+        var waited = 0L
+        while (waited < VENDOR_SETTLE_MS) {
+            nap(VENDOR_SETTLE_POLL_MS)
+            waited += VENDOR_SETTLE_POLL_MS
+            val node = vendor.level() ?: return
+            if (node != level) stepSettingTo(level)
+        }
     }
 
     /** The vendor writes the node behind Android's back, and Android drives it again only when the
@@ -628,8 +645,8 @@ class ScreenController(
             ScreenOff.VENDOR_RPC -> {
                 val relit = vendor.set(true) && awaitVendorLit(true)
                 // The vendor relights to a level of its own, or, unanswered, leaves the node at the 0 it
-                // wrote; either way the app's level goes back on.
-                stepSettingTo(savedLevel.coerceAtLeast(MIN_ON))
+                // wrote; either way the app's level goes back on, and stays on through a late vendor write.
+                settleAtAppLevel(savedLevel.coerceAtLeast(MIN_ON))
                 completeWake(if (relit) "screen -> on (vendor rpc)" else "screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return
             }
@@ -979,5 +996,8 @@ class ScreenController(
         private const val LOCK_CONFIRM_MS = 2_000L
         /** Stargate blanks or relights the node within a few hundred ms of answering. */
         private const val VENDOR_CONFIRM_MS = 2_000L
+        /** The 2.8.2 overwrite landed within 2 s of the wake; hold a margin beyond it. */
+        private const val VENDOR_SETTLE_MS = 3_000L
+        private const val VENDOR_SETTLE_POLL_MS = 250L
     }
 }

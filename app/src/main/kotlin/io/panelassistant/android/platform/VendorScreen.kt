@@ -14,8 +14,11 @@ interface VendorScreen {
     /** Ask the vendor to switch the backlight. False when it did not answer or refused. */
     fun set(on: Boolean): Boolean
 
+    /** The backlight node's level; null when the node cannot be read. */
+    fun level(): Int?
+
     /** Whether the backlight node reads above zero; null when the node cannot be read. */
-    fun lit(): Boolean?
+    fun lit(): Boolean? = level()?.let { it > 0 }
 
     /** Stop the vendor driving the backlight from its own light sensor, so the app's level is the only
      *  one (maintainer, 2026-10-11). Idempotent; false when the vendor did not answer. */
@@ -25,7 +28,7 @@ interface VendorScreen {
 /** No vendor route: never answers and never reads, so the route falls back. */
 object NoVendorScreen : VendorScreen {
     override fun set(on: Boolean) = false
-    override fun lit(): Boolean? = null
+    override fun level(): Int? = null
     override fun holdBrightness() = false
 }
 
@@ -54,10 +57,10 @@ class LocalRpcVendorScreen(private val port: Int) : VendorScreen {
         }
     }.getOrDefault(false)
 
-    override fun lit(): Boolean? = runCatching {
+    override fun level(): Int? = runCatching {
         File(BACKLIGHT_CLASS).listFiles()?.sortedBy { it.name }?.firstNotNullOfOrNull { dir ->
             runCatching { File(dir, "actual_brightness").readText().trim().toInt() }.getOrNull()
-        }?.let { it > 0 }
+        }
     }.getOrNull()
 
     private companion object {
