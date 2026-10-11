@@ -156,4 +156,19 @@ class InstallProgressTest {
         InstallProgress.finish(restore, "done")
     }
 
+    @Test fun aStageInsideTheRunningOperationReplacesItsProseAndAnIdleSlotIgnoresIt() {
+        val awaiting = InstallPresentation("install-awaiting-confirmation", mapOf("component" to "companion"))
+        assertFalse(InstallProgress.running)
+        InstallProgress.presentRunning("Tap Install on the panel", awaiting)
+        assertFalse(InstallProgress.message == "Tap Install on the panel")
+
+        val ticket = InstallProgress.start("app")!!
+        InstallProgress.presentRunning("Tap Install on the panel", awaiting)
+        assertEquals("Tap Install on the panel", InstallProgress.message)
+        assertEquals(
+            "install-awaiting-confirmation",
+            JSONObject(InstallProgress.json()).getJSONObject("presentation").getString("code"),
+        )
+        InstallProgress.finish(ticket, "done")
+    }
 }

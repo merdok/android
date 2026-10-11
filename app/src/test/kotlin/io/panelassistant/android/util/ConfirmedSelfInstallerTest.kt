@@ -64,7 +64,19 @@ class ConfirmedSelfInstallerTest {
             onAwaitingConfirmation = {},
             timeoutMs = 1_000L,
         )
+        assertTrue(outcome is InstallOutcome.Retryable)
         assertEquals("update not confirmed on the panel in time", (outcome as InstallOutcome.Retryable).message)
+    }
+
+    @Test fun storageBlockedAndUnknownFailuresStayRetryable() {
+        for (status in listOf(
+            PackageInstaller.STATUS_FAILURE_STORAGE,
+            PackageInstaller.STATUS_FAILURE_BLOCKED,
+            PackageInstaller.STATUS_FAILURE,
+        )) {
+            val step = ConfirmedSelfInstaller.classify(SessionReport(status, "reason"))
+            assertTrue("status $status", (step as ConfirmedSelfInstaller.Step.Done).outcome is InstallOutcome.Retryable)
+        }
     }
 
     @Test fun anIncompatiblePackageIsADurableRejection() {
