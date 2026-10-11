@@ -562,6 +562,13 @@ class ScreenController(
         }
     }
 
+    /** A retry touch belongs to the wake that armed it: any later transition or closure makes it inert. */
+    @Synchronized
+    private fun retryVendorWake(generation: Long) {
+        if (admissionClosed.get() || intendedOff || stateGeneration.get() != generation) return
+        wake()
+    }
+
     /** The vendor writes the node behind Android's back, and Android drives it again only when the
      *  setting changes: an equal write leaves it as it is (measured on the X2i). So change it twice. */
     private fun stepSettingTo(level: Int) {
@@ -665,11 +672,13 @@ class ScreenController(
                 // The vendor relights to a level of its own, or, unanswered, leaves the node at the 0 it
                 // wrote; either way the app's level goes back on, and stays on through a late vendor write.
                 settleAtAppLevel(savedLevel.coerceAtLeast(MIN_ON))
-                // Unanswered and not proven lit: a vendor still enforcing its off may hold the node at
-                // zero. Keep a one-shot consuming touch that retries this wake, so a person is never
-                // left with a dark panel and no way back.
-                if (!answered && vendor.lit() != true && !admissionClosed.get() && wakeTap.canArm()) {
-                    wakeTap.arm { if (!intendedOff) wake() }
+                // Known dark, or unanswered and unknown: a vendor still enforcing its off may hold the
+                // node at zero. Keep a one-shot consuming touch that retries this wake, so a person is
+                // never left with a dark panel and no way back.
+                val finalLit = vendor.lit()
+                if ((finalLit == false || (!answered && finalLit == null)) && !admissionClosed.get() && wakeTap.canArm()) {
+                    val generation = stateGeneration.get()
+                    wakeTap.arm { retryVendorWake(generation) }
                 }
                 completeWake(if (relit) "screen -> on (vendor rpc)" else "screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return

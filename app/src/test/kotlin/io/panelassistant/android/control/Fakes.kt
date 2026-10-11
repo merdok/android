@@ -232,6 +232,8 @@ class FakeWakeTap(
     override fun disarm() { armed = false; onTap = null }
     /** Simulate a tap while armed — invokes the wake callback ScreenController registered. */
     fun fireTap() { onTap?.invoke() }
+    /** The callback currently armed, kept by a test to run it late (a touch worker that lost a race). */
+    fun armedCallback(): (() -> Unit)? = onTap
 }
 
 /**

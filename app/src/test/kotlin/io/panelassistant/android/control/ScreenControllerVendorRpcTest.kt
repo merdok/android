@@ -252,6 +252,48 @@ class ScreenControllerVendorRpcTest {
         assertFalse("answered, so no further retry", wakeTap.armed)
     }
 
+    /** Stargate answers the wake yet still holds its off: the node is known dark, so the retry stays. */
+    @Test fun anAnsweredWakeOnAKnownDarkNodeKeepsARetryTouch() {
+        val enforcing = object : io.panelassistant.android.platform.VendorScreen {
+            override fun set(on: Boolean) = true
+            override fun level(): Int = 0
+            override fun holdBrightness() = true
+        }
+        val sc = ScreenController(
+            backlight, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            nap = {}, vendor = enforcing,
+        )
+        sc.sleep()
+        wakeTap.fireTap()
+        assertFalse(sc.isIntendedOff())
+        assertTrue(wakeTap.armed)
+    }
+
+    /** A retry that runs after a newer off, or after closure, must not wake anything. */
+    @Test fun aStaleOrClosedRetryDoesNothing() {
+        vendor.readable = false
+        val sc = controller()
+        sc.sleep()
+        vendor.answers = false
+        wakeTap.fireTap()
+        val staleRetry = requireNotNull(wakeTap.armedCallback())
+        vendor.answers = true
+        sc.sleep()
+        assertTrue(sc.isIntendedOff())
+        val callsBefore = vendor.calls.size
+        staleRetry()
+        assertTrue("the newer off is not woken", sc.isIntendedOff())
+        assertEquals(callsBefore, vendor.calls.size)
+
+        vendor.answers = false
+        wakeTap.fireTap()
+        val retry = requireNotNull(wakeTap.armedCallback())
+        sc.closeAdmission()
+        val callsAtClose = vendor.calls.size
+        retry()
+        assertEquals("closed: no further wake", callsAtClose, vendor.calls.size)
+    }
+
     @Test fun anAnsweredOrProvenWakeLeavesNoRetryTouch() {
         val sc = controller()
         sc.sleep()
