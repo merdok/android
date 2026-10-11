@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.StateListDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -88,6 +89,7 @@ class NavbarController(
     private val onBrightnessChanged: (Int) -> Unit = {},
     private val onBrightnessApplied: () -> Unit = {},
     private val onVolumeChanged: () -> Unit = {},
+    private val overlayHeld: () -> Boolean = { Settings.canDrawOverlays(context) },
 ) {
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val main = Handler(Looper.getMainLooper())
@@ -278,6 +280,7 @@ class NavbarController(
         // neither may trigger the root appops grant — Native in particular runs on panels whose firmware
         // already provides navigation, where asking for an overlay permission would be gratuitous.
         val permissionReady = target !in OVERLAY_MODES || ensureOverlayPermission()
+        if (!permissionReady) offerOverlayPermission(work)
         if (!permissionReady || !isCurrent(work)) return false
 
         val transaction = transactNavbarMode(
@@ -349,13 +352,7 @@ class NavbarController(
         setVolumeReceiver(target in OVERLAY_MODES)
         synchronized(lifecycleLock) {
             BuiltinDashboard.setNavbarRevealHandler(
-                if (target == MODE_SWIPE && canDraw()) {
-                    {
-                        main.post {
-                            if (!isClosed() && appliedMode == MODE_SWIPE) reveal()
-                        }
-                    }
-                } else null,
+                if (target == MODE_SWIPE && canDraw()) ::onSwipe else null,
             )
         }
     }
@@ -960,7 +957,38 @@ class NavbarController(
 
     // --- permission ---
 
-    private fun canDraw(): Boolean = Settings.canDrawOverlays(context)
+    private fun canDraw(): Boolean = overlayHeld()
+
+    /**
+     * Without the overlay the bar cannot be drawn, and on a panel whose only way to Android Settings is
+     * this bar (a Meta Portal) nothing else leads to the permission. Arm the dashboard's swipe instead:
+     * it opens Android's "Display over other apps" page for this app from the foreground dashboard, and
+     * once the permission is held the same swipe applies the wanted mode and shows the bar.
+     */
+    private fun offerOverlayPermission(work: ModeWork) = synchronized(lifecycleLock) {
+        if (isCurrentLocked(work)) BuiltinDashboard.setNavbarRevealHandler(::onSwipe)
+    }
+
+    /** The dashboard's bottom-edge swipe, also when the permission was revoked after the bar was set up. */
+    private fun onSwipe() {
+        val revealSwipeBar = { main.post { if (!isClosed() && appliedMode == MODE_SWIPE) reveal() } }
+        when {
+            !canDraw() -> openOverlaySettings()
+            appliedMode == MODE_SWIPE -> revealSwipeBar()
+            else -> applyAsync(mode).thenAccept { if (it.status == NavbarModeApplyStatus.APPLIED) revealSwipeBar() }
+        }
+    }
+
+    private fun openOverlaySettings() {
+        val page = Uri.parse("package:${context.packageName}")
+        val opened = listOf(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .any { action ->
+                runCatching {
+                    context.startActivity(Intent(action, page).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.isSuccess
+            }
+        if (!opened) Log.w(TAG, "no Android page to grant the overlay permission; navbar stays hidden")
+    }
 
     /** Grant `SYSTEM_ALERT_WINDOW` via root appops if it isn't already held (panels have no UI flow). */
     private fun ensureOverlayPermission(): Boolean {
