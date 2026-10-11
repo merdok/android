@@ -142,7 +142,6 @@ function contextRows(s) {
     row(fact(s, 'wifi_stability'), '3 drops in the last hour · RSSI −71 dBm'),
     `<tr><th>${esc(fact(s, 'ha_network_path'))}</th><td id="hanetcell">${f('dashboard.runtime.ha_network_healthy_slow', { evidence: 'p95 412 ms over 120 probes' })}</td></tr>`,
     row(fact(s, 'ha_renderer'), f('dashboard.runtime.renderer.admitted_age', { status: s.format('dashboard.runtime.renderer.builtin', { summary: s.text('dashboard.runtime.renderer.rendered_cached') }), age: '3m' })),
-    row(fact(s, 'state_convergence'), f('dashboard.runtime.convergence', { channels: 14, dirty: 0, inFlight: 1, unknown: 0, successes: 212, failures: 0, pending: 1 })),
     row(fact(s, 'local_state_sync'), 'in sync · 38 entities'),
     row(fact(s, 'app_database'), esc([s.format('dashboard.runtime.database.schema', { version: 42 }), s.format('dashboard.runtime.database.used', { bytes: '1.2 MB' }), s.format('dashboard.runtime.database.on_disk', { bytes: '1.6 MB' })].join(' · '))),
     row(fact(s, 'security_mode'), s.t('dashboard.runtime.security_hardened')),
@@ -208,7 +207,7 @@ function displayRows(s) {
   ].join('\n');
 }
 
-// bannerFor() findings, proximityLearningBanner, haSignInBanner and dashboardSetupNeedsBanner, in render order.
+// bannerFor() findings, proximityLearningBanner and haSignInBanner, in render order.
 function bannersHtml(s) {
   const t = s.t;
   return [
@@ -226,8 +225,6 @@ function bannersHtml(s) {
       `${t('dashboard.banner.proximity_learning.touch_available')} <a href="${href(s, 'configure#cfg-proximity-learning')}">${t('dashboard.banner.proximity_learning.action')}</a>.`),
     noticeRow(s, 'warning', t('dashboard.banner.ha_sign_in.title'),
       `${t('dashboard.banner.ha_sign_in.explanation')} <a href="${href(s, 'configure#cfg-ha-oauth')}">${t('dashboard.banner.ha_sign_in.action')}</a>.`),
-    noticeRow(s, 'warning', '',
-      `${t('dashboard.banner.setup_needs.prefix')} <a href="${href(s, 'configure')}">${esc(`${s.text('dashboard.banner.setup_needs.valid_credentials')} ${s.text('dashboard.banner.setup_needs.joiner')} ${s.text('dashboard.banner.setup_needs.reachable_broker')}`)}</a> ${t('dashboard.banner.setup_needs.suffix')}`),
   ].join('');
 }
 
