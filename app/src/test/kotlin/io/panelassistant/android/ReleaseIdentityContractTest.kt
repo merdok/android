@@ -15,7 +15,7 @@ class ReleaseIdentityContractTest {
         val declared = Properties().apply { TestSources.appFile("version.properties").inputStream().use { load(it) } }
         val versionName = requireNotNull(declared.getProperty("versionName"))
         val versionCode = requireNotNull(declared.getProperty("versionCode")).toInt()
-        assertTrue("versionName $versionName is not a release version", Regex("""\d+\.\d+\.\d+(-rc\d+)?""").matches(versionName))
+        assertTrue("versionName $versionName is not a release version", Regex("""\d+\.\d+\.\d+(-(rc|preview)\d+)?""").matches(versionName))
         assertTrue("versionCode $versionCode must be positive", versionCode > 0)
         assertEquals(versionName, BuildConfig.VERSION_NAME)
         assertEquals(versionCode, BuildConfig.VERSION_CODE)

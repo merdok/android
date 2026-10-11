@@ -45,8 +45,8 @@ jobs:
 
       - name: Validate release tag and source commit
         run: |
-          if [ "${#RELEASE_TAG}" -gt 64 ] || [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc[1-9][0-9]*)?$ ]]; then
-            echo "::error::Release tag is not an accepted vX.Y.Z or vX.Y.Z-rcN version: $RELEASE_TAG"
+          if [ "${#RELEASE_TAG}" -gt 64 ] || [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(rc|preview)[1-9][0-9]*)?$ ]]; then
+            echo "::error::Release tag is not an accepted vX.Y.Z, vX.Y.Z-previewN or vX.Y.Z-rcN version: $RELEASE_TAG"
             exit 1
           fi
           if ! git check-ref-format "refs/tags/$RELEASE_TAG"; then
@@ -205,8 +205,8 @@ jobs:
 
       - name: Validate release tag and source commit
         run: |
-          if [ "${#RELEASE_TAG}" -gt 64 ] || [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc[1-9][0-9]*)?$ ]]; then
-            echo "::error::Release tag is not an accepted vX.Y.Z or vX.Y.Z-rcN version: $RELEASE_TAG"
+          if [ "${#RELEASE_TAG}" -gt 64 ] || [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(rc|preview)[1-9][0-9]*)?$ ]]; then
+            echo "::error::Release tag is not an accepted vX.Y.Z, vX.Y.Z-previewN or vX.Y.Z-rcN version: $RELEASE_TAG"
             exit 1
           fi
           if ! git check-ref-format "refs/tags/$RELEASE_TAG"; then
@@ -308,7 +308,7 @@ jobs:
       # consumer-facing body exact for both prereleases and stable releases.
       #
       # Section lookup — exact match first, base-version fallback:
-      #   v0.8.4-rc3  →  look for "## v0.8.4-rc3"  (per-RC incremental notes)
+      #   v0.8.4-rc3  →  look for "## v0.8.4-rc3"  (per-prerelease incremental notes; -previewN alike)
       #   v0.8.4      →  look for "## v0.8.4"       (cumulative stable notes)
       # Each RC must have its own docs/CHANGELOG.md section describing only what changed since
       # the previous RC — repeating the prior section causes identical release notes.
@@ -323,7 +323,7 @@ jobs:
 
           extract "$tag" > release-input/release-body.md
           if [ ! -s release-input/release-body.md ] && [ "$tag" != "$base" ]; then
-            echo "::error::No docs/CHANGELOG.md section for $tag — each RC needs its own ## $tag entry describing what changed since the previous RC. Add it before tagging."
+            echo "::error::No docs/CHANGELOG.md section for $tag — each prerelease needs its own ## $tag entry describing what changed since the previous one. Add it before tagging."
             exit 1
           fi
           if [ ! -s release-input/release-body.md ]; then

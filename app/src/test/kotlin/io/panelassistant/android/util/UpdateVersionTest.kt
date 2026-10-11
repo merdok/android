@@ -16,6 +16,14 @@ class UpdateVersionTest {
         assertEquals(0, UpdateChecker.compareVersions("2026.5.4", "2026.5.4.0"))
     }
 
+    @Test fun previewsComeBeforeTheReleaseCandidate() {
+        val chain = listOf("0.9.0", "1.0.0-preview1", "1.0.0-preview2", "1.0.0-preview10", "1.0.0-rc1", "1.0.0")
+        chain.zipWithNext().forEach { (older, newer) ->
+            assertTrue("$newer > $older", UpdateChecker.isNewer(newer, older))
+            assertFalse("$older > $newer", UpdateChecker.isNewer(older, newer))
+        }
+    }
+
     @Test fun malformedVersionIsNotTreatedAsZero() {
         assertNull(UpdateChecker.compareVersions("release-next", "2026.5.4"))
         assertNull(UpdateChecker.compareVersions("2026.x.4", "2026.5.4"))
