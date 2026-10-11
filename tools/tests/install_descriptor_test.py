@@ -28,7 +28,7 @@ ANDROID_PRODUCER_FIXTURE = json.loads(
         / "app/src/test/resources/panel-assistant-contract/android_producer_v1.json"
     ).read_text(encoding="utf-8")
 )
-ANDROID_PRODUCER_SOURCE_REVISION = "b76fdaf723ff89397b98a2bda57ac78138296acb"
+ANDROID_PRODUCER_SOURCE_REVISION = "f25202ffa87f36c0d28f7e70e1d82d81c4ac57f9"
 BADGING = """\
 package: name='io.panelassistant.android' versionCode='701' versionName='1.2.3-rc1' \
 platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' \
@@ -178,7 +178,7 @@ class InstallDescriptorTest(unittest.TestCase):
 
     def test_shared_release_identity_corpus_matches_the_descriptor_producer(self):
         for case in RELEASE_IDENTITY_CORPUS["tags"]:
-            expected = case["kind"] in {"stable", "rc"}
+            expected = case["kind"] in {"stable", "prerelease"}
             with self.subTest(release_tag=case["tag"]):
                 self.assertEqual(
                     expected,
@@ -194,7 +194,7 @@ class InstallDescriptorTest(unittest.TestCase):
         expected_verdicts = [
             {
                 "tag": case["tag"],
-                "accepted": case["kind"] in {"stable", "rc"},
+                "accepted": case["kind"] in {"stable", "prerelease"},
             }
             for case in RELEASE_IDENTITY_CORPUS["tags"]
         ]

@@ -37,7 +37,7 @@ SUPPORTED_ABIS = ("arm64-v8a", "armeabi-v7a")
 LAUNCH_ACTIVITY = f"{CODE_PACKAGE}.MainActivity"
 RELEASE_TAG_PATTERN = re.compile(
     r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-    r"(?:-rc[1-9][0-9]*)?$"
+    r"(?:-(?:rc|preview)[1-9][0-9]*)?$"
 )
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 ATTRIBUTE_PATTERN = re.compile(
@@ -283,7 +283,7 @@ def inspect_apk(
     allowed_packages: tuple[str, ...] = (PACKAGE_ID,),
 ) -> tuple[dict[str, object], str, str, tuple[int, str]]:
     if len(release_tag) > 64 or not RELEASE_TAG_PATTERN.fullmatch(release_tag):
-        _fail("release tag is not an accepted vX.Y.Z or vX.Y.Z-rcN value")
+        _fail("release tag is not an accepted vX.Y.Z, vX.Y.Z-previewN or vX.Y.Z-rcN value")
     try:
         apk_fd = os.open(apk, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
     except OSError:

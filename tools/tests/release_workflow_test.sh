@@ -24,7 +24,7 @@ fail_test() {
 # ends the suite here, before any check, so the gates can never pass over zero vectors.
 if ! release_tag_vectors="$(python3 -c 'import json, sys
 tags = json.load(open(sys.argv[1]))["tags"]
-assert {t["kind"] for t in tags} == {"stable", "rc", "build", "refused"}, "every tag kind, and no other"
+assert {t["kind"] for t in tags} == {"stable", "prerelease", "build", "refused"}, "every tag kind, and no other"
 assert all(isinstance(t["tag"], str) and t["tag"] and not set(t["tag"]) & set("\t\n") for t in tags)
 for t in tags: print(t["kind"] + "\t" + t["tag"])' "$ROOT/tools/tests/fixtures/release-identity-corpus.json")"; then
   printf 'Bail out! the shared release corpus could not be loaded\n' >&2
@@ -129,8 +129,15 @@ mkdir -p "$prerelease_missing/release-input" "$prerelease_missing/docs"
 printf '## v9.9.9\n\nStable notes.\n' > "$prerelease_missing/docs/CHANGELOG.md"
 run_release_notes_step push v9.9.9-rc1 "$prerelease_missing"
 prerelease_missing_status=$?
+preview_missing="$TMP/preview-missing"
+mkdir -p "$preview_missing/release-input" "$preview_missing/docs"
+printf '## v9.9.9\n\nStable notes.\n' > "$preview_missing/docs/CHANGELOG.md"
+run_release_notes_step push v9.9.9-preview1 "$preview_missing"
+preview_missing_status=$?
 if [ "$prerelease_missing_status" -ne 0 ] && \
-   grep -Fq "each RC needs its own ## v9.9.9-rc1 entry" "$prerelease_missing/output.log"; then
+   grep -Fq "each prerelease needs its own ## v9.9.9-rc1 entry" "$prerelease_missing/output.log" && \
+   [ "$preview_missing_status" -ne 0 ] && \
+   grep -Fq "each prerelease needs its own ## v9.9.9-preview1 entry" "$preview_missing/output.log"; then
   pass "prerelease tag still requires its own exact changelog entry"
 else
   fail_test "prerelease tag still requires its own exact changelog entry"
@@ -558,14 +565,14 @@ if grep -Fq '/usr/bin/install -d -m 0755 dist' <<<"$asset_step" && \
 else
   fail_test "both signed APKs and their bounded V4 sidecars remain in the exact readable release set"
 fi
-# Both tag gates in the workflow run, as written, over the shared release corpus: stable and rc
+# Both tag gates in the workflow run, as written, over the shared release corpus: stable and prerelease (rc, preview)
 # tags pass, every other kind is refused.
 tag_gates="$(grep -E '^[[:space:]]*if .*=~ .*RELEASE_TAG|^[[:space:]]*if .*RELEASE_TAG.*=~' "$WORKFLOW" | sed 's/^[[:space:]]*//')"
 tag_gate_disagreements="$(
   while IFS= read -r gate; do
     while IFS=$'\t' read -r kind tag; do
       verdict="$(RELEASE_TAG="$tag" bash -c "$gate echo refused; else echo accepted; fi")"
-      case "$kind:$verdict" in stable:accepted|rc:accepted|build:refused|refused:refused) ;; *) echo "$kind $tag -> $verdict" ;; esac
+      case "$kind:$verdict" in stable:accepted|prerelease:accepted|build:refused|refused:refused) ;; *) echo "$kind $tag -> $verdict" ;; esac
     done <<<"$release_tag_vectors"
   done <<<"$tag_gates"
 )"
