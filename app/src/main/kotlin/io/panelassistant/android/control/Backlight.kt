@@ -13,4 +13,7 @@ interface Backlight {
 
     /** Set the raw level with NO floor (0 allowed) — for [ScreenController]'s screen-off fallback only. */
     fun setBrightnessRaw(level: Int)
+
+    /** The level the app commanded (the Android setting), which a vendor can leave the node away from. */
+    fun getCommanded(): Int = getBrightness()
 }

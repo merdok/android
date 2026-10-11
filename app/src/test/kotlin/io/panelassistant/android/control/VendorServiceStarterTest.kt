@@ -45,6 +45,15 @@ class VendorServiceStarterTest {
     private val direct = Executor { it.run() }
     private fun starter(panel: Panel, service: VendorService? = stargate) = VendorServiceStarter(service, panel, direct)
 
+    /** Vendor settings are re-asserted whenever the service is found up or brought up, never otherwise. */
+    @Test fun theUpFollowUpRunsOnlyWhileTheServiceAnswers() {
+        for ((panel, expected) in listOf(Panel(listening = true) to 1, Panel() to 1, Panel(opensAfterPolls = null) to 0, Panel(overlays = false) to 0)) {
+            var ups = 0
+            VendorServiceStarter(stargate, panel, direct, onUp = { ups++ }).request()
+            assertEquals(expected, ups)
+        }
+    }
+
     @Test fun noDeclaredServiceDoesNothing() {
         val panel = Panel()
         val starter = starter(panel, service = null)
@@ -99,6 +108,18 @@ class VendorServiceStarterTest {
         assertEquals(listOf("cover", "start:cloud.shelly.stargate.activities.MainActivity", "dashboard", "uncover"), panel.events)
         assertEquals(VendorServiceStarter.State.FAILED, starter.state)
         assertTrue(panel.clock >= VendorServiceStarter.START_TIMEOUT_MS)
+    }
+
+    /** Shelly 2.8.2 opened its listener after the covered wait; the start then still counts, uncovered. */
+    @Test fun aListenerThatOpensAfterTheCoveredWaitStillCountsAndRunsTheFollowUp() {
+        val polls = (VendorServiceStarter.START_TIMEOUT_MS / VendorServiceStarter.POLL_MS).toInt() + 5
+        val panel = Panel(opensAfterPolls = polls)
+        var ups = 0
+        val starter = VendorServiceStarter(stargate, panel, direct, onUp = { ups++ })
+        starter.request()
+        assertEquals(VendorServiceStarter.State.STARTED, starter.state)
+        assertEquals(1, ups)
+        assertEquals("one start, and the cover is gone before the late watch", listOf("cover", "start:cloud.shelly.stargate.activities.MainActivity", "dashboard", "uncover"), panel.events)
     }
 
     @Test fun aThrowingVendorStartStillLiftsTheCoverAndNeverEscapes() {

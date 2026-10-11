@@ -176,6 +176,9 @@ internal object ProfileValidator {
             }
             if (service.port !in 1..65535) reject("platform.launcher.vendor_service.port", "Port must be 1 through 65535.", "port-out-of-range", mapOf("value" to service.port.toString()))
         }
+        if (document.hardware.screenOff == ScreenOff.VENDOR_RPC.yamlName && document.platform.launcher.vendorService == null) {
+            reject("hardware.screen_off", "The vendor-rpc route needs platform.launcher.vendor_service to name the vendor's local port.")
+        }
         if (LedMechanism.ofYaml(document.hardware.led.mechanism) == null) {
             reject("hardware.led.mechanism", "Unknown LED mechanism '${document.hardware.led.mechanism}'.", "unknown-led-mechanism", mapOf("value" to document.hardware.led.mechanism))
         }

@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.3.1
+version: 2.5.0
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -29,14 +29,15 @@ metadata:
     - Evidence comes from one unit, exercised on factory firmware 2.5.4 and again after updating it to 2.7.4. The measured 2.7.4 update installed a Shelly device-owner policy and left the launcher, sensors and adb posture unchanged; the vendor launcher was a protected package that could not be disabled on either tested firmware.
     - Shelly documents Uninstall all updates under Settings → Reset device for modern models, including X2i, since firmware 2.8.0. It returns only to the one vendor-app version shipped with that unit; arbitrary downgrades and full Android restoration are not established. Recovery has not been exercised on the tested unit.
     - Returning to a shipped vendor-app version older than 2.6.2 always resets factory defaults. Settings may also be reset on other units; save a configuration backup before recovery.
-    - Screen-off lets Android's own screen timeout turn the display fully off, with no root. The firmware keeps the screen on while plugged in, so the full-off route needs Panel Assistant to grant WRITE_SECURE_SETTINGS at install; without that grant screen-off dims to the floor instead.
+    - Screen-off asks Shelly's launcher to switch the backlight off over its local RPC on port 8021, with no root; Android stays awake, and the first touch on the dark screen wakes it without reaching the dashboard, which needs the draw-over-apps grant. When the launcher does not answer, Android's own screen timeout turns the display off, which needs Panel Assistant to grant WRITE_SECURE_SETTINGS because the firmware keeps the screen on while plugged in; without either, screen-off dims.
+    - While Shelly's launcher runs, the app switches its automatic brightness off through the same local RPC, so the brightness Home Assistant sets is the one shown; it does so again whenever it finds the launcher running.
     - The recommended density of 216 renders the dashboard as the factory density of 240 does at a 90 % renderer zoom, the setting chosen on this unit because text was too large at 240.
     - Home Assistant's Shelly integration reaches Shelly's own launcher on port 8021, which listens only after its main screen has been created once. While Panel Assistant is Home, the app creates it once after each boot beneath a full-screen cover and returns to the dashboard; this needs the draw-over-apps grant, and without it the Shelly integration stays unavailable until Shelly's launcher is opened.
     - The panel declares camera features that no camera backs; ha-paneld offers the camera only when Android enumerates one, so no suppression is declared here.
 requires:
   min_core_version: 1.0.0-preview1
   drivers:
-    - screen.screen-timeout
+    - screen.vendor-rpc
     - sensor.android
 match:
   # The X2i reports Jenna as its model, device and build product. Its product_version
@@ -85,9 +86,9 @@ hardware:
   led:
     mechanism: none
     transfer: identity
-  # The backlight sysfs node refuses an unprivileged write, but this route writes
-  # Settings.System instead and never touches it.
-  screen_off: screen-timeout
+  # The backlight sysfs node refuses an unprivileged write; Stargate, a system app, writes it
+  # for the app through Ui.Screen.Set on the vendor_service port. Falls back to the screen timeout.
+  screen_off: vendor-rpc
   # From full screen-off, Android wakes on any touch (WAKE_REASON_WAKE_MOTION); a wave wakes it
   # through ha-paneld once proximity is calibrated. The panel has no button.
   local_wake:

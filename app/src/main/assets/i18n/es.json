@@ -2893,6 +2893,11 @@
       "state": "machine-cross-checked",
       "text": "apagado real de la retroiluminación mediante su bl_power"
     },
+    "dashboard.capability.note.backlight_off_vendor": {
+      "text": "apagado real de la retroiluminación mediante el RPC local del fabricante; si no, tiempo de espera de pantalla de Android",
+      "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
+      "state": "machine-cross-checked"
+    },
     "dashboard.capability.note.brightness_helper": {
       "sourceHash": "adb57c0744977c72e567539d3337098a0e19eea90d77390beb3ceaf66dcb78a5",
       "state": "machine-cross-checked",

@@ -7885,6 +7885,21 @@
       "softMaxChars": 48,
       "hardMaxChars": 68
     },
+    "dashboard.capability.note.backlight_off_vendor": {
+      "text": "true backlight-off through the vendor's local RPC; Android's screen timeout when the vendor does not answer",
+      "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
+      "surface": "dashboard",
+      "context": "Runtime diagnostics capability detail matched from a closed backend value; preserve privilege and hardware terminology and render as text, not HTML.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Android",
+        "RPC"
+      ],
+      "softMaxChars": 110,
+      "hardMaxChars": 140
+    },
     "dashboard.capability.note.brightness_helper": {
       "text": "backlight control via helper daemon; Android setting is unchanged",
       "sourceHash": "adb57c0744977c72e567539d3337098a0e19eea90d77390beb3ceaf66dcb78a5",

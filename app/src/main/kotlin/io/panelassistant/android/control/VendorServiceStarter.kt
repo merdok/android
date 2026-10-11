@@ -42,6 +42,8 @@ class VendorServiceStarter(
     private val seams: Seams,
     private val executor: Executor,
     private val attempts: AtomicInteger = AtomicInteger(),
+    /** Run on the worker whenever a check finds the service up, so vendor settings can be re-asserted. */
+    private val onUp: () -> Unit = {},
 ) {
     /** The platform edges, injected so the behaviour runs on the JVM. Cover calls block until done. */
     interface Seams {
@@ -91,6 +93,7 @@ class VendorServiceStarter(
             if (seams.stopping()) return
             if (seams.listening(service.port)) {
                 state = State.UP
+                runCatching(onUp).onFailure { Log.w(TAG, "vendor service follow-up failed", it) }
                 return
             }
             if (!seams.canDrawOverlays()) {
@@ -109,13 +112,27 @@ class VendorServiceStarter(
             lastAttemptAt = now
             attempts.incrementAndGet()
             state = attempt(service)
+            // Measured on the X2i after Shelly 2.8.2: the listener had not opened when the covered wait
+            // ended, so the start read as failed and the follow-up never ran. Keep watching, uncovered.
+            if (state == State.FAILED && listensWithin(service.port, LATE_LISTEN_MS)) state = State.STARTED
             Log.i(TAG, "vendor service on ${service.port}: ${state.wire}")
+            if (state == State.STARTED) runCatching(onUp).onFailure { Log.w(TAG, "vendor service follow-up failed", it) }
         } catch (t: Throwable) {
             state = State.FAILED
             Log.w(TAG, "vendor service start failed", t)
         } finally {
             running.set(false)
         }
+    }
+
+    private fun listensWithin(port: Int, windowMs: Long): Boolean {
+        val deadline = seams.now() + windowMs
+        while (!seams.stopping()) {
+            if (seams.listening(port)) return true
+            if (seams.now() >= deadline) return false
+            seams.sleep(LATE_POLL_MS)
+        }
+        return false
     }
 
     private fun attempt(service: VendorService): State {
@@ -150,6 +167,10 @@ class VendorServiceStarter(
         const val POLL_MS = 200L
         const val COVER_HOLD_MS = 700L
         const val RETURN_TIMEOUT_MS = 5_000L
+        /** After the covered wait: the 2.8.2 listener was still closed 7 s after the start; one minute
+         *  bounds the extra watch well beyond that without measuring its exact opening time. */
+        const val LATE_LISTEN_MS = 60_000L
+        const val LATE_POLL_MS = 1_000L
         private const val CONNECT_TIMEOUT_MS = 500
 
         private val PROCESS_ATTEMPTS = AtomicInteger()
@@ -168,8 +189,9 @@ class VendorServiceStarter(
             service: VendorService?,
             returnSurface: () -> (() -> Boolean),
             stopping: () -> Boolean,
+            onUp: () -> Unit = {},
         ): VendorServiceStarter =
-            VendorServiceStarter(service, AndroidSeams(context.applicationContext, returnSurface, stopping), WORKER, PROCESS_ATTEMPTS)
+            VendorServiceStarter(service, AndroidSeams(context.applicationContext, returnSurface, stopping), WORKER, PROCESS_ATTEMPTS, onUp)
                 .also { installed = it }
     }
 

@@ -232,6 +232,8 @@ class FakeWakeTap(
     override fun disarm() { armed = false; onTap = null }
     /** Simulate a tap while armed — invokes the wake callback ScreenController registered. */
     fun fireTap() { onTap?.invoke() }
+    /** The callback currently armed, kept by a test to run it late (a touch worker that lost a race). */
+    fun armedCallback(): (() -> Unit)? = onTap
 }
 
 /**
@@ -256,4 +258,49 @@ class FakeSystemEnv(
         directStarts += component
         return directStartSucceeds
     }
+}
+
+/**
+ * Fake [io.panelassistant.android.platform.VendorScreen] modelling Stargate on the X2i: [node] is the
+ * backlight node it writes behind Android's back ([answers] false: Stargate not running; [blanks] false:
+ * it answers but the node does not follow; [readable] false: the app cannot read the node).
+ */
+class FakeVendorScreen(
+    var node: Int = 128,
+    var answers: Boolean = true,
+    var blanks: Boolean = true,
+    var readable: Boolean = true,
+    private val onLevel: Int = 128,
+) : io.panelassistant.android.platform.VendorScreen {
+    val calls = mutableListOf<Boolean>()
+    override fun set(on: Boolean): Boolean {
+        calls += on
+        if (!answers) return false
+        if (blanks || on) node = if (on) onLevel else 0
+        if (on) sinceOnMs = 0
+        return true
+    }
+    /** Stargate 2.8.2: [lateOverwriteMs] after `on=true` its own level lands on the node again, once. */
+    var lateOverwriteMs: Long? = null
+    private var sinceOnMs: Long? = null
+    /** Let [ms] pass; the controller's nap and the test both call this. */
+    fun advance(ms: Long) {
+        val before = sinceOnMs ?: return
+        sinceOnMs = before + ms
+        lateOverwriteMs?.let { at -> if (before < at && before + ms >= at) node = onLevel }
+    }
+    override fun level(): Int? = if (readable) node else null
+    var holds = 0
+    override fun holdBrightness(): Boolean { holds++; return answers }
+}
+
+/** [Backlight] over the Android setting, which re-drives [vendor]'s node only when the value changes. */
+class SettingBacklight(private val vendor: FakeVendorScreen, var setting: Int = 131) : Backlight {
+    override fun getBrightness() = vendor.node
+    override fun setBrightness(level: Int) {
+        if (level != setting) vendor.node = level
+        setting = level
+    }
+    override fun setBrightnessRaw(level: Int) = setBrightness(level)
+    override fun getCommanded() = setting
 }

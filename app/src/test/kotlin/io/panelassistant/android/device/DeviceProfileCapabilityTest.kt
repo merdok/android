@@ -66,6 +66,8 @@ class DeviceProfileCapabilityTest {
                     assertTrue("KEYEVENT but no privileged route on ${it.id}", it.appCanSu || it.usesDaemon)
                 // Unprivileged Android sleep: legal under any privilege.
                 ScreenOff.BRIGHTNESS_ZERO, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> Unit
+                // The vendor's system app writes the backlight, so the app needs no privilege, only its port.
+                ScreenOff.VENDOR_RPC -> assertTrue("VENDOR_RPC but no vendor service on ${it.id}", it.vendorService != null)
             }
         }
     }
