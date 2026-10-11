@@ -352,13 +352,7 @@ class NavbarController(
         setVolumeReceiver(target in OVERLAY_MODES)
         synchronized(lifecycleLock) {
             BuiltinDashboard.setNavbarRevealHandler(
-                if (target == MODE_SWIPE && canDraw()) {
-                    {
-                        main.post {
-                            if (!isClosed() && appliedMode == MODE_SWIPE) reveal()
-                        }
-                    }
-                } else null,
+                if (target == MODE_SWIPE && canDraw()) ::onSwipe else null,
             )
         }
     }
@@ -972,17 +966,16 @@ class NavbarController(
      * once the permission is held the same swipe applies the wanted mode and shows the bar.
      */
     private fun offerOverlayPermission(work: ModeWork) = synchronized(lifecycleLock) {
-        if (!isCurrentLocked(work)) return@synchronized
-        BuiltinDashboard.setNavbarRevealHandler {
-            if (!canDraw()) {
-                openOverlaySettings()
-            } else {
-                applyAsync(mode).thenAccept { outcome ->
-                    if (outcome.status == NavbarModeApplyStatus.APPLIED) {
-                        main.post { if (!isClosed() && appliedMode == MODE_SWIPE) reveal() }
-                    }
-                }
-            }
+        if (isCurrentLocked(work)) BuiltinDashboard.setNavbarRevealHandler(::onSwipe)
+    }
+
+    /** The dashboard's bottom-edge swipe, also when the permission was revoked after the bar was set up. */
+    private fun onSwipe() {
+        val revealSwipeBar = { main.post { if (!isClosed() && appliedMode == MODE_SWIPE) reveal() } }
+        when {
+            !canDraw() -> openOverlaySettings()
+            appliedMode == MODE_SWIPE -> revealSwipeBar()
+            else -> applyAsync(mode).thenAccept { if (it.status == NavbarModeApplyStatus.APPLIED) revealSwipeBar() }
         }
     }
 
