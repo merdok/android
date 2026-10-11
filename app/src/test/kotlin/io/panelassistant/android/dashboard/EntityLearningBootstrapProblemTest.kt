@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.EntityHoldKind
+import io.panelassistant.android.entityHoldKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -14,10 +16,18 @@ class EntityLearningBootstrapProblemTest {
             EntityBootstrapProblem.AUTHENTICATION,
             classifyEntityBootstrapProblem("degraded", "Home Assistant credential rejected"),
         )
-        assertEquals(
-            EntityBootstrapProblem.AUTHENTICATION,
-            classifyEntityBootstrapProblem("degraded", "Home Assistant token unavailable"),
+    }
+
+    @Test fun `a scan that found no session yet keeps the panel on its progress screen`() {
+        // First-run sign-in replaces the credential under a running scan, which then reports no token.
+        // The panel's screen must read that as setup still running, never as a refused sign-in.
+        val kind = entityHoldKind(
+            blockingIssues = 0,
+            filterHold = false,
+            problem = classifyEntityBootstrapProblem("degraded", TOKEN_UNAVAILABLE),
+            canIgnoreBlockingIssues = false,
         )
+        assertEquals(EntityHoldKind.LEARNING, kind)
     }
 
     @Test fun `other failed scans get generic retry guidance`() {

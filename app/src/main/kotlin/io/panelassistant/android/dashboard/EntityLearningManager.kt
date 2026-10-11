@@ -1881,7 +1881,7 @@ class EntityLearningManager(
         val auth = HaCredentialManager.resolve(config, stillCurrent = stillCurrent)
         val route = auth.route ?: error("Home Assistant route unavailable")
         val token = auth.session?.accessToken
-            ?: error(if (auth.rejected) "Home Assistant credential rejected" else "Home Assistant token unavailable")
+            ?: error(if (auth.rejected) "Home Assistant credential rejected" else TOKEN_UNAVAILABLE)
         check(stillCurrent() && HaConnectionRoutes.isCurrent(config, route)) { "entity-learning target changed during authentication" }
         val ownedAuthSnapshot = config.haAuthSnapshot()
         val authenticatedAuthority = ownedAuthenticatedHomeDashboardAuthority(
@@ -3376,12 +3376,17 @@ internal fun blockingIssueSelection(rawIssues: String): BlockingIssueSelection =
 
 enum class EntityBootstrapProblem { AUTHENTICATION, SYNCHRONIZATION }
 
+/** A scan's failure when Home Assistant gave it no session and did not reject the credential. */
+internal const val TOKEN_UNAVAILABLE = "Home Assistant token unavailable"
+
 internal fun classifyEntityBootstrapProblem(state: String, error: String): EntityBootstrapProblem? {
     if (state != "degraded" || error.isBlank()) return null
     val normalized = error.lowercase()
+    // No session yet is not a refusal: during first-run sign-in the credential changes under a running scan,
+    // which then reports no token. The hold keeps its progress screen and the watchdog retries the scan.
+    if (TOKEN_UNAVAILABLE.lowercase() in normalized) return null
     return if (
-        "http 401" in normalized || "http 403" in normalized ||
-        "credential rejected" in normalized || "token unavailable" in normalized
+        "http 401" in normalized || "http 403" in normalized || "credential rejected" in normalized
     ) EntityBootstrapProblem.AUTHENTICATION else EntityBootstrapProblem.SYNCHRONIZATION
 }
 

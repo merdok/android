@@ -1449,6 +1449,17 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
+    @Test fun `only an enrollment refusal counts as Panel Assistant answering`() = runTest {
+        for ((code, expected) in listOf("unknown_panel" to 1, "panel_user_mismatch" to 1, "unknown_command" to 0, "protocol_unsupported" to 0)) {
+            var answered = 0
+            val harness = harness(FakeConnection(Ha.refusing(code)), onConnected = { answered++ })
+            harness.owner.replaceDemand(DEMAND)
+            runCurrent()
+            assertEquals(code, expected, answered)
+            harness.owner.close()
+        }
+    }
+
     @Test fun everyRefusalIsReportedByItsCode() = runTest {
         for (code in listOf("unknown_panel", "unknown_command", "panel_user_mismatch", "protocol_unsupported", "invalid_format")) {
             val harness = harness(FakeConnection(Ha.refusing(code)))

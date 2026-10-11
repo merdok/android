@@ -114,7 +114,8 @@ class EntityLearningHoldRecoveryTest {
     @Test fun `only a credential rejection turns a failed probe into a recorded problem`() {
         assertTrue(probeFailureSurfacesProblem("states request failed: HTTP 401"))
         assertTrue(probeFailureSurfacesProblem("Home Assistant credential rejected"))
-        assertTrue(probeFailureSurfacesProblem("Home Assistant token unavailable"))
+        // No session yet is the sign-in landing mid-probe, not a refusal.
+        assertFalse(probeFailureSurfacesProblem(TOKEN_UNAVAILABLE))
         // Home Assistant being down between two probes is the reconnect case: logged, never persisted,
         // so the decision screen is not replaced by a scan-failure screen.
         assertFalse(probeFailureSurfacesProblem("connection timed out for private-host.example"))
