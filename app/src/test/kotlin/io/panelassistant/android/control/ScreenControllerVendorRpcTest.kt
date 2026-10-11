@@ -66,20 +66,77 @@ class ScreenControllerVendorRpcTest {
         assertTrue(sc.routeSelection().reason.contains("vendor screen RPC was refused"))
     }
 
-    /** An answer alone is not an off: the node must read dark. Whatever the vendor half-applied is undone. */
+    /** An answer the readable node does not confirm is undone, then nothing else can sleep: the dim. */
     @Test fun anAnswerTheNodeDoesNotConfirmIsUndoneAndDimsWhenNothingElseCanSleep() {
-        for (unconfirmed in listOf(FakeVendorScreen(blanks = false), FakeVendorScreen(readable = false))) {
-            val sc = ScreenController(
-                SettingBacklight(unconfirmed), power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap,
-                ScreenOff.VENDOR_RPC, nap = {}, vendor = unconfirmed,
-            )
-            sc.sleep()
-            assertEquals("asked to relight after the unconfirmed off", listOf(false, true), unconfirmed.calls)
-            assertTrue("never left dark", unconfirmed.node > 0)
-            assertFalse(wakeTap.armed)
-            assertEquals(ScreenOff.BRIGHTNESS_ZERO, sc.routeSelection().selected)
-            assertTrue(sc.routeSelection().reason.contains("never-blank floor"))
+        val unconfirmed = FakeVendorScreen(blanks = false)
+        val sc = ScreenController(
+            SettingBacklight(unconfirmed), power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap,
+            ScreenOff.VENDOR_RPC, nap = {}, vendor = unconfirmed,
+        )
+        sc.sleep()
+        assertEquals("asked to relight after the unconfirmed off", listOf(false, true), unconfirmed.calls)
+        assertTrue("never left dark", unconfirmed.node > 0)
+        assertFalse(wakeTap.armed)
+        assertEquals(ScreenOff.BRIGHTNESS_ZERO, sc.routeSelection().selected)
+        assertTrue(sc.routeSelection().reason.contains("never-blank floor"))
+    }
+
+    /** Where the node cannot be read (enforcing firmware), the vendor's answer is the off, with the touch wake. */
+    @Test fun anUnreadableNodeTakesTheVendorsAnswerAndKeepsTheTouchWake() {
+        vendor.readable = false
+        val sc = controller()
+        sc.sleep()
+        assertEquals(0, vendor.node)
+        assertTrue(wakeTap.armed)
+        assertEquals(ScreenController.REASON_VENDOR_UNREAD, sc.routeSelection().reason)
+        wakeTap.fireTap()
+        assertTrue(vendor.node > 0)
+        assertFalse(sc.isIntendedOff())
+    }
+
+    /** The off applied but its reply was lost, the undo failed too,
+     *  and the node cannot be read. No other route may own the screen; the touch wake stays and relights. */
+    @Test fun aLostOffReplyWithAFailedUndoKeepsATouchWakeThatRelights() {
+        val node = FakeVendorScreen(readable = false)
+        val lostReplies = object : io.panelassistant.android.platform.VendorScreen {
+            override fun set(on: Boolean): Boolean { if (!on) node.node = 0; return false }
+            override fun level(): Int? = node.level()
+            override fun holdBrightness() = false
         }
+        power.canWrite = true
+        val setting = SettingBacklight(node, setting = 128)
+        val sc = ScreenController(
+            setting, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            nap = {}, vendor = lostReplies,
+        )
+        sc.sleep()
+        assertEquals(ScreenOff.VENDOR_RPC, sc.routeSelection().selected)
+        assertEquals(ScreenController.REASON_VENDOR_UNRESOLVED, sc.routeSelection().reason)
+        assertTrue(wakeTap.armed)
+        assertTrue("Android was not handed the screen", power.interactive)
+        node.node = 0  // whatever the undo did, assume the vendor still holds it dark
+        wakeTap.fireTap()
+        assertFalse(sc.isIntendedOff())
+        assertTrue("the wake restores visible brightness", node.node > 0)
+    }
+
+    /** A lost reply on a readable node that did go dark: the undo is proven lit before Android sleep owns it. */
+    @Test fun aLostOffReplyIsUndoneAndProvenLitBeforeTheTimeoutTakesOver() {
+        val node = FakeVendorScreen()
+        val lostReplies = object : io.panelassistant.android.platform.VendorScreen {
+            override fun set(on: Boolean): Boolean { if (!on) node.node = 0; return false }
+            override fun level(): Int? = node.level()
+            override fun holdBrightness() = false
+        }
+        power.canWrite = true
+        val sc = ScreenController(
+            SettingBacklight(node, setting = 128), power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap,
+            ScreenOff.VENDOR_RPC, nap = {}, vendor = lostReplies,
+        )
+        sc.sleep()
+        assertTrue("relit by the setting change before the hand-over", node.node > 0)
+        assertEquals(ScreenOff.SCREEN_TIMEOUT, sc.routeSelection().selected)
+        assertFalse(wakeTap.armed)
     }
 
     @Test fun withoutTheOverlayTheVendorIsNeverAskedToGoDark() {
@@ -145,6 +202,61 @@ class ScreenControllerVendorRpcTest {
         stargate.advance(10_000)
         assertEquals(151, stargate.node)
         assertEquals(151, setting.setting)
+    }
+
+    /** A slider moved during the post-wake hold is followed; it is never put back to the wake's level. */
+    @Test fun aBrightnessChangeDuringTheHoldIsFollowedNotOverwritten() {
+        val stargate = FakeVendorScreen(node = 151, onLevel = 25).apply { lateOverwriteMs = 1_500 }
+        val setting = SettingBacklight(stargate, setting = 151)
+        var naps = 0
+        val sc = ScreenController(
+            setting, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            nap = { ms -> stargate.advance(ms); if (++naps == 2) setting.setBrightness(200) }, vendor = stargate,
+        )
+        sc.sleep()
+        naps = 0
+        wakeTap.fireTap()
+        stargate.advance(10_000)
+        assertEquals(200, setting.setting)
+        assertEquals(200, stargate.node)
+    }
+
+    /** Shutdown during the hold stops further corrections; the first relight has already happened. */
+    @Test fun closingDuringTheHoldStopsCorrections() {
+        val stargate = FakeVendorScreen(node = 151, onLevel = 25).apply { lateOverwriteMs = 1_500 }
+        val setting = SettingBacklight(stargate, setting = 151)
+        lateinit var sc: ScreenController
+        sc = ScreenController(
+            setting, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            // Close inside the nap in which Stargate's late write lands, so the node mismatches after it.
+            nap = { ms -> stargate.advance(ms); if (stargate.node == 25) sc.closeAdmission() }, vendor = stargate,
+        )
+        sc.sleep()
+        wakeTap.fireTap()
+        stargate.advance(10_000)
+        assertEquals("no correction after closure", 25, stargate.node)
+    }
+
+    /** A wake the vendor refuses on an unreadable node may leave it held dark: one consuming touch retries. */
+    @Test fun anUnansweredWakeThatCannotBeProvenLitKeepsARetryTouch() {
+        vendor.readable = false
+        val sc = controller()
+        sc.sleep()
+        vendor.answers = false
+        wakeTap.fireTap()
+        assertFalse(sc.isIntendedOff())
+        assertTrue("a retry touch stays armed", wakeTap.armed)
+        vendor.answers = true
+        wakeTap.fireTap()
+        assertEquals(listOf(false, true, true), vendor.calls)
+        assertFalse("answered, so no further retry", wakeTap.armed)
+    }
+
+    @Test fun anAnsweredOrProvenWakeLeavesNoRetryTouch() {
+        val sc = controller()
+        sc.sleep()
+        wakeTap.fireTap()
+        assertFalse(wakeTap.armed)
     }
 
     @Test fun aDarkNodeNobodyAskedForIsRelitThroughTheVendor() {

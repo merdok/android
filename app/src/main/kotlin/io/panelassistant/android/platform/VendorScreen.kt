@@ -21,7 +21,7 @@ interface VendorScreen {
     fun lit(): Boolean? = level()?.let { it > 0 }
 
     /** Stop the vendor driving the backlight from its own light sensor, so the app's level is the only
-     *  one (maintainer, 2026-10-11). Idempotent; false when the vendor did not answer. */
+     *  one. Idempotent; false when the vendor did not answer. */
     fun holdBrightness(): Boolean
 }
 

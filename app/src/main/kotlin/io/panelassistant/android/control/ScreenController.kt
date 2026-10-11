@@ -113,11 +113,14 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   consequence in the selection reason.
  * - [ScreenOff.VENDOR_RPC] asks the vendor's system app ([VendorScreen], Shelly's Stargate) to blank
  *   the backlight. Android stays interactive, so it belongs to the backlight family: the touch overlay
- *   is armed first, and the off counts only once the backlight node reads dark. Refused, unconfirmed
- *   or with no overlay, it undoes any half-applied blank and takes the screen-timeout chain above. The
- *   vendor writes the node behind Android's back and relights to a level of its own, so every wake
- *   then changes `SCREEN_BRIGHTNESS` to the app's level, which makes Android drive the node again; that
- *   also relights a panel whose vendor no longer answers.
+ *   is armed first, and the off counts once the backlight node reads dark, or once the vendor answered
+ *   where the node cannot be read. Otherwise it undoes whatever may have applied (vendor relight and a
+ *   setting change) and takes the screen-timeout chain above only once the node reads lit; while
+ *   darkness may remain it keeps the touch wake and owns the off itself. The vendor writes the node
+ *   behind Android's back and relights to a level of its own, so every wake then changes
+ *   `SCREEN_BRIGHTNESS` to the app's level, which makes Android drive the node again, and holds it
+ *   there for a few seconds against a late vendor write; that also relights a panel whose vendor no
+ *   longer answers.
  */
 class ScreenController(
     private val backlight: Backlight,
@@ -398,13 +401,12 @@ class ScreenController(
                 is AndroidSleep.Slept -> slept.route to slept.reason
                 is AndroidSleep.Refused -> { androidSleepRefusal = slept.reason; null }
             }
-            ScreenOff.VENDOR_RPC -> {
-                val vendorRefusal = refusal ?: sleepByVendor()
-                if (vendorRefusal == null) ScreenOff.VENDOR_RPC to REASON_DECLARED
-                else when (val slept = sleepAndroid("the vendor screen RPC was refused ($vendorRefusal); fell back to the screen timeout")) {
+            ScreenOff.VENDOR_RPC -> when (val off = if (refusal != null) VendorOff.Refused(refusal) else sleepByVendor()) {
+                is VendorOff.Dark -> ScreenOff.VENDOR_RPC to off.reason
+                is VendorOff.Refused -> when (val slept = sleepAndroid("the vendor screen RPC was refused (${off.reason}); fell back to the screen timeout")) {
                     AndroidSleep.Touched -> return cancelOffByTouch()
                     is AndroidSleep.Slept -> slept.route to slept.reason
-                    is AndroidSleep.Refused -> { androidSleepRefusal = "$vendorRefusal; ${slept.reason}"; null }
+                    is AndroidSleep.Refused -> { androidSleepRefusal = "${off.reason}; ${slept.reason}"; null }
                 }
             }
             ScreenOff.DEVICE_ADMIN ->
@@ -505,17 +507,27 @@ class ScreenController(
      * node. Null on a confirmed dark; else why not, with the overlay disarmed and the vendor asked to
      * relight, so the Android-sleep fallback never starts behind a node the vendor left at zero.
      */
-    private fun sleepByVendor(): String? {
+    private fun sleepByVendor(): VendorOff {
         val level = backlight.getBrightness()
         if (level > 0) savedLevel = level
-        val refusal = when {
-            !vendor.set(false) -> "it did not answer"
-            !awaitVendorLit(false) -> "the backlight did not read dark"
-            else -> return null
-        }
-        wakeTap.disarm()
+        val answered = vendor.set(false)
+        if (answered && awaitVendorLit(false)) return VendorOff.Dark(REASON_DECLARED)
+        if (answered && vendor.lit() == null) return VendorOff.Dark(REASON_VENDOR_UNREAD)
+        // Unconfirmed, and perhaps applied with its reply lost: undo it, by the vendor and by a setting
+        // change Android re-drives, before another route owns the screen.
         vendor.set(true)
-        return refusal
+        stepSettingTo(savedLevel.coerceAtLeast(MIN_ON))
+        if (vendor.lit() == true) {
+            wakeTap.disarm()
+            return VendorOff.Refused(if (answered) "the backlight did not read dark" else "it did not answer")
+        }
+        // Darkness may remain: only the armed touch wake is sure to let a person out, so keep it.
+        return VendorOff.Dark(REASON_VENDOR_UNRESOLVED)
+    }
+
+    private sealed interface VendorOff {
+        data class Dark(val reason: String) : VendorOff
+        data class Refused(val reason: String) : VendorOff
     }
 
     /**
@@ -538,11 +550,15 @@ class ScreenController(
     private fun settleAtAppLevel(level: Int) {
         stepSettingTo(level)
         var waited = 0L
-        while (waited < VENDOR_SETTLE_MS) {
+        // The first step always runs (fail-open); corrections stop once the controller is closing.
+        while (waited < VENDOR_SETTLE_MS && !admissionClosed.get()) {
             nap(VENDOR_SETTLE_POLL_MS)
             waited += VENDOR_SETTLE_POLL_MS
+            if (admissionClosed.get()) return
             val node = vendor.level() ?: return
-            if (node != level) stepSettingTo(level)
+            // The newest commanded level: a slider moved during the hold is followed, never overwritten.
+            val target = backlight.getCommanded().takeIf { it > 0 } ?: level
+            if (node != target) stepSettingTo(target)
         }
     }
 
@@ -556,7 +572,8 @@ class ScreenController(
     private fun awaitVendorLit(expected: Boolean): Boolean {
         var waited = 0L
         while (true) {
-            if (vendor.lit() == expected) return true
+            val lit = vendor.lit() ?: return false
+            if (lit == expected) return true
             if (waited >= VENDOR_CONFIRM_MS) return false
             nap(KEYEVENT_POLL_MS)
             waited += KEYEVENT_POLL_MS
@@ -643,10 +660,17 @@ class ScreenController(
                 return
             }
             ScreenOff.VENDOR_RPC -> {
-                val relit = vendor.set(true) && awaitVendorLit(true)
+                val answered = vendor.set(true)
+                val relit = answered && awaitVendorLit(true)
                 // The vendor relights to a level of its own, or, unanswered, leaves the node at the 0 it
                 // wrote; either way the app's level goes back on, and stays on through a late vendor write.
                 settleAtAppLevel(savedLevel.coerceAtLeast(MIN_ON))
+                // Unanswered and not proven lit: a vendor still enforcing its off may hold the node at
+                // zero. Keep a one-shot consuming touch that retries this wake, so a person is never
+                // left with a dark panel and no way back.
+                if (!answered && vendor.lit() != true && !admissionClosed.get() && wakeTap.canArm()) {
+                    wakeTap.arm { if (!intendedOff) wake() }
+                }
                 completeWake(if (relit) "screen -> on (vendor rpc)" else "screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return
             }
@@ -962,6 +986,10 @@ class ScreenController(
         internal const val REASON_CANCELLED_BY_TOUCH =
             "the off was cancelled by a touch during the screen-timeout wait; the panel stays awake"
         private const val REFUSAL_TOUCHED = "touched"
+        internal const val REASON_VENDOR_UNREAD =
+            "$REASON_DECLARED; the backlight node cannot be read, so the vendor's answer is taken as the off"
+        internal const val REASON_VENDOR_UNRESOLVED =
+            "the vendor's off could not be confirmed or undone, so the touch wake is kept"
         internal const val STAY_ON_SETTING = "stay_on_while_plugged_in"
         /** The screen-timeout refusal when stay-on is set and cannot be cleared; carried into the
          *  selection reason so diagnostics name the setting that defeated the timeout. */
