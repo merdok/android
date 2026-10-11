@@ -13,6 +13,8 @@ internal object ProfileValidator {
     private val packagePattern = Regex("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$")
     // An instance name glob (letters, digits, hyphens and *) then a DNS-SD service: ShellyWallDisplay-*._shelly._tcp.
     private val vendorMdnsPattern = Regex("^[A-Za-z0-9*-]{1,63}\\._[a-z0-9-]{1,15}\\._(?:tcp|udp)$")
+    /** The class half of a component: `.Relative.Name` or a fully qualified `a.b.Name`. */
+    private val componentClassPattern = Regex("^(?:\\.?[A-Za-z_][A-Za-z0-9_$]*)(?:\\.[A-Za-z_][A-Za-z0-9_$]*)*$")
     private val versionPattern = Regex("^[0-9]{1,6}(?:\\.[0-9]{1,6}){0,3}(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$")
     private val contentVersionPattern = Regex("^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$")
     private val licensePattern = Regex("^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}(?: (?:AND|OR) [A-Za-z0-9][A-Za-z0-9.+-]{0,63})*$")
@@ -165,6 +167,14 @@ internal object ProfileValidator {
             val path = "platform.vendor_mdns[$index]"
             if (!vendorMdnsPattern.matches(name)) reject(path, "Expected an instance glob and service, such as Vendor-*._vendor._tcp.", "vendor-mdns-invalid")
             if (vendorMdns.indexOf(name) != index) reject(path, "Duplicate vendor mDNS name.", "duplicate-vendor-mdns")
+        }
+        document.platform.launcher.vendorService?.let { service ->
+            val pkg = service.activity.substringBefore('/', "")
+            val cls = service.activity.substringAfter('/', "")
+            if (!packagePattern.matches(pkg) || !componentClassPattern.matches(cls)) {
+                reject("platform.launcher.vendor_service.activity", "Expected an activity component, pkg/.Class or pkg/fully.qualified.Class.", "component-name-invalid", mapOf("value" to service.activity))
+            }
+            if (service.port !in 1..65535) reject("platform.launcher.vendor_service.port", "Port must be 1 through 65535.", "port-out-of-range", mapOf("value" to service.port.toString()))
         }
         if (LedMechanism.ofYaml(document.hardware.led.mechanism) == null) {
             reject("hardware.led.mechanism", "Unknown LED mechanism '${document.hardware.led.mechanism}'.", "unknown-led-mechanism", mapOf("value" to document.hardware.led.mechanism))

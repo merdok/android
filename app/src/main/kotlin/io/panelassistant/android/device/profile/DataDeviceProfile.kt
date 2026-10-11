@@ -10,6 +10,7 @@ import io.panelassistant.android.device.PackageIntent
 import io.panelassistant.android.device.ProvisioningImportance
 import io.panelassistant.android.device.ProvisioningIntent
 import io.panelassistant.android.device.ScreenOff
+import io.panelassistant.android.device.VendorService
 import io.panelassistant.android.device.SuForm
 import io.panelassistant.android.hardware.LedTransfer
 import io.panelassistant.android.hardware.TransferCurve
@@ -35,6 +36,7 @@ class DataDeviceProfile internal constructor(
     override val declarationsFromCatalog = true
     override val hasNativeNavbar = document.platform.hasNativeNavbar
     override val vendorHomePackages = document.platform.launcher.vendorHomePackages.toSet()
+    override val vendorService = document.platform.launcher.vendorService?.let { VendorService.of(it.activity, it.port) }
     // Never default an unknown name to NONE: a NONE LED is stated unsupported and Panel Assistant deletes
     // the entity. The validator refuses the profile first (`unknown-led-mechanism`), so this is unreachable.
     override val ledMechanism = LedMechanism.ofYaml(document.hardware.led.mechanism)

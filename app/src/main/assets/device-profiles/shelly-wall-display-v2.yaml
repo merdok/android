@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-v2
-version: 2.3.0
+version: 2.4.0
 display_name: Shelly Wall Display (modern)
 soc_class: "Model-dependent (known: RK3326-S / RK3566)"
 metadata:
@@ -12,6 +12,7 @@ metadata:
     - SoC and proximity or motion details vary by model and still need live-hardware confirmation.
     - On-board relays are not exposed. The one model examined on hardware routes them through a world-writable sysfs class, but ha-paneld drives relays through its privileged route, and no relay path is established for the other models this profile covers.
     - The X2i has its own profile. Its firmware-level findings are projected onto the remaining models because they share its Stargate firmware line. They are the screen-timeout screen-off route, Recents being absent (the firmware ignores the Recents key) and Stargate's Home registration. Its unit-level facts (SoC, microphone, proximity technology, density and local wake) are not projected.
+    - Stargate's local service on port 8021, which Home Assistant's Shelly integration uses, is projected from the X2i on the same firmware line, where it listens only once Stargate's main screen has been created. The app checks the port at runtime and creates that screen under a cover only when nothing listens, so a model that already serves it is left alone.
     - Screen-off lets Android's own screen timeout turn the display fully off where that is proven on a model; where Android does not go to sleep, or Panel Assistant has not granted WRITE_SECURE_SETTINGS, screen-off falls back to dimming. How a dark panel wakes locally is not declared, because touch wake is unmeasured on these models.
 requires:
   min_core_version: 0.9.5-rc1
@@ -70,6 +71,11 @@ platform:
     # The Launcher button skips it and opens the admin launcher, which lists it as an app.
     vendor_home_packages:
       - cloud.shelly.stargate
+    # Projected from the X2i: the same Stargate serves Home Assistant's Shelly RPC on TCP 8021 only
+    # once its MainActivity exists. The app checks the port first, so a model that already listens is left alone.
+    vendor_service:
+      activity: cloud.shelly.stargate/.activities.MainActivity
+      port: 8021
 hardware:
   led:
     mechanism: none

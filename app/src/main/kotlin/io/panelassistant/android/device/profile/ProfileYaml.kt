@@ -191,7 +191,8 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
         val requires = map(root["requires"], "requires", setOf("min_core_version", "drivers"), required = true).orEmpty()
         val match = map(root["match"], "match", setOf("priority", "fallback", "any"), required = true).orEmpty()
         val platform = map(root["platform"], "platform", setOf("su_form", "app_can_su", "has_recents", "has_native_navbar", "launcher", "vendor_mdns"), required = true).orEmpty()
-        val launcher = map(platform["launcher"], "platform.launcher", setOf("vendor_home_packages")).orEmpty()
+        val launcher = map(platform["launcher"], "platform.launcher", setOf("vendor_home_packages", "vendor_service")).orEmpty()
+        val vendorService = map(launcher["vendor_service"], "platform.launcher.vendor_service", setOf("activity", "port"))
         val hardware = map(root["hardware"], "hardware", setOf(
             "led", "screen_off", "has_button_backlight", "local_wake", "zigbee_gateway_dir", "relay_base",
             "relay_base_fallbacks", "button_led_gpio_base", "touch_click_gain", "camera", "microphone", "speaker",
@@ -286,6 +287,12 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
                 hasNativeNavbar = boolean(platform, "has_native_navbar", "platform"),
                 launcher = ProfileLauncher(
                     vendorHomePackages = stringList(launcher["vendor_home_packages"], "platform.launcher.vendor_home_packages"),
+                    vendorService = vendorService?.let {
+                        ProfileVendorService(
+                            activity = string(it, "activity", "platform.launcher.vendor_service", required = true).orEmpty(),
+                            port = integer(it, "port", "platform.launcher.vendor_service", required = true) ?: 0,
+                        )
+                    },
                 ),
                 vendorMdns = stringList(platform["vendor_mdns"], "platform.vendor_mdns"),
             ),
@@ -755,8 +762,10 @@ internal fun ProfileDocument.toYamlMap(): Map<String, Any?> = linkedMapOf(
         "app_can_su" to platform.appCanSu,
         "has_recents" to platform.hasRecents,
         "has_native_navbar" to platform.hasNativeNavbar,
-        "launcher" to platform.launcher.vendorHomePackages.takeIf { it.isNotEmpty() }
-            ?.let { linkedMapOf("vendor_home_packages" to it) },
+        "launcher" to linkedMapOf(
+            "vendor_home_packages" to platform.launcher.vendorHomePackages.takeIf { it.isNotEmpty() },
+            "vendor_service" to platform.launcher.vendorService?.let { linkedMapOf("activity" to it.activity, "port" to it.port) },
+        ).withoutNullValues().takeIf { it.isNotEmpty() },
         "vendor_mdns" to platform.vendorMdns.takeIf { it.isNotEmpty() },
     ).withoutNullValues(),
     "hardware" to linkedMapOf(

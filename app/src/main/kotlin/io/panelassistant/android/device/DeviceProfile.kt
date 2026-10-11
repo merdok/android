@@ -98,6 +98,10 @@ interface DeviceProfile {
      *  the navbar Launcher button skips them. Default empty. */
     val vendorHomePackages: Set<String> get() = emptySet()
 
+    /** A vendor activity whose creation starts a local service (`platform.launcher.vendor_service`);
+     *  null when the profile declares none. */
+    val vendorService: VendorService? get() = null
+
     /** How the RGB LED is driven, if any. */
     val ledMechanism: LedMechanism
 
@@ -352,6 +356,22 @@ enum class ScreenOff(val yamlName: String) {
     companion object {
         /** The one list of accepted `hardware.screen_off` names; null for anything else. */
         fun ofYaml(name: String): ScreenOff? = entries.firstOrNull { it.yamlName == name }
+    }
+}
+
+/**
+ * A vendor activity whose creation starts a local service on [port] (`platform.launcher.vendor_service`).
+ * [className] is fully qualified; a profile's `pkg/.Class` form is expanded against [packageName].
+ */
+data class VendorService(val packageName: String, val className: String, val port: Int) {
+    companion object {
+        /** Parse a validated `pkg/.Class` or `pkg/fully.qualified.Class` component; null if malformed. */
+        fun of(component: String, port: Int): VendorService? {
+            val pkg = component.substringBefore('/', "")
+            val cls = component.substringAfter('/', "")
+            if (pkg.isEmpty() || cls.isEmpty() || port !in 1..65535) return null
+            return VendorService(pkg, if (cls.startsWith(".")) pkg + cls else cls, port)
+        }
     }
 }
 
