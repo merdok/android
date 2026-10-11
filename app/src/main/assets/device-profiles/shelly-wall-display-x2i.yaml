@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.3.0
+version: 2.3.1
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -13,6 +13,8 @@ metadata:
   author: ha-paneld maintainers
   source: https://panel-assistant.io/go/docs?page=hardware/shelly-wall-display
   links:
+    - label: Vendor firmware changelog
+      url: https://github.com/ShellyGroup/Wall-Display-Changelog
     - label: SoC details
       url: https://www.rock-chips.com/a/en/News/Press_Releases/2018/0413/898.html
   license: Apache-2.0
@@ -24,7 +26,9 @@ metadata:
     - Recents is declared absent because the firmware ignores the Recents key from both a foreground app and Settings; only Back and Home are offered.
     - On-board relays are present at /sys/class/strelay and switch real contacts, but ha-paneld drives relays through its privileged route, so no relay capability is offered on this unprivileged panel.
     - Relay terminals are inert while the panel is powered over USB instead of mains, so any future relay support must state that condition.
-    - Evidence comes from one unit, exercised on factory firmware 2.5.4 and again after updating it to 2.7.4. The update is one-way and installs a Shelly device-owner policy, which was measured to leave the launcher, the sensors and the adb posture alone; the vendor launcher is a protected package that cannot be disabled on either firmware.
+    - Evidence comes from one unit, exercised on factory firmware 2.5.4 and again after updating it to 2.7.4. The measured 2.7.4 update installed a Shelly device-owner policy and left the launcher, sensors and adb posture unchanged; the vendor launcher was a protected package that could not be disabled on either tested firmware.
+    - Shelly documents Uninstall all updates under Settings → Reset device for modern models, including X2i, since firmware 2.8.0. It returns only to the one vendor-app version shipped with that unit; arbitrary downgrades and full Android restoration are not established. Recovery has not been exercised on the tested unit.
+    - Returning to a shipped vendor-app version older than 2.6.2 always resets factory defaults. Settings may also be reset on other units; save a configuration backup before recovery.
     - Screen-off lets Android's own screen timeout turn the display fully off, with no root. The firmware keeps the screen on while plugged in, so the full-off route needs Panel Assistant to grant WRITE_SECURE_SETTINGS at install; without that grant screen-off dims to the floor instead.
     - The recommended density of 216 renders the dashboard as the factory density of 240 does at a 90 % renderer zoom, the setting chosen on this unit because text was too large at 240.
     - Home Assistant's Shelly integration reaches Shelly's own launcher on port 8021, which listens only after its main screen has been created once. While Panel Assistant is Home, the app creates it once after each boot beneath a full-screen cover and returns to the dashboard; this needs the draw-over-apps grant, and without it the Shelly integration stays unavailable until Shelly's launcher is opened.
@@ -66,8 +70,8 @@ platform:
     # The Launcher button skips it and opens the admin launcher, which lists it as an app.
     vendor_home_packages:
       - cloud.shelly.stargate
-    # Stargate serves the local RPC Home Assistant's Shelly integration uses on TCP 8021, but only
-    # once its MainActivity has been created; it declares no service. While Panel Assistant is Home
+    # Stargate's MainActivity owns the local RPC Home Assistant's Shelly integration uses on TCP
+    # 8021, which starts only once that activity has been created. While Panel Assistant is Home
     # nothing creates that activity after a boot, so the app starts it once, under a cover.
     vendor_service:
       activity: cloud.shelly.stargate/.activities.MainActivity
