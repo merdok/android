@@ -3125,7 +3125,7 @@ class PaneldService : Service() {
             vendorServiceStarter = io.panelassistant.android.control.VendorServiceStarter
                 .forService(this, profile.vendorService, returnSurface = {
                     system.returnAfterVendorStart(config.launcherPackage, config.dashboardPackage, config.builtInRendererReady())
-                }, stopping = { teardownBoundary.isStopping }, onUp = { vendorScreen.holdBrightness() }).also { it.request() }
+                }, stopping = { teardownBoundary.isStopping }, onUp = { if (vendorScreen.holdBrightness()) screen.restoreLevelOverVendor() }).also { it.request() }
             startWebViewRebindWatch()
             sensors.start(
                 onLux = { lux ->

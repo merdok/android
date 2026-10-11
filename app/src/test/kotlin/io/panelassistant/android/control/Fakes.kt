@@ -290,4 +290,5 @@ class SettingBacklight(private val vendor: FakeVendorScreen, var setting: Int = 
         setting = level
     }
     override fun setBrightnessRaw(level: Int) = setBrightness(level)
+    override fun getCommanded() = setting
 }

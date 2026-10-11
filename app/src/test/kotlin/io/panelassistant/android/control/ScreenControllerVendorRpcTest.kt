@@ -120,6 +120,18 @@ class ScreenControllerVendorRpcTest {
         assertEquals(120, setting.setting)
     }
 
+    /** After a boot Stargate holds the node at its own saved level (50 against the app's 150 on the X2i). */
+    @Test fun aVendorLevelOnALitPanelIsReplacedByTheAppsButNotWhileOff() {
+        val sc = controller()
+        vendor.node = 50
+        sc.restoreLevelOverVendor()
+        assertEquals(128, vendor.node)
+
+        sc.sleep()
+        sc.restoreLevelOverVendor()
+        assertEquals("a deliberately dark panel stays dark", 0, vendor.node)
+    }
+
     @Test fun aDarkNodeNobodyAskedForIsRelitThroughTheVendor() {
         val sc = controller()
         vendor.node = 0

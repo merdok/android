@@ -222,7 +222,7 @@ class BrightnessController internal constructor(
      *  Distinct from [getBrightness]: the framework maps the setting through a per-device brightness
      *  curve before driving the hardware node, so the effective (node) value is a DIFFERENT scale on
      *  curved panels (NSPanel Pro: setting 241 → node ~102). State publishes must use this scale. */
-    fun getCommanded(): Int = setting.read()?.let(::levelFromSetting) ?: -1
+    override fun getCommanded(): Int = setting.read()?.let(::levelFromSetting) ?: -1
 
     /** The HA level a raw `SCREEN_BRIGHTNESS` value stands for (the profile's setting route curves it). */
     fun levelFromSetting(setting: Int): Int = scale.levelFromSetting(setting)

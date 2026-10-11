@@ -518,6 +518,24 @@ class ScreenController(
         return refusal
     }
 
+    /**
+     * Put the app's commanded level back on a lit panel whose vendor set the node to a level of its own
+     * (Stargate starts at its own saved level after a boot). Nothing while intentionally off.
+     */
+    @Synchronized
+    fun restoreLevelOverVendor() {
+        if (intendedOff || admissionClosed.get()) return
+        val level = backlight.getCommanded()
+        if (level > 0 && backlight.getBrightness() != level) stepSettingTo(level)
+    }
+
+    /** The vendor writes the node behind Android's back, and Android drives it again only when the
+     *  setting changes: an equal write leaves it as it is (measured on the X2i). So change it twice. */
+    private fun stepSettingTo(level: Int) {
+        backlight.setBrightness(if (level < 255) level + 1 else level - 1)
+        backlight.setBrightness(level)
+    }
+
     private fun awaitVendorLit(expected: Boolean): Boolean {
         var waited = 0L
         while (true) {
@@ -610,12 +628,8 @@ class ScreenController(
             ScreenOff.VENDOR_RPC -> {
                 val relit = vendor.set(true) && awaitVendorLit(true)
                 // The vendor relights to a level of its own, or, unanswered, leaves the node at the 0 it
-                // wrote behind Android's back. Android drives the node again only when the setting
-                // changes, an equal write leaving it as it is (measured on the X2i), so step the setting
-                // to the app's level either way.
-                val level = savedLevel.coerceAtLeast(MIN_ON)
-                backlight.setBrightness(if (level < 255) level + 1 else level - 1)
-                backlight.setBrightness(level)
+                // wrote; either way the app's level goes back on.
+                stepSettingTo(savedLevel.coerceAtLeast(MIN_ON))
                 completeWake(if (relit) "screen -> on (vendor rpc)" else "screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return
             }
