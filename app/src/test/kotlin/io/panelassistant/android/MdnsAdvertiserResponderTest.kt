@@ -295,13 +295,19 @@ class MdnsAdvertiserResponderTest {
         }
     }
 
+    /**
+     * Watches for 4.5 s whatever the network carries. On a LAN with other panels, list returns their
+     * cached services at once, so a count of attempts ended before this test's responder answered.
+     */
     private fun hasAddress(binding: String, name: String, address: String): Boolean =
         JmDNS.create(InetAddress.getByName(binding), "dual-responder-browser").use { browser ->
-            repeat(3) {
-                if (browser.list(Config.MDNS_SERVICE_TYPE, 1_500)
+            val deadline = MonotonicDeadline(4_500)
+            while (deadline.remainingMs() > 0) {
+                if (browser.list(Config.MDNS_SERVICE_TYPE, minOf(1_500, deadline.remainingMs()))
                         .filter { it.name == name }
                         .flatMap { it.inetAddresses.toList() }
                         .any { it.hostAddress == address }) return@use true
+                Thread.sleep(minOf(20, deadline.remainingMs()))
             }
             false
         }
