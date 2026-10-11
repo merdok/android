@@ -11,6 +11,8 @@
     <string name="ha_step_starting">Starting</string>
     <string name="ha_step_reloading">Reloading</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Retrying</string>
+    <string name="ha_unreachable_retrying">Cannot reach Home Assistant</string>
     <string name="ha_until_back">until Home Assistant is back</string>
     <string name="ha_past_usual">Past the usual time</string>
     <string name="ha_reloading_detail">Your dashboard is reloading</string>

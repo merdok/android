@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Wird gestartet</string>
     <string name="ha_step_reloading">Wird neu geladen</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Neuer Versuch</string>
+    <string name="ha_unreachable_retrying">Home Assistant ist nicht erreichbar</string>
     <string name="ha_until_back">bis Home Assistant wieder da ist</string>
     <string name="ha_past_usual">Länger als üblich</string>
     <string name="ha_reloading_detail">Dein Dashboard wird neu geladen</string>

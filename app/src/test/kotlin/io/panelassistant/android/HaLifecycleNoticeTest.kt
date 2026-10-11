@@ -43,47 +43,47 @@ class HaLifecycleNoticeTest {
         val tracker = HaLifecycle()
         tracker.onDisconnected(100L)
         assertEquals(HaLifecycleState.CONNECTION_LOST,
-            haLifecycleNoticeState(tracker.snapshot(10_100L), null))
+            haLifecycleNoticeState(tracker.snapshot(10_100L), null, 0L))
     }
 
     @Test fun cachedDisconnectedDashboardShowsAnOutageUntilTheFrontendConnects() {
         admit()
         for (state in listOf(null, HaLifecycleState.NORMAL, HaLifecycleState.CONNECTION_LOST, HaLifecycleState.BACK_ONLINE)) {
             assertEquals("cached dashboard with lifecycle $state", HaLifecycleState.CONNECTION_LOST,
-                haLifecycleNoticeState(state?.let(::snapshot), RendererAdmissionRuntime.current()))
+                haLifecycleNoticeState(state?.let(::snapshot), RendererAdmissionRuntime.current(), 0L))
         }
         assertNull("cached rendering must not bypass an observed loss grace",
             haLifecycleNoticeState(snapshot(HaLifecycleState.CONNECTION_LOST).copy(offlineGraceRemainingMs = 1L),
-                RendererAdmissionRuntime.current()))
-        RendererAdmissionRuntime.setFrontendConnected(owner, true)
-        assertNull(haLifecycleNoticeState(snapshot(HaLifecycleState.NORMAL), RendererAdmissionRuntime.current()))
-        RendererAdmissionRuntime.setFrontendConnected(owner, false)
+                RendererAdmissionRuntime.current(), 0L))
+        RendererAdmissionRuntime.setFrontendConnected(owner, true, 0L)
+        assertNull(haLifecycleNoticeState(snapshot(HaLifecycleState.NORMAL), RendererAdmissionRuntime.current(), 0L))
+        RendererAdmissionRuntime.setFrontendConnected(owner, false, 0L)
         assertEquals(HaLifecycleState.CONNECTION_LOST,
-            haLifecycleNoticeState(null, RendererAdmissionRuntime.current()))
+            haLifecycleNoticeState(null, RendererAdmissionRuntime.current(), 0L))
     }
 
     @Test fun deliberateShutdownAndStartupKeepTheirWording() {
         admit()
         for (state in listOf(HaLifecycleState.SHUTTING_DOWN, HaLifecycleState.STARTING)) {
-            assertEquals(state, haLifecycleNoticeState(snapshot(state), RendererAdmissionRuntime.current()))
+            assertEquals(state, haLifecycleNoticeState(snapshot(state), RendererAdmissionRuntime.current(), 0L))
         }
     }
 
     @Test fun liveAdmissionShowsAnObservedLossOnlyAfterItsGrace() {
-        assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current()))
+        assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current(), 0L))
         admit(cached = false)
-        assertNull(haLifecycleNoticeState(snapshot(HaLifecycleState.CONNECTION_LOST).copy(offlineGraceRemainingMs = 1L), RendererAdmissionRuntime.current()))
+        assertNull(haLifecycleNoticeState(snapshot(HaLifecycleState.CONNECTION_LOST).copy(offlineGraceRemainingMs = 1L), RendererAdmissionRuntime.current(), 0L))
         assertEquals(HaLifecycleState.CONNECTION_LOST,
-            haLifecycleNoticeState(snapshot(HaLifecycleState.CONNECTION_LOST), RendererAdmissionRuntime.current()))
+            haLifecycleNoticeState(snapshot(HaLifecycleState.CONNECTION_LOST), RendererAdmissionRuntime.current(), 0L))
     }
 
     @Test fun replacingTheActivityRetiresTheOldCachedOutage() {
         admit()
         val replacement = BuiltinDashboard.acquireActivityOwner()
         try {
-            assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current()))
-            RendererAdmissionRuntime.setFrontendConnected(owner, false)
-            assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current()))
+            assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current(), 0L))
+            RendererAdmissionRuntime.setFrontendConnected(owner, false, 0L)
+            assertNull(haLifecycleNoticeState(null, RendererAdmissionRuntime.current(), 0L))
         } finally {
             BuiltinDashboard.releaseActivityOwner(replacement)
         }
@@ -165,5 +165,48 @@ class HaLifecycleNoticeTest {
         now = 30_000L; coordinator.onNativeAuthenticated()
         now = 60_000L; coordinator.onNativeNotice(HaLifecycleNotice(HaLifecyclePhase.READY, HaLifecycleReason.RESTART, 60_000L, 113_000L))
         assertEquals(HaLifecycleState.BACK_ONLINE, haLifecycleNoticeState(coordinator.snapshot(), null))
+    }
+
+    /** A dashboard that was connected and then dropped, [lostAt] on the renderer's clock. */
+    private fun dropDashboard(lostAt: Long) {
+        admit(cached = false)
+        RendererAdmissionRuntime.setFrontendConnected(owner, true, lostAt - 5_000L)
+        RendererAdmissionRuntime.setFrontendConnected(owner, false, lostAt)
+    }
+
+    private fun shown(snap: HaLifecycle.Snapshot?, nowMs: Long): HaLifecycleCard? {
+        val renderer = RendererAdmissionRuntime.current()
+        val state = haLifecycleNoticeState(snap, renderer, nowMs) ?: return null
+        return haLifecycleCard(state, snap, renderer?.frontendConnected == true,
+            dashboardLostMs = haDashboardLostMs(renderer, nowMs))
+    }
+
+    @Test fun withoutASessionADroppedDashboardSaysItCannotReachHomeAssistantAfterTheGrace() {
+        dropDashboard(lostAt = 50_000L)
+        // No session: no snapshot at all, or one that never heard of an outage.
+        for (snap in listOf(null, snapshot(HaLifecycleState.NORMAL))) {
+            assertNull("an ordinary reconnect inside the grace shows nothing ($snap)", shown(snap, 59_999L))
+            val card = shown(snap, 72_000L)!!
+            assertNull(card.step)
+            assertEquals("the card counts how long Home Assistant has been unreachable", 22_000L, card.offlineMs)
+            assertEquals(R.string.ha_unreachable_retrying, haLifecycleDetail(card))
+        }
+        RendererAdmissionRuntime.setFrontendConnected(owner, true, 80_000L)
+        assertNull("the dashboard reconnecting ends it", shown(null, 80_001L))
+    }
+
+    @Test fun aSessionNoticeReplacesTheFallbackWithTheRestartCard() {
+        dropDashboard(lostAt = 50_000L)
+        val stopping = snapshot(HaLifecycleState.SHUTTING_DOWN).copy(elapsedMs = 30_000L, expectedMs = 100_000L)
+        assertEquals(HaRestartStep.STOPPING, shown(stopping, 90_000L)!!.step)
+        assertEquals(HaRestartStep.STARTING, shown(snapshot(HaLifecycleState.STARTING), 90_000L)!!.step)
+        assertEquals("Home Assistant ready while the dashboard catches up is the Reloading step",
+            HaRestartStep.RELOADING, shown(snapshot(HaLifecycleState.BACK_ONLINE), 90_000L)!!.step)
+    }
+
+    @Test fun aFirstLoadThatHasNotConnectedIsNotAnOutage() {
+        admit(cached = false)
+        RendererAdmissionRuntime.setFrontendConnected(owner, false, 1_000L)
+        assertNull(shown(null, 600_000L))
     }
 }

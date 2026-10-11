@@ -6,6 +6,8 @@
     <string name="ha_reloading_detail">Seu painel está recarregando</string>
     <string name="ha_restarted_in">Reiniciado em %1$s</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Tentando novamente</string>
+    <string name="ha_unreachable_retrying">Não foi possível acessar o Home Assistant</string>
     <string name="ha_step_reloading">Recarregando</string>
     <string name="ha_step_starting">Iniciando</string>
     <string name="ha_step_stopping">Parando</string>
