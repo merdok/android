@@ -45,6 +45,7 @@ object ProfileMetadata {
         ProfileDriverDescriptor("screen.keyevent", ProfileDriverKind.SCREEN, "Android sleep/wake keyevent for panels with no backlight class", true, ProfileHelperAuthorityDemand.SANDBOX_FALLBACK),
         ProfileDriverDescriptor("screen.screen-timeout", ProfileDriverKind.SCREEN, "Android sleep through a short screen timeout (WRITE_SETTINGS); device-admin lock as fallback", false, ProfileHelperAuthorityDemand.NONE),
         ProfileDriverDescriptor("screen.device-admin", ProfileDriverKind.SCREEN, "Android sleep through device-admin lockNow", false, ProfileHelperAuthorityDemand.NONE),
+        ProfileDriverDescriptor("screen.vendor-rpc", ProfileDriverKind.SCREEN, "Backlight off through the vendor's local RPC (platform.launcher.vendor_service); screen timeout as fallback", false, ProfileHelperAuthorityDemand.NONE),
         ProfileDriverDescriptor("sensor.android", ProfileDriverKind.SENSOR, "Android SensorManager light/proximity inputs", false, ProfileHelperAuthorityDemand.NONE),
         ProfileDriverDescriptor("sensor.cht8305-daemon", ProfileDriverKind.SENSOR, "Authenticated helper allowlisted room-climate input", true, ProfileHelperAuthorityDemand.REQUIRED),
         ProfileDriverDescriptor("sensor.vi530x-daemon", ProfileDriverKind.SENSOR, "Authenticated helper time-of-flight range (started over ioctl, then polled)", true, ProfileHelperAuthorityDemand.REQUIRED),

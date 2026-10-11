@@ -254,6 +254,8 @@ object DiagReader {
             }
             ScreenOff.DEVICE_ADMIN ->
                 if (deviceAdminActive) androidSleep("device_admin_lock") else dimOnly("dim_android_sleep_grant")
+            // Whether the vendor answers is known only at the next off, which falls back on its own.
+            ScreenOff.VENDOR_RPC -> Cap("screen_power", "ok", note("backlight_off_vendor"))
         }
     }
 

@@ -5,7 +5,9 @@ import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.platform.Daemon
 import io.panelassistant.android.platform.NoWakeTap
 import io.panelassistant.android.platform.RootShell
+import io.panelassistant.android.platform.NoVendorScreen
 import io.panelassistant.android.platform.ScreenPower
+import io.panelassistant.android.platform.VendorScreen
 import io.panelassistant.android.platform.WakeTap
 import io.panelassistant.android.util.HelperClient
 import java.util.concurrent.atomic.AtomicBoolean
@@ -109,6 +111,12 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   back to `lockNow()` if the app is an active device admin,
  *   else to the visible dim. These two routes sleep a secured device too and record the PIN-on-wake
  *   consequence in the selection reason.
+ * - [ScreenOff.VENDOR_RPC] asks the vendor's system app ([VendorScreen], Shelly's Stargate) to blank
+ *   the backlight. Android stays interactive, so it belongs to the backlight family: the touch overlay
+ *   is armed first, and the off counts only once the backlight node reads dark. Refused, unconfirmed
+ *   or with no overlay, it undoes any half-applied blank and takes the screen-timeout chain above. The
+ *   vendor writes the node behind Android's back, so a wake the vendor does not answer relights it by
+ *   changing `SCREEN_BRIGHTNESS`, which makes Android drive the node again.
  */
 class ScreenController(
     private val backlight: Backlight,
@@ -123,6 +131,7 @@ class ScreenController(
     /** Count of touches the renderer has seen. A change during the screen-timeout wait means a person
      *  is using the panel, which cancels the off rather than failing it. */
     private val touchCount: () -> Long = { BuiltinDashboard.touchCount },
+    private val vendor: VendorScreen = NoVendorScreen,
 ) {
     init {
         // A process that died while the screen-timeout route had the panel asleep left its short
@@ -223,6 +232,8 @@ class ScreenController(
             // read and no third "unknown" answer to give.
             ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> !power.isInteractive()
             ScreenOff.BRIGHTNESS_ZERO -> effective()
+            // The node, never the setting: the vendor blanks the node and leaves SCREEN_BRIGHTNESS lit.
+            ScreenOff.VENDOR_RPC -> vendor.lit()?.not()
         }
     }
 
@@ -239,6 +250,7 @@ class ScreenController(
             }
             ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> power.isInteractive()
             ScreenOff.BRIGHTNESS_ZERO -> effectiveLit()
+            ScreenOff.VENDOR_RPC -> vendor.lit()?.let { it && power.isInteractive() }
         }
     }
 
@@ -249,7 +261,8 @@ class ScreenController(
         ScreenOff.SU_BLPOWER -> root.runOutput(blPowerRead())?.trim()?.toIntOrNull()
             ?.takeIf { it in 0..4 }
             ?: daemon.send("BLPOWER")?.trim()?.toIntOrNull()?.takeIf { it in 0..4 }
-        ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN, ScreenOff.BRIGHTNESS_ZERO -> null
+        ScreenOff.KEYEVENT, ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN, ScreenOff.BRIGHTNESS_ZERO,
+        ScreenOff.VENDOR_RPC -> null
     }
 
     /** Cautious boolean used by the never-blank watchdog: unknown is not grounds to alter hardware. */
@@ -360,7 +373,7 @@ class ScreenController(
                 }
             ) null else "no touch-to-wake"
         }
-        if (refusal != null) return dimToFloor(refusal)
+        if (refusal != null && route != ScreenOff.VENDOR_RPC) return dimToFloor(refusal)
         // Guaranteed locally wakeable: arm the tap, then power the backlight off for real. Only the two
         // bl_power paths below take the panel *truly* dark — freeze the WebView there (no point rendering
         // behind a black backlight). The brightness fallback (0) is not guaranteed dark on panels that
@@ -379,23 +392,18 @@ class ScreenController(
                 else -> null
             }
             ScreenOff.KEYEVENT -> if (sleepByKeyevent()) ScreenOff.KEYEVENT to REASON_DECLARED else null
-            ScreenOff.SCREEN_TIMEOUT -> {
-                val timeoutRefusal = sleepByTimeout()
-                if (timeoutRefusal == REFUSAL_TOUCHED) {
-                    // Someone is using the panel: the off is cancelled, not failed. No lock, no dim.
-                    wake()
-                    recordSelection(ScreenOff.SCREEN_TIMEOUT, REASON_CANCELLED_BY_TOUCH)
-                    Log.i(TAG, "screen-timeout off cancelled by a touch")
-                    return null
-                }
-                when {
-                    timeoutRefusal == null -> ScreenOff.SCREEN_TIMEOUT to withPinNote(REASON_DECLARED)
-                    sleepByLockNow() -> ScreenOff.DEVICE_ADMIN to
-                        withPinNote("the screen timeout was unavailable ($timeoutRefusal); fell back to the device-admin lock")
-                    else -> {
-                        androidSleepRefusal = "$timeoutRefusal, and no active device admin could lock the screen"
-                        null
-                    }
+            ScreenOff.SCREEN_TIMEOUT -> when (val slept = sleepAndroid(REASON_DECLARED)) {
+                AndroidSleep.Touched -> return cancelOffByTouch()
+                is AndroidSleep.Slept -> slept.route to slept.reason
+                is AndroidSleep.Refused -> { androidSleepRefusal = slept.reason; null }
+            }
+            ScreenOff.VENDOR_RPC -> {
+                val vendorRefusal = refusal ?: sleepByVendor()
+                if (vendorRefusal == null) ScreenOff.VENDOR_RPC to REASON_DECLARED
+                else when (val slept = sleepAndroid("the vendor screen RPC was refused ($vendorRefusal); fell back to the screen timeout")) {
+                    AndroidSleep.Touched -> return cancelOffByTouch()
+                    is AndroidSleep.Slept -> slept.route to slept.reason
+                    is AndroidSleep.Refused -> { androidSleepRefusal = "$vendorRefusal; ${slept.reason}"; null }
                 }
             }
             ScreenOff.DEVICE_ADMIN ->
@@ -423,7 +431,9 @@ class ScreenController(
         // the wakelock pulse, which nobody standing at the panel can trigger — so it must not reach a
         // dark it cannot let a person out of, and degrades to the visible floor instead.
         if (route == ScreenOff.KEYEVENT) return dimToFloor("an unconfirmed keyevent sleep")
-        if (route.sleepsAndroid) return dimToFloor(androidSleepRefusal ?: "an unconfirmed Android sleep")
+        if (route.sleepsAndroid || route == ScreenOff.VENDOR_RPC) {
+            return dimToFloor(androidSleepRefusal ?: "an unconfirmed Android sleep")
+        }
         // No daemon, no su — dim to 0 (only a dim on panels that clamp a minimum). Uses the raw setter
         // so it can reach 0: the public setBrightness floors at MIN_VISIBLE to stay never-blank.
         val cur = backlight.getBrightness()
@@ -460,6 +470,61 @@ class ScreenController(
         )
         Log.w(TAG, "screen-off with $reason — dimming to floor (never-blank; saved=$savedLevel)")
         return automaticEpochOrNull()
+    }
+
+    private fun cancelOffByTouch(): AutomaticOffEpoch? {
+        // Someone is using the panel: the off is cancelled, not failed. No lock, no dim.
+        wake()
+        recordSelection(ScreenOff.SCREEN_TIMEOUT, REASON_CANCELLED_BY_TOUCH)
+        Log.i(TAG, "screen-timeout off cancelled by a touch")
+        return null
+    }
+
+    private sealed interface AndroidSleep {
+        data class Slept(val route: ScreenOff, val reason: String) : AndroidSleep
+        data class Refused(val reason: String) : AndroidSleep
+        data object Touched : AndroidSleep
+    }
+
+    /** The unprivileged Android-sleep chain: the short screen timeout, then the device-admin lock. */
+    private fun sleepAndroid(timeoutReason: String): AndroidSleep {
+        val timeoutRefusal = sleepByTimeout() ?: return AndroidSleep.Slept(ScreenOff.SCREEN_TIMEOUT, withPinNote(timeoutReason))
+        if (timeoutRefusal == REFUSAL_TOUCHED) return AndroidSleep.Touched
+        if (sleepByLockNow()) {
+            return AndroidSleep.Slept(
+                ScreenOff.DEVICE_ADMIN,
+                withPinNote("the screen timeout was unavailable ($timeoutRefusal); fell back to the device-admin lock"),
+            )
+        }
+        return AndroidSleep.Refused("$timeoutRefusal, and no active device admin could lock the screen")
+    }
+
+    /**
+     * Ask the vendor to blank the backlight with the touch overlay already armed, and prove it on the
+     * node. Null on a confirmed dark; else why not, with the overlay disarmed and the vendor asked to
+     * relight, so the Android-sleep fallback never starts behind a node the vendor left at zero.
+     */
+    private fun sleepByVendor(): String? {
+        val level = backlight.getBrightness()
+        if (level > 0) savedLevel = level
+        val refusal = when {
+            !vendor.set(false) -> "it did not answer"
+            !awaitVendorLit(false) -> "the backlight did not read dark"
+            else -> return null
+        }
+        wakeTap.disarm()
+        vendor.set(true)
+        return refusal
+    }
+
+    private fun awaitVendorLit(expected: Boolean): Boolean {
+        var waited = 0L
+        while (true) {
+            if (vendor.lit() == expected) return true
+            if (waited >= VENDOR_CONFIRM_MS) return false
+            nap(KEYEVENT_POLL_MS)
+            waited += KEYEVENT_POLL_MS
+        }
     }
 
     private fun automaticEpochOrNull(): AutomaticOffEpoch? =
@@ -539,6 +604,19 @@ class ScreenController(
             // Never changed the brightness either; the unprivileged pulse alone is the wake.
             ScreenOff.SCREEN_TIMEOUT, ScreenOff.DEVICE_ADMIN -> {
                 completeWake("screen -> on (wakelock pulse; ${wakingRoute.yamlName})")
+                return
+            }
+            ScreenOff.VENDOR_RPC -> {
+                if (vendor.set(true) && awaitVendorLit(true)) {
+                    completeWake("screen -> on (vendor rpc)")
+                    return
+                }
+                // The vendor wrote the node behind Android's back, and Android drives it again only
+                // when the setting changes: an equal write leaves it dark (measured on the X2i).
+                val level = savedLevel.coerceAtLeast(MIN_ON)
+                backlight.setBrightness(if (level < 255) level + 1 else level - 1)
+                backlight.setBrightness(level)
+                completeWake("screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return
             }
             ScreenOff.BRIGHTNESS_ZERO -> Unit
@@ -885,5 +963,7 @@ class ScreenController(
         private const val TIMEOUT_CONFIRM_MS = 20_000L
         /** `lockNow()` turns the display off at once; this only covers Android acting on it. */
         private const val LOCK_CONFIRM_MS = 2_000L
+        /** Stargate blanks or relights the node within a few hundred ms of answering. */
+        private const val VENDOR_CONFIRM_MS = 2_000L
     }
 }

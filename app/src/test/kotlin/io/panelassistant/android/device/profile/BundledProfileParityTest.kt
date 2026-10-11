@@ -369,8 +369,8 @@ class BundledProfileParityTest {
     /** The modern aggregate shares the X2i's Stargate firmware line, so it carries the firmware-level findings. */
     @Test fun modernShellyProfileCarriesTheStargateFirmwareFindings() {
         val modern = bundledById.getValue("shelly-wall-display-v2").profile()
-        assertEquals(io.panelassistant.android.device.ScreenOff.SCREEN_TIMEOUT, modern.screenOff)
-        assertTrue("screen-timeout needs its driver", "screen.screen-timeout" in modern.document.requires.drivers)
+        assertEquals(io.panelassistant.android.device.ScreenOff.VENDOR_RPC, modern.screenOff)
+        assertTrue("vendor-rpc needs its driver", "screen.vendor-rpc" in modern.document.requires.drivers)
         assertFalse("the firmware ignores the Recents key", modern.hasRecents)
         assertEquals(setOf("cloud.shelly.stargate"), modern.vendorHomePackages)
     }
@@ -437,6 +437,18 @@ class BundledProfileParityTest {
         val physical = requireNotNull(geometry.physical)
         assertEquals(231.6, physical.ppi, 0.1)
         assertEquals(DisplayGeometryEvidence.SPECIFICATION, physical.evidence)
+    }
+
+    /** The vendor-rpc route reaches the vendor only at the declared service port, so it cannot be declared without one. */
+    @Test fun vendorRpcScreenOffNeedsAVendorServicePort() {
+        val x2i = bundledById.getValue("shelly-wall-display-x2i").document
+        assertEquals(io.panelassistant.android.device.ScreenOff.VENDOR_RPC, bundledById.getValue("shelly-wall-display-x2i").profile().screenOff)
+        assertTrue(ProfileValidator.validate(x2i, CORE_VERSION, bundled = false).none { it.path == "hardware.screen_off" })
+        val portless = x2i.copy(platform = x2i.platform.copy(launcher = x2i.platform.launcher.copy(vendorService = null)))
+        assertTrue(
+            ProfileValidator.validate(portless, CORE_VERSION, bundled = false)
+                .any { it.path == "hardware.screen_off" && it.severity == ProfileIssueSeverity.ERROR },
+        )
     }
 
     @Test fun vendorServiceRoundTripsValidatesAndIsDeclaredForStargate() {
@@ -1054,8 +1066,8 @@ class BundledProfileParityTest {
             "meta-portal-10-gen2.yaml" to "7348c9344bb3d3d150060555681afcdd170e4d04e917a2785ee1b7c80019c36e",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
-            "shelly-wall-display-v2.yaml" to "91656ed1136b7d0a336793ae882da44b5cd23656122e8c06e3eabf14e031c063",
-            "shelly-wall-display-x2i.yaml" to "cf2b3aa27e2ca043dc109497473f977bbb7bc9689c8f013257fbe9bb2cd2bb70",
+            "shelly-wall-display-v2.yaml" to "c9e0dac828597e2e5c121fc50367ba360b1076d9f86e0923d6b34696ce3bcbb1",
+            "shelly-wall-display-x2i.yaml" to "6762f54c10b3e2e647611fca8745ef0adb28b8eda2f80a93ce6bffbeeeb6490a",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",
             "tpa10.yaml" to "077ff9cb33f483e6497c149d2dc01ba6db49d85f4c4ac0965d7087a58577aa3a",

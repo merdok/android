@@ -338,6 +338,8 @@ enum class LedMechanism(val yamlName: String) {
  * itself noninteractive. [SCREEN_TIMEOUT] and [DEVICE_ADMIN] reach the same noninteractive state
  * without any privilege: the first lets Android's own screen timeout expire (needs `WRITE_SETTINGS`),
  * the second asks the keyguard to lock (`DevicePolicyManager.lockNow`, needs an active device admin).
+ * [VENDOR_RPC] asks the vendor's own system app to blank the backlight over its local RPC (Shelly's
+ * Stargate, at `platform.launcher.vendor_service.port`); Android stays interactive, as on the bl_power routes.
  * These are different states with different consequences, spelled out on
  * [io.panelassistant.android.control.ScreenController].
  */
@@ -348,6 +350,7 @@ enum class ScreenOff(val yamlName: String) {
     KEYEVENT("keyevent"),
     SCREEN_TIMEOUT("screen-timeout"),
     DEVICE_ADMIN("device-admin"),
+    VENDOR_RPC("vendor-rpc"),
     ;
 
     /** True for the routes that put Android itself noninteractive rather than blanking a backlight. */

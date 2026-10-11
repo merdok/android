@@ -257,3 +257,35 @@ class FakeSystemEnv(
         return directStartSucceeds
     }
 }
+
+/**
+ * Fake [io.panelassistant.android.platform.VendorScreen] modelling Stargate on the X2i: [node] is the
+ * backlight node it writes behind Android's back ([answers] false: Stargate not running; [blanks] false:
+ * it answers but the node does not follow; [readable] false: the app cannot read the node).
+ */
+class FakeVendorScreen(
+    var node: Int = 128,
+    var answers: Boolean = true,
+    var blanks: Boolean = true,
+    var readable: Boolean = true,
+    private val onLevel: Int = 128,
+) : io.panelassistant.android.platform.VendorScreen {
+    val calls = mutableListOf<Boolean>()
+    override fun set(on: Boolean): Boolean {
+        calls += on
+        if (!answers) return false
+        if (blanks || on) node = if (on) onLevel else 0
+        return true
+    }
+    override fun lit(): Boolean? = if (readable) node > 0 else null
+}
+
+/** [Backlight] over the Android setting, which re-drives [vendor]'s node only when the value changes. */
+class SettingBacklight(private val vendor: FakeVendorScreen, var setting: Int = 131) : Backlight {
+    override fun getBrightness() = vendor.node
+    override fun setBrightness(level: Int) {
+        if (level != setting) vendor.node = level
+        setting = level
+    }
+    override fun setBrightnessRaw(level: Int) = setBrightness(level)
+}

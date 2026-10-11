@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-v2
-version: 2.4.0
+version: 2.5.0
 display_name: Shelly Wall Display (modern)
 soc_class: "Model-dependent (known: RK3326-S / RK3566)"
 metadata:
@@ -11,13 +11,13 @@ metadata:
   limitations:
     - SoC and proximity or motion details vary by model and still need live-hardware confirmation.
     - On-board relays are not exposed. The one model examined on hardware routes them through a world-writable sysfs class, but ha-paneld drives relays through its privileged route, and no relay path is established for the other models this profile covers.
-    - The X2i has its own profile. Its firmware-level findings are projected onto the remaining models because they share its Stargate firmware line. They are the screen-timeout screen-off route, Recents being absent (the firmware ignores the Recents key) and Stargate's Home registration. Its unit-level facts (SoC, microphone, proximity technology, density and local wake) are not projected.
+    - The X2i has its own profile. Its firmware-level findings are projected onto the remaining models because they share its Stargate firmware line. They are the screen-off routes, Recents being absent (the firmware ignores the Recents key) and Stargate's Home registration. Its unit-level facts (SoC, microphone, proximity technology, density and local wake) are not projected.
     - Stargate's local service on port 8021, which Home Assistant's Shelly integration uses, is projected from the X2i on the same firmware line, where it listens only once Stargate's main screen has been created. The app checks the port at runtime and creates that screen under a cover only when nothing listens, so a model that already serves it is left alone.
-    - Screen-off lets Android's own screen timeout turn the display fully off where that is proven on a model; where Android does not go to sleep, or Panel Assistant has not granted WRITE_SECURE_SETTINGS, screen-off falls back to dimming. How a dark panel wakes locally is not declared, because touch wake is unmeasured on these models.
+    - Screen-off asks Shelly's launcher to switch the backlight off over its local RPC, as measured on the X2i, and counts it only once the backlight reads dark; a touch then wakes it without reaching the dashboard. Where the launcher does not answer, Android's own screen timeout turns the display off, or screen-off dims when Android does not sleep or WRITE_SECURE_SETTINGS is missing. Touch wake from Android's sleep is unmeasured on these models, so it is not declared.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
-    - screen.screen-timeout
+    - screen.vendor-rpc
     - sensor.android
 match:
   # Match values are derived from the modern Shelly Wall Display firmware identity.
@@ -80,9 +80,9 @@ hardware:
   led:
     mechanism: none
     transfer: identity
-  # Projected from the X2i. Falls back to dimming when Android does not go noninteractive or the
-  # secure-settings grant is missing.
-  screen_off: screen-timeout
+  # Projected from the X2i: Stargate's Ui.Screen.Set, confirmed on the backlight node. Falls back to
+  # the screen timeout, then to dimming when Android does not sleep or the secure-settings grant is missing.
+  screen_off: vendor-rpc
   has_button_backlight: false
 sensors:
   light_technology: Ambient light

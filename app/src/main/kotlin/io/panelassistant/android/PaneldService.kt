@@ -1041,6 +1041,8 @@ class PaneldService : Service() {
             wakeTap = OverlayWakeTap(this),
             route = profile.screenOff,
             displacedTimeout = io.panelassistant.android.control.ConfigDisplacedScreenTimeout(config),
+            vendor = profile.vendorService?.let { io.panelassistant.android.platform.LocalRpcVendorScreen(it.port) }
+                ?: io.panelassistant.android.platform.NoVendorScreen,
         )
         autoBright = AutoBrightnessController(
             this, brightness, config, screen::actuateBrightnessIfOn,
