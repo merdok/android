@@ -393,6 +393,9 @@ object SettingsRegistry {
             tier = Tier.BASIC, summary = "Mute the firmware start-up chime.",
             label = "Silence boot chime", default = DEFAULT_SILENCE_BOOT_CHIME.toString(), scope = Scope.DEVICE,
             liveApply = true,
+            // volume_ring_speaker is not a public System setting. Neither WRITE_SETTINGS nor a
+            // WRITE_SECURE_SETTINGS grant lets a normal APK write it; the helper or su must do so.
+            availableWhen = { it.canControlBootChime },
         ),
         // ---- Display -----------------------------------------------------------------------------
         SettingSpec(

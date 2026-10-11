@@ -108,16 +108,17 @@ class PaneldServerBackupRestoreRoutesTest {
             testApplication {
                 application { fixture.mount(this) }
                 val response = client.post("/api/v1/restore?dry_run=1") {
-                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored panel","ha_area":"Kitchen","network_adb":"true"}}""")
+                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored panel","ha_area":"Kitchen","network_adb":"true","silence_boot_chime":"false"}}""")
                 }
                 val text = response.bodyAsText()
                 assertEquals(text, HttpStatusCode.OK, response.status)
                 val body = JSONObject(text)
                 assertEquals(2, body.getInt("config_keys"))
-                assertEquals(listOf("network_adb"), (0 until body.getJSONArray("config_skipped").length()).map {
+                assertEquals(listOf("network_adb", "silence_boot_chime"), (0 until body.getJSONArray("config_skipped").length()).map {
                     body.getJSONArray("config_skipped").getString(it)
                 })
                 assertTrue(body.getJSONArray("config_warnings").toString().contains("network_adb"))
+                assertTrue(body.getJSONArray("config_warnings").toString().contains("silence_boot_chime"))
                 assertEquals("contract-panel", fixture.config.panelId)
                 assertTrue(fixture.config.haArea.isEmpty())
                 assertEquals(false, InstallProgress.running)

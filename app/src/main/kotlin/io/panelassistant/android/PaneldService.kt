@@ -2666,6 +2666,7 @@ class PaneldService : Service() {
                 canInstallVerifiedApps = typedShellControlReady,
                 canCaptureAndInput = typedShellControlReady,
                 canSetDisplay = typedShellControlReady,
+                canControlBootChime = typedShellControlReady,
             ).also { cost.work(units = 1) }
         } catch (e: Exception) {
             cost.outcome(FeatureCostOutcome.FAILURE)
