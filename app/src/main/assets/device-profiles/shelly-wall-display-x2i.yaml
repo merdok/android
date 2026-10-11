@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.1.0
+version: 2.2.0
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -29,7 +29,7 @@ metadata:
     - The recommended density of 216 renders the dashboard as the factory density of 240 does at a 90 % renderer zoom, the setting chosen on this unit because text was too large at 240.
     - The panel declares camera features that no camera backs; ha-paneld offers the camera only when Android enumerates one, so no suppression is declared here.
 requires:
-  min_core_version: 0.9.8-rc2
+  min_core_version: 1.0.0-preview1
   drivers:
     - screen.screen-timeout
     - sensor.android
@@ -65,6 +65,11 @@ platform:
     # The Launcher button skips it and opens the admin launcher, which lists it as an app.
     vendor_home_packages:
       - cloud.shelly.stargate
+  # Stargate announces the panel under its own hostname whether or not ha-paneld runs, so Panel
+  # Assistant can find it after an address change and offer it for installation. Read from a live
+  # browse of the bench unit (TXT app=WallDisplay, gen=2); the name ends in the Wi-Fi MAC address.
+  vendor_mdns:
+    - ShellyWallDisplay-*._shelly._tcp
 hardware:
   led:
     mechanism: none
