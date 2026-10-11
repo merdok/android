@@ -48,8 +48,13 @@ internal object ConfirmedSelfInstaller {
     internal fun classify(report: SessionReport): Step = when (report.status) {
         PackageInstaller.STATUS_PENDING_USER_ACTION -> Step.Confirm(report.confirmation)
         PackageInstaller.STATUS_SUCCESS -> Step.Done(InstallOutcome.Succeeded)
+        // Android reports both a Cancel tap and a package verifier's rejection as aborted (a Meta
+        // Portal's verifier refuses every app not signed by Meta), so the message names both.
         PackageInstaller.STATUS_FAILURE_ABORTED -> Step.Done(
-            InstallOutcome.Retryable("update not confirmed: cancelled on the panel"),
+            InstallOutcome.Retryable(
+                "update not installed: cancelled on the panel or refused by its package verifier" +
+                    report.message?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
+            ),
         )
         PackageInstaller.STATUS_FAILURE_STORAGE -> Step.Done(
             InstallOutcome.Retryable("install failed: insufficient storage (${report.message.orEmpty()})"),

@@ -30,7 +30,7 @@ class ConfirmedSelfInstallerTest {
         assertEquals(1, announced)
     }
 
-    @Test fun cancellingOnThePanelIsRetryableNotADurableRejection() = runTest {
+    @Test fun anAbortedSessionIsRetryableAndNamesBothCauses() = runTest {
         val outcome = ConfirmedSelfInstaller.follow(
             reports(
                 SessionReport(PackageInstaller.STATUS_PENDING_USER_ACTION, null),
@@ -40,7 +40,10 @@ class ConfirmedSelfInstallerTest {
             onAwaitingConfirmation = {},
         )
         assertTrue(outcome is InstallOutcome.Retryable)
-        assertEquals("update not confirmed: cancelled on the panel", (outcome as InstallOutcome.Failure).message)
+        assertEquals(
+            "update not installed: cancelled on the panel or refused by its package verifier (user)",
+            (outcome as InstallOutcome.Failure).message,
+        )
     }
 
     @Test fun aConfirmationThePanelCannotShowEndsTheAttempt() = runTest {
