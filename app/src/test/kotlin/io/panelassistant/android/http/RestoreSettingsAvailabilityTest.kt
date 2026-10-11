@@ -27,12 +27,13 @@ class RestoreSettingsAvailabilityTest {
             val answers = mutableListOf<Boolean>()
             try {
                 executor.execute(
-                    RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "ha_area" to "Kitchen", "network_adb" to "true"), emptyList(), emptyList()),
+                    RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "ha_area" to "Kitchen", "network_adb" to "true", "silence_boot_chime" to "false"), emptyList(), emptyList()),
                     null, null, null, null, emptyMap(), emptyList(), false, true,
                     emptyList(), null, ticket, RestoreAttempt { answers += it },
                 )
                 assertEquals("Restored panel", fixture.config.friendlyName)
                 assertEquals("Kitchen", fixture.config.haArea)
+                assertTrue(fixture.config.silenceBootChime)
                 assertEquals(listOf("ha_area" to "Kitchen"), calls)
                 assertTrue(authority.pendingSnapshot().isEmpty())
                 val status = JSONObject(InstallProgress.json())
@@ -41,6 +42,7 @@ class RestoreSettingsAvailabilityTest {
                 assertEquals("partial", result.getJSONObject("config").getString("status"))
                 assertEquals(2, result.getJSONObject("config").getInt("items"))
                 assertTrue(result.getJSONObject("config").optString("detail").contains("network_adb"))
+                assertTrue(result.getJSONObject("config").optString("detail").contains("silence_boot_chime"))
                 assertEquals(listOf(false), answers)
                 assertFalse(InstallProgress.running)
             } finally {
@@ -78,11 +80,41 @@ class RestoreSettingsAvailabilityTest {
         }
     }
 
+    @Test fun supportedBootChimeFailureStillRollsBackInsteadOfSkipping() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Before")
+            fixture.config.setSilenceBootChime(false)
+            val calls = mutableListOf<Pair<String, String>>()
+            val authority = LiveSettingAuthority(SettingsRegistry.liveApplyKeys().toSet(), bootIdentity = { "test-boot" })
+            val executor = executor(fixture, authority, calls,
+                capabilities = Capabilities(canControlBootChime = true), refuseBootChime = true)
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            try {
+                executor.execute(
+                    RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "silence_boot_chime" to "true"), emptyList(), emptyList()),
+                    null, null, null, null, emptyMap(), emptyList(), false, false,
+                    emptyList(), null, ticket, RestoreAttempt {},
+                )
+                assertTrue(calls.contains("silence_boot_chime" to "true"))
+                assertTrue(calls.contains("silence_boot_chime" to "false"))
+                assertEquals("Before", fixture.config.friendlyName)
+                assertFalse(fixture.config.silenceBootChime)
+                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                assertEquals("failed", result.getString("status"))
+                assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
+            } finally {
+                InstallProgress.finish(ticket, "test cleanup")
+            }
+        }
+    }
+
     private fun executor(
         fixture: PaneldServerHttpFixture,
         authority: LiveSettingAuthority,
         calls: MutableList<Pair<String, String>>,
         refusedArea: String? = null,
+        capabilities: Capabilities = Capabilities(networkAdb = false),
+        refuseBootChime: Boolean = false,
     ): RestoreExecutor {
         val config = fixture.config
         val projection = ConfigValueProjection(
@@ -103,7 +135,7 @@ class RestoreSettingsAvailabilityTest {
             override fun directStart(component: String) = true
         })
         return AcceptedConfigTransaction.restoreExecutor(
-            appContext = fixture.context, config = config, capabilities = { Capabilities(networkAdb = false) },
+            appContext = fixture.context, config = config, capabilities = { capabilities },
             transaction = {
                 AcceptedConfigTransaction(
                     config = config, revisions = RevisionStore(fixture.directory), rendererPreparation = renderer,
@@ -113,6 +145,7 @@ class RestoreSettingsAvailabilityTest {
                             calls += appliedKey to appliedValue
                             when {
                                 appliedKey == "network_adb" -> LiveSettingApplyResult.UNAVAILABLE
+                                appliedKey == "silence_boot_chime" && refuseBootChime && appliedValue == "true" -> LiveSettingApplyResult.FAILED
                                 appliedKey == "ha_area" && appliedValue == refusedArea -> LiveSettingApplyResult.FAILED
                                 else -> {
                                     SettingsRegistry.spec(appliedKey)?.let { config.setRaw(it, appliedValue) }

@@ -88,6 +88,8 @@ data class Capabilities(
     // switches and therefore cannot be imported or changed through Home Assistant or HTTP.
     val canCaptureAndInput: Boolean = false,
     val canSetDisplay: Boolean = false,
+    /** A helper or su route can write the nonpublic firmware audio setting for this normal APK. */
+    val canControlBootChime: Boolean = false,
 )
 
 /**
