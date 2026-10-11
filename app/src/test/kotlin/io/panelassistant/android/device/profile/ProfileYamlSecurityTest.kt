@@ -298,7 +298,7 @@ class ProfileYamlSecurityTest {
 
         assertEquals(listOf("none", "android", "toolbox"), ProfileMetadata.schema.fields.single { it.path == "platform.su_form" }.enumValues)
         assertEquals(
-            listOf("brightness-zero", "su-blpower", "daemon-blpower", "keyevent", "screen-timeout", "device-admin"),
+            listOf("brightness-zero", "su-blpower", "daemon-blpower", "keyevent", "screen-timeout", "device-admin", "vendor-rpc"),
             ProfileMetadata.schema.fields.single { it.path == "hardware.screen_off" }.enumValues,
         )
         assertEquals(SuForm.TOOLBOX, runtime(withSu("toolbox", true)).suForm)

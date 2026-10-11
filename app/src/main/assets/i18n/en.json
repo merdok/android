@@ -7893,7 +7893,10 @@
       "risk": "ordinary",
       "siblings": [],
       "placeholders": [],
-      "frozen": [],
+      "frozen": [
+        "Android",
+        "RPC"
+      ],
       "softMaxChars": 110,
       "hardMaxChars": 140
     },

@@ -14,7 +14,7 @@ class ScreenControllerProximityHoldTest {
 
     private fun controller(route: ScreenOff = ScreenOff.BRIGHTNESS_ZERO) = ScreenController(
         backlight, power, FakeRootShell(), FakeDaemon(mapOf("BLPOWER" to "0")), tap, route,
-        nap = {},
+        nap = {}, vendor = FakeVendorScreen(),
     )
 
     @Test

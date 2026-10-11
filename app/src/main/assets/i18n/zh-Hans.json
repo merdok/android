@@ -2893,6 +2893,11 @@
       "state": "machine-cross-checked",
       "text": "通过 su bl_power 真正关闭背光"
     },
+    "dashboard.capability.note.backlight_off_vendor": {
+      "text": "通过厂商本地 RPC 真正关闭背光；厂商无响应时使用 Android 屏幕超时",
+      "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
+      "state": "machine-cross-checked"
+    },
     "dashboard.capability.note.brightness_helper": {
       "sourceHash": "adb57c0744977c72e567539d3337098a0e19eea90d77390beb3ceaf66dcb78a5",
       "state": "machine-cross-checked",

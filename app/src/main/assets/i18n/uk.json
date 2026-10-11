@@ -2543,6 +2543,11 @@
    "sourceHash": "925907adfd86942e8d7f40c071a4acbde4c7f22face097af64dfc149cfca2af9",
    "state": "machine-cross-checked"
   },
+  "dashboard.capability.note.backlight_off_vendor": {
+   "text": "справжнє вимкнення підсвічування через локальний RPC виробника; інакше тайм-аут екрана Android",
+   "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
+   "state": "machine-cross-checked"
+  },
   "dashboard.capability.note.brightness_helper": {
    "text": "керування підсвічуванням через допоміжний демон; налаштування Android не змінюється",
    "sourceHash": "adb57c0744977c72e567539d3337098a0e19eea90d77390beb3ceaf66dcb78a5",
