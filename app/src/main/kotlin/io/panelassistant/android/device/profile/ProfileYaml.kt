@@ -190,7 +190,7 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
         val soc = map(root["soc"], "soc", setOf("model", "introduced_year", "cpu_cores"))
         val requires = map(root["requires"], "requires", setOf("min_core_version", "drivers"), required = true).orEmpty()
         val match = map(root["match"], "match", setOf("priority", "fallback", "any"), required = true).orEmpty()
-        val platform = map(root["platform"], "platform", setOf("su_form", "app_can_su", "has_recents", "has_native_navbar", "launcher"), required = true).orEmpty()
+        val platform = map(root["platform"], "platform", setOf("su_form", "app_can_su", "has_recents", "has_native_navbar", "launcher", "vendor_mdns"), required = true).orEmpty()
         val launcher = map(platform["launcher"], "platform.launcher", setOf("vendor_home_packages")).orEmpty()
         val hardware = map(root["hardware"], "hardware", setOf(
             "led", "screen_off", "has_button_backlight", "local_wake", "zigbee_gateway_dir", "relay_base",
@@ -287,6 +287,7 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
                 launcher = ProfileLauncher(
                     vendorHomePackages = stringList(launcher["vendor_home_packages"], "platform.launcher.vendor_home_packages"),
                 ),
+                vendorMdns = stringList(platform["vendor_mdns"], "platform.vendor_mdns"),
             ),
             hardware = ProfileHardware(
                 led = lightCurve(led, "hardware.led", transferRequired = false).let { curve ->
@@ -756,6 +757,7 @@ internal fun ProfileDocument.toYamlMap(): Map<String, Any?> = linkedMapOf(
         "has_native_navbar" to platform.hasNativeNavbar,
         "launcher" to platform.launcher.vendorHomePackages.takeIf { it.isNotEmpty() }
             ?.let { linkedMapOf("vendor_home_packages" to it) },
+        "vendor_mdns" to platform.vendorMdns.takeIf { it.isNotEmpty() },
     ).withoutNullValues(),
     "hardware" to linkedMapOf(
         "led" to linkedMapOf<String, Any?>("mechanism" to hardware.led.mechanism)

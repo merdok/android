@@ -104,6 +104,11 @@ data class ProfilePlatform(
     val hasRecents: Boolean = true,
     val hasNativeNavbar: Boolean? = null,
     val launcher: ProfileLauncher = ProfileLauncher(),
+    /**
+     * DNS-SD instances the vendor's own software announces, as `<instance glob>.<service>`
+     * (`ShellyWallDisplay-*._shelly._tcp`), so Panel Assistant can find the panel when the app is not announcing.
+     */
+    val vendorMdns: List<String> = emptyList(),
 )
 
 /** How the navbar Launcher button treats this firmware's HOME apps. */

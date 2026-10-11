@@ -338,7 +338,11 @@ class BundledProfileParityTest {
         featureBearing.forEach { source ->
             assertEquals(
                 "${source.document.id} uses schema fields introduced in rc1",
-                if (source.document.display.geometry.isEmpty()) "0.9.5-rc1" else "0.9.8-rc2",
+                when {
+                    source.document.platform.vendorMdns.isNotEmpty() -> "1.0.0-preview1"
+                    source.document.display.geometry.isEmpty() -> "0.9.5-rc1"
+                    else -> "0.9.8-rc2"
+                },
                 source.document.requires.minCoreVersion,
             )
         }
@@ -398,6 +402,22 @@ class BundledProfileParityTest {
                 "$bad must be refused",
                 ProfileValidator.validate(document, CORE_VERSION, bundled = false).any { it.path.startsWith("hardware.local_wake[") },
             )
+        }
+    }
+
+    /** The vendor's own announcement, as Panel Assistant's zeroconf matcher mirrors it, survives a round trip. */
+    @Test fun vendorMdnsNamesRoundTripAndRefuseMalformedEntries() {
+        assertEquals(listOf("ShellyWallDisplay-*._shelly._tcp"), bundledById.getValue("shelly-wall-display-x2i").document.platform.vendorMdns)
+        val generic = bundledById.getValue("generic").document
+        assertTrue(generic.platform.vendorMdns.isEmpty())
+        val declared = generic.copy(platform = generic.platform.copy(vendorMdns = listOf("Vendor-*._vendor._tcp", "panel._http._tcp")))
+        val parsed = ProfileYaml.parse(ProfileYaml.serialize(declared))
+        assertEquals(emptyList<ProfileIssue>(), parsed.issues)
+        assertEquals(declared.platform.vendorMdns, parsed.document!!.platform.vendorMdns)
+        assertTrue(ProfileValidator.validate(parsed.document!!, CORE_VERSION, bundled = false).none { it.path.startsWith("platform.vendor_mdns") })
+        for (bad in listOf(listOf("Vendor-*"), listOf("Vendor-*._vendor._tcp.local."), listOf("a._b._tcp", "a._b._tcp"))) {
+            val document = generic.copy(platform = generic.platform.copy(vendorMdns = bad))
+            assertTrue("$bad must be refused", ProfileValidator.validate(document, CORE_VERSION, bundled = false).any { it.path.startsWith("platform.vendor_mdns[") })
         }
     }
 
@@ -997,7 +1017,7 @@ class BundledProfileParityTest {
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
             "shelly-wall-display-v2.yaml" to "1e8d87c5e7f34d76d4abe3fa6f999ecf5a705ae6b12c73fedda00589cfb4c964",
-            "shelly-wall-display-x2i.yaml" to "904960f5686388c6adf008c4de69e441c2c0837f9c23a24346db98fa49cdb77c",
+            "shelly-wall-display-x2i.yaml" to "eafb4f5406303ac24fdb9d4a948785e110d38e0dd4e588edfe1d173405cbc314",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",
             "tpa10.yaml" to "077ff9cb33f483e6497c149d2dc01ba6db49d85f4c4ac0965d7087a58577aa3a",

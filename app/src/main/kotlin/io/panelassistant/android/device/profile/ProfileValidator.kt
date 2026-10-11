@@ -11,6 +11,8 @@ import java.net.URI
 internal object ProfileValidator {
     private val idPattern = Regex("^[a-z0-9](?:[a-z0-9.-]{0,126}[a-z0-9])?$")
     private val packagePattern = Regex("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$")
+    // An instance name glob (letters, digits, hyphens and *) then a DNS-SD service: ShellyWallDisplay-*._shelly._tcp.
+    private val vendorMdnsPattern = Regex("^[A-Za-z0-9*-]{1,63}\\._[a-z0-9-]{1,15}\\._(?:tcp|udp)$")
     private val versionPattern = Regex("^[0-9]{1,6}(?:\\.[0-9]{1,6}){0,3}(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$")
     private val contentVersionPattern = Regex("^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$")
     private val licensePattern = Regex("^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}(?: (?:AND|OR) [A-Za-z0-9][A-Za-z0-9.+-]{0,63})*$")
@@ -156,6 +158,13 @@ internal object ProfileValidator {
             val path = "platform.launcher.vendor_home_packages[$index]"
             if (!packagePattern.matches(pkg)) reject(path, "Invalid Android package name.", "android-package-name-invalid")
             if (vendorHome.indexOf(pkg) != index) reject(path, "Duplicate vendor home package.", "duplicate-vendor-home-package")
+        }
+        val vendorMdns = document.platform.vendorMdns
+        if (vendorMdns.size > 8) reject("platform.vendor_mdns", "At most 8 vendor mDNS names are allowed.", "vendor-mdns-count-limit")
+        vendorMdns.forEachIndexed { index, name ->
+            val path = "platform.vendor_mdns[$index]"
+            if (!vendorMdnsPattern.matches(name)) reject(path, "Expected an instance glob and service, such as Vendor-*._vendor._tcp.", "vendor-mdns-invalid")
+            if (vendorMdns.indexOf(name) != index) reject(path, "Duplicate vendor mDNS name.", "duplicate-vendor-mdns")
         }
         if (LedMechanism.ofYaml(document.hardware.led.mechanism) == null) {
             reject("hardware.led.mechanism", "Unknown LED mechanism '${document.hardware.led.mechanism}'.", "unknown-led-mechanism", mapOf("value" to document.hardware.led.mechanism))
