@@ -167,6 +167,12 @@ class SensorReporter(
     private val hasCht8305: Boolean = profile.hasCht8305
     private val tempSensor: Sensor? = sm.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
     private val humiditySensor: Sensor? = sm.getDefaultSensor(Sensor.TYPE_RELATIVE_HUMIDITY)
+    private val colourSensor: Sensor? = if (profile.id == "meta-portal-10-gen2") {
+        sm.getSensorList(PORTAL_COLOUR_SENSOR_TYPE).firstOrNull {
+            supportsPortalColourTemperature(profile.id, it.type, it.name, it.vendor, it.stringType)
+        }
+    } else null
+    private val colourTemperature = PortalColourTemperature(colourSensor != null)
     private val tempUse = environmentalSensorUse(hasCht8305, tempSensor != null)
     private val humidityUse = environmentalSensorUse(hasCht8305, humiditySensor != null)
     private val roomClimateMetrics: PanelMetrics? = if (hasCht8305) PanelMetrics() else null
@@ -402,7 +408,7 @@ class SensorReporter(
         val humidity = environmentalEndpointJson(
             humidityUse, liveHumid, age(liveHumidAt), roomClimate?.humidityPct, humidityActivation?.state,
         ).replace("\"value\":", "\"pct\":")
-        return "\"light\":{$light},\"proximity\":$proximity,\"temperature\":{$temp},\"humidity\":{$humidity}"
+        return "\"light\":{$light},\"proximity\":$proximity,\"temperature\":{$temp},\"humidity\":{$humidity},\"colour_temperature\":{${colourTemperature.json(now)}}"
     }
 
     fun proximityJson(): String = proximityRuntime?.json(
@@ -476,7 +482,7 @@ class SensorReporter(
         onLuxRaw: (Float) -> Unit = {},
         onPresenceApproach: () -> Unit = {},
     ) {
-        if (!hasLight() && !hasProximity() && tempSensor == null && humiditySensor == null && !hasCht8305) return
+        if (!hasLight() && !hasProximity() && tempSensor == null && humiditySensor == null && !hasCht8305 && colourSensor == null) return
         if (activeRun != null) return
         val run = SensorRunCallbacks(onLux, onLuxRaw, onProximity, onGesture, onTemperature, onHumidity, onPresenceApproach)
         activeRun = run
@@ -494,7 +500,16 @@ class SensorReporter(
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
             override fun onSensorChanged(event: SensorEvent) {
-                if (!run.isOpen() || activeRun !== run || event.values.isEmpty()) return
+                if (!run.isOpen() || activeRun !== run) return
+                if (event.sensor == colourSensor) {
+                    synchronized(this@SensorReporter) {
+                        if (run.isOpen() && activeRun === run) {
+                            colourTemperature.observe(event.values, SystemClock.elapsedRealtime())
+                        }
+                    }
+                    return
+                }
+                if (event.values.isEmpty()) return
                 when (event.sensor.type) {
                     Sensor.TYPE_LIGHT -> {
                         val lux = event.values[0]
@@ -544,6 +559,11 @@ class SensorReporter(
                     RoomClimateRefreshCancellation { future.cancel(true) }
                 },
             ).also { it.start() }
+        }
+        colourSensor?.let {
+            if (!sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL, handler)) {
+                Log.w(TAG, "colour temperature sensor registration refused: ${it.name} (${it.vendor})")
+            }
         }
         lightSensor?.let {
             // An em3071x declared by the device tree but absent from the bus refuses activation here
@@ -841,6 +861,7 @@ class SensorReporter(
     fun stop(): CompletableFuture<Unit> {
         activeRun?.close()
         activeRun = null
+        colourTemperature.clear()
         stkRawWatchdog?.let { sensorHandler?.removeCallbacks(it) }
         stkRawWatchdog = null
         stkRawGate?.close()

@@ -12419,6 +12419,18 @@
       "softMaxChars": 14,
       "hardMaxChars": 20
     },
+    "dashboard.sensors.estimated_colour_temperature": {
+      "text": "Estimated colour temperature",
+      "sourceHash": "cf4b16879fa7023e3b4bf31a7c2608969596dd8e5314bcd767520baae979c91c",
+      "surface": "dashboard",
+      "context": "Live Sensors diagnostic label for vendor-estimated ambient correlated colour temperature; absolute calibration accuracy is unknown.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 35,
+      "hardMaxChars": 48
+    },
     "dashboard.sensors.far": {
       "text": "far",
       "sourceHash": "512eea46ceb3921dff4363c7069d89d4964d1d9fccaa0f411851a7aa60a5c868",
