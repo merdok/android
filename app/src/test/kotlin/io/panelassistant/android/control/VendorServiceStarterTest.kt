@@ -45,6 +45,15 @@ class VendorServiceStarterTest {
     private val direct = Executor { it.run() }
     private fun starter(panel: Panel, service: VendorService? = stargate) = VendorServiceStarter(service, panel, direct)
 
+    /** Vendor settings are re-asserted whenever the service is found up or brought up, never otherwise. */
+    @Test fun theUpFollowUpRunsOnlyWhileTheServiceAnswers() {
+        for ((panel, expected) in listOf(Panel(listening = true) to 1, Panel() to 1, Panel(opensAfterPolls = null) to 0, Panel(overlays = false) to 0)) {
+            var ups = 0
+            VendorServiceStarter(stargate, panel, direct, onUp = { ups++ }).request()
+            assertEquals(expected, ups)
+        }
+    }
+
     @Test fun noDeclaredServiceDoesNothing() {
         val panel = Panel()
         val starter = starter(panel, service = null)

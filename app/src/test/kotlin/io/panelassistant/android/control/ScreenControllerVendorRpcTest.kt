@@ -106,6 +106,20 @@ class ScreenControllerVendorRpcTest {
         assertFalse(sc.isIntendedOff())
     }
 
+    /** Stargate's `Ui.Screen.Set` relights to its own level (48 against the app's 120 on the X2i). */
+    @Test fun aVendorWakeComesBackAtTheAppsLevelNotTheVendors() {
+        val stargate = FakeVendorScreen(node = 120, onLevel = 48)
+        val setting = SettingBacklight(stargate, setting = 120)
+        val sc = ScreenController(
+            setting, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap, ScreenOff.VENDOR_RPC,
+            nap = {}, vendor = stargate,
+        )
+        sc.sleep()
+        wakeTap.fireTap()
+        assertEquals(120, stargate.node)
+        assertEquals(120, setting.setting)
+    }
+
     @Test fun aDarkNodeNobodyAskedForIsRelitThroughTheVendor() {
         val sc = controller()
         vendor.node = 0

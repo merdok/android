@@ -115,8 +115,9 @@ class ConfigDisplacedScreenTimeout(private val config: io.panelassistant.android
  *   the backlight. Android stays interactive, so it belongs to the backlight family: the touch overlay
  *   is armed first, and the off counts only once the backlight node reads dark. Refused, unconfirmed
  *   or with no overlay, it undoes any half-applied blank and takes the screen-timeout chain above. The
- *   vendor writes the node behind Android's back, so a wake the vendor does not answer relights it by
- *   changing `SCREEN_BRIGHTNESS`, which makes Android drive the node again.
+ *   vendor writes the node behind Android's back and relights to a level of its own, so every wake
+ *   then changes `SCREEN_BRIGHTNESS` to the app's level, which makes Android drive the node again; that
+ *   also relights a panel whose vendor no longer answers.
  */
 class ScreenController(
     private val backlight: Backlight,
@@ -607,16 +608,15 @@ class ScreenController(
                 return
             }
             ScreenOff.VENDOR_RPC -> {
-                if (vendor.set(true) && awaitVendorLit(true)) {
-                    completeWake("screen -> on (vendor rpc)")
-                    return
-                }
-                // The vendor wrote the node behind Android's back, and Android drives it again only
-                // when the setting changes: an equal write leaves it dark (measured on the X2i).
+                val relit = vendor.set(true) && awaitVendorLit(true)
+                // The vendor relights to a level of its own, or, unanswered, leaves the node at the 0 it
+                // wrote behind Android's back. Android drives the node again only when the setting
+                // changes, an equal write leaving it as it is (measured on the X2i), so step the setting
+                // to the app's level either way.
                 val level = savedLevel.coerceAtLeast(MIN_ON)
                 backlight.setBrightness(if (level < 255) level + 1 else level - 1)
                 backlight.setBrightness(level)
-                completeWake("screen -> on (brightness; the vendor screen RPC did not relight it)")
+                completeWake(if (relit) "screen -> on (vendor rpc)" else "screen -> on (brightness; the vendor screen RPC did not relight it)")
                 return
             }
             ScreenOff.BRIGHTNESS_ZERO -> Unit

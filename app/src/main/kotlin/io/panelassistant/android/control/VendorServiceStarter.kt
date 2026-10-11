@@ -42,6 +42,8 @@ class VendorServiceStarter(
     private val seams: Seams,
     private val executor: Executor,
     private val attempts: AtomicInteger = AtomicInteger(),
+    /** Run on the worker whenever a check finds the service up, so vendor settings can be re-asserted. */
+    private val onUp: () -> Unit = {},
 ) {
     /** The platform edges, injected so the behaviour runs on the JVM. Cover calls block until done. */
     interface Seams {
@@ -91,6 +93,7 @@ class VendorServiceStarter(
             if (seams.stopping()) return
             if (seams.listening(service.port)) {
                 state = State.UP
+                runCatching(onUp).onFailure { Log.w(TAG, "vendor service follow-up failed", it) }
                 return
             }
             if (!seams.canDrawOverlays()) {
@@ -110,6 +113,7 @@ class VendorServiceStarter(
             attempts.incrementAndGet()
             state = attempt(service)
             Log.i(TAG, "vendor service on ${service.port}: ${state.wire}")
+            if (state == State.STARTED) runCatching(onUp).onFailure { Log.w(TAG, "vendor service follow-up failed", it) }
         } catch (t: Throwable) {
             state = State.FAILED
             Log.w(TAG, "vendor service start failed", t)
@@ -168,8 +172,9 @@ class VendorServiceStarter(
             service: VendorService?,
             returnSurface: () -> (() -> Boolean),
             stopping: () -> Boolean,
+            onUp: () -> Unit = {},
         ): VendorServiceStarter =
-            VendorServiceStarter(service, AndroidSeams(context.applicationContext, returnSurface, stopping), WORKER, PROCESS_ATTEMPTS)
+            VendorServiceStarter(service, AndroidSeams(context.applicationContext, returnSurface, stopping), WORKER, PROCESS_ATTEMPTS, onUp)
                 .also { installed = it }
     }
 

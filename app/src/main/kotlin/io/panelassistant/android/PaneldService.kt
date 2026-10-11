@@ -624,6 +624,7 @@ class PaneldService : Service() {
     private val receiverLock = Any()
     private var screenOnReceiver: BroadcastReceiver? = null
     @Volatile private var vendorServiceStarter: io.panelassistant.android.control.VendorServiceStarter? = null
+    private var vendorScreen: io.panelassistant.android.platform.VendorScreen = io.panelassistant.android.platform.NoVendorScreen
     private var webViewRebindReceiver: BroadcastReceiver? = null
 
     /**
@@ -1035,14 +1036,15 @@ class PaneldService : Service() {
                 config.ownedBacklightLevel,
             ),
         )
+        vendorScreen = profile.vendorService?.let { io.panelassistant.android.platform.LocalRpcVendorScreen(it.port) }
+            ?: io.panelassistant.android.platform.NoVendorScreen
         screen = ScreenController(
             brightness,
             AndroidScreenPower(this),
             wakeTap = OverlayWakeTap(this),
             route = profile.screenOff,
             displacedTimeout = io.panelassistant.android.control.ConfigDisplacedScreenTimeout(config),
-            vendor = profile.vendorService?.let { io.panelassistant.android.platform.LocalRpcVendorScreen(it.port) }
-                ?: io.panelassistant.android.platform.NoVendorScreen,
+            vendor = vendorScreen,
         )
         autoBright = AutoBrightnessController(
             this, brightness, config, screen::actuateBrightnessIfOn,
@@ -3123,7 +3125,7 @@ class PaneldService : Service() {
             vendorServiceStarter = io.panelassistant.android.control.VendorServiceStarter
                 .forService(this, profile.vendorService, returnSurface = {
                     system.returnAfterVendorStart(config.launcherPackage, config.dashboardPackage, config.builtInRendererReady())
-                }) { teardownBoundary.isStopping }.also { it.request() }
+                }, stopping = { teardownBoundary.isStopping }, onUp = { vendorScreen.holdBrightness() }).also { it.request() }
             startWebViewRebindWatch()
             sensors.start(
                 onLux = { lux ->

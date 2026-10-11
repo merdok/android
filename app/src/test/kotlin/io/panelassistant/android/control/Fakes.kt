@@ -278,6 +278,8 @@ class FakeVendorScreen(
         return true
     }
     override fun lit(): Boolean? = if (readable) node > 0 else null
+    var holds = 0
+    override fun holdBrightness(): Boolean { holds++; return answers }
 }
 
 /** [Backlight] over the Android setting, which re-drives [vendor]'s node only when the value changes. */

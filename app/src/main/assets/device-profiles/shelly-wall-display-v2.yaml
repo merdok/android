@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-v2
-version: 2.5.0
+version: 2.6.0
 display_name: Shelly Wall Display (modern)
 soc_class: "Model-dependent (known: RK3326-S / RK3566)"
 metadata:
@@ -14,6 +14,7 @@ metadata:
     - The X2i has its own profile. Its firmware-level findings are projected onto the remaining models because they share its Stargate firmware line. They are the screen-off routes, Recents being absent (the firmware ignores the Recents key) and Stargate's Home registration. Its unit-level facts (SoC, microphone, proximity technology, density and local wake) are not projected.
     - Stargate's local service on port 8021, which Home Assistant's Shelly integration uses, is projected from the X2i on the same firmware line, where it listens only once Stargate's main screen has been created. The app checks the port at runtime and creates that screen under a cover only when nothing listens, so a model that already serves it is left alone.
     - Screen-off asks Shelly's launcher to switch the backlight off over its local RPC, as measured on the X2i, and counts it only once the backlight reads dark; a touch then wakes it without reaching the dashboard. Where the launcher does not answer, Android's own screen timeout turns the display off, or screen-off dims when Android does not sleep or WRITE_SECURE_SETTINGS is missing. Touch wake from Android's sleep is unmeasured on these models, so it is not declared.
+    - While Shelly's launcher runs, the app switches its automatic brightness off through the same local RPC, so the brightness Home Assistant sets is the one shown; it does so again whenever it finds the launcher running.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
