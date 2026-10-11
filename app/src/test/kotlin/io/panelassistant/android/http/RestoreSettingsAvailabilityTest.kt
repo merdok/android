@@ -40,7 +40,7 @@ class RestoreSettingsAvailabilityTest {
                 assertEquals("partial", result.getString("status"))
                 assertEquals("partial", result.getJSONObject("config").getString("status"))
                 assertEquals(2, result.getJSONObject("config").getInt("items"))
-                assertTrue(result.getJSONObject("config").getString("detail").contains("network_adb"))
+                assertTrue(result.getJSONObject("config").optString("detail").contains("network_adb"))
                 assertEquals(listOf(false), answers)
                 assertFalse(InstallProgress.running)
             } finally {
