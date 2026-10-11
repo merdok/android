@@ -14,7 +14,7 @@
     <string name="ha_past_usual">Langer dan gebruikelijk</string>
     <string name="ha_reloading_detail">Je dashboard wordt herladen</string>
     <string name="ha_usually">%1$s · meestal %2$s</string>
-    <string name="ha_restarted_in">Herstart in %1$s</string>
+    <string name="ha_restarted_in">Herstart duurde %1$s</string>
     <string name="ha_exact_seconds">%1$d seconden</string>
     <string name="ha_exact_minutes_seconds">%1$d min %2$d s</string>
 </resources>

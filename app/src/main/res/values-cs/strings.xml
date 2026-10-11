@@ -85,7 +85,7 @@
     <string name="applying_dashboard_theme">použití vašeho motivu ovládacího panelu</string>
     <string name="optimizing_entities_restart">optimalizace používaných entit (může se znovu načíst, jak se panel učí)</string>
     <string name="service_running_caption">běží</string>
-    <string name="elapsed_usually">Uplynulo %1$d s · obvykle asi %2$d s</string>
+    <string name="elapsed_usually">Uplynulo %1$d s · obvykle %2$d s</string>
     <string name="elapsed_learning">Uplynulo %1$d s · učení časování tohoto panelu</string>
     <string name="network_starting_android">Spouštění síťových služeb Android</string>
     <string name="network_waiting_link">Čeká se na připojení k síti</string>

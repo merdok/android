@@ -85,7 +85,7 @@
     <string name="applying_dashboard_theme">je dashboardthema toepassen</string>
     <string name="optimizing_entities_restart">optimaliseren welke entiteiten het gebruikt (het kan nog eens opnieuw laden terwijl het paneel leert)</string>
     <string name="service_running_caption">actief</string>
-    <string name="elapsed_usually">%1$d s verstreken · meestal ongeveer %2$d s</string>
+    <string name="elapsed_usually">%1$d s verstreken · meestal %2$d s</string>
     <string name="elapsed_learning">%1$d s verstreken · de timing van dit paneel leren kennen</string>
     <string name="network_starting_android">Android-netwerkdiensten starten</string>
     <string name="network_waiting_link">Wachten op een netwerkverbinding</string>

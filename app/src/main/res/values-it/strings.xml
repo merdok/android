@@ -90,7 +90,7 @@
     <string name="applying_dashboard_theme">applicazione del tema della dashboard</string>
     <string name="optimizing_entities_restart">ottimizzazione delle entità usate (potrebbe ricaricarsi di nuovo mentre il pannello apprende)</string>
     <string name="service_running_caption">in esecuzione</string>
-    <string name="elapsed_usually">%1$d s trascorsi · solitamente circa %2$d s</string>
+    <string name="elapsed_usually">%1$d s trascorsi · solitamente %2$d s</string>
     <string name="elapsed_learning">%1$d s trascorsi · apprendimento dei tempi del pannello</string>
     <string name="network_starting_android">Avvio dei servizi di rete Android</string>
     <string name="network_waiting_link">In attesa di una connessione di rete</string>

@@ -85,7 +85,7 @@
     <string name="applying_dashboard_theme">застосування теми вашої інформаційної панелі</string>
     <string name="optimizing_entities_restart">оптимізація вибору сутностей, які вона використовує (вона може знову перезавантажитися, поки панель навчається)</string>
     <string name="service_running_caption">працює</string>
-    <string name="elapsed_usually">Минуло %1$d с · зазвичай близько %2$d с</string>
+    <string name="elapsed_usually">Минуло %1$d с · зазвичай %2$d с</string>
     <string name="elapsed_learning">Минуло %1$d с · визначення часових параметрів цієї панелі</string>
     <string name="network_starting_android">Запуск мережевих служб Android</string>
     <string name="network_waiting_link">Очікування підключення до мережі</string>

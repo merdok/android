@@ -90,7 +90,7 @@
     <string name="applying_dashboard_theme">aplicando el tema de tu panel de control</string>
     <string name="optimizing_entities_restart">optimizando las entidades que utiliza (puede recargarse de nuevo mientras el panel aprende)</string>
     <string name="service_running_caption">en ejecución</string>
-    <string name="elapsed_usually">%1$d s transcurridos · suele tardar unos %2$d s</string>
+    <string name="elapsed_usually">%1$d s transcurridos · suele tardar %2$d s</string>
     <string name="elapsed_learning">%1$d s transcurridos · aprendiendo los tiempos de este panel</string>
     <string name="network_starting_android">Iniciando los servicios de red de Android</string>
     <string name="network_waiting_link">Esperando un enlace de red</string>

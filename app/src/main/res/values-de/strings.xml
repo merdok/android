@@ -90,7 +90,7 @@
     <string name="applying_dashboard_theme">dein Dashboard-Design wird angewendet</string>
     <string name="optimizing_entities_restart">die verwendeten Entitäten werden optimiert (möglicherweise wird es erneut geladen, während das Panel dazulernt)</string>
     <string name="service_running_caption">wird ausgeführt</string>
-    <string name="elapsed_usually">%1$d s vergangen · normalerweise etwa %2$d s</string>
+    <string name="elapsed_usually">%1$d s vergangen · normalerweise %2$d s</string>
     <string name="elapsed_learning">%1$d s vergangen · Zeitverhalten dieses Panels wird ermittelt</string>
     <string name="network_starting_android">Android-Netzwerkdienste werden gestartet</string>
     <string name="network_waiting_link">Warten auf eine Netzwerkverbindung</string>
