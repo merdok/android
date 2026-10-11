@@ -1449,6 +1449,31 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
+    @Test fun aNetworkNudgeFromBeforeARefusalLeavesTheSlowWaitAloneAndALaterOneEndsIt() = runTest {
+        lateinit var harness: Harness
+        harness = harness(repeating = {
+            FakeConnection { frame, connection ->
+                // The network callback can also fire while the first hello is in flight.
+                if (harness.connector.times.size == 1) harness.owner.nudge()
+                Ha.refusing("protocol_unsupported")(frame, connection)
+            }
+        })
+        // The service registers its network callback at startup, and Android reports the current network at once.
+        harness.owner.nudge()
+        harness.owner.replaceDemand(DEMAND)
+        runCurrent()
+        assertEquals(1, harness.connector.times.size)
+        assertTrue(harness.owner.status.slowRetry)
+
+        advanceTimeBy(10L * 60_000L)
+        runCurrent()
+        assertEquals(1, harness.connector.times.size)
+        harness.owner.nudge()
+        runCurrent()
+        assertEquals(2, harness.connector.times.size)
+        harness.owner.close()
+    }
+
     @Test fun `only an enrollment refusal counts as Panel Assistant answering`() = runTest {
         for ((code, expected) in listOf("unknown_panel" to 1, "panel_user_mismatch" to 1, "unknown_command" to 0, "protocol_unsupported" to 0)) {
             var answered = 0

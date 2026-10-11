@@ -104,7 +104,11 @@ internal data class PanelAssistantTransportFacts(
     val phase: PanelAssistantTransportPhase,
     /** The owner's last refusal or retry code, null while none applies. */
     val refusal: String?,
-)
+) {
+    /** The `panel_assistant_transport` object of `GET /api/v1/status`. */
+    fun statusJson(): String =
+        JSONObject().put("phase", phase.name.lowercase()).putOpt("refusal", refusal).toString()
+}
 
 internal data class PanelAssistantTransportStatus(
     val phase: PanelAssistantTransportPhase = PanelAssistantTransportPhase.STOPPED,
@@ -488,8 +492,9 @@ internal class PanelAssistantTransportOwner(
                 retry.refusal,
                 slowRetry = retry is Retry.Slow,
             ))
-            // A nudge that arrived while connected describes a network that is already in use.
-            if (hadSession) nudges.tryReceive()
+            // A nudge that arrived while connected, or before Home Assistant answered with a reason to
+            // wait slowly, describes a network that is already in use.
+            if (hadSession || retry is Retry.Slow) nudges.tryReceive()
             withTimeoutOrNull(delayMs) { nudges.receive() }
         }
     }

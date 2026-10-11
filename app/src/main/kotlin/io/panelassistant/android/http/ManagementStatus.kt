@@ -16,6 +16,8 @@ import io.panelassistant.android.util.UpdateChecker
 import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.Json.str as jsonStr
 import io.panelassistant.android.util.PanelAssistantDevice
+import io.panelassistant.android.panelassistant.PanelAssistantTransportFacts
+import io.panelassistant.android.panelassistant.PanelAssistantTransportPhase
 import io.panelassistant.android.RendererAdmissionPresentation
 import io.panelassistant.android.sensors.HaNetworkPathRuntime
 import io.panelassistant.android.sensors.PathProbeRuntime
@@ -46,6 +48,8 @@ internal fun managementStatusJson(
     homeProof: (() -> String)? = null,
     /** The `proximity` component, or null to omit it on a panel with no proximity source. */
     proximity: () -> String? = { null },
+    /** The native transport's phase and refusal; null when no transport owner runs. */
+    panelAssistantTransport: PanelAssistantTransportFacts? = null,
     /** The capability rows' wire text is English, from the same catalogue the dashboard reads. */
     english: AppStrings,
 ): String {
@@ -168,6 +172,10 @@ internal fun managementStatusJson(
         // socket is held, never absent.
         "\"ha_network\":${HaNetworkPathRuntime.statusJson()}," +
             "\"ha_path_probe\":${PathProbeRuntime.statusJson()}," +
+        // Unconditional too, so a panel Panel Assistant refuses says why somewhere a reader can see.
+        "\"panel_assistant_transport\":${
+            (panelAssistantTransport ?: PanelAssistantTransportFacts(PanelAssistantTransportPhase.STOPPED, null)).statusJson()
+        }," +
         "\"renderer\":${renderer().statusJson()}," +
         "\"camera\":${camera().statusJson()}," +
         proximityJson +

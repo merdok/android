@@ -64,7 +64,7 @@ class DatabaseCompatibilityApkContractTest {
             assertEquals("$previous must carry the same value as $current", values[current], values[previous])
         }
         assertTrue(DatabaseCompatibilityApkContract.parse(values.getValue(DatabaseCompatibilityApkContract.METADATA_NAME).single()) is Parsed.Valid)
-        assertTrue(AppInstaller.parseNativeProtocolMetadata(values.getValue(AppInstaller.PROTOCOL_METADATA_NAME).single()) != null)
+        assertEquals(5..5, AppInstaller.parseNativeProtocolMetadata(values.getValue(AppInstaller.PROTOCOL_METADATA_NAME).single()))
     }
 
     @Test fun parsesTheFiniteSignedContract() {

@@ -97,7 +97,8 @@ class FakeRootShell(
  *  (e.g. [CpuController]'s governor reads). Only the fields a test needs are set; everything else is the
  *  "unavailable" default. */
 class FakeMetricSource(
-    private val governor: String? = null,
+    /** The live governor; a test changes it to model a governor set outside the panel's API. */
+    @Volatile var governor: String? = null,
     private val availableGovernors: String? = null,
 ) : MetricSource {
     val governorRootFallbacks = mutableListOf<Boolean>()

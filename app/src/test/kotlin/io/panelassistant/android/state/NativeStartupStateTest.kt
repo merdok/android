@@ -75,4 +75,20 @@ internal class NativeStartupStateTest : PanelRuntimeRig() {
         } finally { rig.close() }
     }
 
+    @Test fun volumeAndGovernorChangedOutsideThePanelAfterStartupAreSyncedBeforeAnyCommand() {
+        val rig = rig(cpuGovernor = "schedutil")
+        try {
+            rig.audio.percent = 40
+            rig.start()
+            rig.audio.percent = 70
+            rig.metrics.governor = "performance"
+            rig.core.requestLocalObservation { true }
+            drainStatePump()
+            assertEquals(
+                listOf("cpu_governor Auto→Performance", "volume 40→70"),
+                rig.core.recentSyncEvents().map { it.substringAfter(" · ") }
+                    .filter { it.startsWith("cpu_governor ") || it.startsWith("volume ") },
+            )
+        } finally { rig.close() }
+    }
 }

@@ -35,8 +35,8 @@ class HealthRoutesHttpTest {
                 assertEquals(line, api.bodyAsText())
                 assertTrue(line, line.startsWith("ha-paneld ${Config.VERSION} panel=contract-panel build=${Config.VERSION} cfg="))
                 assertTrue(line, Regex(" cfg=[0-9a-f]{8} ").containsMatchIn(line))
-                assertTrue(line, line.contains(" pkg=io.github.maxlyth.hapaneld vc=${BuildConfig.VERSION_CODE}"))
-                assertTrue(line, line.endsWith(" restart=contract pa_notice=1\n"))
+                assertTrue(line, line.contains(" pkg=io.github.maxlyth.hapaneld vc=${BuildConfig.VERSION_CODE} proto=5-5 "))
+                assertTrue(line, line.endsWith(" pa_restarting=app,settings,29000 pa_notice=1\n"))
                 val refused = direct.get("/health") { header(HttpHeaders.Host, "elsewhere.example") }
                 assertEquals(HttpStatusCode.Forbidden, refused.status)
                 assertEquals("host not allowed\n", refused.bodyAsText())
@@ -74,8 +74,8 @@ class HealthRoutesHttpTest {
         PaneldServer::class.java.getDeclaredField("configLiveValues").apply {
             isAccessible = true
         }.set(fixture.server, { emptyMap<String, String>() })
-        PaneldServer::class.java.getDeclaredField("panelAssistantRestartHealth").apply {
+        PaneldServer::class.java.getDeclaredField("panelAssistantTransport").apply {
             isAccessible = true
-        }.set(fixture.server, { " restart=contract" })
+        }.set(fixture.server, TestTransportOwners.idle().apply { announceRestart("app", "settings", 29_000L) })
     }
 }

@@ -27,6 +27,28 @@ class ManagementHttpTest {
         }
     }
 
+    @Test fun statusSaysWhyPanelAssistantRefusedThePanel() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.useManagementStatus { error("Passive status read must not refresh storage") }
+            testApplication {
+                application { fixture.mount(this) }
+                val unwired = org.json.JSONObject(client.get("/api/v1/status").bodyAsText())
+                    .getJSONObject("panel_assistant_transport")
+                assertEquals("stopped", unwired.getString("phase"))
+                assertFalse(unwired.has("refusal"))
+                val owner = TestTransportOwners.refused("protocol_unsupported")
+                PaneldServer::class.java.getDeclaredField("panelAssistantTransport").apply {
+                    isAccessible = true
+                }.set(fixture.server, owner)
+                val refused = org.json.JSONObject(client.get("/api/v1/status").bodyAsText())
+                    .getJSONObject("panel_assistant_transport")
+                assertEquals("waiting", refused.getString("phase"))
+                assertEquals("protocol_unsupported", refused.getString("refusal"))
+                owner.close()
+            }
+        }
+    }
+
     @Test fun statusReportsFreshPermissionReadbackWhileFeaturesRemainDisabled() {
         var sdk = 32
         var microphone = false

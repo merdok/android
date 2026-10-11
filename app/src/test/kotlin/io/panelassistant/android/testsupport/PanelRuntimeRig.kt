@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.content.res.Resources
-import android.media.AudioManager
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
@@ -97,6 +96,10 @@ internal abstract class PanelRuntimeRig {
         val storageReads: AtomicInteger,
         val updateSources: java.util.concurrent.atomic.AtomicReference<SoftwareUpdateSources>,
         val autoSleepConfigChanges: AtomicInteger,
+        /** The music stream volume the panel reads; a test changes it as the volume keys would. */
+        val audio: android.media.ScriptedAudioManager,
+        /** The CPU governor source; a test changes its governor as a thermal daemon would. */
+        val metrics: io.panelassistant.android.control.FakeMetricSource,
     ) {
         /** The service's start order: the state core's startup step. */
         fun start() {
@@ -136,6 +139,8 @@ internal abstract class PanelRuntimeRig {
         autoSleepActivity: () -> io.panelassistant.android.AutoSleepActivitySnapshot = { io.panelassistant.android.AutoSleepActivitySnapshot() },
         cameraSnapshotUrl: () -> String? = { null },
         helperSend: ((String) -> String?)? = null,
+        /** A panel whose CPU governors are readable, starting on this governor; null offers none. */
+        cpuGovernor: String? = null,
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
@@ -196,6 +201,7 @@ internal abstract class PanelRuntimeRig {
             buttonLeds = 1,
             canInstallVerifiedApps = true,
             hasWifi = true,
+            cpuGovernors = cpuGovernor != null,
         )
         val storage = java.util.concurrent.atomic.AtomicReference(storageSnapshot(StorageHealthSeverity.HEALTHY, walBytes = 4_096))
         val storageReads = AtomicInteger()
@@ -204,8 +210,13 @@ internal abstract class PanelRuntimeRig {
 
         val ledEffect = LedEffectController(led)
         val zigbee = ZigbeeController(fakeProfile(), FakeRootShell())
-        // Not reached: the capability snapshot reports no CPU governors.
-        val cpu = allocate(CpuController::class.java)
+        val metrics = io.panelassistant.android.control.FakeMetricSource(
+            governor = cpuGovernor,
+            availableGovernors = cpuGovernor?.let { "performance powersave schedutil" },
+        )
+        val cpu = CpuController(
+            fakeProfile(), FakeRootShell(), FakeDaemon(), io.panelassistant.android.metrics.PanelMetrics(metrics),
+        )
         // Only its best-effort reconnect reassertion runs, on a worker that logs and discards failure.
         val adb = allocate(AdbController::class.java)
         val volume = VolumeController(context)
@@ -273,7 +284,10 @@ internal abstract class PanelRuntimeRig {
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
         )
-        return Rig(tmp, config, sysfs, core, commands, storage, storageReads, updateSources, autoSleepConfigChanges)
+        return Rig(
+            tmp, config, sysfs, core, commands, storage, storageReads, updateSources, autoSleepConfigChanges,
+            context.audio, metrics,
+        )
     }
 
     // ---- fakes ----
@@ -320,7 +334,7 @@ internal abstract class PanelRuntimeRig {
         private val files: File,
         private val prefs: SharedPreferences,
     ) : ContextWrapper(null) {
-        private val audio = allocate(AudioManager::class.java)
+        val audio = android.media.ScriptedAudioManager()
         private val resolver = object : ContentResolver(null) {}
         override fun getApplicationContext(): Context = this
         override fun getSystemService(name: String): Any? = if (name == Context.AUDIO_SERVICE) audio else null

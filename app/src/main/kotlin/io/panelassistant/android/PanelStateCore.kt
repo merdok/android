@@ -148,8 +148,8 @@ internal class PanelStateCore(
     @Volatile private var prevTickBrightness = -1
     @Volatile private var prevTickVolume = -1
     @Volatile private var lastPublishedVolume = -1
-    // Last CPU tier stated by a transport announcement, so the local pass fires only when the live sysfs
-    // governor is changed by something else (a thermal daemon, another app).
+    // Last CPU tier reported, from startup on, so the local pass fires only when the live sysfs governor
+    // is changed by something else (a thermal daemon, another app).
     @Volatile private var lastPublishedGovTier: String? = null
     // Recent "changed outside the panel's API" events, surfaced on the info page + /diag for debugging.
     private val syncLog = SyncLog()
@@ -417,6 +417,11 @@ internal class PanelStateCore(
         // generated for itself; the process restarts from the restored configuration and starts then.
         if (io.panelassistant.android.migration.IdentityMigrationGate.holdsNetworkIdentity()) return
         lifecycle.runIfOpen(Unit) {
+            // The local pass reports later volume and governor changes against the values the panel starts with.
+            runCatching {
+                lastPublishedVolume = volume.getPercent()
+                lastPublishedGovTier = cpu.currentTier()
+            }.onFailure { Log.w(TAG, "startup volume and CPU governor baseline failed", it) }
             runCatching { reapplyStoredLed() }
                 .onFailure { Log.w(TAG, "startup LED restoration failed", it) }
             runCatching { restoreButtonBacklight() }
@@ -425,18 +430,6 @@ internal class PanelStateCore(
                 buttonSubscription = ButtonBus.subscribe { event -> publishButton(event) }
             }
         }
-    }
-
-    /**
-     * Sync Home Assistant to the panel's actual state after a transport (re)announcement, so the UI isn't
-     * stale after a reboot (hardware resets, but HA holds the last retained state): re-applies the LED and
-     * button backlight and re-reports the screen.
-     */
-    fun restoreAndReconcile() {
-        volume.getPercent().let { lastPublishedVolume = it }
-        reconcile("screen")
-        reapplyStoredLed()
-        restoreButtonBacklight()
     }
 
     /** Re-apply the stored button backlight level, which the hardware loses on reboot. */
@@ -727,11 +720,6 @@ internal class PanelStateCore(
         return snapshot.inputs(component, capabilities.cached()?.canInstallVerifiedApps == true)
     }
 
-    /** A transport announcement stated the live CPU tier; later external changes are measured from it. */
-    fun baselineCpuGovernor() {
-        cpu.currentTier()?.let { lastPublishedGovTier = it }
-    }
-
     /** Report screen=OFF and reset the brightness baseline used by local-state reconciliation. */
     fun publishScreenOff() {
         lastScreenBrightness = -1
@@ -859,7 +847,7 @@ internal class PanelStateCore(
 
         // Channel: CPU governor — a thermal daemon or another app can change the scaling governor;
         // currentTier() reads the LIVE sysfs governor. Categorical (not numeric) — report on any change vs
-        // the baseline, no deadband. The baseline is set at announce, so this fires only on an external change.
+        // the baseline, no deadband. The baseline is set at startup, so this fires only on an external change.
         runCatching {
             if (capabilityShape.current().live.cpu) {
                 val tier = cpu.currentTier()

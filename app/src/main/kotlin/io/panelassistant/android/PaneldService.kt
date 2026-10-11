@@ -1582,7 +1582,7 @@ class PaneldService : Service() {
             radioStatus = { if (profile.zigbeeGatewayDir != null) zigbeeHealth.snapshot() else null },
             camera = camera,
             permissionStatus = { PanelPermissionRepair.observe(this, microphonePresence().offered, cameraReason()) },
-            panelAssistantRestartHealth = { panelAssistantTransport.restartHealthToken() },
+            panelAssistantTransport = panelAssistantTransport,
             onZigbeeJoinRetry = { runtime.current().commands.requestZigbeeJoin() },
             // LAN ha-paneld peers over mDNS for the header panel switcher. Captures the `mdns` FIELD (not a
             // snapshot) so it follows reconfigure()'s reassignment; browsePeers null-guards the swap window.

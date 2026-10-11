@@ -216,7 +216,8 @@ class PaneldServer internal constructor(
     // answers 503. [onWakeWordsChanged] rearms the listener and tells Home Assistant after an import.
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog? = null,
     private val onWakeWordsChanged: () -> Unit = {},
-    private val panelAssistantRestartHealth: () -> String = { "" },
+    // The native transport, for its restart notice on the health line and its phase and refusal on status.
+    private val panelAssistantTransport: io.panelassistant.android.panelassistant.PanelAssistantTransportOwner? = null,
     /** Read a bundled static asset (info.js / info.css) as text. */
     // Platform asset access; JVM HTTP hosts read the same bundled files from disk.
     private val asset: (String) -> String = { name ->
@@ -405,7 +406,7 @@ class PaneldServer internal constructor(
                 // Self-contained REST API explorer (no Swagger-UI CDN bundle) + the OpenAPI spec it
                 // renders — the spec also imports into Swagger/Postman for fleet tooling.
                 apiPageRoute(::requestStrings, asset) { config.friendlyName }
-                healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantRestartHealth() }
+                healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() }
                 // The pre-0.8.5 flat /diag → 308 to /api/v1/diag; the other flat paths are retired.
                 legacyDiagRedirect()
 
@@ -440,7 +441,7 @@ class PaneldServer internal constructor(
                             ),
                         )
                     } ?: unavailableProfileRoutes()
-                    healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantRestartHealth() }
+                    healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() }
                     migrationNoticeRoute(config)
                     configReadRoutes(
                         config = config,
@@ -645,6 +646,7 @@ class PaneldServer internal constructor(
             { rendererAdmission(appContext, config, autoBrightnessHttpApi) }, camera::presentation, databaseObservationNonce,
             permissions = permissionStatus,
             proximity = sensors::proximityStatusJson,
+            panelAssistantTransport = panelAssistantTransport?.facts(),
             homeProof = if (homeProofRequested) ({
                 val proof = system.homeUiProof(config.dashboardPackage, KioskAdminUi.isVisible())
                 homeUiProofJson(proof.state, proof.reason, proof.evidence)
@@ -762,7 +764,7 @@ class PaneldServer internal constructor(
     /** What Panel Assistant reads over its session: the same health line and status body HTTP serves. */
     internal suspend fun managementSnapshot() = withContext(Dispatchers.IO) {
         io.panelassistant.android.panelassistant.PanelAssistantManagementSnapshot(
-            healthLine(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantRestartHealth() },
+            healthLine(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() },
             statusJson(storageHealth()),
         )
     }
