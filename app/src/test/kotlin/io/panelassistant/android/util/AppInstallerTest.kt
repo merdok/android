@@ -58,17 +58,26 @@ class AppInstallerTest {
         assertNull(refusal())
         assertNull(refusal("1.1.0-rc1", policy = prerelease))
         assertNull(refusal("1.1.0-rc3.dev.1", policy = prerelease))
-        assertEquals("candidate version ordering could not be proven", refusal("1.1.0-rc3..1", policy = prerelease))
-        assertEquals("candidate version ordering could not be proven", refusal("1.1.0-01", policy = prerelease))
         assertNull(refusal("1.1.0", policy = prerelease))
         assertEquals("Panel Assistant must be online with update policy", refusal(policy = null))
         assertEquals("candidate Panel Assistant protocol metadata is missing or malformed", refusal(range = null))
         assertEquals("candidate cannot speak to the running Panel Assistant", refusal(range = 4..5))
         assertEquals("Panel Assistant update policy permits stable builds only", refusal("1.1.0-rc1"))
-        assertEquals("panel-app downgrades are not permitted", refusal("0.9.9"))
         assertEquals("panel-app downgrades are not permitted", refusal(code = 99))
-        assertEquals("candidate version ordering could not be proven", refusal("unknown"))
+        assertEquals("candidate version ordering could not be proven", refusal(code = 0))
     }
+
+    @Test fun buildNumberAloneOrdersPanelUpdatesWhateverTheVersionName() {
+        val prerelease = PanelAssistantUpdatePolicy(1, 3, true)
+        fun refusal(version: String, code: Long, installedVersion: String, installedCode: Long) =
+            AppInstaller.localInstallCandidateRefusal(
+                selfInfo().copy(version = version, versionCode = code, nativeProtocolRange = 3..3),
+                AppInstaller.HA_PANELD.pkg, null, prerelease, installedVersion, installedCode,
+            ) { null }
+        // The 2026-10-11 fleet: vc1246 named 1.0.0-rc1 refused vc1391 renamed 1.0.0-preview1.
+        assertNull(refusal("1.0.0-preview1", 1391, "1.0.0-rc1", 1246))
+        assertNull(refusal("0.9.9", 1391, "1.0.0", 1246))
+        assertEquals("panel-app downgrades are not permitted", refusal("1.0.1", 1245, "1.0.0-rc1", 1246))    }
 
     @Test fun localPanelCandidatePolicyAppliesToBothIdentitiesAndLeavesOtherAppsAlone() {
         val otherPanel = selfInfo().copy(pkg = io.panelassistant.android.AppIdentity.COUNTERPART)

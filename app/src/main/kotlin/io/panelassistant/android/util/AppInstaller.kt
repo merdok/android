@@ -366,6 +366,7 @@ object AppInstaller {
     }
 
     /** The same predicate admits signed APKs and authenticated catalogue metadata. */
+    @Suppress("UNUSED_PARAMETER")
     internal fun panelUpdateRefusal(
         policy: PanelAssistantUpdatePolicy?,
         candidateRange: IntRange?,
@@ -379,13 +380,13 @@ object AppInstaller {
         if (range.first > policy.protocolMax || range.last < policy.protocolMin) {
             return "candidate cannot speak to the running Panel Assistant"
         }
-        val comparison = comparePanelVersions(candidateVersion, currentVersion)
-            ?: return "candidate version ordering could not be proven"
         if (candidateCode <= 0L) return "candidate version ordering could not be proven"
         if (!policy.prerelease && candidateVersion.contains('-')) {
             return "Panel Assistant update policy permits stable builds only"
         }
-        if (comparison < 0 || candidateCode < currentCode) return "panel-app downgrades are not permitted"
+        // The build number is the only order; a version name is presentation and may be renamed
+        // (1.0.0-rc1 became 1.0.0-preview1 at a higher build).
+        if (candidateCode < currentCode) return "panel-app downgrades are not permitted"
         return null
     }
 
