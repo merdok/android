@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import io.panelassistant.android.sensors.EnvironmentalSensorUse
 import io.panelassistant.android.sensors.SensorReporter
+import io.panelassistant.android.sensors.PortalColourTemperature
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
@@ -36,6 +37,8 @@ class SensorRoutesHttpTest {
                 SensorReporter::class.java.getDeclaredField(name).apply { isAccessible = true }
                     .set(sensors, EnvironmentalSensorUse.ABSENT)
             }
+            SensorReporter::class.java.getDeclaredField("colourTemperature").apply { isAccessible = true }
+                .set(sensors, PortalColourTemperature(false))
             var brightness = 123
             PaneldServer::class.java.getDeclaredField("effectiveBrightness").apply { isAccessible = true }
                 .set(fixture.server, { brightness })
@@ -48,7 +51,7 @@ class SensorRoutesHttpTest {
                 val body = JSONObject(response.bodyAsText())
                 assertEquals(123, body.getInt("brightness"))
                 assertEquals(-1, body.getInt("volume_pct"))
-                for (key in listOf("light", "proximity", "temperature", "humidity")) {
+                for (key in listOf("light", "proximity", "temperature", "humidity", "colour_temperature")) {
                     assertFalse(body.getJSONObject(key).getBoolean("present"))
                 }
                 brightness = -1

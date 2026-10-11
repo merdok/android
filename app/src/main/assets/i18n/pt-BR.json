@@ -4433,6 +4433,11 @@
       "sourceHash": "ec811d30a89ce96d1c7555ffaede78b188fedb1d283adf7cdf55a4edae6697a7",
       "state": "machine-cross-checked"
     },
+    "dashboard.sensors.estimated_colour_temperature": {
+      "text": "Temperatura de cor estimada",
+      "sourceHash": "cf4b16879fa7023e3b4bf31a7c2608969596dd8e5314bcd767520baae979c91c",
+      "state": "machine-cross-checked"
+    },
     "dashboard.sensors.far": {
       "text": "longe",
       "sourceHash": "512eea46ceb3921dff4363c7069d89d4964d1d9fccaa0f411851a7aa60a5c868",
