@@ -719,6 +719,7 @@ class PaneldService : Service() {
     private val microphoneClaims = io.panelassistant.android.audio.MicrophoneForegroundClaims(::updateMicrophoneForeground)
     private val microphoneMute = io.panelassistant.android.audio.MicrophoneMuteWatch(
         this, { microphonePresence().offered }, io.panelassistant.android.assist.publishMicrophoneMute { voice },
+        portalPrivacy = { profile.id == "meta-portal-10-gen2" },
     )
     // One coalesced restart per burst of voice_* changes: a bundle import writes every key in turn and
     // must not rearm the listener once per key.
