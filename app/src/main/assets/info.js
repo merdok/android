@@ -243,6 +243,8 @@ function sensorsCard(tbl,age){
   try{
    var d=await (await fetch('api/v1/sensors')).json(),rows=[];
    if(d.light&&d.light.present)rows.push({label:i18nText('dashboard.sensors.ambient_light','Ambient light'),val:d.light.lux!=null?d.light.lux+' lx':i18nText('dashboard.sensors.no_reading','no reading yet'),suf:fA(d.light.age_s)});
+   if(d.colour_temperature&&d.colour_temperature.present){var c=d.colour_temperature;
+    rows.push({label:i18nText('dashboard.sensors.estimated_colour_temperature','Estimated colour temperature'),val:typeof c.kelvin==='number'&&isFinite(c.kelvin)&&c.kelvin>0?c.kelvin+' K':i18nText('dashboard.sensors.no_reading','no reading yet'),suf:fA(c.age_s)});}
    if(d.proximity&&d.proximity.present){var p=d.proximity,reading=proximityReading(p);
     rows.push({label:i18nText('dashboard.sensors.proximity','Proximity'),val:reading.val,suf:[reading.suf,fA(p.age_s)].filter(Boolean).join(' ')});}
    if(d.temperature&&d.temperature.present)rows.push({label:i18nText('dashboard.performance.temperature','Temperature'),val:d.temperature.c!=null?d.temperature.c+' °C':i18nText('dashboard.sensors.no_reading','no reading yet'),suf:fA(d.temperature.age_s)});
