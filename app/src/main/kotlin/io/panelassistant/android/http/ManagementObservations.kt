@@ -11,6 +11,7 @@ import io.panelassistant.android.util.AccessDenialMemo
 import io.panelassistant.android.util.BundledHelperInstaller
 import io.panelassistant.android.util.Cached
 import io.panelassistant.android.util.CompanionInstaller
+import io.panelassistant.android.util.ConfirmedSelfInstaller
 import io.panelassistant.android.util.GuardDbMaintenance
 import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.control.Su
@@ -95,6 +96,7 @@ internal class ManagementObservations(
             densityBase = d.base,
             fontScale = d.fontScale,
             wifiChronic = management.wifiChronic,
+            confirmedSelfUpdate = ConfirmedSelfInstaller.available(appContext),
         )
     }
     val diagCache = Cached(DIAG_TTL_MS) {

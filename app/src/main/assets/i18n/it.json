@@ -6803,6 +6803,11 @@
       "state": "machine-cross-checked",
       "text": "Ritiro di Guard DB completato"
     },
+    "install.presentation.install_awaiting_confirmation": {
+      "text": "Tocca «Installa» sul pannello per completare l'aggiornamento di {component}.",
+      "sourceHash": "2217ef7e93344f960eb05be24f7137657ed97a4076bf111baab7095f565ed360",
+      "state": "machine-cross-checked"
+    },
     "install.presentation.install_deferred_saving_state": {
       "sourceHash": "f5e5e68129e50b951c9ec4f983c516610ef233d5f5db66615f14277dea5e225a",
       "state": "machine-cross-checked",

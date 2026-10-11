@@ -759,6 +759,40 @@ class ControlPlaneRoutesTest {
         assertFalse(InstallProgress.running)
     }
 
+    @Test
+    fun aRootlessPanelStagesOnlyItsOwnUpdateForTheConfirmedInstallRoute() = testApplication {
+        var confirmed = false
+        var identity = UploadedApkIdentity("own.panel", "1.0.1", null)
+        val pending = PendingUploadStore { "upload-token" }.also { it.open() }
+        val upload = ApkUploadRouteDependencies(
+            enabled = { true },
+            rootAvailable = { false },
+            confirmedSelfUpdate = { confirmed },
+            ownPackage = "own.panel",
+            pending = pending,
+            createStagingFile = { temporary.newFile() },
+            inspect = { identity },
+            startInstall = { _, progress -> InstallProgress.finish(progress, "installed") },
+            maxBytes = 16,
+            receiveBody = { input, output, maxBytes -> BoundedStreams.copy(input, output, maxBytes) },
+        )
+        application { routing { controlPlaneRoutes(dependencies(apkUpload = upload)) } }
+
+        // Without root and without the install-apps permission there is still no route at all.
+        assertUpload("apk", HttpStatusCode.ServiceUnavailable, """{"ok":false,"error":"no-root"}""")
+
+        confirmed = true
+        assertUpload(
+            "apk",
+            HttpStatusCode.OK,
+            """{"ok":true,"token":"upload-token","package":"own.panel","version":"1.0.1","signer":"unsigned"}""",
+        )
+
+        // Any other package is still refused: the tap route carries the app's own update only.
+        identity = UploadedApkIdentity("other.app", "2.0", null)
+        assertUpload("apk", HttpStatusCode.ServiceUnavailable, """{"ok":false,"error":"no-root"}""")
+    }
+
     /** A URL is a source for the SAME review flow, so it must reach the same staged file, the same
      *  token and the same commit route — and must refuse everything the upload route refuses, before
      *  it touches the network. Each `fetched` assertion pins whether the download was actually

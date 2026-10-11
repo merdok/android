@@ -452,6 +452,10 @@ AppInstaller.download("https://cdn.example/app.apk", destination, 1024L, abort) 
         assertEquals(AppInstaller.InstallRoute.SU, AppInstaller.selectInstallRoute(hasSu = true, hasDaemon = false))
         assertEquals(AppInstaller.InstallRoute.DAEMON, AppInstaller.selectInstallRoute(hasSu = false, hasDaemon = true))
         assertEquals(AppInstaller.InstallRoute.NONE, AppInstaller.selectInstallRoute(hasSu = false, hasDaemon = false))
+        // The tap-confirmed route is the last resort, and only where the caller says it is the app's own update.
+        assertEquals(AppInstaller.InstallRoute.SU, AppInstaller.selectInstallRoute(hasSu = true, hasDaemon = false, confirmedSelf = true))
+        assertEquals(AppInstaller.InstallRoute.DAEMON, AppInstaller.selectInstallRoute(hasSu = false, hasDaemon = true, confirmedSelf = true))
+        assertEquals(AppInstaller.InstallRoute.CONFIRMED, AppInstaller.selectInstallRoute(hasSu = false, hasDaemon = false, confirmedSelf = true))
     }
 
     @Test fun packageManagerRejectionIsDurableWhileOtherOutputStaysRetryable() {

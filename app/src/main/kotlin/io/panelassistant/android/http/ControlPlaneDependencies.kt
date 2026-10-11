@@ -9,6 +9,7 @@ import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.AppInstaller
 import io.panelassistant.android.util.CompanionInstaller
+import io.panelassistant.android.util.ConfirmedSelfInstaller
 import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.InstallProgress
 import io.ktor.server.application.ApplicationCall
@@ -54,6 +55,8 @@ internal fun controlPlaneDependencies(
     apkUpload = ApkUploadRouteDependencies(
         enabled = { config.apkUploadAllowed },
         rootAvailable = { Su.availableCachedIsolated() || HelperClient.available() },
+        confirmedSelfUpdate = { ConfirmedSelfInstaller.available(appContext) },
+        ownPackage = appContext.packageName,
         pending = pendingApks,
         createStagingFile = { File.createTempFile("apk-upload-", ".apk", appContext.cacheDir) },
         inspect = { staged ->

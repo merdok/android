@@ -42,7 +42,7 @@ object AppInstaller {
     internal fun panelUpdatePolicy(): PanelAssistantUpdatePolicy? =
         runCatching { livePanelUpdatePolicy?.invoke() }.getOrNull()
     internal const val PROTOCOL_METADATA_NAME = "io.panelassistant.android.PANEL_ASSISTANT_PROTOCOL"
-    internal enum class InstallRoute { SU, DAEMON, NONE }
+    internal enum class InstallRoute { SU, DAEMON, CONFIRMED, NONE }
 
     // Pinned signers (public certificate fingerprints — NOT secrets).
     private const val RELEASE_SIGNER = "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
@@ -194,7 +194,10 @@ object AppInstaller {
                 policyFailure("Panel Assistant must be online with update policy"),
             )
         }
-        if (selectInstallRoute(Su.available(), HelperClient.available()) == InstallRoute.NONE) {
+        if (selectInstallRoute(
+                Su.available(), HelperClient.available(), ConfirmedSelfInstaller.available(context),
+            ) == InstallRoute.NONE
+        ) {
             return@withContext SelfInstallPreparation.Failed(
                 retryable("skipped: no permitted installer", "install-no-permitted-route", "paneld"),
             )
@@ -573,7 +576,7 @@ object AppInstaller {
         val replacingSelf = requireNotNull(info).pkg == context.packageName
         val hasSu = Su.available()
         val hasDaemon = HelperClient.available()
-        val route = selectInstallRoute(hasSu, hasDaemon)
+        val route = selectInstallRoute(hasSu, hasDaemon, replacingSelf && ConfirmedSelfInstaller.available(context))
         if (route == InstallRoute.NONE) {
             apk.delete()
             return@withContext retryable("skipped: no permitted installer", "install-no-permitted-route", component)
@@ -639,7 +642,18 @@ object AppInstaller {
                 return@withContext (result as InstallOutcome.Failure).withFailurePresentation(component)
             }
 
-            val outcome: InstallOutcome = if (route == InstallRoute.DAEMON) {
+            val outcome: InstallOutcome = if (route == InstallRoute.CONFIRMED) {
+                try {
+                    ConfirmedSelfInstaller.install(context, apk) {
+                        InstallProgress.presentRunning(
+                            "Tap Install on the panel to finish the update",
+                            InstallPresentation("install-awaiting-confirmation", mapOf("component" to component)),
+                        )
+                    }
+                } finally {
+                    apk.delete()
+                }
+            } else if (route == InstallRoute.DAEMON) {
                 HelperInstallTransaction(HelperClient).install(
                     apk,
                     File(context.filesDir, HelperInstallTransaction.STAGING_DIR),
@@ -808,12 +822,16 @@ object AppInstaller {
         return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
     }
 
+    /** [confirmedSelf] is true only for the running app's own update on a panel that may ask Android to
+     *  install it with a tap ([ConfirmedSelfInstaller]); every other package stays root- or helper-only. */
     internal fun selectInstallRoute(
         hasSu: Boolean,
         hasDaemon: Boolean,
+        confirmedSelf: Boolean = false,
     ): InstallRoute = when {
         hasSu -> InstallRoute.SU
         hasDaemon -> InstallRoute.DAEMON
+        confirmedSelf -> InstallRoute.CONFIRMED
         else -> InstallRoute.NONE
     }
 

@@ -84,6 +84,10 @@ internal data class ControlPlaneRouteDependencies(
 internal data class ApkUploadRouteDependencies(
     val enabled: () -> Boolean,
     val rootAvailable: () -> Boolean,
+    /** Without root, the running app's own update may still be staged: Android installs it with a tap
+     *  on the panel ([io.panelassistant.android.util.ConfirmedSelfInstaller]). Every other package stays root-only. */
+    val confirmedSelfUpdate: () -> Boolean = { false },
+    val ownPackage: String = "",
     val pending: PendingUploadStore,
     val createStagingFile: () -> File,
     val inspect: suspend (File) -> UploadedApkIdentity?,
@@ -529,6 +533,15 @@ private suspend fun stageInspectAndRespond(
             )
             return
         }
+        if (migrationSha256 == null && identity.pkg != dependencies.ownPackage && !dependencies.rootAvailable()) {
+            // Admitted only as this app's own update: an arbitrary APK still needs root or the helper.
+            call.respondText(
+                """{"ok":false,"error":"no-root"$owner}""",
+                ContentType.Application.Json,
+                HttpStatusCode.ServiceUnavailable,
+            )
+            return
+        }
         if (migrationSha256 != null) {
             val capability = migration.successorUploadCapability()
             val valid = capability != null && successorCandidateMatches(identity, capability) &&
@@ -794,7 +807,7 @@ private suspend fun handleApkUpload(call: ApplicationCall, routes: ControlPlaneR
         )
         return
     }
-    if (!migrationRequested && !dependencies.rootAvailable()) {
+    if (!migrationRequested && !dependencies.rootAvailable() && !dependencies.confirmedSelfUpdate()) {
         call.respondText(
             """{"ok":false,"error":"no-root"}""",
             ContentType.Application.Json,

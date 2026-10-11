@@ -20,6 +20,12 @@ class InstallCapabilityStatusTest {
         }
     }
 
+    @Test fun aRootlessPanelThatMayAskAndroidToInstallItsUpdateOffersARoute() {
+        val rootless = PrivilegedRouteObservation(directSuReady = false, helperRootReady = false)
+        assertEquals("none", JSONObject("{${installCapabilityStatusJson(rootless, confirmedSelfUpdate = false)}}").getString("install_capability"))
+        assertEquals("api", JSONObject("{${installCapabilityStatusJson(rootless, confirmedSelfUpdate = true)}}").getString("install_capability"))
+    }
+
     @Test fun statusSchemaDocumentsTheMachineReadableRoute() {
         // Source-text reason: the shipped OpenAPI document is the public status contract.
         val api = JSONObject(File("src/main/assets/openapi.json").readText())

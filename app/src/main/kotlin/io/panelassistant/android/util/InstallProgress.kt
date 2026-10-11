@@ -110,6 +110,23 @@ object InstallProgress {
     fun presentationSnapshot(): PresentationSnapshot =
         PresentationSnapshot(generation, running, component, message, presentation)
 
+    /**
+     * Replace the running operation's prose and presentation, for a stage the caller reaches inside it
+     * (Android's install confirmation waiting for a tap). The slot is single-owner, so the running
+     * operation is the caller's; nothing changes when no operation runs.
+     */
+    fun presentRunning(message: String, presentation: InstallPresentation) {
+        if (presentRunningLocked(message, presentation)) notifyObserver()
+    }
+
+    @Synchronized
+    private fun presentRunningLocked(message: String, presentation: InstallPresentation): Boolean {
+        if (!running) return false
+        this.message = message
+        this.presentation = presentation
+        return true
+    }
+
     /** Record [result] only if [ticket] still owns the single progress slot. */
     fun finish(
         ticket: Ticket,

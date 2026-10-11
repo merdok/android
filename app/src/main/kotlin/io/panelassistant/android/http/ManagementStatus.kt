@@ -140,7 +140,7 @@ internal fun managementStatusJson(
         .orEmpty()
     return "{\"warnings\":[${warns.joinToString(",") { jsonStr(it) }}]," +
         "\"warning_severities\":[${severities.joinToString(",") { jsonStr(it.wire) }}]," + presentationOverlay +
-        "\"capabilities\":[$caps],${installCapabilityStatusJson(management.privilege)}," +
+        "\"capabilities\":[$caps],${installCapabilityStatusJson(management.privilege, management.confirmedSelfUpdate)}," +
         storageProof +
         homeProofJson +
         // The panel never offers its own update: Panel Assistant owns that. Older Panel Assistant

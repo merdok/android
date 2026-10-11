@@ -25,6 +25,7 @@
     <!-- Android 11+ package visibility: ha-paneld must see/resolve the dashboard app (Companion) and
          other launchers to reload them and offer launcher/home navigation. Sideloaded panel agent,
          not a Play app, so the broad query permission is appropriate. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <!-- Application-id migration. Both installable identities share one signer and declare this
          signature-level permission, so Android itself refuses the release-token broadcast from any

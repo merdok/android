@@ -6783,6 +6783,11 @@
       "sourceHash": "09ab0bf09da7c61e6c34a98873d977a6cfe4489189b47bfde7d3988968f3d9d3",
       "state": "machine-cross-checked"
     },
+    "install.presentation.install_awaiting_confirmation": {
+      "text": "Klepnutím na „Instalovat“ na panelu dokončíte aktualizaci {component}.",
+      "sourceHash": "2217ef7e93344f960eb05be24f7137657ed97a4076bf111baab7095f565ed360",
+      "state": "machine-cross-checked"
+    },
     "install.presentation.install_deferred_saving_state": {
       "text": "Instalace {component} byla odložena během ukládání stavu panelu.",
       "sourceHash": "f5e5e68129e50b951c9ec4f983c516610ef233d5f5db66615f14277dea5e225a",

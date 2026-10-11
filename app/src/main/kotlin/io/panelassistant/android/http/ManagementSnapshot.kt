@@ -14,4 +14,6 @@ internal class ManagementSnapshot(
     val densityBase: Int?,
     val fontScale: Float,
     val wifiChronic: Boolean,
+    /** Android may install this app's own update with a tap on the panel ([io.panelassistant.android.util.ConfirmedSelfInstaller]). */
+    val confirmedSelfUpdate: Boolean = false,
 )

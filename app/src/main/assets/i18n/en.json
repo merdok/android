@@ -19694,6 +19694,20 @@
       "softMaxChars": 27,
       "hardMaxChars": 49
     },
+    "install.presentation.install_awaiting_confirmation": {
+      "text": "Tap Install on the panel to finish the {component} update.",
+      "sourceHash": "2217ef7e93344f960eb05be24f7137657ed97a4076bf111baab7095f565ed360",
+      "surface": "install",
+      "context": "Install progress while Android's own install confirmation waits for a tap on the panel; placeholder is a bounded protocol value.",
+      "risk": "setup",
+      "siblings": [],
+      "placeholders": [
+        "{component}"
+      ],
+      "frozen": [],
+      "softMaxChars": 60,
+      "hardMaxChars": 110
+    },
     "install.presentation.install_deferred_saving_state": {
       "text": "The {component} install was deferred while panel state is being saved.",
       "sourceHash": "f5e5e68129e50b951c9ec4f983c516610ef233d5f5db66615f14277dea5e225a",
