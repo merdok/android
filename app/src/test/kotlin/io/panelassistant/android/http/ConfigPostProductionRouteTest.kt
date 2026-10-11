@@ -389,7 +389,12 @@ class ConfigPostProductionRouteTest {
                         while (InstallProgress.running) kotlinx.coroutines.delay(10)
                     }
                     val result = JSONObject(InstallProgress.json()).getJSONObject("result")
-                    assertEquals("succeeded", result.getString("status"), result.toString())
+                    assertEquals("partial", result.getString("status"), result.toString())
+                    val configResult = result.getJSONObject("config")
+                    assertEquals("partial", configResult.getString("status"))
+                    val unavailable = configResult.getString("detail")
+                    assertTrue(unavailable.contains("voice_enabled"), unavailable)
+                    assertTrue(unavailable.contains("network_adb"), unavailable)
                     assertEquals(false, config.haExposed("touch_sound", true))
                     assertEquals("Original panel", config.friendlyName)
                     assertEquals(panelId, config.panelId)
@@ -397,7 +402,7 @@ class ConfigPostProductionRouteTest {
             }
         }
 
-    @Test fun `a backup written by an MQTT release restores everything but its broker settings`() =
+    @Test fun `a backup written by an MQTT release restores supported values without its broker settings`() =
         withFullReadServer { config, fixture ->
             config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Original panel")
             config.setRaw(requireNotNull(SettingsRegistry.spec(SettingsRegistry.ADDRESS_FAMILY_KEY)), "Force IPv4")
@@ -438,7 +443,12 @@ class ConfigPostProductionRouteTest {
                         while (InstallProgress.running) kotlinx.coroutines.delay(10)
                     }
                     val result = JSONObject(InstallProgress.json()).getJSONObject("result")
-                    assertEquals("succeeded", result.getString("status"), result.toString())
+                    assertEquals("partial", result.getString("status"), result.toString())
+                    val configResult = result.getJSONObject("config")
+                    assertEquals("partial", configResult.getString("status"))
+                    val unavailable = configResult.getString("detail")
+                    assertTrue(unavailable.contains("voice_enabled"), unavailable)
+                    assertTrue(unavailable.contains("network_adb"), unavailable)
                     assertEquals("Original panel", config.friendlyName)
                     assertEquals("Force IPv4", config.addressFamily)
                     val exported = requireNotNull(ConfigBundle.parse(client.get("/api/v1/config/export").bodyAsText()))
