@@ -102,6 +102,7 @@ class AdminLauncherActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (maintenanceFence.stop(this)) return
+        foregroundActivity = this
         refreshJob?.cancel()
         refreshJob = activityScope.launch {
             // Config can open SQLite namespaces on a cold HOME launch.
@@ -113,6 +114,7 @@ class AdminLauncherActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        if (foregroundActivity === this) foregroundActivity = null
         refreshJob?.cancel()
         super.onPause()
     }
@@ -310,6 +312,8 @@ class AdminLauncherActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "ha-paneld/admin-launcher"
+        @Volatile private var foregroundActivity: AdminLauncherActivity? = null
+        internal fun isForeground(): Boolean = foregroundActivity != null
     }
 }
 

@@ -3119,7 +3119,9 @@ class PaneldService : Service() {
             startScreenOnReconciliation()
             // After the screen-on receiver exists: a check deferred by a dark boot is retried by it.
             vendorServiceStarter = io.panelassistant.android.control.VendorServiceStarter
-                .forService(this, profile.vendorService) { teardownBoundary.isStopping }.also { it.request() }
+                .forService(this, profile.vendorService, returnSurface = {
+                    system.returnAfterVendorStart(config.launcherPackage, config.dashboardPackage, config.builtInRendererReady())
+                }) { teardownBoundary.isStopping }.also { it.request() }
             startWebViewRebindWatch()
             sensors.start(
                 onLux = { lux ->

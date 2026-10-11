@@ -1,6 +1,7 @@
 package io.panelassistant.android.control
 
 import io.panelassistant.android.device.VendorService
+import io.panelassistant.android.platform.SystemEnv
 import java.util.concurrent.Executor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -10,7 +11,7 @@ class VendorServiceStarterTest {
     private val stargate = VendorService("cloud.shelly.stargate", "cloud.shelly.stargate.activities.MainActivity", 8021)
 
     /** A panel whose vendor service opens its port [opensAfterPolls] probes after the vendor start. */
-    private class Panel(
+    private open class Panel(
         var listening: Boolean = false,
         var overlays: Boolean = true,
         var interactive: Boolean = true,
@@ -141,5 +142,84 @@ class VendorServiceStarterTest {
         assertEquals(VendorServiceStarter.State.STARTED, starter.state)
         assertEquals(false, panel.uncoveredWhileVendorInFront)
         assertTrue(panel.clock >= panel.frontAt!! + VendorServiceStarter.COVER_HOLD_MS)
+    }
+
+    /** Exercise the same controller return path used by the service's Android seams. */
+    private fun configuredPanel(
+        launcher: String = "",
+        dashboard: String = "",
+        builtinReady: Boolean = true,
+        observable: Boolean = true,
+    ): Pair<Panel, FakeSystemEnv> {
+        val own = "io.panelassistant.android"
+        val external = "org.example.dashboard"
+        val env = FakeSystemEnv(ownPackage = own, launchers = mapOf(external to "$external/.Main"))
+        val panel = object : Panel(dashboardReturnMs = 2_500) {
+            private var restored: () -> Boolean = { false }
+            private fun focused(component: String) = observable &&
+                env.directStarts.lastOrNull() == component && frontAt?.let { clock >= it } == true
+            private val controller = SystemController(
+                env = object : SystemEnv by env {
+                    override fun directStart(component: String): Boolean {
+                        frontAt = clock + dashboardReturnMs
+                        return env.directStart(component)
+                    }
+                },
+                root = FakeRootShell(available = false, runResult = false),
+                daemon = object : io.panelassistant.android.platform.Daemon by FakeDaemon(available = false) {
+                    override fun send(cmd: String): String? = when (cmd) {
+                        "APPSTATE $external" -> if (!observable) null else if (focused("$external/.Main")) "FG" else "BG"
+                        else -> null
+                    }
+                },
+                builtinForeground = { focused("$own/.DashboardActivity") },
+                adminForeground = { focused("$own/.AdminLauncherActivity") },
+            )
+            override fun bringDashboardBack() {
+                restored = controller.returnAfterVendorStart(launcher, dashboard, builtinReady)
+            }
+            override fun dashboardInFront() = restored()
+        }
+        return panel to env
+    }
+
+    @Test fun theConfiguredExternalDashboardReturnsUnderTheCover() {
+        val (panel, env) = configuredPanel(dashboard = "org.example.dashboard", builtinReady = false)
+        starter(panel).request()
+        assertEquals(listOf("org.example.dashboard/.Main"), env.directStarts)
+        assertEquals(false, panel.uncoveredWhileVendorInFront)
+        assertTrue(panel.clock >= panel.frontAt!! + VendorServiceStarter.COVER_HOLD_MS)
+    }
+
+    @Test fun panelAdminReturnsUnderTheCoverWhenSelectedAsHome() {
+        val (panel, env) = configuredPanel(launcher = "io.panelassistant.android")
+        starter(panel).request()
+        assertEquals(listOf("io.panelassistant.android/.AdminLauncherActivity"), env.directStarts)
+        assertEquals(false, panel.uncoveredWhileVendorInFront)
+        assertTrue(panel.clock >= panel.frontAt!! + VendorServiceStarter.COVER_HOLD_MS)
+    }
+
+    @Test fun theReadyBuiltinDashboardReturnsUnderTheCover() {
+        val (panel, env) = configuredPanel()
+        starter(panel).request()
+        assertEquals(listOf("io.panelassistant.android/.DashboardActivity"), env.directStarts)
+        assertEquals(false, panel.uncoveredWhileVendorInFront)
+        assertTrue(panel.clock >= panel.frontAt!! + VendorServiceStarter.COVER_HOLD_MS)
+    }
+
+    @Test fun anUnreadyBuiltinDashboardReturnsToAdminWithoutOpeningFirstRun() {
+        val (panel, env) = configuredPanel(builtinReady = false)
+        starter(panel).request()
+        assertEquals(listOf("io.panelassistant.android/.AdminLauncherActivity"), env.directStarts)
+        assertEquals(false, panel.uncoveredWhileVendorInFront)
+    }
+
+    @Test fun anUnobservedSurfaceStillReleasesTheCoverAfterTheExistingTimeout() {
+        val (panel, env) = configuredPanel(dashboard = "org.example.dashboard", observable = false)
+        starter(panel).request()
+        assertEquals(listOf("org.example.dashboard/.Main"), env.directStarts)
+        assertEquals("uncover", panel.events.last())
+        assertEquals(panel.frontAt!! - panel.dashboardReturnMs + VendorServiceStarter.RETURN_TIMEOUT_MS +
+            VendorServiceStarter.COVER_HOLD_MS, panel.clock)
     }
 }

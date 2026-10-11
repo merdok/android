@@ -49,6 +49,7 @@ class SystemController(
     // The active profile's `platform.launcher.vendor_home_packages`: vendor apps that register HOME but
     // are not app drawers (eWeLink on Sonoff, Stargate on Shelly), so the Launcher button skips them.
     private val vendorHomePackages: Set<String> = emptySet(),
+    private val adminForeground: () -> Boolean = { io.panelassistant.android.AdminLauncherActivity.isForeground() },
 ) {
 
     // Native descriptor checks run on every live transport wake. Reuse one bounded observation of the
@@ -395,6 +396,17 @@ class SystemController(
             curPkg !in KNOWN_RENDERER_HOMES && !isSystemFallbackHome(current)) return
         Log.i(TAG, "ensureHome(builtin): default home was '${current?.component}' -> $comp")
         setHomeActivity(comp)
+    }
+
+    /** Restore the configured surface after a covered vendor launch, with its matching foreground proof. */
+    fun returnAfterVendorStart(launcherPkg: String, dashboardPkg: String, builtinReady: Boolean): () -> Boolean {
+        val target = resolveDashboard(dashboardPkg)
+        if (isAdminLauncherSelection(launcherPkg) || isBuiltin(target) && !builtinReady) {
+            launchAdminLauncher()
+            return adminForeground
+        }
+        launchHome(target)
+        return { dashboardState(target) == AppState.FG }
     }
 
     /** Bring the dashboard (or the default home app) to the foreground. */

@@ -12,7 +12,6 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
-import io.panelassistant.android.DashboardActivity
 import io.panelassistant.android.PanelTokens
 import io.panelassistant.android.device.VendorService
 import java.net.InetSocketAddress
@@ -164,15 +163,25 @@ class VendorServiceStarter(
         fun diagnosticLine(): String? = installed?.diagnosticLine()
 
         /** The real starter for [context], sharing one worker thread and one attempt budget per process. */
-        fun forService(context: Context, service: VendorService?, stopping: () -> Boolean): VendorServiceStarter =
-            VendorServiceStarter(service, AndroidSeams(context.applicationContext, stopping), WORKER, PROCESS_ATTEMPTS)
+        fun forService(
+            context: Context,
+            service: VendorService?,
+            returnSurface: () -> (() -> Boolean),
+            stopping: () -> Boolean,
+        ): VendorServiceStarter =
+            VendorServiceStarter(service, AndroidSeams(context.applicationContext, returnSurface, stopping), WORKER, PROCESS_ATTEMPTS)
                 .also { installed = it }
     }
 
-    private class AndroidSeams(private val context: Context, private val isStopping: () -> Boolean) : Seams {
+    private class AndroidSeams(
+        private val context: Context,
+        private val returnSurface: () -> (() -> Boolean),
+        private val isStopping: () -> Boolean,
+    ) : Seams {
         private val main = Handler(Looper.getMainLooper())
         private val windows = context.getSystemService(WindowManager::class.java)
         private var cover: View? = null
+        private var surfaceInFront: () -> Boolean = { false }
 
         override fun listening(port: Int): Boolean = runCatching {
             Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), CONNECT_TIMEOUT_MS) }
@@ -213,14 +222,10 @@ class VendorServiceStarter(
         }
 
         override fun bringDashboardBack() {
-            context.startActivity(
-                Intent(context, DashboardActivity::class.java).addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NO_ANIMATION,
-                ),
-            )
+            surfaceInFront = returnSurface()
         }
 
-        override fun dashboardInFront(): Boolean = BuiltinDashboard.foreground
+        override fun dashboardInFront(): Boolean = surfaceInFront()
 
         override fun now(): Long = SystemClock.elapsedRealtime()
         override fun sleep(ms: Long) = Thread.sleep(ms)
