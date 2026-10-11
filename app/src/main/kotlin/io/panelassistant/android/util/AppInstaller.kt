@@ -306,14 +306,18 @@ object AppInstaller {
 
     /** Parse an APK's package name, versionName and signer SHA-256 without installing it. Null if the file
      *  isn't a readable APK. Used to show the user WHAT they're about to install before they confirm. */
-    @Suppress("DEPRECATION") // GET_SIGNATURES / PackageInfo.signatures for API < 28
+    @Suppress("DEPRECATION") // GET_SIGNATURES / PackageInfo.signatures for API < 33 archives
     internal fun inspect(context: Context, apkPath: String): ApkInfo? {
         val pm = context.packageManager
-        val flags = PackageManager.GET_META_DATA or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        // Android 9 to 12 leave `signingInfo` empty for an APK file that is not installed, so those
+        // releases also ask for the legacy signatures, which they do fill in (a rootless Android 10
+        // panel read every candidate as unsigned and refused its own update).
+        val flags = PackageManager.GET_META_DATA or archiveSignatureFlags(Build.VERSION.SDK_INT)
         val info = pm.getPackageArchiveInfo(apkPath, flags) ?: return null
-        val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            info.signingInfo?.apkContentsSigners else info.signatures
+        val sigs = archiveSigners(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.signingInfo?.apkContentsSigners else null,
+            info.signatures,
+        )
         val signerHashes = sigs.orEmpty().mapTo(linkedSetOf()) { signature ->
             MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
                 .joinToString("") { byte -> "%02x".format(byte) }
@@ -339,6 +343,18 @@ object AppInstaller {
             parseNativeProtocolMetadata(metadata?.get(PROTOCOL_METADATA_NAME)),
         )
     }
+
+    /** The flags that make [PackageManager.getPackageArchiveInfo] report an APK file's signers on [sdk]. */
+    @Suppress("DEPRECATION")
+    internal fun archiveSignatureFlags(sdk: Int): Int = when {
+        sdk >= Build.VERSION_CODES.TIRAMISU -> PackageManager.GET_SIGNING_CERTIFICATES
+        sdk >= Build.VERSION_CODES.P -> PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+        else -> PackageManager.GET_SIGNATURES
+    }
+
+    /** The modern signer list when Android filled it in, else the legacy one. */
+    internal fun <T> archiveSigners(signingInfo: Array<T>?, legacy: Array<T>?): Array<T>? =
+        signingInfo?.takeIf { it.isNotEmpty() } ?: legacy
 
     internal fun parseNativeProtocolMetadata(raw: Any?): IntRange? {
         val value = raw as? String ?: return null

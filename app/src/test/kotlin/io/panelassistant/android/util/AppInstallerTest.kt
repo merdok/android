@@ -458,6 +458,20 @@ AppInstaller.download("https://cdn.example/app.apk", destination, 1024L, abort) 
         assertEquals(AppInstaller.InstallRoute.CONFIRMED, AppInstaller.selectInstallRoute(hasSu = false, hasDaemon = false, confirmedSelf = true))
     }
 
+    @Suppress("DEPRECATION")
+    @Test fun anApkFilesSignerIsReadOnAndroidNineToTwelveThroughTheLegacySignatures() {
+        val modern = android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES
+        val legacy = android.content.pm.PackageManager.GET_SIGNATURES
+        assertEquals(legacy, AppInstaller.archiveSignatureFlags(27))
+        assertEquals(modern or legacy, AppInstaller.archiveSignatureFlags(29))
+        assertEquals(modern or legacy, AppInstaller.archiveSignatureFlags(32))
+        assertEquals(modern, AppInstaller.archiveSignatureFlags(33))
+        // Android 10 returns no modern signer list for a file; the legacy list must then be used.
+        assertEquals(listOf("legacy"), AppInstaller.archiveSigners(null, arrayOf("legacy"))?.toList())
+        assertEquals(listOf("legacy"), AppInstaller.archiveSigners(emptyArray(), arrayOf("legacy"))?.toList())
+        assertEquals(listOf("modern"), AppInstaller.archiveSigners(arrayOf("modern"), arrayOf("legacy"))?.toList())
+    }
+
     @Test fun packageManagerRejectionIsDurableWhileOtherOutputStaysRetryable() {
         // A `pm install` `Failure [...]` line is a durable rejection of THIS artifact — retrying the same
         // pin cannot help — so it is Rejected; anything else is a transient Retryable. The message
