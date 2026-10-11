@@ -1,7 +1,11 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/wordmark-on-dark.svg">
-  <img src="docs/img/wordmark-on-light.svg" width="360" alt="Panel Assistant">
-</picture>
+<h1 align="center">
+  <a href="https://panel-assistant.io"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://panel-assistant.io/brand/wordmark-on-dark.svg">
+    <img src="https://panel-assistant.io/brand/wordmark-on-light.svg" width="500" alt="Panel Assistant">
+  </picture></a>
+</h1>
+
+<h1 align="center">Home Assistant, on the wall, done properly.</h1>
 
 [![CI](https://github.com/panel-assistant/android/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/panel-assistant/android/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/panel-assistant/android?include_prereleases&sort=semver&style=flat-square&color=blue)](https://github.com/panel-assistant/android/releases)
