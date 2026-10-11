@@ -299,6 +299,8 @@ object DiagReader {
         haNetwork: String? = null,
         haPathProbe: String? = null,
         termuxBridge: TermuxBridgeProbe.State = TermuxBridgeProbe.State.NOT_APPLICABLE,
+        /** The `[vendor-service]` line of the live service generation, if it has one. */
+        vendorService: String? = null,
     ): String {
         val deadline = MonotonicDeadline(DUMP_TIMEOUT_MS)
         val routes = privilege
@@ -387,6 +389,7 @@ object DiagReader {
         if (tameCandidates.isNotEmpty()) {
             appendLine(vendorTameSummary(TameController(ctx).profileReport(tameCandidates)))
         }
+        vendorService?.let { appendLine(it) }
         appendLine("[capabilities] " + capabilityRows.joinToString(" | ") { "${it.name(english)}=${it.status}" })
         val updates = UpdateChecker.current(ctx)   // revalidated: no stale entry for an uninstalled Companion
         if (updates.isNotEmpty()) {

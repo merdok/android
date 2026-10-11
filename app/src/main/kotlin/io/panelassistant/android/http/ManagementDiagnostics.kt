@@ -45,4 +45,5 @@ internal fun managementDiagnosticReport(
         haNetwork = HaNetworkPathRuntime.diagnosticLine(),
         haPathProbe = PathProbeRuntime.diagnosticLine(),
         termuxBridge = termux(),
+        vendorService = io.panelassistant.android.control.VendorServiceStarter.diagnosticLine(),
     )

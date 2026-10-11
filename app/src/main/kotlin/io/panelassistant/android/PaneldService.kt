@@ -831,6 +831,7 @@ class PaneldService : Service() {
     // on the main thread cannot interleave (see releaseServiceReceivers).
     private val receiverLock = Any()
     private var screenOnReceiver: BroadcastReceiver? = null
+    @Volatile private var vendorServiceStarter: io.panelassistant.android.control.VendorServiceStarter? = null
     private var webViewRebindReceiver: BroadcastReceiver? = null
 
     /**
@@ -3324,6 +3325,9 @@ class PaneldService : Service() {
             // ownership bit; only a marker-free ON intent may re-enable TCP. See AdbController.reassert.
             runCatching { adb.reassert() }
             startScreenOnReconciliation()
+            // After the screen-on receiver exists: a check deferred by a dark boot is retried by it.
+            vendorServiceStarter = io.panelassistant.android.control.VendorServiceStarter
+                .forService(this, profile.vendorService) { teardownBoundary.isStopping }.also { it.request() }
             startWebViewRebindWatch()
             sensors.start(
                 onLux = { lux ->
@@ -4453,6 +4457,7 @@ class PaneldService : Service() {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action != Intent.ACTION_SCREEN_ON || teardownBoundary.isStopping) return
+                vendorServiceStarter?.request()
                 screenWakeWorker.execute {
                     if (teardownBoundary.isStopping) return@execute
                     if (!screen.reconcilePhysicalWake()) return@execute
