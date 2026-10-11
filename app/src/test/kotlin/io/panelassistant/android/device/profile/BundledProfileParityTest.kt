@@ -439,6 +439,44 @@ class BundledProfileParityTest {
         assertEquals(DisplayGeometryEvidence.SPECIFICATION, physical.evidence)
     }
 
+    @Test fun vendorServiceRoundTripsValidatesAndIsDeclaredForStargate() {
+        for (path in listOf("platform.launcher.vendor_service", "platform.launcher.vendor_service.activity", "platform.launcher.vendor_service.port")) {
+            assertNotNull("$path must be described to the profile editor", ProfileMetadata.schema.fields.singleOrNull { it.path == path })
+        }
+        assertNull(bundledById.getValue("generic").profile().vendorService)
+        val stargate = io.panelassistant.android.device.VendorService("cloud.shelly.stargate", "cloud.shelly.stargate.activities.MainActivity", 8021)
+        for (id in listOf("shelly-wall-display-x2i", "shelly-wall-display-v2")) {
+            assertEquals(id, stargate, bundledById.getValue(id).profile().vendorService)
+        }
+
+        val generic = bundledById.getValue("generic").document
+        fun with(service: ProfileVendorService?) =
+            generic.copy(platform = generic.platform.copy(launcher = generic.platform.launcher.copy(vendorService = service)))
+        // A vendor service survives a round trip with or without vendor home packages beside it.
+        for (service in listOf(null, ProfileVendorService("a.b/.Main", 1), ProfileVendorService("a.b/c.d.Main", 65535))) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(with(service)))
+            assertEquals("$service", emptyList<ProfileIssue>(), parsed.issues)
+            assertEquals("$service", service, parsed.document!!.platform.launcher.vendorService)
+            assertTrue(ProfileValidator.validate(parsed.document!!, CORE_VERSION, bundled = false).none { it.path.startsWith("platform.launcher.vendor_service") })
+        }
+        assertEquals(
+            io.panelassistant.android.device.VendorService("a.b", "c.d.Main", 9),
+            DataDeviceProfile(with(ProfileVendorService("a.b/c.d.Main", 9)), "", "test", trustedBundledContent = true).vendorService,
+        )
+        for ((bad, path) in listOf(
+            ProfileVendorService("a.b.Main", 80) to "platform.launcher.vendor_service.activity",
+            ProfileVendorService("a.b/", 80) to "platform.launcher.vendor_service.activity",
+            ProfileVendorService("ab/.Main", 80) to "platform.launcher.vendor_service.activity",
+            ProfileVendorService("a.b/.Main", 0) to "platform.launcher.vendor_service.port",
+            ProfileVendorService("a.b/.Main", 65536) to "platform.launcher.vendor_service.port",
+        )) {
+            assertTrue("$bad must be refused at $path", ProfileValidator.validate(with(bad), CORE_VERSION, bundled = false).any { it.path == path })
+        }
+        // Unknown keys inside the map are refused by the parser, as everywhere else.
+        val yaml = ProfileYaml.serialize(with(ProfileVendorService("a.b/.Main", 80))).replace("      port: 80", "      port: 80\n      extra: 1")
+        assertTrue(ProfileYaml.parse(yaml).issues.any { it.path == "platform.launcher.vendor_service.extra" })
+    }
+
     @Test fun resolverReturnsDataBackedProfilesWithTheExactRawYamlRevision() {
         resolutionMatrix().forEach { fixture ->
             val resolved = resolve(fixture.facts)
@@ -1016,8 +1054,8 @@ class BundledProfileParityTest {
             "meta-portal-10-gen2.yaml" to "7348c9344bb3d3d150060555681afcdd170e4d04e917a2785ee1b7c80019c36e",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
-            "shelly-wall-display-v2.yaml" to "1e8d87c5e7f34d76d4abe3fa6f999ecf5a705ae6b12c73fedda00589cfb4c964",
-            "shelly-wall-display-x2i.yaml" to "eafb4f5406303ac24fdb9d4a948785e110d38e0dd4e588edfe1d173405cbc314",
+            "shelly-wall-display-v2.yaml" to "91656ed1136b7d0a336793ae882da44b5cd23656122e8c06e3eabf14e031c063",
+            "shelly-wall-display-x2i.yaml" to "abb751139fb9a452b8358d4dc23406bfb4865a735e4a367fdbaa2a7cf7e4f2a3",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",
             "tpa10.yaml" to "077ff9cb33f483e6497c149d2dc01ba6db49d85f4c4ac0965d7087a58577aa3a",

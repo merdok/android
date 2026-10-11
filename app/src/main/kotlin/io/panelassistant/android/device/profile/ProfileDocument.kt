@@ -115,6 +115,18 @@ data class ProfilePlatform(
 data class ProfileLauncher(
     /** Vendor apps that register HOME but are not app drawers; the Launcher button skips them. */
     val vendorHomePackages: List<String> = emptyList(),
+    /** A vendor activity whose creation starts a local service (`platform.launcher.vendor_service`). */
+    val vendorService: ProfileVendorService? = null,
+)
+
+/**
+ * A vendor activity whose creation starts a local service: the app starts it once per boot, hidden
+ * under a cover, and leaves it running. [activity] is a component, `pkg/.Class` or
+ * `pkg/fully.qualified.Class`; [port] is the local TCP port the service listens on once created.
+ */
+data class ProfileVendorService(
+    val activity: String,
+    val port: Int,
 )
 
 data class ProfileHardware(
