@@ -108,7 +108,8 @@
       activeIndex = -1;
       sourceItems.forEach(function (item) {
         var id = item.entity_id || item.entityId || "";
-        if (!id) return;
+        // A source with no current reading would be refused on save, so it is not offered.
+        if (!id || item.available === false) return;
         var name = item.friendly_name || item.friendlyName || item.name || id;
         var unit = item.unit || item.unit_of_measurement || options.defaultUnit || "";
         var index = renderedItems.length;
@@ -131,7 +132,7 @@
         });
         list.appendChild(option);
       });
-      if (sourceItems.length) note.textContent = options.messages.available(sourceItems.length);
+      if (renderedItems.length) note.textContent = options.messages.available(renderedItems.length);
       if (document.activeElement === input) openList();
       else closeList();
     }
@@ -147,7 +148,7 @@
           populate();
           if (!body || body.available === false) {
             note.textContent = options.messages.unavailable;
-          } else if (!sourceItems.length) {
+          } else if (!renderedItems.length) {
             if (body.refreshing === true && sourcePolls < 20) {
               sourcePolls++;
               note.textContent = options.messages.loading;

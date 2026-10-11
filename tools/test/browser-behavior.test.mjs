@@ -137,6 +137,47 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   });
 }
 
+browserTest('Configure offers only ambient sources that report a light level, so the picked one is what saves', async (t) => {
+  const posts = [];
+  const harness = await startHarness(async (path, request) => {
+    if (path === '/api/v1/config/schema') return json([{
+      key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
+      type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
+    }]);
+    if (path === '/api/v1/config') {
+      if (request.method === 'POST') {
+        posts.push(await requestBody(request));
+        return json({ status: 'saved' });
+      }
+      return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
+    }
+    // As served: a dead sensor sorts first by name and carries no reading.
+    if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items: [
+      { entityId: 'sensor.study_presence_old', friendlyName: 'Study Presence Light Sensor', unit: 'lx', currentLux: null, available: false },
+      { entityId: 'sensor.study_window_illuminance', friendlyName: 'Study Window illuminance', unit: 'lx', currentLux: 0, available: true },
+    ] });
+    if (path === '/api/v1/apps') return json({ apps: [] });
+    if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });
+    return json({});
+  }, configureVisualFixture);
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  const page = await browser.newPage({ viewport: { width: 480, height: 800 } });
+  page.setDefaultTimeout(5_000);
+  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+  await page.goto(harness.url, { waitUntil: 'domcontentloaded' });
+  const input = page.locator('.ha-entity-input');
+  await input.waitFor();
+  await input.focus();
+  await page.locator('.ha-entity-option').first().waitFor();
+  await input.press('ArrowDown');
+  await input.press('Enter');
+  await page.locator('#savebtn').click();
+  await page.waitForFunction(() => document.getElementById('savebtn').disabled);
+  assert.equal(posts.length, 1);
+  assert.equal(new URLSearchParams(posts[0]).get('auto_brightness_ha_entity'), 'sensor.study_window_illuminance');
+  assert.equal(await page.locator('.ha-entity-option').count(), 1, 'a source with no reading is not offered');
+});
+
 browserTest('Configure bypasses caches and lets a supported HA language supersede an unsupported stored tag', async (t) => {
   const reads = [];
   const schema = (label) => [
