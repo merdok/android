@@ -11,7 +11,7 @@
     <string name="configure">Configurar</string>
     <string name="try_again">Tentar de novo</string>
     <string name="config_qr_description">Código QR para %1$s</string>
-    <string name="config_activity_label">Configuração do ha-paneld</string>
+    <string name="config_activity_label">Configuração do Panel Assistant</string>
     <string name="guard_db_activity_label">Manutenção para recuperação do banco de dados</string>
     <string name="dashboard_activity_label">Dashboard do HA</string>
     <string name="admin_launcher_activity_label">Administração do painel</string>
@@ -26,7 +26,7 @@
     <string name="unable_stop_remote_debugging">Não foi possível interromper a depuração remota</string>
     <string name="unable_stop_remote_debugging_detail">O modo reforçado não foi habilitado porque o painel não conseguiu verificar se o retransmissor DevTools da LAN e seu listener estão parados. Reinicie o painel e tente novamente.</string>
     <string name="unable_stop_remote_adb">Não foi possível desativar o ADB remoto</string>
-    <string name="unable_stop_remote_adb_detail">O modo reforçado não foi habilitado porque o ha-paneld não conseguiu limpar de forma persistente e verificar todo o estado de ADB de rede clássico/TLS sob seu controle. A transição de desativação continua pendente para que seja tentada novamente na inicialização; verifique as opções do desenvolvedor e tente novamente.</string>
+    <string name="unable_stop_remote_adb_detail">O modo reforçado não foi habilitado porque o Panel Assistant não conseguiu limpar de forma persistente e verificar todo o estado de ADB de rede clássico/TLS sob seu controle. A transição de desativação continua pendente para que seja tentada novamente na inicialização; verifique as opções do desenvolvedor e tente novamente.</string>
     <string name="unable_verify_remote_adb">Não foi possível verificar o ADB remoto</string>
     <string name="unable_verify_remote_adb_detail">O modo reforçado não foi habilitado porque o painel não conseguiu verificar se o ADB de rede clássico e a depuração sem fio do Android estão desativados. Desative ambos os caminhos de controle remoto nas configurações do desenvolvedor do Android e tente novamente.</string>
     <string name="turn_off_remote_adb_first">Desative primeiro o ADB remoto</string>
@@ -74,7 +74,7 @@
     <string name="finish_browser_optimize">Conclua no navegador para otimizar o desempenho dos seus dashboards.</string>
     <string name="loading_dashboard">Carregando seu dashboard…</string>
     <string name="nothing_to_do_here">Não é preciso fazer nada aqui.</string>
-    <string name="panel_generic_description">Este dispositivo é um painel de parede do Home Assistant com ha-paneld. Ele oferece o dashboard na tela, o iniciador de aplicativos e os controles do painel, além de disponibilizar a tela, o LED, os botões, o alto-falante e os sensores ao Home Assistant pela rede local. Configure o painel em um navegador usando o endereço abaixo.</string>
+    <string name="panel_generic_description">Este dispositivo é um painel de parede do Home Assistant com Panel Assistant. Ele oferece o dashboard na tela, o iniciador de aplicativos e os controles do painel, além de disponibilizar a tela, o LED, os botões, o alto-falante e os sensores ao Home Assistant pela rede local. Escaneie o código para configurar este painel.</string>
     <string name="retry_dashboard">Tentar carregar o dashboard novamente</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Entrar no Home Assistant</string>
@@ -186,14 +186,14 @@
     <string name="panel_agent_channel_description">Agente de hardware do painel para o Home Assistant</string>
     <string name="storage_pressure_title">Pressão crítica no armazenamento/banco de dados do painel</string>
     <string name="storage_capacity_suffix">" (%1$d MiB livres no sistema de arquivos)"</string>
-    <string name="storage_pressure_body">A pressão no armazenamento ou no arquivo do banco de dados é crítica%1$s. Abra o ha-paneld e verifique o espaço livre e o crescimento do WAL antes de alterar a configuração.</string>
+    <string name="storage_pressure_body">A pressão no armazenamento ou no arquivo do banco de dados é crítica%1$s. Abra o Panel Assistant e verifique o espaço livre e o crescimento do WAL antes de alterar a configuração.</string>
     <string name="database_attention_title">O banco de dados do painel precisa de atenção</string>
     <string name="database_during_suffix">" durante %1$s"</string>
-    <string name="database_full_body">Uma gravação no banco de dados do painel%1$s falhou quando o armazenamento estava cheio. Abra o ha-paneld; a recuperação ainda não foi verificada.</string>
-    <string name="database_io_body">O banco de dados do painel informou uma falha de E/S no disco%1$s. Abra o ha-paneld; tente novamente somente após resolver a causa.</string>
-    <string name="database_corruption_body">O banco de dados do painel falhou na verificação de integridade%1$s. Preserve-o e abra os diagnósticos do ha-paneld antes de fazer novas gravações.</string>
-    <string name="database_busy_body">O banco de dados do painel permaneceu ocupado ou bloqueado%1$s. Abra os diagnósticos do ha-paneld e aguarde uma verificação sem falhas antes de tentar novamente.</string>
-    <string name="database_failure_body">O banco de dados do painel informou uma falha%1$s. Preserve-o e abra os diagnósticos do ha-paneld antes de tentar novamente.</string>
+    <string name="database_full_body">Uma gravação no banco de dados do painel%1$s falhou quando o armazenamento estava cheio. Abra o Panel Assistant; a recuperação ainda não foi verificada.</string>
+    <string name="database_io_body">O banco de dados do painel informou uma falha de E/S no disco%1$s. Abra o Panel Assistant; tente novamente somente após resolver a causa.</string>
+    <string name="database_corruption_body">O banco de dados do painel falhou na verificação de integridade%1$s. Preserve-o e abra os diagnósticos do Panel Assistant antes de fazer novas gravações.</string>
+    <string name="database_busy_body">O banco de dados do painel permaneceu ocupado ou bloqueado%1$s. Abra os diagnósticos do Panel Assistant e aguarde uma verificação sem falhas antes de tentar novamente.</string>
+    <string name="database_failure_body">O banco de dados do painel informou uma falha%1$s. Preserve-o e abra os diagnósticos do Panel Assistant antes de tentar novamente.</string>
     <string name="database_recovery_channel">Recuperação do banco de dados</string>
     <string name="database_recovery_notification">A recuperação nesta inicialização está ativa; os serviços normais do painel estão pausados</string>
     <string name="starting">Iniciando…</string>

@@ -11,7 +11,7 @@
     <string name="configure">Skonfiguruj</string>
     <string name="try_again">Spróbuj ponownie</string>
     <string name="config_qr_description">Kod QR dla %1$s</string>
-    <string name="config_activity_label">Konfiguracja ha-paneld</string>
+    <string name="config_activity_label">Konfiguracja Panel Assistant</string>
     <string name="guard_db_activity_label">Konserwacja i odzyskiwanie bazy danych</string>
     <string name="dashboard_activity_label">Pulpit nawigacyjny HA</string>
     <string name="admin_launcher_activity_label">Administracja panelu</string>
@@ -26,7 +26,7 @@
     <string name="unable_stop_remote_debugging">Nie można zatrzymać zdalnego debugowania</string>
     <string name="unable_stop_remote_debugging_detail">Tryb Hardened nie został włączony, ponieważ panel nie mógł potwierdzić, że przekaźnik LAN DevTools i jego proces nasłuchujący zostały zatrzymane. Uruchom ponownie panel, a potem spróbuj jeszcze raz.</string>
     <string name="unable_stop_remote_adb">Nie można zatrzymać zdalnego ADB</string>
-    <string name="unable_stop_remote_adb_detail">Tryb Hardened nie został włączony, ponieważ ha-paneld nie mógł trwale wyczyścić i zweryfikować całego należącego do niego stanu sieciowego ADB (klasycznego/TLS). Wyłączanie pozostaje w toku, więc zostanie ponowione przy uruchomieniu; sprawdź Opcje programisty, a potem spróbuj jeszcze raz.</string>
+    <string name="unable_stop_remote_adb_detail">Tryb Hardened nie został włączony, ponieważ Panel Assistant nie mógł trwale wyczyścić i zweryfikować całego należącego do niego stanu sieciowego ADB (klasycznego/TLS). Wyłączanie pozostaje w toku, więc zostanie ponowione przy uruchomieniu; sprawdź Opcje programisty, a potem spróbuj jeszcze raz.</string>
     <string name="unable_verify_remote_adb">Nie można zweryfikować zdalnego ADB</string>
     <string name="unable_verify_remote_adb_detail">Tryb Hardened nie został włączony, ponieważ panel nie mógł potwierdzić, że klasyczne sieciowe ADB i debugowanie bezprzewodowe Androida są wyłączone. Wyłącz obie ścieżki zdalnego sterowania w opcjach programisty Androida, a potem spróbuj jeszcze raz.</string>
     <string name="turn_off_remote_adb_first">Najpierw wyłącz zdalne ADB</string>
@@ -74,7 +74,7 @@
     <string name="finish_browser_optimize">Zakończ to w przeglądarce, żeby zoptymalizować wydajność swoich pulpitów nawigacyjnych.</string>
     <string name="loading_dashboard">Ładowanie pulpitu nawigacyjnego…</string>
     <string name="nothing_to_do_here">Nie ma tu nic do zrobienia.</string>
-    <string name="panel_generic_description">To urządzenie jest panelem ściennym Home Assistant działającym na ha-paneld. Zapewnia pulpit nawigacyjny na panelu, program uruchamiający aplikacje i elementy sterujące panelu, a jednocześnie udostępnia ekran, diodę LED, przyciski, głośnik i czujniki dla Home Assistant w sieci lokalnej. Skonfiguruj panel w przeglądarce, korzystając z poniższego adresu.</string>
+    <string name="panel_generic_description">To urządzenie jest panelem ściennym Home Assistant działającym na Panel Assistant. Zapewnia pulpit nawigacyjny na panelu, program uruchamiający aplikacje i elementy sterujące panelu, a jednocześnie udostępnia ekran, diodę LED, przyciski, głośnik i czujniki dla Home Assistant w sieci lokalnej. Zeskanuj kod, aby skonfigurować ten panel.</string>
     <string name="retry_dashboard">Ponów ładowanie pulpitu</string>
     <string name="dashboard">Pulpit nawigacyjny</string>
     <string name="sign_in_home_assistant">Zaloguj się do Home Assistant</string>
@@ -186,14 +186,14 @@
     <string name="panel_agent_channel_description">Agent sprzętowy panelu dla Home Assistant</string>
     <string name="storage_pressure_title">Krytyczne obciążenie pamięci panelu/bazy danych</string>
     <string name="storage_capacity_suffix">" (%1$d MiB wolnego miejsca w systemie plików)"</string>
-    <string name="storage_pressure_body">Obciążenie pamięci lub plików bazy danych jest krytyczne%1$s. Otwórz ha-paneld i sprawdź wolne miejsce oraz przyrost WAL przed zmianą konfiguracji.</string>
+    <string name="storage_pressure_body">Obciążenie pamięci lub plików bazy danych jest krytyczne%1$s. Otwórz Panel Assistant i sprawdź wolne miejsce oraz przyrost WAL przed zmianą konfiguracji.</string>
     <string name="database_attention_title">Baza danych panelu wymaga uwagi</string>
     <string name="database_during_suffix">" podczas %1$s"</string>
-    <string name="database_full_body">Zapis do bazy danych panelu%1$s nie powiódł się, ponieważ pamięć była pełna. Otwórz ha-paneld; odzyskiwanie nie zostało jeszcze zweryfikowane.</string>
-    <string name="database_io_body">Baza danych panelu zgłosiła błąd operacji wejścia/wyjścia na dysku%1$s. Otwórz ha-paneld; spróbuj ponownie dopiero po usunięciu przyczyny.</string>
-    <string name="database_corruption_body">Baza danych panelu nie przeszła kontroli integralności%1$s. Zachowaj ją i otwórz diagnostykę ha-paneld przed kolejnymi zapisami.</string>
-    <string name="database_busy_body">Baza danych panelu pozostała zajęta lub zablokowana%1$s. Otwórz diagnostykę ha-paneld i poczekaj na czysty wynik kontroli przed ponowną próbą.</string>
-    <string name="database_failure_body">Baza danych panelu zgłosiła błąd%1$s. Zachowaj ją i otwórz diagnostykę ha-paneld przed ponowną próbą.</string>
+    <string name="database_full_body">Zapis do bazy danych panelu%1$s nie powiódł się, ponieważ pamięć była pełna. Otwórz Panel Assistant; odzyskiwanie nie zostało jeszcze zweryfikowane.</string>
+    <string name="database_io_body">Baza danych panelu zgłosiła błąd operacji wejścia/wyjścia na dysku%1$s. Otwórz Panel Assistant; spróbuj ponownie dopiero po usunięciu przyczyny.</string>
+    <string name="database_corruption_body">Baza danych panelu nie przeszła kontroli integralności%1$s. Zachowaj ją i otwórz diagnostykę Panel Assistant przed kolejnymi zapisami.</string>
+    <string name="database_busy_body">Baza danych panelu pozostała zajęta lub zablokowana%1$s. Otwórz diagnostykę Panel Assistant i poczekaj na czysty wynik kontroli przed ponowną próbą.</string>
+    <string name="database_failure_body">Baza danych panelu zgłosiła błąd%1$s. Zachowaj ją i otwórz diagnostykę Panel Assistant przed ponowną próbą.</string>
     <string name="database_recovery_channel">Odzyskiwanie bazy danych</string>
     <string name="database_recovery_notification">Tryb odzyskiwania w ramach tego samego uruchomienia jest aktywny; normalne usługi panelu są wstrzymane</string>
     <string name="starting">Uruchamianie…</string>

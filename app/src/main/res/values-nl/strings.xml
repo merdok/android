@@ -11,7 +11,7 @@
     <string name="configure">Configureren</string>
     <string name="try_again">Probeer het nog eens</string>
     <string name="config_qr_description">QR-code voor %1$s</string>
-    <string name="config_activity_label">Configuratie van ha-paneld</string>
+    <string name="config_activity_label">Configuratie van Panel Assistant</string>
     <string name="guard_db_activity_label">Onderhoud van databaseherstel</string>
     <string name="dashboard_activity_label">HA-dashboard</string>
     <string name="admin_launcher_activity_label">Paneelbeheer</string>
@@ -26,7 +26,7 @@
     <string name="unable_stop_remote_debugging">Kan het op afstand debuggen niet stoppen</string>
     <string name="unable_stop_remote_debugging_detail">De Hardened-modus is niet ingeschakeld omdat het paneel niet kon controleren of de LAN-DevTools-relay en de bijbehorende listener zijn gestopt. Start het paneel opnieuw op en probeer het daarna nog eens.</string>
     <string name="unable_stop_remote_adb">Kan ADB op afstand niet stoppen</string>
-    <string name="unable_stop_remote_adb_detail">De Hardened-modus is niet ingeschakeld omdat ha-paneld niet alle eigen ADB-status voor klassiek netwerk en TLS duurzaam kon wissen en controleren. Het uitschakelen blijft in behandeling, zodat het opstarten het opnieuw probeert; controleer de Ontwikkelaarsopties en probeer het daarna nog eens.</string>
+    <string name="unable_stop_remote_adb_detail">De Hardened-modus is niet ingeschakeld omdat Panel Assistant niet alle eigen ADB-status voor klassiek netwerk en TLS duurzaam kon wissen en controleren. Het uitschakelen blijft in behandeling, zodat het opstarten het opnieuw probeert; controleer de Ontwikkelaarsopties en probeer het daarna nog eens.</string>
     <string name="unable_verify_remote_adb">Kan ADB op afstand niet verifiëren</string>
     <string name="unable_verify_remote_adb_detail">De Hardened-modus is niet ingeschakeld omdat het paneel niet kon verifiëren dat klassieke netwerk-ADB en Draadloze foutopsporing van Android uit staan. Schakel beide paden voor bediening op afstand uit in de ontwikkelaarsinstellingen van Android en probeer het daarna nog eens.</string>
     <string name="turn_off_remote_adb_first">Schakel eerst ADB op afstand uit</string>
@@ -74,7 +74,7 @@
     <string name="finish_browser_optimize">Maak het af in je browser om de prestaties van je dashboards te optimaliseren.</string>
     <string name="loading_dashboard">Je dashboard wordt geladen…</string>
     <string name="nothing_to_do_here">Hier hoef je niets te doen.</string>
-    <string name="panel_generic_description">Dit apparaat is een Home Assistant-wandpaneel dat draait op ha-paneld. Het biedt het dashboard op het paneel, de app-starter en de paneelbediening, en stelt het scherm, de LED, de knoppen, de luidspreker en de sensoren via je lokale netwerk beschikbaar aan Home Assistant. Stel het paneel in via een browser met het onderstaande adres.</string>
+    <string name="panel_generic_description">Dit apparaat is een Home Assistant-wandpaneel dat draait op Panel Assistant. Het biedt het dashboard op het paneel, de app-starter en de paneelbediening, en stelt het scherm, de LED, de knoppen, de luidspreker en de sensoren via je lokale netwerk beschikbaar aan Home Assistant. Scan de code om dit paneel in te stellen.</string>
     <string name="retry_dashboard">Dashboard opnieuw proberen</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Log in op Home Assistant</string>
@@ -186,14 +186,14 @@
     <string name="panel_agent_channel_description">Hardware-agent voor het paneel voor Home Assistant</string>
     <string name="storage_pressure_title">Opslag-/databasedruk van het paneel is kritiek</string>
     <string name="storage_capacity_suffix">" (%1$d MiB vrij op het bestandssysteem)"</string>
-    <string name="storage_pressure_body">De druk op de opslag of het databasebestand is kritiek%1$s. Open ha-paneld en controleer de vrije ruimte en de WAL-groei voordat je de configuratie wijzigt.</string>
+    <string name="storage_pressure_body">De druk op de opslag of het databasebestand is kritiek%1$s. Open Panel Assistant en controleer de vrije ruimte en de WAL-groei voordat je de configuratie wijzigt.</string>
     <string name="database_attention_title">De database van het paneel heeft aandacht nodig</string>
     <string name="database_during_suffix">" tijdens %1$s"</string>
-    <string name="database_full_body">Een schrijfbewerking in de paneeldatabase%1$s is mislukt omdat de opslag vol was. Open ha-paneld; het herstel is nog niet geverifieerd.</string>
-    <string name="database_io_body">De database van het paneel meldde een schijf-I/O-fout%1$s. Open ha-paneld; probeer het pas opnieuw nadat je de oorzaak hebt verholpen.</string>
-    <string name="database_corruption_body">De database van het paneel heeft de integriteitscontrole niet doorstaan%1$s. Bewaar de database en open de diagnostiek van ha-paneld voordat er verder wordt geschreven.</string>
-    <string name="database_busy_body">De database van het paneel bleef bezet of vergrendeld%1$s. Open de diagnostiek van ha-paneld en wacht op een foutloze controle voordat je het opnieuw probeert.</string>
-    <string name="database_failure_body">De database van het paneel heeft een fout gemeld%1$s. Bewaar de database en open de diagnostiek van ha-paneld voordat je het opnieuw probeert.</string>
+    <string name="database_full_body">Een schrijfbewerking in de paneeldatabase%1$s is mislukt omdat de opslag vol was. Open Panel Assistant; het herstel is nog niet geverifieerd.</string>
+    <string name="database_io_body">De database van het paneel meldde een schijf-I/O-fout%1$s. Open Panel Assistant; probeer het pas opnieuw nadat je de oorzaak hebt verholpen.</string>
+    <string name="database_corruption_body">De database van het paneel heeft de integriteitscontrole niet doorstaan%1$s. Bewaar de database en open de diagnostiek van Panel Assistant voordat er verder wordt geschreven.</string>
+    <string name="database_busy_body">De database van het paneel bleef bezet of vergrendeld%1$s. Open de diagnostiek van Panel Assistant en wacht op een foutloze controle voordat je het opnieuw probeert.</string>
+    <string name="database_failure_body">De database van het paneel heeft een fout gemeld%1$s. Bewaar de database en open de diagnostiek van Panel Assistant voordat je het opnieuw probeert.</string>
     <string name="database_recovery_channel">Databaseherstel</string>
     <string name="database_recovery_notification">Herstel tijdens dezelfde opstartcyclus is actief; normale paneeldiensten zijn gepauzeerd</string>
     <string name="starting">Bezig met starten…</string>

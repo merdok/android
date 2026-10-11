@@ -12,7 +12,7 @@
     <string name="try_again">Réessayer</string>
     <string name="config_qr_description">Code QR pour %1$s</string>
 
-    <string name="config_activity_label">Configuration de ha-paneld</string>
+    <string name="config_activity_label">Configuration de Panel Assistant</string>
     <string name="guard_db_activity_label">Maintenance de récupération de la base de données</string>
     <string name="dashboard_activity_label">Tableau de bord HA</string>
     <string name="admin_launcher_activity_label">Administration du panneau</string>
@@ -28,7 +28,7 @@
     <string name="unable_stop_remote_debugging">Impossible d’arrêter le débogage à distance</string>
     <string name="unable_stop_remote_debugging_detail">Le mode renforcé n’a pas été activé, car le panneau n’a pas pu vérifier l’arrêt du relais DevTools du réseau local et de son écouteur. Redémarrez le panneau, puis réessayez.</string>
     <string name="unable_stop_remote_adb">Impossible d’arrêter ADB à distance</string>
-    <string name="unable_stop_remote_adb_detail">Le mode renforcé n’a pas été activé, car ha-paneld n’a pas pu effacer durablement puis vérifier tous les états ADB réseau classiques/TLS qu’il gère. La désactivation reste en attente afin d’être retentée au démarrage ; vérifiez les options pour les développeurs, puis réessayez.</string>
+    <string name="unable_stop_remote_adb_detail">Le mode renforcé n’a pas été activé, car Panel Assistant n’a pas pu effacer durablement puis vérifier tous les états ADB réseau classiques/TLS qu’il gère. La désactivation reste en attente afin d’être retentée au démarrage ; vérifiez les options pour les développeurs, puis réessayez.</string>
     <string name="unable_verify_remote_adb">Impossible de vérifier ADB à distance</string>
     <string name="unable_verify_remote_adb_detail">Le mode renforcé n’a pas été activé, car le panneau n’a pas pu vérifier que l’ADB réseau classique et le débogage sans fil Android étaient désactivés. Désactivez ces deux moyens de contrôle à distance dans les paramètres pour les développeurs d’Android, puis réessayez.</string>
     <string name="turn_off_remote_adb_first">Désactivez d’abord ADB à distance</string>
@@ -77,7 +77,7 @@
     <string name="finish_browser_optimize">Terminez dans votre navigateur afin d’optimiser les performances de vos tableaux de bord.</string>
     <string name="loading_dashboard">Chargement de votre tableau de bord…</string>
     <string name="nothing_to_do_here">Aucune action n’est nécessaire ici.</string>
-    <string name="panel_generic_description">Cet appareil est un panneau mural Home Assistant propulsé par ha-paneld. Il fournit le tableau de bord sur le panneau, le lanceur d’applications et les commandes du panneau, tout en exposant l’écran, la LED, les boutons, le haut-parleur et les capteurs à Home Assistant sur votre réseau local. Configurez le panneau depuis un navigateur à l’adresse ci-dessous.</string>
+    <string name="panel_generic_description">Cet appareil est un panneau mural Home Assistant propulsé par Panel Assistant. Il fournit le tableau de bord sur le panneau, le lanceur d’applications et les commandes du panneau, tout en exposant l’écran, la LED, les boutons, le haut-parleur et les capteurs à Home Assistant sur votre réseau local. Scannez le code pour configurer le panneau.</string>
     <string name="retry_dashboard">Réessayer le tableau de bord</string>
     <string name="dashboard">Tableau de bord</string>
     <string name="sign_in_home_assistant">Connexion à Home Assistant</string>
@@ -196,14 +196,14 @@
     <string name="panel_agent_channel_description">Agent matériel du panneau pour Home Assistant</string>
     <string name="storage_pressure_title">Pression critique sur le stockage/la base de données du panneau</string>
     <string name="storage_capacity_suffix">" (%1$d Mio libres sur le système de fichiers)"</string>
-    <string name="storage_pressure_body">La pression sur le stockage ou les fichiers de base de données est critique%1$s. Ouvrez ha-paneld et vérifiez l’espace libre ainsi que la croissance du WAL avant de modifier la configuration.</string>
+    <string name="storage_pressure_body">La pression sur le stockage ou les fichiers de base de données est critique%1$s. Ouvrez Panel Assistant et vérifiez l’espace libre ainsi que la croissance du WAL avant de modifier la configuration.</string>
     <string name="database_attention_title">La base de données du panneau nécessite votre attention</string>
     <string name="database_during_suffix">" pendant %1$s"</string>
-    <string name="database_full_body">Une écriture dans la base de données du panneau%1$s a échoué lorsque le stockage était plein. Ouvrez ha-paneld ; la récupération n’est pas encore vérifiée.</string>
-    <string name="database_io_body">La base de données du panneau a signalé une erreur d’E/S disque%1$s. Ouvrez ha-paneld ; ne réessayez qu’après avoir résolu la cause.</string>
-    <string name="database_corruption_body">Le contrôle d’intégrité de la base de données du panneau a échoué%1$s. Préservez-la et ouvrez les diagnostics de ha-paneld avant toute autre écriture.</string>
-    <string name="database_busy_body">La base de données du panneau est restée occupée ou verrouillée%1$s. Ouvrez les diagnostics de ha-paneld et attendez un contrôle réussi avant de réessayer.</string>
-    <string name="database_failure_body">La base de données du panneau a signalé une défaillance%1$s. Préservez-la et ouvrez les diagnostics de ha-paneld avant de réessayer.</string>
+    <string name="database_full_body">Une écriture dans la base de données du panneau%1$s a échoué lorsque le stockage était plein. Ouvrez Panel Assistant ; la récupération n’est pas encore vérifiée.</string>
+    <string name="database_io_body">La base de données du panneau a signalé une erreur d’E/S disque%1$s. Ouvrez Panel Assistant ; ne réessayez qu’après avoir résolu la cause.</string>
+    <string name="database_corruption_body">Le contrôle d’intégrité de la base de données du panneau a échoué%1$s. Préservez-la et ouvrez les diagnostics de Panel Assistant avant toute autre écriture.</string>
+    <string name="database_busy_body">La base de données du panneau est restée occupée ou verrouillée%1$s. Ouvrez les diagnostics de Panel Assistant et attendez un contrôle réussi avant de réessayer.</string>
+    <string name="database_failure_body">La base de données du panneau a signalé une défaillance%1$s. Préservez-la et ouvrez les diagnostics de Panel Assistant avant de réessayer.</string>
     <string name="database_recovery_channel">Récupération de la base de données</string>
     <string name="database_recovery_notification">La récupération pour ce même démarrage est active ; les services normaux du panneau sont suspendus</string>
     <string name="starting">Démarrage…</string>

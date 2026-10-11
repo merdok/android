@@ -12,7 +12,7 @@
     <string name="try_again">Erneut versuchen</string>
     <string name="config_qr_description">QR-Code für %1$s</string>
 
-    <string name="config_activity_label">ha-paneld-Konfiguration</string>
+    <string name="config_activity_label">Panel Assistant-Konfiguration</string>
     <string name="guard_db_activity_label">Wartung zur Datenbankwiederherstellung</string>
     <string name="dashboard_activity_label">HA-Dashboard</string>
     <string name="admin_launcher_activity_label">Panel-Verwaltung</string>
@@ -28,7 +28,7 @@
     <string name="unable_stop_remote_debugging">Remote-Debugging konnte nicht beendet werden</string>
     <string name="unable_stop_remote_debugging_detail">Der Hardened-Modus wurde nicht aktiviert, weil das Panel nicht bestätigen konnte, dass der LAN-DevTools-Relay und sein Listener beendet sind. Starte das Panel neu und versuche es erneut.</string>
     <string name="unable_stop_remote_adb">Remote-ADB konnte nicht beendet werden</string>
-    <string name="unable_stop_remote_adb_detail">Der Hardened-Modus wurde nicht aktiviert, weil ha-paneld nicht alle eigenen klassischen/TLS-Netzwerk-ADB-Zustände dauerhaft löschen und überprüfen konnte. Die Deaktivierung bleibt ausstehend, damit sie beim Start erneut versucht wird. Prüfe die Entwickleroptionen und versuche es erneut.</string>
+    <string name="unable_stop_remote_adb_detail">Der Hardened-Modus wurde nicht aktiviert, weil Panel Assistant nicht alle eigenen klassischen/TLS-Netzwerk-ADB-Zustände dauerhaft löschen und überprüfen konnte. Die Deaktivierung bleibt ausstehend, damit sie beim Start erneut versucht wird. Prüfe die Entwickleroptionen und versuche es erneut.</string>
     <string name="unable_verify_remote_adb">Remote-ADB konnte nicht überprüft werden</string>
     <string name="unable_verify_remote_adb_detail">Der Hardened-Modus wurde nicht aktiviert, weil das Panel nicht überprüfen konnte, ob klassisches Netzwerk-ADB und Android Wireless Debugging ausgeschaltet sind. Schalte beide Fernsteuerungswege in den Android-Entwicklereinstellungen aus und versuche es erneut.</string>
     <string name="turn_off_remote_adb_first">Zuerst Remote-ADB ausschalten</string>
@@ -77,7 +77,7 @@
     <string name="finish_browser_optimize">Schließe dies in deinem Browser ab, um die Leistung deiner Dashboards zu optimieren.</string>
     <string name="loading_dashboard">Dashboard wird geladen…</string>
     <string name="nothing_to_do_here">Hier ist nichts zu tun.</string>
-    <string name="panel_generic_description">Dieses Gerät ist ein von ha-paneld betriebenes Home Assistant-Wandpanel. Es stellt das Dashboard, den App-Launcher und die Panel-Steuerung auf dem Gerät bereit und bindet Bildschirm, LED, Tasten, Lautsprecher und Sensoren über das lokale Netzwerk in Home Assistant ein. Konfiguriere das Panel über einen Browser unter der unten angegebenen Adresse.</string>
+    <string name="panel_generic_description">Dieses Gerät ist ein von Panel Assistant betriebenes Home Assistant-Wandpanel. Es stellt das Dashboard, den App-Launcher und die Panel-Steuerung auf dem Gerät bereit und bindet Bildschirm, LED, Tasten, Lautsprecher und Sensoren über das lokale Netzwerk in Home Assistant ein. Scanne den Code, um dieses Panel einzurichten.</string>
     <string name="retry_dashboard">Dashboard erneut versuchen</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Bei Home Assistant anmelden</string>
@@ -196,14 +196,14 @@
     <string name="panel_agent_channel_description">Panel-Hardware-Agent für Home Assistant</string>
     <string name="storage_pressure_title">Panel-Speicher-/Datenbankdruck kritisch</string>
     <string name="storage_capacity_suffix">" (%1$d MiB im Dateisystem frei)"</string>
-    <string name="storage_pressure_body">Der Speicher- oder Datenbankdateidruck ist kritisch%1$s. Öffne ha-paneld und prüfe den freien Speicherplatz sowie das WAL-Wachstum, bevor du die Konfiguration änderst.</string>
+    <string name="storage_pressure_body">Der Speicher- oder Datenbankdateidruck ist kritisch%1$s. Öffne Panel Assistant und prüfe den freien Speicherplatz sowie das WAL-Wachstum, bevor du die Konfiguration änderst.</string>
     <string name="database_attention_title">Panel-Datenbank erfordert Aufmerksamkeit</string>
     <string name="database_during_suffix">" während %1$s"</string>
-    <string name="database_full_body">Ein Schreibvorgang in der Panel-Datenbank%1$s ist fehlgeschlagen, weil der Speicher voll war. Öffne ha-paneld; die Wiederherstellung wurde noch nicht überprüft.</string>
-    <string name="database_io_body">Die Panel-Datenbank hat einen Datenträger-E/A-Fehler gemeldet%1$s. Öffne ha-paneld und versuche es erst nach Behebung der Ursache erneut.</string>
-    <string name="database_corruption_body">Die Integritätsprüfung der Panel-Datenbank ist fehlgeschlagen%1$s. Bewahre sie auf und öffne die ha-paneld-Diagnose, bevor weitere Schreibvorgänge erfolgen.</string>
-    <string name="database_busy_body">Die Panel-Datenbank blieb beschäftigt oder gesperrt%1$s. Öffne die ha-paneld-Diagnose und warte vor einem erneuten Versuch auf eine fehlerfreie Prüfung.</string>
-    <string name="database_failure_body">Die Panel-Datenbank hat einen Fehler gemeldet%1$s. Bewahre sie auf und öffne vor einem erneuten Versuch die ha-paneld-Diagnose.</string>
+    <string name="database_full_body">Ein Schreibvorgang in der Panel-Datenbank%1$s ist fehlgeschlagen, weil der Speicher voll war. Öffne Panel Assistant; die Wiederherstellung wurde noch nicht überprüft.</string>
+    <string name="database_io_body">Die Panel-Datenbank hat einen Datenträger-E/A-Fehler gemeldet%1$s. Öffne Panel Assistant und versuche es erst nach Behebung der Ursache erneut.</string>
+    <string name="database_corruption_body">Die Integritätsprüfung der Panel-Datenbank ist fehlgeschlagen%1$s. Bewahre sie auf und öffne die Panel Assistant-Diagnose, bevor weitere Schreibvorgänge erfolgen.</string>
+    <string name="database_busy_body">Die Panel-Datenbank blieb beschäftigt oder gesperrt%1$s. Öffne die Panel Assistant-Diagnose und warte vor einem erneuten Versuch auf eine fehlerfreie Prüfung.</string>
+    <string name="database_failure_body">Die Panel-Datenbank hat einen Fehler gemeldet%1$s. Bewahre sie auf und öffne vor einem erneuten Versuch die Panel Assistant-Diagnose.</string>
     <string name="database_recovery_channel">Datenbankwiederherstellung</string>
     <string name="database_recovery_notification">Die Wiederherstellung im selben Startvorgang ist aktiv; normale Panel-Dienste sind pausiert</string>
     <string name="starting">Wird gestartet…</string>

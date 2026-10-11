@@ -11,7 +11,7 @@
     <string name="configure">Налаштувати</string>
     <string name="try_again">Спробуйте ще раз</string>
     <string name="config_qr_description">QR-код для %1$s</string>
-    <string name="config_activity_label">Конфігурація ha-paneld</string>
+    <string name="config_activity_label">Конфігурація Panel Assistant</string>
     <string name="guard_db_activity_label">Обслуговування для відновлення бази даних</string>
     <string name="dashboard_activity_label">Інформаційна панель HA</string>
     <string name="admin_launcher_activity_label">Адміністрування панелі</string>
@@ -26,7 +26,7 @@
     <string name="unable_stop_remote_debugging">Неможливо зупинити віддалене налагодження</string>
     <string name="unable_stop_remote_debugging_detail">Режим «Hardened» не ввімкнено, оскільки панель не змогла перевірити, що ретранслятор LAN DevTools і його слухач зупинені. Перезапустіть панель, а потім спробуйте ще раз.</string>
     <string name="unable_stop_remote_adb">Не вдається зупинити віддалений ADB</string>
-    <string name="unable_stop_remote_adb_detail">Режим «Hardened» не ввімкнено, оскільки ha-paneld не вдалося очистити зі збереженням результату й перевірити весь стан мережевого ADB (класичного і TLS), яким він керує. Перехід до вимкнення залишається в очікуванні, тож під час запуску буде повторна спроба; перевірте «Параметри розробника», а потім спробуйте ще раз.</string>
+    <string name="unable_stop_remote_adb_detail">Режим «Hardened» не ввімкнено, оскільки Panel Assistant не вдалося очистити зі збереженням результату й перевірити весь стан мережевого ADB (класичного і TLS), яким він керує. Перехід до вимкнення залишається в очікуванні, тож під час запуску буде повторна спроба; перевірте «Параметри розробника», а потім спробуйте ще раз.</string>
     <string name="unable_verify_remote_adb">Не вдається перевірити віддалений ADB</string>
     <string name="unable_verify_remote_adb_detail">Режим «Hardened» не ввімкнено, оскільки панель не змогла перевірити, що класичний мережевий ADB і бездротове налагодження Android вимкнено. Вимкніть обидва способи дистанційного керування в параметрах розробника Android, а потім спробуйте ще раз.</string>
     <string name="turn_off_remote_adb_first">Спочатку вимкніть віддалений ADB</string>
@@ -74,7 +74,7 @@
     <string name="finish_browser_optimize">Завершіть роботу в браузері, щоб оптимізувати продуктивність ваших інформаційних панелей.</string>
     <string name="loading_dashboard">Завантаження вашої інформаційної панелі…</string>
     <string name="nothing_to_do_here">Тут нічого робити не потрібно.</string>
-    <string name="panel_generic_description">Цей пристрій — настінна панель Home Assistant на базі ha-paneld. Він забезпечує інформаційну панель на самому пристрої, запуск застосунків і елементи керування панеллю, а також надає Home Assistant доступ до екрана, світлодіода, кнопок, динаміка й датчиків через вашу локальну мережу. Налаштуйте панель у браузері за адресою нижче.</string>
+    <string name="panel_generic_description">Цей пристрій — настінна панель Home Assistant на базі Panel Assistant. Він забезпечує інформаційну панель на самому пристрої, запуск застосунків і елементи керування панеллю, а також надає Home Assistant доступ до екрана, світлодіода, кнопок, динаміка й датчиків через вашу локальну мережу. Скануйте код, щоб налаштувати цю панель.</string>
     <string name="retry_dashboard">Повторити завантаження інформаційної панелі</string>
     <string name="dashboard">Інформаційна панель</string>
     <string name="sign_in_home_assistant">Увійти в Home Assistant</string>
@@ -186,14 +186,14 @@
     <string name="panel_agent_channel_description">Апаратний агент панелі для Home Assistant</string>
     <string name="storage_pressure_title">Критичне навантаження на сховище/базу даних панелі</string>
     <string name="storage_capacity_suffix">" (вільно %1$d MiB у файловій системі)"</string>
-    <string name="storage_pressure_body">Навантаження на сховище або файли бази даних критичне%1$s. Відкрийте ha-paneld і перегляньте вільне місце та зростання WAL, перш ніж змінювати конфігурацію.</string>
+    <string name="storage_pressure_body">Навантаження на сховище або файли бази даних критичне%1$s. Відкрийте Panel Assistant і перегляньте вільне місце та зростання WAL, перш ніж змінювати конфігурацію.</string>
     <string name="database_attention_title">База даних панелі потребує уваги</string>
     <string name="database_during_suffix">" під час %1$s"</string>
-    <string name="database_full_body">Запис у базу даних панелі%1$s не вдався, коли сховище було заповнене. Відкрийте ha-paneld; відновлення ще не перевірено.</string>
-    <string name="database_io_body">База даних панелі повідомила про збій введення-виведення на диску%1$s. Відкрийте ha-paneld; повторюйте спробу лише після усунення причини.</string>
-    <string name="database_corruption_body">База даних панелі не пройшла перевірку цілісності%1$s. Збережіть її та відкрийте діагностику ha-paneld перед подальшим записом.</string>
-    <string name="database_busy_body">База даних панелі залишалася зайнятою або заблокованою%1$s. Відкрийте діагностику ha-paneld і дочекайтеся успішної перевірки, перш ніж повторювати спробу.</string>
-    <string name="database_failure_body">База даних панелі повідомила про збій%1$s. Збережіть її та відкрийте діагностику ha-paneld перед повторною спробою.</string>
+    <string name="database_full_body">Запис у базу даних панелі%1$s не вдався, коли сховище було заповнене. Відкрийте Panel Assistant; відновлення ще не перевірено.</string>
+    <string name="database_io_body">База даних панелі повідомила про збій введення-виведення на диску%1$s. Відкрийте Panel Assistant; повторюйте спробу лише після усунення причини.</string>
+    <string name="database_corruption_body">База даних панелі не пройшла перевірку цілісності%1$s. Збережіть її та відкрийте діагностику Panel Assistant перед подальшим записом.</string>
+    <string name="database_busy_body">База даних панелі залишалася зайнятою або заблокованою%1$s. Відкрийте діагностику Panel Assistant і дочекайтеся успішної перевірки, перш ніж повторювати спробу.</string>
+    <string name="database_failure_body">База даних панелі повідомила про збій%1$s. Збережіть її та відкрийте діагностику Panel Assistant перед повторною спробою.</string>
     <string name="database_recovery_channel">Відновлення бази даних</string>
     <string name="database_recovery_notification">Триває відновлення в межах поточного завантаження; звичайні служби панелі призупинено</string>
     <string name="starting">Запуск…</string>

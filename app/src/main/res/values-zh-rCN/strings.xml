@@ -12,7 +12,7 @@
     <string name="try_again">重试</string>
     <string name="config_qr_description">%1$s 的二维码</string>
 
-    <string name="config_activity_label">ha-paneld 设置</string>
+    <string name="config_activity_label">Panel Assistant 设置</string>
     <string name="guard_db_activity_label">数据库恢复维护</string>
     <string name="dashboard_activity_label">HA 仪表盘</string>
     <string name="admin_launcher_activity_label">面板管理</string>
@@ -28,7 +28,7 @@
     <string name="unable_stop_remote_debugging">无法停止远程调试</string>
     <string name="unable_stop_remote_debugging_detail">未启用强化模式，因为面板无法确认局域网 DevTools 中继及其监听程序已停止。请重启面板，然后重试。</string>
     <string name="unable_stop_remote_adb">无法停止远程 ADB</string>
-    <string name="unable_stop_remote_adb_detail">未启用强化模式，因为 ha-paneld 无法持久清除并验证其管理的所有传统/TLS 网络 ADB 状态。停用操作仍处于待处理状态，因此启动时会重试；请检查开发者选项，然后重试。</string>
+    <string name="unable_stop_remote_adb_detail">未启用强化模式，因为 Panel Assistant 无法持久清除并验证其管理的所有传统/TLS 网络 ADB 状态。停用操作仍处于待处理状态，因此启动时会重试；请检查开发者选项，然后重试。</string>
     <string name="unable_verify_remote_adb">无法验证远程 ADB</string>
     <string name="unable_verify_remote_adb_detail">未启用强化模式，因为面板无法确认传统网络 ADB 和 Android 无线调试均已关闭。请在 Android 开发者设置中关闭这两种远程控制方式，然后重试。</string>
     <string name="turn_off_remote_adb_first">请先关闭远程 ADB</string>
@@ -77,7 +77,7 @@
     <string name="finish_browser_optimize">请在浏览器中完成，以优化仪表盘性能。</string>
     <string name="loading_dashboard">正在加载仪表盘…</string>
     <string name="nothing_to_do_here">这里无需操作。</string>
-    <string name="panel_generic_description">此设备是由 ha-paneld 驱动的 Home Assistant 墙面面板。它提供面板上的仪表盘、应用启动器和面板控制，同时通过本地网络向 Home Assistant 提供屏幕、LED、按钮、扬声器和传感器。请在浏览器中使用下方地址配置面板。</string>
+    <string name="panel_generic_description">此设备是由 Panel Assistant 驱动的 Home Assistant 墙面面板。它提供面板上的仪表盘、应用启动器和面板控制，同时通过本地网络向 Home Assistant 提供屏幕、LED、按钮、扬声器和传感器。扫描二维码即可设置此面板。</string>
     <string name="retry_dashboard">重试仪表盘</string>
     <string name="dashboard">仪表盘</string>
     <string name="sign_in_home_assistant">登录 Home Assistant</string>
@@ -196,14 +196,14 @@
     <string name="panel_agent_channel_description">用于 Home Assistant 的面板硬件代理</string>
     <string name="storage_pressure_title">面板存储/数据库空间压力严重</string>
     <string name="storage_capacity_suffix">（文件系统可用空间 %1$d MiB）</string>
-    <string name="storage_pressure_body">存储或数据库文件空间压力严重%1$s。请打开 ha-paneld，并在更改配置前检查可用空间和 WAL 增长情况。</string>
+    <string name="storage_pressure_body">存储或数据库文件空间压力严重%1$s。请打开 Panel Assistant，并在更改配置前检查可用空间和 WAL 增长情况。</string>
     <string name="database_attention_title">面板数据库需要处理</string>
     <string name="database_during_suffix">（%1$s期间）</string>
-    <string name="database_full_body">存储空间已满时，面板数据库写入%1$s失败。请打开 ha-paneld；恢复情况尚未验证。</string>
-    <string name="database_io_body">面板数据库报告了磁盘 I/O 故障%1$s。请打开 ha-paneld；仅在解决原因后重试。</string>
-    <string name="database_corruption_body">面板数据库完整性检查失败%1$s。在进一步写入前，请保留数据库并打开 ha-paneld 诊断。</string>
-    <string name="database_busy_body">面板数据库持续繁忙或锁定%1$s。请打开 ha-paneld 诊断，并等待检查通过后再重试。</string>
-    <string name="database_failure_body">面板数据库报告故障%1$s。重试前，请保留数据库并打开 ha-paneld 诊断。</string>
+    <string name="database_full_body">存储空间已满时，面板数据库写入%1$s失败。请打开 Panel Assistant；恢复情况尚未验证。</string>
+    <string name="database_io_body">面板数据库报告了磁盘 I/O 故障%1$s。请打开 Panel Assistant；仅在解决原因后重试。</string>
+    <string name="database_corruption_body">面板数据库完整性检查失败%1$s。在进一步写入前，请保留数据库并打开 Panel Assistant 诊断。</string>
+    <string name="database_busy_body">面板数据库持续繁忙或锁定%1$s。请打开 Panel Assistant 诊断，并等待检查通过后再重试。</string>
+    <string name="database_failure_body">面板数据库报告故障%1$s。重试前，请保留数据库并打开 Panel Assistant 诊断。</string>
     <string name="database_recovery_channel">数据库恢复</string>
     <string name="database_recovery_notification">本次启动期间的恢复正在进行；正常面板服务已暂停</string>
     <string name="starting">正在启动…</string>

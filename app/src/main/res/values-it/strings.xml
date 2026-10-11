@@ -12,7 +12,7 @@
     <string name="try_again">Riprova</string>
     <string name="config_qr_description">Codice QR per %1$s</string>
 
-    <string name="config_activity_label">Configurazione di ha-paneld</string>
+    <string name="config_activity_label">Configurazione di Panel Assistant</string>
     <string name="guard_db_activity_label">Manutenzione per il ripristino del database</string>
     <string name="dashboard_activity_label">Dashboard di HA</string>
     <string name="admin_launcher_activity_label">Amministrazione pannello</string>
@@ -28,7 +28,7 @@
     <string name="unable_stop_remote_debugging">Impossibile arrestare il debug remoto</string>
     <string name="unable_stop_remote_debugging_detail">La modalità protetta non è stata attivata perché il pannello non ha potuto verificare che il relay LAN DevTools e il relativo listener siano arrestati. Riavvia il pannello, quindi riprova.</string>
     <string name="unable_stop_remote_adb">Impossibile arrestare ADB remoto</string>
-    <string name="unable_stop_remote_adb_detail">La modalità protetta non è stata attivata perché ha-paneld non ha potuto cancellare in modo permanente e verificare tutti gli stati ADB di rete classici/TLS di sua proprietà. La disattivazione rimane in attesa e verrà ritentata all’avvio; controlla le Opzioni sviluppatore, quindi riprova.</string>
+    <string name="unable_stop_remote_adb_detail">La modalità protetta non è stata attivata perché Panel Assistant non ha potuto cancellare in modo permanente e verificare tutti gli stati ADB di rete classici/TLS di sua proprietà. La disattivazione rimane in attesa e verrà ritentata all’avvio; controlla le Opzioni sviluppatore, quindi riprova.</string>
     <string name="unable_verify_remote_adb">Impossibile verificare ADB remoto</string>
     <string name="unable_verify_remote_adb_detail">La modalità protetta non è stata attivata perché il pannello non ha potuto verificare che ADB di rete classico e Debug wireless Android siano disattivati. Disattiva entrambi i percorsi di controllo remoto nelle impostazioni sviluppatore di Android, quindi riprova.</string>
     <string name="turn_off_remote_adb_first">Disattiva prima ADB remoto</string>
@@ -77,7 +77,7 @@
     <string name="finish_browser_optimize">Completa l’operazione nel browser per ottimizzare le prestazioni delle dashboard.</string>
     <string name="loading_dashboard">Caricamento della dashboard…</string>
     <string name="nothing_to_do_here">Non devi fare nulla qui.</string>
-    <string name="panel_generic_description">Questo dispositivo è un pannello da parete per Home Assistant basato su ha-paneld. Fornisce la dashboard sul pannello, l’avvio delle app e i controlli del pannello, rendendo disponibili a Home Assistant tramite la rete locale schermo, LED, pulsanti, altoparlante e sensori. Configura il pannello da un browser usando l’indirizzo seguente.</string>
+    <string name="panel_generic_description">Questo dispositivo è un pannello da parete per Home Assistant basato su Panel Assistant. Fornisce la dashboard sul pannello, l’avvio delle app e i controlli del pannello, rendendo disponibili a Home Assistant tramite la rete locale schermo, LED, pulsanti, altoparlante e sensori. Scansiona il codice per configurare questo pannello.</string>
     <string name="retry_dashboard">Riprova dashboard</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Accedi a Home Assistant</string>
@@ -196,14 +196,14 @@
     <string name="panel_agent_channel_description">Agente hardware del pannello per Home Assistant</string>
     <string name="storage_pressure_title">Pressione critica sull’archiviazione/database del pannello</string>
     <string name="storage_capacity_suffix">" (%1$d MiB liberi nel file system)"</string>
-    <string name="storage_pressure_body">La pressione sull’archiviazione o sui file del database è critica%1$s. Apri ha-paneld e controlla lo spazio libero e la crescita del WAL prima di modificare la configurazione.</string>
+    <string name="storage_pressure_body">La pressione sull’archiviazione o sui file del database è critica%1$s. Apri Panel Assistant e controlla lo spazio libero e la crescita del WAL prima di modificare la configurazione.</string>
     <string name="database_attention_title">Il database del pannello richiede attenzione</string>
     <string name="database_during_suffix">" durante %1$s"</string>
-    <string name="database_full_body">Una scrittura nel database del pannello%1$s non è riuscita perché l’archiviazione era piena. Apri ha-paneld; il ripristino non è ancora verificato.</string>
-    <string name="database_io_body">Il database del pannello ha segnalato un errore di I/O del disco%1$s. Apri ha-paneld; riprova solo dopo aver risolto la causa.</string>
-    <string name="database_corruption_body">Il database del pannello non ha superato il controllo di integrità%1$s. Conservalo e apri la diagnostica di ha-paneld prima di ulteriori scritture.</string>
-    <string name="database_busy_body">Il database del pannello è rimasto occupato o bloccato%1$s. Apri la diagnostica di ha-paneld e attendi un controllo senza errori prima di riprovare.</string>
-    <string name="database_failure_body">Il database del pannello ha segnalato un errore%1$s. Conservalo e apri la diagnostica di ha-paneld prima di riprovare.</string>
+    <string name="database_full_body">Una scrittura nel database del pannello%1$s non è riuscita perché l’archiviazione era piena. Apri Panel Assistant; il ripristino non è ancora verificato.</string>
+    <string name="database_io_body">Il database del pannello ha segnalato un errore di I/O del disco%1$s. Apri Panel Assistant; riprova solo dopo aver risolto la causa.</string>
+    <string name="database_corruption_body">Il database del pannello non ha superato il controllo di integrità%1$s. Conservalo e apri la diagnostica di Panel Assistant prima di ulteriori scritture.</string>
+    <string name="database_busy_body">Il database del pannello è rimasto occupato o bloccato%1$s. Apri la diagnostica di Panel Assistant e attendi un controllo senza errori prima di riprovare.</string>
+    <string name="database_failure_body">Il database del pannello ha segnalato un errore%1$s. Conservalo e apri la diagnostica di Panel Assistant prima di riprovare.</string>
     <string name="database_recovery_channel">Ripristino database</string>
     <string name="database_recovery_notification">Il ripristino nello stesso avvio è attivo; i normali servizi del pannello sono sospesi</string>
     <string name="starting">Avvio…</string>
