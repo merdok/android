@@ -748,6 +748,7 @@
           // Only when the bundle marked itself incomplete. A healthy backup says nothing here, so the
           // warning cannot become background furniture the owner stops reading.
           (d.state_unavailable ? '<p class="note">⚠ ' + esc(t('install.backup.dynamic.preview_state_unavailable', 'This backup carries no panel state: the panel it came from could not read its own database. Restoring it will not bring panel state back.')) + '</p>' : '') +
+          (d.config_warnings || []).map(function (warning) { return '<p class="note">⚠ ' + esc(warning) + '</p>'; }).join('') +
           '<button class="pbtn"' + hardenedApprovalA11yAttrs + ' style="margin-top:8px" onclick="restoreConfirm(this)">⚠ ' + esc(t('install.backup.dynamic.restore_now', 'Restore this bundle now')) + '</button>';
         scheduleInstallColumnAlignment();
       }).catch(function () {

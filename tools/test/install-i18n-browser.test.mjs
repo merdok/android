@@ -540,3 +540,42 @@ browserTest('Install power-safety alerts localize repair and acknowledgement sta
   await page.waitForFunction(() => document.querySelector('.power-safety-acknowledge-result')?.textContent === 'LOC not hidden');
   assert.deepEqual(calls, ['/api/v1/power-safety/repair', '/api/v1/power-safety/acknowledge']);
 });
+
+browserTest('Restore preview shows escaped server warnings before confirmation', async (t) => {
+  const warnings = [
+    'network_adb skipped because this panel cannot apply it',
+    '<img src=x onerror="window.restoreWarningExecuted=true"> & "unavailable"',
+  ];
+  let previews = 0;
+  let restores = 0;
+  const { page } = await rig(t, {
+    noHelper: true,
+    html: '<input type="file" id="rs-file" onchange="restorePick(this)"><input id="rs-pw"><div id="rs-preview"></div>',
+    route(request, response, url) {
+      if (url.pathname !== '/api/v1/restore') return false;
+      if (url.searchParams.get('dry_run') === '1') previews += 1;
+      else restores += 1;
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({
+        ok: true, dry_run: true, panel_id: 'source', config_keys: 2,
+        config_skipped: ['network_adb'], config_warnings: warnings,
+        companion_files: 0, state_unavailable: false,
+      }));
+      return true;
+    },
+  });
+  await page.locator('#rs-file').setInputFiles({ name: 'panel.hpb', mimeType: 'application/octet-stream', buffer: Buffer.from('backup') });
+  await page.locator('#rs-preview button').waitFor();
+  assert.deepEqual(await page.locator('#rs-preview p.note').allTextContents(), warnings.map((warning) => `⚠ ${warning}`));
+  assert.equal(await page.locator('#rs-preview img').count(), 0);
+  assert.equal(await page.evaluate(() => window.restoreWarningExecuted), undefined);
+  assert.equal(await page.locator('#rs-preview button').isEnabled(), true);
+  assert.equal(await page.evaluate(() => {
+    const preview = document.getElementById('rs-preview');
+    const button = preview.querySelector('button');
+    return Array.from(preview.querySelectorAll('p.note')).every((warning) =>
+      Boolean(warning.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING));
+  }), true);
+  assert.equal(previews, 1);
+  assert.equal(restores, 0);
+});

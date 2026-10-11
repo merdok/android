@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.Config
 import io.panelassistant.android.config.SettingsRegistry
 import io.ktor.client.request.post
 import io.ktor.client.request.header
@@ -12,6 +13,7 @@ import io.panelassistant.android.util.InstallProgress
 import io.ktor.server.testing.testApplication
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PaneldServerBackupRestoreRoutesTest {
@@ -60,8 +62,11 @@ class PaneldServerBackupRestoreRoutesTest {
                 assertEquals(response.bodyAsText(), HttpStatusCode.OK, response.status)
                 val body = JSONObject(response.bodyAsText())
                 assertEquals(true, body.getBoolean("dry_run"))
-                // Current migrations retire two voice exposure defaults and add the touch-delay and automatic maximum settings.
-                assertEquals(27, body.getInt("config_keys"))
+                // Migrated voice enablement is unavailable on this fixture without a microphone.
+                assertEquals(26, body.getInt("config_keys"))
+                assertEquals(listOf("voice_enabled"), (0 until body.getJSONArray("config_skipped").length()).map {
+                    body.getJSONArray("config_skipped").getString(it)
+                })
                 assertEquals("source", body.getString("panel_id"))
                 assertEquals(false, body.getBoolean("state_unavailable"))
                 assertEquals("contract-panel", fixture.config.panelId)
@@ -94,6 +99,62 @@ class PaneldServerBackupRestoreRoutesTest {
                         assertEquals("Contract panel", fixture.config.friendlyName)
                     }
                 }
+            }
+        }
+    }
+
+    @Test fun `rootless preview reports unavailable live settings while retaining supported values`() {
+        PaneldServerHttpFixture().use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.post("/api/v1/restore?dry_run=1") {
+                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored panel","ha_area":"Kitchen","network_adb":"true"}}""")
+                }
+                val text = response.bodyAsText()
+                assertEquals(text, HttpStatusCode.OK, response.status)
+                val body = JSONObject(text)
+                assertEquals(2, body.getInt("config_keys"))
+                assertEquals(listOf("network_adb"), (0 until body.getJSONArray("config_skipped").length()).map {
+                    body.getJSONArray("config_skipped").getString(it)
+                })
+                assertTrue(body.getJSONArray("config_warnings").toString().contains("network_adb"))
+                assertEquals("contract-panel", fixture.config.panelId)
+                assertTrue(fixture.config.haArea.isEmpty())
+                assertEquals(false, InstallProgress.running)
+            }
+        }
+    }
+
+    @Test fun `unavailable live setting is still validated before a preview can skip it`() {
+        PaneldServerHttpFixture().use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                for (suffix in listOf("?dry_run=1", "")) {
+                    val response = client.post("/api/v1/restore$suffix") {
+                        setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"network_adb":"not-a-boolean","friendly_name":"Must not apply"}}""")
+                    }
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    assertEquals("invalid backup config", JSONObject(response.bodyAsText()).getString("error"))
+                    assertEquals("contract-panel", fixture.config.panelId)
+                    assertEquals(false, InstallProgress.running)
+                }
+            }
+        }
+    }
+
+    @Test fun `rootless real restore still refuses requested network adb in hardened mode`() {
+        PaneldServerHttpFixture().use { fixture ->
+            assertTrue(fixture.config.setSecurityMode(Config.SecurityMode.HARDENED))
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.post("/api/v1/restore") {
+                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"network_adb":"true","friendly_name":"Must not apply"}}""")
+                }
+                val text = response.bodyAsText()
+                assertEquals(text, HttpStatusCode.Conflict, response.status)
+                assertEquals("network-adb-incompatible-with-hardened-mode", JSONObject(text).getString("error"))
+                assertEquals("contract-panel", fixture.config.panelId)
+                assertEquals(false, InstallProgress.running)
             }
         }
     }

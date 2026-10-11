@@ -314,6 +314,7 @@ internal class AcceptedConfigTransaction(
             appContext: Context,
             config: Config,
             transaction: () -> AcceptedConfigTransaction,
+            capabilities: () -> Capabilities,
             restoreCompanion: (CompanionRestore.Plan) -> CompanionApplyResult,
             profileAdmin: ProfileAdmin?,
             onProfileRestart: () -> Boolean,
@@ -324,6 +325,7 @@ internal class AcceptedConfigTransaction(
             appContext = appContext,
             config = config,
             currentValues = { transaction().values.currentValues() },
+            capabilities = capabilities,
             revisionValues = { values, state -> transaction().values.revisionValues(values, state) },
             commitConfig = RestoreConfigCommit { accepted, entityState, expectedRevision,
                 existingOperationTicket, onDurableRevision, afterCommitBeforeRenderer, afterApply ->

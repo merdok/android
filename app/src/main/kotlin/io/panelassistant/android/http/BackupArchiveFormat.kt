@@ -117,6 +117,7 @@ internal data class RestoreConfigPlan(
     val values: Map<String, String>,
     val warnings: List<String>,
     val errors: List<String>,
+    val skipped: List<String> = emptyList(),
 )
 
 internal fun entityBackupJson(state: DashboardEntityBackupState): String = buildString {

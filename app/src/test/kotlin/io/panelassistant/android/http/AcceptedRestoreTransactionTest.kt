@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.LiveSettingRequestOutcome
 import io.panelassistant.android.control.SystemController
@@ -64,6 +65,7 @@ class AcceptedRestoreTransactionTest {
             val executor = AcceptedConfigTransaction.restoreExecutor(
                 appContext = fixture.context,
                 config = config,
+                capabilities = { Capabilities(networkAdb = true) },
                 transaction = {
                     transactionReads++
                     AcceptedConfigTransaction(

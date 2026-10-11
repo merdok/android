@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.canonicalHaOrigin
 import io.panelassistant.android.Config
+import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.panelAssistantDiscoveryId
 import io.panelassistant.android.backup.PanelBackup
@@ -49,6 +50,7 @@ internal class RestoreRoutes(
     private val ensureCompanionHelper: () -> Boolean,
     private val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
     private val rejectHardenedNetworkAdb: suspend (ApplicationCall, String?) -> Boolean,
+    private val capabilities: () -> Capabilities,
     private val scope: CoroutineScope,
     private val executor: RestoreExecutor,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
@@ -501,10 +503,11 @@ internal class RestoreRoutes(
                 HttpStatusCode.ServiceUnavailable,
             )
             if (dryRun) {
+                val preview = configPlan.withAvailableLiveSettings(capabilities())
                 requestAccepted = true
                 return call.respondText(
                     """{"ok":true,"dry_run":true,"panel_id":${Json.str(obj.optString("panel_id"))},""" +
-                        """"config_keys":${configPlan.values.size},"config_warnings":${jarr(configPlan.warnings)},"profile_revisions":${profilePlan?.toImport?.size ?: 0},"profile_restart_required":${profilePlan?.restartRequired ?: false},"companion_pkg":${Json.str(companionPlan?.packageName ?: "")},"companion_files":$compFiles,"wake_words":${restoreWakeWords.size},"state_unavailable":$stateUnavailable}""",
+                        """"config_keys":${preview.values.size},"config_warnings":${jarr(preview.warnings)},"config_skipped":${jarr(preview.skipped)},"profile_revisions":${profilePlan?.toImport?.size ?: 0},"profile_restart_required":${profilePlan?.restartRequired ?: false},"companion_pkg":${Json.str(companionPlan?.packageName ?: "")},"companion_files":$compFiles,"wake_words":${restoreWakeWords.size},"state_unavailable":$stateUnavailable}""",
                     ContentType.Application.Json,
                 )
             }

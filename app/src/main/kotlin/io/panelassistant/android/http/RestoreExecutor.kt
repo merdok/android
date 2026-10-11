@@ -3,6 +3,8 @@ package io.panelassistant.android.http
 import android.content.Context
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.config.Capabilities
+import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.DashboardEntityBackupState
 import io.panelassistant.android.backup.CompanionRestore
 import io.panelassistant.android.device.profile.ProfileAdmin
@@ -31,6 +33,7 @@ internal class RestoreExecutor(
     private val appContext: android.content.Context,
     private val config: Config,
     private val currentValues: () -> Map<String, String>,
+    private val capabilities: () -> Capabilities,
     private val revisionValues: (Map<String, String>, DashboardEntityBackupState) -> Map<String, String>,
     private val commitConfig: RestoreConfigCommit,
     private val rollbackConfig: suspend (Map<String, String>, DashboardEntityBackupState, String, InstallProgress.Ticket) -> Boolean,
@@ -58,6 +61,13 @@ internal class RestoreExecutor(
         restoreAttempt: RestoreAttempt,
     ) {
         val before = currentValues()
+        // Preview is not admission: sample current capability again for the actual execution.
+        val executionCapabilities = capabilities()
+        val admittedPlan = configPlan.withAvailableLiveSettings(executionCapabilities)
+        // Initially unavailable live values were never touched. Do not turn a genuine rollback
+        // into another refusal by trying them; previously supported keys remain in rollback even
+        // if their privilege disappears after this snapshot.
+        val rollbackValues = before - unavailableRestoreSettings(before, executionCapabilities).toSet()
         val beforeEntityState = config.dashboardEntityBackupState()
         val beforeRevisionHash = io.panelassistant.android.config.ConfigHash.of(
             revisionValues(before, beforeEntityState),
@@ -84,7 +94,7 @@ internal class RestoreExecutor(
         val wakeWordComponent = wakeWordOutcome?.let(::wakeWordRestoreComponent)
         val operation = runCatching {
             configItems = commitConfig.apply(
-                configPlan.values,
+                admittedPlan.values,
                 entityState,
                 beforeRevisionHash,
                 existingOperationTicket = progress,
@@ -150,21 +160,30 @@ internal class RestoreExecutor(
                 // An archive that marked itself incomplete restored everything it held, and still
                 // must not report the plain success of one that held the panel's state.
                 message = when {
+                    admittedPlan.skipped.isNotEmpty() -> "Restore partially completed; unavailable settings: " +
+                        admittedPlan.skipped.joinToString(", ") { requireNotNull(SettingsRegistry.spec(it)).label }
                     restoredStateRows > 0 ->
                         "Restore completed, including $restoredStateRows panel state values"
                     stateUnavailable -> "Restore completed; this backup carried no panel state"
                     else -> "Restore completed"
                 } + wakeWordRestoreNote(wakeWordOutcome),
                 structured = InstallProgress.OperationResult(
-                    status = restoreOverallStatus(wakeWordOutcome),
-                    config = succeededComponent(configItems),
+                    status = if (admittedPlan.skipped.isNotEmpty()) InstallProgress.Outcome.PARTIAL
+                        else restoreOverallStatus(wakeWordOutcome),
+                    config = if (admittedPlan.skipped.isEmpty()) succeededComponent(configItems)
+                        else InstallProgress.ComponentResult(
+                            InstallProgress.Outcome.PARTIAL,
+                            configItems,
+                            detail = admittedPlan.warnings.joinToString("; "),
+                        ),
                     profiles = profileComponent(profileResult),
                     companion = companionResult?.component
                         ?: skippedComponent("not present"),
                     wakeWords = wakeWordComponent,
                 ),
                 presentation = when {
-                    restoreOverallStatus(wakeWordOutcome) != InstallProgress.Outcome.SUCCEEDED ->
+                    admittedPlan.skipped.isNotEmpty() ||
+                        restoreOverallStatus(wakeWordOutcome) != InstallProgress.Outcome.SUCCEEDED ->
                         InstallPresentation("restore-partial")
                     restoredStateRows > 0 -> InstallPresentation(
                         "restore-completed-with-state",
@@ -180,7 +199,7 @@ internal class RestoreExecutor(
             val rollback = if (configCommitted) {
                 val expected = appliedRevisionHash
                 val restored = expected != null && runCatching {
-                    rollbackConfig(before, beforeEntityState, expected, progress)
+                    rollbackConfig(rollbackValues, beforeEntityState, expected, progress)
                 }
                     .getOrDefault(false)
                 if (restored) InstallProgress.ComponentResult(InstallProgress.Outcome.ROLLED_BACK)
