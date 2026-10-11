@@ -90,7 +90,7 @@
     <string name="applying_dashboard_theme">正在应用您的仪表盘主题</string>
     <string name="optimizing_entities_restart">正在优化所使用的实体（面板学习时可能会再次重新加载）</string>
     <string name="service_running_caption">运行中</string>
-    <string name="elapsed_usually">已用时 %1$d 秒 · 通常约需 %2$d 秒</string>
+    <string name="elapsed_usually">已用时 %1$d 秒 · 通常需 %2$d 秒</string>
     <string name="elapsed_learning">已用时 %1$d 秒 · 正在学习此面板的耗时</string>
     <string name="network_starting_android">正在启动 Android 网络服务</string>
     <string name="network_waiting_link">正在等待网络连接</string>

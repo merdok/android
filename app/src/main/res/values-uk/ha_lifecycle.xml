@@ -12,7 +12,7 @@
     <string name="ha_step_offline">Офлайн</string>
     <string name="ha_until_back">до повернення Home Assistant</string>
     <string name="ha_past_usual">Довше, ніж зазвичай</string>
-    <string name="ha_reloading_detail">Панель перезавантажується</string>
+    <string name="ha_reloading_detail">Ваша інформаційна панель перезавантажується</string>
     <string name="ha_usually">%1$s · зазвичай %2$s</string>
     <string name="ha_restarted_in">Перезапуск тривав %1$s</string>
     <string name="ha_exact_seconds">%1$d с</string>

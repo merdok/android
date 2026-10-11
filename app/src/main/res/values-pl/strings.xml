@@ -85,7 +85,7 @@
     <string name="applying_dashboard_theme">stosowanie motywu pulpitu nawigacyjnego</string>
     <string name="optimizing_entities_restart">optymalizacja wykorzystywanych encji (może się ponownie przeładować, gdy panel się uczy)</string>
     <string name="service_running_caption">działa</string>
-    <string name="elapsed_usually">Upłynęło %1$d s · zwykle około %2$d s</string>
+    <string name="elapsed_usually">Upłynęło %1$d s · zwykle %2$d s</string>
     <string name="elapsed_learning">Upłynęło %1$d s · poznawanie czasów tego panelu</string>
     <string name="network_starting_android">Uruchamianie usług sieciowych Androida</string>
     <string name="network_waiting_link">Oczekiwanie na połączenie sieciowe</string>
