@@ -660,7 +660,7 @@ object AppInstaller {
 
             val outcome: InstallOutcome = if (route == InstallRoute.CONFIRMED) {
                 try {
-                    ConfirmedSelfInstaller.install(context, apk) {
+                    ConfirmedSelfInstaller.install(context, apk, info.versionCode) {
                         InstallProgress.presentRunning(
                             "Tap Install on the panel to finish the update",
                             InstallPresentation("install-awaiting-confirmation", mapOf("component" to component)),

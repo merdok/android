@@ -5,9 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
 import android.os.Build
 import android.util.Log
+import io.panelassistant.android.migration.MigrationTokenReceiver
 import java.io.File
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -74,17 +76,26 @@ internal object ConfirmedSelfInstaller {
      * Follow one committed session to its end. A confirmation request is shown through [showConfirmation]
      * and announced through [onAwaitingConfirmation] once; a session nobody confirms within [timeoutMs]
      * ends as retryable. On success Android usually replaces this process before the report arrives.
+     * A reported success counts only when [successConfirmed] sees the new version installed, so a report
+     * that did not come from a finished install can never hold the caller's success-only state.
      */
     internal suspend fun follow(
         reports: ReceiveChannel<SessionReport>,
         showConfirmation: (Intent?) -> Boolean,
         onAwaitingConfirmation: () -> Unit,
+        successConfirmed: () -> Boolean,
         timeoutMs: Long = CONFIRMATION_TIMEOUT_MS,
     ): InstallOutcome = withTimeoutOrNull(timeoutMs) {
         var announced = false
         for (report in reports) {
             when (val step = classify(report)) {
-                is Step.Done -> return@withTimeoutOrNull step.outcome
+                is Step.Done -> return@withTimeoutOrNull if (
+                    step.outcome == InstallOutcome.Succeeded && !runCatching(successConfirmed).getOrDefault(false)
+                ) {
+                    InstallOutcome.Retryable("install reported success but the new version is not installed")
+                } else {
+                    step.outcome
+                }
                 is Step.Confirm -> {
                     if (!showConfirmation(step.confirmation)) {
                         return@withTimeoutOrNull InstallOutcome.Retryable(
@@ -101,10 +112,40 @@ internal object ConfirmedSelfInstaller {
         InstallOutcome.Retryable("install failed: the package installer stopped reporting")
     } ?: InstallOutcome.Retryable("update not confirmed on the panel in time")
 
+    /**
+     * Only the app's own status PendingIntent may report on a session. Android sends that broadcast with
+     * this app's identity, which holds [STATUS_BROADCAST_PERMISSION]; another app (or the shell) does not,
+     * so it cannot forge a success or a confirmation for a session id it can see. Android 13 and later
+     * also refuse every outside sender to a non-exported receiver.
+     */
+    private fun registerStatusReceiver(context: Context, receiver: BroadcastReceiver, filter: IntentFilter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, STATUS_BROADCAST_PERMISSION, null, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter, STATUS_BROADCAST_PERMISSION, null)
+        }
+    }
+
+    /** The release-signer-only permission the two panel-app identities already declare and hold. */
+    internal const val STATUS_BROADCAST_PERMISSION = MigrationTokenReceiver.PERMISSION
+
+    /**
+     * A confirmation is shown only when it opens a system app (Android's package installer), never an
+     * arbitrary activity named in a report. [resolvedAppFlags] are the `ApplicationInfo.flags` of the app
+     * the Intent resolves to, or null when it resolves to nothing.
+     */
+    internal fun mayShowConfirmation(resolvedAppFlags: Int?): Boolean =
+        resolvedAppFlags != null && resolvedAppFlags and ApplicationInfo.FLAG_SYSTEM != 0
+
+    /** Whether the installed copy of the running package is now at least [versionCode]. */
+    internal fun installedAtLeast(installedVersionCode: Long?, versionCode: Long): Boolean =
+        installedVersionCode != null && installedVersionCode >= versionCode
+
     /** Write [apk] into a new installer session for the running package, commit it, and follow it. */
     suspend fun install(
         context: Context,
         apk: File,
+        expectedVersionCode: Long,
         onAwaitingConfirmation: () -> Unit,
     ): InstallOutcome {
         val installer = context.packageManager.packageInstaller
@@ -129,11 +170,7 @@ internal object ConfirmedSelfInstaller {
                 )
             }
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, IntentFilter(action), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, IntentFilter(action))
-        }
+        registerStatusReceiver(context, receiver, IntentFilter(action))
         var committed = false
         try {
             installer.openSession(sessionId).use { session ->
@@ -156,10 +193,22 @@ internal object ConfirmedSelfInstaller {
                 reports,
                 showConfirmation = { confirmation ->
                     confirmation != null && runCatching {
+                        val target = confirmation.resolveActivityInfo(context.packageManager, 0)?.applicationInfo
+                        if (!mayShowConfirmation(target?.flags)) return@runCatching false
                         context.startActivity(confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }.isSuccess
+                        true
+                    }.getOrDefault(false)
                 },
                 onAwaitingConfirmation = onAwaitingConfirmation,
+                successConfirmed = {
+                    @Suppress("DEPRECATION")
+                    val installed = runCatching {
+                        context.packageManager.getPackageInfo(context.packageName, 0).let {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.longVersionCode else it.versionCode.toLong()
+                        }
+                    }.getOrNull()
+                    installedAtLeast(installed, expectedVersionCode)
+                },
             )
             if (outcome is InstallOutcome.Failure) Log.w(TAG, "confirmed install: ${outcome.message}")
             if (outcome !is InstallOutcome.Succeeded) runCatching { installer.abandonSession(sessionId) }

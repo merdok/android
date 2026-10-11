@@ -24,6 +24,7 @@ class ConfirmedSelfInstallerTest {
             ),
             showConfirmation = { shown++; true },
             onAwaitingConfirmation = { announced++ },
+            successConfirmed = { true },
         )
         assertEquals(InstallOutcome.Succeeded, outcome)
         assertEquals(2, shown)
@@ -38,6 +39,7 @@ class ConfirmedSelfInstallerTest {
             ),
             showConfirmation = { true },
             onAwaitingConfirmation = {},
+            successConfirmed = { true },
         )
         assertTrue(outcome is InstallOutcome.Retryable)
         assertEquals(
@@ -52,6 +54,7 @@ class ConfirmedSelfInstallerTest {
             reports(SessionReport(PackageInstaller.STATUS_PENDING_USER_ACTION, null)),
             showConfirmation = { false },
             onAwaitingConfirmation = { announced = true },
+            successConfirmed = { true },
         )
         assertTrue(outcome is InstallOutcome.Retryable)
         assertEquals(false, announced)
@@ -62,6 +65,7 @@ class ConfirmedSelfInstallerTest {
             reports(SessionReport(PackageInstaller.STATUS_PENDING_USER_ACTION, null)),
             showConfirmation = { true },
             onAwaitingConfirmation = {},
+            successConfirmed = { true },
             timeoutMs = 1_000L,
         )
         assertTrue(outcome is InstallOutcome.Retryable)
@@ -82,5 +86,32 @@ class ConfirmedSelfInstallerTest {
     @Test fun anIncompatiblePackageIsADurableRejection() {
         val step = ConfirmedSelfInstaller.classify(SessionReport(PackageInstaller.STATUS_FAILURE_INCOMPATIBLE, "signatures"))
         assertTrue((step as ConfirmedSelfInstaller.Step.Done).outcome is InstallOutcome.Rejected)
+    }
+
+    @Test fun aReportedSuccessWithoutTheNewVersionInstalledIsNotASuccess() = runTest {
+        // A report that did not come from a finished install (a forged broadcast) must not leave the caller
+        // holding its success-only state.
+        val outcome = ConfirmedSelfInstaller.follow(
+            reports(SessionReport(PackageInstaller.STATUS_SUCCESS, null)),
+            showConfirmation = { true },
+            onAwaitingConfirmation = {},
+            successConfirmed = { false },
+        )
+        assertEquals(
+            "install reported success but the new version is not installed",
+            (outcome as? InstallOutcome.Retryable)?.message,
+        )
+    }
+
+    @Test fun aConfirmationOpensOnlyASystemApp() {
+        assertTrue(ConfirmedSelfInstaller.mayShowConfirmation(android.content.pm.ApplicationInfo.FLAG_SYSTEM))
+        assertEquals(false, ConfirmedSelfInstaller.mayShowConfirmation(0))
+        assertEquals(false, ConfirmedSelfInstaller.mayShowConfirmation(null))
+    }
+
+    @Test fun theInstalledVersionMustReachTheCandidate() {
+        assertTrue(ConfirmedSelfInstaller.installedAtLeast(1251L, 1251L))
+        assertEquals(false, ConfirmedSelfInstaller.installedAtLeast(1250L, 1251L))
+        assertEquals(false, ConfirmedSelfInstaller.installedAtLeast(null, 1251L))
     }
 }
