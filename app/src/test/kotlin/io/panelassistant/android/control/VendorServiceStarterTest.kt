@@ -15,9 +15,12 @@ class VendorServiceStarterTest {
         var overlays: Boolean = true,
         var interactive: Boolean = true,
         var opensAfterPolls: Int? = 2,
+        var dashboardReturnMs: Long = 0,
     ) : VendorServiceStarter.Seams {
         val events = mutableListOf<String>()
         var clock = 0L
+        var frontAt: Long? = null
+        var uncoveredWhileVendorInFront = false
         private var probesSinceStart: Int? = null
 
         override fun listening(port: Int): Boolean {
@@ -29,9 +32,10 @@ class VendorServiceStarterTest {
         override fun canDrawOverlays() = overlays
         override fun interactive() = interactive
         override fun addCover(): Boolean { events += "cover"; return true }
-        override fun removeCover() { events += "uncover" }
+        override fun removeCover() { events += "uncover"; if (!dashboardInFront()) uncoveredWhileVendorInFront = true }
         override fun startVendor(service: VendorService) { events += "start:${service.className}"; probesSinceStart = 0 }
-        override fun bringDashboardBack() { events += "dashboard" }
+        override fun bringDashboardBack() { events += "dashboard"; frontAt = clock + dashboardReturnMs }
+        override fun dashboardInFront() = frontAt?.let { clock >= it } == true
         override fun now() = clock
         override fun sleep(ms: Long) { clock += ms }
         override fun stopping() = false
@@ -127,5 +131,15 @@ class VendorServiceStarterTest {
         }
         assertEquals(VendorServiceStarter.MAX_ATTEMPTS, starts())
         assertEquals("[vendor-service] port=8021 state=failed attempts=3", starter.diagnosticLine())
+    }
+
+    @Test fun theCoverStaysUntilTheDashboardIsBackInFront() {
+        // A cold vendor start on the X2i kept the dashboard from returning within the fixed hold.
+        val panel = Panel(dashboardReturnMs = 2_500)
+        val starter = starter(panel)
+        starter.request()
+        assertEquals(VendorServiceStarter.State.STARTED, starter.state)
+        assertEquals(false, panel.uncoveredWhileVendorInFront)
+        assertTrue(panel.clock >= panel.frontAt!! + VendorServiceStarter.COVER_HOLD_MS)
     }
 }

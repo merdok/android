@@ -54,6 +54,8 @@ class VendorServiceStarter(
         fun removeCover()
         fun startVendor(service: VendorService)
         fun bringDashboardBack()
+        /** The dashboard is resumed in front again, so lifting the cover cannot uncover the vendor screen. */
+        fun dashboardInFront(): Boolean
         fun now(): Long
         fun sleep(ms: Long)
         fun stopping(): Boolean
@@ -130,7 +132,13 @@ class VendorServiceStarter(
             return State.FAILED
         } finally {
             runCatching { seams.bringDashboardBack() }.onFailure { Log.w(TAG, "dashboard could not be brought back", it) }
-            runCatching { seams.sleep(COVER_HOLD_MS) }
+            // Measured on the X2i: the dashboard took longer than a fixed hold to come back after a cold
+            // vendor start, so the cover was lifted over Stargate's screen. Wait for the dashboard itself.
+            runCatching {
+                val back = seams.now() + RETURN_TIMEOUT_MS
+                while (!seams.dashboardInFront() && seams.now() < back) seams.sleep(POLL_MS)
+                seams.sleep(COVER_HOLD_MS)
+            }
             runCatching { seams.removeCover() }.onFailure { Log.w(TAG, "vendor cover removal failed", it) }
         }
     }
@@ -142,6 +150,7 @@ class VendorServiceStarter(
         const val START_TIMEOUT_MS = 6_000L
         const val POLL_MS = 200L
         const val COVER_HOLD_MS = 700L
+        const val RETURN_TIMEOUT_MS = 5_000L
         private const val CONNECT_TIMEOUT_MS = 500
 
         private val PROCESS_ATTEMPTS = AtomicInteger()
@@ -210,6 +219,8 @@ class VendorServiceStarter(
                 ),
             )
         }
+
+        override fun dashboardInFront(): Boolean = BuiltinDashboard.foreground
 
         override fun now(): Long = SystemClock.elapsedRealtime()
         override fun sleep(ms: Long) = Thread.sleep(ms)
