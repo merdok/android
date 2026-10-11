@@ -181,7 +181,7 @@ internal class PanelAssistantTransportOwner(
     /** Null offers no `management`, so Panel Assistant reads and writes this panel over HTTP. */
     private val management: PanelAssistantManagement? = null,
     private val approvalTtlMs: Long = io.panelassistant.android.security.ApprovalBroker.DEFAULT_TTL_MS,
-    /** Positive handshake evidence. */
+    /** Evidence that a Panel Assistant answers this panel: an accepted hello, or an enrollment refusal only it sends. */
     private val onConnected: () -> Unit = {},
     private val onLifecycleNotice: (io.panelassistant.android.sensors.HaLifecycleNotice) -> Unit = {},
     private val onLifecycleAuthenticated: () -> Unit = {},
@@ -421,6 +421,8 @@ internal class PanelAssistantTransportOwner(
                             }
                             is PanelAssistantHelloOutcome.Refused -> {
                                 lifecycleCurrent(run, onLifecycleAuthenticated)
+                                // A panel awaiting its owner's confirmation is managed by Panel Assistant, not missing it.
+                                if (outcome.code in ENROLLMENT_REFUSALS) onConnected()
                                 // An integration that does not render a gated channel refuses its descriptor;
                                 // withhold it and say hello again at once rather than on the slow schedule.
                                 val regated = outcome.code == PanelAssistantTransportProtocol.CODE_INVALID_FORMAT &&
@@ -469,9 +471,7 @@ internal class PanelAssistantTransportOwner(
             val delayMs = when (retry) {
                 is Retry.Fast -> {
                     attempt = nextAttempt(attempt)
-                    if (retry.refusal == PanelAssistantTransportProtocol.CODE_PANEL_USER_MISMATCH ||
-                        retry.refusal == PanelAssistantTransportProtocol.CODE_UNKNOWN_PANEL
-                    ) {
+                    if (retry.refusal in ENROLLMENT_REFUSALS) {
                         CONFIRMATION_RETRY_MS
                     } else {
                         backoffDelay(attempt)
@@ -495,9 +495,7 @@ internal class PanelAssistantTransportOwner(
     }
 
     private fun refusalRetry(code: String, warm: Boolean): Retry = when (code) {
-        PanelAssistantTransportProtocol.CODE_PANEL_USER_MISMATCH,
-        PanelAssistantTransportProtocol.CODE_UNKNOWN_PANEL,
-        -> Retry.Fast(code)
+        in ENROLLMENT_REFUSALS -> Retry.Fast(code)
         PanelAssistantTransportProtocol.CODE_UNKNOWN_COMMAND -> if (warm) Retry.Fast(code) else Retry.Slow(code)
         else -> Retry.Slow(code)
     }
@@ -733,6 +731,11 @@ internal class PanelAssistantTransportOwner(
     companion object {
         internal const val TAG = "PanelAssistantTransport"
         private const val HELLO_ID = 1L
+        /** Refusals that only a Panel Assistant sends, each resolvable at any moment by its owner's confirmation. */
+        private val ENROLLMENT_REFUSALS = setOf(
+            PanelAssistantTransportProtocol.CODE_PANEL_USER_MISMATCH,
+            PanelAssistantTransportProtocol.CODE_UNKNOWN_PANEL,
+        )
         private const val MAX_ATTEMPT = 1_000
         private const val MIN_DELAY_MS = 250L
         private const val CONFIRMATION_RETRY_MS = 5_000L

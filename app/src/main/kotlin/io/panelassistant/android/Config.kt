@@ -1280,7 +1280,7 @@ class Config private constructor(
             .putString("update_target_companion", targets.second)
             .apply()
     }
-    /** An accepted session or a setup handover proves Panel Assistant manages this panel. */
+    /** An accepted session, an enrollment refusal or a setup handover proves Panel Assistant manages this panel. */
     val panelAssistantConnectionSeen: Boolean
         get() = haSetupHandover || prefs.getBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, false)
 
