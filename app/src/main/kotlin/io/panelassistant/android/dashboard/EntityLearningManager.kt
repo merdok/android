@@ -2971,105 +2971,6 @@ internal fun recordBrowserObserverCosts(
     registry.recordCoalesced(FeatureCostOperation.ENTITY_BROWSER_OBSERVER, observer.coalesced)
 }
 
-internal data class EntityTelemetryTarget(val generation: Long, val instance: String, val path: String)
-
-internal data class EntityTelemetryBatch(
-    val target: EntityTelemetryTarget,
-    val accessed: Map<String, Long>,
-    val missing: Set<String>,
-    val metrics: Map<String, Pair<Long, Long>>,
-    val now: Long = System.currentTimeMillis(),
-) {
-    val uniqueIds: Int get() = (accessed.keys + missing + metrics.keys).size
-}
-
-internal data class EntityTelemetryAdmission(val backlog: Int, val coalesced: Long, val dropped: Long)
-
-/** Serializes synchronous SQLite telemetry with close; cancellation alone cannot stop a transaction. */
-internal class EntityTelemetryStoreGate {
-    private val lock = Any()
-    fun <T> withStore(block: () -> T): T = synchronized(lock) { block() }
-}
-
-/** Fixed-size accumulator used by the renderer bridge. It merges repeated batches without queuing jobs. */
-internal class EntityTelemetryAccumulator(private val maxIds: Int) {
-    init { require(maxIds > 0) }
-
-    private var target: EntityTelemetryTarget? = null
-    private val ids = linkedSetOf<String>()
-    private val accessed = linkedMapOf<String, Long>()
-    private val missing = linkedSetOf<String>()
-    private val metrics = linkedMapOf<String, Pair<Long, Long>>()
-
-    @Synchronized
-    fun admit(
-        admittedTarget: EntityTelemetryTarget,
-        newAccessed: Map<String, Long>,
-        newMissing: Set<String>,
-        newMetrics: Map<String, Pair<Long, Long>>,
-    ): EntityTelemetryAdmission {
-        var dropped = 0L
-        if (target != null && target != admittedTarget) {
-            dropped += ids.size
-            clear()
-        }
-        target = admittedTarget
-        val coalesced = if (ids.isNotEmpty() &&
-            (newAccessed.isNotEmpty() || newMissing.isNotEmpty() || newMetrics.isNotEmpty())) 1L else 0L
-
-        fun admitId(id: String): Boolean {
-            if (id in ids) return true
-            if (ids.size >= maxIds) {
-                dropped++
-                return false
-            }
-            ids += id
-            return true
-        }
-        newAccessed.forEach { (id, count) ->
-            if (admitId(id)) accessed[id] = saturatingAdd(accessed[id] ?: 0L, count.coerceAtLeast(0L))
-        }
-        newMissing.forEach { id -> if (admitId(id)) missing += id }
-        newMetrics.forEach { (id, value) ->
-            if (admitId(id)) {
-                val previous = metrics[id] ?: (0L to 0L)
-                metrics[id] = saturatingAdd(previous.first, value.first.coerceAtLeast(0L)) to
-                    saturatingAdd(previous.second, value.second.coerceAtLeast(0L))
-            }
-        }
-        return EntityTelemetryAdmission(ids.size, coalesced, dropped)
-    }
-
-    @Synchronized fun drain(): EntityTelemetryBatch? {
-        val admittedTarget = target ?: return null
-        if (ids.isEmpty()) {
-            target = null
-            return null
-        }
-        return EntityTelemetryBatch(
-            admittedTarget,
-            LinkedHashMap(accessed),
-            LinkedHashSet(missing),
-            LinkedHashMap(metrics),
-        ).also { clear() }
-    }
-
-    @Synchronized fun size(): Int = ids.size
-
-    @Synchronized fun discard(): Int = ids.size.also { clear() }
-
-    private fun clear() {
-        target = null
-        ids.clear()
-        accessed.clear()
-        missing.clear()
-        metrics.clear()
-    }
-
-    private fun saturatingAdd(left: Long, right: Long): Long =
-        if (right > 0L && left > Long.MAX_VALUE - right) Long.MAX_VALUE else left + right
-}
-
 /** A resolver-policy upgrade must rescan even when the old, potentially wrong catalog has synced. */
 /**
  * [autoScopeUnverifiedThisProcess] is what makes `Auto` safe across a restart.
@@ -3152,71 +3053,6 @@ internal fun upgradeRecoveryPreservesFilter(
     // and removed — the mutation battery proved no test could tell it from its absence.
     if (retainedFilterIds.isEmpty()) return false
     return recoveredIds.toSet().containsAll(retainedFilterIds.toSet())
-}
-
-internal enum class DashboardProbeOutcome { UNCHANGED, CHANGED }
-
-/**
- * Whether a held dashboard changed in a way that gives a new scan something to say.
- *
- * A different resolved dashboard is a change even when both revisions match, because the scope the
- * catalogue is bound to no longer describes what the panel would open. A blank stored revision means no
- * scan ever committed; a live revision is always a hash, so the comparison owes a scan there too.
- */
-internal fun dashboardProbeOutcome(
-    resolvedPath: String,
-    boundPath: String,
-    liveRevision: String,
-    storedRevision: String,
-): DashboardProbeOutcome = when {
-    resolvedScopeRequiresRebind(boundPath, resolvedPath) -> DashboardProbeOutcome.CHANGED
-    liveRevision != storedRevision -> DashboardProbeOutcome.CHANGED
-    else -> DashboardProbeOutcome.UNCHANGED
-}
-
-/** A probe failure is transient unless it is the one fault a person has to repair. */
-internal fun probeFailureSurfacesProblem(message: String?): Boolean =
-    classifyEntityBootstrapProblem("degraded", message.orEmpty()) == EntityBootstrapProblem.AUTHENTICATION
-
-internal enum class PeriodicMaintenanceAction { NONE, SYNC, PROBE }
-
-/**
- * What the daily maintenance tick owes a catalogue. A catalogue synced within the day owes nothing. One
- * held only on a person's decision is settled: resyncing it cannot change the answer, so the tick asks
- * whether the dashboard changed instead and lets the answer decide whether a scan follows.
- */
-internal fun periodicMaintenanceAction(
-    sinceLastSyncMs: Long,
-    dailyMs: Long,
-    heldOnDecision: Boolean,
-): PeriodicMaintenanceAction = when {
-    sinceLastSyncMs < dailyMs -> PeriodicMaintenanceAction.NONE
-    heldOnDecision -> PeriodicMaintenanceAction.PROBE
-    else -> PeriodicMaintenanceAction.SYNC
-}
-
-/** Why the renderer is held, for the status surface and the person reading it off-panel. */
-enum class EntityBootstrapHoldReason(val wireName: String) {
-    /** The scan answered and a flagged rule awaits a person's decision; catalogue resync is suspended. */
-    DECISION("decision"),
-    /** Home Assistant rejected the panel's credential; the sign-in needs repair. */
-    AUTHENTICATION("authentication"),
-    /** The scan did not finish; the watchdog keeps retrying it. */
-    SYNCHRONIZATION("synchronization"),
-    /** The first scan has not answered yet. */
-    SYNCHRONIZING("synchronizing"),
-}
-
-internal fun entityBootstrapHoldReason(
-    held: Boolean,
-    blockingIssues: Int,
-    problem: EntityBootstrapProblem?,
-): EntityBootstrapHoldReason? = when {
-    !held -> null
-    problem == EntityBootstrapProblem.AUTHENTICATION -> EntityBootstrapHoldReason.AUTHENTICATION
-    problem == EntityBootstrapProblem.SYNCHRONIZATION -> EntityBootstrapHoldReason.SYNCHRONIZATION
-    blockingIssues > 0 -> EntityBootstrapHoldReason.DECISION
-    else -> EntityBootstrapHoldReason.SYNCHRONIZING
 }
 
 /** Ignoring a saturated selector means omitting its complete linter projection, never a partial set. */
@@ -3373,22 +3209,6 @@ internal fun blockingIssueSelection(rawIssues: String): BlockingIssueSelection =
     }
     BlockingIssueSelection(fingerprints, sawBlocking && allIgnorable)
 }.getOrDefault(BlockingIssueSelection(emptyList(), false))
-
-enum class EntityBootstrapProblem { AUTHENTICATION, SYNCHRONIZATION }
-
-/** A scan's failure when Home Assistant gave it no session and did not reject the credential. */
-internal const val TOKEN_UNAVAILABLE = "Home Assistant token unavailable"
-
-internal fun classifyEntityBootstrapProblem(state: String, error: String): EntityBootstrapProblem? {
-    if (state != "degraded" || error.isBlank()) return null
-    val normalized = error.lowercase()
-    // No session yet is not a refusal: during first-run sign-in the credential changes under a running scan,
-    // which then reports no token. The hold keeps its progress screen and the watchdog retries the scan.
-    if (TOKEN_UNAVAILABLE.lowercase() in normalized) return null
-    return if (
-        "http 401" in normalized || "http 403" in normalized || "credential rejected" in normalized
-    ) EntityBootstrapProblem.AUTHENTICATION else EntityBootstrapProblem.SYNCHRONIZATION
-}
 
 /**
  * Which entity ids an Entities-tab query may return, or null for "no id restriction".
