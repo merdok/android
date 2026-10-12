@@ -226,9 +226,12 @@ class ControlPlaneSessionTest {
 
     @Test fun hardenedSessionRequestsWaitForTheirPhysicalApproval() = runTest {
         val broker = ApprovalBroker(monotonicMs = { testScheduler.currentTime })
-        assertNull(authorizeSessionRequest(false, SensitiveOperation.APK_INSTALL, "p", "s", broker, onPending = { error("relaxed never waits") }))
-
         val pendingAnswers = mutableListOf<Unit>()
+        // Relaxed mode admits a session request as it admits a LAN one: nothing waits on the panel.
+        assertNull(authorizeSessionRequest(false, SensitiveOperation.APK_INSTALL, "p", "s", broker, onPending = { pendingAnswers += Unit }))
+        assertEquals(0, pendingAnswers.size)
+        assertTrue(broker.pending().isEmpty())
+
         val approved = async { authorizeSessionRequest(true, SensitiveOperation.APK_INSTALL, "p", "s", broker, onPending = { pendingAnswers += Unit }) }
         runCurrent()
         assertEquals(1, pendingAnswers.size)
