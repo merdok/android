@@ -495,7 +495,6 @@ internal class PanelCommandDispatcher(
         // The same actuation the HTTP reconfigure path performs, so both routes converge on one owner.
         onCameraEnabledChanged()
         core.reconcile("camera_enabled")
-        core.publishCameraSnapshot()
     }
 
     override fun handleSilenceBootChime(payload: String) {

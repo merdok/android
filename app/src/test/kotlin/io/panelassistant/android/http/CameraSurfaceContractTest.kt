@@ -3,7 +3,6 @@ package io.panelassistant.android.http
 import io.panelassistant.android.camera.CameraFault
 import io.panelassistant.android.camera.CameraIndication
 import io.panelassistant.android.camera.CameraPresentation
-import io.panelassistant.android.camera.CameraRefusal
 import io.panelassistant.android.camera.CameraResolution
 import io.panelassistant.android.camera.CameraState
 import io.panelassistant.android.camera.SnapshotExposureOutcome
@@ -59,49 +58,6 @@ class CameraSurfaceContractTest {
         assertEquals(CameraFault.entries.map { it.wire }.toSet(), enumOf("fault"))
         assertEquals(CameraIndication.entries.map { it.wire }.toSet(), enumOf("indication"))
         assertEquals(SnapshotExposureOutcome.entries.map { it.wire }.toSet(), enumOf("snapshot_exposure"))
-    }
-
-    @Test fun theSnapshotRouteIsDocumentedWithTheResolutionEnumAndNoFixedDefault() {
-        val get = openApi.getJSONObject("paths").getJSONObject("/api/v1/camera/snapshot.jpg").getJSONObject("get")
-        val params = get.getJSONArray("parameters")
-        val res = (0 until params.length()).map { params.getJSONObject(it) }
-            .first { it.getString("name") == "res" }
-        assertEquals("query", res.getString("in"))
-        assertFalse("res is optional", res.optBoolean("required", false))
-        val schema = res.getJSONObject("schema")
-        val enumValues = schema.getJSONArray("enum")
-            .let { array -> (0 until array.length()).map { array.getString(it) } }
-        assertEquals(CameraResolution.entries.map { it.wire }, enumValues)
-        // Omission takes the profile default, which is a configured value rather than one fixed
-        // default the spec could name — the schema must not claim one.
-        assertFalse(schema.has("default"))
-        val responses = get.getJSONObject("responses")
-        listOf("200", "400", "403", "404", "503").forEach {
-            assertTrue("missing response $it", responses.has(it))
-        }
-    }
-
-    /**
-     * The route's own 503 prose is the only place a consumer learns which bodies to expect, and it
-     * drifted: `CameraFault.ENCODE` has mapped to `camera-encode-failed` since slice 3 while the
-     * enumeration still named seven bodies (found 2026-08-30). Every refusal the enum carries that is not
-     * produced only on the stream path must be named in the documented response for its status.
-     */
-    @Test fun everyRefusalTheSnapshotRouteCanReturnIsNamedInItsDocumentedOutcome() {
-        // Produced only where a stream is admitted or its encoder fails; a snapshot never sees them.
-        val streamOnly = setOf(CameraRefusal.STREAM_ENCODER, CameraRefusal.BUSY)
-        val reachable = CameraRefusal.entries.filter { it !in streamOnly }
-        assertEquals(404, CameraRefusal.snapshotStatusCode(CameraRefusal.ABSENT))
-        reachable.filterNot { it == CameraRefusal.ABSENT }.forEach {
-            assertEquals("${it.name} must not be answered as absent hardware", 503, CameraRefusal.snapshotStatusCode(it))
-        }
-        val responses = openApi.getJSONObject("paths").getJSONObject("/api/v1/camera/snapshot.jpg").getJSONObject("get").getJSONObject("responses")
-        val notFound = responses.getJSONObject("404").getString("description")
-        val unavailable = responses.getJSONObject("503").getString("description")
-        reachable.forEach { refusal ->
-            val documented = if (refusal == CameraRefusal.ABSENT) notFound else unavailable
-            assertTrue("${refusal.token} is a reachable snapshot outcome and must be named in its documented response", refusal.token in documented)
-        }
     }
 
     @Test fun theConfigSchemaDescribesTheFourCameraSettings() {

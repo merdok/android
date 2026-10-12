@@ -59,13 +59,6 @@ enum class CameraRefusal(val token: String) {
             else -> entries.firstOrNull { it.token == token } ?: FAILED
         }
 
-        /**
-         * The snapshot route's status for a refusal. Only genuinely absent hardware is `404`; every
-         * refusal a camera-bearing panel can raise is a `503`, because the resource exists and the
-         * panel is declining to serve it right now.
-         */
-        fun snapshotStatusCode(refusal: CameraRefusal): Int =
-            if (refusal == ABSENT) 404 else 503
     }
 }
 

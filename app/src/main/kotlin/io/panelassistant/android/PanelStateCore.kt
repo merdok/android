@@ -98,8 +98,6 @@ internal class PanelStateCore(
     private val lightChannel: () -> Boolean? = { true },
     // Service-owned auto-sleep policy projection.
     private val autoSleepActivity: () -> AutoSleepActivitySnapshot = { AutoSleepActivitySnapshot() },
-    // The panel's own snapshot endpoint, as Home Assistant must dial it; null when no LAN address is known.
-    private val cameraSnapshotUrl: () -> String? = { null },
     // Inputs for the update channels: installed versions, same-policy catalog targets, install-lane
     // ownership and Panel Assistant ownership. Null registers no update channels.
     private val softwareUpdateSources: (() -> SoftwareUpdateSources)? = null,
@@ -236,10 +234,6 @@ internal class PanelStateCore(
         channel("prevent_idle_dim") { known(if (config.preventIdleDim) "ON" else "OFF") }
         channel("auto_brightness") { known(if (config.autoBrightness) "ON" else "OFF") }
         channel("camera_enabled") { known(if (config.cameraEnabled) "ON" else "OFF") }
-        channel("camera_snapshot") {
-            cameraSnapshotUrl()?.takeIf { config.cameraEnabled && it.isNotBlank() }?.let(known)
-                ?: Observation.Unavailable
-        }
         channel("auto_sleep_activity") {
             if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
             val snapshot = autoSleepActivity()
@@ -337,7 +331,7 @@ internal class PanelStateCore(
         "temperature" -> hasTemperature
         "humidity" -> hasHumidity
         MEDIA_CHANNEL -> media != null
-        "camera_enabled", "camera_snapshot" -> hasCamera()
+        "camera_enabled" -> hasCamera()
         "proximity", "proximity_level" -> learnedProximity
         "illuminance" -> lightChannel()
         // LedFactory returns the no-op controller only for a profile declaring no LED. A declared LED stays
@@ -554,18 +548,11 @@ internal class PanelStateCore(
         dispatchStateWork { reconcile("kiosk_lock") }
     }
 
-    /** The camera snapshot channel. Nothing here is periodic; the camera opens when a person looks at the
-     *  card, never because the panel reported. */
-    fun publishCameraSnapshot() {
-        reconcile("camera_snapshot")
-    }
-
     /** Re-report the camera surface after a change made outside a command (the Configure page, a bundle
      *  import, provisioning). */
     fun publishCameraState() {
         dispatchStateWork {
             reconcile("camera_enabled")
-            publishCameraSnapshot()
         }
     }
 

@@ -512,7 +512,7 @@ object SettingsRegistry {
             key = "camera_enabled", type = SettingType.BOOL, group = "Camera",
             tier = Tier.BASIC, summary = "Serve the panel camera as an RTSP stream and JPEG snapshot.",
             label = "Camera", default = "false", scope = Scope.DEVICE,
-            // The Configure page turns the words RTSP and JPEG into links to the two addresses; the text is
+            // The Configure page turns RTSP into a link; Home Assistant provides JPEG snapshots. The text is
             // written so it still reads correctly where those links are not rendered.
             help = "Off by default. Serves RTSP video with room audio where a microphone is available " +
                 "and permitted, and JPEG snapshots for Home Assistant. Capture starts only when a " +

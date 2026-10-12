@@ -18,7 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** Button events, auto-sleep activity, the camera snapshot and Zigbee health, reported on the native transport. */
+/** Button events, auto-sleep activity, and Zigbee health, reported on the native transport. */
 internal class NativeReportedChannelsTest : PanelRuntimeRig() {
     @Test fun aButtonPressIsReportedAsANativeEvent() {
         val rig = rig()
@@ -65,32 +65,6 @@ internal class NativeReportedChannelsTest : PanelRuntimeRig() {
             assertEquals(2, attributes.getInt("source_count"))
             assertEquals("holding", attributes.getString("phase"))
             assertEquals(true, attributes.getBoolean("manual_suppression"))
-        } finally { rig.close() }
-    }
-
-    @Test fun cameraSnapshotIsReportedOnceAndNotRepeatedForFreshness() {
-        val rig = rig(
-            hasCamera = true,
-            cameraSnapshotUrl = { "http://192.0.2.10:8888/api/v1/camera/snapshot" },
-            configure = { it.setCameraEnabled(true) },
-        )
-        try {
-            val native = bound(rig)
-            rig.start()
-            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
-            val snapshot = observation(fullSync(native), "camera_snapshot")
-            assertEquals("known", snapshot.getString("state"))
-            assertEquals(
-                "http://192.0.2.10:8888/api/v1/camera/snapshot",
-                snapshot.getJSONObject("value").getString("url"),
-            )
-
-            // Another local pass refreshes the other channels, but never the acknowledged snapshot URL:
-            // Home Assistant fetches a new frame for each image report.
-            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
-            val delta = JSONObject(requireNotNull(native.next(4, "native-session", 0L)))
-            assertTrue("other channels still refresh", channels(delta).isNotEmpty())
-            assertFalse("camera_snapshot" in channels(delta))
         } finally { rig.close() }
     }
 

@@ -47,7 +47,6 @@ internal object PanelAssistantValueTranslation {
             PanelAssistantValueKind.LIGHT -> light(payload)
             PanelAssistantValueKind.UPDATE -> update(payload)
             PanelAssistantValueKind.MEDIA -> media(payload)
-            PanelAssistantValueKind.IMAGE -> JSONObject().put("url", payload)
             PanelAssistantValueKind.BUTTON, PanelAssistantValueKind.EVENT -> null
         } ?: return null
         return PanelAssistantWireValue.Known(value)

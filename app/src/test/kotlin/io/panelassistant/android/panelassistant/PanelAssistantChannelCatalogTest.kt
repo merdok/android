@@ -16,6 +16,11 @@ import org.junit.Test
 import java.util.Base64
 
 class PanelAssistantChannelCatalogTest {
+    @Test fun theFormerSnapshotImageIsRetiredInsteadOfDescribed() {
+        assertNull(PanelAssistantChannelCatalog.describe("camera_snapshot"))
+        assertTrue("camera_snapshot" in PanelAssistantChannelCatalog.RETIRED_CHANNELS)
+    }
+
     @Test fun cameraControlDescribesAnOrdinaryEnabledCameraAndReportsBothPowerStates() {
         val descriptor = PanelAssistantChannelCatalog.describe("camera_enabled")!!
         val json = descriptor.toJson()

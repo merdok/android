@@ -50,14 +50,4 @@ class CameraRefusalTokenTest {
         assertEquals(CameraRefusal.FAILED, CameraRefusal.fromToken("", CameraCapabilityReason.NOT_ENUMERATED))
     }
 
-    @Test fun onlyAbsentHardwareAnswersNotFoundAndEveryFaultAnswersServiceUnavailable() {
-        assertEquals(404, CameraRefusal.snapshotStatusCode(CameraRefusal.ABSENT))
-        CameraRefusal.entries.filterNot { it == CameraRefusal.ABSENT }.forEach { refusal ->
-            assertEquals(
-                "${refusal.name} is a refusal by a panel that has a camera",
-                503,
-                CameraRefusal.snapshotStatusCode(refusal),
-            )
-        }
-    }
 }
