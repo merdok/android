@@ -130,10 +130,10 @@ class InteractiveControllerTest {
         assertEquals(listOf("helper-bytes:SCREENCAP", "su-bytes:screencap -p"), calls)
     }
 
-    @Test fun screenshotReturnsNullAfterBothByteRoutesFail() {
+    @Test fun screenshotReturnsNullAfterEveryRouteFails() {
         val calls = mutableListOf<String>()
         assertNull(controller(canSu = false, calls = calls).screenshot())
-        assertEquals(listOf("helper-bytes:SCREENCAP", "su-bytes:screencap -p"), calls)
+        assertEquals(listOf("helper-bytes:SCREENCAP", "su-bytes:screencap -p", "a11y:screenshot"), calls)
     }
 
     @Test fun concurrentScreenshotsAreSingleFlight() {

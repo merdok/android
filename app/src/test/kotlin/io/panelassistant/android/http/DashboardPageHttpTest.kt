@@ -78,7 +78,8 @@ class DashboardPageHttpTest {
                 suspend fun shot() = org.json.JSONObject(client.get("/api/v1/info?lang=en").bodyAsText()).getBoolean("shot")
                 assertEquals(false, shot())
                 val without = client.get("/?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
-                assertTrue(without.contains("data-capture-ok=\"0\" style=\"display:none\""))
+                assertTrue(without.contains("id=\"infotbl\""))
+                assertTrue(!without.contains("id=\"shotcard\""))
                 fixture.useInteractive(io.panelassistant.android.control.InteractiveController(
                     canSu = false,
                     root = io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
