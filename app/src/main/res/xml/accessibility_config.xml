@@ -2,9 +2,10 @@
 <!-- Config for PanelAccessibilityService. It filters hardware keys into HA button events, can
      inject control-surface taps and, on Android 11 or later, capture the screen for the panel page
      where no root route exists, and reads window content only to press Always on Android's HOME
-     chooser when it offers this app (HomeChooserPolicy). -->
+     chooser when it offers this app (HomeChooserPolicy) and to press Install on Android's
+     confirmation of this app's own update (InstallConfirmation). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRequestFilterKeyEvents|flagReportViewIds"
     android:canPerformGestures="true"

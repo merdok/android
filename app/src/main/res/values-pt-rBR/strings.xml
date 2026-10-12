@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Informa ao Home Assistant os acionamentos dos botões físicos do painel e permite que a interface de controle do painel simule toques e faça capturas de tela. Lê o conteúdo das janelas de outros apps apenas para escolher o Panel Assistant quando o Android pergunta qual app usar como tela inicial.</string>
+    <string name="a11y_description">Informa ao Home Assistant os acionamentos dos botões físicos do painel e permite que a interface de controle do painel simule toques e faça capturas de tela. Lê o conteúdo das janelas de outros apps apenas para escolher o Panel Assistant quando o Android pergunta qual app usar como tela inicial e para tocar em Instalar quando o Android pede para confirmar uma atualização deste app.</string>
     <string name="config_service_starting">Iniciando o serviço de configuração…</string>
     <string name="config_service_not_ready">O serviço de configuração ainda não está pronto.</string>
     <string name="retry">Tentar novamente</string>

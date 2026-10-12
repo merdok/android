@@ -21,6 +21,7 @@ import io.panelassistant.android.util.InstallOutcome
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Parameters
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveStream
@@ -381,43 +382,52 @@ internal fun Route.controlPlaneRoutes(dependencies: ControlPlaneRouteDependencie
 }
 
 private suspend fun handleApkCommit(call: ApplicationCall, routes: ControlPlaneRouteDependencies) {
-    val dependencies = routes.apkUpload
     val parameters = receiveBoundedFormParameters(call) ?: return
-    val token = parameters["token"].orEmpty()
+    when (val commit = prepareApkCommit(routes, parameters["token"].orEmpty())) {
+        is ApkCommit.Answered -> call.respond(commit.answer)
+        is ApkCommit.Ready -> {
+            if (!routes.authorize(
+                    call,
+                    SensitiveOperation.APK_INSTALL,
+                    exactHttpApprovalPayload(call, parameters.canonicalDigest()),
+                    commit.summary,
+                )
+            ) return
+            call.respond(startApkCommit(routes, commit))
+        }
+    }
+}
+
+/** A commit request checked up to its approval: either already answered, or ready to approve and start. */
+internal sealed interface ApkCommit {
+    class Answered(val answer: ControlPlaneAnswer) : ApkCommit
+    class Ready(val token: String, val migrationSha256: String?, val summary: String) : ApkCommit
+}
+
+/** Everything a commit checks before it asks for approval, the same for every door. */
+internal fun prepareApkCommit(routes: ControlPlaneRouteDependencies, token: String): ApkCommit {
+    val dependencies = routes.apkUpload
+    fun answered(status: HttpStatusCode, body: String) = ApkCommit.Answered(ControlPlaneAnswer(status, body))
     val inspected = dependencies.pending.peek(token)
     val migrationSha256 = inspected?.migrationSha256
     if (migrationSha256 == null && !dependencies.enabled()) {
-        call.respondText(
-            """{"status":"disabled"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.Forbidden,
-        )
-        return
+        return answered(HttpStatusCode.Forbidden, """{"status":"disabled"}""")
     }
-    if (inspected == null) {
-        call.respondText(
-            """{"status":"stale-or-missing"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.Conflict,
-        )
-        return
-    }
+    if (inspected == null) return answered(HttpStatusCode.Conflict, """{"status":"stale-or-missing"}""")
     val capability = if (migrationSha256 != null) routes.identityMigration.successorUploadCapability() else null
     if (migrationSha256 != null && capability == null) {
-        call.respondText("""{"status":"not-a-bridge"}""", ContentType.Application.Json, HttpStatusCode.NotFound)
-        return
+        return answered(HttpStatusCode.NotFound, """{"status":"not-a-bridge"}""")
     }
-    val identity = inspected.identity
-    val identitySummary = identity?.let(::uploadedApkApprovalSummary)?.let {
+    val identitySummary = inspected.identity?.let(::uploadedApkApprovalSummary)?.let {
         if (migrationSha256 != null) "$it for identity migration" else it
     } ?: "Install the inspected uploaded APK"
-    if (!routes.authorize(
-            call,
-            SensitiveOperation.APK_INSTALL,
-            exactHttpApprovalPayload(call, parameters.canonicalDigest()),
-            identitySummary,
-        )
-    ) return
+    return ApkCommit.Ready(token, migrationSha256, identitySummary)
+}
+
+/** Claim the approved commit's staged APK and start installing it. */
+internal fun startApkCommit(routes: ControlPlaneRouteDependencies, commit: ApkCommit.Ready): ControlPlaneAnswer {
+    val dependencies = routes.apkUpload
+    val token = commit.token
     // The operation lane is taken BEFORE the entry is claimed, so a claim is final: the entry leaves
     // the store only when its install genuinely starts, and there is no "claimed but might come back"
     // window for a discard to be lied to in — the busy answer below leaves the entry pending, visible
@@ -427,13 +437,9 @@ private suspend fun handleApkCommit(call: ApplicationCall, routes: ControlPlaneR
     val progress = InstallProgress.start(
         "APK",
         InstallPresentation("operation-working", mapOf("owner" to "apk")),
-    )
-    if (progress == null) {
-        call.respondText("""{"status":"busy"}""", ContentType.Application.Json)
-        return
-    }
+    ) ?: return ControlPlaneAnswer(HttpStatusCode.OK, """{"status":"busy"}""")
     var invalidMigration = false
-    val claimed = if (migrationSha256 == null) dependencies.pending.claim(token) else dependencies.pending.claimAfter(token) { entry ->
+    val claimed = if (commit.migrationSha256 == null) dependencies.pending.claim(token) else dependencies.pending.claimAfter(token) { entry ->
         val current = routes.identityMigration.successorUploadCapability()
         val valid = current != null && successorCandidateMatches(entry.identity, current) &&
             runCatching { AppInstaller.sha256(entry.file) == entry.migrationSha256 }.getOrDefault(false)
@@ -449,36 +455,110 @@ private suspend fun handleApkCommit(call: ApplicationCall, routes: ControlPlaneR
             "Nothing installed: the pending APK was discarded, replaced or expired.",
             presentation = InstallPresentation("apk-pending-lost"),
         )
-        call.respondText(
-            if (invalidMigration) """{"status":"migration-invalid"}""" else """{"status":"stale-or-missing"}""",
-            ContentType.Application.Json,
+        return ControlPlaneAnswer(
             HttpStatusCode.Conflict,
+            if (invalidMigration) """{"status":"migration-invalid"}""" else """{"status":"stale-or-missing"}""",
         )
-        return
     }
     dependencies.startInstall(claimed, progress)
-    call.respondText("""{"status":"started"}""", ContentType.Application.Json)
+    return ControlPlaneAnswer(HttpStatusCode.OK, """{"status":"started"}""")
 }
 
 /** Whether candidate APK bytes reached the staging file, or the exact wire refusal if they did not.
  *  The refusal is source-specific (an upload that outgrew its ceiling is not worded like a fetch that
  *  did), while everything after the bytes land is identical for both sources. */
-private sealed interface StagedBytes {
+internal sealed interface StagedBytes {
     data object Written : StagedBytes
     data class Refused(val status: HttpStatusCode, val error: String) : StagedBytes
 }
 
+/** What a control route answers: the HTTP status and JSON body, whichever door the request came through. */
+internal class ControlPlaneAnswer(val status: HttpStatusCode, val body: String)
+
+private suspend fun ApplicationCall.respond(answer: ControlPlaneAnswer) =
+    respondText(answer.body, ContentType.Application.Json, answer.status)
+
+/** The staging answer, and how to give up a staged candidate whose answer could not be delivered. */
+internal class StagedAnswer(val answer: ControlPlaneAnswer, val abandon: () -> Unit)
+
 /**
  * The single staging, inspection and hand-off path shared by every APK source.
  *
- * Both the upload route and the URL route end here, so the security-relevant sequence exists once:
- * allocate staging, bound it to what the panel can actually store, obtain the bytes, inspect the exact
- * staged file, and mint a token bound to it. [writeBytes] is the only difference between sources.
+ * The upload route, the URL route and the Panel Assistant session all end here, so the security-relevant
+ * sequence exists once: allocate staging, bound it to what the panel can actually store, obtain the bytes,
+ * inspect the exact staged file, and mint a token bound to it. [writeBytes] is the only difference between
+ * sources.
  *
- * The caller has already taken [lease]. Every path that does not transfer a response releases that
- * lease and deletes the staging file in [finally], so an abandoned, refused or unreadable candidate
- * can never outlive the request or be reachable by a later token.
+ * The caller has already taken [lease]. Every path that does not answer with a token releases that lease
+ * and deletes the staging file in [finally], so an abandoned, refused or unreadable candidate can never
+ * outlive the request or be reachable by a later token; a token whose answer cannot be delivered is given
+ * up through [StagedAnswer.abandon].
  */
+internal suspend fun stageInspect(
+    dependencies: ApkUploadRouteDependencies,
+    lease: PendingUploadStore.Lease,
+    declaredBytes: Long?,
+    request: String? = null,
+    migrationSha256: String? = null,
+    migration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
+    writeBytes: suspend (File, Long) -> StagedBytes,
+): StagedAnswer {
+    // Echoed on every answer for a request-owned source, so a client can discard a reply belonging to
+    // an action it has already replaced instead of rendering it over the newer one.
+    val owner = request?.let(::requestEcho).orEmpty()
+    fun refused(status: HttpStatusCode, error: String) =
+        StagedAnswer(ControlPlaneAnswer(status, """{"ok":false,"error":${Json.str(error)}$owner}""")) {}
+    var tokenAnswered = false
+    var stagedFile: File? = null
+    try {
+        val staged = runCatching { dependencies.createStagingFile() }.getOrElse {
+            return refused(HttpStatusCode.InternalServerError, "upload-staging-failed")
+        }
+        stagedFile = staged
+        val stagingLimit = uploadStagingLimit(dependencies.usableSpace(staged), dependencies.maxBytes)
+        if (stagingLimit == 0L || (declaredBytes != null && declaredBytes > stagingLimit)) {
+            return refused(HttpStatusCode.InsufficientStorage, "insufficient-storage")
+        }
+        when (val written = writeBytes(staged, stagingLimit)) {
+            is StagedBytes.Refused -> return refused(written.status, written.error)
+            StagedBytes.Written -> Unit
+        }
+        val identity = dependencies.inspect(staged) ?: return refused(HttpStatusCode.BadRequest, "not-an-apk")
+        if (migrationSha256 == null && identity.pkg != dependencies.ownPackage && !dependencies.rootAvailable()) {
+            // Admitted only as this app's own update: an arbitrary APK still needs root or the helper.
+            return refused(HttpStatusCode.ServiceUnavailable, "no-root")
+        }
+        if (migrationSha256 != null) {
+            val capability = migration.successorUploadCapability()
+            val valid = capability != null && successorCandidateMatches(identity, capability) &&
+                withContext(Dispatchers.IO) { runCatching { AppInstaller.sha256(staged) == migrationSha256 }.getOrDefault(false) }
+            if (!valid) return refused(HttpStatusCode.UnprocessableEntity, "migration-invalid")
+        }
+        val entry = dependencies.pending.stage(lease, staged, identity, migrationSha256)
+        if (entry == null) {
+            // A transfer that finished while the operator was cancelling must be reported as cancelled,
+            // not as a shutdown, and above all must not have produced a token.
+            return if (dependencies.pending.isCancelled(lease)) refused(CLIENT_CLOSED_REQUEST, "cancelled")
+            else refused(HttpStatusCode.ServiceUnavailable, "stopping")
+        }
+        tokenAnswered = true
+        return StagedAnswer(
+            ControlPlaneAnswer(
+                HttpStatusCode.OK,
+                """{"ok":true,"token":${Json.str(entry.token)},"package":${Json.str(identity.pkg)},"version":${Json.str(identity.version)},"signer":${Json.str(identity.signerSha256 ?: "unsigned")}$owner}""",
+            ),
+        ) {
+            dependencies.pending.abort(lease)
+            staged.delete()
+        }
+    } finally {
+        if (!tokenAnswered) {
+            dependencies.pending.abort(lease)
+            stagedFile?.delete()
+        }
+    }
+}
+
 private suspend fun stageInspectAndRespond(
     call: ApplicationCall,
     dependencies: ApkUploadRouteDependencies,
@@ -489,94 +569,12 @@ private suspend fun stageInspectAndRespond(
     migration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
     writeBytes: suspend (File, Long) -> StagedBytes,
 ) {
-    // Echoed on every answer for a request-owned source, so a client can discard a reply belonging to
-    // an action it has already replaced instead of rendering it over the newer one.
-    val owner = request?.let(::requestEcho).orEmpty()
-    var responseTransferred = false
-    var stagedFile: File? = null
+    val staged = stageInspect(dependencies, lease, declaredBytes, request, migrationSha256, migration, writeBytes)
     try {
-        val staged = runCatching { dependencies.createStagingFile() }.getOrElse {
-            call.respondText(
-                """{"ok":false,"error":"upload-staging-failed"$owner}""",
-                ContentType.Application.Json,
-                HttpStatusCode.InternalServerError,
-            )
-            return
-        }
-        stagedFile = staged
-        val stagingLimit = uploadStagingLimit(dependencies.usableSpace(staged), dependencies.maxBytes)
-        if (stagingLimit == 0L || (declaredBytes != null && declaredBytes > stagingLimit)) {
-            call.respondText(
-                """{"ok":false,"error":"insufficient-storage"$owner}""",
-                ContentType.Application.Json,
-                HttpStatusCode.InsufficientStorage,
-            )
-            return
-        }
-        when (val written = writeBytes(staged, stagingLimit)) {
-            is StagedBytes.Refused -> {
-                call.respondText(
-                    """{"ok":false,"error":${Json.str(written.error)}$owner}""",
-                    ContentType.Application.Json,
-                    written.status,
-                )
-                return
-            }
-            StagedBytes.Written -> Unit
-        }
-        val identity = dependencies.inspect(staged)
-        if (identity == null) {
-            call.respondText(
-                """{"ok":false,"error":"not-an-apk"$owner}""",
-                ContentType.Application.Json,
-                HttpStatusCode.BadRequest,
-            )
-            return
-        }
-        if (migrationSha256 == null && identity.pkg != dependencies.ownPackage && !dependencies.rootAvailable()) {
-            // Admitted only as this app's own update: an arbitrary APK still needs root or the helper.
-            call.respondText(
-                """{"ok":false,"error":"no-root"$owner}""",
-                ContentType.Application.Json,
-                HttpStatusCode.ServiceUnavailable,
-            )
-            return
-        }
-        if (migrationSha256 != null) {
-            val capability = migration.successorUploadCapability()
-            val valid = capability != null && successorCandidateMatches(identity, capability) &&
-                withContext(Dispatchers.IO) { runCatching { AppInstaller.sha256(staged) == migrationSha256 }.getOrDefault(false) }
-            if (!valid) {
-                call.respondText(
-                    """{"ok":false,"error":"migration-invalid"$owner}""",
-                    ContentType.Application.Json,
-                    HttpStatusCode.UnprocessableEntity,
-                )
-                return
-            }
-        }
-        val entry = dependencies.pending.stage(lease, staged, identity, migrationSha256)
-        if (entry == null) {
-            // A transfer that finished while the operator was cancelling must be reported as cancelled,
-            // not as a shutdown, and above all must not have produced a token.
-            val cancelled = dependencies.pending.isCancelled(lease)
-            call.respondText(
-                if (cancelled) """{"ok":false,"error":"cancelled"$owner}""" else """{"ok":false,"error":"stopping"$owner}""",
-                ContentType.Application.Json,
-                if (cancelled) CLIENT_CLOSED_REQUEST else HttpStatusCode.ServiceUnavailable,
-            )
-            return
-        }
-        call.respondText(
-            """{"ok":true,"token":${Json.str(entry.token)},"package":${Json.str(identity.pkg)},"version":${Json.str(identity.version)},"signer":${Json.str(identity.signerSha256 ?: "unsigned")}$owner}""",
-            ContentType.Application.Json,
-        )
-        responseTransferred = true
-    } finally {
-        if (!responseTransferred) {
-            dependencies.pending.abort(lease)
-            stagedFile?.delete()
-        }
+        call.respond(staged.answer)
+    } catch (error: Throwable) {
+        staged.abandon()
+        throw error
     }
 }
 
@@ -737,26 +735,18 @@ private suspend fun handleApkFetchCancel(call: ApplicationCall, dependencies: Ap
  */
 private suspend fun handleApkDiscard(call: ApplicationCall, dependencies: ApkUploadRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
-    val ref = parameters["token"].orEmpty()
+    call.respond(discardApk(dependencies, parameters["token"].orEmpty()))
+}
+
+internal fun discardApk(dependencies: ApkUploadRouteDependencies, ref: String): ControlPlaneAnswer {
     if (ref.isEmpty()) {
-        call.respondText(
-            """{"ok":false,"error":"invalid-request"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.BadRequest,
-        )
-        return
+        return ControlPlaneAnswer(HttpStatusCode.BadRequest, """{"ok":false,"error":"invalid-request"}""")
     }
-    when (dependencies.pending.discard(ref)) {
-        PendingUploadStore.DiscardResult.DISCARDED ->
-            call.respondText("""{"ok":true,"discarded":true}""", ContentType.Application.Json)
-        PendingUploadStore.DiscardResult.NOTHING_PENDING ->
-            call.respondText("""{"ok":true,"discarded":false}""", ContentType.Application.Json)
+    return when (dependencies.pending.discard(ref)) {
+        PendingUploadStore.DiscardResult.DISCARDED -> ControlPlaneAnswer(HttpStatusCode.OK, """{"ok":true,"discarded":true}""")
+        PendingUploadStore.DiscardResult.NOTHING_PENDING -> ControlPlaneAnswer(HttpStatusCode.OK, """{"ok":true,"discarded":false}""")
         PendingUploadStore.DiscardResult.DIFFERENT_PENDING ->
-            call.respondText(
-                """{"ok":false,"error":"different-pending"}""",
-                ContentType.Application.Json,
-                HttpStatusCode.Conflict,
-            )
+            ControlPlaneAnswer(HttpStatusCode.Conflict, """{"ok":false,"error":"different-pending"}""")
     }
 }
 
@@ -779,6 +769,14 @@ private suspend fun handleApkPending(call: ApplicationCall, dependencies: ApkUpl
     )
 }
 
+/** Why this panel takes no APK upload at all, from any door, or null when it may. */
+internal fun apkUploadRefusal(dependencies: ApkUploadRouteDependencies): ControlPlaneAnswer? = when {
+    !dependencies.enabled() -> ControlPlaneAnswer(HttpStatusCode.Forbidden, """{"ok":false,"error":"disabled"}""")
+    !dependencies.rootAvailable() && !dependencies.confirmedSelfUpdate() ->
+        ControlPlaneAnswer(HttpStatusCode.ServiceUnavailable, """{"ok":false,"error":"no-root"}""")
+    else -> null
+}
+
 /** Stages an arbitrary user-supplied APK on the unauthenticated LAN-trust surface, so the production source, origin, host, explicit-enable and root-capability gates must remain in force around this route. */
 private suspend fun handleApkUpload(call: ApplicationCall, routes: ControlPlaneRouteDependencies) {
     val dependencies = routes.apkUpload
@@ -799,22 +797,7 @@ private suspend fun handleApkUpload(call: ApplicationCall, routes: ControlPlaneR
         }
         value
     } else null
-    if (!migrationRequested && !dependencies.enabled()) {
-        call.respondText(
-            """{"ok":false,"error":"disabled"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.Forbidden,
-        )
-        return
-    }
-    if (!migrationRequested && !dependencies.rootAvailable() && !dependencies.confirmedSelfUpdate()) {
-        call.respondText(
-            """{"ok":false,"error":"no-root"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.ServiceUnavailable,
-        )
-        return
-    }
+    if (!migrationRequested) apkUploadRefusal(dependencies)?.let { return call.respond(it) }
     val declaredHeader = call.request.headers[HttpHeaders.ContentLength]
     val declaredBytes = declaredHeader?.toLongOrNull()
     if (declaredHeader != null && (declaredBytes == null || declaredBytes < 0L)) {
@@ -955,6 +938,42 @@ private suspend fun handleComponentInstall(
 
 private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPlaneRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
+    val request = when (val parsed = backupRequest(parameters)) {
+        is BackupRequest.Refused -> return call.respond(parsed.answer)
+        is BackupRequest.Accepted -> parsed
+    }
+    if (!dependencies.authorize(
+            call,
+            SensitiveOperation.BACKUP_EXPORT,
+            exactHttpApprovalPayload(call, parameters.canonicalDigest()),
+            BACKUP_APPROVAL_SUMMARY,
+        )
+    ) return
+    val refusal = buildAndDeliverBackup(dependencies, request) { built, release ->
+        call.response.headers.append(
+            "Content-Disposition",
+            "attachment; filename=\"${dependencies.backupFileStem()}-backup.${built.extension}\"",
+        )
+        call.respondOutputStream(ContentType.Application.OctetStream) {
+            try {
+                built.file.inputStream().use { input -> input.copyTo(this) }
+            } finally {
+                release()
+            }
+        }
+    }
+    if (refusal != null) call.respond(refusal)
+}
+
+internal const val BACKUP_APPROVAL_SUMMARY = "Export a backup containing panel credentials"
+
+/** A backup request's parameters, or the answer refusing them, the same for every door. */
+internal sealed interface BackupRequest {
+    class Refused(val answer: ControlPlaneAnswer) : BackupRequest
+    class Accepted(val companion: CompanionBackupRequest, val passphrase: String) : BackupRequest
+}
+
+internal fun backupRequest(parameters: Parameters): BackupRequest {
     val passphrase = parameters["passphrase"].orEmpty()
     val allowPlaintext = parameters["allow_plaintext"]?.let { it == "true" || it == "1" } ?: false
     // Refuse an uninterpretable request before the policy checks below: those answer a request that was
@@ -962,38 +981,35 @@ private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPla
     // value there falls to the safe side and only costs the caller an extra explicit acknowledgement,
     // whereas falling to a side here would quietly decide what the backup contains.
     val companionRequest = parseCompanionBackupRequest(parameters["include_companion"])
-    if (companionRequest == null) {
-        call.respondText(
-            """{"ok":false,"error":"invalid-include-companion","message":"include_companion must be true, 1, false or 0. Omit it to include the HA Companion login only when it is installed."}""",
-            ContentType.Application.Json,
-            HttpStatusCode.BadRequest,
+        ?: return BackupRequest.Refused(
+            ControlPlaneAnswer(
+                HttpStatusCode.BadRequest,
+                """{"ok":false,"error":"invalid-include-companion","message":"include_companion must be true, 1, false or 0. Omit it to include the HA Companion login only when it is installed."}""",
+            ),
         )
-        return
-    }
     if (passphrase.isEmpty() && !allowPlaintext) {
-        call.respondText(
-            """{"ok":false,"error":"passphrase-required","message":"A backup contains credentials. Supply a passphrase, or explicitly acknowledge plaintext export with allow_plaintext=1."}""",
-            ContentType.Application.Json,
-            HttpStatusCode.BadRequest,
+        return BackupRequest.Refused(
+            ControlPlaneAnswer(
+                HttpStatusCode.BadRequest,
+                """{"ok":false,"error":"passphrase-required","message":"A backup contains credentials. Supply a passphrase, or explicitly acknowledge plaintext export with allow_plaintext=1."}""",
+            ),
         )
-        return
     }
-    if (!dependencies.authorize(
-            call,
-            SensitiveOperation.BACKUP_EXPORT,
-            exactHttpApprovalPayload(call, parameters.canonicalDigest()),
-            "Export a backup containing panel credentials",
-        )
-    ) return
+    return BackupRequest.Accepted(companionRequest, passphrase)
+}
+
+/**
+ * Build one approved backup in the operation lane and hand it to [deliver], which must call its `release`
+ * once it no longer reads the file. Null once delivered, else the answer refusing it; a [deliver] that
+ * throws has the artifact released here.
+ */
+internal suspend fun buildAndDeliverBackup(
+    dependencies: ControlPlaneRouteDependencies,
+    request: BackupRequest.Accepted,
+    deliver: suspend (PanelBackup.Artifact, release: () -> Unit) -> Unit,
+): ControlPlaneAnswer? {
     val delivery = BackupDeliveryGate.acquire()
-    if (delivery == null) {
-        call.respondText(
-            """{"ok":false,"error":"busy"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.Conflict,
-        )
-        return
-    }
+        ?: return ControlPlaneAnswer(HttpStatusCode.Conflict, """{"ok":false,"error":"busy"}""")
     // Every backup owns the destructive/expensive operation lane. Even config-only encrypted bundles
     // run PBKDF2 + AES and must not be multiplied by concurrent unauthenticated LAN requests.
     val progress = InstallProgress.start(
@@ -1002,12 +1018,7 @@ private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPla
     )
     if (progress == null) {
         delivery.close()
-        call.respondText(
-            """{"ok":false,"error":"busy"}""",
-            ContentType.Application.Json,
-            HttpStatusCode.Conflict,
-        )
-        return
+        return ControlPlaneAnswer(HttpStatusCode.Conflict, """{"ok":false,"error":"busy"}""")
     }
     var progressResult = "backup cancelled"
     var progressPresentation: InstallPresentation? = InstallPresentation("backup-cancelled")
@@ -1022,7 +1033,7 @@ private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPla
         }
     }
     try {
-        val built = dependencies.buildBackup(companionRequest, passphrase)
+        val built = dependencies.buildBackup(request.companion, request.passphrase)
         artifact = built
         // The archive records its own incompleteness, but the owner is standing here now: a bundle whose
         // panel state could not be read must not report the same "backup ready" as a whole one, or the
@@ -1033,55 +1044,40 @@ private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPla
         )
         InstallProgress.finish(progress, progressResult, presentation = progressPresentation)
         progressFinished = true
-        call.response.headers.append(
-            "Content-Disposition",
-            "attachment; filename=\"${dependencies.backupFileStem()}-backup.${built.extension}\"",
-        )
         deliveryHandedOff = true
         try {
-            call.respondOutputStream(ContentType.Application.OctetStream) {
-                try {
-                    built.file.inputStream().use { input -> input.copyTo(this) }
-                } finally {
-                    cleanDelivery()
-                }
-            }
+            deliver(built, ::cleanDelivery)
         } catch (error: Throwable) {
             deliveryHandedOff = false
             throw error
         }
+        return null
     } catch (_: ByteLimitExceeded) {
         progressResult = "Companion backup is too large"
         val presentation = InstallPresentation("backup-companion-too-large")
         progressPresentation = presentation
-        call.respondText(
-            withInstallPresentation("""{"ok":false,"error":"companion-backup-too-large"}""", presentation),
-            ContentType.Application.Json,
+        return ControlPlaneAnswer(
             HttpStatusCode.PayloadTooLarge,
+            withInstallPresentation("""{"ok":false,"error":"companion-backup-too-large"}""", presentation),
         )
-        return
     } catch (error: CompanionBackupUnavailable) {
         progressResult = error.reason
         progressPresentation = error.presentation
-        call.respondText(
-            withInstallPresentation("""{"ok":false,"error":${Json.str(error.reason)}}""", error.presentation),
-            ContentType.Application.Json,
+        return ControlPlaneAnswer(
             HttpStatusCode.UnprocessableEntity,
+            withInstallPresentation("""{"ok":false,"error":${Json.str(error.reason)}}""", error.presentation),
         )
-        return
     } catch (_: BackupStagingRetainedException) {
         progressResult = "Sensitive backup staging file retained"
         val presentation = InstallPresentation("backup-staging-retained")
         progressPresentation = presentation
-        call.respondText(
+        return ControlPlaneAnswer(
+            HttpStatusCode.InsufficientStorage,
             withInstallPresentation(
                 """{"ok":false,"error":"backup-staging-retained","message":"Sensitive temporary backup data could not be removed. Check panel storage, then retry; no backup was downloaded."}""",
                 presentation,
             ),
-            ContentType.Application.Json,
-            HttpStatusCode.InsufficientStorage,
         )
-        return
     } finally {
         if (!deliveryHandedOff) {
             cleanDelivery()
