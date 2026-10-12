@@ -31,6 +31,8 @@ import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
+import io.panelassistant.android.util.BoundedStreams
+import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.SelfUpdater
 import java.security.SecureRandom
 import java.util.UUID
@@ -220,9 +222,14 @@ internal fun Route.stubRoutes(
     }
     put(StubEndpoints.BLOB) {
         val token = call.parameters["token"].orEmpty()
-        val bytes = call.receiveChannel().toInputStream().use { it.readNBytes(blobs.limit() + 1) }
+        val bytes = try {
+            java.io.ByteArrayOutputStream().also { out ->
+                call.receiveChannel().toInputStream().use { BoundedStreams.copy(it, out, blobs.limit().toLong()) }
+            }.toByteArray()
+        } catch (_: ByteLimitExceeded) {
+            return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
+        }
         when {
-            bytes.size > blobs.limit() -> call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
             !blobs.fill(token, bytes) -> call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
             else -> call.respondText(StubBlobs.reference(token, bytes, "application/octet-stream").toString(), ContentType.Application.Json)
         }
