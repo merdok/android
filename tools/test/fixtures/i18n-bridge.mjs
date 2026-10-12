@@ -21,7 +21,7 @@ function payloadJson({ locale = 'en', locales = LOCALES, strings = {}, ...page }
 // For a browser fixture's <head>. The payload is the page's projection: locale and strings, plus any
 // page fields (install's languages).
 export function i18nBridge(payload) {
-  return `<script id="ha-i18n" type="application/json">${payloadJson(payload).replace(/</g, '\\u003c')}</script><script>${inline}</script><script>${transportInline}</script>`;
+  return `<script id="ha-i18n" type="application/json">${payloadJson(payload).replace(/</g, '\\u003c')}</script><script>${transportInline}</script><script>${inline}</script>`;
 }
 
 // For a node:vm fixture: the real HaI18n built from the payload. When `calls` is given, each

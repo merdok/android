@@ -149,10 +149,10 @@ function rendererMeasurement(mode,r){
  }
  return {header:'',title:'',rows:[{label:text('dashboard.renderer.measurement_mode','Measurement mode'),val:text('dashboard.renderer.needs_root','External renderer proxy needs root/helper access'),col:'var(--fg-muted)'}]};
 }
-async function perf(){
- if(document.hidden)return;   // a hidden/background tab must not keep the sampler (or panel) busy
+var PT=window.PaneldTransport;
+function perf(d,known){   // the transport pauses the `perf` family while the tab is hidden
  try{
-  var d=await (await fetch('api/v1/perf')).json();
+  if(known!=='known')throw new Error('perf unavailable');
   if(d.hist){cpuH=d.hist.cpu||[];ramH=d.hist.ram||[];gpuH=d.hist.gpu||[];}  // server FIFO
   draw();
   var ramOk=d.memTotalMb!=null&&d.memTotalMb>0&&d.memUsedMb!=null;
@@ -214,9 +214,9 @@ async function perf(){
   cardSizeSourceReady('perf');
  }catch(e){document.getElementById('perfage').textContent=i18nText('dashboard.common.unavailable','· unavailable');}
 }
-perf();setInterval(perf,2000);
+PT.subscribe('perf',perf);
 // Live Sensors card — REUSABLE: sensorsCard(tableId, ageId) mounts the same card on any tab that
-// includes a table + age element; polls /api/v1/sensors every 2s, pauses while the tab is hidden.
+// includes a table + age element; rides the `sensors` family (2 s floor, paused while the tab is hidden).
 function formatBrightness(raw){
  if(typeof raw!=='number'||!isFinite(raw)||raw<0)return null;
  var value=Math.max(0,Math.min(255,Math.round(raw)));
@@ -238,10 +238,10 @@ function proximityReading(p){
 }
 function sensorsCard(tbl,age){
  function fA(a){return a==null?'':(a<90?i18nText('dashboard.sensors.seconds_ago','· {count}s ago',{count:a}):(a<5400?i18nText('dashboard.sensors.minutes_ago','· {count}m ago',{count:Math.round(a/60)}):i18nText('dashboard.sensors.hours_ago','· {count}h ago',{count:Math.round(a/3600)})));}
- async function s(){
-  if(document.hidden)return;
+ function s(d,known){
   try{
-   var d=await (await fetch('api/v1/sensors')).json(),rows=[];
+   if(known!=='known')throw new Error('sensors unavailable');
+   var rows=[];
    if(d.light&&d.light.present)rows.push({label:i18nText('dashboard.sensors.ambient_light','Ambient light'),val:d.light.lux!=null?d.light.lux+' lx':i18nText('dashboard.sensors.no_reading','no reading yet'),suf:fA(d.light.age_s)});
    if(d.colour_temperature&&d.colour_temperature.present){var c=d.colour_temperature;
     rows.push({label:i18nText('dashboard.sensors.estimated_colour_temperature','Estimated colour temperature'),val:typeof c.kelvin==='number'&&isFinite(c.kelvin)&&c.kelvin>0?c.kelvin+' K':i18nText('dashboard.sensors.no_reading','no reading yet'),suf:fA(c.age_s)});}
@@ -258,12 +258,12 @@ function sensorsCard(tbl,age){
    cardSizeSourceReady('sensors');
   }catch(e){var a=document.getElementById(age);if(a)a.textContent=i18nText('dashboard.common.unavailable','· unavailable');}
  }
- s();setInterval(s,2000);
+ PT.subscribe('sensors',s);
 }
 sensorsCard('senstbl','sensage');
 // Live Camera stream card — what the encode session was ASKED for, beside what it is DELIVERING.
 // Mounted only where the server rendered the card (a board whose profile declares a camera), and fed
-// by /api/v1/camera/status, which is byte-for-byte the object /api/v1/status carries under `camera`.
+// by the `camera` family (the camera/status body), which is byte-for-byte the object the `status` read carries under `camera`.
 //
 // Two things this card deliberately does NOT do. It never quotes a CPU figure: a hardware encode runs
 // in the codec HAL and through the compositor as much as in this app, so no single process is "what the
@@ -295,7 +295,6 @@ function cameraCard(tbl,hdr){
  // impossible: a slow answer cannot land after a fast one when the fast one was never started. A
  // sequence number beside it would be unreachable code, so there isn't one — the guarantee is the
  // guard, and the tests assert it as a number by counting overlapping requests at the server.
- var inFlight=false;
  function n(v){return typeof v==='number'&&isFinite(v)?v:null;}
  function one(v){return Math.round(v*10)/10;}
  function head(text){var h=document.getElementById(hdr);if(h)h.textContent=text;}
@@ -439,14 +438,11 @@ function cameraCard(tbl,hdr){
     :{label:i18nText('dashboard.camera.label.delivery','Delivery'),val:i18nText('dashboard.camera.delivery.measuring','measuring…'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.delivery.measuring_help','· waiting for enough consecutive readings to judge')});
   return rows;
  }
- async function poll(){
-  // A hidden tab must not keep the panel busy — and the gap it leaves behind is not evidence either,
-  // so the run it was building is dropped rather than resumed on the far side of it.
-  if(document.hidden){forget();lastReadingAt=0;return;}
-  if(inFlight)return;
-  inFlight=true;
+ function poll(d,known){
+  // A hidden tab ends the subscription; the gap it leaves behind is not evidence, so the run it was
+  // building is dropped (CAMERA_MAX_GAP_MS) rather than resumed on the far side of it.
   try{
-   var d=await (await fetch('api/v1/camera/status',{cache:'no-store'})).json();
+   if(known!=='known')throw new Error('camera unavailable');
    var now=Date.now();
    if(lastReadingAt&&now-lastReadingAt>CAMERA_MAX_GAP_MS)forget();
    lastReadingAt=now;
@@ -458,11 +454,10 @@ function cameraCard(tbl,hdr){
    paint(tbl,[{label:i18nText('dashboard.camera.label.camera','Camera'),val:i18nText('dashboard.camera.error.status_unavailable','status unavailable'),col:'var(--fg-muted)',suf:i18nText('dashboard.camera.error.no_answer','· the panel did not answer')}]);hwm(tbl);
    head('· '+i18nText('dashboard.camera.session.unavailable','unavailable'));
   }finally{
-   inFlight=false;
    cardSizeSourceReady('camera');
   }
  }
- poll();setInterval(poll,2000);
+ PT.subscribe('camera',poll);
 }
 cameraCard('camtbl','camhdr');
 // High-water-mark: the two live cards whose heights swing most — Responsiveness (the Rendering-load row
@@ -501,13 +496,14 @@ function fitControls(){
 window.addEventListener('resize',fitControls);
 if(document.readyState!=='loading')fitControls();else document.addEventListener('DOMContentLoaded',fitControls);
 function approvalMessage(){return i18nText('dashboard.actions.approve_on_panel','Approve this request on the panel, then retry it.');}
-function responseBody(response){return response.text().then(function(text){
- var body={};try{body=text?JSON.parse(text):{};}catch(_){body={};}
- if(response.status===202&&body&&body.error==='approval-required'){
+function responseBody(reply){var body=reply.result&&typeof reply.result==='object'?reply.result:{};
+ if(reply.outcome==='pending_approval'){
   var error=new Error(approvalMessage());error.approvalRequired=true;error.body=body;throw error;
  }
- return {response:response,body:body};
-});}
+ return {reply:reply,body:body};
+}
+// Transport reply headers (lower-case names) behind the Headers.get() shape the screenshot code reads.
+function replyHeaders(reply){var h=reply.headers||{};return {get:function(name){var v=h[String(name).toLowerCase()];return v==null?null:v;}};}
 function inspApply(d){
  var hdr=document.getElementById('insthdr'),hint=document.getElementById('insthint'),start=document.getElementById('inspstart');
  if(start)start.disabled=d.start_allowed===false;
@@ -520,11 +516,11 @@ function inspApply(d){
  else hint.textContent=(perfMode==='builtin_direct'?i18nText('dashboard.inspect.direct_instrumentation','The performance cards above use direct built-in instrumentation without DevTools.')+' ':'')+i18nText('dashboard.inspect.instructions','For deeper inspection, open chrome://inspect → Configure…, add {host}, then press Enable. Companion also requires Settings → Troubleshooting → WebView remote debugging and a dashboard relaunch. The relay needs root.',{host:location.hostname+':'+d.port});
  cardSizeSourceReady('inspect');
 }
-async function insp(){try{var d=await (await fetch('api/v1/inspect')).json();inspApply(d);}catch(e){}}
+async function insp(){try{var d=(await PT.request('inspect')).result;inspApply(d);}catch(e){}}
 function inspStart(){var hint=document.getElementById('insthint');
- fetch('api/v1/inspect/start',{method:'POST'}).then(responseBody).then(function(result){inspApply(result.body);})
+ PT.request('inspect.start').then(responseBody).then(function(result){inspApply(result.body);})
  .catch(function(error){if(hint)hint.textContent=error&&error.approvalRequired?i18nText('dashboard.actions.approve_on_panel','Approve this request on the panel, then retry it.'):i18nText('dashboard.inspect.start_failed','Could not start the relay.');});}
-function inspStop(){fetch('api/v1/inspect/stop',{method:'POST'}).then(function(r){return r.json();}).then(inspApply).catch(function(){});}
+function inspStop(){PT.request('inspect.stop').then(function(r){return r.result;}).then(inspApply).catch(function(){});}
 insp();
 
 var scheduleDashboardColumnAlignment=window.CardColumnAlignment
@@ -543,11 +539,11 @@ function act(a){if(a==='reboot'){
  if(document.body.dataset.hardened==='1')warning+='\n\n'+i18nText('dashboard.actions.hardened_approval','Hardened mode requires physical approval on this panel; it cannot be approved remotely.');
  if(!confirm(warning))return;
  }
- fetch('api/v1/action',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'a='+a})
+ (a==='reload'||a==='reboot'?PT.command(a):a==='dashboard'?PT.request('action.dashboard'):PT.request('action',{a:a}))
  .then(responseBody).then(function(result){
-  if(!result.response.ok){
+  if(result.reply.outcome!=='applied'){
    if(result.body&&result.body.error==='remote-input-disabled')controlMessage(i18nText('dashboard.actions.remote_input_disabled','Remote tap input is disabled for network clients in Hardened mode.'));
-   else controlMessage(i18nText('dashboard.actions.failed_http','Action failed (HTTP {status}).',{status:result.response.status}));
+   else controlMessage(i18nText('dashboard.actions.failed_http','Action failed (HTTP {status}).',{status:result.reply.code||result.reply.outcome}));
   }else controlMessage('');
  }).catch(function(error){controlMessage(error&&error.approvalRequired?i18nText('dashboard.actions.approve_on_panel','Approve this request on the panel, then retry it.'):i18nText('dashboard.actions.failed_network','Action failed (network).'));});}
 
@@ -583,7 +579,7 @@ function installScreenshotBlob(card,blob,generation,headers,seedCache){
    var dialogImage=document.getElementById('screenshot-dialog-image');
    if(dialogImage)dialogImage.src=objectUrl;
    var id=seedCache&&headers&&headers.get('X-ha-paneld-Screenshot-Id');
-   if(id&&/^[0-9a-f]{64}$/.test(id)){var seed=new Image();seed.src='api/v1/screenshot.png?cached='+id;}
+   if(id&&/^[0-9a-f]{64}$/.test(id))PT.request('screenshot',{cached:id}).catch(function(){});
    // Keep the displayed URL alive for modal reopen and slow target-image decode; release only the
    // previously displayed blob after this replacement has been predecoded successfully.
    if(previous)URL.revokeObjectURL(previous);resolve(true);
@@ -594,9 +590,9 @@ function installScreenshotBlob(card,blob,generation,headers,seedCache){
 function refreshScreenshot(card){
  var sc=card&&card.querySelector('.shot'),im=sc&&sc.querySelector('img');if(!im||im.dataset.refreshing==='1')return;
  var state=screenshotState(card);if(state.tapping)return;
- var generation=++state.generation;im.dataset.refreshing='1';var url='api/v1/screenshot.png?t='+Date.now();
- fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('capture failed');
-  return r.blob().then(function(blob){return installScreenshotBlob(card,blob,generation,r.headers,true);});})
+ var generation=++state.generation;im.dataset.refreshing='1';
+ PT.request('screenshot',{t:Date.now()}).then(function(r){if(r.outcome!=='applied')throw new Error('capture failed');
+  return installScreenshotBlob(card,r.result,generation,replyHeaders(r),true);})
  .then(function(){if(generation===state.generation)im.dataset.refreshing='0';})
  .catch(function(){im.dataset.refreshing='0';});
 }
@@ -624,9 +620,9 @@ function clearScreenshotTrace(dialog){['inputId','inputRoute','screenshotRoute',
 function fallbackScreenshot(card,dialog,generation,tapConfirmed){var state=screenshotState(card);if(state.fallbackUsed)return Promise.resolve(false);
  state.fallbackUsed=true;screenshotStatus(tapConfirmed?i18nText('dashboard.screenshot.tap_completed_capturing','Tap completed; capturing a fresh screenshot…'):i18nText('dashboard.screenshot.outcome_unknown_capturing','Tap outcome unknown; capturing the current panel…'),false);
  return new Promise(function(resolve){setTimeout(resolve,250);}).then(function(){
-  return fetch('api/v1/screenshot.png?t='+Date.now(),{cache:'no-store'});
- }).then(function(r){if(!r.ok)throw new Error('capture failed');screenshotTrace(dialog,r.headers);return r.blob().then(function(blob){
-   return installScreenshotBlob(card,blob,generation,r.headers);});
+  return PT.request('screenshot',{t:Date.now()});
+ }).then(function(r){if(r.outcome!=='applied')throw new Error('capture failed');var headers=replyHeaders(r);screenshotTrace(dialog,headers);
+   return installScreenshotBlob(card,r.result,generation,headers);
  }).then(function(updated){screenshotStatus(updated?(tapConfirmed?i18nText('dashboard.screenshot.updated','Screenshot updated.'):i18nText('dashboard.screenshot.outcome_unknown_refreshed','Tap outcome unknown; current screenshot refreshed.')):
   (tapConfirmed?i18nText('dashboard.screenshot.tap_completed_update_failed','The tap completed, but the screenshot could not be updated.'):i18nText('dashboard.screenshot.outcome_unknown_update_failed','Tap outcome unknown; the screenshot could not be updated.')),!updated);return updated;})
  .catch(function(){screenshotStatus(tapConfirmed?i18nText('dashboard.screenshot.tap_completed_update_failed','The tap completed, but the screenshot could not be updated.'):i18nText('dashboard.screenshot.outcome_unknown_update_failed','Tap outcome unknown; the screenshot could not be updated.'),true);return false;});
@@ -640,27 +636,24 @@ function sendScreenshotTap(ev,card,dialog,image){
  clearScreenshotTrace(dialog);
  var cardImage=card.querySelector('.shot img');if(cardImage)cardImage.dataset.refreshing='0';
  image.classList.add('pending');screenshotStatus(i18nText('dashboard.screenshot.sending_tap','Sending tap…'),false);
- var controller=typeof AbortController==='function'?new AbortController():null;
  // The server owns the tap/capture completion deadline and response grace. Do not abandon a slow helper or
  // accessibility route early and race its eventual tap with the safe fallback screenshot.
- var timeout=controller&&setTimeout(function(){controller.abort();},65000);
- fetch('api/v1/input',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-  body:'x='+point.x+'&y='+point.y+'&capture=1',signal:controller?controller.signal:undefined})
- .then(function(r){if(timeout)clearTimeout(timeout);screenshotTrace(dialog,r.headers);
-  var route=r.headers.get('X-ha-paneld-Input-Route');
-  if(!r.ok)return r.text().then(function(body){var e=new Error('tap request failed');e.status=r.status;e.tapConfirmed=!!route;
-   try{e.code=JSON.parse(body).error;}catch(_ignored){}throw e;});
-  var type=(r.headers.get('Content-Type')||'').toLowerCase();if(type.indexOf('image/png')<0){
+ PT.request('input',{x:point.x,y:point.y,capture:1},{deadline_ms:60000})
+ .then(function(r){var headers=replyHeaders(r);screenshotTrace(dialog,headers);
+  var route=headers.get('X-ha-paneld-Input-Route');
+  if(r.outcome!=='applied'){var e=new Error('tap request failed');e.status=r.code||r.outcome;e.tapConfirmed=!!route;
+   e.code=r.result&&typeof r.result==='object'?r.result.error:undefined;throw e;}
+  var blob=r.result;if(!blob||typeof blob!=='object'||String(blob.type||'').toLowerCase().indexOf('image/png')<0){
    var bad=new Error('capture response was not a PNG');bad.tapConfirmed=true;throw bad;}
-  return r.blob().then(function(blob){return installScreenshotBlob(card,blob,generation,r.headers);});
+  return installScreenshotBlob(card,blob,generation,headers);
  }).then(function(updated){screenshotStatus(updated?i18nText('dashboard.screenshot.updated','Screenshot updated.'):i18nText('dashboard.screenshot.tap_completed_update_failed','The tap completed, but the screenshot could not be updated.'),!updated);
   if(!updated)return fallbackScreenshot(card,dialog,generation,true);return true;
- }).catch(function(error){if(timeout)clearTimeout(timeout);
+ }).catch(function(error){
   // A route header proves execution reached a tap route; completion-unknown and network/abort failures
   // are ambiguous. Queue expiry is explicitly not a tap and must not masquerade as success.
   if(error.tapConfirmed||error.code==='completion-unknown')return fallbackScreenshot(card,dialog,generation,!!error.tapConfirmed);
   if(error.status==null)return fallbackScreenshot(card,dialog,generation,false);
-  screenshotStatus(error.status===403?i18nText('dashboard.screenshot.remote_input_disabled','Remote input is disabled in Hardened mode.'):i18nText('dashboard.screenshot.tap_rejected','Tap was not accepted.'),true);return false;
+  screenshotStatus(error.status==='refused_hardened'?i18nText('dashboard.screenshot.remote_input_disabled','Remote input is disabled in Hardened mode.'):i18nText('dashboard.screenshot.tap_rejected','Tap was not accepted.'),true);return false;
  }).then(function(){if(generation===state.generation){state.tapping=false;image.classList.remove('pending');}});
 }
 function createScreenshotDialog(card,shot){
@@ -699,10 +692,10 @@ setupScreenshotOverlay();
 
 // Dashboard hydration: the shell now renders instantly (the probe-backed values used to block the
 // whole page ~12s on PX30). When the server marked the page stale/cold (body data-hydrate="cold" or "1"),
-// fetch /api/v1/info — ready-to-inject HTML fragments rendered by the same Kotlin as the warm
+// read `info` — ready-to-inject HTML fragments rendered by the same Kotlin as the warm
 // server render — and fill the facts/value/capabilities tables, banners, controls and screenshot.
-function localizedInfoUrl(){var locale=window.HaI18n&&typeof window.HaI18n.locale==='string'?window.HaI18n.locale:'';
- return /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(locale)?'api/v1/info?lang='+encodeURIComponent(locale):'api/v1/info';}
+function localizedInfoArgs(){var locale=window.HaI18n&&typeof window.HaI18n.locale==='string'?window.HaI18n.locale:'';
+ return /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(locale)?{lang:locale}:{};}
 (function(){
  if(document.body.getAttribute('data-hydrate')!=='1'&&document.body.getAttribute('data-hydrate')!=='cold')return;
  function apply(d){
@@ -718,9 +711,10 @@ function localizedInfoUrl(){var locale=window.HaI18n&&typeof window.HaI18n.local
   setupScreenshotOverlay();scheduleDashboardColumnAlignment();
   cardSizeSourceReady('info');
  }
- function hydrate(tries){fetch(localizedInfoUrl()).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(apply)
-  .catch(function(error){if(tries>0)setTimeout(function(){hydrate(tries-1);},3000);
-   else if(document.body.getAttribute('data-hydrate')==='cold')window.HaI18n.pageFailure('api/v1/info · '+error);});}
+ // One-off read with a named retry (3 s, up to 10 more tries) while the panel's probes are still warming.
+ function hydrate(tries){PT.request('info',localizedInfoArgs()).then(function(r){if(r.outcome!=='applied')throw new Error(r.code||r.outcome);return r.result;}).then(apply)
+  .catch(function(error){if(tries>0)setTimeout(function hydrateRetry(){hydrate(tries-1);},3000);
+   else if(document.body.getAttribute('data-hydrate')==='cold')window.HaI18n.pageFailure('info · '+error);});}
  hydrate(10);
 })();
 // A warm server render does not run hydration, so explicitly start its background refresh too. A
@@ -733,7 +727,6 @@ function localizedInfoUrl(){var locale=window.HaI18n&&typeof window.HaI18n.local
 function ignoreUpdate(btn){var b=btn.closest('.notice');if(!b)return;
  var label=b.getAttribute('data-update')||'',version=b.getAttribute('data-version')||'';
  btn.disabled=true;
- fetch('api/v1/updates/ignore',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-  body:'label='+encodeURIComponent(label)+'&version='+encodeURIComponent(version)})
-  .then(function(r){if(r.ok)b.remove();else btn.disabled=false;})
+ PT.request('updates.ignore',{label:label,version:version})
+  .then(function(r){if(r.outcome==='applied')b.remove();else btn.disabled=false;})
   .catch(function(){btn.disabled=false;});}

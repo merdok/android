@@ -1745,7 +1745,8 @@ browserTest('Dashboard eventually releases Top processes hint when CPU ranking s
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
   const card = page.locator('[data-layout-key="top-processes"]');
   assert.equal(await card.getAttribute('data-card-size-hint'), '260');
-  await page.evaluate(async () => { for (let poll = 0; poll < 11; poll++) await perf(); });
+  // Each `perf` family value is one reading; drive eleven of them (the floor would otherwise space them 2 s apart).
+  await page.evaluate(async () => { for (let poll = 0; poll < 11; poll++) perf({ top: null }, 'known'); });
   await page.waitForFunction(() => !document.querySelector('[data-layout-key="top-processes"]').hasAttribute('data-card-size-hint'));
   assert.equal(await card.evaluate((node) => node.style.minHeight), `${await card.evaluate((node) => node._hwm)}px`);
 });
@@ -2072,7 +2073,7 @@ browserTest('Duplicate overlay clicks stay single-flight while the combined resp
 });
 
 browserTest('Configure accepts durable pending apply without retrying or losing reconciliation', async (t) => {
-  let pending = {}, posts = 0, posted = '', configGetsAfterPost = 0;
+  let pending = {}, posts = 0, posted = '', configGetsAfterPost = 0, healthGets = 0;
   const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true }];
   const harness = await startHarness(async (path, request) => {
     if (path === '/api/v1/config/schema') return json(schema);
@@ -2095,7 +2096,8 @@ browserTest('Configure accepts durable pending apply without retrying or losing 
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=pending' };
+    // Every health line carries a new cfg token, so each one makes Configure re-read its settings.
+    if (path === '/health') return { body: `ok cfg=pending${healthGets++}` };
   }, () => fixture({
     'configure.save.hardware_pending': '已保存所需值；硬件应用仍在等待。',
   }, 'zh-Hans'));
@@ -2104,6 +2106,7 @@ browserTest('Configure accepts durable pending apply without retrying or losing 
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
 
   await page.locator('#cfg-touch_sound [role=switch]').click();
   await page.locator('#savebtn').click();
@@ -2226,12 +2229,14 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
     if (path === '/api/v1/auto-sleep/prerequisite') { prerequisiteGets++; return json({ eligible: true, phase: 'assigned', area_name: 'Office' }); }
     if (path === '/api/v1/auto-sleep') { autoSleepStatusGets++; return json({ enabled: true, available: true, phase: 'live', area_name: 'Office', source_count: 1 }); }
     if (path === '/api/v1/auto-sleep/history') { historyGets++; return json(autoSleepHistory({ hours: 24 })); }
+    if (path === '/health') return { body: `ok cfg=${pendingDesired}` };
   });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
   await page.locator('#cfg-ha-oauth').getByText('Connected as Panel User').waitFor();
   await page.locator('.auto-sleep-lane.source').waitFor();
   const snapshot = await page.locator('.auto-sleep-chart-snapshot').elementHandle();
@@ -2283,11 +2288,13 @@ browserTest('Configure keeps newer edits while a pending save later converges', 
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
+    if (path === '/health') return { body: `ok cfg=${posts}` };
   });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
 
   const toggle = page.locator('#cfg-touch_sound [role=switch]');
   await toggle.click();
@@ -3257,7 +3264,7 @@ browserTest('Auto-sleep retains chart geometry and swaps a refreshed source snap
   assert.equal(await page.locator('.auto-sleep-track').nth(1).getAttribute('title'), 'Click to include this source');
 
   await page.getByRole('button', { name: '6h' }).click();
-  await page.getByText('History request failed (HTTP 409).').waitFor();
+  await page.getByText('History request failed (HTTP not_commandable).').waitFor();
   assert.equal(await page.locator('.auto-sleep-lane.source').count(), 20);
   assert.equal(requestedHistoryHours.at(-1), '6');
   assert.equal(await page.getByRole('button', { name: '24h' }).getAttribute('aria-pressed'), 'true');
@@ -3520,7 +3527,7 @@ browserTest('Auto-sleep source failure keeps the exact focused and scrolled char
   await page.locator('.auto-sleep-loading-overlay').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#auto-sleep-chart').getAttribute('aria-busy'), 'true');
   failedSourcePost.resolve(json({ error: 'failed' }, 500));
-  await page.getByText('Could not update this activity source (HTTP 500).').waitFor();
+  await page.getByText('Could not update this activity source (HTTP failed).').waitFor();
   await page.locator('.auto-sleep-loading-overlay').waitFor({ state: 'hidden' });
   assert.equal(await snapshot.evaluate((node) => node.isConnected), true);
   assert.equal(await scroll.evaluate((node) => node.isConnected && node.scrollTop), 61);

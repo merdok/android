@@ -312,9 +312,9 @@
         });
         btn.onclick = function () {
           setClearStatus(cfg.i18nText("configure.renderer.clearing", "Clearing…"), false);
-          fetch("api/v1/dashboard/clear-storage", { method: "POST" })
-            .then(function (r) { return cfg.approvalAwareJson(r).then(function () { return r; }); })
-            .then(function (r) { setClearStatus(r.ok ? cfg.i18nText("configure.renderer.clear_requested", "Clear requested.") : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: r.status }), r.ok); })
+          window.PaneldTransport.request("dashboard.clear_storage")
+            .then(function (r) { cfg.approvalAware(r); return r; })
+            .then(function (r) { var ok = r.outcome === "applied"; setClearStatus(ok ? cfg.i18nText("configure.renderer.clear_requested", "Clear requested.") : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: r.code || r.outcome }), ok); })
             .catch(function (error) { setClearStatus(error && error.approvalRequired ? cfg.approvalMessage(error.body) : cfg.i18nText("configure.error.network", "Failed (network)"), false); });
         };
         card.appendChild(cfg.el("div", { class: "frow frow-action" }, [

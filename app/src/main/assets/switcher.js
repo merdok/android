@@ -1,5 +1,5 @@
 // ha-paneld header panel-switcher — served as a static asset (CI-linted: `node --check`).
-// When MORE THAN ONE ha-paneld panel is on the LAN (mDNS, via /api/v1/peers), the friendly name in the
+// When MORE THAN ONE ha-paneld panel is on the LAN (mDNS, via the `peers` read), the friendly name in the
 // title becomes a dropdown of ALL panels (sorted alphabetically so the menu looks identical on every
 // panel); the current panel is pre-selected. Picking another jumps THIS browser window to the SAME view
 // (path) on that panel. When only this panel is present, the title stays plain text.
@@ -74,7 +74,7 @@
     // fit (tab collapse + overflow hide) now that the final header content is in place. Call the header
     // authority directly: broadcasting a synthetic `resize` also drove every unrelated resize listener —
     // the card-column aligner, CardSizeMemory's release(), the info.js high-water-mark reset and
-    // fitControls() — at whatever moment /api/v1/peers happened to resolve, and only on a multi-panel LAN.
+    // fitControls() — at whatever moment the `peers` read happened to resolve, and only on a multi-panel LAN.
     // That made card geometry depend on peer-discovery timing, which is why the displacement was
     // reproducible but inconsistent. This header re-fit is a header concern and stays one.
     if (window.PanelHeaderFit) window.PanelHeaderFit.refit();

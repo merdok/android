@@ -393,19 +393,19 @@
     return cfg.i18nText("configure.time.updated", "Updated {date} ({relative})", { date: date.toLocaleString(), relative: relative });
   }
 
-  // Preview bounds come from /api/v1/config/schema, never from literals here. A copy in this file
+  // Preview bounds come from the config schema, never from literals here. A copy in this file
   // disagrees with the server the moment either bound moves, and the failure is silent: an in-range
   // value outside the stale copy loses its query parameter, so the chart quietly projects the STORED
   // value while the operator believes they are previewing the one they just typed. That is exactly
   // what a hard-coded 95 did once the ceiling rose. A value outside the server's own bounds is still
   // omitted rather than sent — it would only earn a 400 — and the control is already invalid, so the
   // save gate reports it.
-  function autoBrightnessPreviewSuffix(param, key) {
+  function autoBrightnessPreviewArg(args, param, key) {
     var field = null;
     for (var i = 0; i < cfg.schema.length; i++) if (cfg.schema[i].key === key) { field = cfg.schema[i]; break; }
     var value = parseInt(cfg.values[key], 10);
-    if (!isFinite(value) || !field || field.min == null || field.max == null) return "";
-    return value < field.min || value > field.max ? "" : param + encodeURIComponent(value);
+    if (!isFinite(value) || !field || field.min == null || field.max == null) return;
+    if (value >= field.min && value <= field.max) args[param] = value;
   }
 
   function autoBrightnessProjectionSensitivity() {
@@ -454,13 +454,17 @@
     if (cfg.autoBrightLoading && !force) return;
     cfg.autoBrightLoading = true;
     var request = ++cfg.autoBrightRequest;
-    var sensitivitySuffix = autoBrightnessPreviewSuffix("&sensitivity=", "auto_brightness_response_percent");
-    var minimumSuffix = autoBrightnessPreviewSuffix("&minimum_percent=", "auto_brightness_minimum_percent");
-    var maximumSuffix = autoBrightnessPreviewSuffix("&maximum_percent=", "auto_brightness_maximum_percent");
+    var historyArgs = { hours: 168 };
+    autoBrightnessPreviewArg(historyArgs, "sensitivity", "auto_brightness_response_percent");
+    autoBrightnessPreviewArg(historyArgs, "minimum_percent", "auto_brightness_minimum_percent");
+    autoBrightnessPreviewArg(historyArgs, "maximum_percent", "auto_brightness_maximum_percent");
+    var read = function (op, args) {
+      return window.PaneldTransport.request(op, args).then(function (r) { if (r.outcome !== "applied") throw r.code || r.outcome; return r.result; });
+    };
     var succeeded = false;
     Promise.all([
-      fetch("api/v1/auto-brightness", { cache: "no-store" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }),
-      fetch("api/v1/auto-brightness/history?hours=168" + sensitivitySuffix + minimumSuffix + maximumSuffix, { cache: "no-store" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+      read("auto_brightness"),
+      read("auto_brightness.history", historyArgs)
     ]).then(function (result) {
       if (request !== cfg.autoBrightRequest) return;
       var statusRevision = autoBrightnessSourceRevision(result[0]);
@@ -553,10 +557,10 @@
     });
   }
 
-  function runAutoBrightnessAction(path, button) {
+  function runAutoBrightnessAction(op, button) {
     button.disabled = true; cfg.autoBrightMessage = cfg.i18nText("configure.action.working", "Working…"); cfg.render();
-    fetch(path, { method: "POST", headers: { "Accept": "application/json" } })
-      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { if (!r.ok) throw (body.error || ("HTTP " + r.status)); return body; }); })
+    window.PaneldTransport.request(op)
+      .then(function (r) { var body = r.result || {}; if (r.outcome !== "applied") throw (body.error || r.code || r.outcome); return body; })
       .then(function () { cfg.autoBrightMessage = cfg.i18nText("configure.action.updated", "Updated."); loadAutoBrightnessData(true); })
       .catch(function (error) { cfg.autoBrightMessage = cfg.i18nText("configure.action.failed", "Action failed ({error}).", { error: error }); button.disabled = false; cfg.render(); });
   }
@@ -571,9 +575,9 @@
     reset.disabled = !available || cfg.autoBrightLoading;
     resume.disabled = !available || !paused || cfg.autoBrightLoading;
     reset.onclick = function () {
-      if (confirm(cfg.i18nText("configure.brightness.reset_confirm", "Delete the seven-day ambient-light history and restart learning?"))) runAutoBrightnessAction("api/v1/auto-brightness/reset", reset);
+      if (confirm(cfg.i18nText("configure.brightness.reset_confirm", "Delete the seven-day ambient-light history and restart learning?"))) runAutoBrightnessAction("auto_brightness.reset", reset);
     };
-    resume.onclick = function () { runAutoBrightnessAction("api/v1/auto-brightness/resume", resume); };
+    resume.onclick = function () { runAutoBrightnessAction("auto_brightness.resume", resume); };
     var bucket = cfg.autoBrightHistory && (cfg.autoBrightHistory.bucket_minutes || cfg.autoBrightHistory.bucketMinutes);
     var dayCount = autoBrightnessChartDays(normalizedChartPoints()).length;
     var lineDayCount = Math.min(dayCount, autoBrightnessLineDays());

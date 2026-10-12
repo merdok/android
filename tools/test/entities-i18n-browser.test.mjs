@@ -6,6 +6,7 @@ import { chromium } from 'playwright-core';
 const chrome = process.env.CHROME || '/usr/bin/chromium';
 const entitiesSource = fs.readFileSync('../../app/src/main/assets/entities.js', 'utf8');
 const i18nSource = fs.readFileSync('../../app/src/main/assets/i18n.js', 'utf8');
+const transportSource = fs.readFileSync('../../app/src/main/assets/transport.js', 'utf8');
 
 function table(id, filter) {
   return `<section class="entity-list" data-table="${id}" data-filter="${filter}">
@@ -58,10 +59,12 @@ function html() {
     issue({ fingerprint: 'hostile', rule_summary: '<img src=x onerror=window.__owned=1>', reason: '<svg onload=window.__owned=2>', recommendation: '</script><script>window.__owned=3</script>', view_title: '<b>hostile title</b>' }),
   ];
   const status = { state: 'learning', sync_running: false, stream_entity_count: 4, stream_mode: 'filtered', catalog_count: 9, suggested_count: 1, blocking_issue_count: 9, ignored_issue_count: 0, unresolved_count: 0, last_sync_at: 0, db_bytes: 8, auto_static: true, auto_runtime: true, apply_required: false };
-  const bootstrap = `window.__owned=0;window.__polls=[];window.setInterval=(fn)=>{window.__polls.push(fn);return window.__polls.length};window.__status=${JSON.stringify(status)};window.__issues=${JSON.stringify(issues)};window.fetch=async(url,options={})=>{if((options.method||'GET')==='POST')return{ok:true,status:200,json:async()=>({stream_changed:false,entity_count:4}),text:async()=>''};if(url.includes('/entities/issues'))return{ok:true,status:200,json:async()=>({items:window.__issues,dashboard_issue_count:window.__issues.length,blocking_issue_count:window.__issues.length,ignored_issue_count:0,dynamic_expressions:[]})};if(url.includes('/entities?'))return{ok:true,status:200,json:async()=>({items:[],total:0})};return{ok:true,status:200,json:async()=>window.__status,text:async()=>''}};`;
+  const bootstrap = `window.__owned=0;window.__polls=[];window.__setTimeout=window.setTimeout;window.setTimeout=function(fn,ms){if(ms===5000){window.__polls[0]=fn;return 0}return window.__setTimeout.apply(window,arguments)};window.__status=${JSON.stringify(status)};window.__issues=${JSON.stringify(issues)};window.fetch=async(url,options={})=>{if((options.method||'GET')==='POST')return{ok:true,status:200,json:async()=>({stream_changed:false,entity_count:4}),text:async()=>''};if(url.includes('/entities/issues'))return{ok:true,status:200,json:async()=>({items:window.__issues,dashboard_issue_count:window.__issues.length,blocking_issue_count:window.__issues.length,ignored_issue_count:0,dynamic_expressions:[]})};if(url.includes('/entities?'))return{ok:true,status:200,json:async()=>({items:[],total:0})};return{ok:true,status:200,json:async()=>window.__status,text:async()=>''}};
+    // The page transport reads a Response; the fake answers above become one.
+    window.__fakeFetch=window.fetch;window.fetch=async(url,options={})=>{var r=await window.__fakeFetch(String(url),options),b='';if(r.json){try{b=JSON.stringify(await r.json())}catch(e){b=''}}else if(r.text)b=await r.text();return new Response(b,{status:r.status||200,headers:{'content-type':'application/json'}})};`;
   return `<!doctype html><html lang="de"><body>
     <script id="ha-i18n" type="application/json">${JSON.stringify(projection)}</script>
-    <script>${i18nSource.replaceAll('</script>', '<\\/script>')}</script><script>${bootstrap.replaceAll('</script>', '<\\/script>')}</script>
+    <script>${i18nSource.replaceAll('</script>', '<\\/script>')}</script><script>${bootstrap.replaceAll('</script>', '<\\/script>')}</script><script>${transportSource.replaceAll('</script>', '<\\/script>')}</script>
     <div id="entity-status"></div><input id="entity-search"><div id="entity-search-status"></div>
     <button id="entity-sync"></button><button id="entity-activate"></button><button id="entity-reset"></button><div id="entity-action-result"></div>
     <input id="entity-auto-static" type="checkbox"><input id="entity-auto-runtime" type="checkbox">

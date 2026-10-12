@@ -10,6 +10,7 @@ const assets = join(process.cwd(), '../../app/src/main/assets');
 const fixtures = join(process.cwd(), '../../app/build/test-fixtures/pickles');
 const locales = ['en', 'de', 'fr', 'it', 'es', 'zh-Hans', 'nl', 'pl', 'uk'];
 const endpoints = { configure: '/api/v1/config', dashboard: '/api/v1/info', api: '/api/v1/openapi.json', profiles: '/api/v1/profiles' };
+const names = { configure: 'config', dashboard: 'info', api: 'openapi.json', profiles: 'profiles' };
 const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', tier: 'BASIC', available: true, help: 'Touch sound' }];
 
 async function harness(surface, locale, { fail = true, failurePath = endpoints[surface] } = {}) {
@@ -66,8 +67,9 @@ for (const [engine, type, launch] of [
             assert.ok(result.actionBottom <= 480, `${surface}/${locale}/${theme}: ${JSON.stringify(result)}`);
             assert.equal(result.bg, theme === 'dark' ? 'rgb(17, 17, 17)' : 'rgb(242, 243, 245)');
             if (surface !== '404') {
-              assert.ok(result.diagnostic.includes(endpoints[surface].slice(1)));
-              assert.ok(result.diagnostic.includes(surface === 'profiles' ? '<script>{x}</script>' : 'HTTP 503'));
+              // The diagnostic names the failed read and its outcome code (a 503 is hardware_unavailable).
+              assert.ok(result.diagnostic.includes(names[surface]), `${surface}: ${result.diagnostic}`);
+              assert.ok(result.diagnostic.includes(surface === 'profiles' ? '<script>{x}</script>' : 'hardware_unavailable'), `${surface}: ${result.diagnostic}`);
               assert.equal(await page.locator('main.pickles code').getAttribute('lang'), 'und');
               if (locale === 'en') {
                 rig.recover();

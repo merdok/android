@@ -1,13 +1,14 @@
 (function () {
   "use strict";
 
-  var SPEC_PATH = "api/v1/openapi.json";
+  var SPEC_NAME = "openapi.json", specLink = null;
+  // Keyed by the spec path with its leading two segments (the versioned API prefix) removed.
   var CONDITIONAL_APPROVAL_PATHS = Object.freeze({
-    "/api/v1/config": true,
-    "/api/v1/config/export": true,
-    "/api/v1/config/import": true,
-    "/api/v1/restore": true,
-    "/api/v1/action": true
+    "config": true,
+    "config/export": true,
+    "config/import": true,
+    "restore": true,
+    "action": true
   });
 
   var t = window.HaI18n.t;
@@ -47,7 +48,7 @@
       var parts = translated.split(marker);
       importNode.appendChild(document.createTextNode(parts[0] || ""));
       var link = el("a", null, "openapi.json");
-      link.href = SPEC_PATH;
+      specLink = link;
       link.target = "_blank";
       link.rel = "noopener";
       importNode.appendChild(link);
@@ -193,7 +194,7 @@
     var upperMethod = method.toUpperCase();
     var button = el("button", null, t("api.action.send", "Send {method}", { method: upperMethod }));
     var approvalKind = JSON.stringify(operation.responses || {}).indexOf("ApprovalRequired") >= 0 ? "required" : null;
-    if (approvalKind && CONDITIONAL_APPROVAL_PATHS[path]) approvalKind = "conditional";
+    if (approvalKind && CONDITIONAL_APPROVAL_PATHS[path.replace(/^\/[^/]+\/[^/]+\//, "")]) approvalKind = "conditional";
     if (approvalKind) {
       var conditional = approvalKind === "conditional";
       button.setAttribute("data-hardened-approval", conditional ? "conditional" : "");
@@ -282,7 +283,11 @@
   }
 
   hydrateChrome();
-  fetch(SPEC_PATH).then(function (response) { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); }).then(render).catch(function (error) {
-    if (!document.querySelector("#root details")) window.HaI18n.pageFailure(t("api.error.load_spec", "Could not load {path}: {error}", { path: SPEC_PATH, error: String(error) }));
+  window.PaneldTransport.request(SPEC_NAME).then(function (reply) {
+    if (reply.outcome !== "applied") throw new Error(reply.code || reply.outcome);
+    if (specLink && window.URL && URL.createObjectURL) specLink.href = URL.createObjectURL(new Blob([JSON.stringify(reply.result)], { type: "application/json" }));
+    return reply.result;
+  }).then(render).catch(function (error) {
+    if (!document.querySelector("#root details")) window.HaI18n.pageFailure(t("api.error.load_spec", "Could not load {path}: {error}", { path: SPEC_NAME, error: String(error) }));
   });
 }());

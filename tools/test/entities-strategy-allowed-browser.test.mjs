@@ -32,7 +32,9 @@ function html() {
     suggested_count: 0, blocking_issue_count: 1, ignored_issue_count: 1, unresolved_count: 0, last_sync_at: 0,
     db_bytes: 8, auto_static: true, auto_runtime: true, apply_required: false, strategy_selector_ignored: true,
   };
-  const bootstrap = `window.setInterval=()=>0;window.fetch=async(url)=>{if(url.includes('/entities/issues'))return{ok:true,status:200,json:async()=>(${JSON.stringify({ items: issues, dashboard_issue_count: 2, blocking_issue_count: 1, ignored_issue_count: 1, dynamic_expressions: [] })})};if(url.includes('/entities?'))return{ok:true,status:200,json:async()=>({items:[],total:0})};return{ok:true,status:200,json:async()=>(${JSON.stringify(status)}),text:async()=>''}};`;
+  const bootstrap = `window.setInterval=()=>0;window.fetch=async(url)=>{if(url.includes('/entities/issues'))return{ok:true,status:200,json:async()=>(${JSON.stringify({ items: issues, dashboard_issue_count: 2, blocking_issue_count: 1, ignored_issue_count: 1, dynamic_expressions: [] })})};if(url.includes('/entities?'))return{ok:true,status:200,json:async()=>({items:[],total:0})};return{ok:true,status:200,json:async()=>(${JSON.stringify(status)}),text:async()=>''}};
+    // The page transport reads a Response; the fake answers above become one.
+    window.__fakeFetch=window.fetch;window.fetch=async(url,options={})=>{var r=await window.__fakeFetch(String(url),options),b='';if(r.json){try{b=JSON.stringify(await r.json())}catch(e){b=''}}else if(r.text)b=await r.text();return new Response(b,{status:r.status||200,headers:{'content-type':'application/json'}})};`;
   return `<!doctype html><html lang="en" data-theme="dark"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style>${i18nBridge()}</head><body>
     <script>${bootstrap}</script>
     <div class="cards entity-cards">

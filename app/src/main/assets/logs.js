@@ -1,7 +1,7 @@
-// Logs tab — live log tail over SSE (/api/v1/logs/stream). Vanilla.
+// Logs tab — live log tail through the page transport's `logs` family. Vanilla.
 // Buffers every received line client-side (bounded), renders through the level + text filters, and
 // follows the tail unless the user scrolls up or unticks Follow. Pause stops rendering (still
-// buffering); EventSource auto-reconnects if the app restarts mid-view.
+// buffering); the transport reconnects if the app restarts mid-view and pauses on a hidden tab.
 (function () {
   "use strict";
   var MAX_LINES = 3000;                 // client buffer + DOM cap (drop oldest)
@@ -82,10 +82,11 @@
     buf = [];
     out.textContent = "";
     state(i18nText("logs.state.connecting", "connecting…"));
-    es = new EventSource("api/v1/logs/stream?source=" + source);
-    es.onopen = function () { state(STATE_TEXT[source].live()); };
-    es.onerror = function () { state(i18nText("logs.state.reconnecting", "reconnecting…")); };   // EventSource retries itself
-    es.onmessage = function (e) { append({ raw: e.data, lvl: levelOf(e.data) }); };
+    es = window.PaneldTransport.subscribe("logs", function (lines, known) {
+      if (known !== "known") { state(i18nText("logs.state.reconnecting", "reconnecting…")); return; }   // the transport reconnects
+      if (!lines.length) { state(STATE_TEXT[source].live()); return; }
+      lines.forEach(function (line) { append({ raw: line, lvl: levelOf(line) }); });
+    }, { source: source });
   }
 
   window.lgSource = function (s) {
@@ -131,11 +132,10 @@
   window.addEventListener("resize", fit);
   fit();
 
-  // Stop the stream (and with it the panel-side logcat subprocess) when the page is hidden for a
-  // while; reconnect on return. Closing the tab closes the SSE socket → server unsubscribes.
+  // The transport ends the stream (and with it the panel-side logcat subprocess) while the tab is
+  // hidden and reopens it on return; say so meanwhile.
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { if (es) { es.close(); es = null; state(i18nText("logs.state.hidden", "paused (tab hidden)")); } }
-    else if (!es) connect();
+    if (document.hidden) state(i18nText("logs.state.hidden", "paused (tab hidden)"));
   });
 
   connect();

@@ -179,10 +179,10 @@
       updateAutoSleepPrerequisiteUi();
     }
     var request = ++cfg.autoSleepPrerequisiteRequest;
-    fetch("api/v1/auto-sleep/prerequisite", { cache: "no-store" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        return response.json();
+    window.PaneldTransport.request("auto_sleep.prerequisite")
+      .then(function (reply) {
+        if (reply.outcome !== "applied") throw new Error(reply.code || reply.outcome);
+        return reply.result;
       })
       .then(function (body) {
         if (request !== cfg.autoSleepPrerequisiteRequest) return;
@@ -380,7 +380,7 @@
     if (phase === "discovery_failed" && detail === "history_parse") return cfg.i18nText("configure.auto_sleep.timestamps_unreadable", "Home Assistant returned activity timestamps this panel could not read.");
     if (phase === "discovery_failed" && detail === "history_limit") return cfg.i18nText("configure.auto_sleep.history_too_large", "Home Assistant activity history is too large to process safely.");
     if (phase === "discovery_failed") return cfg.i18nText("configure.auto_sleep.discovery_failed", "Auto-sleep source discovery failed. Check the Home Assistant connection.");
-    if (phase === "status_failed") return cfg.i18nText("configure.auto_sleep.status_failed", "Auto-sleep status request failed (HTTP {status}).", { status: Number(status && status.status_code) });
+    if (phase === "status_failed") return cfg.i18nText("configure.auto_sleep.status_failed", "Auto-sleep status request failed (HTTP {status}).", { status: status && status.status_code });
     return cfg.i18nText("configure.auto_sleep.history_unavailable", "Auto-sleep activity history is unavailable.");
   }
 
@@ -424,13 +424,9 @@
     cfg.autoSleepHistoryWaitingMessage = cfg.i18nText("configure.auto_sleep.history_preparing", "Preparing activity history…");
     cfg.autoSleepHistoryError = "";
     updateAutoSleepHistory(false);
-    fetch("api/v1/auto-sleep/source", {
-      method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ area_key: areaKey, source_key: sourceKey, included: !included })
-    }).then(function (response) {
-      if (!response.ok) { var error = new Error("HTTP " + response.status); error.status = response.status; throw error; }
-      return response.json().catch(function () { return {}; });
+    window.PaneldTransport.request("auto_sleep.source", { area_key: areaKey, source_key: sourceKey, included: !included }).then(function (reply) {
+      if (reply.outcome !== "applied") { var error = new Error(reply.code || reply.outcome); error.status = reply.code || reply.outcome; throw error; }
+      return reply.result;
     }).then(function () {
       if (updateGeneration !== cfg.autoSleepAreaGeneration || cfg.autoSleepSourceUpdating[sourceKey] !== updateToken) return;
       delete cfg.autoSleepSourceUpdating[sourceKey];
@@ -647,10 +643,10 @@
     cfg.autoSleepHistoryError = ""; updateAutoSleepHistory();
     var request = ++cfg.autoSleepHistoryRequest, retryAutomatically = false, receivedHistory = false, succeeded = false;
     if (cfg.autoSleepHistoryReadyTimer) { clearTimeout(cfg.autoSleepHistoryReadyTimer); cfg.autoSleepHistoryReadyTimer = null; }
-    fetch("api/v1/auto-sleep/history?hours=" + cfg.autoSleepHistoryHours, { cache: "no-store" })
-      .then(function (response) {
-        if (!response.ok) { var httpError = new Error("http"); httpError.status = response.status; throw httpError; }
-        return response.json();
+    window.PaneldTransport.request("auto_sleep.history", { hours: cfg.autoSleepHistoryHours })
+      .then(function (reply) {
+        if (reply.outcome !== "applied") { var httpError = new Error("http"); httpError.status = reply.code || reply.outcome; httpError.outcome = reply.outcome; throw httpError; }
+        return reply.result;
       })
       .then(function (body) {
         if (request !== cfg.autoSleepHistoryRequest) return;
@@ -667,7 +663,7 @@
         cfg.autoSleepHistoryRetryDelayMs = 5000;
       }).catch(function (error) {
         if (request !== cfg.autoSleepHistoryRequest) return;
-        if (error && error.status >= 400 && error.status < 500) {
+        if (error && error.outcome === "refused") {
           cfg.autoSleepHistoryError = cfg.i18nText("configure.auto_sleep.history_request_failed", "History request failed (HTTP {status}).", { status: error.status });
         }
         else if (error && error.status) {
@@ -738,17 +734,17 @@
     updateAutoSleepSummary();
     updateAutoSleepHistory();
     var request = ++cfg.autoSleepRequest;
-    fetch("api/v1/auto-sleep", { cache: "no-store" })
-      .then(function (response) {
-        if (!response.ok) { var statusError = new Error("status"); statusError.status = response.status; throw statusError; }
-        return response.json();
+    window.PaneldTransport.request("auto_sleep")
+      .then(function (reply) {
+        if (reply.outcome !== "applied") { var statusError = new Error("status"); statusError.status = reply.code || reply.outcome; statusError.outcome = reply.outcome; throw statusError; }
+        return reply.result;
       })
       .then(function (body) {
         if (request !== cfg.autoSleepRequest) return;
         cfg.autoSleepStatus = body || { available: false, phase: "unavailable" };
       }).catch(function (error) {
         if (request !== cfg.autoSleepRequest) return;
-        cfg.autoSleepStatus = error && error.status >= 400 && error.status < 500 ?
+        cfg.autoSleepStatus = error && error.outcome === "refused" ?
           { available: false, phase: "status_failed", reason: "status_http", status_code: error.status, source_count: 0, manual_suppression: false } :
           { available: false, phase: "unavailable", reason: "request_failed", source_count: 0, manual_suppression: false };
       }).then(function () {

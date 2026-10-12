@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var API = "api/v1/profiles";
+  var transport = window.PaneldTransport;
   var model = {
     catalogRevision: 0,
     profiles: [],
@@ -200,57 +200,54 @@
     out.textContent = message || "";
     out.className = "profile-status" + (kind ? " " + kind : "");
   }
-  function httpError(response, body) {
-    var error = new Error(string(body && (body.message || body.error)) || t("profiles.error.http", "HTTP {status}", { status: response.status }));
-    error.status = response.status;
+  function httpError(reply, body) {
+    var error = new Error(string(body && (body.message || body.error)) || t("profiles.error.http", "HTTP {status}", { status: reply.code || reply.outcome }));
+    error.status = reply.code || reply.outcome;
     error.body = body;
     return error;
   }
   function approvalMessage(body) {
     return string(body && body.message) || t("profiles.approval.retry", "Approve this request on the panel, then retry it.");
   }
-  function textError(response, message) {
+  function textError(reply, message) {
     var body = { message: message };
-    var code = response.headers.get("X-Profile-Presentation-Code");
-    var encodedParams = response.headers.get("X-Profile-Presentation-Params");
+    var headers = reply.headers || {};
+    var code = headers["x-profile-presentation-code"];
+    var encodedParams = headers["x-profile-presentation-params"];
     if (code != null) body.presentation_code = code;
     if (encodedParams != null) {
       try { body.presentation_params = JSON.parse(encodedParams); }
       catch (_) { body.presentation_params = null; }
     }
-    return httpError(response, body);
+    return httpError(reply, body);
   }
-  function jsonFetch(url, options) {
-    return fetch(url, options).then(function (response) {
-      return response.text().then(function (text) {
-        var body = {};
-        try { body = text ? JSON.parse(text) : {}; } catch (_) { body = { message: text }; }
-        // Profile selection normally succeeds with HTTP 202 too. The structured error field is what
-        // distinguishes a staged restart from a Hardened-mode physical approval challenge.
-        if (response.status === 202 && body && body.error === "approval-required") throw httpError(response, body);
-        if (!response.ok) throw httpError(response, body);
-        return body;
-      });
+  function jsonFetch(op, args) {
+    return transport.request(op, args).then(function (reply) {
+      var body = reply.result;
+      if (typeof body === "string") body = { message: body };
+      if (!body || typeof body !== "object") body = {};
+      // Profile selection normally succeeds with HTTP 202 too. The structured error field is what
+      // distinguishes a staged restart from a Hardened-mode physical approval challenge.
+      if (reply.outcome !== "applied") throw httpError(reply, body);
+      return body;
     });
   }
-  function yamlFetch(url) {
-    return fetch(url, { headers: { "Accept": "application/yaml, text/yaml, text/plain" } }).then(function (response) {
-      if (!response.ok) return response.text().then(function (text) { throw textError(response, text); });
-      return response.text();
+  function yamlFetch(op, args) {
+    return transport.request(op, args).then(function (reply) {
+      if (typeof Blob !== "undefined" && reply.result instanceof Blob) return reply.result.text().then(function (text) { reply.result = text; return reply; });
+      return reply;
+    }).then(function (reply) {
+      var text = typeof reply.result === "string" ? reply.result : string(reply.result && reply.result.message);
+      if (reply.outcome !== "applied") throw textError(reply, text);
+      return text;
     });
   }
-  function postYaml(path, yaml, token) {
-    var headers = { "Accept": "application/json", "Content-Type": "application/yaml; charset=utf-8" };
-    if (token) headers["X-Profile-Preview-Token"] = token;
-    return jsonFetch(API + path, { method: "POST", headers: headers, body: yaml });
+  function postYaml(op, yaml, token) {
+    var args = { body: yaml };
+    if (token) args.preview_token = token;
+    return jsonFetch(op, args);
   }
-  function postJson(path, body) {
-    return jsonFetch(API + path, {
-      method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify(body || {}),
-    });
-  }
+  function postJson(op, body) { return jsonFetch(op, body || {}); }
 
   function initEditor() {
     var host = byId("profile-editor");
@@ -685,7 +682,7 @@
   function loadCatalog(preferredRef) {
     var generation = ++model.viewGeneration;
     setStatus(t("profiles.status.loading_catalog", "Loading profiles…"));
-    return jsonFetch(API).then(function (data) {
+    return jsonFetch("profiles").then(function (data) {
       if (generation !== model.viewGeneration) return;
       model.catalogRevision = Number(data.catalog_revision) || 0;
       model.profiles = data.profiles || [];
@@ -698,7 +695,7 @@
     }).catch(function (error) {
       setStatus(t("profiles.error.load_catalog", "Could not load profiles: {error}", { error: presentedError(error) }), "error");
       renderIssues([{ severity: "error", message: error.message }]);
-      if (!model.profiles.length && !model.catalogRevision && !model.sourceLoaded) window.HaI18n.pageFailure(API + " · " + presentedError(error));
+      if (!model.profiles.length && !model.catalogRevision && !model.sourceLoaded) window.HaI18n.pageFailure("profiles · " + presentedError(error));
     });
   }
   function loadSelected() {
@@ -706,7 +703,7 @@
     var ref = model.selected;
     var generation = ++model.viewGeneration;
     setStatus(t("profiles.status.loading_profile", "Loading {id}…", { id: ref.id }));
-    return yamlFetch(API + "/" + encodeURIComponent(ref.id) + "/revisions/" + encodeURIComponent(ref.revision)).then(function (yaml) {
+    return yamlFetch("profiles.revision", { id: ref.id, revision: ref.revision }).then(function (yaml) {
       if (generation !== model.viewGeneration || refKey(model.selected) !== refKey(ref)) return;
       setEditor(yaml, false);
       var summary = selectedSummary(); renderIssues(summary && summary.issues || []); renderDiff([]);
@@ -719,7 +716,7 @@
   }
 
   function loadReport() {
-    return jsonFetch(API + "/report").then(renderReport).catch(function () { renderReport({}); });
+    return jsonFetch("profiles.report").then(renderReport).catch(function () { renderReport({}); });
   }
 
   function preview(openCompare) {
@@ -727,7 +724,7 @@
     var source = model.source;
     var generation = model.viewGeneration;
     model.loading = true; updateActions(); setStatus(t("profiles.status.validating", "Validating YAML…"));
-    return postYaml("/probe", source).then(function (result) {
+    return postYaml("profiles.probe", source).then(function (result) {
       if (generation !== model.viewGeneration || source !== model.source) return null;
       result.source = source;
       model.preview = result;
@@ -766,7 +763,7 @@
     ensurePreview().then(function (result) {
       var source = model.source;
       model.loading = true; updateActions(); setStatus(t("profiles.status.saving", "Saving immutable revision…"));
-      return postYaml("/import", source, result.preview_token).then(function (mutation) {
+      return postYaml("profiles.import", source, result.preview_token).then(function (mutation) {
         return { mutation: mutation, source: source };
       });
     }).then(function (saved) {
@@ -783,7 +780,7 @@
       model.preview = null;
       var issue = error.body && error.body.issues && error.body.issues[0];
       var reason = issue ? presentedText(issue, issue.message || issue.code) : presentedError(error);
-      if (error.status === 409) setStatus(presentedError(error, t("profiles.error.stale_preview", "This preview or catalog revision is stale. Validate again before saving.")), "error");
+      if (error.status === "not_commandable") setStatus(presentedError(error, t("profiles.error.stale_preview", "This preview or catalog revision is stale. Validate again before saving.")), "error");
       else setStatus(t("profiles.error.save_failed", "Save failed: {error} Resolve the issue, then Validate again.", { error: reason }), "error");
     }).finally(function () { model.loading = false; updateActions(); });
   }
@@ -801,14 +798,14 @@
   }
   function loadTemplate() {
     var generation = ++model.viewGeneration;
-    yamlFetch(API + "/template").then(function (yaml) {
+    yamlFetch("profiles.template").then(function (yaml) {
       if (generation !== model.viewGeneration) return;
       model.selected = null; setEditor(yaml, true); model.originalSource = ""; renderIssues([]); renderDiff([]); setStatus(t("profiles.status.new_unsaved", "New unsaved profile. Validate it before saving.")); model.editor.focus(); updateActions();
     }).catch(function (error) { if (generation === model.viewGeneration) setStatus(t("profiles.error.create_template", "Could not create a template: {error}", { error: presentedError(error) }), "error"); });
   }
   function loadDeviceDraft() {
     var generation = ++model.viewGeneration;
-    yamlFetch(API + "/device-draft").then(function (yaml) {
+    yamlFetch("profiles.device_draft").then(function (yaml) {
       if (generation !== model.viewGeneration) return;
       model.selected = null; setEditor(yaml, false); renderIssues([]); renderDiff([]);
       setStatus(t("profiles.status.passive_draft", "Passive Generic draft · read-only · unknown hardware remains marked TODO."));
@@ -889,7 +886,7 @@
     ].join("\n");
     openModal(action === "rollback" ? t("profiles.modal.rollback_title", "Roll back profile?") : t("profiles.modal.activate_title", "Activate profile?"), detail, function () {
       model.loading = true; updateActions(); setStatus(action === "rollback" ? t("profiles.status.rollback_starting", "Starting rollback…") : t("profiles.status.activating", "Activating profile…"));
-      var path = action === "rollback" ? "/rollback" : "/select";
+      var path = action === "rollback" ? "profiles.rollback" : "profiles.select";
       var request = { expected_catalog_revision: model.catalogRevision, confirm: true };
       if (ref) { request.id = ref.id; request.revision = ref.revision; } else request.auto = true;
       postJson(path, request).then(function (result) {
@@ -901,7 +898,7 @@
         else {
           var issue = error.body && error.body.issues && error.body.issues[0];
           var reason = issue ? presentedText(issue, issue.message || issue.code) : presentedError(error);
-          setStatus(error.status === 409
+          setStatus(error.status === "not_commandable"
             ? presentedError(error, t("profiles.error.activation_catalog_changed", "The profile catalog changed in another tab. Reload and confirm again."))
             : t("profiles.error.activation_failed", "Activation failed: {error}", { error: reason }), "error");
         }
@@ -909,12 +906,16 @@
     }, action === "rollback" ? t("profiles.action.confirm_rollback", "Confirm rollback") : t("profiles.action.confirm_restart", "Confirm and restart"), true);
   }
   function pollAfterRestart(ref, attempt) {
-    if (attempt > 60) { setStatus(t("profiles.error.restart_slow", "The restart is taking longer than expected. Reload to check the active profile."), "error"); return; }
-    setTimeout(function () {
-      fetch("health", { cache: "no-store" }).then(function (response) {
-        if (!response.ok) throw new Error("not ready");
-        return jsonFetch(API + "?t=" + Date.now());
-      }).then(function (data) {
+    function slow() { setStatus(t("profiles.error.restart_slow", "The restart is taking longer than expected. Reload to check the active profile."), "error"); }
+    if (attempt > 60) { slow(); return; }
+    var giveUp = setTimeout(function () { handle.close(); slow(); }, 150000);
+    // Wait for the panel to answer health again, then read the catalog once; an unsettled activation
+    // waits for the next health answer.
+    var handle = transport.subscribe("health", function (_, state) {
+      if (state !== "known") return;
+      clearTimeout(giveUp);
+      handle.close();
+      jsonFetch("profiles").then(function (data) {
         model.catalogRevision = Number(data.catalog_revision) || model.catalogRevision;
         model.profiles = data.profiles || [];
         model.status = data.status || data;
@@ -926,16 +927,16 @@
         if (activation.state === "rolled_back" || activation.state === "auto_rolled_back") { setStatus(t("profiles.error.auto_rollback", "The candidate did not become healthy; Panel Assistant automatically restored the last-known-good profile."), "error"); loadCatalog(active && active.ref); return; }
         pollAfterRestart(ref, attempt + 1);
       }).catch(function () { pollAfterRestart(ref, attempt + 1); });
-    }, attempt < 5 ? 1000 : 2500);
+    });
   }
   function deleteSelected() {
     var summary = selectedSummary(); if (!summary) return;
     openModal(t("profiles.modal.delete_title", "Delete inactive profile revision?"), t("profiles.modal.delete_detail", "{profile}\nsha256:{sha256}\n\nThis cannot be undone. Active, selected, bundled, and last-known-good revisions cannot be deleted.", { profile: string(summary.display_name || summary.ref.id), sha256: string(summary.ref.revision) }), function () {
       model.loading = true; updateActions();
-      postJson("/delete", { id: summary.ref.id, revision: summary.ref.revision, expected_catalog_revision: model.catalogRevision, confirm: true }).then(function (result) {
+      postJson("profiles.delete", { id: summary.ref.id, revision: summary.ref.revision, expected_catalog_revision: model.catalogRevision, confirm: true }).then(function (result) {
         var compatibility = string(result.message || t("profiles.status.deleted", "Profile deleted."));
         setStatus(presentedText(result, compatibility), "ok"); return loadCatalog();
-      }).catch(function (error) { setStatus(error.status === 409 ? presentedError(error, t("profiles.error.delete_catalog_changed", "The catalog changed; reload before deleting.")) : t("profiles.error.delete_failed", "Delete failed: {error}", { error: presentedError(error) }), "error"); })
+      }).catch(function (error) { setStatus(error.status === "not_commandable" ? presentedError(error, t("profiles.error.delete_catalog_changed", "The catalog changed; reload before deleting.")) : t("profiles.error.delete_failed", "Delete failed: {error}", { error: presentedError(error) }), "error"); })
         .finally(function () { model.loading = false; updateActions(); });
     }, t("profiles.action.delete_revision", "Delete revision"));
   }
@@ -971,7 +972,7 @@
   }
 
   initEditor(); bind(); bindProfileLayout(); renderCatalogIssues([]); renderIssues([]); renderDiff([]); renderReport({});
-  jsonFetch(API + "/schema").then(function (schema) {
+  jsonFetch("profiles.schema").then(function (schema) {
     var advertised = Number(schema.max_bytes);
     if (advertised > 0) model.maxBytes = Math.min(advertised, 256 * 1024);
     if (model.editor && typeof model.editor.setSchema === "function") model.editor.setSchema(localizedSchemaFields(schema.fields));

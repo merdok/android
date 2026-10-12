@@ -20,6 +20,7 @@
 // A hidden tab ends every subscription and opens them again on return, here and nowhere else.
 (function () {
   "use strict";
+  if (window.PaneldTransport) return;
 
   // ---- The one name -> route table (20.6). Paths are under api/v1/ unless they start with "/".
   // "METHOD path" or ["METHOD path", options]. Options: b = POST body ("form" default, "json", "raw":
@@ -32,6 +33,7 @@
     "diag": "GET diag",
     "openapi.json": "GET openapi.json",
     "action.dashboard": ["POST action", { f: { a: "dashboard" } }],
+    "action": "POST action",
     "apps": "GET apps", "packages": "GET packages",
     "auto_brightness": "GET auto-brightness", "auto_brightness.history": "GET auto-brightness/history",
     "auto_brightness.sources": "GET auto-brightness/sources",
@@ -41,7 +43,7 @@
     "auto_sleep.source": ["POST auto-sleep/source", { b: "json" }],
     "backup": "POST backup",
     "restore": ["POST restore", { b: "raw", h: { passphrase: "X-Backup-Passphrase" } }],
-    "camera.status": "GET camera/status",
+    "camera.status": "GET camera/status", "camera.snapshot": "GET camera/snapshot.jpg",
     "companion.repair_url": "POST companion/repair-url",
     "config": "GET config",
     "settings": "POST config",
@@ -84,9 +86,9 @@
     "perf": "GET perf", "perf.binding": "GET perf/binding",
     "power_safety": "GET power-safety", "power_safety.acknowledge": "POST power-safety/acknowledge",
     "power_safety.repair": "POST power-safety/repair",
-    "profiles": "GET profiles", "profiles.revision": "GET profiles/{id}/revisions/{revision}",
-    "profiles.device_draft": "GET profiles/device-draft", "profiles.drivers": "GET profiles/drivers",
-    "profiles.report": "GET profiles/report", "profiles.schema": "GET profiles/schema", "profiles.template": "GET profiles/template",
+    "profiles": "GET profiles", "profiles.revision": ["GET profiles/{id}/revisions/{revision}", { H: { Accept: "application/yaml, text/yaml, text/plain" } }],
+    "profiles.device_draft": ["GET profiles/device-draft", { H: { Accept: "application/yaml, text/yaml, text/plain" } }], "profiles.drivers": "GET profiles/drivers",
+    "profiles.report": "GET profiles/report", "profiles.schema": "GET profiles/schema", "profiles.template": ["GET profiles/template", { H: { Accept: "application/yaml, text/yaml, text/plain" } }],
     "profiles.compare": ["POST profiles/compare", { b: "json" }], "profiles.preview": ["POST profiles/preview", { b: "json" }],
     "profiles.probe": ["POST profiles/probe", { b: "raw", t: "application/yaml; charset=utf-8", h: { preview_token: "X-Profile-Preview-Token" } }],
     "profiles.validate": ["POST profiles/validate", { b: "json" }],
@@ -324,7 +326,6 @@
       var queue = self.queue; self.queue = [];
       queue.forEach(function (text) { socket.send(text); });
       // Re-subscribe after a reconnect: the panel forgot the old subscriptions with the old socket.
-      self.subs = {};
       self.live.forEach(function (sub) { if (!sub.id && !sub.opening) self.open(sub); });
     };
     socket.onmessage = function (event) {
@@ -355,6 +356,7 @@
     socket.onclose = function () {
       self.socket = null;
       self.ready = false;
+      self.subs = {};
       var pending = self.pending; self.pending = {};
       Object.keys(pending).forEach(function (id) {
         if (pending[id].timer) clearTimeout(pending[id].timer);
@@ -609,6 +611,7 @@
     routes: ROUTES,
     families: FAMILIES,
     httpRequestFor: httpRequestFor,
+    outcomeFor: outcomeFor,
     sha256Hex: sha256Hex,
   };
   window.PaneldTransport = api;

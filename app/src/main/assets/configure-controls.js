@@ -139,8 +139,8 @@
     function loadSources(query) {
       var request = ++sourceRequest;
       note.textContent = options.messages.loading;
-      fetch(options.url(query))
-        .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+      window.PaneldTransport.request(options.op, options.args(query))
+        .then(function (r) { if (r.outcome !== "applied") throw r.code; return r.result; })
         .then(function (body) {
           if (request !== sourceRequest) return;
           sourceItems = (body && (body.items || body.candidates)) || [];
@@ -358,7 +358,7 @@
       return wakeWrap;
     }
     // Wake-word-pipeline picker: one native select per configured wake word (from voice_wake_words),
-    // offering the Home Assistant Assist pipelines fetched from /api/v1/voice/pipelines. Degrades to the
+    // offering the Home Assistant Assist pipelines read from voice.pipelines. Degrades to the
     // raw JSON textarea while that endpoint hasn't answered yet, or answered 503 (no Home Assistant
     // connection, or the voice-coordinator lane not wired up yet) — Safari-first: plain fetch/select/
     // textarea, no picker library.
@@ -646,7 +646,7 @@
       if (cfg.haAreaSeed) fillAreaOptions(cfg.haAreaSeed);
       // The panel endpoint owns a short, owner-keyed cache. Always ask it so failed queries and config,
       // credential or identity changes can recover without a full browser reload.
-      fetch("api/v1/config/ha-area", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (a) {
+      window.PaneldTransport.request("config.ha_area").then(function (r) { return r.result; }).then(function (a) {
         if (areaSeedGeneration !== cfg.haAreaSeedGeneration || areaRequest !== cfg.haAreaCatalogRequest) return;
         if (a && a.queried) cfg.haAreaSeed = a;
         fillAreaOptions(a);
@@ -667,7 +667,7 @@
       var entityPicker = createEntityPicker({
         value: v, label: f.label, maxLength: f.maxLength, listId: "ha-illuminance-listbox",
         placeholder: cfg.ambientSourcePlaceholder(), defaultUnit: "lx", items: cfg.haSourceItems,
-        url: function (query) { return "api/v1/auto-brightness/sources?q=" + encodeURIComponent(query || "") + "&limit=200"; },
+        op: "auto_brightness.sources", args: function (query) { return { q: query || "", limit: 200 }; },
         messages: {
           initial: cfg.i18nText("configure.brightness.focus_to_load", "Focus to load Home Assistant illuminance sensors."),
           loading: cfg.i18nText("configure.brightness.sources_loading", "Loading Home Assistant illuminance sensors…"),

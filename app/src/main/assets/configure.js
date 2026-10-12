@@ -74,8 +74,8 @@
     // OUR save changes the cfg fingerprint too. Re-stamp even when newer local edits prevent a form
     // reload, otherwise buildwatch.js falsely reports those acknowledged changes as external.
     setTimeout(function () {
-      fetch("health").then(function (r) { return r.text(); }).then(function (t) {
-        var m = t.match(/cfg=(\S+)/); if (m) document.body.setAttribute("data-cfg", m[1]);
+      window.PaneldTransport.request("health").then(function (reply) {
+        var m = String(reply.result).match(/cfg=(\S+)/); if (m) document.body.setAttribute("data-cfg", m[1]);
       }).catch(function () {});
     }, 500);
   }
@@ -172,27 +172,20 @@
       }
     });
     msg.textContent = cfg.i18nText("configure.save.saving", "Saving…");
-    fetch("api/v1/config", {
-      method: "POST", headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    }).then(function (r) {
-      // The panel refuses as JSON `message` or as plain text; keep whichever arrived so the reason is shown.
-      var text = r.ok ? null : r.clone().text().catch(function () { return ""; });
-      return cfg.approvalAwareJson(r).then(function (body) {
-        if (!r.ok) {
-          return text.then(function (raw) {
-            var reason = (body && typeof body.message === "string" && body.message) ||
-              (body && typeof body.error === "string" ? body.error + (body.reason ? " (" + body.reason + ")" : "") : raw.trim());
-            var error = new Error(reason
-              ? cfg.i18nText("configure.save.refused", "Not saved: {reason}", { reason: reason })
-              : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: r.status }));
-            error.configOutcome = body;
-            error.refused = true;
-            throw error;
-          });
-        }
-        return body;
-      });
+    window.PaneldTransport.request("settings", Object.fromEntries(body)).then(function (reply) {
+      // The panel refuses as JSON `message` or as plain text (the transport carries that as `message`).
+      var body = cfg.approvalAware(reply);
+      if (reply.outcome !== "applied") {
+        var reason = (typeof reply.result === "string" && reply.result.trim()) || (typeof body.message === "string" && body.message.trim()) ||
+          (typeof body.error === "string" ? body.error + (body.reason ? " (" + body.reason + ")" : "") : "");
+        var error = new Error(reason
+          ? cfg.i18nText("configure.save.refused", "Not saved: {reason}", { reason: reason })
+          : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: reply.code || reply.outcome }));
+        error.configOutcome = body;
+        error.refused = true;
+        throw error;
+      }
+      return body;
     })
       .then(function (outcome) {
         var outcomeMessage = outcome && outcome.status === "saved-apply-pending"
@@ -309,12 +302,17 @@
   function load(done, forceHaUserStatusRefresh, refreshAutoSleepPrerequisite) {
     ++cfg.haAreaSeedGeneration;
     ++cfg.schemaLanguageRequest;
-    var schemaUrl = cfg.configSchemaUrl(cfg.haUserStatus.phase === "connected" ? cfg.haUserStatus.language : "");
+    var read = function (op, args) {
+      return window.PaneldTransport.request(op, args).then(function (reply) {
+        if (reply.outcome !== "applied") throw new Error(op + " · " + (reply.code || reply.outcome));
+        return reply.result;
+      });
+    };
     Promise.all([
-      fetch(schemaUrl, { headers: { "Accept": "application/json" }, cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(schemaUrl + " · HTTP " + r.status); return cfg.readLocalizedSchema(r); }),
-      fetch("api/v1/config", { headers: { "Accept": "application/json" }, cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("api/v1/config · HTTP " + r.status); return r.json(); }),
+      read("config.schema", cfg.configSchemaArgs(cfg.haUserStatus.phase === "connected" ? cfg.haUserStatus.language : "")),
+      read("config"),
       // Installed launchable apps for the package pickers; tolerate failure (picker falls back to text).
-      fetch("api/v1/apps").then(function (r) { return r.json(); }).catch(function () { return { apps: [] }; }),
+      window.PaneldTransport.request("apps").then(function (reply) { return reply.result; }).catch(function () { return { apps: [] }; }),
     ]).then(function (res) {
       var previousHaUrl = cfg.values.ha_url;
       var previousHaConfigured = cfg.haAuth.configured === true;
@@ -375,7 +373,7 @@
       if (done) done(true);
     }).catch(function (e) {
       document.getElementById("cfg-status").textContent = cfg.i18nText("configure.load_failed", "Could not load settings ({error}).", { error: e });
-      if (!Array.isArray(cfg.schema) || !cfg.schema.some(function (field) { return document.getElementById("cfg-" + field.key); })) window.HaI18n.pageFailure("api/v1/config/schema / api/v1/config · " + e);
+      if (!Array.isArray(cfg.schema) || !cfg.schema.some(function (field) { return document.getElementById("cfg-" + field.key); })) window.HaI18n.pageFailure("config.schema / config · " + e);
       cfg.consumeLocaleReloadMessage();
       if (done) done(false);
     });
@@ -383,9 +381,9 @@
 
   function loadDiscoverySuggestions() {
     var request = ++cfg.configDiscoveryRequest;
-    fetch("api/v1/config/discovery", { cache: "no-store" }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
+    window.PaneldTransport.request("config.discovery").then(function (reply) {
+      if (reply.outcome !== "applied") throw new Error(reply.code || reply.outcome);
+      return reply.result;
     }).then(function (suggestions) {
       // Never rebuild the form over an edit made while the bounded mDNS browse was in flight.
       if (request !== cfg.configDiscoveryRequest || cfg.dirty) return;
@@ -438,13 +436,23 @@
     return parts.join(" ");
   }
 
+  // While a saved value waits for hardware, watch the health line: its cfg= token changes when the
+  // panel's settings do, and only then is the config re-read.
   function scheduleApplyPendingPoll() {
-    if (cfg.applyPendingTimer) clearTimeout(cfg.applyPendingTimer);
-    cfg.applyPendingTimer = null;
-    if (!Object.keys(cfg.applyPending).length) return;
-    cfg.applyPendingTimer = setTimeout(function () {
-      fetch("api/v1/config", { headers: { "Accept": "application/json" }, cache: "no-store" })
-        .then(function (response) { if (!response.ok) throw response.status; return response.json(); })
+    if (!Object.keys(cfg.applyPending).length) {
+      if (cfg.applyPendingTimer) cfg.applyPendingTimer.close();
+      cfg.applyPendingTimer = null;
+      return;
+    }
+    if (cfg.applyPendingTimer) return;
+    var lastToken = null;
+    cfg.applyPendingTimer = window.PaneldTransport.subscribe("health", function (line, state) {
+      if (state !== "known") return;
+      var m = String(line).match(/cfg=(\S+)/), token = m ? m[1] : "";
+      if (token === lastToken) return; // the first line re-reads too: the apply may have landed already
+      lastToken = token;
+      window.PaneldTransport.request("config")
+        .then(function (reply) { if (reply.outcome !== "applied") throw reply.code; return reply.result; })
         .then(function (body) {
           var next = body.apply_pending || {};
           var nextStalled = stalledMap(body.apply_stalled);
@@ -487,7 +495,7 @@
         })
         .catch(function () {})
         .then(scheduleApplyPendingPoll);
-    }, 3000);
+    });
   }
 
   cfg.updateSaveUi = updateSaveUi;
