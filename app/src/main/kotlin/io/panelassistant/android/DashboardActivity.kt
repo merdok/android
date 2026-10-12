@@ -808,8 +808,8 @@ class DashboardActivity : AppCompatActivity() {
         }
         activityConfig = config
         activityConfig.registerChangeListener(rendererPowerListener)
-        // A resume that came while preparation was suspended returned before attaching the voice
-        // overlays; without this the mute chip and listening glow wait for the next resume.
+        // A resume during the suspended preparation returned early: catch up foreground (else ~300 s of dashboard_background) and the voice overlays.
+        BuiltinDashboard.setActivityForeground(activityOwner, dashboardIsTopResumed)
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) io.panelassistant.android.assist.VoiceOverlays.show(this)
         // The service's camera owner publishes the prompt state on its own lane; the listener posts
         // to main (never inline) and the delivery gate defers to the lifecycle's ON_RESUME, which is
