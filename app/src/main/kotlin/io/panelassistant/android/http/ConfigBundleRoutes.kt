@@ -29,12 +29,12 @@ internal class ConfigBundleRoutes(
     private val revisions: RevisionStore,
     private val values: ConfigValueProjection,
     private val transaction: AcceptedConfigTransaction,
-    private val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-    private val rejectHardenedNetworkAdb: suspend (ApplicationCall, String?) -> Boolean,
+    private val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+    private val rejectHardenedNetworkAdb: suspend (OpCall, String?) -> Boolean,
     private val planEntityBackup: (org.json.JSONObject) -> DashboardEntityBackupState,
 ) {
     /** Export a versioned config bundle. Secrets are excluded unless `?include_secrets=1`. */
-    suspend fun handleConfigExport(call: ApplicationCall) {
+    suspend fun handleConfigExport(call: OpCall) {
         val includeSecrets = call.request.queryParameters["include_secrets"] == "1"
         if (includeSecrets && !authorizeSensitive(
                 call,
@@ -70,7 +70,7 @@ internal class ConfigBundleRoutes(
      * Status: "applied" (all valid), "partial" (some skipped as invalid), "rejected" (nothing usable
      * or strict mode with any error).
      */
-    suspend fun handleConfigImport(call: ApplicationCall) {
+    suspend fun handleConfigImport(call: OpCall) {
         val bodyBytes = when (val receipt = receiveBoundedBody(call, PaneldServer.MAX_CONFIG_IMPORT_BYTES)) {
             is BoundedBodyReceipt.Received -> receipt.bytes
             BoundedBodyReceipt.TooLarge -> {
@@ -223,7 +223,7 @@ internal class ConfigBundleRoutes(
         } + "]"
 
     /** Roll back to a stored revision (itself recorded as a new revision, so restores are undoable). */
-    suspend fun handleRevisionRestore(call: ApplicationCall, id: Long) {
+    suspend fun handleRevisionRestore(call: OpCall, id: Long) {
         val bundle = revisions.get(id)
         if (bundle == null) {
             call.respondText("""{"status":"not-found"}""", ContentType.Application.Json, HttpStatusCode.NotFound)
@@ -312,13 +312,15 @@ internal class ConfigBundleRoutes(
 
 internal fun Route.configBundleRoutes(owner: () -> ConfigBundleRoutes) {
     // Versioned config bundle: backup (export) and validated restore/deploy (import).
-    get("/config/export") { owner().handleConfigExport(call) }
-    post("/config/import") { owner().handleConfigImport(call) }
+    ops {
+        get("/config/export") { owner().handleConfigExport(call) }
+        post("/config/import") { owner().handleConfigImport(call) }
+    }
     // On-panel revision history + rollback.
     get("/config/revisions") { call.respondText(owner().revisionsJson(), ContentType.Application.Json) }
     post("/config/revisions/{id}/restore") {
         val id = call.parameters["id"]?.toLongOrNull()
         if (id == null) call.respondText("bad-id\n", status = HttpStatusCode.BadRequest)
-        else owner().handleRevisionRestore(call, id)
+        else owner().handleRevisionRestore(call.op(), id)
     }
 }

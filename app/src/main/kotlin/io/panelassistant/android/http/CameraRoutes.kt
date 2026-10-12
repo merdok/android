@@ -60,8 +60,10 @@ internal fun Route.cameraRoutes(
     // call reads the session's own state under its lock and never opens the camera, so
     // an idle panel stays at zero cost, and the identical bytes are already readable
     // from `/api/v1/status` — this adds no exposure, only a cheaper way to ask.
-    get("/camera/status") {
-        call.response.headers.append("Cache-Control", "no-store")
-        call.respondText(camera.presentation().statusJson(), ContentType.Application.Json)
+    ops {
+        get("/camera/status") {
+            call.response.headers.append("Cache-Control", "no-store")
+            call.respondText(camera.presentation().statusJson(), ContentType.Application.Json)
+        }
     }
 }

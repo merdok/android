@@ -27,8 +27,8 @@ internal fun Route.rendererMaintenanceRoutes(
     isStopping: () -> Boolean,
     onRepairCompanionUrl: () -> Boolean,
     invalidateCompanionObservation: () -> Unit,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-) {
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+) = ops {
     // Clear the built-in renderer's browsing data (localStorage/IndexedDB/caches/cookies)
     // — the remote heal for a corrupted-storage dashboard that survives plain reloads.
     // Sign-in is NOT stored there (the external-auth bridge holds the token in Config),

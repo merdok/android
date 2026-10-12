@@ -140,7 +140,7 @@ internal class RemoteControlRoutes(
         }
         return result is TapCaptureResult.Success
     }
-    private suspend fun respondRemoteAdmission(call: ApplicationCall, command: RemoteControl) {
+    private suspend fun respondRemoteAdmission(call: OpCall, command: RemoteControl) {
         // Coordinate injection cannot be made self-approving: an approved tap could target the next
         // approval dialog. Hardened mode therefore trusts taps only from loopback software already on
         // the panel. Non-coordinate navigation remains routine; reboot has its own explicit gate below.
@@ -208,7 +208,7 @@ internal class RemoteControlRoutes(
     }
 
     private suspend fun respondTapCapture(
-        call: ApplicationCall,
+        call: OpCall,
         requestId: Long,
         result: TapCaptureResult,
     ) {
@@ -227,11 +227,11 @@ internal class RemoteControlRoutes(
         }
     }
 
-    suspend fun admitTap(call: ApplicationCall, x: Float, y: Float, capture: Boolean) =
+    suspend fun admitTap(call: OpCall, x: Float, y: Float, capture: Boolean) =
         respondRemoteAdmission(call, RemoteControl.Tap(x, y, capture = capture))
 
     suspend fun admitAction(call: ApplicationCall, action: String) =
-        respondRemoteAdmission(call, RemoteControl.Action(action))
+        respondRemoteAdmission(call.op(), RemoteControl.Action(action))
 
     fun closeAndJoin(timeoutMs: Long): Boolean = remoteControls.closeAndJoin(timeoutMs)
 
@@ -253,7 +253,7 @@ internal fun Route.remoteControlRoutes(
 ) {
     // Inject a tap at device pixel (x,y). capture=1 is the Dashboard overlay PoC's
     // combined one-tap/settled-screenshot operation; omission preserves legacy 202 admission.
-    post("/input") {
+    ops { post("/input") {
         val q = receiveBoundedFormParameters(call) ?: return@post
         val x = q["x"]?.trim()?.toFloatOrNull()
         val y = q["y"]?.trim()?.toFloatOrNull()
@@ -267,7 +267,7 @@ internal fun Route.remoteControlRoutes(
         } else {
             owner().admitTap(call, x, y, capture)
         }
-    }
+    } }
     // On-screen Controls card (software navbar) for panels with no physical nav bar.
     post("/action") {
         handleRemoteAction(

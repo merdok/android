@@ -7,11 +7,9 @@ import io.panelassistant.android.control.CdpRelay
 import io.panelassistant.android.security.SensitiveOperation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import io.ktor.server.routing.post
 
 internal fun Route.sensorTraceRoute() {
     // Debug-only sensor trace (RAM ring buffer, on by default) for fit-testing the
@@ -32,8 +30,8 @@ internal fun Route.debugInspectionRoutes(
     config: Config,
     inspectLock: Any,
     isStopping: () -> Boolean,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-) {
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+) = ops {
     // 1-click WebView DevTools: expose the dashboard's CDP socket to the LAN (root relay)
     // so the user can chrome://inspect with no adb. See CdpRelay.
     get("/inspect") {
@@ -67,7 +65,7 @@ internal fun Route.debugInspectionRoutes(
     }
 }
 
-private suspend fun rejectHardenedDevToolsRelay(call: ApplicationCall, config: Config): Boolean {
+private suspend fun rejectHardenedDevToolsRelay(call: OpCall, config: Config): Boolean {
     if (!config.hardenedSecurityEnabled) return false
     call.respondText(
         """{"ok":false,"error":"devtools-incompatible-with-hardened-mode","message":"Switch to Relaxed mode before exposing WebView developer tools to the LAN."}""",

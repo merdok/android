@@ -27,6 +27,7 @@ internal fun Route.voiceRoutes(
 ) {
     // Home Assistant Assist pipelines for the Configure voice_pipelines picker, through the
     // injected directory rather than talking to Home Assistant here.
+    ops {
     get("/voice/pipelines") {
         val refusal = voicePipelinesRefusal(hasMicrophone = hasMicrophone())
         if (refusal != null) {
@@ -44,6 +45,7 @@ internal fun Route.voiceRoutes(
     // quiet: no microphone, or one that recorded silence or delivered nothing when checked.
     get("/voice/microphone") {
         call.respondText(voiceMicrophoneJson(microphone()), ContentType.Application.Json)
+    }
     }
     // One-shot voice-assistant test run. Refused with 409 before ever reaching the trigger
     // when the panel has no microphone capability or voice_enabled is off, so a disabled
@@ -65,6 +67,7 @@ internal fun Route.voiceRoutes(
     }
     // The wake words this panel can listen for, and the import of one a user trained: a
     // microWakeWord manifest and model, sent as JSON with the model base64-encoded.
+    ops {
     get("/voice/wake-words") {
         val catalog = wakeWords
         if (catalog == null || !hasMicrophone()) {
@@ -74,7 +77,7 @@ internal fun Route.voiceRoutes(
         val (status, body) = withContext(Dispatchers.IO) { wakeWordsResponse(catalog) }
         call.respondText(body, ContentType.Application.Json, status)
     }
-    post("/voice/wake-words") {
+    post("/voice/wake-words", name = "voice.wake_words.set") {
         val catalog = wakeWords
         if (catalog == null || !hasMicrophone()) {
             call.respondText("{\"error\":\"unavailable\"}", ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
@@ -98,5 +101,6 @@ internal fun Route.voiceRoutes(
             wakeWordImportResponse(catalog, received.toByteArray(), onWakeWordsChanged)
         }
         call.respondText(body, ContentType.Application.Json, status)
+    }
     }
 }

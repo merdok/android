@@ -223,6 +223,8 @@ class PaneldServer internal constructor(
     private val asset: (String) -> String = { name ->
         appContext.assets.open(name).bufferedReader().use { it.readText() }
     },
+    /** The named operations the routes below register as they mount (protocol section 20.3). */
+    internal val manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
 ) {
     private suspend fun authorizeSensitive(
         call: ApplicationCall,
@@ -241,7 +243,33 @@ class PaneldServer internal constructor(
         )
     }
 
-    private suspend fun rejectHardenedNetworkAdb(call: ApplicationCall, requested: String?): Boolean {
+    /** [authorizeSensitive] for a route that serves both doors; see [authorizeSensitiveRequest]. */
+    private suspend fun authorizeSensitive(
+        call: OpCall,
+        operation: SensitiveOperation,
+        payload: String,
+        summary: String,
+    ): Boolean = authorizeSensitiveRequest(
+        call = call,
+        hardened = config.hardenedSecurityEnabled,
+        operation = operation,
+        payload = payload,
+        summary = summary,
+        broker = LocalApprovalBroker.instance,
+    )
+
+    private fun requestStrings(call: OpCall): AppStrings = resolvedRequestStrings(
+        call = call,
+        persistedLanguage = config.uiLanguage,
+        deviceLanguageTag = java.util.Locale.getDefault().toLanguageTag(),
+        allowPseudo = BuildConfig.DEBUG,
+        catalogueLoader = catalogueLoader,
+    )
+
+    private suspend fun rejectHardenedNetworkAdb(call: ApplicationCall, requested: String?): Boolean =
+        rejectHardenedNetworkAdb(call.op(), requested)
+
+    private suspend fun rejectHardenedNetworkAdb(call: OpCall, requested: String?): Boolean {
         if (!config.hardenedSecurityEnabled || SettingValue.parseBool(requested.orEmpty()) != true) {
             return false
         }
@@ -373,6 +401,7 @@ class PaneldServer internal constructor(
                 setupNeedsUser = { setupState.setupNeedsUser() },
                 setupRedirectLocation = ::setupRedirectLocation,
             ) {
+                serveOperations(manageTable)
                 handBackHomeRoutes(handBackHomeDependencies(
                     config = config,
                     tameController = { tame },
@@ -757,8 +786,17 @@ class PaneldServer internal constructor(
      */
     internal fun Route.installDirectConfigPostRoute(
         capabilityProvider: (() -> Capabilities)? = null,
-    ) {
-        post("/config") { directConfigPost().handle(call, capabilityProvider) }
+    ) = ops {
+        // Protocol section 20.3: POST /api/v1/config is the `settings` operation. Panel Assistant's own origin
+        // keeps its session allowlist; relayed and stub origins pass the Configure admission HTTP passes.
+        post("/config", name = "settings") {
+            if (call.origin.isPanelAssistant &&
+                call.args?.keys()?.asSequence()?.all { it in io.panelassistant.android.panelassistant.PanelAssistantManagedSettings.KEYS } != true
+            ) {
+                return@post call.respondText("not-commandable\n", status = HttpStatusCode.Forbidden)
+            }
+            directConfigPost().handle(call, capabilityProvider)
+        }
     }
 
     /** What Panel Assistant reads over its session: the same health line and status body HTTP serves. */

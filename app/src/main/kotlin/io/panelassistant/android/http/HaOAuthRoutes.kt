@@ -18,6 +18,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import io.panelassistant.android.ManageKind
 import kotlinx.coroutines.CancellationException
 
 internal const val MAX_HA_OAUTH_START_BODY_BYTES = 4L * 1024L
@@ -66,98 +67,100 @@ internal data class HaOAuthRouteDependencies(
  * live reconfiguration remain owned by the server through the injected completion callback. */
 internal fun Route.haOAuthRoutes(dependencies: HaOAuthRouteDependencies) {
     route("/ha/oauth") {
-        get("/status") {
-            call.noStoreHaOAuth()
-            val status = try {
-                dependencies.status()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Throwable) {
-                HaCurrentUserStatus.Unavailable
+        ops {
+            get("/status") {
+                call.noStoreHaOAuth()
+                val status = try {
+                    dependencies.status()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Throwable) {
+                    HaCurrentUserStatus.Unavailable
+                }
+                val json = when (status) {
+                    is HaCurrentUserStatus.Connected ->
+                        """{"phase":"connected","display_name":${status.displayName?.let(Json::str) ?: "null"},"language":${status.language?.let(Json::str) ?: "null"}}"""
+                    HaCurrentUserStatus.NotConfigured -> """{"phase":"not_configured"}"""
+                    HaCurrentUserStatus.Rejected -> """{"phase":"rejected"}"""
+                    HaCurrentUserStatus.Unavailable -> """{"phase":"unavailable"}"""
+                }
+                call.respondText(json, ContentType.Application.Json)
             }
-            val json = when (status) {
-                is HaCurrentUserStatus.Connected ->
-                    """{"phase":"connected","display_name":${status.displayName?.let(Json::str) ?: "null"},"language":${status.language?.let(Json::str) ?: "null"}}"""
-                HaCurrentUserStatus.NotConfigured -> """{"phase":"not_configured"}"""
-                HaCurrentUserStatus.Rejected -> """{"phase":"rejected"}"""
-                HaCurrentUserStatus.Unavailable -> """{"phase":"unavailable"}"""
-            }
-            call.respondText(json, ContentType.Application.Json)
-        }
-        post("/start") {
-            call.noStoreHaOAuth()
-            val parameters = receiveBoundedFormParameters(call, MAX_HA_OAUTH_START_BODY_BYTES) ?: return@post
-            val rawUrl = parameters["ha_url"].orEmpty()
-            val spec = requireNotNull(SettingsRegistry.spec("ha_url"))
-            val haUrl = when (val validation = SettingValue.validate(spec, rawUrl)) {
-                is Validation.Ok -> validation.normalized.takeIf(String::isNotBlank)
-                is Validation.Bad -> null
-            }
-            if (haUrl == null) {
-                call.respondText(
-                    """{"ok":false,"error":"invalid-ha-url","message":"Enter a valid Home Assistant URL first."}""",
-                    ContentType.Application.Json,
-                    HttpStatusCode.BadRequest,
+            post("/start") {
+                call.noStoreHaOAuth()
+                val parameters = receiveBoundedFormParameters(call, MAX_HA_OAUTH_START_BODY_BYTES) ?: return@post
+                val rawUrl = parameters["ha_url"].orEmpty()
+                val spec = requireNotNull(SettingsRegistry.spec("ha_url"))
+                val haUrl = when (val validation = SettingValue.validate(spec, rawUrl)) {
+                    is Validation.Ok -> validation.normalized.takeIf(String::isNotBlank)
+                    is Validation.Bad -> null
+                }
+                if (haUrl == null) {
+                    call.respondText(
+                        """{"ok":false,"error":"invalid-ha-url","message":"Enter a valid Home Assistant URL first."}""",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@post
+                }
+                val panelOrigin = panelHttpOrigin(call.request.headers[HttpHeaders.Host], dependencies.panelPort)
+                if (panelOrigin == null) {
+                    call.respondText(
+                        """{"ok":false,"error":"invalid-panel-origin","message":"Open Configure using this panel's normal IP or .local address."}""",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@post
+                }
+                val started = dependencies.startOAuth(
+                    haUrl,
+                    panelOrigin,
+                    oauthStartSelection(
+                        parameters[HA_OAUTH_UI_LOCALE_FIELD],
+                        parameters[HA_OAUTH_RETURN_SURFACE_FIELD],
+                        parameters[HA_OAUTH_PRESERVE_ENGLISH_FIELD],
+                        dependencies.allowPseudoLocale,
+                    ),
                 )
-                return@post
-            }
-            val panelOrigin = panelHttpOrigin(call.request.headers[HttpHeaders.Host], dependencies.panelPort)
-            if (panelOrigin == null) {
                 call.respondText(
-                    """{"ok":false,"error":"invalid-panel-origin","message":"Open Configure using this panel's normal IP or .local address."}""",
+                    """{"ok":true,"authorization_url":${Json.str(started.authorizationUrl)}}""",
                     ContentType.Application.Json,
-                    HttpStatusCode.BadRequest,
                 )
-                return@post
             }
-            val started = dependencies.startOAuth(
-                haUrl,
-                panelOrigin,
-                oauthStartSelection(
-                    parameters[HA_OAUTH_UI_LOCALE_FIELD],
-                    parameters[HA_OAUTH_RETURN_SURFACE_FIELD],
-                    parameters[HA_OAUTH_PRESERVE_ENGLISH_FIELD],
-                    dependencies.allowPseudoLocale,
-                ),
-            )
-            call.respondText(
-                """{"ok":true,"authorization_url":${Json.str(started.authorizationUrl)}}""",
-                ContentType.Application.Json,
-            )
-        }
 
-        get("/panel-start") {
-            call.noStoreHaOAuth()
-            val rawUrl = call.request.queryParameters["ha_url"].orEmpty()
-            val spec = requireNotNull(SettingsRegistry.spec("ha_url"))
-            val haUrl = when (val validation = SettingValue.validate(spec, rawUrl)) {
-                is Validation.Ok -> validation.normalized.takeIf(String::isNotBlank)
-                is Validation.Bad -> null
-            }
-            if (haUrl == null) {
-                call.respondText("Enter a valid Home Assistant URL first.", ContentType.Text.Plain, HttpStatusCode.BadRequest)
-                return@get
-            }
-            val panelOrigin = panelHttpOrigin(call.request.headers[HttpHeaders.Host], dependencies.panelPort)
-            if (panelOrigin == null) {
-                call.respondText(
-                    "Open this sign-in through the panel's local HTTP endpoint.",
-                    ContentType.Text.Plain,
-                    HttpStatusCode.BadRequest,
+            get("/panel-start", kind = ManageKind.COMMAND) {
+                call.noStoreHaOAuth()
+                val rawUrl = call.request.queryParameters["ha_url"].orEmpty()
+                val spec = requireNotNull(SettingsRegistry.spec("ha_url"))
+                val haUrl = when (val validation = SettingValue.validate(spec, rawUrl)) {
+                    is Validation.Ok -> validation.normalized.takeIf(String::isNotBlank)
+                    is Validation.Bad -> null
+                }
+                if (haUrl == null) {
+                    call.respondText("Enter a valid Home Assistant URL first.", ContentType.Text.Plain, HttpStatusCode.BadRequest)
+                    return@get
+                }
+                val panelOrigin = panelHttpOrigin(call.request.headers[HttpHeaders.Host], dependencies.panelPort)
+                if (panelOrigin == null) {
+                    call.respondText(
+                        "Open this sign-in through the panel's local HTTP endpoint.",
+                        ContentType.Text.Plain,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+                val started = dependencies.startOAuth(
+                    haUrl,
+                    panelOrigin,
+                    oauthStartSelection(
+                        call.request.queryParameters[HA_OAUTH_UI_LOCALE_FIELD],
+                        call.request.queryParameters[HA_OAUTH_RETURN_SURFACE_FIELD],
+                        call.request.queryParameters[HA_OAUTH_PRESERVE_ENGLISH_FIELD],
+                        dependencies.allowPseudoLocale,
+                    ),
                 )
-                return@get
+                call.respondRedirect(started.authorizationUrl)
             }
-            val started = dependencies.startOAuth(
-                haUrl,
-                panelOrigin,
-                oauthStartSelection(
-                    call.request.queryParameters[HA_OAUTH_UI_LOCALE_FIELD],
-                    call.request.queryParameters[HA_OAUTH_RETURN_SURFACE_FIELD],
-                    call.request.queryParameters[HA_OAUTH_PRESERVE_ENGLISH_FIELD],
-                    dependencies.allowPseudoLocale,
-                ),
-            )
-            call.respondRedirect(started.authorizationUrl)
         }
 
         get("/callback") {
@@ -303,6 +306,14 @@ internal fun oauthStartSelection(
         return HaOAuthStartSelection(AppLocale.ENGLISH, HaOAuthReturnSurface.CONFIGURE, false)
     }
     return HaOAuthStartSelection(locale, surface, preserve)
+}
+
+/** [noStoreHaOAuth] for a request on either door; a managed reply starts with no headers to collide with. */
+internal fun OpCall.noStoreHaOAuth() {
+    val http = http
+    if (http != null) return http.noStoreHaOAuth()
+    response.headers.append(HttpHeaders.CacheControl, "no-store")
+    response.headers.append("Referrer-Policy", "no-referrer")
 }
 
 internal fun ApplicationCall.noStoreHaOAuth() {

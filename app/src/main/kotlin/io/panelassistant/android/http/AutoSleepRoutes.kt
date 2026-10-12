@@ -3,12 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.sensors.HaPresenceSourceUpdate
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
-import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
 import org.json.JSONObject
 import io.panelassistant.android.sensors.HaPanelAreaPrerequisite
 import io.panelassistant.android.sensors.HaPanelAreaPrerequisitePhase
@@ -23,9 +18,9 @@ private val OPAQUE_AUTO_SLEEP_KEY = Regex("^[a-f0-9]{64}$")
 
 internal fun Route.autoSleepRoutes(
     api: AutoSleepHttpApi,
-    admit: suspend (ApplicationCall) -> Boolean,
-    receiveJson: suspend (ApplicationCall, Boolean) -> JSONObject?,
-) {
+    admit: suspend (OpCall) -> Boolean,
+    receiveJson: suspend (OpCall, Boolean) -> JSONObject?,
+) = ops {
     get("/auto-sleep") { call.respondText(api.statusJson(), ContentType.Application.Json) }
     get("/auto-sleep/prerequisite") {
         if (!admit(call)) return@get

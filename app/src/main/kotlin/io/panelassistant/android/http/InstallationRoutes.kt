@@ -32,7 +32,7 @@ internal fun Route.installationRoutes(
     config: Config,
     profile: DeviceProfile,
     pendingApks: PendingUploadStore,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
     versionCatalogue: (String, String) -> List<ReleaseCatalog.Version> = { name, channel ->
         when (name) {
             "paneld" -> SelfUpdater.versions(channel)
@@ -40,7 +40,7 @@ internal fun Route.installationRoutes(
             else -> emptyList()
         }
     },
-) {
+) = ops {
     // Dismiss a component update from the DASHBOARD banner only (per-version; re-surfaces when
     // a newer release ships). The Install tab still lists it. See Config.ignoreUpdate.
     post("/updates/ignore") {

@@ -45,12 +45,37 @@ import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONObject
 
 /**
- * Who a command came from: the approval principal [peer] and, when the caller tracks one, its [requestId].
- * The peer string is what the approval broker binds an approval to.
+ * Who a command came from (protocol section 20.2). [approvalKey] is the approval principal: `panel_assistant`,
+ * `user:<Home Assistant user id>` or `peer:<address>`, so an approval earned by one origin can never be
+ * consumed by another. [peerAddress] is the bare address of a `peer` origin, for the loopback exemption.
+ * Doors construct origins; a requester never supplies one.
  */
-internal data class CommandOrigin(val peer: String, val requestId: String? = null) {
+internal data class CommandOrigin private constructor(
+    val approvalKey: String,
+    val requestId: String? = null,
+    val peerAddress: String? = null,
+) {
+    val isPanelAssistant: Boolean get() = approvalKey == PANEL_ASSISTANT
+    val isUser: Boolean get() = approvalKey.startsWith(USER_PREFIX)
+
+    fun withRequestId(requestId: String?): CommandOrigin = copy(requestId = requestId)
+
     companion object {
-        const val PANEL_ASSISTANT_PEER = "panel_assistant"
+        const val PANEL_ASSISTANT = "panel_assistant"
+        private const val USER_PREFIX = "user:"
+        private const val PEER_PREFIX = "peer:"
+
+        fun panelAssistant(requestId: String? = null) = CommandOrigin(PANEL_ASSISTANT, requestId)
+
+        fun user(userId: String, requestId: String? = null): CommandOrigin {
+            require(userId.isNotBlank()) { "a user origin needs the Home Assistant user id" }
+            return CommandOrigin(USER_PREFIX + userId, requestId)
+        }
+
+        fun peer(address: String, requestId: String? = null): CommandOrigin {
+            require(address.isNotBlank()) { "a peer origin needs the peer address" }
+            return CommandOrigin(PEER_PREFIX + address, requestId, address)
+        }
     }
 }
 
@@ -108,10 +133,38 @@ internal class PanelCommandDispatcher(
     // The root helper's command line, for the button backlight.
     private val helperSend: (String) -> String? = HelperClient::send,
     private val onAutoSleepConfigChanged: (Boolean) -> Unit = {},
+    // The named operations the HTTP routes register (protocol section 20.3), served by [manage].
+    manageTable: ManageTable = ManageTable(),
+    manageFamilies: Map<String, ManageFamily> = ManageFamilies.DEFAULT,
+    approvalPollMs: Long = 1_000,
 ) : LiveSettingHandlers {
     enum class Kind { LATEST, ACTION }
 
     private val lifecycle = RetirableMutationGate()
+    private val operations = ManageOperations(
+        manageTable, { LocalApprovalBroker.instance }, manageFamilies, approvalPollMs = approvalPollMs,
+    )
+
+    /**
+     * The one entry every door calls for a named read or command (protocol section 20.2): see
+     * [ManageOperations.manage]. Channel commands keep [submit].
+     */
+    fun manage(
+        commandId: String,
+        op: String,
+        args: org.json.JSONObject,
+        origin: CommandOrigin,
+        blobs: ManageBlobs? = null,
+        onPending: () -> Unit = {},
+        done: (ManageReply) -> Unit,
+    ) = operations.manage(commandId, op, args, origin, blobs, onPending, done)
+
+    /** Follow a subscription family (protocol section 20.4); see [ManageOperations.subscribe]. */
+    fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? =
+        operations.subscribe(family, origin, sink)
+
+    /** End every subscription [origin] holds, as its door does when the connection closes. */
+    fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
     private val queue = CommandQueue(
         onQueueWait = { waitNanos ->
             FeatureCosts.registry.recordSynchronousElapsed(FeatureCostOperation.COMMAND_QUEUE_WAIT, waitNanos)
@@ -151,7 +204,7 @@ internal class PanelCommandDispatcher(
      */
     private val externalIntentCommitted = ThreadLocal<String?>()
 
-    /** The origin of the dispatch running on this thread; its peer is the approval principal. */
+    /** The origin of the dispatch running on this thread; its approval key is the approval principal. */
     private val currentOrigin = ThreadLocal<CommandOrigin?>()
 
     /** Whether [channel] takes commands here, and how they queue: state conflates by channel, actions never. */
@@ -167,10 +220,15 @@ internal class PanelCommandDispatcher(
         channel.startsWith(prefix) && channel.substring(prefix.length).toIntOrNull() in 1..MAX_DYNAMIC_COMMAND_INDEX
 
     /**
-     * Run one Panel Assistant command. Stateful commands conflate by channel; reload and reboot use the
-     * action queue. [done] receives exactly one result.
+     * Run one channel command from [origin]. Stateful commands conflate by channel; reload and reboot use the
+     * action queue. [done] receives exactly one result. Approvals a sensitive command needs bind to
+     * [origin]'s approval key.
      */
-    fun submit(command: PanelAssistantCommand, done: (PanelAssistantCommandResult) -> Unit) {
+    fun submit(
+        command: PanelAssistantCommand,
+        origin: CommandOrigin,
+        done: (PanelAssistantCommandResult) -> Unit,
+    ) {
         val answered = java.util.concurrent.atomic.AtomicBoolean(false)
         val finish = { result: PanelAssistantCommandResult -> if (answered.compareAndSet(false, true)) done(result) }
         if (!lifecycle.isOpen()) {
@@ -186,7 +244,6 @@ internal class PanelCommandDispatcher(
         if (payload.size > MAX_COMMAND_PAYLOAD_BYTES) {
             return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
         }
-        val origin = CommandOrigin(CommandOrigin.PANEL_ASSISTANT_PEER, command.requestId)
         val run = {
             val refusal = command.admit()
             if (refusal != null) {
@@ -196,7 +253,7 @@ internal class PanelCommandDispatcher(
             ) {
                 finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE))
             } else {
-                finish(panelAssistantCommandResult(consume(command.channel, payload, origin)))
+                finish(panelAssistantCommandResult(consume(command.channel, payload, origin.withRequestId(command.requestId ?: origin.requestId))))
             }
         }
         val admission = if (command.channel == "reload" || command.channel == "reboot") {
@@ -275,7 +332,7 @@ internal class PanelCommandDispatcher(
             return null
         } catch (e: Exception) {
             cost.outcome(FeatureCostOutcome.FAILURE)
-            Log.w(TAG, "command ${origin.requestId.orEmpty()} from ${origin.peer} failed on $channel (${payloadBytes.size} bytes)", e)
+            Log.w(TAG, "command ${origin.requestId.orEmpty()} from ${origin.approvalKey} failed on $channel (${payloadBytes.size} bytes)", e)
             // The handler may have made newer intent durable before failing to actuate it. Retire the
             // older queued HTTP value anyway — leaving it lets startup replay commit the stale value
             // over the newer one. Best-effort and logged: this is already the failure path, and a
@@ -320,10 +377,7 @@ internal class PanelCommandDispatcher(
                     payload,
                     "Reload the dashboard renderer from Home Assistant",
                 )
-                val reloaded = system.reloadDashboard(config.dashboardPackage)
-                if (!reloaded && currentOrigin.get()?.peer == CommandOrigin.PANEL_ASSISTANT_PEER) {
-                    throw LiveSettingUnavailableException("reload")
-                }
+                if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
             }
             "reboot" -> {
                 authorizeRemoteSensitive(
@@ -331,10 +385,7 @@ internal class PanelCommandDispatcher(
                     payload,
                     "Reboot this panel from Home Assistant",
                 )
-                val rebooted = system.reboot()
-                if (!rebooted && currentOrigin.get()?.peer == CommandOrigin.PANEL_ASSISTANT_PEER) {
-                    throw LiveSettingUnavailableException("reboot")
-                }
+                if (!system.reboot()) throw LiveSettingUnavailableException("reboot")
             }
             "buttons" -> if (hasButtonBacklight) handleButtons(payload)
             "camera_enabled" -> handleCameraEnabled(payload)
@@ -668,9 +719,9 @@ internal class PanelCommandDispatcher(
         core.reconcile("network_adb")
     }
 
-    /** Commands from Home Assistant have no HTTP peer to bind. Keep their one-shot panel approval under
-     * the fixed principal of the transport that delivered them; service-side replays of already-approved
-     * HTTP writes bypass this helper. */
+    /** A sensitive command's one-shot panel approval binds to the approval key of the origin that sent it;
+     * service-side replays of already-approved HTTP writes bypass this helper. A dispatch with no origin is
+     * a programming error, never a reason to borrow another principal. */
     private fun authorizeRemoteSensitive(
         operation: SensitiveOperation,
         payload: String,
@@ -678,8 +729,8 @@ internal class PanelCommandDispatcher(
         always: Boolean = false,
     ) {
         if (!always && !config.hardenedSecurityEnabled) return
-        val peer = currentOrigin.get()?.peer ?: CommandOrigin.PANEL_ASSISTANT_PEER
-        val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, peer, payload, summary)
+        val origin = checkNotNull(currentOrigin.get()) { "sensitive ${operation.name} dispatched without an origin" }
+        val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, origin.approvalKey, payload, summary)
         if (decision != ApprovalBroker.Decision.APPROVED) {
             throw SensitiveApprovalPendingException(
                 approvalId,
@@ -820,7 +871,7 @@ internal class PanelCommandDispatcher(
         // completion observer, so it must be published across both.
         val unavailable = java.util.concurrent.atomic.AtomicBoolean(false)
         val result = queue.runLatestResult(
-            key = "http:$key",
+            key = settingConflationKey(key),
             onAdmission = ::recordCommandAdmission,
         ) {
             started = true
@@ -865,11 +916,12 @@ internal class PanelCommandDispatcher(
 
     /** Publish the already-durable auto-sleep value without running its mutating command handler.
      * The generation check happens inside the dispatcher lane, after any concurrent direct
-     * command, so stale queued OFF work can never overwrite a newer ON. */
+     * command, so stale queued OFF work can never overwrite a newer ON. It is a reconcile, not a write,
+     * so it conflates only with other converges and can never displace a queued auto_sleep value. */
     internal fun convergeAutoSleep(expectedGeneration: Long, expectedValue: Boolean): LiveSettingApplyResult {
         if (!lifecycle.isOpen()) return LiveSettingApplyResult.DEFERRED
         val result = queue.runLatestResult(
-            key = "http:auto_sleep",
+            key = "auto_sleep:converge",
             onAdmission = ::recordCommandAdmission,
         ) {
             if (config.autoSleepGeneration == expectedGeneration && config.autoSleep == expectedValue) {
@@ -886,6 +938,7 @@ internal class PanelCommandDispatcher(
     /** Close admission, cancel queued commands, then drain the running handler and Zigbee worker. */
     fun stop(deadline: MonotonicDeadline): Boolean {
         lifecycle.closeAdmission()
+        operations.stop()
         zigbeeActuation.retire(zigbeeLease)
         val cancelledCommands = queue.close()
         val queuedZigbee = zigbeeWorker.pendingCount()
@@ -1009,6 +1062,15 @@ internal fun supersededKeyAfterFailedDispatch(topicKey: String?, committedKey: S
 /** Resolve a remote command channel to the same registry key used by HTTP live application. */
 internal fun externalLiveSettingKey(channel: String): String? = externalLiveSettingOwners[channel]
 
+private val settingChannels: Map<String, String> = externalLiveSettingOwners.entries.associate { (channel, key) -> key to channel }
+
+/**
+ * The command-queue key a setting conflates under, whichever door it arrived through: its channel when Panel
+ * Assistant can command it, else its own registry key, which no channel shares (protocol section 20.2,
+ * "Conflation"). One key per setting makes queue order the order its values are stored in.
+ */
+internal fun settingConflationKey(key: String): String = settingChannels[key] ?: key
+
 /**
  * The concrete live-setting owners. [PanelCommandDispatcher] implements these methods itself, so production has no
  * second key-to-method adapter that can be swapped independently of the behaviour tested by the router.
@@ -1116,6 +1178,10 @@ internal fun liveSettingApplyResult(
     result.execution == CommandQueue.Execution.PENDING ->
         LiveSettingApplyResult.DEFERRED
     result.execution == CommandQueue.Execution.SUCCEEDED ->
+        LiveSettingApplyResult.APPLIED
+    // A newer value for the same setting, from any origin, was admitted under the same conflation key and
+    // ran in this one's place: nothing of this value remains to apply or replay.
+    result.execution == CommandQueue.Execution.SUPERSEDED ->
         LiveSettingApplyResult.APPLIED
     // Only a handler that ran and failed can report unavailability. Superseded and never-admitted work
     // observed no hardware at all, so it stays an ordinary retryable failure whatever the flag says.

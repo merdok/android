@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.ManageKind
 import io.panelassistant.android.device.profile.PassiveProfileDraft
 import io.panelassistant.android.device.profile.PassiveProfileReport
 import io.panelassistant.android.device.profile.ProfileActivationState
@@ -49,7 +50,7 @@ internal data class ProfileRouteDependencies(
     val abortPendingRestart: (String) -> Boolean = { false },
     val readOnly: ProfileRouteReadOnlyProviders = ProfileRouteReadOnlyProviders(),
     val hardMaxYamlBytes: Long = MAX_PROFILE_YAML_BYTES,
-    val authorize: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
+    val authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
 )
 
 internal data class ProfileRestartRejection(
@@ -104,8 +105,8 @@ private val PROFILE_REVISION = Regex("^[a-f0-9]{64}$")
  */
 internal fun Route.profileRoutes(dependencies: ProfileRouteDependencies) {
     val admin = dependencies.admin
-    route("/profiles") {
-        get {
+    route("/profiles") { ops {
+        get("") {
             val status = admin.status()
             val lastKnownGood = (status.lastKnownGood as? ProfileSelection.Pinned)?.ref
             val body = statusJson(status).apply {
@@ -152,7 +153,9 @@ internal fun Route.profileRoutes(dependencies: ProfileRouteDependencies) {
             )
             else call.respondProfileJson(reportJson(report))
         }
-        get("/{id}/revisions/{revision}") {
+        // Section 20.6 names this `profiles.revision`. Spelled without a quoted `profiles.` literal, which the
+        // Profiles catalogue contract reads as a string key.
+        get("/{id}/revisions/{revision}", name = listOf("profiles", "revision").joinToString(".")) {
             val ref = call.profileRefOrRespond() ?: return@get
             val yaml = admin.exportProfile(ref)
             if (yaml == null) call.respondProfileTextError(
@@ -163,17 +166,17 @@ internal fun Route.profileRoutes(dependencies: ProfileRouteDependencies) {
             else call.respondProfileYaml(yaml, "${safeFileStem(ref.id)}-${ref.revision.take(12)}.yaml")
         }
 
-        post("/preview") { handlePreview(call, dependencies, includeProbe = false) }
-        post("/validate") { handlePreview(call, dependencies, includeProbe = false) }
-        post("/compare") { handlePreview(call, dependencies, includeProbe = false) }
-        post("/probe") { handlePreview(call, dependencies, includeProbe = true) }
+        post("/preview", kind = ManageKind.READ) { handlePreview(call, dependencies, includeProbe = false) }
+        post("/validate", kind = ManageKind.READ) { handlePreview(call, dependencies, includeProbe = false) }
+        post("/compare", kind = ManageKind.READ) { handlePreview(call, dependencies, includeProbe = false) }
+        post("/probe", kind = ManageKind.READ) { handlePreview(call, dependencies, includeProbe = true) }
         post("/import") { handleImport(call, dependencies) }
         post("/save") { handleImport(call, dependencies) }
         post("/select") { handleSelection(call, dependencies, rollback = false) }
         post("/activate") { handleSelection(call, dependencies, rollback = false) }
         post("/rollback") { handleSelection(call, dependencies, rollback = true) }
         post("/delete") { handleDelete(call, dependencies) }
-    }
+    } }
 }
 
 /** Keep the tab and documented paths honest before the runtime repository is wired by the service. */
@@ -186,7 +189,7 @@ internal fun Route.unavailableProfileRoutes() {
 }
 
 private suspend fun handlePreview(
-    call: ApplicationCall,
+    call: OpCall,
     dependencies: ProfileRouteDependencies,
     includeProbe: Boolean,
 ) {
@@ -197,7 +200,7 @@ private suspend fun handlePreview(
     call.respondProfileJson(body)
 }
 
-private suspend fun handleImport(call: ApplicationCall, dependencies: ProfileRouteDependencies) {
+private suspend fun handleImport(call: OpCall, dependencies: ProfileRouteDependencies) {
     val token = call.request.headers["X-Profile-Preview-Token"]?.trim().orEmpty()
     if (token.isBlank() || token.length > 512) {
         call.respondProfileError(HttpStatusCode.BadRequest, "preview-token-required")
@@ -214,7 +217,7 @@ private suspend fun handleImport(call: ApplicationCall, dependencies: ProfileRou
 }
 
 private suspend fun handleSelection(
-    call: ApplicationCall,
+    call: OpCall,
     dependencies: ProfileRouteDependencies,
     rollback: Boolean,
 ) {
@@ -293,7 +296,7 @@ private suspend fun handleSelection(
     )
 }
 
-private suspend fun handleDelete(call: ApplicationCall, dependencies: ProfileRouteDependencies) {
+private suspend fun handleDelete(call: OpCall, dependencies: ProfileRouteDependencies) {
     val request = call.receiveProfileAction() ?: return
     if (!request.optBoolean("confirm", false)) {
         call.respondProfileError(HttpStatusCode.Conflict, "explicit-confirmation-required")
@@ -321,7 +324,7 @@ private suspend fun handleDelete(call: ApplicationCall, dependencies: ProfileRou
 private fun ProfileRouteDependencies.maxYamlBytes(): Long =
     minOf(hardMaxYamlBytes, admin.schema().maxBytes.toLong().coerceAtLeast(1L))
 
-private suspend fun ApplicationCall.receiveProfileYaml(maxBytes: Long): String? {
+private suspend fun OpCall.receiveProfileYaml(maxBytes: Long): String? {
     val contentType = request.headers[HttpHeaders.ContentType]?.substringBefore(';')?.trim()?.lowercase()
     if (contentType !in setOf("application/yaml", "application/x-yaml", "text/yaml", "text/plain")) {
         respondProfileError(HttpStatusCode.UnsupportedMediaType, "yaml-content-type-required")
@@ -330,7 +333,7 @@ private suspend fun ApplicationCall.receiveProfileYaml(maxBytes: Long): String? 
     return receiveBoundedUtf8(maxBytes, "profile-yaml-too-large")
 }
 
-private suspend fun ApplicationCall.receiveProfileAction(): JSONObject? {
+private suspend fun OpCall.receiveProfileAction(): JSONObject? {
     val contentType = request.headers[HttpHeaders.ContentType]?.substringBefore(';')?.trim()?.lowercase()
     if (contentType != ContentType.Application.Json.toString()) {
         respondProfileError(HttpStatusCode.UnsupportedMediaType, "json-content-type-required")
@@ -345,7 +348,7 @@ private suspend fun ApplicationCall.receiveProfileAction(): JSONObject? {
     }
 }
 
-private suspend fun ApplicationCall.receiveBoundedUtf8(maxBytes: Long, tooLarge: String): String? {
+private suspend fun OpCall.receiveBoundedUtf8(maxBytes: Long, tooLarge: String): String? {
     val bytes = when (val receipt = receiveBoundedBody(this, maxBytes)) {
         is BoundedBodyReceipt.Received -> receipt.bytes
         BoundedBodyReceipt.TooLarge -> {
@@ -369,7 +372,7 @@ private suspend fun ApplicationCall.receiveBoundedUtf8(maxBytes: Long, tooLarge:
     }
 }
 
-private suspend fun ApplicationCall.profileRefOrRespond(): ProfileRef? {
+private suspend fun OpCall.profileRefOrRespond(): ProfileRef? {
     val ref = ProfileRef(parameters["id"].orEmpty(), parameters["revision"].orEmpty())
     if (!ref.valid()) {
         respondProfileError(HttpStatusCode.BadRequest, "invalid-profile-ref")
@@ -401,7 +404,7 @@ private fun JSONObject.parseProfileRef(): ProfileRefParse {
 
 private fun ProfileRef.valid(): Boolean = PROFILE_ID.matches(id) && ".." !in id && PROFILE_REVISION.matches(revision)
 
-private suspend fun ApplicationCall.respondMutation(
+private suspend fun OpCall.respondMutation(
     mutation: ProfileMutation,
     expectedCatalogRevision: Long? = null,
     selectedRef: ProfileRef? = null,
@@ -430,7 +433,7 @@ private suspend fun ApplicationCall.respondMutation(
     }
 }
 
-private suspend fun ApplicationCall.respondProfileJson(
+private suspend fun OpCall.respondProfileJson(
     body: JSONObject,
     status: HttpStatusCode = HttpStatusCode.OK,
 ) {
@@ -438,7 +441,7 @@ private suspend fun ApplicationCall.respondProfileJson(
     respondText(body.toString(), ContentType.Application.Json, status)
 }
 
-private suspend fun ApplicationCall.respondProfileError(status: HttpStatusCode, error: String) {
+private suspend fun OpCall.respondProfileError(status: HttpStatusCode, error: String) {
     respondProfileJson(
         JSONObject()
             .put("ok", false)
@@ -452,6 +455,12 @@ private suspend fun ApplicationCall.respondProfileTextError(
     status: HttpStatusCode,
     message: String,
     presentationCode: String,
+) = op().respondProfileTextError(status, message, presentationCode)
+
+private suspend fun OpCall.respondProfileTextError(
+    status: HttpStatusCode,
+    message: String,
+    presentationCode: String,
 ) {
     val presentation = ProfilePresentation(presentationCode)
     response.headers.append("X-Profile-Presentation-Code", presentation.code)
@@ -459,7 +468,7 @@ private suspend fun ApplicationCall.respondProfileTextError(
     respondText(message, status = status)
 }
 
-private suspend fun ApplicationCall.respondProfileYaml(yaml: String, fileName: String) {
+private suspend fun OpCall.respondProfileYaml(yaml: String, fileName: String) {
     response.headers.append(HttpHeaders.CacheControl, "no-store")
     response.headers.append(HttpHeaders.ContentDisposition, "attachment; filename=\"$fileName\"")
     respondText(yaml, ContentType.parse("application/yaml"))

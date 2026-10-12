@@ -28,7 +28,7 @@ internal fun controlPlaneDependencies(
     playAudio: (String) -> Boolean,
     onInstallComponent: (String, String, String) -> Boolean,
     buildBackupArtifact: (CompanionBackupRequest, String) -> PanelBackup.Artifact,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
 ): ControlPlaneRouteDependencies = ControlPlaneRouteDependencies(
     playAudio = playAudio,
     installComponent = onInstallComponent,

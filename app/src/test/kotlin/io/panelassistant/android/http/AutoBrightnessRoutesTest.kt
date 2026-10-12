@@ -39,7 +39,7 @@ class AutoBrightnessRoutesTest {
                             call.respondText("refused\n", status = HttpStatusCode.Forbidden)
                             false
                         } else true
-                    }, { call, _ -> JSONObject(call.receiveText().ifBlank { "{}" }) })
+                    }, { call, _ -> JSONObject(call.receiveStream().readBytes().toString(Charsets.UTF_8).ifBlank { "{}" }) })
                 }
             }
         }

@@ -32,13 +32,13 @@ internal data class HandBackHomeRouteDependencies(
     val handBack: (Set<String>) -> HandBackHomeController.Result,
     /** Record that something outside the app disabled `pkg`, so hand-back can reverse it later. */
     val recordTamed: (pkg: String) -> HandBackHomePolicy.RecordOutcome,
-    val authorize: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean =
+    val authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean =
         { _, _, _, _ -> true },
 )
 
 
 internal fun Route.handBackHomeRoutes(dependencies: HandBackHomeRouteDependencies) {
-    route("/api/v1") {
+    route("/api/v1") { ops {
         /**
          * Give the panel its own home screen back.
          *
@@ -131,7 +131,7 @@ internal fun Route.handBackHomeRoutes(dependencies: HandBackHomeRouteDependencie
                 status,
             )
         }
-    }
+    } }
 }
 
 /**
@@ -147,7 +147,7 @@ internal fun handBackHomeDependencies(
     profileKnownPackages: () -> Set<String>,
     setHome: (String) -> Boolean,
     ownPackage: () -> String,
-    authorize: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
 ): HandBackHomeRouteDependencies =
     HandBackHomeRouteDependencies(
         profileKnownPackages = profileKnownPackages,

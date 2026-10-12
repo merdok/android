@@ -2,7 +2,6 @@ package io.panelassistant.android.http
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -54,18 +53,20 @@ internal fun performanceBindingJson(
 }
 
 internal fun Route.performanceRoutes(
-    admit: suspend (ApplicationCall) -> Boolean,
+    admit: suspend (OpCall) -> Boolean,
     perf: () -> String,
     binding: (String) -> String?,
     costs: () -> String,
     history: (Int) -> String,
 ) {
-    get("/perf") {
-        if (!admit(call)) return@get
-        call.respondText(perf(), ContentType.Application.Json)
+    ops {
+        get("/perf") {
+            if (!admit(call)) return@get
+            call.respondText(perf(), ContentType.Application.Json)
+        }
     }
     get("/perf/binding") {
-        if (!admit(call)) return@get
+        if (!admit(call.op())) return@get
         val comparisonId = call.request.queryParameters["comparison_id"].orEmpty()
         if (!comparisonId.matches(PERFORMANCE_COMPARISON_ID)) return@get call.respondText(
             "{\"error\":\"invalid comparison_id\"}", ContentType.Application.Json, HttpStatusCode.BadRequest,
@@ -81,7 +82,7 @@ internal fun Route.performanceRoutes(
         call.respondText(costs(), ContentType.Application.Json)
     }
     get("/perf/history") {
-        if (!admit(call)) return@get
+        if (!admit(call.op())) return@get
         val hours = call.request.queryParameters["hours"]?.toIntOrNull() ?: 24
         call.respondText(history(hours), ContentType.Application.Json)
     }

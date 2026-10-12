@@ -29,6 +29,15 @@ internal fun resolvedRequestStrings(
     deviceLanguageTag: String?,
     allowPseudo: Boolean,
     catalogueLoader: CatalogueLoader,
+): Strings = resolvedRequestStrings(call.op(), persistedLanguage, deviceLanguageTag, allowPseudo, catalogueLoader)
+
+/** [resolvedRequestStrings] for a request on either door: a managed request's `lang` arg is its `?lang`. */
+internal fun resolvedRequestStrings(
+    call: OpCall,
+    persistedLanguage: String?,
+    deviceLanguageTag: String?,
+    allowPseudo: Boolean,
+    catalogueLoader: CatalogueLoader,
 ): Strings {
     // Embedded in Panel Assistant's sidebar, the Home Assistant user's language stands in for Automatic: an
     // explicit `?lang` or a chosen Interface language still wins (maintainer, 2026-10-02: choosing a language
@@ -64,7 +73,7 @@ internal fun unfinishedSetupLocation(lang: String?, haLang: String?, allowPseudo
 
 /** Production locale negotiation and catalogue selection for the dynamic Configure schema. */
 internal fun localizedConfigSchema(
-    call: ApplicationCall,
+    call: OpCall,
     persistedLanguage: String?,
     deviceLanguageTag: String?,
     allowPseudo: Boolean,
@@ -85,7 +94,7 @@ internal fun localizedConfigSchema(
 internal fun Route.configReadRoutes(
     config: Config,
     values: () -> ConfigValueProjection,
-    requestStrings: (ApplicationCall) -> Strings,
+    requestStrings: (OpCall) -> Strings,
     schemaJson: (Strings) -> String,
     homeDashboards: suspend () -> HomeDashboardCatalog,
     discover: () -> ConfigDiscoverySuggestions,
@@ -98,41 +107,43 @@ internal fun Route.configReadRoutes(
             LocalizedConfigSchema(schemaJson(strings), strings.languages(setOf("settings.")))
         },
     )
-    get("/config/home-dashboards") {
-        val catalog = homeDashboards()
-        val items = catalog.items.joinToString(",") { dashboard ->
-            "{\"path\":${Json.str(dashboard.path)},\"title\":${Json.str(dashboard.title)}," +
-                "\"icon\":${Json.str(dashboard.icon)},\"group\":${Json.str(dashboard.group)}}"
+    ops {
+        get("/config/home-dashboards") {
+            val catalog = homeDashboards()
+            val items = catalog.items.joinToString(",") { dashboard ->
+                "{\"path\":${Json.str(dashboard.path)},\"title\":${Json.str(dashboard.title)}," +
+                    "\"icon\":${Json.str(dashboard.icon)},\"group\":${Json.str(dashboard.group)}}"
+            }
+            // `default` reports whether the ACCOUNT carries a real server-side default dashboard
+            // (HA ≥ 2025.12 stores the profile picker's choice per user). When it does not, the
+            // pickers demote "follow the account's default" and recommend nominating one.
+            val default = "{\"explicit\":${catalog.default.explicit}," +
+                "\"path\":${Json.str(catalog.default.path)}}"
+            call.respondText(
+                "{\"queried\":${catalog.queried},\"items\":[$items],\"default\":$default}",
+                ContentType.Application.Json,
+            )
         }
-        // `default` reports whether the ACCOUNT carries a real server-side default dashboard
-        // (HA ≥ 2025.12 stores the profile picker's choice per user). When it does not, the
-        // pickers demote "follow the account's default" and recommend nominating one.
-        val default = "{\"explicit\":${catalog.default.explicit}," +
-            "\"path\":${Json.str(catalog.default.path)}}"
-        call.respondText(
-            "{\"queried\":${catalog.queried},\"items\":[$items],\"default\":$default}",
-            ContentType.Application.Json,
-        )
-    }
-    get("/config/discovery") {
-        val needsHa = config.haUrl.isBlank()
-        val found = if (needsHa) {
-            withContext(Dispatchers.IO) { discover() }
-                .also { rememberDiscovery(it.haDiscovery) }
-        } else ConfigDiscoverySuggestions()
-        val ha = found.haUrl.takeIf { needsHa && config.haUrl.isBlank() }.orEmpty()
-        call.respondText(
-            "{\"ha_url\":${Json.str(ha)}}",
-            ContentType.Application.Json,
-        )
+        get("/config/discovery") {
+            val needsHa = config.haUrl.isBlank()
+            val found = if (needsHa) {
+                withContext(Dispatchers.IO) { discover() }
+                    .also { rememberDiscovery(it.haDiscovery) }
+            } else ConfigDiscoverySuggestions()
+            val ha = found.haUrl.takeIf { needsHa && config.haUrl.isBlank() }.orEmpty()
+            call.respondText(
+                "{\"ha_url\":${Json.str(ha)}}",
+                ContentType.Application.Json,
+            )
+        }
     }
 }
 
 /** Dynamic Configure reads. Neither response may be reused after settings or locale signals change. */
 internal fun Route.configReadRoutes(
     currentConfigJson: () -> String,
-    localizedSchema: (ApplicationCall) -> LocalizedConfigSchema,
-) {
+    localizedSchema: (OpCall) -> LocalizedConfigSchema,
+) = ops {
     get("/config") {
         call.response.headers.append(HttpHeaders.CacheControl, "no-store")
         call.respondText(currentConfigJson(), ContentType.Application.Json)

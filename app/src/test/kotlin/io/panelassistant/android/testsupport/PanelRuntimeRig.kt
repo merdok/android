@@ -66,7 +66,7 @@ internal abstract class PanelRuntimeRig {
     protected fun submitNative(rig: Rig, channel: String, payload: String): PanelAssistantCommandResult {
         val done = CountDownLatch(1)
         val result = java.util.concurrent.atomic.AtomicReference<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null })) {
+        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null }), io.panelassistant.android.CommandOrigin.panelAssistant()) {
             result.set(it)
             done.countDown()
         }
@@ -80,6 +80,7 @@ internal abstract class PanelRuntimeRig {
         val key = if (busy == "navigate") "home_dashboard" else "navigate"
         rig.commands.submit(
             PanelAssistantCommand(key, "", admit = { PanelAssistantCommandResult.Refused("barrier") }),
+            io.panelassistant.android.CommandOrigin.panelAssistant(),
         ) { done.countDown() }
         assertTrue("command worker drained", done.await(20, TimeUnit.SECONDS))
     }
@@ -141,6 +142,14 @@ internal abstract class PanelRuntimeRig {
         helperSend: ((String) -> String?)? = null,
         /** A panel whose CPU governors are readable, starting on this governor; null offers none. */
         cpuGovernor: String? = null,
+        /** The named operations the dispatcher serves, and its subscription families. */
+        manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
+        manageFamilies: Map<String, io.panelassistant.android.ManageFamily> = io.panelassistant.android.ManageFamilies.DEFAULT,
+        approvalPollMs: Long = 1_000,
+        /** Whether the privileged reboot route succeeds. */
+        rebootSucceeds: Boolean = true,
+        /** Touch-sound hardware; null leaves the controller unconstructed, as no touch_sound command is sent. */
+        touchSoundHardware: io.panelassistant.android.control.TouchSoundHardware? = null,
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
@@ -170,7 +179,7 @@ internal abstract class PanelRuntimeRig {
         )
         val companion = "io.homeassistant.companion.android.minimal"
         val system = SystemController(
-            FakeSystemEnv(), FakeRootShell(), FakeDaemon(replies = mapOf("RELOAD $companion" to "OK")),
+            FakeSystemEnv(), FakeRootShell(runResult = rebootSucceeds), FakeDaemon(replies = mapOf("RELOAD $companion" to "OK")),
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
         )
@@ -266,8 +275,9 @@ internal abstract class PanelRuntimeRig {
             // Never reached: no navbar command reaches the controller in these tests.
             navbar = allocate(NavbarController::class.java),
             watchdog = WatchdogController(system, config),
-            // Never reached: touch_sound needs an Android audio stack, so no touch_sound command is sent.
-            touchSound = allocate(TouchSoundController::class.java),
+            // The real controller over fake hardware when a test drives touch_sound; never reached otherwise.
+            touchSound = touchSoundHardware?.let { touchSoundController(context, it) }
+                ?: allocate(TouchSoundController::class.java),
             bootChime = bootChime,
             zigbee = zigbee,
             relay = relay,
@@ -283,11 +293,43 @@ internal abstract class PanelRuntimeRig {
             onDirectKioskSetting = { true },
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
+            manageTable = manageTable,
+            manageFamilies = manageFamilies,
+            approvalPollMs = approvalPollMs,
         )
         return Rig(
             tmp, config, sysfs, core, commands, storage, storageReads, updateSources, autoSleepConfigChanges,
             context.audio, metrics,
         )
+    }
+
+    /** The production controller with its state policy over [hardware] and an in-memory record. */
+    private fun touchSoundController(
+        context: Context,
+        hardware: io.panelassistant.android.control.TouchSoundHardware,
+    ): TouchSoundController {
+        // Allocated rather than constructed: its touch overlay needs a WindowManager this rig has not got.
+        // Every field apply() reads is set to what the constructor would give it.
+        val controller = allocate(TouchSoundController::class.java)
+        fun field(name: String, value: Any) =
+            TouchSoundController::class.java.getDeclaredField(name).apply { isAccessible = true }.set(controller, value)
+        field("ctx", context)
+        field("clickGain", 0.5f)
+        field("am", requireNotNull(context.getSystemService(Context.AUDIO_SERVICE)))
+        field("main", android.os.Handler(android.os.Looper.getMainLooper()))
+        val store = object : io.panelassistant.android.control.TouchSoundStateStore {
+            private var active: Boolean? = null
+            private var prior: io.panelassistant.android.control.TouchSoundState? = null
+            override fun active() = active
+            override fun prior() = prior
+            override fun saveEnabled(prior: io.panelassistant.android.control.TouchSoundState): Boolean {
+                active = true; this.prior = prior; return true
+            }
+            override fun saveDisabledAndClearPrior(): Boolean { active = false; prior = null; return true }
+            override fun retireLegacyStreamState() = true
+        }
+        field("statePolicy", io.panelassistant.android.control.TouchSoundStatePolicy(store, hardware))
+        return controller
     }
 
     // ---- fakes ----

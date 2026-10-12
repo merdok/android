@@ -42,7 +42,7 @@ class AutoSleepRoutesTest {
                             call.respondText("refused\n", status = HttpStatusCode.Forbidden)
                             false
                         } else true
-                    }, { call, _ -> JSONObject(call.receiveText()) })
+                    }, { call, _ -> JSONObject(call.http!!.receiveText()) })
                 }
             }
         }

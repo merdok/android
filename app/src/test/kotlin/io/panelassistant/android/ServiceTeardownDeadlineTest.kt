@@ -89,6 +89,7 @@ class ServiceTeardownDeadlineTest {
         setOn(commands, "zigbeeActuation", zigbee)
         setOn(commands, "zigbeeLease", zigbee.activate())
         setOn(commands, "queue", CommandQueue())
+        setOn(commands, "operations", ManageOperations(ManageTable(), { io.panelassistant.android.security.LocalApprovalBroker.instance }))
         setOn(commands, "zigbeeWorker", io.panelassistant.android.util.LatestDispatcher.singleSlot<Boolean>("teardown-test-zigbee", consume = {}))
     }
 

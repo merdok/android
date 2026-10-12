@@ -8,7 +8,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-internal fun Route.setupRoutes(state: () -> SetupState) {
+internal fun Route.setupRoutes(state: () -> SetupState) = ops {
     post("/setup/attest") {
         state().attest()
         call.respondText("{\"ok\":true}", ContentType.Application.Json)

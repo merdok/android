@@ -900,6 +900,7 @@ class ConfigPostProductionRouteTest {
         observations.snapCache.set(snap)
 
         setField(server, "managementObservations", observations)
+        setField(server, "manageTable", io.panelassistant.android.ManageTable())
         setField(server, "pageHealth", PageHealth(object : android.content.ContextWrapper(null) {}, config))
         setField(server, "config", config)
         setField(server, "system", SystemController(object : SystemEnv {

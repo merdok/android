@@ -18,7 +18,7 @@ internal fun Route.radioRoutes(
     configured: () -> Boolean,
     enabled: () -> Boolean,
     join: () -> Boolean,
-) {
+) = ops {
     get("/radio") {
         val st = withContext(Dispatchers.IO) { status() }
         val body = if (st == null) """{"present":false,"status":"none"}""" else JSONObject()

@@ -11,7 +11,7 @@ import io.ktor.server.routing.get
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-internal fun Route.discoveryRoutes(peersJson: () -> String, appsJson: () -> String) {
+internal fun Route.discoveryRoutes(peersJson: () -> String, appsJson: () -> String) = ops {
     get("/peers") { call.respondText(peersJson(), ContentType.Application.Json) }
     get("/apps") { call.respondText(withContext(Dispatchers.IO) { appsJson() }, ContentType.Application.Json) }
 }

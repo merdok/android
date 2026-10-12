@@ -9,7 +9,7 @@ import io.ktor.server.response.respondText
 
 /** Browser form failures get a localized, escaped mini-page; API callers retain the stable legacy token. */
 internal suspend fun respondInstallFormError(
-    call: ApplicationCall,
+    call: OpCall,
     strings: AppStrings,
     key: String,
     machineText: String,
@@ -26,3 +26,11 @@ internal suspend fun respondInstallFormError(
         status,
     )
 }
+
+internal suspend fun respondInstallFormError(
+    call: ApplicationCall,
+    strings: AppStrings,
+    key: String,
+    machineText: String,
+    status: HttpStatusCode,
+) = respondInstallFormError(call.op(), strings, key, machineText, status)

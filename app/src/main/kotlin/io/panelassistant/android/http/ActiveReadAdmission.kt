@@ -8,7 +8,14 @@ import io.ktor.server.response.respondText
 internal suspend fun admitActiveRead(
     call: ApplicationCall,
     allowLegacyNavigation: Boolean = false,
+): Boolean = admitActiveRead(call.op(), allowLegacyNavigation)
+
+/** A managed request reaches the panel through a door with its own origin checks, so it is admitted. */
+internal suspend fun admitActiveRead(
+    call: OpCall,
+    allowLegacyNavigation: Boolean = false,
 ): Boolean {
+    if (call.http == null) return true
     if (OriginGuard.activeReadAllowed(
             origin = call.request.headers["Origin"],
             referer = call.request.headers["Referer"],

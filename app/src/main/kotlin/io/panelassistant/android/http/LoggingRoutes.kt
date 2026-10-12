@@ -25,6 +25,8 @@ internal fun Route.loggingRoutes(
     logShipStatus: () -> LogShipStatusProjection,
     admitActiveRead: suspend (ApplicationCall) -> Boolean,
 ) {
+    // The `logs` subscription family follows the same capture the stream below serves (protocol 20.4).
+    manageTable()?.logSource = logApp?.let(::LogCaptureSource)
     get("/logship/status") {
         // Passive read of what the shipper is actually doing, including Dashboard state.
         // Distinct from probe-log-sink, which transmits: this one only reports, so it
@@ -111,5 +113,20 @@ private suspend fun handleLogStream(
         }
     } finally {
         runCatching { viewer.close() }
+    }
+}
+
+/** The app log capture as the `logs` family's source: the stream's backlog, then its live lines. */
+private class LogCaptureSource(private val capture: LogCapture) : io.panelassistant.android.ManageLogSource {
+    override fun backlog(): List<String> = capture.initialBacklog()
+
+    /** Holds a viewer lease like a stream does, so subscribers count against the same viewer limit. */
+    override fun follow(onLine: (String) -> Unit): AutoCloseable {
+        val lease = (capture.admitViewer() as? LogCapture.ViewerAdmission.Accepted)?.lease ?: return AutoCloseable {}
+        val subscription = capture.subscribe(onLine)
+        return AutoCloseable {
+            runCatching { subscription.close() }
+            runCatching { lease.close() }
+        }
     }
 }

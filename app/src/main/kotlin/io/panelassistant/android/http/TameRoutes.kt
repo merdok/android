@@ -28,17 +28,17 @@ internal class TameRoutes(
     private val tameProfileCandidates: List<TameCandidate>,
     private val requestTameReconcileAfterCommit: () -> Unit,
     private val snapInvalidate: () -> Unit,
-    private val requestStrings: (ApplicationCall) -> AppStrings,
+    private val requestStrings: (OpCall) -> AppStrings,
     private val localizedHref: (String, AppStrings) -> String,
-    private val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-    private val respondInstallFormError: suspend (ApplicationCall, AppStrings, String, String, HttpStatusCode) -> Unit,
+    private val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+    private val respondInstallFormError: suspend (OpCall, AppStrings, String, String, HttpStatusCode) -> Unit,
 ) {
     // Per-package vendor taming from the Vendor packages card. action=tame adds the package to
     // the blocklist and tames it now; action=untame explicitly enables it, then removes it from
     // the blocklist. The explicit enable also handles firmware-disabled packages which ha-paneld
     // never owned and therefore have no restoration marker. The work is privileged + slow, so it
     // runs off-thread and the browser gets a short auto-reload back to the Install card.
-    suspend fun handle(call: ApplicationCall) {
+    suspend fun handle(call: OpCall) {
         val strings = requestStrings(call)
         val returnTo = localizedHref("install#cfg-tame", strings)
         val p = receiveBoundedFormParameters(call) ?: return
@@ -185,6 +185,6 @@ internal class TameRoutes(
     private fun jsonStr(s: String): String = Json.str(s)
 }
 
-internal fun Route.tameRoutes(owner: () -> TameRoutes) {
+internal fun Route.tameRoutes(owner: () -> TameRoutes) = ops {
     post("/tame") { owner().handle(call) }
 }

@@ -9,7 +9,10 @@ internal const val MAX_ENTITY_ADMIN_BODY_BYTES = 256L * 1024L
 
 /** Entity administration requests are tiny control messages. Bound both declared and chunked bodies
  *  before materializing JSON so a LAN client cannot exhaust a panel's heap. */
-internal suspend fun receiveEntityAdminJson(call: ApplicationCall, allowBlank: Boolean = false): JSONObject? {
+internal suspend fun receiveEntityAdminJson(call: ApplicationCall, allowBlank: Boolean = false): JSONObject? =
+    receiveEntityAdminJson(call.op(), allowBlank)
+
+internal suspend fun receiveEntityAdminJson(call: OpCall, allowBlank: Boolean = false): JSONObject? {
     val bytes = when (val receipt = receiveBoundedBody(call, MAX_ENTITY_ADMIN_BODY_BYTES)) {
         is BoundedBodyReceipt.Received -> receipt.bytes
         BoundedBodyReceipt.TooLarge -> {

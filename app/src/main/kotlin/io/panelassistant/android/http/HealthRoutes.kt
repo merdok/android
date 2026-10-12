@@ -19,8 +19,9 @@ internal fun Route.healthRoute(
     buildToken: () -> String,
     renderConfigConcurrencyHash: () -> String,
     panelAssistantRestartHealth: () -> String,
-) {
-    get("/health") {
+) = ops {
+    // Mounted at the root and under /api/v1: both register the one name, so the second replaces the first.
+    get("/health", name = "health") {
         call.respondText(healthLine(config, packageName, buildToken, renderConfigConcurrencyHash, panelAssistantRestartHealth))
     }
 }
@@ -35,7 +36,7 @@ internal fun healthLine(
 ): String =
     "ha-paneld ${Config.VERSION} panel=${config.panelId} build=${buildToken()} cfg=${renderConfigConcurrencyHash()}${panelAssistantDiscoveryHealthToken(config.deviceUid, config.androidId)}${packageHealthToken(packageName)}${versionCodeHealthToken(BuildConfig.VERSION_CODE)}${protocolHealthToken()}${haLifecycleHealthToken()}${haNetworkHealthToken()}${panelAssistantRestartHealth()} pa_notice=${if (config.migrationNoticeVisible()) 1 else 0}\n"
 
-internal fun Route.migrationNoticeRoute(config: Config) {
+internal fun Route.migrationNoticeRoute(config: Config) = ops {
     post("/migration-notice/dismiss") {
         val persisted = config.dismissMigrationNotice()
         call.respondText(

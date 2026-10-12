@@ -68,12 +68,7 @@ internal suspend fun authorizeSensitiveRequest(
     }
     val (decision, id) = broker.request(operation, peer, payload, summary)
     if (decision == ApprovalBroker.Decision.APPROVED) return true
-    call.respondText(
-        "{\"ok\":false,\"error\":\"approval-required\",\"approval_id\":${Json.str(id)}," +
-            "\"message\":\"Approve this request physically on the panel, then retry it; it cannot be approved remotely.\"}",
-        ContentType.Application.Json,
-        HttpStatusCode.Accepted,
-    )
+    call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)
     return false
 }
 
@@ -99,6 +94,10 @@ internal fun Parameters.canonicalDigest(): String {
 }
 
 internal fun exactHttpApprovalPayload(call: ApplicationCall, bodyDigest: String): String =
+    exactHttpApprovalPayload(call.op(), bodyDigest)
+
+/** A managed request's payload frames its route's method and path with its `args` as the parameters. */
+internal fun exactHttpApprovalPayload(call: OpCall, bodyDigest: String): String =
     exactHttpApprovalPayload(
         method = call.request.httpMethod.value,
         path = call.request.uri.substringBefore('?'),
@@ -106,3 +105,36 @@ internal fun exactHttpApprovalPayload(call: ApplicationCall, bodyDigest: String)
             .flatMap { (name, values) -> values.map { name to it } },
         bodyDigest = bodyDigest,
     )
+
+/**
+ * [authorizeSensitiveRequest] for a request on either door. Over HTTP it is that function, bound to the peer
+ * address. A managed request binds its approval to its origin's approval key (protocol section 20.2), so an
+ * approval earned by one origin is never consumed by another: a loopback peer is exempt as on HTTP; a
+ * Home Assistant administrator relayed by Panel Assistant is exempt for exactly the operations an embed
+ * proof exempts; a Panel Assistant request waiting for its approval raises [ManageApprovalPending] so the
+ * dispatcher answers `pending_approval` and its final outcome; any other answers the HTTP `202` body.
+ */
+internal suspend fun authorizeSensitiveRequest(
+    call: OpCall,
+    hardened: Boolean,
+    operation: SensitiveOperation,
+    payload: String,
+    summary: String,
+    broker: ApprovalBroker,
+): Boolean {
+    call.http?.let { http ->
+        return authorizeSensitiveRequest(http, hardened, call.request.origin.remoteAddress, operation, payload, summary, broker)
+    }
+    val origin = call.origin
+    if (!hardened || origin.peerAddress?.let(::isLoopbackPeer) == true) return true
+    if (origin.isUser && operation in EmbedProof.EXEMPT) return true
+    val (decision, id) = broker.request(operation, origin.approvalKey, payload, summary)
+    if (decision == ApprovalBroker.Decision.APPROVED) return true
+    if (origin.isPanelAssistant) throw io.panelassistant.android.ManageApprovalPending(id)
+    call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)
+    return false
+}
+
+private fun approvalRequiredBody(id: String): String =
+    "{\"ok\":false,\"error\":\"approval-required\",\"approval_id\":${Json.str(id)}," +
+        "\"message\":\"Approve this request physically on the panel, then retry it; it cannot be approved remotely.\"}"

@@ -30,12 +30,13 @@ class LiveSettingUnavailableTransportTest {
 
     @Test fun `work that never reached a handler is never unavailable`() {
         // The flag belongs to one dispatch. If that dispatch was replaced or refused, nothing observed
-        // the hardware, so the honest answer is the same as it always was.
+        // the hardware. A replaced value was overtaken by a newer one for the same setting, so nothing of it
+        // remains to apply.
         listOf(
             CommandQueue.RunResult(
                 CommandQueue.Admission.ACCEPTED,
                 CommandQueue.Execution.SUPERSEDED,
-            ) to LiveSettingApplyResult.FAILED,
+            ) to LiveSettingApplyResult.APPLIED,
             CommandQueue.RunResult(
                 CommandQueue.Admission.REJECTED,
                 CommandQueue.Execution.NOT_ADMITTED,

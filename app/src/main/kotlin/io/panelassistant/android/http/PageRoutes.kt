@@ -15,10 +15,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal fun Route.dashboardPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     render: (AppStrings, EmbedMode?) -> String,
 ) {
-    get("/") {
+    ops { get("/", name = "page.info") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -26,16 +26,16 @@ internal fun Route.dashboardPageRoute(
             strings.languages(setOf("shell.", "dashboard.")).joinToString(", "),
         )
         call.respondText(render(strings, call.embedMode()), ContentType.Text.Html)
-    }
+    } }
     // The experimental remote-control page is withheld from 0.9.2. Keep old bookmarks
     // useful while its tap-injection UX is reviewed for a later release.
     get("/test") { call.respondRedirect("/") }
 }
 
 internal fun Route.dashboardHydrationRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     render: (AppStrings) -> String,
-) {
+) = ops {
     // Hydration payload for the dashboard (see DashboardPageHandler.json) — the one place the probe
     // suite actually runs; cached + single-flight, so concurrent viewers share it.
     get("/info") {
@@ -56,11 +56,11 @@ internal fun Route.apiSpecificationRoute(asset: (String) -> String) {
 }
 
 internal fun Route.configurePageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
     body: (AppStrings) -> String,
-) {
-    get("/configure") {
+) = ops {
+    get("/configure", name = "page.configure") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -81,11 +81,11 @@ internal fun Route.configurePageRoute(
 }
 
 internal fun Route.setupPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
     buildToken: () -> String,
-) {
-    get("/setup") {
+) = ops {
+    get("/setup", name = "page.setup") {
         val strings = requestStrings(call)
         val preserveExplicitEnglish = AppLocale.canonical(
             call.request.queryParameters["lang"],
@@ -118,10 +118,10 @@ internal fun Route.setupPageRoute(
 }
 
 internal fun Route.profilesPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
-) {
-    get("/profiles") {
+) = ops {
+    get("/profiles", name = "page.profiles") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -136,11 +136,11 @@ internal fun Route.profilesPageRoute(
 }
 
 internal fun Route.installPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
     body: (AppStrings) -> String,
-) {
-    get("/install") {
+) = ops {
+    get("/install", name = "page.install") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -166,11 +166,11 @@ internal fun Route.installPageRoute(
 }
 
 internal fun Route.logsPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
     httpPort: () -> Int,
-) {
-    get("/logs") {
+) = ops {
+    get("/logs", name = "page.logs") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -185,11 +185,11 @@ internal fun Route.logsPageRoute(
 }
 
 internal fun Route.entitiesPageRoute(
-    requestStrings: (ApplicationCall) -> AppStrings,
+    requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
     enabled: () -> Boolean,
-) {
-    get("/entities") {
+) = ops {
+    get("/entities", name = "page.entities") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(

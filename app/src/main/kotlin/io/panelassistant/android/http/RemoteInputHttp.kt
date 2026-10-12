@@ -27,6 +27,14 @@ internal suspend fun respondTapCaptureResult(
     result: TapCaptureResult,
     stopping: Boolean,
     cacheScreenshot: suspend (ByteArray) -> String?,
+) = respondTapCaptureResult(call.op(), requestId, result, stopping, cacheScreenshot)
+
+internal suspend fun respondTapCaptureResult(
+    call: OpCall,
+    requestId: Long,
+    result: TapCaptureResult,
+    stopping: Boolean,
+    cacheScreenshot: suspend (ByteArray) -> String?,
 ) {
     call.response.headers.append("X-ha-paneld-Input-Id", requestId.toString())
     fun inputRoute(route: PrivilegeRoute?) {

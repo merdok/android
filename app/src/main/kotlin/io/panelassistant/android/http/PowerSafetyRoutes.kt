@@ -11,7 +11,6 @@ import io.panelassistant.android.security.SensitiveOperation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -27,17 +26,18 @@ internal fun Route.powerSafetyRoutes(
     onRepairPowerSafety: () -> PowerSafetyRepairResult,
     freshPowerSafetyRepairCapability: () -> PowerRepairCapability,
     snapInvalidate: () -> Unit,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
 ) {
+    get("/power-safety/state") {
+        call.respondText(powerSafety().level.wireValue + "\n", ContentType.Text.Plain)
+    }
+    ops {
     get("/power-safety") {
         val advisory = powerSafetyAdvisory()
         call.respondText(
             PowerSafetyPresentation.json(advisory),
             ContentType.Application.Json,
         )
-    }
-    get("/power-safety/state") {
-        call.respondText(powerSafety().level.wireValue + "\n", ContentType.Text.Plain)
     }
     post("/power-safety/repair") {
         if (!authorizeSensitive(
@@ -161,4 +161,5 @@ internal fun Route.powerSafetyRoutes(
             )
         }
     }
+}
 }

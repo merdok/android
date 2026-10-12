@@ -78,7 +78,7 @@ internal data class ControlPlaneRouteDependencies(
     val backupFileStem: () -> String,
     val apkUpload: ApkUploadRouteDependencies,
     val identityMigration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
-    val authorize: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
+    val authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
 )
 
 internal data class ApkUploadRouteDependencies(
@@ -320,6 +320,13 @@ internal suspend fun receiveBoundedBody(
     maxBytes: Long,
     timeoutMs: Long = STANDARD_BODY_RECEIPT_DEADLINE_MS,
     reader: (InputStream, Long, Long) -> ByteArray = DeadlineBoundedBody::readBytes,
+): BoundedBodyReceipt = receiveBoundedBody(call.op(), maxBytes, timeoutMs, reader)
+
+internal suspend fun receiveBoundedBody(
+    call: OpCall,
+    maxBytes: Long,
+    timeoutMs: Long = STANDARD_BODY_RECEIPT_DEADLINE_MS,
+    reader: (InputStream, Long, Long) -> ByteArray = DeadlineBoundedBody::readBytes,
 ): BoundedBodyReceipt {
     val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
     if (declared != null && declared > maxBytes) return BoundedBodyReceipt.TooLarge
@@ -353,6 +360,7 @@ internal fun Route.controlPlaneRoutes(dependencies: ControlPlaneRouteDependencie
     post("/play") { handlePlay(call, dependencies) }
     route("/api/v1") {
         post("/play") { handlePlay(call, dependencies) }
+        ops {
         post("/install/component") { handleComponentInstall(call, dependencies) }
         post("/install/apk") { handleApkUpload(call, dependencies) }
         post("/install/apk/from-url") { handleApkFetchFromUrl(call, dependencies) }
@@ -360,6 +368,8 @@ internal fun Route.controlPlaneRoutes(dependencies: ControlPlaneRouteDependencie
         post("/install/apk/discard") { handleApkDiscard(call, dependencies.apkUpload) }
         get("/install/apk/pending") { handleApkPending(call, dependencies.apkUpload) }
         post("/install/apk/commit") { handleApkCommit(call, dependencies) }
+        post("/backup") { handleBackup(call, dependencies) }
+        }
         get("/successor") {
             val capability = dependencies.identityMigration.successorUploadCapability()
             if (capability == null) {
@@ -376,11 +386,10 @@ internal fun Route.controlPlaneRoutes(dependencies: ControlPlaneRouteDependencie
                 )
             }
         }
-        post("/backup") { handleBackup(call, dependencies) }
     }
 }
 
-private suspend fun handleApkCommit(call: ApplicationCall, routes: ControlPlaneRouteDependencies) {
+private suspend fun handleApkCommit(call: OpCall, routes: ControlPlaneRouteDependencies) {
     val dependencies = routes.apkUpload
     val parameters = receiveBoundedFormParameters(call) ?: return
     val token = parameters["token"].orEmpty()
@@ -480,7 +489,7 @@ private sealed interface StagedBytes {
  * can never outlive the request or be reachable by a later token.
  */
 private suspend fun stageInspectAndRespond(
-    call: ApplicationCall,
+    call: OpCall,
     dependencies: ApkUploadRouteDependencies,
     lease: PendingUploadStore.Lease,
     declaredBytes: Long?,
@@ -583,7 +592,7 @@ private suspend fun stageInspectAndRespond(
 /** Reserves the single staging slot, or answers the caller and returns null when it is unavailable.
  *  [owner] is the pre-rendered request echo, so a request-owned source answers uniformly here too. */
 private suspend fun beginApkStaging(
-    call: ApplicationCall,
+    call: OpCall,
     dependencies: ApkUploadRouteDependencies,
     echo: String = "",
     owner: String? = null,
@@ -634,7 +643,7 @@ internal fun apkFetchApprovalSummary(url: String): String {
  * The download is owned by the client-minted request identifier, so a cancel stops this fetch and only
  * this fetch, and releases the staging slot immediately rather than leaving it held until a timeout.
  */
-private suspend fun handleApkFetchFromUrl(call: ApplicationCall, routes: ControlPlaneRouteDependencies) {
+private suspend fun handleApkFetchFromUrl(call: OpCall, routes: ControlPlaneRouteDependencies) {
     val dependencies = routes.apkUpload
     if (!dependencies.enabled()) {
         call.respondText(
@@ -707,7 +716,7 @@ private suspend fun handleApkFetchFromUrl(call: ApplicationCall, routes: Control
 }
 
 /** Stops one in-flight fetch, and only for the request that started it. */
-private suspend fun handleApkFetchCancel(call: ApplicationCall, dependencies: ApkUploadRouteDependencies) {
+private suspend fun handleApkFetchCancel(call: OpCall, dependencies: ApkUploadRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
     val request = validApkFetchRequestId(parameters["request"].orEmpty())
     if (request == null) {
@@ -735,7 +744,7 @@ private suspend fun handleApkFetchCancel(call: ApplicationCall, dependencies: Ap
  * already have, because a new upload already supersedes a staged entry. No Hardened-mode approval
  * either — cancellation must stay available there, and the physical boundary belongs to commit alone.
  */
-private suspend fun handleApkDiscard(call: ApplicationCall, dependencies: ApkUploadRouteDependencies) {
+private suspend fun handleApkDiscard(call: OpCall, dependencies: ApkUploadRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
     val ref = parameters["token"].orEmpty()
     if (ref.isEmpty()) {
@@ -766,7 +775,7 @@ private suspend fun handleApkDiscard(call: ApplicationCall, dependencies: ApkUpl
  *  entry and carries no install authority (it cannot peek, claim or commit). Ungated like the status
  *  poll: a probe answering "disabled" would hide exactly the state the recovery UI needs, and when
  *  the capability is off there is never anything pending to reveal. */
-private suspend fun handleApkPending(call: ApplicationCall, dependencies: ApkUploadRouteDependencies) {
+private suspend fun handleApkPending(call: OpCall, dependencies: ApkUploadRouteDependencies) {
     val summary = dependencies.pending.pendingSummary()
     if (summary == null) {
         call.respondText("""{"pending":false}""", ContentType.Application.Json)
@@ -780,7 +789,7 @@ private suspend fun handleApkPending(call: ApplicationCall, dependencies: ApkUpl
 }
 
 /** Stages an arbitrary user-supplied APK on the unauthenticated LAN-trust surface, so the production source, origin, host, explicit-enable and root-capability gates must remain in force around this route. */
-private suspend fun handleApkUpload(call: ApplicationCall, routes: ControlPlaneRouteDependencies) {
+private suspend fun handleApkUpload(call: OpCall, routes: ControlPlaneRouteDependencies) {
     val dependencies = routes.apkUpload
     val migrationParam = call.request.queryParameters.getAll("migration")
     val digestParam = call.request.queryParameters.getAll("sha256")
@@ -881,7 +890,7 @@ private suspend fun handlePlay(call: ApplicationCall, dependencies: ControlPlane
         return
     }
     if (!dependencies.authorize(
-            call,
+            call.op(),
             SensitiveOperation.REMOTE_MEDIA,
             exactHttpApprovalPayload(call, sha256Hex(body.toByteArray(Charsets.UTF_8))),
             "Play media from $url",
@@ -895,7 +904,7 @@ private suspend fun handlePlay(call: ApplicationCall, dependencies: ControlPlane
 }
 
 private suspend fun handleComponentInstall(
-    call: ApplicationCall,
+    call: OpCall,
     dependencies: ControlPlaneRouteDependencies,
 ) {
     val parameters = receiveBoundedFormParameters(call) ?: return
@@ -953,7 +962,7 @@ private suspend fun handleComponentInstall(
     }
 }
 
-private suspend fun handleBackup(call: ApplicationCall, dependencies: ControlPlaneRouteDependencies) {
+private suspend fun handleBackup(call: OpCall, dependencies: ControlPlaneRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
     val passphrase = parameters["passphrase"].orEmpty()
     val allowPlaintext = parameters["allow_plaintext"]?.let { it == "true" || it == "1" } ?: false

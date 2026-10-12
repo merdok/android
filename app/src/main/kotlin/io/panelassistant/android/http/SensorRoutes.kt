@@ -3,17 +3,14 @@ package io.panelassistant.android.http
 import android.content.Context
 import io.panelassistant.android.sensors.SensorReporter
 import io.ktor.http.ContentType
-import io.ktor.server.application.call
-import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
 
 internal fun Route.sensorValuesRoute(
     appContext: Context,
     sensors: SensorReporter,
     volumePercent: () -> Int,
     effectiveBrightness: () -> Int,
-) {
+) = ops {
     // Live Sensors card: last-published values + live extras. Volume is the current
     // media-stream percent; brightness is the system setting (0-255, -1 unknown).
     get("/sensors") {

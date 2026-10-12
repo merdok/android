@@ -15,15 +15,15 @@ import org.json.JSONObject
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.control.AmbientThemeReport
 
-internal suspend fun respondAutoBrightnessAction(call: ApplicationCall, action: AutoBrightnessHttpAction) {
+internal suspend fun respondAutoBrightnessAction(call: OpCall, action: AutoBrightnessHttpAction) {
     call.respondText(action.json, ContentType.Application.Json, HttpStatusCode.fromValue(action.statusCode))
 }
 
 internal fun Route.autoBrightnessRoutes(
     api: AutoBrightnessHttpApi,
-    admit: suspend (ApplicationCall) -> Boolean,
-    receiveJson: suspend (ApplicationCall, Boolean) -> JSONObject?,
-) {
+    admit: suspend (OpCall) -> Boolean,
+    receiveJson: suspend (OpCall, Boolean) -> JSONObject?,
+) = ops {
     get("/auto-brightness") {
         call.response.headers.append("Cache-Control", "no-store")
         call.respondText(api.statusJson(), ContentType.Application.Json)

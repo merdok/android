@@ -557,6 +557,8 @@ class PaneldService : Service() {
     private lateinit var config: Config
     private lateinit var appliedNetworkConfiguration: NetworkConfigurationSnapshot
     private lateinit var server: PaneldServer
+    /** The named operations the HTTP routes register; every runtime generation's dispatcher serves them. */
+    private val manageTable = ManageTable()
     private lateinit var rendererPreparation: RendererPreparationCoordinator
     private lateinit var entityLearning: EntityLearningManager
     // Voice-assistant phase authority, driven by the coordinator. Home Assistant sees the phase as its
@@ -667,7 +669,7 @@ class PaneldService : Service() {
         override fun submit(command: PanelAssistantCommand, done: (PanelAssistantCommandResult) -> Unit) {
             val commands = runCatching { runtime.current().commands }.getOrNull()
                 ?: return done(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
-            commands.submit(command, done)
+            commands.submit(command, CommandOrigin.panelAssistant(command.requestId), done)
         }
 
         override fun approvalState(approvalId: String): PanelAssistantApprovalState =
@@ -1635,6 +1637,7 @@ class PaneldService : Service() {
             },
             storageHealth = StorageHealthRuntime::snapshot,
             refreshStorageHealth = ::refreshStorageHealthForStatus,
+            manageTable = manageTable,
         )
         storageHealthSubscription = StorageHealthRuntime.subscribe(::onStorageHealthSnapshot)
         sensors.setLearnedProximityListener {
@@ -1721,6 +1724,7 @@ class PaneldService : Service() {
         onAutoSleepConfigChanged = {
             acceptCommittedAutoSleepSetting(liveSettingAuthority) { refreshAutoSleepPresence() }
         },
+        manageTable = manageTable,
     )
 
     private fun buildMdns(identity: NetworkRuntimeIdentity): MdnsAdvertiser = MdnsAdvertiser(

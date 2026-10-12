@@ -39,8 +39,8 @@ internal class DirectConfigPost(
     private val capabilities: () -> Capabilities,
     private val directMutationValues: () -> Map<String, String>,
     private val revisionValues: () -> Map<String, String>,
-    private val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-    private val rejectHardenedNetworkAdb: suspend (ApplicationCall, String?) -> Boolean,
+    private val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+    private val rejectHardenedNetworkAdb: suspend (OpCall, String?) -> Boolean,
     private val applySetting: (String, String) -> LiveSettingRequestOutcome,
     private val applyRendererEffects: (RendererConfigEffects) -> Unit,
     private val onEntityTargetChanged: () -> Unit,
@@ -59,7 +59,7 @@ internal class DirectConfigPost(
      * through [applySetting] (same path as an HA command), and per-row HA-exposure toggles are stored.
      */
     suspend fun handle(
-        call: ApplicationCall,
+        call: OpCall,
         capabilityProvider: (() -> Capabilities)? = null,
     ) {
         val received = receiveBoundedConfigParameters(call) ?: return
@@ -606,7 +606,7 @@ internal class DirectConfigPost(
     }
 
     private suspend fun respondConfigMutation(
-        call: ApplicationCall,
+        call: OpCall,
         status: String,
         applied: List<String>,
         pending: List<String>,

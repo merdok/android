@@ -28,12 +28,12 @@ internal fun Route.displayRoutes(
     recommendedFontScale: Float?,
     /** Whether a su or helper route can apply sizing here: the Install card's sizing readiness. */
     privilegedSizing: () -> Boolean,
-    requestStrings: (ApplicationCall) -> Strings,
+    requestStrings: (OpCall) -> Strings,
     snapInvalidate: () -> Unit,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
     escapeHtml: (String) -> String,
     localizedHref: (String, Strings) -> String,
-) {
+) = ops {
     get("/display") {
         // The factory base is the `wm density` reset reference the sizing control restores;
         // the framework's stable density stands in only where that read is unavailable.

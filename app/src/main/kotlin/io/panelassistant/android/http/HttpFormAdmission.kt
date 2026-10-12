@@ -12,6 +12,11 @@ import org.json.JSONObject
 internal suspend fun receiveBoundedConfigParameters(
     call: ApplicationCall,
     maxBytes: Long = PaneldServer.MAX_CONFIG_POST_BODY_BYTES,
+): Parameters? = receiveBoundedConfigParameters(call.op(), maxBytes)
+
+internal suspend fun receiveBoundedConfigParameters(
+    call: OpCall,
+    maxBytes: Long = PaneldServer.MAX_CONFIG_POST_BODY_BYTES,
 ): Parameters? {
     val body = when (val receipt = receiveBoundedBody(call, maxBytes)) {
         is BoundedBodyReceipt.Received -> String(receipt.bytes, Charsets.UTF_8)
@@ -50,7 +55,14 @@ internal suspend fun receiveBoundedConfigParameters(
 internal suspend fun receiveBoundedFormParameters(
     call: ApplicationCall,
     maxBytes: Long = PaneldServer.MAX_SMALL_FORM_POST_BODY_BYTES,
+): Parameters? = receiveBoundedFormParameters(call.op(), maxBytes)
+
+/** A managed request's form fields are its `args`. */
+internal suspend fun receiveBoundedFormParameters(
+    call: OpCall,
+    maxBytes: Long = PaneldServer.MAX_SMALL_FORM_POST_BODY_BYTES,
 ): Parameters? {
+    if (call.args != null) return call.parameters
     val body = when (val receipt = receiveBoundedBody(call, maxBytes)) {
         is BoundedBodyReceipt.Received -> String(receipt.bytes, Charsets.UTF_8)
         BoundedBodyReceipt.TooLarge -> {

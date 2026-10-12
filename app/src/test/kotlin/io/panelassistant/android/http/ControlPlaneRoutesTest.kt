@@ -1394,7 +1394,7 @@ class ControlPlaneRoutesTest {
         },
         apkUpload: ApkUploadRouteDependencies = unusedApkUpload(),
         identityMigration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
-        authorize: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
+        authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
     ) = ControlPlaneRouteDependencies(
         playAudio = playAudio,
         installComponent = installComponent,

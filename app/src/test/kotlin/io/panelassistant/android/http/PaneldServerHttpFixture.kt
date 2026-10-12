@@ -78,7 +78,9 @@ internal class PaneldServerHttpFixture(
     val sizingCache get() = observations.densityCache
     val clearStorageGate = io.panelassistant.android.util.GenerationSingleFlight()
     val companionCache get() = observations.companionServerCache
+    val manageTable = io.panelassistant.android.ManageTable()
     val server = allocate(PaneldServer::class.java).apply {
+        field("manageTable", this@PaneldServerHttpFixture.manageTable)
         field("config", config)
         field("scope", scope)
         field("system", allocate(io.panelassistant.android.control.SystemController::class.java))

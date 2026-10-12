@@ -57,8 +57,8 @@ internal class AcceptedConfigTransaction(
         autoBrightnessHttpApi: AutoBrightnessHttpApi,
         onboarding: DirectConfigOnboarding,
         capabilities: () -> Capabilities,
-        authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-        rejectHardenedNetworkAdb: suspend (ApplicationCall, String?) -> Boolean,
+        authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+        rejectHardenedNetworkAdb: suspend (OpCall, String?) -> Boolean,
         onHaAreaCommitted: () -> Unit,
     ): DirectConfigPost = DirectConfigPost(
         config = config,

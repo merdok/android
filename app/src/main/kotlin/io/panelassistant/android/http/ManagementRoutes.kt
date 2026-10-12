@@ -14,11 +14,11 @@ import kotlinx.coroutines.withContext
 internal fun Route.managementRoutes(
     diagnostics: () -> String,
     status: (StorageHealthSnapshot, String?, Boolean) -> String,
-    admitActiveRead: suspend (ApplicationCall) -> Boolean,
+    admitActiveRead: suspend (OpCall) -> Boolean,
     refreshUpdates: suspend () -> Unit,
     refreshStorage: suspend () -> StorageHealthSnapshot?,
     cachedStorage: () -> StorageHealthSnapshot,
-) {
+) = ops {
     get("/diag") {
         call.respondText(
             withContext(Dispatchers.IO) { diagnostics() },

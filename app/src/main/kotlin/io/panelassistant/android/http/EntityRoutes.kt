@@ -6,12 +6,7 @@ import io.panelassistant.android.dashboard.EntityFilterTelemetry
 import io.panelassistant.android.dashboard.EntityLearningManager
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respondText
-import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -22,13 +17,13 @@ internal class EntityRoutes(
     private val onFilterChanged: () -> Unit,
 ) {
     fun mount(route: Route) {
-        with(route) {
+        route.ops {
             // Experimental built-in-renderer entity filter. The exact ids are accepted at runtime
             // but never echoed, logged, or included in config exports; status is count+hash.
             get("/dashboard/entity-filter") {
                 call.respondText(entityFilterStatusJson(), ContentType.Application.Json)
             }
-            post("/dashboard/entity-filter") { handleEntityFilterPost(call) }
+            post("/dashboard/entity-filter", name = "dashboard.entity_filter.set") { handleEntityFilterPost(call) }
             get("/dashboard/entities") {
                 call.respondText(
                     entityLearning.entitiesJson(
@@ -46,7 +41,7 @@ internal class EntityRoutes(
             get("/dashboard/entities/issues") {
                 call.respondText(entityLearning.issuesJson(), ContentType.Application.Json)
             }
-            post("/dashboard/entities/issues") {
+            post("/dashboard/entities/issues", name = "dashboard.entities.issues.set") {
                 val obj = receiveEntityAdminJson(call) ?: return@post
                 if (!obj.has("fingerprint") || !obj.has("ignored")) {
                     return@post call.respondText(
@@ -60,7 +55,7 @@ internal class EntityRoutes(
                 }
                 call.respondText(response, ContentType.Application.Json)
             }
-            post("/dashboard/entities/sync") {
+            post("/dashboard/entities/sync", name = "dashboard.entities.sync.set") {
                 if (entityLearning.syncNow("manual")) {
                     call.respondText(entityLearning.statusJson(), ContentType.Application.Json, HttpStatusCode.Accepted)
                 } else call.respondText("synchronization already running\n", status = HttpStatusCode.Conflict)
@@ -146,7 +141,7 @@ internal class EntityRoutes(
 
     /** Replace/toggle the complete experimental allow-list. Existing state supplies omitted fields,
      *  making `{\"enabled\":false}` a cheap A/B switch while the list remains stored on the panel. */
-    private suspend fun handleEntityFilterPost(call: ApplicationCall) {
+    private suspend fun handleEntityFilterPost(call: OpCall) {
         val body = when (val receipt = receiveBoundedBody(call, EntityFilterProtocol.MAX_API_BODY_BYTES.toLong())) {
             is BoundedBodyReceipt.Received -> String(receipt.bytes, Charsets.UTF_8)
             BoundedBodyReceipt.TooLarge -> {

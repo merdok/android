@@ -10,10 +10,10 @@ import io.ktor.server.routing.get
 
 /** On-demand vendor package discovery; selection mutations remain with [TameRoutes]. */
 internal fun Route.tameSuggestionRoutes(
-    requestStrings: (ApplicationCall) -> Strings,
-    admitActiveRead: suspend (ApplicationCall) -> Boolean,
+    requestStrings: (OpCall) -> Strings,
+    admitActiveRead: suspend (OpCall) -> Boolean,
     suggestionGroups: () -> List<TameController.Group>,
-) {
+) = ops {
     // The "Find a package…" picker pop-up content: an on-demand, grouped list of packages a
     // non-expert might want to control — Recommended (profile) / Other apps / Using the most
     // CPU. Lazy (only built when the dialog opens) and excludes what's already tamed (the card).

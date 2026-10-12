@@ -22,6 +22,7 @@ internal fun Route.proximityRoutes(
     proximityJson: () -> String,
     calibrate: (String, String) -> Boolean,
 ) {
+    ops {
     get("/proximity") { call.respondText(proximityJson(), ContentType.Application.Json) }
     post("/proximity/calibration") {
         if (!proximityUiRequestAllowed(
@@ -49,6 +50,7 @@ internal fun Route.proximityRoutes(
         call.response.headers.append("Cache-Control", "no-store")
         call.respondText(proximityJson(), ContentType.Application.Json,
             if (accepted) HttpStatusCode.Accepted else HttpStatusCode.Conflict)
+    }
     }
     post("/proximity/teach") {
         call.respondText("Use on-panel proximity setup from the HTML UI.\n", status = HttpStatusCode.Gone)
