@@ -24,6 +24,8 @@ data class ProfileDocument(
     val display: ProfileDisplay,
     val provisioning: ProfileProvisioning,
     val soc: ProfileSoc? = null,
+    /** Registry setting keys with typed YAML defaults; validation retains the original scalar types. */
+    val settingDefaults: Map<String, Any?> = emptyMap(),
 )
 
 data class ProfileProvenance(

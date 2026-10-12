@@ -23,8 +23,191 @@ import org.json.JSONObject
 import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import io.panelassistant.android.config.Capabilities
+import io.panelassistant.android.device.profile.BundledProfileFixtures
+import io.panelassistant.android.device.profile.DeviceFacts
+import io.panelassistant.android.device.profile.EvdevDeviceInspector
+import io.panelassistant.android.device.profile.ProfileActivationPhase
+import io.panelassistant.android.device.profile.ProfileMutation
+import io.panelassistant.android.device.profile.ProfilePreferences
+import io.panelassistant.android.device.profile.ProfileSelection
+import io.panelassistant.android.device.profile.ProfileYaml
+import io.panelassistant.android.device.profile.RuntimeProfileRegistry
+import io.panelassistant.android.device.profile.testProfileDocument
+import io.panelassistant.android.http.ConfigValueProjection
+import io.panelassistant.android.i18n.CatalogueLoader
+import java.io.File
+import java.nio.file.Files
+import org.json.JSONArray
 
 class ConfigTransactionTest {
+    @Test fun freshPortalStartupUsesTheDeclaredZoomInTypedRawAndConfigureReads() = withProfileRegistry(
+        BundledProfileFixtures.rawByName(),
+        DeviceFacts("portal", "omni", ""),
+    ) { registry ->
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        val resolved = registry.resolveForStartup()
+        assertEquals("meta-portal-10-gen2", resolved.profile.id)
+        config.attachProfile(resolved.profile)
+        assertEquals(85, config.dashboardZoom)
+        assertEquals("85", config.getRaw(SettingsRegistry.spec("dashboard_zoom")!!))
+        val projection = profileProjection(config)
+        assertEquals(85, JSONObject(projection.settingsValuesJson()).getInt("dashboard_zoom"))
+        assertEquals("85", projection.currentValues()["dashboard_zoom"])
+        // Execute Configure schema projection with the shipped English catalogue as input data.
+        val strings = CatalogueLoader { path ->
+            File(BundledProfileFixtures.assetsDirectory.parentFile, path).readText()
+        }.strings("en")
+        val schema = JSONArray(projection.schemaJson(
+            strings, Capabilities(), emptyMap(), null, null,
+        ))
+        val zoom = (0 until schema.length()).map(schema::getJSONObject).single { it.getString("key") == "dashboard_zoom" }
+        assertEquals("85", zoom.getString("default"))
+        assertFalse(prefs.values.containsKey("dashboard_zoom"))
+    }
+
+    @Test fun profileStartupPreservesExplicitZoomIncludingTheOldProductDefault() = withProfileRegistry(
+        BundledProfileFixtures.rawByName(),
+        DeviceFacts("portal", "omni", ""),
+    ) { registry ->
+        val resolved = registry.resolveForStartup()
+        for (stored in listOf(96, 100)) {
+            val prefs = fakePreferences(initial = mapOf("dashboard_zoom" to stored))
+            repeat(3) {
+                val config = Config(prefs.instance)
+                config.attachProfile(resolved.profile)
+                assertEquals(stored, config.dashboardZoom)
+                assertEquals(stored.toString(), config.getRaw(SettingsRegistry.spec("dashboard_zoom")!!))
+            }
+            assertEquals(stored, prefs.values["dashboard_zoom"])
+        }
+    }
+
+    @Test fun changingProfilesChangesOnlyAbsentValuesAndNeverSeedsPreferences() {
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        val portal = BundledProfileFixtures.profile("meta-portal-10-gen2")
+        val generic = BundledProfileFixtures.profile("generic")
+        repeat(3) {
+            config.attachProfile(portal)
+            assertEquals(85, config.dashboardZoom)
+            config.attachProfile(generic)
+            assertEquals(100, config.dashboardZoom)
+            assertFalse(prefs.values.containsKey("dashboard_zoom"))
+        }
+        val editor = config.editor()
+        stageImport(config, editor, mapOf("dashboard_zoom" to "100"))
+        assertTrue(config.commit(editor))
+        for (profile in listOf(portal, generic, portal)) {
+            config.attachProfile(profile)
+            assertEquals(100, config.dashboardZoom)
+        }
+    }
+
+    @Test fun acceptedZoomImportsRemainExplicitAcrossProfileChangesAndRestart() {
+        for (imported in listOf("85", "96", "100")) {
+            val prefs = fakePreferences()
+            val config = Config(prefs.instance)
+            config.attachProfile(BundledProfileFixtures.profile("meta-portal-10-gen2"))
+            val editor = config.editor()
+            stageImport(config, editor, mapOf("dashboard_zoom" to imported))
+            assertTrue(config.commit(editor))
+            val restarted = Config(prefs.instance)
+            restarted.attachProfile(BundledProfileFixtures.profile("generic"))
+            assertEquals(imported.toInt(), restarted.dashboardZoom)
+            assertEquals(imported.toInt(), prefs.values["dashboard_zoom"])
+        }
+    }
+
+    @Test fun catalogueImportIsInertAndUnhealthyActivationRestoresThePriorDefaultWithoutChangingChoices() = withProfileRegistry(
+        mapOf("generic.yaml" to ProfileYaml.serialize(
+            testProfileDocument(id = "generic", fallback = true),
+        )),
+        DeviceFacts("test-panel", "test-device", "fw-1"),
+    ) { registry ->
+        val absent = Config(fakePreferences().instance)
+        val storedPrefs = fakePreferences(initial = mapOf("dashboard_zoom" to 100))
+        val explicit = Config(storedPrefs.instance)
+        val initial = registry.resolveForStartup()
+        absent.attachProfile(initial.profile)
+        explicit.attachProfile(initial.profile)
+        val raw = ProfileYaml.serialize(
+            testProfileDocument().copy(settingDefaults = mapOf("dashboard_zoom" to 85)),
+        )
+        val preview = registry.preview(raw)
+        assertTrue(preview.issues.toString(), preview.compatible)
+        assertTrue(registry.importProfile(raw, preview.previewToken!!) is ProfileMutation.Success)
+        assertEquals(100, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        assertTrue(registry.select(
+            ProfileSelection.Pinned(preview.summary!!.ref),
+            registry.status().catalogRevision,
+        ) is ProfileMutation.Success)
+        val unproven = registry.resolveForStartup()
+        absent.attachProfile(unproven.profile)
+        explicit.attachProfile(unproven.profile)
+        assertEquals(85, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        val recovered = registry.resolveForStartup()
+        assertEquals(ProfileActivationPhase.ROLLED_BACK, registry.status().activation.phase)
+        absent.attachProfile(recovered.profile)
+        explicit.attachProfile(recovered.profile)
+        assertEquals(100, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        assertEquals(100, storedPrefs.values["dashboard_zoom"])
+    }
+
+    @Test fun admittedGenericDefaultsReachBooleanFloatAndEnumAccessors() = withProfileRegistry(
+        mapOf("generic.yaml" to ProfileYaml.serialize(
+            testProfileDocument(id = "generic", fallback = true).copy(
+                settingDefaults = mapOf("dark_mode" to false, "room_temp_offset" to 1.25, "camera_resolution" to "1080p"),
+            ),
+        )),
+        DeviceFacts("unmatched", "unmatched", ""),
+    ) { registry ->
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        config.attachProfile(registry.resolveForStartup().profile)
+        assertFalse(config.darkMode)
+        assertEquals(1.25f, config.roomTempOffsetC, 0f)
+        assertEquals("1080p", config.cameraResolution.wire)
+        for ((key, expected) in mapOf("dark_mode" to "false", "room_temp_offset" to "1.25", "camera_resolution" to "1080p")) {
+            assertEquals(expected, config.getRaw(SettingsRegistry.spec(key)!!))
+            assertFalse(prefs.values.containsKey(key))
+        }
+    }
+
+    private fun profileProjection(config: Config) = ConfigValueProjection(
+        config, { emptyMap() }, { emptyMap() }, { emptyMap() }, { emptySet() }, { "{}" }, { "{}" }, { null },
+    )
+
+    private fun withProfileRegistry(
+        bundled: Map<String, String>,
+        facts: DeviceFacts,
+        test: (RuntimeProfileRegistry) -> Unit,
+    ) {
+        val directory = Files.createTempDirectory("profile-setting-defaults").toFile()
+        val values = mutableMapOf<String, Any>()
+        val preferences = object : ProfilePreferences {
+            override fun getString(key: String, default: String) = values[key] as? String ?: default
+            override fun getLong(key: String, default: Long) = values[key] as? Long ?: default
+            override fun put(vararg entries: Pair<String, Any?>): Boolean {
+                entries.forEach { (key, value) -> if (value == null) values.remove(key) else values[key] = value }
+                return true
+            }
+        }
+        try {
+            test(RuntimeProfileRegistry(
+                filesDir = directory, preferences = preferences, bundledLoader = { bundled }, facts = facts,
+                coreVersion = "1.0.0", clock = { 1000L },
+                evdevInspector = EvdevDeviceInspector { null },
+            ))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test fun legacyKioskAllowanceIsIgnoredWithoutChangingLockOrOtherSettings() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
             val prefs = fakePreferences(initial = mapOf(

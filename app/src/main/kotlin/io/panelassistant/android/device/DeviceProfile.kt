@@ -34,6 +34,9 @@ interface DeviceProfile {
     /** SoC class, e.g. "PX30 / rk3326". */
     val socClass: String
 
+    /** Validated canonical setting defaults, used only while a registry key has no stored value. */
+    val settingDefaults: Map<String, String> get() = emptyMap()
+
     /** Optional profile-evidenced SoC model, CPU topology and introduction year. */
     val soc: ProfileSoc? get() = null
 

@@ -17,10 +17,6 @@ import io.panelassistant.android.config.SettingType
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
-import io.panelassistant.android.config.defaultBool
-import io.panelassistant.android.config.defaultFloat
-import io.panelassistant.android.config.defaultInt
-import io.panelassistant.android.config.defaultLong
 import io.panelassistant.android.config.navbarModeDefault
 import io.panelassistant.android.config.isLiteralNullAreaName
 import io.panelassistant.android.config.normalizedHaAreaName
@@ -66,8 +62,11 @@ internal data class HaAuthSnapshot(
  * land on one without. Coercing such a value to the derived default rather than to `Off` is
  * deliberate — on a panel with no system bar that yields working navigation instead of none.
  */
-internal fun resolveNavbarMode(stored: String?, caps: Capabilities): String {
-    val default = requireNotNull(SettingsRegistry.spec("navbar_mode")).defaultFor(caps)
+internal fun resolveNavbarMode(
+    stored: String?,
+    caps: Capabilities,
+    default: String = requireNotNull(SettingsRegistry.spec("navbar_mode")).defaultFor(caps),
+): String {
     if (stored == null) return default
     if (!navbarModePermitted(stored, caps.hasNativeNavbar)) return default
     return stored
@@ -411,7 +410,7 @@ class Config private constructor(
      *  service starts mDNS or the Panel Assistant session, so a later Android device-name change cannot
      *  silently rename the panel. The fallback remains for callers that run before service startup. */
     val panelId: String
-        get() = prefs.getString("panel_id", null) ?: defaultPanelId()
+        get() = prefs.getString("panel_id", profile?.settingDefaults?.get("panel_id")) ?: defaultPanelId()
 
     /** Materialize the valid generated identity once. Explicit identities always win, and a failed
      *  durable write leaves the same generated fallback available without claiming it is missing. */
@@ -649,7 +648,7 @@ class Config private constructor(
      * rather than the exact registration id.)
      */
     val friendlyName: String
-        get() = prefs.getString("friendly_name", null)?.takeIf { it.isNotBlank() } ?: deviceName()
+        get() = stringPref("friendly_name").takeIf { it.isNotBlank() } ?: deviceName()
     /**
      * Settings.Secure.ANDROID_ID, reported as the Home Assistant device `serial_number`.
      *
@@ -1013,7 +1012,8 @@ class Config private constructor(
         prefs.contains("auto_sleep_source") || durableCommit { putString("auto_sleep_source", absentAutoSleepSource) }
     }
     val autoSleepSource: String get() = prefs.getString("auto_sleep_source", null)
-        ?.takeIf { it == "panel" || it == "home_assistant" || it == "touch" } ?: absentAutoSleepSource
+        ?.takeIf { it == "panel" || it == "home_assistant" || it == "touch" }
+        ?: effectiveDefault(specOf("auto_sleep_source"))
     val autoSleepTouchDelaySeconds: Int get() = intPref("auto_sleep_touch_delay_seconds").coerceIn(5, 86_400)
     internal val autoSleepGeneration: Long get() = synchronized(CONFIG_LOCK) {
         prefs.getLong(AUTO_SLEEP_GENERATION_PREF, 0L)
@@ -1381,7 +1381,7 @@ class Config private constructor(
      *  Assistant does, which is what [darkMode] supplies a default for) or an explicit Dark/Light this
      *  panel imposes. A stored value this build no longer declares resolves to the default rather than
      *  leaving the renderer with a policy it cannot act on. */
-    val dashboardTheme: String get() = DashboardTheme.policy(prefs.getString("dashboard_theme", null))
+    val dashboardTheme: String get() = DashboardTheme.policy(stringPref("dashboard_theme"))
 
     /** The policy the renderer and every themed screen act on: [dashboardTheme] with Ambient resolved
      *  to the room's verdict, and to Follow while auto-brightness (the model that produces it) is off.
@@ -1930,7 +1930,10 @@ class Config private constructor(
     // authority and is only selectable where a declaration or firmware probe confirms one. Persisted so the mode is
     // restored on boot; a stored value that this panel may no longer use falls back to the default.
     val navbarMode: String
-        get() = resolveNavbarMode(prefs.getString("navbar_mode", null), navbarCapabilities())
+        get() {
+            val caps = navbarCapabilities()
+            return resolveNavbarMode(prefs.getString("navbar_mode", null), caps, effectiveDefault(specOf("navbar_mode"), caps))
+        }
 
     /**
      * The capability inputs [navbarModeDefault] reads, built here from the resolved profile plus the
@@ -2025,8 +2028,7 @@ class Config private constructor(
     val logShipProtocol: String
         get() = LogShipEndpoint.protocol(
             prefs.getString("log_ship_protocol", null)
-                ?: logShipAbsentProtocolFallback
-                ?: specOf("log_ship_protocol").default,
+                ?: effectiveDefault(specOf("log_ship_protocol")),
         )
     /** True only when shipping is enabled AND a sink host is configured. */
     val logShipActive: Boolean get() = logShipEnabled && logShipHost.isNotBlank()
@@ -2271,32 +2273,46 @@ class Config private constructor(
     // import all go through one typed path instead of ~35 bespoke getters. Typed convenience getters
     // above remain for callers; they read the same durable keys.
 
-    // The [SettingsRegistry] SettingSpec is the SOLE authority for every registry-backed key's default:
+    // The [SettingsRegistry] SettingSpec owns the vocabulary for every registry-backed key's default:
     // the typed convenience accessors above read their default through these helpers rather than each
     // re-declaring a literal that must be kept coherent with the spec by hand. A key with no spec is a
     // programming error (surfaces at test time), never a silent fallback to some other literal.
     private fun specOf(key: String): SettingSpec =
         SettingsRegistry.spec(key) ?: error("no SettingSpec registered for '$key'")
 
-    private fun boolPref(key: String): Boolean = prefs.getBoolean(key, specOf(key).defaultBool())
-    private fun intPref(key: String): Int = prefs.getInt(key, specOf(key).defaultInt())
-    private fun longPref(key: String): Long = prefs.getLong(key, specOf(key).defaultLong())
+    /** Default for the active profile; reads never materialize it as a user preference. */
+    fun effectiveDefault(spec: SettingSpec, caps: Capabilities? = null): String {
+        val declared = profile?.settingDefaults?.get(spec.key)
+        return when (spec.key) {
+            "navbar_mode" -> resolveNavbarMode(declared, caps ?: navbarCapabilities())
+            "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
+            "auto_sleep_source" -> declared ?: absentAutoSleepSource
+            else -> declared ?: spec.default
+        }
+    }
+
+    private fun boolPref(key: String): Boolean = prefs.getBoolean(key, effectiveDefault(specOf(key)).toBoolean())
+    private fun intPref(key: String): Int = prefs.getInt(key, effectiveDefault(specOf(key)).toIntOrNull() ?: 0)
+    private fun longPref(key: String): Long = prefs.getLong(key, effectiveDefault(specOf(key)).toLongOrNull() ?: 0L)
     private fun floatPref(key: String): Float {
         val spec = specOf(key)
-        val default = spec.defaultFloat()
+        val default = effectiveDefault(spec).toFloatOrNull() ?: 0f
         val persisted = prefs.getFloat(key, default)
         val normalized = (SettingValue.validate(spec, persisted.toString()) as? Validation.Ok)?.normalized
             ?: (SettingValue.validate(spec, default.toString()) as? Validation.Ok)?.normalized
             ?: default.toString()
         return normalized.toFloatOrNull() ?: default
     }
-    private fun stringPref(key: String): String = prefs.getString(key, specOf(key).default) ?: specOf(key).default
+    private fun stringPref(key: String): String {
+        val default = effectiveDefault(specOf(key))
+        return prefs.getString(key, default) ?: default
+    }
 
-    /** Current raw string value for a registry key (the spec default if unset). */
+    /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
-        SettingType.BOOL -> prefs.getBoolean(spec.key, spec.defaultBool()).toString()
-        SettingType.INT -> prefs.getInt(spec.key, spec.defaultInt()).toString()
-        SettingType.LONG -> prefs.getLong(spec.key, spec.defaultLong()).toString()
+        SettingType.BOOL -> boolPref(spec.key).toString()
+        SettingType.INT -> intPref(spec.key).toString()
+        SettingType.LONG -> longPref(spec.key).toString()
         SettingType.FLOAT -> {
             // Legacy stores and restored databases can bypass current write admission. [floatPref]
             // gives both typed runtime accessors and this raw projection the same validated effective
@@ -2313,7 +2329,7 @@ class Config private constructor(
             // Same reason: an alias spelling ("follow") or a value from a build that declared a
             // different option set must present as one of THIS build's declared options.
             "dashboard_theme" -> dashboardTheme
-            else -> prefs.getString(spec.key, spec.default) ?: spec.default
+            else -> stringPref(spec.key)
         }
     }
 
