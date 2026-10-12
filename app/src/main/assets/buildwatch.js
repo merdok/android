@@ -55,19 +55,20 @@
     var b = document.getElementById("migrationbar");
     if (b) b.style.display = visible ? "" : "none";
   }
-  // A poll started before durable dismissal can arrive afterwards; it cannot restore the old notice.
-  var noticeEpoch = 0;
+  // A reading taken before durable dismissal can arrive afterwards; that same reading cannot restore
+  // the old notice. Any newer reading (an update, a withdrawal) decides again.
+  var lastHealth = null, dismissedHealth = null;
   var dismiss = document.getElementById("migration-dismiss");
   if (dismiss) dismiss.addEventListener("click", function () {
     dismiss.disabled = true;
-    fetch("api/v1/migration-notice/dismiss", { method: "POST" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("dismiss failed");
-        return response.json();
+    window.PaneldTransport.request("migration_notice.dismiss")
+      .then(function (reply) {
+        if (reply.outcome !== "applied") throw new Error("dismiss failed");
+        return reply.result;
       })
       .then(function (result) {
         dismiss.disabled = false;
-        if (result && result.ok === true) { noticeEpoch++; migrationBanner(false); }
+        if (result && result.ok === true) { dismissedHealth = lastHealth; migrationBanner(false); }
       })
       .catch(function () { dismiss.disabled = false; });
   });
@@ -267,42 +268,41 @@
     var rowFallback = HA_NET_ROW[state] + "; " + clause + "{evidence}";
     row.textContent = i18nText(rowKey, rowFallback, { evidence: evidence });
   }
-  function vc() {
-    var requestedNoticeEpoch = noticeEpoch;
-    fetch("health").then(function (r) { return r.text(); }).then(function (t) {
-      var notice = t.match(/(?:^|\s)pa_notice=([01])(?:\s|$)/);
-      if (notice && requestedNoticeEpoch === noticeEpoch) migrationBanner(notice[1] === "1");
-      var mh = t.match(/ha=(\S+)/);
-      var ms = t.match(/ha_src=(\S+)/);
-      var mr = t.match(/ha_refused=1/);
-      var reason = t.match(/(?:^|\s)ha_reason=(\S+)/);
-      function timingToken(name) {
-        var match = t.match(new RegExp("(?:^|\\s)" + name + "=(\\d+)(?:\\s|$)"));
-        return match ? Number(match[1]) : null;
-      }
-      haBanner(mh ? mh[1] : "", ms ? ms[1] : "", !!mr, reason ? {
-        reason:reason[1], elapsed:timingToken("ha_elapsed_ms"), expected:timingToken("ha_expected_ms"), grace:timingToken("ha_grace_ms") || 0
-      } : null);
-      var mn = t.match(/ha_net=(\S+)/);
-      var mrs = t.match(/ha_resp=(\S+)/);
-      var mcz = t.match(/ha_net_cause=(\S+)/);
-      var mp = t.match(/ha_net_p95=(-?\d+)/);
-      var mc = t.match(/ha_net_n=(\d+)/);
-      var mm = t.match(/ha_net_miss=(\d+)/);
-      var ma = t.match(/ha_net_age=(-?\d+)/);
-      haNetBanner(mn ? mn[1] : "", mrs ? mrs[1] : "", mp ? parseInt(mp[1], 10) : -1, mc ? parseInt(mc[1], 10) : 0, mm ? parseInt(mm[1], 10) : 0, ma ? parseInt(ma[1], 10) : -1, mcz ? mcz[1] : "");
-      var mb = t.match(/build=(\S+)/);
-      if (mb && LB && mb[1] !== LB) {
-        if (dirty()) banner("shell.new_version.installed", "A newer Panel Assistant is installed"); else location.reload();
-        return;
-      }
-      var mc = t.match(/cfg=(\S+)/);
-      var LC = document.body.getAttribute("data-cfg") || "";
-      if (mc && LC && mc[1] !== LC && (location.origin + location.pathname).indexOf(new URL("configure", document.baseURI).href) === 0) {
-        if (dirty()) banner("shell.settings_changed.externally", "Settings were changed outside this page"); else location.reload();
-      }
-    }).catch(function () {});
+  function vc(t) {
+    if (typeof t !== "string") return;
+    var notice = t.match(/(?:^|\s)pa_notice=([01])(?:\s|$)/);
+    if (t !== dismissedHealth) dismissedHealth = null;
+    if (notice && dismissedHealth === null) migrationBanner(notice[1] === "1");
+    lastHealth = t;
+    var mh = t.match(/ha=(\S+)/);
+    var ms = t.match(/ha_src=(\S+)/);
+    var mr = t.match(/ha_refused=1/);
+    var reason = t.match(/(?:^|\s)ha_reason=(\S+)/);
+    function timingToken(name) {
+      var match = t.match(new RegExp("(?:^|\\s)" + name + "=(\\d+)(?:\\s|$)"));
+      return match ? Number(match[1]) : null;
+    }
+    haBanner(mh ? mh[1] : "", ms ? ms[1] : "", !!mr, reason ? {
+      reason:reason[1], elapsed:timingToken("ha_elapsed_ms"), expected:timingToken("ha_expected_ms"), grace:timingToken("ha_grace_ms") || 0
+    } : null);
+    var mn = t.match(/ha_net=(\S+)/);
+    var mrs = t.match(/ha_resp=(\S+)/);
+    var mcz = t.match(/ha_net_cause=(\S+)/);
+    var mp = t.match(/ha_net_p95=(-?\d+)/);
+    var mc = t.match(/ha_net_n=(\d+)/);
+    var mm = t.match(/ha_net_miss=(\d+)/);
+    var ma = t.match(/ha_net_age=(-?\d+)/);
+    haNetBanner(mn ? mn[1] : "", mrs ? mrs[1] : "", mp ? parseInt(mp[1], 10) : -1, mc ? parseInt(mc[1], 10) : 0, mm ? parseInt(mm[1], 10) : 0, ma ? parseInt(ma[1], 10) : -1, mcz ? mcz[1] : "");
+    var mb = t.match(/build=(\S+)/);
+    if (mb && LB && mb[1] !== LB) {
+      if (dirty()) banner("shell.new_version.installed", "A newer Panel Assistant is installed"); else location.reload();
+      return;
+    }
+    var mc = t.match(/cfg=(\S+)/);
+    var LC = document.body.getAttribute("data-cfg") || "";
+    if (mc && LC && mc[1] !== LC && (location.origin + location.pathname).indexOf(new URL("configure", document.baseURI).href) === 0) {
+      if (dirty()) banner("shell.settings_changed.externally", "Settings were changed outside this page"); else location.reload();
+    }
   }
-  setInterval(vc, 10000);
-  vc();
+  window.PaneldTransport.subscribe("health", vc);
 })();

@@ -85,7 +85,7 @@
     return 0;
   }
 
-  fetch('api/v1/peers').then(function (r) { return r.json(); }).then(function (list) {
+  window.PaneldTransport.request('peers').then(function (reply) { return reply.result; }).then(function (list) {
     if (!Array.isArray(list)) return;
     if (list.filter(function (p) { return !isSelf(p); }).length === 0) return; // only this panel — plain text
     // Show ALL panels (self in its alphabetical place). Synthesize self if the roster somehow omitted it,

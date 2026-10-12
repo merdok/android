@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import vm from 'node:vm';
-import { i18nHelper } from './fixtures/i18n-bridge.mjs';
+import { i18nHelper, installTransport } from './fixtures/i18n-bridge.mjs';
 
 const defaultAsset = fileURLToPath(new URL('../../app/src/main/assets/switcher.js', import.meta.url));
 const switcherAsset = process.argv[2] ? resolve(process.argv[2]) : defaultAsset;
@@ -72,16 +72,18 @@ async function loadSwitcher({ translate, peers: suppliedPeers } = {}) {
     { panel_id: 'alpha', name: 'Alpha panel', ip: '192.168.1.10', port: 8080, self: true },
   ];
 
-  vm.runInNewContext(source, {
+  const context = vm.createContext({
     window,
     document,
-    fetch: async () => ({ json: async () => peers }),
+    fetch: async () => ({ status: 200, headers: { get: () => 'application/json', forEach() {} }, text: async () => JSON.stringify(peers) }),
     URL,
     Number,
     Promise,
     setTimeout,
     clearTimeout,
   });
+  installTransport(context);
+  vm.runInContext(source, context);
   await new Promise((done) => setImmediate(done));
   await new Promise((done) => setImmediate(done));
   return { calls, created, host, select: created.find((node) => node.tagName === 'SELECT'), source, window };

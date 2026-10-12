@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
-import { i18nHelper, installHaNotice } from './fixtures/i18n-bridge.mjs';
+import { i18nHelper, installHaNotice, installTransport } from './fixtures/i18n-bridge.mjs';
 
 const asset = new URL('../../app/src/main/assets/buildwatch.js', import.meta.url);
 const englishCatalogueAsset = new URL('../../app/src/main/assets/i18n/en.json', import.meta.url);
@@ -82,25 +82,25 @@ async function loadBuildwatch({ translations = {}, locale = 'en', helper = true,
     document,
     window,
     location,
-    fetch: async () => ({ text: async () => health.line }),
-    setInterval(callback) { ticks.push(callback); return 1; },
+    fetch: async () => ({ status: 200, headers: { get: () => 'text/plain', forEach() {} }, text: async () => health.line }),
+    setTimeout(callback) { ticks.push(callback); return ticks.length; },
+    clearTimeout() {},
     Intl,
     URL,
   };
   vm.createContext(context);
   installHaNotice(context);
+  installTransport(context);
   vm.runInContext(source, context, { filename: 'buildwatch.js' });
+  const settle = () => new Promise((done) => setImmediate(done));
 
+  // The transport polls the health family at its floor; each poll runs the timer it scheduled last.
   async function poll(line) {
     health.line = line;
-    ticks[0]();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    ticks.at(-1)();
+    await settle();
   }
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  await settle();
   calls.splice(0);
   return { calls, created, ids, location, poll, source };
 }

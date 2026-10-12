@@ -167,7 +167,8 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="info.css">
 <script id="ha-i18n" type="application/json">${i18nPayload(catalogues, locale, prefixes)}</script>
-<script src="assets/i18n.js"></script></head><body ${bodyAttrs}${embed ? ' data-embedded' : ''}><div class="wrap">
+<script src="assets/i18n.js"></script>
+<script src="assets/transport.js"></script></head><body ${bodyAttrs}${embed ? ' data-embedded' : ''}><div class="wrap">
 <div class="topbar">${header}${nav}</div>
 ${switcher}<div id="halifebar" class="notice" style="display:none"></div>
 <div id="hanetbar" class="notice" style="display:none"></div>
