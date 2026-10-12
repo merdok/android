@@ -2,18 +2,24 @@ package io.panelassistant.android.input
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.graphics.Bitmap
 import android.graphics.Path
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import io.panelassistant.android.PaneldService
 import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.util.GuardDbProcessAdmission
+import androidx.annotation.RequiresApi
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Optional hardware-button capture. Hardware/capacitive buttons that emit standard Android
@@ -65,6 +71,49 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+
+    /**
+     * One PNG of the default display through Android 11's accessibility capture, the route a panel
+     * without root or the helper has. A capture that finishes after [timeoutMs] releases its buffer.
+     * Android refuses captures closer together than about a third of a second; that is a null here,
+     * and the panel page keeps showing its last good image.
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun capturePng(timeoutMs: Long): ByteArray? {
+        val result = AtomicReference<ScreenshotResult?>()
+        val abandoned = AtomicBoolean(false)
+        val done = CountDownLatch(1)
+        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+                result.set(screenshot)
+                // Whichever side takes the result second finds null, so the buffer is closed exactly once.
+                if (abandoned.get()) result.getAndSet(null)?.hardwareBuffer?.close()
+                done.countDown()
+            }
+
+            override fun onFailure(errorCode: Int) {
+                Log.w(TAG, "accessibility screenshot failed: $errorCode")
+                done.countDown()
+            }
+        })
+        val finished = runCatching { done.await(timeoutMs, TimeUnit.MILLISECONDS) }.getOrDefault(false)
+        if (!finished) {
+            abandoned.set(true)
+            result.getAndSet(null)?.hardwareBuffer?.close()
+            return null
+        }
+        val shot = result.get() ?: return null
+        return shot.hardwareBuffer.use { buffer ->
+            val hardware = Bitmap.wrapHardwareBuffer(buffer, shot.colorSpace) ?: return@use null
+            val software = hardware.copy(Bitmap.Config.ARGB_8888, false)
+            hardware.recycle()
+            ByteArrayOutputStream().use { out ->
+                software.compress(Bitmap.CompressFormat.PNG, 100, out)
+                software.recycle()
+                out.toByteArray()
+            }
+        }
+    }
 
     override fun onInterrupt() {}
 
@@ -125,6 +174,18 @@ class PanelAccessibilityService : AccessibilityService() {
             if (Looper.myLooper() == Looper.getMainLooper()) return true
             return runCatching { done.await(GESTURE_TIMEOUT_MS, TimeUnit.MILLISECONDS) && completed.get() }
                 .getOrDefault(false)
+        }
+
+        override fun canScreenshot(): Boolean =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && instance != null
+
+        override fun screenshot(timeoutMs: Long): ByteArray? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+            if (Looper.myLooper() == Looper.getMainLooper()) return null
+            val service = instance ?: return null
+            return runCatching { service.capturePng(timeoutMs) }
+                .onFailure { Log.w(TAG, "accessibility screenshot threw", it) }
+                .getOrNull()
         }
 
         private const val GESTURE_TIMEOUT_MS = 1000L

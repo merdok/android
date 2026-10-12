@@ -23,6 +23,8 @@ internal class DashboardPageHandler(
     private val pages: () -> PageShell,
     private val buildToken: () -> String,
     private val renderConfigConcurrencyHash: () -> String,
+    /** Whether a capture route serves now, given whether a root route does. */
+    private val screenshotReady: (rootReady: Boolean) -> Boolean,
 ) {
     // The panel's physical resolution as a CSS aspect-ratio (e.g. "750/1334") so the Screenshot card can
     // reserve the exact box and not reflow when the image arrives. Sane portrait fallback if unavailable.
@@ -53,7 +55,7 @@ internal class DashboardPageHandler(
             "contexttbl",
             "captbl",
         ).joinToString(",") { id -> "\"$id\":${jsonStr(rows.render(id, s, h, strings))}" }
-        return """{"banners":${jsonStr(advisories.render(s, h, strings))},"shot":${s.privilege.rootControlReady},"shotCached":${jsonStr(screenshots.placeholderUrl() ?: "")},"versionCode":${BuildConfig.VERSION_CODE},"package":${jsonStr(BuildConfig.APPLICATION_ID)},"controls":${jsonStr(rows.controls(s, strings))},"cards":{$cards}}"""
+        return """{"banners":${jsonStr(advisories.render(s, h, strings))},"shot":${screenshotReady(s.privilege.rootControlReady)},"shotCached":${jsonStr(screenshots.placeholderUrl() ?: "")},"versionCode":${BuildConfig.VERSION_CODE},"package":${jsonStr(BuildConfig.APPLICATION_ID)},"controls":${jsonStr(rows.controls(s, strings))},"cards":{$cards}}"""
     }
 
     fun html(strings: AppStrings, embed: EmbedMode? = null): String {
@@ -66,10 +68,10 @@ internal class DashboardPageHandler(
         val hydrate = s == null || managementObservations.snapCache.ageMs() > ManagementObservations.SNAP_TTL_MS
         val profNote = dashboardProfileNote(profile.profileLinks, strings)
         // A cold shell can safely show the app-private last-successful capture before the capability
-        // probes finish. It must not request a new capture until hydration confirms a privileged route.
+        // probes finish. It must not request a new capture until hydration confirms a capture route.
         val cachedShot = screenshots.placeholderUrl()
         val shotCard = dashboardScreenshotCard(
-            s == null, s?.privilege?.rootControlReady == true,
+            s == null, s != null && screenshotReady(s.privilege.rootControlReady),
             cachedShot, ::screenAspectRatio, strings,
         )
         val cameraCard = dashboardCameraCard(camera.presentation().state != CameraState.ABSENT, strings)

@@ -6,7 +6,7 @@ import io.panelassistant.android.control.DisplaySizingObservation
 
 /** Display-sizing card (density + text scale). Empty when su isn't reachable (no control). */
 internal fun displayCardHtml(
-    typedShellReady: Boolean,
+    sizingReady: Boolean,
     sizing: DisplaySizingObservation,
     strings: AppStrings,
     recommendedDensity: Int?,
@@ -15,9 +15,9 @@ internal fun displayCardHtml(
     // The POST primes densityCache, so peek preserves immediate post-write values without turning
     // Install rendering into another privileged probe. Cold startup already populated the snapshot.
     val (curOverride, base, fs) = sizing
-    // Shown even without root (density can't be READ without it either) so a no-root user sees the
-    // feature — but greyed, with a lock banner, and every control disabled. `dis` toggles all of it.
-    val locked = !typedShellReady
+    // Shown even with no route that can size the display (neither root nor the app's settings grants)
+    // so the owner sees the feature — but greyed, with a lock banner, and every control disabled.
+    val locked = !sizingReady
     // Prefill: the active override if one is set, else the profile's HA-optimised recommendation
     // (so a fresh panel offers the right value to Apply rather than the factory base), else the base.
     val cur = curOverride?.takeIf { it != base } ?: recommendedDensity ?: base ?: DensityController.MIN_DPI

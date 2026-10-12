@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Config for PanelAccessibilityService. It filters hardware keys into HA button events and can
-     inject control-surface taps; it requests no window-content inspection. -->
+<!-- Config for PanelAccessibilityService. It filters hardware keys into HA button events, can
+     inject control-surface taps and, on Android 11 or later, capture the screen for the panel page
+     where no root route exists; it requests no window-content inspection. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRequestFilterKeyEvents"
     android:canPerformGestures="true"
     android:canRequestFilterKeyEvents="true"
+    android:canTakeScreenshot="true"
     android:notificationTimeout="100"
     android:description="@string/a11y_description" />

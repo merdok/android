@@ -22,6 +22,7 @@ import io.panelassistant.android.control.CdpRelay
 import io.panelassistant.android.control.AdbController
 import io.panelassistant.android.control.CompanionDataOperationState
 import io.panelassistant.android.control.DensityController
+import io.panelassistant.android.control.FrameworkSizing
 import io.panelassistant.android.control.InteractiveController
 import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.control.PowerRepairCapability
@@ -263,8 +264,8 @@ class PaneldServer internal constructor(
         runCatching { appContext.packageManager.getPackageInfo(appContext.packageName, 0).lastUpdateTime.toString() }
             .getOrDefault(Config.VERSION)
 
-    // Display sizing (density + text scale) via `wm density` / `font_scale` — su panels only.
-    private val density = DensityController(canSu = profile.appCanSu)
+    // Display sizing (density + text scale): su or the helper, else the app's own settings grants.
+    private val density = DensityController(canSu = profile.appCanSu, app = FrameworkSizing(appContext))
     private val interactive = InteractiveController(canSu = profile.appCanSu)
     // On-panel config revision history (ring buffer) — written on every successful apply.
     private val revisions = RevisionStore(appContext.filesDir)
@@ -704,6 +705,7 @@ class PaneldServer internal constructor(
     private fun dashboardPageHandler() = DashboardPageHandler(
         config, appContext, profile, camera, managementObservations, pageHealth, screenshots,
         dashboardRows(), dashboardAdvisories(), { pages }, ::buildToken, ::renderConfigConcurrencyHash,
+        { rootReady -> interactive.screenshotReady(rootReady) },
     )
 
     private fun configurePageHandler() = ConfigurePageHandler(
@@ -719,6 +721,7 @@ class PaneldServer internal constructor(
     private fun installPageHandler() = InstallPageHandler(
         config, appContext, profile, managementObservations, pageHealth,
         tame, tameProfileCandidates, recommendedDensity, recommendedFontScale,
+        appSizingReady = density::appSizingReady,
         catalogueLoader = { catalogueLoader },
         radioStatus = radioStatus,
         dashboardRecoveryState = pageHealth::dashboardRecoveryState,

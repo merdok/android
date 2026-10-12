@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Meldt het indrukken van de hardwareknoppen van het paneel aan Home Assistant en maakt tikinvoer vanuit de bedieningsinterface van het paneel mogelijk. Leest de scherminhoud niet.</string>
+    <string name="a11y_description">Meldt het indrukken van de hardwareknoppen van het paneel aan Home Assistant en laat de bedieningsinterface van het paneel tikken invoeren en schermafbeeldingen maken. Leest de inhoud van vensters niet.</string>
     <string name="config_service_starting">De configuratieservice wordt gestart…</string>
     <string name="config_service_not_ready">De configuratieservice is nog niet klaar.</string>
     <string name="retry">Opnieuw proberen</string>

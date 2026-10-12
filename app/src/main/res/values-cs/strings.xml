@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Hlásí stisknutí hardwarových tlačítek panelu systému Home Assistant a umožňuje vkládání klepnutí z ovládacího rozhraní panelu. Nečte obsah obrazovky.</string>
+    <string name="a11y_description">Hlásí stisknutí hardwarových tlačítek panelu systému Home Assistant a umožňuje ovládacímu rozhraní panelu vkládat klepnutí a pořizovat snímky obrazovky. Nečte obsah oken.</string>
     <string name="config_service_starting">Spouštění konfigurační služby…</string>
     <string name="config_service_not_ready">Konfigurační služba ještě není připravena.</string>
     <string name="retry">Opakovat pokus</string>

@@ -17,6 +17,8 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * Screenshot deliberately keeps the helper's raw-byte protocol: empty bytes/EOF are failure, not a
  * textual `ERR` reply. A non-empty byte stream is accepted exactly as it was by the HTTP endpoint.
+ * The accessibility capture (Android 11+) comes after both root routes, so a panel with root or the
+ * helper captures exactly as before and a panel with neither still has a screenshot.
  */
 internal class InteractiveController(
     private val canSu: Boolean,
@@ -44,12 +46,22 @@ internal class InteractiveController(
                 daemon.sendBytesBounded("SCREENCAP", MAX_SCREENSHOT_BYTES)
                     ?.takeUnless { it.isEmpty() }
             }
-            if (canSu) ShortOperationRouter.value(su, helper) else ShortOperationRouter.value(helper, su)
+            val accessibility = accessibilityCapture()
+            if (canSu) ShortOperationRouter.value(su, helper, accessibility)
+            else ShortOperationRouter.value(helper, su, accessibility)
         }
     }
 
+    /** Whether any capture route can serve a screenshot now; root routes are [rootReady]'s to say. */
+    fun screenshotReady(rootReady: Boolean): Boolean = rootReady || accessibility.canScreenshot()
+
+    private fun accessibilityCapture() = ValueAttempt(PrivilegeRoute.ACCESSIBILITY) {
+        accessibility.screenshot(ACCESSIBILITY_CAPTURE_TIMEOUT_MS)?.takeUnless { it.isEmpty() }
+    }
+
     /** One post-tap capture route. Unlike the general screenshot endpoint, this cannot multiply the
-     * combined operation's completion time by falling through several privileged transports. */
+     * combined operation's completion time by falling through several privileged transports. A panel
+     * without su uses the accessibility capture only when no helper answers. */
     fun screenshotOnceWithRoute(waitForInFlightMs: Long): RoutedValue<ByteArray>? =
         withScreenshotLock(waitForInFlightMs) {
             val attempt = if (canSu) {
@@ -57,6 +69,8 @@ internal class InteractiveController(
                     root.runBytesBounded("screencap -p", MAX_SCREENSHOT_BYTES)
                         ?.takeUnless { it.isEmpty() }
                 }
+            } else if (accessibility.canScreenshot() && !daemon.available()) {
+                accessibilityCapture()
             } else {
                 ValueAttempt(PrivilegeRoute.DAEMON) {
                     daemon.sendBytesBounded("SCREENCAP", MAX_SCREENSHOT_BYTES)
@@ -138,5 +152,6 @@ internal class InteractiveController(
 
     private companion object {
         const val MAX_SCREENSHOT_BYTES = 32L * 1024 * 1024
+        const val ACCESSIBILITY_CAPTURE_TIMEOUT_MS = 3_000L
     }
 }

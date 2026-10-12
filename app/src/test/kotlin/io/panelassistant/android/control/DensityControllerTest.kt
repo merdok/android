@@ -249,4 +249,30 @@ class DensityControllerTest {
         assertFalse(DensityController.allApplied(true, false))
         assertFalse(DensityController.allApplied(false, true))
     }
+
+    @Test fun aRootRouteSizesAsBeforeAndNeverReachesTheAppRoute() {
+        val app = FakeAppSizing()
+        val root = FakeRootShell()
+        val density = DensityController(canSu = true, root = root, daemon = FakeDaemon(), app = app)
+
+        assertTrue(density.set(216))
+        assertTrue(density.setFontScale(1.1f))
+        assertEquals(listOf("wm density 216", "settings put system font_scale 1.1"), root.ran)
+        assertTrue(app.writes.isEmpty())
+    }
+
+    @Test fun aPanelProvedRootlessStillReadsItsSizingThroughTheApp() {
+        val app = FakeAppSizing(base = 240, override = 216, font = 1.1f)
+        val density = DensityController(
+            canSu = false,
+            root = FakeRootShell(available = false, runResult = false),
+            daemon = FakeDaemon(available = false),
+            app = app,
+        )
+
+        assertEquals(
+            DisplaySizingObservation(current = 216, base = 240, fontScale = 1.1f),
+            density.observeSizing(privilege()),
+        )
+    }
 }

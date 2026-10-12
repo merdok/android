@@ -39,10 +39,11 @@ class InteractiveControllerTest {
     private class Helper(
         private val calls: MutableList<String>,
         byteResults: List<ByteArray?> = emptyList(),
+        private val answers: Boolean = false,
     ) : Daemon {
         private val bytes = byteResults.toMutableList()
 
-        override fun available() = false
+        override fun available() = answers
         override fun send(cmd: String): String? = null
         override fun sendLong(cmd: String, timeoutMs: Long) = DaemonLongResult.NotSubmitted
         override fun sendBytes(cmd: String): ByteArray? {
@@ -54,12 +55,18 @@ class InteractiveControllerTest {
     private class Accessibility(
         private val calls: MutableList<String>,
         results: List<Boolean> = emptyList(),
+        private val capture: ByteArray? = null,
     ) : AccessibilityActions {
         private val remaining = results.toMutableList()
 
         override fun back() = result("a11y:back")
         override fun recents() = result("a11y:recents")
         override fun tap(x: Int, y: Int) = result("a11y:tap:$x:$y")
+        override fun canScreenshot() = capture != null
+        override fun screenshot(timeoutMs: Long): ByteArray? {
+            calls += "a11y:screenshot"
+            return capture
+        }
 
         private fun result(call: String): Boolean {
             calls += call
@@ -320,6 +327,59 @@ class InteractiveControllerTest {
         ).screenshotOnceWithRoute(0)
 
         assertNull(result)
+        assertEquals(listOf("helper-bytes:SCREENCAP"), calls)
+    }
+
+    @Test fun screenshotFallsToTheAccessibilityCaptureOnlyAfterBothRootRoutes() {
+        val calls = mutableListOf<String>()
+        val result = InteractiveController(
+            canSu = false,
+            root = Root(calls),
+            daemon = Helper(calls),
+            accessibility = Accessibility(calls, capture = byteArrayOf(7)),
+        ).screenshotWithRoute()
+
+        assertEquals(PrivilegeRoute.ACCESSIBILITY, result?.route)
+        assertArrayEquals(byteArrayOf(7), result?.value)
+        assertEquals(listOf("helper-bytes:SCREENCAP", "su-bytes:screencap -p", "a11y:screenshot"), calls)
+    }
+
+    @Test fun aRootCaptureNeverReachesTheAccessibilityCapture() {
+        val calls = mutableListOf<String>()
+        val result = InteractiveController(
+            canSu = true,
+            root = Root(calls, byteResults = listOf(byteArrayOf(1))),
+            daemon = Helper(calls),
+            accessibility = Accessibility(calls, capture = byteArrayOf(7)),
+        ).screenshotWithRoute()
+
+        assertEquals(PrivilegeRoute.SU, result?.route)
+        assertEquals(listOf("su-bytes:screencap -p"), calls)
+    }
+
+    @Test fun combinedScreenshotUsesTheAccessibilityCaptureWhenNoHelperAnswers() {
+        val calls = mutableListOf<String>()
+        val result = InteractiveController(
+            canSu = false,
+            root = Root(calls, byteResults = listOf(byteArrayOf(9))),
+            daemon = Helper(calls, byteResults = listOf(byteArrayOf(8))),
+            accessibility = Accessibility(calls, capture = byteArrayOf(7)),
+        ).screenshotOnceWithRoute(0)
+
+        assertEquals(PrivilegeRoute.ACCESSIBILITY, result?.route)
+        assertEquals(listOf("a11y:screenshot"), calls)
+    }
+
+    @Test fun combinedScreenshotKeepsTheHelperWhereItAnswers() {
+        val calls = mutableListOf<String>()
+        val result = InteractiveController(
+            canSu = false,
+            root = Root(calls),
+            daemon = Helper(calls, byteResults = listOf(byteArrayOf(8)), answers = true),
+            accessibility = Accessibility(calls, capture = byteArrayOf(7)),
+        ).screenshotOnceWithRoute(0)
+
+        assertEquals(PrivilegeRoute.DAEMON, result?.route)
         assertEquals(listOf("helper-bytes:SCREENCAP"), calls)
     }
 
