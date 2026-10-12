@@ -133,13 +133,13 @@ class ControlPlaneSessionTest {
         assertEquals("applied", staged.outcome)
         // The body the HTTP upload route answers, so Panel Assistant checks the same package, version and signer.
         assertEquals(
-            JSONObject("""{"ok":true,"token":"upload-token","package":"own.panel","version":"1.0.1","signer":"unsigned"}""").toMap(),
-            staged.result!!.toMap(),
+            JSONObject("""{"ok":true,"token":"upload-token","package":"own.panel","version":"1.0.1","signer":"unsigned"}""").fields(),
+            staged.result!!.fields(),
         )
         assertEquals(listOf("GET download-token-0001 Bearer panel-token"), requests)
 
         val committed = request("install.apk.commit", JSONObject().put("token", "upload-token"))!!
-        assertEquals("applied" to mapOf("status" to "started"), committed.outcome to committed.result!!.toMap())
+        assertEquals("applied" to mapOf<String, Any?>("status" to "started"), committed.outcome to committed.result!!.fields())
         assertArrayEquals(apk, installed.single())
     }
 
@@ -258,6 +258,8 @@ class ControlPlaneSessionTest {
 
     private companion object {
         val BACKUP = "PK-backup-archive".toByteArray()
+
+        fun JSONObject.fields(): Map<String, Any?> = keys().asSequence().associateWith { opt(it) }
 
         fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
     }
