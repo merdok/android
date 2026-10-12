@@ -190,6 +190,18 @@ class ConfigTransactionTest {
         }
         assertFalse(prefs.values.containsKey("network_adb_enabled"))
         assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
+        // Canonical live-setting commit readback is a persistence floor; the controller's alias
+        // remains its separate authority until that controller commits its own setting.
+        for (key in listOf("network_adb", "zigbee_router")) {
+            val spec = SettingsRegistry.spec(key)!!
+            assertTrue(config.commitRaw(spec, "false"))
+            assertEquals("false", config.getRaw(spec))
+            assertEquals(false, prefs.values[key])
+        }
+        assertTrue(config.networkAdbEnabled)
+        assertTrue(config.zigbeeRouterEnabled)
+        assertFalse(prefs.values.containsKey("network_adb_enabled"))
+        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
         val explicit = Config(fakePreferences(initial = mapOf(
             "network_adb_enabled" to false, "zigbee_router_enabled" to false,
         )).instance)

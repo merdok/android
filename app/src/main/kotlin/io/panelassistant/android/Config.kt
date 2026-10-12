@@ -2314,7 +2314,10 @@ class Config private constructor(
 
     /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
-        SettingType.BOOL -> when (spec.key) {
+        // The generic staged writer persists the registry key before controller dispatch. Keep that
+        // committed value readable; production live projections still override it with controller
+        // authority. Without a canonical value, aliases read their existing controller storage keys.
+        SettingType.BOOL -> if (prefs.contains(spec.key)) boolPref(spec.key).toString() else when (spec.key) {
             "network_adb" -> networkAdbEnabled
             "zigbee_router" -> zigbeeRouterEnabled
             else -> boolPref(spec.key)
