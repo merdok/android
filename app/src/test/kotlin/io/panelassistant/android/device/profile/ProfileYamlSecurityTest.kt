@@ -49,6 +49,7 @@ class ProfileYamlSecurityTest {
             "dashboard_overscroll" to false,
             "illuminance" to 1,
             "cpu_governor" to "Auto",
+            "dashboard_entity_learning_applied" to true,
         )
         for ((key, value) in invalid) {
             val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(settingDefaults = mapOf(key to value))))

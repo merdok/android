@@ -18,6 +18,7 @@ internal object ProfileValidator {
         if (SettingsRegistry.isRetired(key)) return Validation.Bad("$key: retired setting")
         val spec = SettingsRegistry.spec(key) ?: return Validation.Bad("$key: unknown setting")
         if (spec.readOnly || spec.transient) return Validation.Bad("$key: setting is not persistent and writable")
+        if (key in SettingsRegistry.machineOwnedKeys) return Validation.Bad("$key: setting is machine-owned state")
         val typeMatches = when (spec.type) {
             SettingType.BOOL -> value is Boolean
             SettingType.INT, SettingType.LONG -> value is Int || value is Long || value is java.math.BigInteger

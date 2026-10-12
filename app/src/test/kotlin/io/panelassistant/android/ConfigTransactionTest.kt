@@ -45,7 +45,7 @@ class ConfigTransactionTest {
         BundledProfileFixtures.rawByName(),
         DeviceFacts("portal", "omni", ""),
     ) { registry ->
-        val prefs = fakePreferences()
+        val prefs = fakePreferences(initial = mapOf("panel_id" to "profile_defaults_test", "friendly_name" to "Profile defaults test"))
         val config = Config(prefs.instance)
         val resolved = registry.resolveForStartup()
         assertEquals("meta-portal-10-gen2", resolved.profile.id)
@@ -161,21 +161,48 @@ class ConfigTransactionTest {
     @Test fun admittedGenericDefaultsReachBooleanFloatAndEnumAccessors() = withProfileRegistry(
         mapOf("generic.yaml" to ProfileYaml.serialize(
             testProfileDocument(id = "generic", fallback = true).copy(
-                settingDefaults = mapOf("dark_mode" to false, "room_temp_offset" to 1.25, "camera_resolution" to "1080p"),
+                settingDefaults = mapOf(
+                    "dark_mode" to false, "room_temp_offset" to 1.25, "camera_resolution" to "1080p",
+                    "network_adb" to true, "zigbee_router" to true,
+                ),
             ),
         )),
         DeviceFacts("unmatched", "unmatched", ""),
     ) { registry ->
         val prefs = fakePreferences()
         val config = Config(prefs.instance)
-        config.attachProfile(registry.resolveForStartup().profile)
+        val profile = registry.resolveForStartup().profile
+        config.attachProfile(profile)
         assertFalse(config.darkMode)
         assertEquals(1.25f, config.roomTempOffsetC, 0f)
         assertEquals("1080p", config.cameraResolution.wire)
-        for ((key, expected) in mapOf("dark_mode" to "false", "room_temp_offset" to "1.25", "camera_resolution" to "1080p")) {
+        assertTrue(config.networkAdbEnabled)
+        assertTrue(config.zigbeeRouterEnabled)
+        assertTrue(config.zigbeeRouterConfigured)
+        assertFalse(config.setSecurityMode(Config.SecurityMode.HARDENED))
+        assertEquals(Config.SecurityMode.RELAXED, config.securityMode)
+        for ((key, expected) in mapOf(
+            "dark_mode" to "false", "room_temp_offset" to "1.25", "camera_resolution" to "1080p",
+            "network_adb" to "true", "zigbee_router" to "true",
+        )) {
             assertEquals(expected, config.getRaw(SettingsRegistry.spec(key)!!))
             assertFalse(prefs.values.containsKey(key))
         }
+        assertFalse(prefs.values.containsKey("network_adb_enabled"))
+        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
+        val explicit = Config(fakePreferences(initial = mapOf(
+            "network_adb_enabled" to false, "zigbee_router_enabled" to false,
+        )).instance)
+        explicit.attachProfile(profile)
+        assertFalse(explicit.networkAdbEnabled)
+        assertFalse(explicit.zigbeeRouterEnabled)
+        assertFalse(explicit.zigbeeRouterConfigured)
+        assertEquals("false", explicit.getRaw(SettingsRegistry.spec("network_adb")!!))
+        assertEquals("false", explicit.getRaw(SettingsRegistry.spec("zigbee_router")!!))
+        val hardened = Config(fakePreferences(initial = mapOf("device_local_hardened_security" to true)).instance)
+        hardened.attachProfile(profile)
+        assertFalse(hardened.networkAdbEnabled)
+        assertEquals("false", hardened.getRaw(SettingsRegistry.spec("network_adb")!!))
     }
 
     private fun profileProjection(config: Config) = ConfigValueProjection(

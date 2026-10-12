@@ -229,7 +229,7 @@ class Config private constructor(
      * commit share [CONFIG_LOCK] with network-ADB ownership so concurrent local/network requests
      * cannot cross and leave both durable authorities enabled. */
     fun setSecurityMode(mode: SecurityMode): Boolean = synchronized(CONFIG_LOCK) {
-        if (mode == SecurityMode.HARDENED && prefs.getBoolean("network_adb_enabled", false)) return@synchronized false
+        if (mode == SecurityMode.HARDENED && networkAdbEnabled) return@synchronized false
         durableCommit { putBoolean(SECURITY_MODE_PREF, mode == SecurityMode.HARDENED) }
     }
 
@@ -1264,7 +1264,8 @@ class Config private constructor(
     // Network-adb persist INTENT (the switch). ha-paneld re-asserts adb-tcp at boot/reconnect when this
     // is true (some firmwares strip persist.adb.tcp.port at boot), and only tears adb down on OFF if it
     // was ha-paneld that turned it on — never disabling adb another mechanism started.
-    val networkAdbEnabled: Boolean get() = prefs.getBoolean("network_adb_enabled", false)
+    val networkAdbEnabled: Boolean
+        get() = prefs.getBoolean("network_adb_enabled", effectiveDefault(specOf("network_adb")).toBoolean())
     fun setNetworkAdbEnabled(on: Boolean): Boolean = synchronized(CONFIG_LOCK) {
         if (on && prefs.getBoolean(SECURITY_MODE_PREF, false)) return@synchronized false
         durableCommit { putBoolean("network_adb_enabled", on) }
@@ -2045,11 +2046,13 @@ class Config private constructor(
     }
     // Desired Zigbee-router state, persisted so the gateway can be auto-started on boot when nothing
     // else launches it (the NSPanel Pro gateway is not init-started — verified 2026-06-08). Default off.
-    val zigbeeRouterEnabled: Boolean get() = prefs.getBoolean("zigbee_router_enabled", false)
-    // True once the user has EXPLICITLY toggled the zigbee switch. Gates boot-reconcile: we only enforce
-    // an off-state (killing a vendor-started gateway) when the user actually asked for off — never by our
-    // default — so panels relying on stock vendor Zigbee are left untouched until configured.
-    val zigbeeRouterConfigured: Boolean get() = prefs.getBoolean("zigbee_router_configured", false)
+    val zigbeeRouterEnabled: Boolean
+        get() = prefs.getBoolean("zigbee_router_enabled", effectiveDefault(specOf("zigbee_router")).toBoolean())
+    // Reconcile an explicit user choice or a profile's default ON. A default OFF never claims an
+    // untouched vendor gateway, so only a stored user choice may stop it at startup.
+    val zigbeeRouterConfigured: Boolean
+        get() = prefs.getBoolean("zigbee_router_configured", false) ||
+            (!prefs.contains("zigbee_router_enabled") && profile?.settingDefaults?.get("zigbee_router") == "true")
     fun setZigbeeRouterEnabled(on: Boolean) {
         edit { putBoolean("zigbee_router_enabled", on); putBoolean("zigbee_router_configured", true) }
     }
@@ -2287,6 +2290,7 @@ class Config private constructor(
             "navbar_mode" -> resolveNavbarMode(declared, caps ?: navbarCapabilities())
             "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
             "auto_sleep_source" -> declared ?: absentAutoSleepSource
+            "network_adb" -> if (hardenedSecurityEnabled) "false" else declared ?: spec.default
             else -> declared ?: spec.default
         }
     }
@@ -2310,7 +2314,11 @@ class Config private constructor(
 
     /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
-        SettingType.BOOL -> boolPref(spec.key).toString()
+        SettingType.BOOL -> when (spec.key) {
+            "network_adb" -> networkAdbEnabled
+            "zigbee_router" -> zigbeeRouterEnabled
+            else -> boolPref(spec.key)
+        }.toString()
         SettingType.INT -> intPref(spec.key).toString()
         SettingType.LONG -> longPref(spec.key).toString()
         SettingType.FLOAT -> {
