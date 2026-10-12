@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Camera snapshots use the Home Assistant camera entity.** The separate image entity and panel JPEG endpoint are retired. Snapshots now come from the camera stream, which uses Home Assistant's normal timeout after a request.
+
 ## v0.9.10 - 2026-10-07
 
 The big change in this release is one you mostly won't see: the app's code now lives under its new name, `io.panelassistant.android`, to match the app id it moved to in 0.9.8. Alongside that, voice is no longer limited to the panels I could test myself. Any panel whose hardware reports a microphone can now turn on the voice assistant, and the panel checks its own microphone first and tells you if it can't hear anything. The Tuya TPA10 joins the list of panels with a proven microphone. Installation now goes only through Panel Assistant, and I've stopped recommending the Home Assistant Companion app as the panel dashboard. If voice doesn't work on your panel, please open an issue with the panel model and what the Voice card says.

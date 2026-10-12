@@ -138,7 +138,6 @@ internal abstract class PanelRuntimeRig {
             setMuted = {},
         ),
         autoSleepActivity: () -> io.panelassistant.android.AutoSleepActivitySnapshot = { io.panelassistant.android.AutoSleepActivitySnapshot() },
-        cameraSnapshotUrl: () -> String? = { null },
         helperSend: ((String) -> String?)? = null,
         /** A panel whose CPU governors are readable, starting on this governor; null offers none. */
         cpuGovernor: String? = null,
@@ -246,7 +245,6 @@ internal abstract class PanelRuntimeRig {
             hasCamera = cameraAvailability,
             lightChannel = lightChannel,
             autoSleepActivity = autoSleepActivity,
-            cameraSnapshotUrl = cameraSnapshotUrl,
             softwareUpdateSources = { updateSources.get() },
             storageHealth = { storageReads.incrementAndGet(); storage.get() },
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,

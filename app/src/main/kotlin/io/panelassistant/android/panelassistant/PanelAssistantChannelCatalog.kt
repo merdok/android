@@ -13,7 +13,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /** How a converger state payload becomes a typed value on the native transport (protocol section 7). */
-internal enum class PanelAssistantValueKind { BOOLEAN, NUMBER, OPTION, TEXT, LIGHT, UPDATE, BUTTON, MEDIA, IMAGE, EVENT }
+internal enum class PanelAssistantValueKind { BOOLEAN, NUMBER, OPTION, TEXT, LIGHT, UPDATE, BUTTON, MEDIA, EVENT }
 
 /** One channel as the `hello` describes it. Codes and facts only, never display text. */
 internal data class PanelAssistantChannelDescriptor(
@@ -82,7 +82,7 @@ internal object PanelAssistantChannelCatalog {
 
     /** Known former channels: hello states their retirement so existing native entities are removed. */
     val RETIRED_CHANNELS: Set<String> = setOf(
-        "self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update",
+        "camera_snapshot", "self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update",
     )
 
     /** Attribute channel → the channel whose observation carries its attributes. */
@@ -245,11 +245,6 @@ internal object PanelAssistantChannelCatalog {
             channel = "zigbee_gateway_health", platform = "sensor", translationKey = "zigbee_gateway_health",
             uniqueSuffix = "zigbee_gateway_health", kind = PanelAssistantValueKind.OPTION,
             entityCategory = "diagnostic", choices = sameAsCode(ZigbeeHealthState.entries.map { it.wireValue }),
-        ),
-        // The value is the snapshot URL; Home Assistant fetches a frame from it only when somebody looks.
-        PanelAssistantChannelDescriptor(
-            channel = "camera_snapshot", platform = "image", translationKey = "camera_snapshot",
-            uniqueSuffix = "camera_snapshot", kind = PanelAssistantValueKind.IMAGE,
         ),
         buttonDescriptor(),
         wireOnly("watchdog", "switch"),

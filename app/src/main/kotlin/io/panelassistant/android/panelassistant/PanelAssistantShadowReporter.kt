@@ -263,11 +263,7 @@ internal class PanelAssistantShadowReporter(
             if (!entry.dirty || entry.inFlight || now < entry.retryAt || wire !in described) continue
             val descriptor = descriptors[wire] ?: continue
             val observation = entry.observation ?: continue
-            // Home Assistant fetches a new frame for every image report, so an acknowledged snapshot URL is
-            // never repeated for freshness: that would open the camera on the panel's schedule.
-            if (entry.rejected == entry.revision || entry.skipped == entry.revision ||
-                descriptor.kind == PanelAssistantValueKind.IMAGE && entry.acknowledged == entry.revision
-            ) {
+            if (entry.rejected == entry.revision || entry.skipped == entry.revision) {
                 entry.dirty = false
                 continue
             }
