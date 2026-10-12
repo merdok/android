@@ -6,16 +6,20 @@ import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * The address the `:8888` listener binds (protocol section 20.7): loopback only in hardened mode, where the
- * panel's own WebView still signs in through it, else the IPv6 wildcard, which on Android is dual-stack
- * (net.ipv6.bindv6only=0) and so answers IPv4 too.
+ * The address the `:8888` listener binds (protocol section 20.7): loopback only when [offLan] (hardened mode
+ * with the REST routes closed, section 20.8), where the panel's own WebView still signs in through it, else
+ * the IPv6 wildcard, which on Android is dual-stack (net.ipv6.bindv6only=0) and so answers IPv4 too.
  */
-internal fun listenerHost(hardened: Boolean): String = if (hardened) "127.0.0.1" else "::"
+internal fun listenerHost(offLan: Boolean): String = if (offLan) "127.0.0.1" else "::"
+
+/** Whether the listener is off the LAN: hardened mode with the REST routes closed (sections 20.7 and 20.8). */
+internal fun listenerOffLan(config: io.panelassistant.android.Config): Boolean =
+    config.hardenedSecurityEnabled && config.uiRoutesClosed
 
 /**
- * The listener's engine, one generation at a time, bound for the security mode it was started in. [rebind]
- * replaces the engine when the mode has moved since, so turning hardened mode on takes the stub off the LAN
- * without restarting the service.
+ * The listener's engine, one generation at a time, bound for whether it was off the LAN when started.
+ * [rebind] replaces the engine when that has moved since, so hardened mode with the routes closed takes the
+ * stub off the LAN without restarting the service.
  */
 internal class PaneldListener(
     private val scope: CoroutineScope,

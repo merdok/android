@@ -19,6 +19,7 @@ import io.ktor.server.routing.PathSegmentTailcardRouteSelector
 import io.ktor.server.routing.RoutingNode
 import io.ktor.server.routing.RoutingRoot
 import io.ktor.server.routing.getAllRoutes
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.routing.get
 import io.ktor.server.response.respondText
@@ -261,29 +262,63 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(PanelAssistantCommandResult.Applied, submit(rig, "reboot", CommandOrigin.peer("127.0.0.1")))
     }
 
-    @Test fun inHardenedModeTheListenerAcceptsNoLanConnectionAndRebindsWithoutARestart() {
+    @Test fun inHardenedModeTheLanKeepsRestUntilTheRoutesCloseButNeverReachesTheDoorOrBlobs() {
         val lan = NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && !it.isLoopback }
-            .flatMap { it.inetAddresses.toList() }.firstOrNull { it is java.net.Inet4Address && !it.isLinkLocalAddress }
-        assumeTrue("needs a non-loopback IPv4 address", lan != null)
+            .flatMap { it.inetAddresses.toList() }
+            .firstOrNull { it is java.net.Inet4Address && !it.isLinkLocalAddress && io.panelassistant.android.util.isLocalSource(it.hostAddress) }
+        assumeTrue("needs a private-range LAN IPv4 address", lan != null)
+        val lanHost = lan!!.hostAddress
+        val table = ManageTable()
+        table.register("probe.origin", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("ok", true)) }
+        val rig = managedRig(table) { it.setSecurityMode(Config.SecurityMode.HARDENED) }
         val port = ServerSocket(0).use { it.localPort }
-        var hardened = false
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val listener = PaneldListener(scope, { port }, { hardened }) {
-            routing { get("/") { call.respondText("ok") } }
+        val listener = PaneldListener(scope, { port }, { listenerOffLan(rig.config) }) {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }, uiRoutesClosed = { rig.config.uiRoutesClosed }, hardened = { rig.config.hardenedSecurityEnabled }) {
+                stubRoutes({ rig.commands }, StubBlobs(), health = { "health\n" }, diag = { "diag\n" })
+                route("/api/v1") { discoveryRoutes({ """{"peers":[]}""" }, { """{"apps":[]}""" }) }
+            }
         }
+        val http = io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp) { install(ClientWebSockets); expectSuccess = false }
         try {
             listener.start(closeIngress = {})
-            assertTrue("relaxed: the LAN connects (the probe can succeed)", connects(lan!!, port))
+            kotlinx.coroutines.runBlocking {
+                // Routes open: the LAN keeps REST, health and diag as today.
+                val peers = http.get("http://$lanHost:$port/api/v1/peers")
+                assertEquals(peers.bodyAsText(), HttpStatusCode.OK, peers.status)
+                assertEquals(HttpStatusCode.OK, http.get("http://$lanHost:$port/health").status)
+                assertEquals(HttpStatusCode.OK, http.get("http://$lanHost:$port/diag").status)
+                // ...but never the door or blobs, which loopback still reaches.
+                assertEquals(HttpStatusCode.Forbidden, http.get("http://$lanHost:$port/blob/x").status)
+                assertEquals(HttpStatusCode.NotFound, http.get("http://127.0.0.1:$port/blob/x").status)
+                // An admitted socket would answer this frame at once; a refused upgrade never opens.
+                val lanDoor = runCatching {
+                    withTimeout(10_000) {
+                        http.webSocket("ws://$lanHost:$port/ui") {
+                            exchange(JSONObject().put("kind", "manage").put("command_id", "lan").put("op", "probe.origin"))
+                        }
+                    }
+                }
+                assertTrue("a LAN peer cannot open the door in hardened mode", lanDoor.isFailure)
+                var reply: JSONObject? = null
+                http.webSocket("ws://127.0.0.1:$port/ui") {
+                    reply = exchange(JSONObject().put("kind", "manage").put("command_id", "h1").put("op", "probe.origin"))
+                }
+                assertEquals("applied", reply?.getString("outcome"))
+            }
+            assertTrue("routes open: the LAN connects", connects(lan, port))
 
-            hardened = true
+            assertTrue(rig.config.recordPanelAssistantGrant(listOf(
+                PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE,
+            )))
             assertTrue(listener.rebind())
 
-            assertFalse("hardened: no LAN connection", connects(lan, port))
-            assertTrue("hardened: loopback still serves", connects(InetAddress.getByName("127.0.0.1"), port))
-            hardened = false
-            assertTrue(listener.rebind())
-            assertTrue("relaxed again: the LAN connects", connects(lan, port))
+            assertFalse("routes closed in hardened mode: no LAN connection", connects(lan, port))
+            kotlinx.coroutines.runBlocking {
+                assertEquals(HttpStatusCode.OK, http.get("http://127.0.0.1:$port/health").status)
+            }
         } finally {
+            http.close()
             listener.stop()
             scope.cancel()
         }

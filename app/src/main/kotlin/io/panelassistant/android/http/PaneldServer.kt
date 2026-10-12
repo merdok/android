@@ -341,9 +341,9 @@ class PaneldServer internal constructor(
         allowPseudo = BuildConfig.DEBUG,
     )
     private var listener: PaneldListener? = null
-    // Hardened mode takes the stub off the LAN (protocol section 20.7): a mode change rebinds the engine.
+    // Hardened mode with the routes closed takes the listener off the LAN: a change of either rebinds it.
     private val securityModeChanged = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == Config.SECURITY_MODE_PREF && !stopping) scope.launch(Dispatchers.IO) {
+        if ((key == Config.SECURITY_MODE_PREF || key == Config.UI_ROUTES_CLOSED_PREF) && !stopping) scope.launch(Dispatchers.IO) {
             runCatching { listener?.rebind() }.onFailure { Log.e(TAG, "HTTP rebind for the security mode failed", it) }
         }
     }
@@ -367,7 +367,7 @@ class PaneldServer internal constructor(
     fun start() {
         stopping = false
         pendingApks.open()
-        val listener = PaneldListener(scope, { config.httpPort }, { config.hardenedSecurityEnabled }) { mount(this) }
+        val listener = PaneldListener(scope, { config.httpPort }, { listenerOffLan(config) }) { mount(this) }
         // Treat the bind as required startup, not a best-effort sidecar. A failure must close this
         // generation's admission and reach the service runtime owner, which records FAILED and prevents
         // a staged profile from being marked healthy without its management/control surface.
@@ -393,6 +393,7 @@ class PaneldServer internal constructor(
                 setupRedirectLocation = ::setupRedirectLocation,
                 uiRoutesClosed = { config.uiRoutesClosed },
                 goneCounts = goneCounts,
+                hardened = { config.hardenedSecurityEnabled },
             ) {
                 serveOperations(manageTable)
                 stubRoutes(

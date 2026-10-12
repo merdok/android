@@ -38,6 +38,8 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -87,6 +89,9 @@ internal object StubEndpoints {
         val asked = if (method == HttpMethod.Head) HttpMethod.Get else method
         return ENDPOINTS.any { (m, template) -> m == asked && matches(template, path) }
     }
+
+    /** The stub endpoints hardened mode keeps off the LAN even while the REST routes are open. */
+    fun loopbackOnly(path: String): Boolean = path == UI || matches(BLOB, path)
 
     fun gone(method: HttpMethod, path: String, routesClosed: Boolean): Boolean =
         path.trimEnd('/').ifEmpty { "/" } in RETIRED || (routesClosed && !admits(method, path))
@@ -278,14 +283,19 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
         val origin = CommandOrigin.peer(call.request.origin.remoteAddress)
         val subscriptions = ConcurrentHashMap<String, ManageSubscription>()
         val open = java.util.concurrent.atomic.AtomicBoolean(true)
-        fun send(frame: JSONObject, after: () -> Unit = {}) {
-            launch {
+        // One sender, so frames leave in the order they were queued.
+        val queued = Channel<Pair<JSONObject, () -> Unit>>(Channel.UNLIMITED)
+        launch {
+            for ((frame, after) in queued) {
                 try {
                     outgoing.send(Frame.Text(frame.toString()))
                     after()
                 } catch (_: ClosedSendChannelException) {
                 }
             }
+        }
+        fun send(frame: JSONObject, after: () -> Unit = {}) {
+            queued.trySend(frame to after)
         }
         fun answer(commandId: String, reply: ManageReply) = send(
             JSONObject().put("command_id", commandId).put("outcome", reply.outcome)
@@ -328,20 +338,21 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
                     "manage" -> when (val op = request.optString("op")) {
                         "subscribe" -> {
                             val family = args.optString("family")
+                            // Updates queue behind the `applied` answer that names their subscription.
+                            val answered = CompletableDeferred<Unit>()
                             val subscription = dispatcher.subscribe(family, origin) { value, delivered ->
-                                send(
-                                    JSONObject().put("subscription", commandId).put(
-                                        "observations",
-                                        JSONArray().put(JSONObject().put("channel", family).put("state", "known").put("value", value ?: JSONObject.NULL)),
-                                    ),
-                                    after = delivered,
+                                val update = JSONObject().put("subscription", commandId).put(
+                                    "observations",
+                                    JSONArray().put(JSONObject().put("channel", family).put("state", "known").put("value", value ?: JSONObject.NULL)),
                                 )
+                                launch { answered.await(); send(update, after = delivered) }
                             }
                             if (subscription == null) {
                                 answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
                             } else {
                                 subscriptions[commandId] = subscription
                                 answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED, result = JSONObject().put("subscription", commandId))
+                                answered.complete(Unit)
                             }
                         }
                         "unsubscribe" -> {
@@ -363,6 +374,7 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
             }
         } finally {
             open.set(false)
+            queued.close()
             dispatcher.closeOrigin(origin)
         }
     }
