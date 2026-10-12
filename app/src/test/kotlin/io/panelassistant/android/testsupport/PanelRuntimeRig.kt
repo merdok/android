@@ -115,6 +115,7 @@ internal abstract class PanelRuntimeRig {
 
     protected fun rig(
         hasTemperature: Boolean = true,
+        buttonKeys: io.panelassistant.android.device.PanelButtonKeys = io.panelassistant.android.device.PanelButtonKeys.UNKNOWN,
         hasHumidity: Boolean = true,
         hasCamera: Boolean = false,
         cameraAvailability: () -> Boolean? = { hasCamera },
@@ -234,7 +235,7 @@ internal abstract class PanelRuntimeRig {
             cpu = cpu,
             adb = adb,
             buttonsEnabled = true,
-            hasEvdevButtons = false,
+            buttonKeys = buttonKeys,
             capabilities = { capabilities },
             hasProximity = true,
             hasTemperature = hasTemperature,

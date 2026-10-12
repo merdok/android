@@ -207,7 +207,7 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
             ) + LEGACY_PROXIMITY_CLASSIFIER_KEYS,
         ).orEmpty()
         val identity = map(root["identity"], "identity", setOf("manufacturer", "model", "model_label_strategy")).orEmpty()
-        val input = map(root["input"], "input", setOf("evdev_buttons")).orEmpty()
+        val input = map(root["input"], "input", setOf("evdev_buttons", "has_physical_buttons")).orEmpty()
         val cpu = map(root["cpu"], "cpu", setOf("governors")).orEmpty()
         val display = map(root["display"], "display", setOf("physical_ppi", "geometry")).orEmpty()
         val provisioning = map(
@@ -337,7 +337,7 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
                 model = string(identity, "model", "identity"),
                 modelLabelStrategy = string(identity, "model_label_strategy", "identity") ?: "display-name",
             ),
-            input = ProfileInput(evdevButtons(input["evdev_buttons"])),
+            input = ProfileInput(evdevButtons(input["evdev_buttons"]), boolean(input, "has_physical_buttons", "input")),
             cpu = ProfileCpu(governors(cpu["governors"])),
             display = ProfileDisplay(
                 physicalPpi = integer(display, "physical_ppi", "display"),
@@ -825,9 +825,12 @@ internal fun ProfileDocument.toYamlMap(): Map<String, Any?> = linkedMapOf(
         "model" to identity.model,
         "model_label_strategy" to identity.modelLabelStrategy,
     ).withoutNullValues(),
-    "input" to linkedMapOf("evdev_buttons" to input.evdevButtons.map {
-        linkedMapOf("node" to it.node, "code" to it.code, "grab" to it.grab, "event_type" to it.eventType, "sw" to it.sw)
-    }),
+    "input" to linkedMapOf(
+        "evdev_buttons" to input.evdevButtons.map {
+            linkedMapOf("node" to it.node, "code" to it.code, "grab" to it.grab, "event_type" to it.eventType, "sw" to it.sw)
+        },
+        "has_physical_buttons" to input.hasPhysicalButtons,
+    ).withoutNullValues(),
     "cpu" to linkedMapOf("governors" to cpu.governors).withoutNullValues(),
     "display" to linkedMapOf(
         "physical_ppi" to display.physicalPpi,

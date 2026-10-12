@@ -1664,7 +1664,7 @@ class PaneldService : Service() {
 
     private fun buildCore(identity: NetworkRuntimeIdentity): PanelStateCore = PanelStateCore(
         config, brightness, screen, led, ledEffect, volume, system, bootChime, zigbee, relay, cpu, adb,
-        accessibilityEnabled(), profile.evdevButtons.isNotEmpty(),
+        accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
         sensors.hasProximity(),
         sensors.hasTemperature(), sensors.hasHumidity(),

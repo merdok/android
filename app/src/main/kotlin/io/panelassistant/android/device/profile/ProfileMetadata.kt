@@ -167,6 +167,7 @@ object ProfileMetadata {
             field("identity.model", "string", false, "Default HA model; null means infer."),
             field("identity.model_label_strategy", "enum", false, "Core-owned local label strategy.", listOf("display-name", "nspanel-product-version")),
             field("input.evdev_buttons[]", "object[]", false, "Supported helper-backed evdev mappings."),
+            field("input.has_physical_buttons", "boolean", false, "False for a panel with no physical keys: no button event is offered to Home Assistant. Omit when unknown."),
             field("cpu.governors", "map<string,string>", false, "HA CPU tier to Linux governor mapping."),
             field("display.physical_ppi", "integer", false, "Legacy approximate physical pixel density; read as approximate geometry. Not combinable with display.geometry."),
             field("display.geometry[].variant", "string", false, "Variant label, such as 86P."),

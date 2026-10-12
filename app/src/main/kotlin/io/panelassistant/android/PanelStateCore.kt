@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.device.PanelButtonKeys
 import io.panelassistant.android.state.SoftwareUpdates
 import android.os.SystemClock
 import android.util.Log
@@ -77,7 +78,7 @@ internal class PanelStateCore(
     private val buttonsEnabled: Boolean,
     // Panel has hardware buttons instrumented via the daemon (evdev): the event channel exists even when
     // the accessibility key capture is off (e.g. the WF1589T power button).
-    private val hasEvdevButtons: Boolean,
+    private val buttonKeys: PanelButtonKeys,
     // Capability snapshot supplier (null = no gating, used by tests). Called off the main thread.
     capabilities: (() -> Capabilities)? = null,
     private val hasProximity: Boolean,
@@ -321,10 +322,13 @@ internal class PanelStateCore(
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
         val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot())
-        val events = listOf(BUTTON_EVENT_CHANNEL).filter { buttonsEnabled || hasEvdevButtons }
+        // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
+        val noKeys = buttonKeys == PanelButtonKeys.NONE
+        val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }
         return PanelAssistantChannelShape(
             served + actions.filter { it.second }.map { it.first } + events,
-            unsupported + actions.filterNot { it.second }.map { it.first } + PanelAssistantChannelCatalog.RETIRED_CHANNELS,
+            unsupported + actions.filterNot { it.second }.map { it.first } + PanelAssistantChannelCatalog.RETIRED_CHANNELS +
+                listOf(BUTTON_EVENT_CHANNEL).filter { noKeys },
         )
     }
 
