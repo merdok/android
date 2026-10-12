@@ -35,6 +35,7 @@ class DataDeviceProfile internal constructor(
     override val hasRecents = document.platform.hasRecents
     override val declarationsFromCatalog = true
     override val hasNativeNavbar = document.platform.hasNativeNavbar
+    override val hasPhysicalButtons = document.input.hasPhysicalButtons
     override val vendorHomePackages = document.platform.launcher.vendorHomePackages.toSet()
     override val vendorService = document.platform.launcher.vendorService?.let { VendorService.of(it.activity, it.port) }
     // Never default an unknown name to NONE: a NONE LED is stated unsupported and Panel Assistant deletes

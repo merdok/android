@@ -94,6 +94,16 @@ interface DeviceProfile {
      * Shared by native-mode admission and the default soft-navbar decision. */
     val hasNativeNavbar: Boolean? get() = null
 
+    /** `input.has_physical_buttons`: false declares no physical keys, so no button event is offered; null is unknown. */
+    val hasPhysicalButtons: Boolean? get() = null
+
+    /** What the profile says about the panel's keys, for the button event. */
+    fun buttonKeys(): PanelButtonKeys = when {
+        evdevButtons.isNotEmpty() -> PanelButtonKeys.PROFILED
+        hasPhysicalButtons == false -> PanelButtonKeys.NONE
+        else -> PanelButtonKeys.UNKNOWN
+    }
+
     /** Vendor apps that register HOME but are not app drawers, from `platform.launcher.vendor_home_packages`;
      *  the navbar Launcher button skips them. Default empty. */
     val vendorHomePackages: Set<String> get() = emptySet()
@@ -448,3 +458,6 @@ data class TameCandidate(
  * the node's only writer.
  */
 enum class BacklightRoute { SETTING, NODE }
+
+/** The panel's physical keys as its profile declares them: mapped evdev keys, none at all, or unknown. */
+enum class PanelButtonKeys { PROFILED, NONE, UNKNOWN }

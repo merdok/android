@@ -275,7 +275,11 @@ data class ProfileIdentity(
     val modelLabelStrategy: String = "display-name",
 )
 
-data class ProfileInput(val evdevButtons: List<ProfileEvdevButton> = emptyList())
+data class ProfileInput(
+    val evdevButtons: List<ProfileEvdevButton> = emptyList(),
+    /** False declares a panel with no physical keys; null (the key absent) is unknown. */
+    val hasPhysicalButtons: Boolean? = null,
+)
 
 data class ProfileEvdevButton(
     val node: String,
