@@ -49,14 +49,29 @@ internal class PaneldListener(
         if (boundHardened == hardened()) return false
         stop()
         stopEngine = null
-        start(closeIngress = {})
-        return true
+        // The old socket may hold the port briefly after it closes; without a listener the panel's own WebView
+        // cannot sign in, so a failed bind is retried a few times before it is reported.
+        var attempt = 0
+        while (true) {
+            try {
+                start(closeIngress = {})
+                return true
+            } catch (failure: Exception) {
+                if (++attempt >= REBIND_ATTEMPTS) throw failure
+                Thread.sleep(REBIND_RETRY_MS)
+            }
+        }
     }
 
     @Synchronized
     fun stop() {
         stopEngine?.invoke()
         stopEngine = null
+    }
+
+    private companion object {
+        const val REBIND_ATTEMPTS = 5
+        const val REBIND_RETRY_MS = 500L
     }
 }
 
