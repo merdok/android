@@ -4,6 +4,10 @@ import io.panelassistant.android.i18n.AppLocale
 import io.panelassistant.android.i18n.Strings as AppStrings
 
 /** Preserve the requested non-English locale in a local link, before any fragment. */
+/** [localizedHref]'s language as page-transport `args`, a JavaScript object literal. */
+internal fun localizedArgs(strings: AppStrings): String =
+    if (strings.requestedLocale == AppLocale.ENGLISH) "{}" else """{"lang":${io.panelassistant.android.util.Json.str(strings.requestedLocale)}}"""
+
 internal fun localizedHref(path: String, strings: AppStrings): String {
     if (strings.requestedLocale == AppLocale.ENGLISH) return path
     val fragmentAt = path.indexOf('#')

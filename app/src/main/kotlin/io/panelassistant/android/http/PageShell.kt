@@ -116,7 +116,15 @@ internal class PageShell(
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="info.css">
 <script id="ha-i18n" type="application/json">${browserI18nPayload(strings, translationPrefixes)}</script>
-<script src="assets/i18n.js"></script></head><body $bodyAttrs$embedAttr><div class="wrap">
+<script src="assets/i18n.js"></script>
+<script src="assets/transport.js"></script>
+<script>/* Over the stub's socket a download link names its operation (data-op): fetch it through the page transport. */
+document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[data-op]');
+if(!a||e.defaultPrevented||!document.body.hasAttribute('data-ui-socket')||!window.PaneldTransport)return;e.preventDefault();
+PaneldTransport.request(a.getAttribute('data-op'),{}).then(function(r){if(r.outcome!=='applied')throw new Error(r.code||r.outcome);
+var b=typeof Blob!=='undefined'&&r.result instanceof Blob?r.result:new Blob([typeof r.result==='string'?r.result:JSON.stringify(r.result,null,2)],{type:'application/json'});
+var u=URL.createObjectURL(b);if(a.target==='_blank'){window.open(u,'_blank','noopener');}else{var l=document.createElement('a');l.href=u;l.download=a.getAttribute('data-file')||'';document.body.appendChild(l);l.click();l.remove();}
+setTimeout(function(){URL.revokeObjectURL(u);},60000);}).catch(function(err){window.alert(String(err&&err.message||err));});});</script></head><body $bodyAttrs$embedAttr><div class="wrap">
 <div class="topbar">$header${navBar(active, strings, preserveExplicitEnglish, embed?.hiddenTabs.orEmpty())}</div>
 $switcher<div id="halifebar" class="notice" style="display:none"></div>
 <div id="hanetbar" class="notice" style="display:none"></div>

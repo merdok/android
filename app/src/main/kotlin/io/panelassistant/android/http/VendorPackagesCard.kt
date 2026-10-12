@@ -128,11 +128,11 @@ $body
 </dialog>
 <script>function pkgPick(){var d=document.getElementById('pkgdlg');d.showModal();
 document.getElementById('pkgdlgbody').textContent=${Json.str(strings.get("install.shared.loading"))};
-fetch(${Json.str(localizedHref("api/v1/tame/suggest", strings))}).then(function(r){return r.text()}).then(function(t){document.getElementById('pkgdlgbody').innerHTML=t}).catch(function(){document.getElementById('pkgdlgbody').textContent=${Json.str(strings.get("install.tame.dialog.list_failed"))};});}
+PaneldTransport.request('tame.suggest',${localizedArgs(strings)}).then(function(r){if(r.outcome!=='applied')throw new Error(r.code);document.getElementById('pkgdlgbody').innerHTML=r.result}).catch(function(){document.getElementById('pkgdlgbody').textContent=${Json.str(strings.get("install.tame.dialog.list_failed"))};});}
 function updateTamePackageSubmit(){var input=document.getElementById('tame-pkg'),button=document.getElementById('tame-package-submit');if(!input||!button)return;button.disabled=input.disabled||!input.checkValidity();}updateTamePackageSubmit();
 function handBackHome(){var b=document.getElementById('hand-back-home-button'),s=document.getElementById('hand-back-home-status');if(!b||!s)return;b.disabled=true;s.textContent=${Json.str(strings.get("install.shared.loading"))};
-fetch(${Json.str(localizedHref("api/v1/hand-back-home", strings))},{method:'POST'}).then(function(r){return r.json().then(function(j){return {status:r.status,body:j}})}).then(function(r){
-if(r.status===200&&r.body&&r.body.home_handed_to){s.textContent=${Json.str(strings.get("install.tame.hand_back.done"))};return;}
+PaneldTransport.request('hand_back_home',${localizedArgs(strings)}).then(function(r){
+if(r.outcome==='applied'&&r.result&&r.result.home_handed_to){s.textContent=${Json.str(strings.get("install.tame.hand_back.done"))};return;}
 b.disabled=false;s.textContent=${Json.str(strings.get("install.tame.hand_back.failed"))};
 }).catch(function(){b.disabled=false;s.textContent=${Json.str(strings.get("install.tame.hand_back.failed"))};});}</script></div>"""
 }

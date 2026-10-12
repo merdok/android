@@ -27,7 +27,10 @@ import io.panelassistant.android.util.Cached
 import io.panelassistant.android.util.InstallProgress
 import io.panelassistant.android.util.RendererPreparationCoordinator
 import io.panelassistant.android.util.RendererPreparationState
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.accept
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -87,6 +90,51 @@ class ConfigPostProductionRouteTest {
                     assertTrue(refused.bodyAsText().startsWith("ui_language: must be one of "))
                     assertEquals(language, config.uiLanguage, "a refusal must preserve the saved language")
                 }
+            }
+        }
+
+    @Test fun `a config read and settings writes answer the same over the stub socket as over HTTP`() =
+        withFullReadServer { _, fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                // The same request over each door in turn, so both see the same state. Over HTTP a settings write
+                // asks for JSON, as the Configure page always has; without it the route answers its HTML form page.
+                val http = mutableMapOf<String, io.ktor.client.statement.HttpResponse>()
+                val socket = mutableMapOf<String, JSONObject>()
+                createClient { install(io.ktor.client.plugins.websocket.WebSockets) }.webSocket("/ui") {
+                    for ((id, language) in listOf("read" to null, "saved" to "de", "refused" to "unsupported-locale")) {
+                        http[id] = if (language == null) client.get("/api/v1/config")
+                        else client.submitForm("/api/v1/config", Parameters.build { append("ui_language", language) }) {
+                            accept(ContentType.Application.Json)
+                        }
+                        // Put the setting back, so the socket's write changes it exactly as the HTTP write did.
+                        if (id == "saved") client.submitForm("/api/v1/config", Parameters.build { append("ui_language", "auto") }) {
+                            accept(ContentType.Application.Json)
+                        }
+                        val frame = if (language == null) JSONObject().put("op", "config")
+                        else JSONObject().put("op", "settings").put("args", JSONObject().put("ui_language", language))
+                        send(Frame.Text(frame.put("kind", "manage").put("command_id", id).toString()))
+                        while (id !in socket) {
+                            val answer = JSONObject((incoming.receive() as Frame.Text).readText())
+                            if (answer.optString("outcome") != "pending_approval") socket[answer.getString("command_id")] = answer
+                        }
+                    }
+                }
+                val httpRead = http.getValue("read")
+                val httpSaved = http.getValue("saved")
+                val httpRefused = http.getValue("refused")
+                fun body(text: String): String = runCatching { JSONObject(text).toString() }.getOrDefault(text)
+
+                assertEquals(HttpStatusCode.OK, httpRead.status)
+                assertEquals("applied", socket.getValue("read").getString("outcome"))
+                assertEquals(body(httpRead.bodyAsText()), socket.getValue("read").get("result").toString())
+                assertEquals(HttpStatusCode.OK, httpSaved.status)
+                assertEquals("applied", socket.getValue("saved").getString("outcome"))
+                assertEquals(body(httpSaved.bodyAsText()), socket.getValue("saved").get("result").toString())
+                assertEquals(HttpStatusCode.BadRequest, httpRefused.status)
+                assertEquals("refused", socket.getValue("refused").getString("outcome"))
+                assertEquals("invalid_value", socket.getValue("refused").getString("code"))
+                assertEquals(httpRefused.bodyAsText(), socket.getValue("refused").getString("result"))
             }
         }
 

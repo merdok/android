@@ -300,7 +300,8 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
         fun answer(commandId: String, reply: ManageReply) = send(
             JSONObject().put("command_id", commandId).put("outcome", reply.outcome)
                 .apply { reply.code?.let { put("code", it) } }
-                .apply { if (reply.result != null) put("result", reply.result) },
+                .apply { if (reply.result != null) put("result", reply.result) }
+                .apply { replyHeaders(reply)?.let { put("headers", it) } },
         )
         fun answer(commandId: String, outcome: String, code: String? = null, result: Any? = null) =
             answer(commandId, ManageReply(outcome, code, result))
@@ -378,6 +379,19 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
             dispatcher.closeOrigin(origin)
         }
     }
+}
+
+/**
+ * The `x-*` headers a route set (screenshot id, input route, profile presentation), lower-cased as the page
+ * transport reads them over HTTP; null when there are none.
+ */
+private fun replyHeaders(reply: ManageReply): JSONObject? {
+    val named = reply.headers.filter { (name, _) ->
+        val lower = name.lowercase()
+        lower.startsWith("x-") && lower != "x-frame-options" && lower != "x-content-type-options"
+    }
+    if (named.isEmpty()) return null
+    return JSONObject().apply { named.forEach { (name, value) -> put(name.lowercase(), value) } }
 }
 
 private fun commandReply(result: PanelAssistantCommandResult): ManageReply = when (result) {

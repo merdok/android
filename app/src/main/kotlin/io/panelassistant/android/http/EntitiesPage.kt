@@ -21,7 +21,7 @@ internal fun entitiesBody(strings: AppStrings, enabled: Boolean): String = if (!
               <button class="pbtn" id="entity-sync">${esc(strings.get("entities.filter.scan"))}</button>
               <button class="pbtn" id="entity-activate" disabled>${esc(strings.get("entities.filter.checking"))}</button>
               <button class="pbtn" id="entity-reset" type="button">${esc(strings.get("entities.filter.reset"))}</button>
-              <a class="pbtn" href="api/v1/dashboard/entities/export">${esc(strings.get("entities.filter.export"))}</a>
+              <a class="pbtn" href="api/v1/dashboard/entities/export" data-op="dashboard.entities.export" data-file="ha-paneld-entities.json">${esc(strings.get("entities.filter.export"))}</a>
             </div>
             <div id="entity-action-result" class="entity-action-result muted" role="status" aria-live="polite"></div>
             <fieldset class="entity-policy"><legend>${esc(strings.get("entities.policy.legend"))}</legend>

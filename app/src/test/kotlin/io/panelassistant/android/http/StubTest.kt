@@ -238,6 +238,49 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(HttpStatusCode.NotFound, client.get(reference.getString("url")).status)
     }
 
+    @Test fun theDoorCarriesTheXHeadersARouteSetAsTheHttpTransportReadsThem() = testApplication {
+        val table = ManageTable()
+        table.register("probe.headers", ManageKind.READ) {
+            ManageReply("applied", null, JSONObject(), headers = listOf(
+                "X-ha-paneld-Screenshot-Id" to "abc", "Content-Disposition" to "attachment", "X-Frame-Options" to "DENY",
+            ))
+        }
+        val rig = managedRig(table)
+        stub { rig.commands }
+
+        val reply = socket { exchange(JSONObject().put("kind", "manage").put("command_id", "x1").put("op", "probe.headers")) }
+
+        assertEquals("""{"x-ha-paneld-screenshot-id":"abc"}""", reply.getJSONObject("headers").toString())
+    }
+
+    @Test fun aRouteStatusReadsAsTheOutcomeThePageTransportGivesItOverHttp() = testApplication {
+        val table = ManageTable()
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                serveOperations(table)
+                route("/api/v1") {
+                    ops { get("/status-probe") { call.respondText("{}", io.ktor.http.ContentType.Application.Json, HttpStatusCode.fromValue(call.parameters["status"]!!.toInt())) } }
+                }
+            }
+        }
+        startApplication()
+        val rig = managedRig(table)
+        val expected = mapOf(
+            200 to ("applied" to null), 403 to ("refused" to "refused_hardened"), 404 to ("refused" to "unknown_command"),
+            405 to ("refused" to "unknown_command"), 410 to ("refused" to "unknown_command"), 409 to ("refused" to "not_commandable"),
+            423 to ("refused" to "not_commandable"), 429 to ("refused" to "not_commandable"), 400 to ("refused" to "invalid_value"),
+            413 to ("refused" to "invalid_value"), 503 to ("failed" to "hardware_unavailable"), 500 to ("failed" to "failed"),
+        )
+
+        val actual = expected.keys.associateWith { status ->
+            val answer = LinkedBlockingQueue<ManageReply>()
+            rig.commands.manage("s$status", "status_probe", JSONObject().put("status", status), CommandOrigin.peer("192.0.2.1")) { answer.put(it) }
+            requireNotNull(answer.poll(10, TimeUnit.SECONDS)).let { it.outcome to it.code }
+        }
+
+        assertEquals(expected, actual)
+    }
+
     @Test fun aCrossSitePageCannotOpenTheSocket() = testApplication {
         val rig = managedRig(ManageTable())
         stub { rig.commands }

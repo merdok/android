@@ -37,7 +37,7 @@ $compRow
 <hr style="border:0;border-top:1px solid var(--install-rule);margin:14px 0">
 <p class="note"><b>${esc(strings.get("install.backup.config_bundle.title"))}</b> ${esc(strings.get("install.backup.config_bundle.description"))}</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
- <a class="pbtn" href="api/v1/config/export">⭳ ${esc(strings.get("install.backup.config_bundle.export"))}</a>
+ <a class="pbtn" href="api/v1/config/export" data-op="config.export" data-file="config.json">⭳ ${esc(strings.get("install.backup.config_bundle.export"))}</a>
  <button class="pbtn" type="button"${hardenedApprovalA11yAttrs(strings = strings)} onclick="configExport(true,this)">⭳ ${esc(strings.get("install.backup.config_bundle.export_secrets"))}</button>
  <label class="pbtn"${hardenedApprovalA11yAttrs(strings = strings)} style="cursor:pointer">⭱ ${esc(strings.get("install.backup.config_bundle.import"))}<input type="file" id="cfg-import-file" accept="application/json" style="display:none" onchange="configImport(this)"></label>
 </div>
