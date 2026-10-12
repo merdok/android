@@ -436,21 +436,13 @@
     return parts.join(" ");
   }
 
-  // While a saved value waits for hardware, watch the health line: its cfg= token changes when the
-  // panel's settings do, and only then is the config re-read.
+  // Re-reads the config every 3 s while a saved value waits for hardware. Kept as a page timer: 20.4 gives
+  // apply_pending no family, and the health line's cfg= token does not change when hardware catches up.
   function scheduleApplyPendingPoll() {
-    if (!Object.keys(cfg.applyPending).length) {
-      if (cfg.applyPendingTimer) cfg.applyPendingTimer.close();
-      cfg.applyPendingTimer = null;
-      return;
-    }
-    if (cfg.applyPendingTimer) return;
-    var lastToken = null;
-    cfg.applyPendingTimer = window.PaneldTransport.subscribe("health", function (line, state) {
-      if (state !== "known") return;
-      var m = String(line).match(/cfg=(\S+)/), token = m ? m[1] : "";
-      if (token === lastToken) return; // the first line re-reads too: the apply may have landed already
-      lastToken = token;
+    if (cfg.applyPendingTimer) clearTimeout(cfg.applyPendingTimer);
+    cfg.applyPendingTimer = null;
+    if (!Object.keys(cfg.applyPending).length) return;
+    cfg.applyPendingTimer = setTimeout(function () {
       window.PaneldTransport.request("config")
         .then(function (reply) { if (reply.outcome !== "applied") throw reply.code; return reply.result; })
         .then(function (body) {
@@ -495,7 +487,7 @@
         })
         .catch(function () {})
         .then(scheduleApplyPendingPoll);
-    });
+    }, 3000);
   }
 
   cfg.updateSaveUi = updateSaveUi;

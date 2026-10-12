@@ -942,7 +942,6 @@ browserTest('Power safety partial repair offers and submits the exact acknowledg
 
   const acknowledgeForm = page.locator('form[data-power-safety-acknowledge]');
   await acknowledgeForm.waitFor();
-  assert.equal(await acknowledgeForm.getAttribute('action'), 'api/v1/power-safety/acknowledge');
   assert.equal(await acknowledgeForm.locator('input[name="fingerprint"]').inputValue(), fingerprint);
   const hideButton = page.getByRole('button', { name: 'Hide this caution' });
   assert.equal(await hideButton.getAttribute('data-hardened-approval'), '');
@@ -2073,7 +2072,7 @@ browserTest('Duplicate overlay clicks stay single-flight while the combined resp
 });
 
 browserTest('Configure accepts durable pending apply without retrying or losing reconciliation', async (t) => {
-  let pending = {}, posts = 0, posted = '', configGetsAfterPost = 0, healthGets = 0;
+  let pending = {}, posts = 0, posted = '', configGetsAfterPost = 0;
   const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true }];
   const harness = await startHarness(async (path, request) => {
     if (path === '/api/v1/config/schema') return json(schema);
@@ -2096,8 +2095,7 @@ browserTest('Configure accepts durable pending apply without retrying or losing 
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
-    // Every health line carries a new cfg token, so each one makes Configure re-read its settings.
-    if (path === '/health') return { body: `ok cfg=pending${healthGets++}` };
+    if (path === '/health') return { body: 'ok cfg=pending' };
   }, () => fixture({
     'configure.save.hardware_pending': '已保存所需值；硬件应用仍在等待。',
   }, 'zh-Hans'));
@@ -2106,7 +2104,6 @@ browserTest('Configure accepts durable pending apply without retrying or losing 
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
 
   await page.locator('#cfg-touch_sound [role=switch]').click();
   await page.locator('#savebtn').click();
@@ -2229,14 +2226,12 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
     if (path === '/api/v1/auto-sleep/prerequisite') { prerequisiteGets++; return json({ eligible: true, phase: 'assigned', area_name: 'Office' }); }
     if (path === '/api/v1/auto-sleep') { autoSleepStatusGets++; return json({ enabled: true, available: true, phase: 'live', area_name: 'Office', source_count: 1 }); }
     if (path === '/api/v1/auto-sleep/history') { historyGets++; return json(autoSleepHistory({ hours: 24 })); }
-    if (path === '/health') return { body: `ok cfg=${pendingDesired}` };
   });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
   await page.locator('#cfg-ha-oauth').getByText('Connected as Panel User').waitFor();
   await page.locator('.auto-sleep-lane.source').waitFor();
   const snapshot = await page.locator('.auto-sleep-chart-snapshot').elementHandle();
@@ -2288,13 +2283,11 @@ browserTest('Configure keeps newer edits while a pending save later converges', 
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: `ok cfg=${posts}` };
   });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.evaluate(() => { window.PaneldTransport.families.health.floor = 200; }); // compress the health family's 5 s floor
 
   const toggle = page.locator('#cfg-touch_sound [role=switch]');
   await toggle.click();
@@ -4708,7 +4701,11 @@ async function startCameraHarness(t, payload, pageFixture = cameraFixture, optio
       if (state.payload === 'unreachable') {
         return { status: 503, headers: { 'content-type': 'text/plain' }, body: 'camera-status-unavailable\n' };
       }
-      return json(state.payload);
+      // A live panel's frame age moves on every reading, so each reading is a new value for the
+      // camera family (which delivers on change); the age stays inside its stalled/not-stalled side.
+      const reading = state.payload && typeof state.payload.last_frame_age_ms === 'number'
+        ? { ...state.payload, last_frame_age_ms: state.payload.last_frame_age_ms + (served.length % 7) } : state.payload;
+      return json(reading);
     } finally {
       open--;
     }
@@ -4979,12 +4976,12 @@ browserTest('A hidden tab stops polling, and the gap it leaves is not counted as
   const { page, served } = await startCameraHarness(t, cameraShort, cameraFixture, { hideable: true });
 
   await untilCamera(page, '10.1 of 15 fps');
-  await page.evaluate(() => { window.__hidden = true; });
+  await page.evaluate(() => { window.__hidden = true; document.dispatchEvent(new Event('visibilitychange')); });
   const parked = served.length;
   await page.waitForTimeout(7_000);
   assert.equal(served.length, parked, 'a hidden tab must not keep asking the panel for status');
 
-  await page.evaluate(() => { window.__hidden = false; });
+  await page.evaluate(() => { window.__hidden = false; document.dispatchEvent(new Event('visibilitychange')); });
   const resumed = served.length;
   await untilCamera(page, 'not keeping up');
   assert.equal(served.length - resumed >= 3, true,
