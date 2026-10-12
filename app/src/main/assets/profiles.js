@@ -905,17 +905,15 @@
       }).finally(function () { model.loading = false; updateActions(); });
     }, action === "rollback" ? t("profiles.action.confirm_rollback", "Confirm rollback") : t("profiles.action.confirm_restart", "Confirm and restart"), true);
   }
+  // Paced re-read after a profile restart (1 s, then 2.5 s; 60 tries, about 145 s). Kept as a page timer:
+  // 20.4 gives the profile activation state no family, and the health line does not carry it.
   function pollAfterRestart(ref, attempt) {
-    function slow() { setStatus(t("profiles.error.restart_slow", "The restart is taking longer than expected. Reload to check the active profile."), "error"); }
-    if (attempt > 60) { slow(); return; }
-    var giveUp = setTimeout(function () { handle.close(); slow(); }, 150000);
-    // Wait for the panel to answer health again, then read the catalog once; an unsettled activation
-    // waits for the next health answer.
-    var handle = transport.subscribe("health", function (_, state) {
-      if (state !== "known") return;
-      clearTimeout(giveUp);
-      handle.close();
-      jsonFetch("profiles").then(function (data) {
+    if (attempt > 60) { setStatus(t("profiles.error.restart_slow", "The restart is taking longer than expected. Reload to check the active profile."), "error"); return; }
+    setTimeout(function () {
+      transport.request("health").then(function (reply) {
+        if (reply.outcome !== "applied") throw new Error("not ready");
+        return jsonFetch("profiles");
+      }).then(function (data) {
         model.catalogRevision = Number(data.catalog_revision) || model.catalogRevision;
         model.profiles = data.profiles || [];
         model.status = data.status || data;
@@ -927,7 +925,7 @@
         if (activation.state === "rolled_back" || activation.state === "auto_rolled_back") { setStatus(t("profiles.error.auto_rollback", "The candidate did not become healthy; Panel Assistant automatically restored the last-known-good profile."), "error"); loadCatalog(active && active.ref); return; }
         pollAfterRestart(ref, attempt + 1);
       }).catch(function () { pollAfterRestart(ref, attempt + 1); });
-    });
+    }, attempt < 5 ? 1000 : 2500);
   }
   function deleteSelected() {
     var summary = selectedSummary(); if (!summary) return;
