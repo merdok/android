@@ -11,6 +11,7 @@ import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright-core';
 import { measureLayout } from './measure.mjs';
+import { attachUiSocket, loopbackAnswer } from '../fixtures/ui-socket.mjs';
 
 export const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 export const ASSETS = resolve(ROOT, 'app/src/main/assets');
@@ -145,7 +146,7 @@ const WORDMARK = readFileSync(resolve(ASSETS, 'name.svg'), 'utf8').replace(/<!--
 /** Mirror of PageShell.kt's brandLockup(), shared by the shell header and the API explorer. */
 export const BRAND_LOCKUP = `<img src="icon.svg" class="logo" alt=""><span class="brand">${WORDMARK}<span class="sr-only">Panel Assistant</span><small class="brand-version">0.0.0 (0)</small></span>`;
 
-export function shellHtml({ s, catalogues, locale, theme, embed, active, sectionTitle, prefixes, bodyAttrs = '', rightControls = '', body, extraScripts = '', setupTab = false }) {
+export function shellHtml({ s, catalogues, locale, theme, embed, active, sectionTitle, prefixes, bodyAttrs = '', rightControls = '', body, extraScripts = '', setupTab = false, uiSocket = null }) {
   const title = escapeHtml(sectionTitle ? `${PANEL.name} · ${sectionTitle}` : PANEL.name);
   const themeAttr = embed ? ` data-theme="${theme}"` : '';
   const header = embed
@@ -167,7 +168,7 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="info.css">
 <script id="ha-i18n" type="application/json">${i18nPayload(catalogues, locale, prefixes)}</script>
-<script src="assets/i18n.js"></script></head><body ${bodyAttrs}${embed ? ' data-embedded' : ''}><div class="wrap">
+<script src="assets/i18n.js"></script></head><body ${bodyAttrs}${embed ? ' data-embedded' : ''}${uiSocket && !embed ? ` data-ui-socket="${escapeHtml(uiSocket)}"` : ''}><div class="wrap">
 <div class="topbar">${header}${nav}</div>
 ${switcher}<div id="halifebar" class="notice" style="display:none"></div>
 <div id="hanetbar" class="notice" style="display:none"></div>
@@ -253,7 +254,12 @@ export async function startLayoutServer(pages, catalogues, locales) {
       const embed = (query.get('embed') ?? referer?.searchParams.get('embed')) === '1';
       const theme = THEMES.includes(query.get('theme') ?? referer?.searchParams.get('theme')) ? (query.get('theme') ?? referer.searchParams.get('theme')) : 'dark';
       const pageFromReferer = referer ? byPath.get(referer.pathname) : null;
-      const context = { catalogues, locale, theme, embed, s: stringsFor(catalogues, locale) };
+      // The direct and panel views talk to the fake stub door (WebSocket); the embedded sidebar views keep
+      // the HTTP transport, as the shell does behind Panel Assistant's proxy. LAYOUT_TRANSPORT=http keeps
+      // every view on HTTP.
+      const uiSocket = process.env.LAYOUT_TRANSPORT === 'http' ? null
+        : `ui?page=${encodeURIComponent(url.pathname)}&lang=${encodeURIComponent(locale)}&theme=${theme}`;
+      const context = { catalogues, locale, theme, embed, uiSocket, s: stringsFor(catalogues, locale) };
       const page = byPath.get(url.pathname);
       if (page) {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
@@ -270,6 +276,7 @@ export async function startLayoutServer(pages, catalogues, locales) {
     }
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  await attachUiSocket(server, loopbackAnswer(server));
   return server;
 }
 

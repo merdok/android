@@ -1,12 +1,12 @@
-/* Guided setup (/setup): renders ONE step at a time from GET /api/v1/setup — the same authority the
+/* Guided setup (/setup): renders ONE step at a time from GET setup — the same authority the
  * panel itself reads, so the browser and the panel can never disagree about what comes next.
  *
  * Rules that keep this file safe and honest:
- *  - It NEVER reads GET /api/v1/config. That endpoint blanks secrets, and a POST assembled from its
+ *  - It NEVER reads GET config. That endpoint blanks secrets, and a POST assembled from its
  *    output has previously wiped a panel's credentials. Everything posted here was typed on this page
  *    (or accepted from the read-only discovery endpoint into a visibly editable field), and passwords
  *    are never pre-filled.
- *  - A 200 from POST /api/v1/config means "saved", not "working": after a save the page re-reads the
+ *  - A 200 from POST config means "saved", not "working": after a save the page re-reads the
  *    journey and shows what the panel actually reports, never an assumed success.
  *  - While saving or verifying, the step's fields are disabled (a native <fieldset> disable), because
  *    the alternative is a user editing other values mid-validation and losing track of what applied.
@@ -18,11 +18,11 @@
   var stepHost = document.getElementById("wiz-step");
   var dotsHost = document.getElementById("wiz-dots");
 
-  var journey = null;        // last GET /api/v1/setup body
+  var journey = null;        // last GET setup body
   var typed = {};            // values the user has touched THIS page-load; the only POST source
-  var discovery = null;      // one-shot /api/v1/config/discovery result (read-only suggestions)
+  var discovery = null;      // one-shot config/discovery result (read-only suggestions)
   var renderedKey = "";      // what the current DOM was built for — rebuild only on real change
-  var pollTimer = null;
+  var journeyFeed = null;
 
   var i18nText = window.HaI18n.t;
 
@@ -82,28 +82,25 @@
 
   /* ---------- server I/O (POST bodies come from `typed`, never from a GET) ---------- */
 
+  var transport = window.PaneldTransport;
+
   function getJourney() {
-    return fetch("api/v1/setup", {
-      cache: "no-store",
-      headers: { "X-ha-paneld-setup-presence": "active" },
-    }).then(function (r) { return r.json(); });
+    return transport.request("setup", { presence: "active" }).then(function (r) {
+      if (r.outcome !== "applied") throw r;
+      return r.result;
+    });
   }
 
-  function postForm(path, fields) {
-    return postFormAttempt(path, fields, 2);
+  function postForm(name, fields) {
+    return postFormAttempt(name, fields, 2);
   }
 
-  function postFormAttempt(path, fields, retriesLeft) {
-    return fetch(path, {
-      method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(fields).toString(),
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (body) {
-        if (r.status === 202 && body.error === "approval-required") throw { approval: true, message: i18nText("setup.error.approval_required", "Approve this request on the panel, then save again.") };
-        if (!r.ok) throw { message: body.error || body.message || i18nText("setup.error.http_refused", "The panel refused this (HTTP {status}).", { status: r.status }) };
-        return body;
-      });
+  function postFormAttempt(name, fields, retriesLeft) {
+    return transport.request(name, fields).then(function (r) {
+      var body = r.result && typeof r.result === "object" ? r.result : {};
+      if (r.outcome === "pending_approval") throw { approval: true, message: i18nText("setup.error.approval_required", "Approve this request on the panel, then save again.") };
+      if (r.outcome !== "applied") throw { message: body.error || body.message || i18nText("setup.error.http_refused", "The panel refused this (HTTP {status}).", { status: r.code || r.outcome }) };
+      return body;
     }, function (networkError) {
       // A network-level failure rejects the fetch itself with a TypeError whose text is browser-specific
       // (Safari and Chrome word it differently) — never show that raw. It means the request never
@@ -113,7 +110,7 @@
       if (retriesLeft > 0) {
         var delay = retriesLeft === 2 ? 2000 : 5000;
         return new Promise(function (resolve) { setTimeout(resolve, delay); })
-          .then(function () { return postFormAttempt(path, fields, retriesLeft - 1); });
+          .then(function () { return postFormAttempt(name, fields, retriesLeft - 1); });
       }
       throw { message: i18nText("setup.error.panel_unreachable", "Couldn’t reach the panel — check the connection and try again.") };
     });
@@ -314,8 +311,8 @@
     if (typed.friendly_name !== undefined) fields.friendly_name = typed.friendly_name;
     var startKey = renderedKey;
     lockStep(true);
-    (Object.keys(fields).length ? postForm("api/v1/config", fields) : Promise.resolve({}))
-      .then(function () { return postForm("api/v1/setup/identity", {}); })
+    (Object.keys(fields).length ? postForm("settings", fields) : Promise.resolve({}))
+      .then(function () { return postForm("setup.identity", {}); })
       .then(function () { typed = {}; refresh(); })
       // A save can resolve after the poll has already advanced the step (server committed, response lost);
       // don't paint this step's stale error onto the next one.
@@ -417,7 +414,7 @@
     var startKey = renderedKey;
     lockStep(true);
     setLive(i18nText("setup.state.saving", "Saving…"));
-    postForm("api/v1/config", { ha_url: url })
+    postForm("settings", { ha_url: url })
       .then(function () { typed = {}; refresh(); })
       .catch(function (e) { lockStep(false); if (renderedKey === startKey) { setLive(""); stepErr(e.message); } });
   }
@@ -440,7 +437,7 @@
       el("p", { class: "muted", text: i18nText("setup.sign_in.browser.account_note", "If this browser is already signed in to Home Assistant, the panel may connect as you. To keep the panel on its own account, sign in as that account when the login appears.") }),
       el("button", { class: "wiz-primary", type: "button", text: i18nText("setup.sign_in.browser.action", "Sign in from this browser"), onclick: function (e) {
         e.target.disabled = true;
-        postForm("api/v1/ha/oauth/start", {
+        postForm("ha.oauth.start", {
           ha_url: haUrl,
           ui_locale: requestedLocale(),
           return_surface: "setup",
@@ -507,7 +504,7 @@
     show([card(i18nText("setup.attest.title", "Is your dashboard on the panel now?"),
       i18nText("setup.attest.lead", "The dashboard app manages its own connection, so only you can confirm this."), [
       primary(i18nText("setup.attest.yes", "Yes, it’s there"), function () {
-        postForm("api/v1/setup/attest", {}).then(refresh).catch(function (e) { stepErr(e.message); });
+        postForm("setup.attest", {}).then(refresh).catch(function (e) { stepErr(e.message); });
       }),
       el("a", { class: "pbtn wiz-secondary", style: "display:block;text-align:center;padding:10px", href: internalHref("./"),
         text: i18nText("setup.attest.no", "No — it’s blank or wrong") }),
@@ -578,12 +575,12 @@
   function loadHomeDashboardCatalog() {
     // Read-only list endpoints — allowed. Neither is the redacted config endpoint, and nothing from them
     // is ever posted back except the values the user explicitly selects.
-    fetch("api/v1/config/home-dashboards", { cache: "no-store" })
-      .then(function (r) { return r.json(); })
+    transport.request("config.home_dashboards")
+      .then(function (r) { return r.result; })
       .then(function (c) { hdCatalog = c; paintHomeDashboards(); })
       .catch(function () { hdCatalog = { queried: false, items: [], default: { explicit: false, path: "" } }; paintHomeDashboards(); });
-    fetch("api/v1/config/ha-area", { cache: "no-store" })
-      .then(function (r) { return r.json(); })
+    transport.request("config.ha_area")
+      .then(function (r) { return r.result; })
       .then(function (a) { hdArea = a; paintHomeDashboardArea(); })
       .catch(function () { hdArea = null; paintHomeDashboardArea(); });
   }
@@ -771,15 +768,15 @@
     var fields = { home_dashboard: chosen };
     // The area rides in the same save when the user touched it; HA remains canonical afterwards.
     if (typed.ha_area !== undefined) fields.ha_area = typed.ha_area;
-    postForm("api/v1/config", fields)
-      .then(function () { return postForm("api/v1/setup/home-dashboard", {}); })
+    postForm("settings", fields)
+      .then(function () { return postForm("setup.home_dashboard", {}); })
       .then(function () {
         // Panel Assistant already chose this panel's native path. The filter defaults on
         // for that new panel, before its answer releases the first dashboard render.
         if (!(journey.handover && journey.handover.source && journey.entity_filter &&
           journey.entity_filter.relevant && !journey.entity_filter.answered)) return;
-        return postForm("api/v1/config", { dashboard_entity_learning: "true" })
-          .then(function () { return postForm("api/v1/setup/entity-filter", {}); });
+        return postForm("settings", { dashboard_entity_learning: "true" })
+          .then(function () { return postForm("setup.entity_filter", {}); });
       })
       .then(function () { typed = {}; refresh(); })
       .catch(function (e) {
@@ -971,8 +968,8 @@
     var other = document.getElementById(enable ? "ef-decline" : "");
     if (other) other.disabled = true;
     button.textContent = enable ? i18nText("setup.filter.action.enabling", "Turning on filtering…") : i18nText("setup.filter.action.loading", "Loading the dashboard…");
-    postForm("api/v1/config", { dashboard_entity_learning: enable ? "true" : "false" })
-      .then(function () { return postForm("api/v1/setup/entity-filter", {}); })
+    postForm("settings", { dashboard_entity_learning: enable ? "true" : "false" })
+      .then(function () { return postForm("setup.entity_filter", {}); })
       .then(function () { typed = {}; refresh(); })
       .catch(function (e) {
         lockStep(false);
@@ -1017,7 +1014,7 @@
     show(cards, "done");
     var escape = document.querySelector(".wiz-escape");
     if (escape) escape.hidden = true; // the done card carries its own navigation
-    clearTimeout(pollTimer);
+    if (journeyFeed) { journeyFeed.close(); journeyFeed = null; }
   }
 
   /* ---------- small helpers ---------- */
@@ -1127,29 +1124,24 @@
 
   window.addEventListener("hashchange", function () { renderedKey = ""; render(); });
 
-  /* ---------- polling: 2s while something is moving, 10s otherwise, never when hidden ---------- */
+  /* ---------- the journey: one read on demand, then the setup family until the journey completes ---------- */
 
   function refresh() {
     return getJourney().then(function (j) {
       journey = j;
       render();
-      schedule();
-    }).catch(function () { schedule(5000); });
+      follow();
+    }).catch(follow);
   }
 
-  function schedule(overrideMs) {
-    clearTimeout(pollTimer);
-    if (journey && journey.complete) return;
-    // A scan in flight is busy even though no STEP is in flight: the count is what is moving, and polling it
-    // every ten seconds would make the number lurch instead of climb.
-    var counting = journey && journey.entity_filter && journey.entity_filter.counting;
-    var busy = counting ||
-      ["signin", "proof"].some(function (k) { return renderedKey.indexOf(k) === 0; }) ||
-      (journey && journey.steps.some(function (s) { return s.status === "in_flight"; }));
-    pollTimer = setTimeout(function () {
-      if (document.hidden) { schedule(2000); return; }
-      refresh();
-    }, overrideMs || (busy ? 2000 : 10000));
+  function follow() {
+    if (journeyFeed || (journey && journey.complete)) return;
+    journeyFeed = transport.subscribe("setup", function (value, state) {
+      if (state !== "known" || !value || !value.setup) return;
+      journey = value.setup;
+      render();
+      if (journey.complete && journeyFeed) { journeyFeed.close(); journeyFeed = null; }
+    });
   }
 
   /* A sign-in finishing in another tab announces itself; the poll is the fallback (the panel's own
@@ -1159,8 +1151,8 @@
   }
 
   /* One-shot discovery suggestions for blank fields — read-only, never persisted by the server. */
-  fetch("api/v1/config/discovery", { cache: "no-store" })
-    .then(function (r) { return r.json(); })
+  transport.request("config.discovery")
+    .then(function (r) { return r.result; })
     .then(function (d) {
       discovery = d;
       var editing = document.activeElement && document.activeElement.tagName === "INPUT" && stepHost.contains(document.activeElement);

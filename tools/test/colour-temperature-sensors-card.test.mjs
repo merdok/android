@@ -9,9 +9,9 @@ async function rowsFor(payload) {
   const context = vm.createContext({
     i18nText: (_key, text, args = {}) => text.replace(/\{(\w+)\}/g, (_, key) => String(args[key])),
     document: { hidden: false, getElementById: () => null },
-    fetch: async () => ({ json: async () => payload }),
+    PT: { subscribe: (family, onValue) => { assert.equal(family, 'sensors'); onValue(payload, 'known'); return { close() {} }; } },
     paint: (_table, value) => { rows = value; },
-    cardSizeSourceReady: () => {}, setInterval: () => {},
+    cardSizeSourceReady: () => {},
   });
   vm.runInContext(source.slice(source.indexOf('function formatBrightness('), source.indexOf("sensorsCard('senstbl','sensage');")), context);
   context.sensorsCard('table', 'age');

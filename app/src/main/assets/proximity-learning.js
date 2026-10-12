@@ -4,7 +4,7 @@
   if (!document.getElementById("proximity-learning-mount")) return;
   var cardRoot = document.getElementById("cfg-groups");
   if (!cardRoot) return;
-  var timer = null, active = false, busy = false, cardSizeInvalid = false;
+  var active = false, busy = false, cardSizeInvalid = false;
   var ownedSession = null, currentSession = null, heartbeatTimer = null;
 
   var t = window.HaI18n.t;
@@ -101,41 +101,37 @@
     if (cardSizeInvalid && window.configCardSizeGeometryChanged) window.configCardSizeGeometryChanged();
     cardSizeInvalid = false;
   }
-  async function refresh() {
-    clearTimeout(timer);
-    try {
-      var response = await fetch("api/v1/proximity", { cache: "no-store", mode: "same-origin" });
-      if (!response.ok) throw new Error("status " + response.status);
-      render(await response.json()); changed();
-    } catch (_) {
-      state.textContent = label("status_unavailable", "Proximity status is unavailable");
-      start.disabled = reset.disabled = true;
-      cardSizeInvalid = true;
-      if (window.configCardSizeGeometryInvalid) window.configCardSizeGeometryInvalid();
-    }
-    clearTimeout(timer); timer = setTimeout(refresh, active ? 1000 : 5000);
+  function show(d) {
+    if (d) { render(d); changed(); return; }
+    state.textContent = label("status_unavailable", "Proximity status is unavailable");
+    start.disabled = reset.disabled = true;
+    cardSizeInvalid = true;
+    if (window.configCardSizeGeometryInvalid) window.configCardSizeGeometryInvalid();
+  }
+  // One read after an action, so its effect shows without waiting for the next family value.
+  function refresh() {
+    window.PaneldTransport.request("proximity").then(function (r) {
+      show(r.outcome === "applied" ? r.result : null);
+    }, function () { show(null); });
   }
   async function request(action, sessionId) {
     var body = { action: action };
     if (sessionId) body.sessionId = sessionId;
-    var controller = action === "heartbeat" ? new AbortController() : null;
-    var timeout = controller ? setTimeout(function () { controller.abort(); }, 5000) : null;
+    var timeout = null;
     try {
-      var response = await fetch("api/v1/proximity/calibration", {
-        method: "POST", mode: "same-origin", cache: "no-store",
-        signal: controller ? controller.signal : undefined,
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "X-Proximity-UI": "1" },
-        body: new URLSearchParams(body).toString()
-      });
-      var text = await response.text();
-      if (!response.ok) {
-        var reason = text.trim();
-        try { reason = JSON.parse(text).error || ""; } catch (_) {}
+      var sent = window.PaneldTransport.request("proximity.calibration", body);
+      // A heartbeat that has not answered in 5 s is given up, so the next one is not held behind it.
+      var reply = await (action === "heartbeat" ? Promise.race([sent, new Promise(function (_, reject) {
+        timeout = setTimeout(function () { reject(new Error("timeout")); }, 5000);
+      })]) : sent);
+      var result = reply.result;
+      if (reply.outcome !== "applied") {
+        var reason = typeof result === "string" ? result.trim() : (result && (result.error || result.message)) || "";
         var error = new Error(reason || label("rejected", "The panel did not accept that action."));
         error.opaque = !!reason;
         throw error;
       }
-      return JSON.parse(text);
+      return result;
     } finally { clearTimeout(timeout); }
   }
   function scheduleHeartbeat() {
@@ -177,6 +173,5 @@
     if (active || !window.confirm(label("confirm_reset", "Replace the saved calibration with this sensor profile’s defaults?"))) return;
     post("reset");
   });
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
-  refresh();
+  window.PaneldTransport.subscribe("proximity", show);
 })();

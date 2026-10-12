@@ -45,18 +45,14 @@
     cfg.haOauthLinks.hidden = true;
     var oauthLocale = window.HaI18n && typeof window.HaI18n.locale === "string"
       ? window.HaI18n.locale : (document.documentElement.lang || "en");
-    fetch("api/v1/ha/oauth/start", {
-      method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        ha_url: target,
-        ui_locale: oauthLocale,
-        return_surface: "configure",
-        preserve_explicit_english: new URLSearchParams(location.search).has("lang") && oauthLocale === "en" ? "1" : "0"
-      }).toString()
-    }).then(function (response) {
-      return response.json().catch(function () { return {}; }).then(function (body) {
-        if (!response.ok || !body.authorization_url) {
+    window.PaneldTransport.request("ha.oauth.start", {
+      ha_url: target,
+      ui_locale: oauthLocale,
+      return_surface: "configure",
+      preserve_explicit_english: new URLSearchParams(location.search).has("lang") && oauthLocale === "en" ? "1" : "0"
+    }).then(function (reply) {
+      return Promise.resolve(reply.result && typeof reply.result === "object" ? reply.result : {}).then(function (body) {
+        if (reply.outcome !== "applied" || !body.authorization_url) {
           var failure = new Error(body && body.error === "invalid-ha-url"
             ? cfg.i18nText("configure.oauth.valid_url_first", "Enter a valid Home Assistant URL first.")
             : cfg.i18nText("configure.oauth.start_failed", "Could not start sign-in."));
@@ -114,8 +110,8 @@
       return;
     }
     var succeeded = false;
-    fetch("api/v1/ha/oauth/status", { headers: { "Accept": "application/json" }, cache: "no-store" })
-      .then(function (response) { if (!response.ok) throw response.status; return response.json(); })
+    window.PaneldTransport.request("ha.oauth.status")
+      .then(function (reply) { if (reply.outcome !== "applied") throw reply.code; return reply.result; })
       .then(function (body) {
         if (request !== cfg.haUserStatusRequest) return;
         cfg.haUserStatus = body || { phase: "unavailable" };
@@ -171,15 +167,15 @@
     return row;
   }
 
-  // Why the Camera group is not offered. The panel already answers this on /api/v1/camera/status —
+  // Why the Camera group is not offered. The panel already answers this on camera.status —
   // state plus fault_detail — and reusing it keeps Configure, the Dashboard card and the status endpoint
   // reading one classification instead of three that drift apart inside a release.
   var cameraCapability = null, cameraCapabilityLoading = false;
   function loadCameraCapability() {
     if (cameraCapabilityLoading || cameraCapability) return;
     cameraCapabilityLoading = true;
-    fetch("api/v1/camera/status", { headers: { "Accept": "application/json" }, cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+    window.PaneldTransport.request("camera.status")
+      .then(function (r) { if (r.outcome !== "applied") throw r.code; return r.result; })
       .then(function (d) { cameraCapability = d; cfg.render(); })
       .catch(function () { /* the block stays on its generic wording */ })
       .then(function () { cameraCapabilityLoading = false; });
@@ -204,36 +200,21 @@
     return cfg.el("div", { class: "camera-unavailable", role: "status", text: text });
   }
 
-  // What the panel's microphone is and what its own capture check found (GET api/v1/voice/microphone),
-  // so the Voice card says why voice is quiet instead of vanishing or failing silently. Re-read every few
-  // seconds while the page is visible on a panel with a microphone, through failed requests too, and at
-  // once when the page becomes visible again, so a mute switch pressed meanwhile shows within seconds.
-  var voiceMicrophone = null, voiceMicrophoneAt = 0, voiceMicrophoneLoading = false, voiceMicrophoneTimer = null, voiceMicrophoneWatched = false;
+  // What the panel's microphone is and what its own capture check found (the microphone family), so the
+  // Voice card says why voice is quiet instead of vanishing or failing silently. Watched while the page is
+  // visible on a panel with a microphone, so a mute switch pressed meanwhile shows within seconds.
+  var voiceMicrophone = null, voiceMicrophoneWatch = null;
   function loadVoiceMicrophone() {
-    if (voiceMicrophoneLoading || Date.now() - voiceMicrophoneAt < 3000) return;
-    if (!voiceMicrophoneWatched) {
-      voiceMicrophoneWatched = true;
-      document.addEventListener("visibilitychange", function () { if (!document.hidden) rereadVoiceMicrophone(); });
-    }
-    voiceMicrophoneLoading = true;
-    fetch("api/v1/voice/microphone", { headers: { "Accept": "application/json" }, cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
-      .then(function (d) {
-        var changed = JSON.stringify(d) !== JSON.stringify(voiceMicrophone);
-        voiceMicrophone = d;
-        if (changed) cfg.render();
-      })
-      .catch(function () { /* the card keeps what it last knew; the next read retries */ })
-      .then(function () {
-        voiceMicrophoneLoading = false;
-        voiceMicrophoneAt = Date.now();
-        // A panel with no microphone has nothing to re-read; a hidden page waits for visibilitychange.
-        var absent = voiceMicrophone && voiceMicrophone.presence === "absent" && voiceMicrophone.check !== "running";
-        clearTimeout(voiceMicrophoneTimer);
-        if (!absent && !document.hidden) voiceMicrophoneTimer = setTimeout(rereadVoiceMicrophone, 3000);
-      });
+    if (voiceMicrophoneWatch) return;
+    voiceMicrophoneWatch = window.PaneldTransport.subscribe("microphone", function (d, state) {
+      if (state !== "known") return; // the card keeps what it last knew
+      var changed = JSON.stringify(d) !== JSON.stringify(voiceMicrophone);
+      voiceMicrophone = d;
+      // A panel with no microphone has nothing to re-read.
+      if (d && d.presence === "absent" && d.check !== "running") voiceMicrophoneWatch.close();
+      if (changed) cfg.render();
+    });
   }
-  function rereadVoiceMicrophone() { voiceMicrophoneAt = 0; loadVoiceMicrophone(); }
 
   // True only when the panel does not offer voice at all.
   function voiceGroupUnavailable() {
@@ -265,12 +246,11 @@
     if (!cfg.radio || !cfg.radio.router_enabled || radioJoined()) return;
     if (!confirm(cfg.i18nText("configure.zigbee.join_confirm", "Enable Permit join in Zigbee2MQTT or ZHA first.\n\nThis will request Repeater mode and begin a new 15-minute joining period. It will not reboot or restart the panel.\n\nPermit join is enabled — request join?"))) return;
     btn.disabled = true;
-    fetch("api/v1/radio/join", { method: "POST" })
+    window.PaneldTransport.request("radio.join")
       .then(function (r) {
-        return r.json().catch(function () { return {}; }).then(function (body) {
-          if (!r.ok) throw (body.status || ("HTTP " + r.status));
-          return body;
-        });
+        var body = r.result && typeof r.result === "object" ? r.result : {};
+        if (r.outcome !== "applied") throw (body.status || r.code || r.outcome);
+        return body;
       })
       .then(function () {
         cfg.joinCooldownUntil = Date.now() + 60000;
@@ -278,7 +258,7 @@
         if (!cfg.radio.attributes) cfg.radio.attributes = {};
         cfg.radio.attributes.joined = null;
         cfg.render();
-        pollRadio(0);
+        pollRadio();
       })
       .catch(function (e) {
         btn.disabled = false;
@@ -314,9 +294,9 @@
   function loadHomeDashboards() {
     if (cfg.dirty || cfg.haAuth.configured !== true) return;
     var request = ++cfg.homeDashboardRequest;
-    fetch("api/v1/config/home-dashboards", { cache: "no-store" }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
+    window.PaneldTransport.request("config.home_dashboards").then(function (r) {
+      if (r.outcome !== "applied") throw new Error(r.code || r.outcome);
+      return r.result;
     }).then(function (body) {
       if (request !== cfg.homeDashboardRequest || cfg.dirty) return;
       var next = (body && body.items || []).map(function (dashboard) {
@@ -353,9 +333,9 @@
   function loadVoicePipelines() {
     if (cfg.voicePipelinesCatalog !== null) return;
     var request = ++cfg.voicePipelinesRequest;
-    fetch("api/v1/voice/pipelines", { cache: "no-store" }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
+    window.PaneldTransport.request("voice.pipelines").then(function (r) {
+      if (r.outcome !== "applied") throw new Error(r.code || r.outcome);
+      return r.result;
     }).then(function (body) {
       if (request !== cfg.voicePipelinesRequest) return;
       cfg.voicePipelinesCatalog = (body && Array.isArray(body.pipelines)) ? body.pipelines : [];
@@ -370,9 +350,9 @@
   function loadVoiceWakeWords() {
     if (cfg.voiceWakeWordsCatalog !== null) return;
     var request = ++cfg.voiceWakeWordsRequest;
-    fetch("api/v1/voice/wake-words", { cache: "no-store" }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
+    window.PaneldTransport.request("voice.wake_words").then(function (r) {
+      if (r.outcome !== "applied") throw new Error(r.code || r.outcome);
+      return r.result;
     }).then(function (body) {
       if (request !== cfg.voiceWakeWordsRequest) return;
       cfg.voiceWakeWordsCatalog = (body && Array.isArray(body.wake_words)) ? body.wake_words : [];
@@ -422,12 +402,9 @@
     Promise.all([manifestFile.text(), modelFile.arrayBuffer()]).then(function (parts) {
       var bytes = new Uint8Array(parts[1]), binary = "";
       for (var i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-      return fetch("api/v1/voice/wake-words", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: modelFile.name, manifest: parts[0], model: btoa(binary) }),
-      });
+      return window.PaneldTransport.request("voice.wake_words.set", { name: modelFile.name, manifest: parts[0], model: btoa(binary) });
     }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; });
+      return { ok: r.outcome === "applied", body: r.result && typeof r.result === "object" ? r.result : {} };
     }).then(function (result) {
       cfg.voiceWakeWordImportStatus = result.ok
         ? cfg.i18nText("configure.voice.import_done", "Imported {wake_word}.", { wake_word: String(result.body.wake_word || result.body.id || "") })
@@ -440,14 +417,16 @@
     });
   }
 
+  function showRadio(body) {
+    cfg.radio = body && body.present ? body : null;
+    cfg.render();
+    cfg.configCardSourceReady("radio");
+    cfg.configCardGeometryChanged();
+    return cfg.radio;
+  }
+
   function loadRadio() {
-    return fetch("api/v1/radio").then(function (r) { return r.json(); }).then(function (body) {
-      cfg.radio = body && body.present ? body : null;
-      cfg.render();
-      cfg.configCardSourceReady("radio");
-      cfg.configCardGeometryChanged();
-      return cfg.radio;
-    }).catch(function () {
+    return window.PaneldTransport.request("radio").then(function (r) { return showRadio(r.result); }).catch(function () {
       cfg.radio = null;
       cfg.render();
       cfg.configCardGeometryInvalid();
@@ -455,12 +434,15 @@
     });
   }
 
-  function pollRadio(n) {
-    if (cfg.joinPollTimer) clearTimeout(cfg.joinPollTimer);
-    loadRadio().then(function () {
-      if (radioJoined() || !cfg.radio || !cfg.radio.router_enabled || n >= 180) return;
-      cfg.joinPollTimer = setTimeout(function () { pollRadio(n + 1); }, 5000);
+  // Watch the radio until it has joined or the router is off; give up after the 15-minute join period.
+  function pollRadio() {
+    if (cfg.joinPollTimer) cfg.joinPollTimer.close();
+    var watch = cfg.joinPollTimer = window.PaneldTransport.subscribe("radio", function (body, state) {
+      if (state !== "known") return;
+      showRadio(body);
+      if (radioJoined() || !cfg.radio || !cfg.radio.router_enabled) watch.close();
     });
+    setTimeout(function () { watch.close(); }, 15 * 60 * 1000);
   }
 
   function handleHaOAuthResult(status) {

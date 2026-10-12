@@ -193,16 +193,33 @@
 
   // HTTP 202 is also used for ordinary asynchronous work, so only the structured
   // approval-required body stops the success path.
-  function approvalAwareJson(response) {
-    var decoded = typeof response.text === 'function'
-      ? response.text().then(function (text) {
-          try { return text ? JSON.parse(text) : {}; }
-          catch (_) { return { message: String(text || '').trim() }; }
-        })
-      : response.json();
-    return decoded.then(function (body) {
-      if (response.status === 202 && body && body.error === 'approval-required') throw approvalError(body);
-      return body;
+  var transport = window.PaneldTransport;
+  function replyBody(reply) {
+    var body = reply.result;
+    if (typeof body === 'string') return { message: body.trim() };
+    return body && typeof body === 'object' ? body : {};
+  }
+  function api(op, args) { return transport.request(op, args).then(replyBody); }
+  function approvalAwareJson(reply) {
+    var body = replyBody(reply);
+    if (reply.outcome === 'pending_approval') throw approvalError(body);
+    return body;
+  }
+  function approved(op, args) { return transport.request(op, args).then(approvalAwareJson); }
+
+  // Follows install/status through the install family until the operation finishes; gives up when the
+  // panel stays unreachable for lostAfterMs.
+  function watchInstall(onRunning, onDone, onLost, lostAfterMs) {
+    var lost = null;
+    var handle = transport.subscribe('install', function (value, state) {
+      if (state !== 'known') {
+        if (!lost) lost = setTimeout(function () { handle.close(); onLost(); }, lostAfterMs);
+        return;
+      }
+      if (lost) { clearTimeout(lost); lost = null; }
+      var d = (value && value.status) || {};
+      if (d.running) { onRunning(d); return; }
+      handle.close(); onDone(d);
     });
   }
 
@@ -239,8 +256,9 @@
     var installed = r.getAttribute('data-installed-version') || (r.querySelector('.cver') || {}).textContent || '';
     vsel.textContent = '';
     var loading = document.createElement('option'); loading.textContent = t('install.shared.loading', 'loading…'); vsel.appendChild(loading);
-    return fetch('api/v1/install/versions?name=' + encodeURIComponent(name) + (channelSelect ? '&channel=' + encodeURIComponent(chan) : ''))
-      .then(function (res) { return res.json(); }).then(function (d) {
+    var versionArgs = { name: name };
+    if (channelSelect) versionArgs.channel = chan;
+    return api('install.versions', versionArgs).then(function (d) {
         var paChannel = r.querySelector('.cpa-channel');
         if (paChannel) paChannel.textContent = d && d.channel === 'prerelease' ? t('install.components.prerelease', 'Prerelease') : (d && d.channel === 'stable' ? t('install.components.stable', 'Stable') : '—');
         var vs = (d && d.versions) || [];
@@ -306,28 +324,26 @@
   function start(name, extra, btn) {
     if (btn) btn.disabled = true;
     msg(t('install.progress.starting', 'Starting {component}…', { component: name }));
-    var body = 'name=' + encodeURIComponent(name);
-    if (extra.action) body += '&action=' + encodeURIComponent(extra.action);
-    if (extra.version) body += '&version=' + encodeURIComponent(extra.version);
-    fetch('api/v1/install/component', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-      .then(approvalAwareJson).then(function (d) {
+    var fields = { name: name };
+    if (extra.action) fields.action = extra.action;
+    if (extra.version) fields.version = extra.version;
+    approved('install.component', fields).then(function (d) {
         if (d.status === 'busy') { msg(t('install.progress.busy', 'Another install is already running — try again shortly.')); if (btn) btn.disabled = false; return; }
         if (d.status !== 'started') { var status = d.status || 'error'; msg(t('install.progress.could_not_start', 'Could not start: {status}', { status: closedToken(COMPONENT_STATUS, status) })); if (btn) btn.disabled = false; return; }
-        pollInstall(0);
+        pollInstall();
       }).catch(function (error) { msg(requestFailure(error, t('install.progress.start_failed', 'Failed to start — check root/daemon.'))); if (btn) btn.disabled = false; });
   }
 
-  function pollInstall(n) {
-    fetch('api/v1/install/status').then(function (r) { return r.json(); }).then(function (d) {
-      if (d.running) { var workingFallback = t('install.progress.working', '{component}: working…', { component: d.component || t('install.components.install', 'Install') }); msgPresented(d.presentation, workingFallback); setTimeout(function () { pollInstall(n + 1); }, 2500); return; }
+  function pollInstall() {
+    // Transient loss (e.g. ha-paneld restarted itself after a self-update) is tolerated for two minutes.
+    watchInstall(function (d) {
+      var workingFallback = t('install.progress.working', '{component}: working…', { component: d.component || t('install.components.install', 'Install') }); msgPresented(d.presentation, workingFallback);
+    }, function (d) {
       var result = presentation(d.presentation, d.message || 'done');
       var done = t('install.progress.done_reload', '{component}: {result} — reloading…', { component: d.component || t('install.components.install', 'Install'), result: result.text });
       if (result.rawEvidence && !result.fallback) msgPresented(d.presentation, d.message || 'done'); else msg(done);
       setTimeout(function () { location.reload(); }, 2000);
-    }).catch(function () {
-      // Transient (e.g. ha-paneld restarted itself after a self-update) — keep trying a while.
-      if (n < 40) setTimeout(function () { pollInstall(n + 1); }, 3000); else msg(t('install.progress.lost_contact_reload', 'Lost contact — reload to check.'));
-    });
+    }, function () { msg(t('install.progress.lost_contact_reload', 'Lost contact — reload to check.')); }, 120000);
   }
 
   // Companion internal-URL repair (HA 2026.7 "Missing 'Host' header"): copy external_url into a blank
@@ -335,7 +351,7 @@
   window.repairCompUrl = function (btn) {
     btn.disabled = true; var s = document.getElementById('cu-fix');
     if (s) s.textContent = t('install.progress.companion_repairing', 'Repairing + relaunching the Companion…');
-    fetch('api/v1/companion/repair-url', { method: 'POST' }).then(approvalAwareJson).then(function (d) {
+    approved('companion.repair_url', {}).then(function (d) {
       if (d.status === 'busy') { if (s) s.textContent = t('install.progress.operation_busy', 'Another operation is running — try again shortly.'); btn.disabled = false; return; }
       if (s) setPresented(s, d.presentation, t('install.progress.companion_repair_started', 'Repair started — the Companion will relaunch; refresh this page in a few seconds to confirm.'));
     }).catch(function (error) { if (s) s.textContent = requestFailure(error, t('install.progress.companion_repair_failed', 'Failed to start — check root.')); btn.disabled = false; });
@@ -345,7 +361,7 @@
   window.healthAudit = function (btn) {
     btn.disabled = true; var out = document.getElementById('audit-out');
     if (out) { out.textContent = ''; var checking = document.createElement('p'); checking.className = 'note'; checking.textContent = t('install.progress.audit_checking', 'Checking…'); out.appendChild(checking); scheduleInstallColumnAlignment(); }
-    fetch('api/v1/status?refresh=1').then(function (r) { return r.json(); }).then(function (d) {
+    api('status', { refresh: 1 }).then(function (d) {
       var w = (d && d.warnings) || [];
       if (!out) return;
       if (!w.length) { out.textContent = ''; var clean = document.createElement('p'); clean.className = 'note'; clean.textContent = '✓ ' + t('install.progress.audit_clean', 'No problems detected — this panel looks ready.'); out.appendChild(clean); }
@@ -366,7 +382,7 @@
   window.apkAllow = function (cb) {
     var ui = document.getElementById('apk-ui'); if (ui) ui.style.display = cb.checked ? '' : 'none';
     scheduleInstallColumnAlignment();
-    fetch('api/v1/install/apk/allow', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'on=' + (cb.checked ? '1' : '0') }).catch(function () {});
+    transport.request('install.apk.allow', { on: cb.checked ? '1' : '0' }).catch(function () {});
   };
 
   // One counter across BOTH APK sources. Whichever the operator acted on last owns the preview, so a
@@ -433,7 +449,7 @@
     var mine = apkPreviewGeneration;
     // A failed probe deliberately changes nothing: the busy text is already painted, and inventing a
     // discard offer without knowing something is staged is the dishonesty this probe exists to avoid.
-    fetch('api/v1/install/apk/pending').then(function (r) { return r.json(); }).then(function (d) {
+    api('install.apk.pending').then(function (d) {
       if (mine !== apkPreviewGeneration || !d.pending) return;
       renderApkPendingRecovery(prev, d);
     }).catch(function () {});
@@ -461,7 +477,7 @@
     // Fail-quiet on purpose: this is a page-load enhancement, and a probe error must not paint a
     // recovery card the panel never confirmed. A real pending entry resurfaces on the next action
     // as upload-busy, which re-probes.
-    fetch('api/v1/install/apk/pending').then(function (r) { return r.json(); }).then(function (d) {
+    api('install.apk.pending').then(function (d) {
       if (mine !== apkPreviewGeneration || !d.pending) return;
       renderApkPendingRecovery(prev, d);
     }).catch(function () {});
@@ -475,8 +491,7 @@
     var mine = ++apkPreviewGeneration;
     apkFetchRequest = null;
     if (prev) { prev.innerHTML = '<p class="note">' + esc(t('install.apk.dynamic.uploading', 'Uploading + inspecting {filename}…', { filename: f.name })) + '</p>'; scheduleInstallColumnAlignment(); }
-    fetch('api/v1/install/apk', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f })
-      .then(function (r) { return r.json(); }).then(function (d) {
+    api('install.apk', { blob: f }).then(function (d) {
         if (mine !== apkPreviewGeneration) return;
         renderApkPreview(prev, d, t('install.apk.dynamic.upload_failed', 'Upload failed'));
       }).catch(function () {
@@ -511,11 +526,7 @@
         '<button class="pbtn" style="margin-top:8px" onclick="apkCancelFetch()">' + esc(t('install.apk.dynamic.cancel', 'Cancel')) + '</button>';
       scheduleInstallColumnAlignment();
     }
-    fetch('api/v1/install/apk/from-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'url=' + encodeURIComponent(url) + '&request=' + encodeURIComponent(request)
-    }).then(approvalAwareJson).then(function (d) {
+    approved('install.apk.from_url', { url: url, request: request }).then(function (d) {
       if (mine !== apkPreviewGeneration) return;
       apkFetchRequest = null;
       if (!d.ok && d.error === 'cancelled') {
@@ -539,11 +550,7 @@
     var request = apkFetchRequest;
     if (!request) return;
     apkMsg(t('install.apk.dynamic.cancelling', 'Cancelling…'));
-    fetch('api/v1/install/apk/fetch/cancel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'request=' + encodeURIComponent(request)
-    }).then(function () { apkMsg(''); }).catch(function () { apkMsg(''); });
+    transport.request('install.apk.fetch.cancel', { request: request }).then(function () { apkMsg(''); }).catch(function () { apkMsg(''); });
   };
 
   // Cancel/Discard is the counterpart of Install: it retires the inspected upload and deletes its
@@ -557,11 +564,7 @@
     var mine = ++apkPreviewGeneration;
     btn.disabled = true;
     apkMsg('');
-    fetch('api/v1/install/apk/discard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'token=' + encodeURIComponent(token)
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    api('install.apk.discard', { token: token }).then(function (d) {
       if (mine !== apkPreviewGeneration) return;
       if (d.ok) {
         if (prev) {
@@ -586,23 +589,21 @@
 
   window.apkInstall = function (btn) {
     btn.disabled = true; apkMsg(t('install.apk.dynamic.installing', 'Installing…'));
-    var body = 'token=' + encodeURIComponent(btn.getAttribute('data-token') || '');
-    fetch('api/v1/install/apk/commit', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }).then(approvalAwareJson).then(function (d) {
+    approved('install.apk.commit', { token: btn.getAttribute('data-token') || '' }).then(function (d) {
       if (d.status === 'busy') { apkMsg(t('install.apk.dynamic.install_busy', 'Another install is running — try again shortly.')); btn.disabled = false; return; }
       if (d.status === 'stale-or-missing') { apkMsg(t('install.apk.dynamic.stale', 'This APK was replaced or expired — choose or fetch it again.')); btn.disabled = false; return; }
       if (d.status !== 'started') { var status = d.status || 'error'; apkMsg(t('install.progress.could_not_start', 'Could not start: {status}', { status: apkErrorText(status) })); btn.disabled = false; return; }
       var prev = document.getElementById('apk-preview');
       if (prev) prev.querySelectorAll('button').forEach(function (action) { action.disabled = true; });
-      pollApk(0);
+      pollApk();
     }).catch(function (error) { apkMsg(requestFailure(error, t('install.apk.dynamic.start_failed', 'Failed to start.'))); btn.disabled = false; });
   };
 
-  function pollApk(n) {
-    fetch('api/v1/install/status').then(function (r) { return r.json(); }).then(function (d) {
-      if (d.running) { apkMsg(t('install.apk.dynamic.installing', 'Installing…')); setTimeout(function () { pollApk(n + 1); }, 2000); return; }
+  function pollApk() {
+    watchInstall(function () { apkMsg(t('install.apk.dynamic.installing', 'Installing…')); }, function (d) {
       var node = document.getElementById('apk-msg');
       if (node) { renderPresentedEvidence(node, d.presentation, d.message || 'done', 'install.apk.dynamic.result_label', 'Result:'); scheduleInstallColumnAlignment(); }
-    }).catch(function () { if (n < 20) setTimeout(function () { pollApk(n + 1); }, 2500); else apkMsg(t('install.apk.dynamic.lost_contact', 'Lost contact.')); });
+    }, function () { apkMsg(t('install.apk.dynamic.lost_contact', 'Lost contact.')); }, 50000);
   }
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -610,7 +611,7 @@
   // --- Uninstall an app ---
   function loadPackages() {
     var sel = document.getElementById('uninst-pkg'); if (!sel) return Promise.resolve();
-    return fetch('api/v1/packages').then(function (r) { return r.json(); }).then(function (d) {
+    return api('packages').then(function (d) {
       var ps = (d && d.packages) || [];
       if (!ps.length) { sel.textContent = ''; var none = document.createElement('option'); none.value = ''; none.textContent = t('install.uninstall.dynamic.none', 'no removable apps'); sel.appendChild(none); return true; }
       sel.innerHTML = ps.map(function (p) { return '<option value="' + esc(p.pkg) + '">' + esc(p.label) + ' (' + esc(p.pkg) + ')</option>'; }).join('');
@@ -622,8 +623,7 @@
     var pkg = sel && sel.value; if (!pkg) return;
     if (!confirm(t('install.uninstall.dynamic.confirm', 'Uninstall {package}? This removes the app and its data.', { package: pkg }))) return;
     btn.disabled = true; if (msg) msg.textContent = t('install.uninstall.dynamic.working', 'Uninstalling {package}…', { package: pkg });
-    fetch('api/v1/uninstall', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'pkg=' + encodeURIComponent(pkg) })
-      .then(approvalAwareJson).then(function (d) {
+    approved('uninstall', { pkg: pkg }).then(function (d) {
         if (msg) {
           var compatibility = d.ok ? ('Uninstalled ' + pkg) : ('Failed: ' + (d.result || d.error || 'error'));
           renderPresentedEvidence(msg, d.presentation, compatibility);
@@ -676,17 +676,14 @@
       return;
     }
     btn.disabled = true; bkMsg(pw ? t('install.backup.dynamic.building_encrypted', 'Building encrypted backup…') : t('install.backup.dynamic.building_plain', 'Building unencrypted ZIP…'));
-    fetch('api/v1/backup', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'passphrase=' + encodeURIComponent(pw) + '&allow_plaintext=' + (plain ? '1' : '0') +
-        '&include_companion=' + (comp && comp.checked ? '1' : '0') })
+    transport.request('backup', { passphrase: pw, allow_plaintext: plain ? '1' : '0', include_companion: comp && comp.checked ? '1' : '0' })
       .then(function (r) {
-        // A 202 approval JSON is not an archive. Parse it before the generic 2xx/blob branch so it
-        // can never be saved with an .hpb or .zip filename.
-        if (r.status === 202) return approvalAwareJson(r).then(function (d) {
-          throw new Error(d.message || d.error || t('install.backup.dynamic.accepted_without_archive', 'Backup was accepted without an archive.'));
-        });
-        if (r.ok) return r.blob();
-        return r.json().then(function (d) { throw new Error(d.message || d.error || t('install.backup.dynamic.request_failed', 'request failed')); });
+        // An approval body is not an archive. Check it before the blob branch so it can never be
+        // saved with an .hpb or .zip filename.
+        var d = approvalAwareJson(r);
+        if (r.outcome === 'applied' && r.result instanceof Blob) return r.result;
+        if (r.outcome === 'applied') throw new Error(d.message || d.error || t('install.backup.dynamic.accepted_without_archive', 'Backup was accepted without an archive.'));
+        throw new Error(d.message || d.error || t('install.backup.dynamic.request_failed', 'request failed'));
       }).then(function (b) {
         var a = document.createElement('a'), url = URL.createObjectURL(b);
         var switcher = document.getElementById('pswitch'), panelName = switcher && switcher.dataset && switcher.dataset.selfName;
@@ -706,15 +703,12 @@
     var out = document.getElementById('cfg-export-result');
     if (btn) btn.disabled = true;
     if (out) out.textContent = includeSecrets ? t('install.backup.dynamic.export_requesting_secrets', 'Requesting credential-inclusive export…') : t('install.backup.dynamic.export_building', 'Building configuration export…');
-    var path = 'api/v1/config/export' + (includeSecrets ? '?include_secrets=1' : '');
-    fetch(path, { headers: { 'Accept': 'application/json' } }).then(function (r) {
-      if (r.status === 202) return approvalAwareJson(r).then(function (d) {
-        throw new Error(d.message || d.error || t('install.backup.dynamic.export_accepted_without_download', 'Export was accepted without a download.'));
-      });
-      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (d) {
-        throw new Error(d.message || d.error || ('HTTP ' + r.status));
-      });
-      return r.blob();
+    transport.request('config.export', includeSecrets ? { include_secrets: 1 } : {}).then(function (r) {
+      var d = approvalAwareJson(r);
+      if (r.outcome !== 'applied') throw new Error(d.message || d.error || (r.code || r.outcome));
+      if (r.result instanceof Blob) return r.result;
+      if (!r.result || typeof r.result !== 'object' || !Object.keys(r.result).length) throw new Error(t('install.backup.dynamic.export_accepted_without_download', 'Export was accepted without a download.'));
+      return new Blob([JSON.stringify(r.result, null, 2)], { type: 'application/json' });
     }).then(function (blob) {
       var switcher = document.getElementById('pswitch'), panelName = switcher && switcher.dataset && switcher.dataset.selfName;
       var stem = String(panelName || document.title.split('·')[0] || 'panel').trim().replace(/[^a-zA-Z0-9._-]+/g, '-');
@@ -737,8 +731,7 @@
     var pw = (document.getElementById('rs-pw') || {}).value || '';
     var prev = document.getElementById('rs-preview');
     if (prev) { prev.innerHTML = '<p class="note">' + esc(t('install.backup.dynamic.restore_reading', 'Reading preview…')) + '</p>'; scheduleInstallColumnAlignment(); }
-    fetch('api/v1/restore?dry_run=1', { method: 'POST', headers: { 'X-Backup-Passphrase': pw }, body: rsFile })
-      .then(function (r) { return r.json(); }).then(function (d) {
+    api('restore', { dry_run: 1, passphrase: pw, blob: rsFile }).then(function (d) {
         if (!prev) return;
         if (!d.ok) { var refusedFallback = d.error || t('install.backup.dynamic.restore_unreadable', 'could not read bundle'); prev.textContent = ''; var refusedNode = document.createElement('p'); refusedNode.className = 'note'; setPresented(refusedNode, d.presentation, refusedFallback); prev.appendChild(refusedNode); scheduleInstallColumnAlignment(); return; }
         var comp = d.companion_files ? pluralText('install.backup.preview_files.one', 'install.backup.preview_files.other', d.companion_files, '{package} ({count} file)', '{package} ({count} files)', { package: d.companion_pkg, count: String(d.companion_files) }) : t('install.backup.dynamic.preview_none', 'none');
@@ -762,19 +755,16 @@
     if (!confirm(t('install.backup.dynamic.restore_confirm', 'Restore overwrites this panel\'s config and Companion login. Continue?'))) return;
     var pw = (document.getElementById('rs-pw') || {}).value || '';
     btn.disabled = true; bkMsg(t('install.backup.dynamic.restoring', 'Restoring…'));
-    fetch('api/v1/restore', { method: 'POST', headers: { 'X-Backup-Passphrase': pw }, body: rsFile })
-      .then(approvalAwareJson).then(function (d) {
+    approved('restore', { passphrase: pw, blob: rsFile }).then(function (d) {
         if (d.status === 'busy') { bkMsg(t('install.progress.operation_busy', 'Another operation is running — try again shortly.')); btn.disabled = false; return; }
         if (d.status !== 'started') { bkMsg(t('install.progress.could_not_start', 'Could not start: {status}', { status: closedToken(COMPONENT_STATUS, d.status || 'error') })); btn.disabled = false; return; }
-        pollRestore(0);
+        pollRestore();
       }).catch(function (error) { bkMsg(requestFailure(error, t('install.backup.dynamic.restore_start_failed', 'Restore failed to start.'))); btn.disabled = false; });
   };
 
-  function pollRestore(n) {
-    fetch('api/v1/install/status').then(function (r) { return r.json(); }).then(function (d) {
-      if (d.running) { bkMsg(t('install.backup.dynamic.restoring', 'Restoring…')); setTimeout(function () { pollRestore(n + 1); }, 2500); return; }
-      renderRestoreResult(d);
-    }).catch(function () { if (n < 20) setTimeout(function () { pollRestore(n + 1); }, 3000); else bkMsg(t('install.progress.lost_contact_reload', 'Lost contact — reload to check.')); });
+  function pollRestore() {
+    watchInstall(function () { bkMsg(t('install.backup.dynamic.restoring', 'Restoring…')); }, renderRestoreResult,
+      function () { bkMsg(t('install.progress.lost_contact_reload', 'Lost contact — reload to check.')); }, 60000);
   }
 
   // Config-only bundles are intentionally separate from full device backups. Preview first and carry
@@ -783,8 +773,8 @@
     var file = input.files && input.files[0]; if (!file) return;
     var out = document.getElementById('cfg-import-result');
     file.text().then(function (bodyText) {
-      return fetch('api/v1/config/import?dry_run=1', { method: 'POST', body: bodyText })
-        .then(function (r) { return r.json().then(function (body) { if (!r.ok) throw (body.status || r.status); return body; }); })
+      return transport.request('config.import', { dry_run: 1, body: bodyText })
+        .then(function (r) { var body = replyBody(r); if (r.outcome !== 'applied') throw (body.status || r.code || r.outcome); return body; })
         .then(function (dry) {
           var changes = dry.changes || [];
           var summary = changes.length ? changes.map(function (c) {
@@ -795,14 +785,14 @@
             if (out) out.textContent = t('install.backup.dynamic.import_cancelled', 'Import cancelled.');
             return;
           }
-          return fetch('api/v1/config/import?expected_cfg=' + encodeURIComponent(dry.expected_cfg || ''), { method: 'POST', body: bodyText })
-            .then(function (r) { return approvalAwareJson(r).then(function (body) { return { ok: r.ok, status: r.status, body: body }; }); })
+          return transport.request('config.import', { expected_cfg: dry.expected_cfg || '', body: bodyText })
+            .then(function (r) { return { ok: r.outcome === 'applied', code: r.code || r.outcome, body: approvalAwareJson(r) }; })
             .then(function (response) {
-              if (response.status === 409) {
+              if (response.code === 'not_commandable') {
                 if (out) out.textContent = t('install.backup.dynamic.import_changed', 'Import not applied: panel settings changed after the preview. Preview the file again.');
                 return;
               }
-              if (!response.ok) throw (response.body.status || response.status);
+              if (!response.ok) throw (response.body.status || response.code);
               var res = response.body;
               if (out) {
                 out.textContent = '';
@@ -831,35 +821,29 @@
     var form = event.target;
     if (!form || form.tagName !== 'FORM') return;
     // Compare resolved URLs, not pathnames: behind Panel Assistant's proxy the base is not the origin root.
-    var path, tame, density;
+    var path, tame = 'tame', density = 'display.density';
     try {
-      path = new URL(form.action, document.baseURI);
-      path = path.origin + path.pathname;
-      tame = new URL('api/v1/tame', document.baseURI).href;
-      density = new URL('api/v1/display/density', document.baseURI).href;
+      path = new URL(form.action, document.baseURI).pathname;
+      path = /\/tame$/.test(path) ? tame : /\/display\/density$/.test(path) ? density : null;
     } catch (_) { return; }
-    if (path !== tame && path !== density) return;
+    if (!path) return;
     event.preventDefault();
     var submitter = event.submitter;
-    var body = new URLSearchParams(new FormData(form));
-    if (submitter && submitter.name) body.set(submitter.name, submitter.value);
+    var fields = {};
+    new FormData(form).forEach(function (value, key) { fields[key] = value; });
+    if (submitter && submitter.name) fields[submitter.name] = submitter.value;
     var note = form.querySelector('.protected-form-result');
     if (!note) {
       note = document.createElement('p'); note.className = 'note protected-form-result'; form.appendChild(note);
     }
     note.textContent = t('install.backup.dynamic.form_applying', 'Applying…');
     if (submitter) submitter.disabled = true;
-    fetch(path, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    }).then(function (response) {
-      return approvalAwareJson(response).then(function (result) {
-        if (!response.ok || !result || result.ok !== true) {
-          throw new Error(result && (result.message || result.error) || ('HTTP ' + response.status));
-        }
-        return result;
-      });
+    transport.request(path, fields).then(function (response) {
+      var result = approvalAwareJson(response);
+      if (response.outcome !== 'applied' || result.ok !== true) {
+        throw new Error(result.message || result.error || (response.code || response.outcome));
+      }
+      return result;
     }).then(function (result) {
       var applied = presentation(result.presentation, result.message || t('install.backup.dynamic.form_applied', 'Applied.'));
       note.textContent = applied.text + ' ' + t('install.backup.dynamic.form_returning', 'Returning to this card…');
@@ -897,7 +881,7 @@
   apkProbePending();
 
   // Radio card: show it only when this panel actually has an EFR32 radio gateway.
-  var initialRadioLoad = fetch('api/v1/radio').then(function (r) { return r.json(); }).then(function (d) {
+  var initialRadioLoad = api('radio').then(function (d) {
     if (!d || !d.present) return true;
     var card = document.getElementById('radiocard'), st = document.getElementById('radio-status'),
         health = document.getElementById('radio-health');

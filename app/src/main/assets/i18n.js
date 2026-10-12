@@ -4,6 +4,16 @@
 //   <script id="ha-i18n" type="application/json">...</script>
 // and loads this file before any page-specific script. Callers remain the
 // authority for English fallback text: HaI18n.t(key, english, values).
+// Every page shell loads this file in <head> before any page module, so it also brings in the page
+// transport (transport.js, window.PaneldTransport) right behind itself while the document is parsing.
+(function () {
+  if (typeof window === "undefined") return;
+  var doc = window.document, current = doc && doc.currentScript;
+  if (window.PaneldTransport || !current || doc.readyState !== "loading" || typeof doc.write !== "function") return;
+  var src = current.src ? current.src.replace(/i18n\.js(?=[?#]|$)/, "transport.js") : "assets/transport.js";
+  doc.write('<script src="' + src.replace(/"/g, "&quot;") + '"><\/script>');
+})();
+
 (function (root) {
   "use strict";
 

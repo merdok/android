@@ -942,7 +942,6 @@ browserTest('Power safety partial repair offers and submits the exact acknowledg
 
   const acknowledgeForm = page.locator('form[data-power-safety-acknowledge]');
   await acknowledgeForm.waitFor();
-  assert.equal(await acknowledgeForm.getAttribute('action'), 'api/v1/power-safety/acknowledge');
   assert.equal(await acknowledgeForm.locator('input[name="fingerprint"]').inputValue(), fingerprint);
   const hideButton = page.getByRole('button', { name: 'Hide this caution' });
   assert.equal(await hideButton.getAttribute('data-hardened-approval'), '');
@@ -1745,7 +1744,8 @@ browserTest('Dashboard eventually releases Top processes hint when CPU ranking s
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
   const card = page.locator('[data-layout-key="top-processes"]');
   assert.equal(await card.getAttribute('data-card-size-hint'), '260');
-  await page.evaluate(async () => { for (let poll = 0; poll < 11; poll++) await perf(); });
+  // Each `perf` family value is one reading; drive eleven of them (the floor would otherwise space them 2 s apart).
+  await page.evaluate(async () => { for (let poll = 0; poll < 11; poll++) perf({ top: null }, 'known'); });
   await page.waitForFunction(() => !document.querySelector('[data-layout-key="top-processes"]').hasAttribute('data-card-size-hint'));
   assert.equal(await card.evaluate((node) => node.style.minHeight), `${await card.evaluate((node) => node._hwm)}px`);
 });
@@ -3257,7 +3257,7 @@ browserTest('Auto-sleep retains chart geometry and swaps a refreshed source snap
   assert.equal(await page.locator('.auto-sleep-track').nth(1).getAttribute('title'), 'Click to include this source');
 
   await page.getByRole('button', { name: '6h' }).click();
-  await page.getByText('History request failed (HTTP 409).').waitFor();
+  await page.getByText('History request failed (HTTP not_commandable).').waitFor();
   assert.equal(await page.locator('.auto-sleep-lane.source').count(), 20);
   assert.equal(requestedHistoryHours.at(-1), '6');
   assert.equal(await page.getByRole('button', { name: '24h' }).getAttribute('aria-pressed'), 'true');
@@ -3520,7 +3520,7 @@ browserTest('Auto-sleep source failure keeps the exact focused and scrolled char
   await page.locator('.auto-sleep-loading-overlay').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#auto-sleep-chart').getAttribute('aria-busy'), 'true');
   failedSourcePost.resolve(json({ error: 'failed' }, 500));
-  await page.getByText('Could not update this activity source (HTTP 500).').waitFor();
+  await page.getByText('Could not update this activity source (HTTP failed).').waitFor();
   await page.locator('.auto-sleep-loading-overlay').waitFor({ state: 'hidden' });
   assert.equal(await snapshot.evaluate((node) => node.isConnected), true);
   assert.equal(await scroll.evaluate((node) => node.isConnected && node.scrollTop), 61);
@@ -4701,7 +4701,11 @@ async function startCameraHarness(t, payload, pageFixture = cameraFixture, optio
       if (state.payload === 'unreachable') {
         return { status: 503, headers: { 'content-type': 'text/plain' }, body: 'camera-status-unavailable\n' };
       }
-      return json(state.payload);
+      // A live panel's frame age moves on every reading, so each reading is a new value for the
+      // camera family (which delivers on change); the age stays inside its stalled/not-stalled side.
+      const reading = state.payload && typeof state.payload.last_frame_age_ms === 'number'
+        ? { ...state.payload, last_frame_age_ms: state.payload.last_frame_age_ms + (served.length % 7) } : state.payload;
+      return json(reading);
     } finally {
       open--;
     }
@@ -4972,12 +4976,12 @@ browserTest('A hidden tab stops polling, and the gap it leaves is not counted as
   const { page, served } = await startCameraHarness(t, cameraShort, cameraFixture, { hideable: true });
 
   await untilCamera(page, '10.1 of 15 fps');
-  await page.evaluate(() => { window.__hidden = true; });
+  await page.evaluate(() => { window.__hidden = true; document.dispatchEvent(new Event('visibilitychange')); });
   const parked = served.length;
   await page.waitForTimeout(7_000);
   assert.equal(served.length, parked, 'a hidden tab must not keep asking the panel for status');
 
-  await page.evaluate(() => { window.__hidden = false; });
+  await page.evaluate(() => { window.__hidden = false; document.dispatchEvent(new Event('visibilitychange')); });
   const resumed = served.length;
   await untilCamera(page, 'not keeping up');
   assert.equal(served.length - resumed >= 3, true,

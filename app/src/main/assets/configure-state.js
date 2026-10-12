@@ -224,13 +224,12 @@ window.ConfigurePage = {};
     } catch (_) { return ""; }
   }
 
-  function configSchemaUrl(haLanguage) {
-    var params = new URLSearchParams();
+  function configSchemaArgs(haLanguage) {
+    var args = {};
     var explicit = browserLanguageChoice();
-    if (explicit) params.set("lang", explicit);
-    if (validLanguageTag(haLanguage)) params.set("ha_lang", haLanguage);
-    var query = params.toString();
-    return "api/v1/config/schema" + (query ? "?" + query : "");
+    if (explicit) args.lang = explicit;
+    if (validLanguageTag(haLanguage)) args.ha_lang = haLanguage;
+    return args;
   }
 
   // The Configure selector is the explicit panel setting. Once its save is confirmed, an older
@@ -271,18 +270,14 @@ window.ConfigurePage = {};
     if (reloadMessage) document.getElementById("cfg-msg").textContent = reloadMessage;
   }
 
-  function readLocalizedSchema(response) {
-    return response.json();
-  }
-
   function reloadSchemaForHaLanguage() {
     if (cfg.values.ui_language !== "auto" || admittedBrowserLanguage(browserLanguageChoice()) ||
         cfg.haUserStatus.phase !== "connected" || !validLanguageTag(cfg.haUserStatus.language)) return;
     var request = ++cfg.schemaLanguageRequest;
     var generation = cfg.editGeneration;
-    fetch(configSchemaUrl(cfg.haUserStatus.language), { headers: { "Accept": "application/json" }, cache: "no-store" })
-      .then(function (response) {
-        return response.json();
+    window.PaneldTransport.request("config.schema", configSchemaArgs(cfg.haUserStatus.language))
+      .then(function (reply) {
+        return reply.result;
       })
       .then(function (nextSchema) {
         if (request !== cfg.schemaLanguageRequest || cfg.dirty || cfg.editGeneration !== generation ||
@@ -301,16 +296,15 @@ window.ConfigurePage = {};
     return i18nText("configure.approval.retry", "Approve this request on the panel, then retry it.");
   }
 
-  function approvalAwareJson(response) {
-    return response.json().catch(function () { return {}; }).then(function (body) {
-      if (response.status === 202 && body && body.error === "approval-required") {
-        var error = new Error(approvalMessage(body));
-        error.approvalRequired = true;
-        error.body = body;
-        throw error;
-      }
-      return body;
-    });
+  function approvalAware(reply) {
+    var body = reply.result && typeof reply.result === "object" ? reply.result : {};
+    if (reply.outcome === "pending_approval") {
+      var error = new Error(approvalMessage(body));
+      error.approvalRequired = true;
+      error.body = body;
+      throw error;
+    }
+    return body;
   }
 
   function el(tag, attrs, kids) {
@@ -332,14 +326,13 @@ window.ConfigurePage = {};
   cfg.localizedPlaceholder = localizedPlaceholder;
   cfg.localizedEnumOption = localizedEnumOption;
   cfg.localizedPageHref = localizedPageHref;
-  cfg.configSchemaUrl = configSchemaUrl;
+  cfg.configSchemaArgs = configSchemaArgs;
   cfg.acceptSavedUiLanguage = acceptSavedUiLanguage;
   cfg.reloadForSavedLocale = reloadForSavedLocale;
   cfg.reloadSavedLocaleWhenSettled = reloadSavedLocaleWhenSettled;
   cfg.consumeLocaleReloadMessage = consumeLocaleReloadMessage;
-  cfg.readLocalizedSchema = readLocalizedSchema;
   cfg.reloadSchemaForHaLanguage = reloadSchemaForHaLanguage;
   cfg.approvalMessage = approvalMessage;
-  cfg.approvalAwareJson = approvalAwareJson;
+  cfg.approvalAware = approvalAware;
   cfg.el = el;
 })(window.ConfigurePage);

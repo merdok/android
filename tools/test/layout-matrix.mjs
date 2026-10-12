@@ -14,6 +14,7 @@ import http from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachUiSocket } from './fixtures/ui-socket.mjs';
 import {
   parseRunCount,
   requireBaselineRunCount,
@@ -88,15 +89,26 @@ async function measure(browser, port, width, font) {
   return r;
 }
 
+// The page talks to the fake stub door (WebSocket, the same mocks) unless LAYOUT_TRANSPORT=http.
+const SOCKET = process.env.LAYOUT_TRANSPORT !== 'http';
 const server = http.createServer(async (req, res) => {
   try { const p = decodeURIComponent(req.url.split('?')[0]); const file = resolve(ROOT, '.' + p); const rel = relative(ROOT, file);
     if (isAbsolute(rel) || rel === '..' || rel.startsWith('../')) throw new Error('path outside fixture root');
-    const body = await readFile(file);
+    let body = await readFile(file);
+    if (SOCKET && p.endsWith('/info-fixture.html')) body = String(body).replace('<body>', '<body data-ui-socket="/ui">');
     res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream' }); res.end(body);
   } catch { res.writeHead(404); res.end('not found'); }
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
+await attachUiSocket(server, async ({ url }) => {
+  const path = url.split('?')[0];
+  if (path.endsWith('/perf')) return { body: JSON.stringify(perfPayload()) };
+  if (path.endsWith('/proximity')) return { body: JSON.stringify(proxPayload()) };
+  if (path.endsWith('/inspect')) return { body: JSON.stringify({ running: false, port: 9222, status: 'no-socket' }) };
+  return { status: 404, body: '{}' };
+}, { record: null });
+console.log(`transport: ${SOCKET ? 'WebSocket stub door' : 'HTTP'}`);
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] });
 
 const results = {};

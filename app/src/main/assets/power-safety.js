@@ -19,11 +19,11 @@
     return t('runtime.power_safety.repair.failed_no_reboot', body && body.message || 'Power safety repair failed; no reboot was attempted.');
   }
 
-  function parseResponse(response) {
-    return response.text().then(function (text) {
-      var body = {};
-      try { body = text ? JSON.parse(text) : {}; } catch (_) { body = { message: text }; }
-      return { response: response, body: body };
+  function send(op, args) {
+    return window.PaneldTransport.request(op, args).then(function (reply) {
+      var body = reply.result;
+      if (typeof body === 'string') body = { message: body };
+      return { reply: reply, body: body && typeof body === 'object' ? body : {} };
     });
   }
 
@@ -33,7 +33,6 @@
     if (!powerSafety || !powerSafety.acknowledge_available || !fingerprint) return false;
     form.removeAttribute('data-power-safety-repair');
     form.setAttribute('data-power-safety-acknowledge', '');
-    form.action = 'api/v1/power-safety/acknowledge';
     var hidden = document.createElement('input');
     hidden.type = 'hidden';
     hidden.name = 'fingerprint';
@@ -60,17 +59,13 @@
       var acknowledgeResult = form.querySelector('.power-safety-acknowledge-result');
       if (acknowledgeButton) acknowledgeButton.disabled = true;
       if (acknowledgeResult) acknowledgeResult.textContent = t('runtime.power_safety.ack.saving', 'Saving acknowledgement…');
-      var encoded = new URLSearchParams(new FormData(form)).toString();
-      fetch(form.action, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: encoded
-      })
-        .then(parseResponse)
+      var fields = {};
+      new FormData(form).forEach(function (value, key) { fields[key] = value; });
+      send('power_safety.acknowledge', fields)
         .then(function (reply) {
           var body = reply.body;
           if (acknowledgeResult) acknowledgeResult.textContent = body.message && !localized('runtime.power_safety.ack.not_hidden') ? body.message : t('runtime.power_safety.ack.not_hidden', body.message || 'The caution was not hidden.');
-          if (reply.response.ok && body.acknowledged) {
+          if (reply.reply.outcome === 'applied' && body.acknowledged) {
             var banner = form.closest('[data-power-safety-banner]');
             if (banner) banner.remove();
             return;
@@ -89,17 +84,16 @@
     var result = form.querySelector('.power-safety-repair-result');
     if (button) button.disabled = true;
     if (result) result.textContent = t('runtime.power_safety.repair.applying', 'Applying and verifying…');
-    fetch(form.action, { method: 'POST', headers: { 'Accept': 'application/json' } })
-      .then(parseResponse)
+    send('power_safety.repair', {})
       .then(function (reply) {
-          var response = reply.response;
+          var outcome = reply.reply.outcome;
           var body = reply.body;
           if (result) result.textContent = repairMessage(body);
-          if (response.status === 202 && body.error === 'approval-required') {
+          if (outcome === 'pending_approval') {
             if (button) button.disabled = false;
             return;
           }
-          if (!response.ok || (body.status !== 'repaired' && body.status !== 'partial')) {
+          if (outcome !== 'applied' || (body.status !== 'repaired' && body.status !== 'partial')) {
             if (button) button.disabled = false;
             return;
           }

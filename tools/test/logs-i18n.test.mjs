@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
-import { i18nHelper } from './fixtures/i18n-bridge.mjs';
+import { i18nHelper, installTransport } from './fixtures/i18n-bridge.mjs';
 
 const asset = process.argv[2] || new URL('../../app/src/main/assets/logs.js', import.meta.url);
 
@@ -54,7 +54,9 @@ async function loadLogs(translations = {}, helper = true) {
     addEventListener() {},
   };
   window.HaI18n = i18nHelper({ strings: helper ? translations : {} }, calls);
-  vm.runInNewContext(source, { window, document, EventSource });
+  const context = vm.createContext({ window, document, EventSource });
+  installTransport(context);
+  vm.runInContext(source, context);
   return { window, document, nodes, streams, calls, events };
 }
 
@@ -107,7 +109,7 @@ test('logs status and pause controls consume translations while preserving UI sy
   assert.equal(rig.nodes['lg-state'].textContent, '· WEBVIEW-LIVE-T');
 
   rig.document.hidden = true;
-  rig.events.find(({ name }) => name === 'visibilitychange').callback();
+  rig.events.filter(({ name }) => name === 'visibilitychange').forEach(({ callback }) => callback());
   assert.equal(rig.nodes['lg-state'].textContent, '· HIDDEN-T');
 
   assert.deepEqual(

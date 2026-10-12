@@ -4,8 +4,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../../../app/src/main/assets/i18n.js', import.meta.url), 'utf8');
+const transportSource = readFileSync(new URL('../../../app/src/main/assets/transport.js', import.meta.url), 'utf8');
 // Inlined, so its own comment's </script> must not close the element.
 const inline = source.replace(/<\/script/gi, '<\\/script');
+const transportInline = transportSource.replace(/<\/script/gi, '<\\/script');
 
 // The server serves the release locales (one catalogue file each) plus the debug pseudolocale, so the
 // pages keep ?lang on their own links for exactly these.
@@ -19,7 +21,7 @@ function payloadJson({ locale = 'en', locales = LOCALES, strings = {}, ...page }
 // For a browser fixture's <head>. The payload is the page's projection: locale and strings, plus any
 // page fields (install's languages).
 export function i18nBridge(payload) {
-  return `<script id="ha-i18n" type="application/json">${payloadJson(payload).replace(/</g, '\\u003c')}</script><script>${inline}</script>`;
+  return `<script id="ha-i18n" type="application/json">${payloadJson(payload).replace(/</g, '\\u003c')}</script><script>${transportInline}</script><script>${inline}</script>`;
 }
 
 // For a node:vm fixture: the real HaI18n built from the payload. When `calls` is given, each
@@ -41,4 +43,13 @@ export function installHaNotice(context) {
   const options = { filename: 'i18n.js#HaNotice' };
   if (context === globalThis) vm.runInThisContext(noticeSource, options);
   else vm.runInContext(noticeSource, vm.isContext(context) ? context : vm.createContext(context), options);
+}
+
+// For a node:vm fixture: the real window.PaneldTransport in that context, so the page module under test
+// reaches the context's own fetch/EventSource/WebSocket stubs through it (the shell loads transport.js
+// right after i18n.js).
+export function installTransport(context) {
+  const options = { filename: 'transport.js' };
+  if (context === globalThis) vm.runInThisContext(transportSource, options);
+  else vm.runInContext(transportSource, vm.isContext(context) ? context : vm.createContext(context), options);
 }

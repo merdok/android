@@ -92,8 +92,9 @@ function jsonResponse(response, body, status = 200) {
 
 async function rig(t, { strings = translations, spec = fixtureSpec(), failSpec = false, initScript } = {}) {
   assert.ok(existsSync(chrome), `Chromium is required for the API Explorer browser gate: ${chrome}`);
-  const [htmlSource, apiSource, helperSource] = await Promise.all([
+  const [htmlSource, apiSource, helperSource, transportSource] = await Promise.all([
     readFile(htmlAsset, 'utf8'), readFile(apiAsset, 'utf8'), readFile(helperAsset, 'utf8'),
+    readFile(new URL('../../app/src/main/assets/transport.js', import.meta.url), 'utf8'),
   ]);
   const requests = [];
   const payload = JSON.stringify({
@@ -116,6 +117,9 @@ async function rig(t, { strings = translations, spec = fixtureSpec(), failSpec =
     }
     if (url.pathname === '/assets/i18n.js') {
       response.writeHead(200, { 'content-type': 'application/javascript' }); response.end(helperSource); return;
+    }
+    if (url.pathname === '/assets/transport.js') {
+      response.writeHead(200, { 'content-type': 'application/javascript' }); response.end(transportSource); return;
     }
     if (url.pathname === '/assets/api.js') {
       response.writeHead(200, { 'content-type': 'application/javascript' }); response.end(apiSource); return;
@@ -166,7 +170,8 @@ test('API Explorer localizes all controlled chrome while preserving frozen techn
   assert.equal(await page.locator('#api-intro-network').textContent(), translations['api.intro.network']);
   assert.equal(await page.locator('#api-intro-import').textContent(), translations['api.intro.import']);
   assert.equal(await page.locator('#api-intro-import a').textContent(), 'openapi.json');
-  assert.equal(await page.locator('#api-intro-import a').getAttribute('href'), 'api/v1/openapi.json');
+  // The spec is read through the page transport, so the import link carries that body as an object URL.
+  assert.match(await page.locator('#api-intro-import a').getAttribute('href'), /^blob:/);
   assert.equal(await page.locator('#hardened-approval-description').textContent(), translations['configure.hardened.action_approval']);
   assert.equal(await page.locator('#api-approval-key').textContent(), translations['shell.hardened.key']);
   assert.match(await page.locator('button').first().textContent(), /^发送 GET$/);
@@ -284,7 +289,7 @@ test('API Explorer spec-load failure localizes its frame and isolates hostile br
   });
   const message = page.locator('main.pickles code');
   await message.waitFor();
-  assert.match(await message.textContent(), /^无法加载 api\/v1\/openapi\.json：<img/);
+  assert.match(await message.textContent(), /^无法加载 openapi\.json：<img/);
   assert.equal(await message.getAttribute('lang'), 'und');
   assert.equal(await message.locator('img').count(), 0);
   assert.equal(await page.evaluate(() => window.__errorOwned), undefined);

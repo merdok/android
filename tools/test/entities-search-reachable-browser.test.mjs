@@ -37,7 +37,9 @@ function html() {
     function rows(n,p){var out=[];for(var i=0;i<n;i++)out.push({entity_id:p+'.entity_'+i,reasons:'dashboard',static:true,access_1h:1,rate_1h_bps:0,last_access:0});return out}
     window.fetch=async(url)=>{var body;if(url.includes('/entities/issues'))body={items:[],dashboard_issue_count:0,blocking_issue_count:0,ignored_issue_count:0,dynamic_expressions:[]};
       else if(url.includes('/entities?')){var q=new URL(url,'http://panel.test').searchParams,total=(totals[(q.get('q')||'').trim()]||{})[q.get('filter')]||0;body={items:rows(Math.min(total,100),q.get('filter')),total:total}}
-      else body=${JSON.stringify(status)};return{ok:true,status:200,json:async()=>body,text:async()=>''}};`;
+      else body=${JSON.stringify(status)};return{ok:true,status:200,json:async()=>body,text:async()=>''}};
+    // The page transport reads a Response; the fake answers above become one.
+    window.__fakeFetch=window.fetch;window.fetch=async(url,options={})=>{var r=await window.__fakeFetch(String(url),options),b='';if(r.json){try{b=JSON.stringify(await r.json())}catch(e){b=''}}else if(r.text)b=await r.text();return new Response(b,{status:r.status||200,headers:{'content-type':'application/json'}})};`;
   const table = (id, title, short, filter) => `
     <div class="card entity-list" data-filter="${filter}" data-table="${id}" data-short="${short}"><h2>${title}</h2>
       <div class="entity-bulk"><button class="pbtn" data-bulk="pinned">Pin selected</button><span class="muted entity-selected">0 selected</span></div>
