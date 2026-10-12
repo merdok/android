@@ -19,7 +19,8 @@ internal fun Route.managementRoutes(
     refreshStorage: suspend () -> StorageHealthSnapshot?,
     cachedStorage: () -> StorageHealthSnapshot,
 ) = ops {
-    get("/diag") {
+    // The stub serves `/diag` and `/api/v1/diag` over HTTP (protocol section 20.7); this is the `diag` read.
+    served("/diag", name = "diag") {
         call.respondText(
             withContext(Dispatchers.IO) { diagnostics() },
             ContentType.Text.Plain,

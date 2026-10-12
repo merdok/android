@@ -14,7 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ProximityRoutesTest {
-    @Test fun `proximity calibration keeps UI origin form and source guards and retired responses`() = testApplication {
+    @Test fun `proximity calibration keeps UI origin form and source guards`() = testApplication {
         var present = false
         var accepted = false
         var received = ""
@@ -80,16 +80,5 @@ class ProximityRoutesTest {
         }
         assertEquals(HttpStatusCode.Accepted, embedded.status)
         assertEquals("start/session-2", received)
-
-        for (path in listOf("teach", "test", "relearn", "capture", "threshold", "sensitivity", "reset")) {
-            val retired = client.post("/api/v1/proximity/$path")
-            assertEquals("$path status", HttpStatusCode.Gone, retired.status)
-            val expected = when (path) {
-                "teach", "test" -> "Use on-panel proximity setup from the HTML UI.\n"
-                "relearn" -> "Use Reset to profile from the HTML UI.\n"
-                else -> "{\"error\":\"automatic proximity learning replaced this operation\"}"
-            }
-            assertEquals("$path body", expected, retired.bodyAsText())
-        }
     }
 }

@@ -879,6 +879,7 @@ class Config private constructor(
 
     private fun forgetHaRoutes(editor: SharedPreferences.Editor) {
         editor.remove(HaConnectionRoutes.RECORD_KEY)
+        editor.remove(UI_ROUTES_CLOSED_PREF)
         editor.putLong(HaConnectionRoutes.EPOCH_KEY, haRouteEpoch() + 1)
     }
 
@@ -1286,6 +1287,22 @@ class Config private constructor(
 
     fun markPanelAssistantConnected() {
         prefs.edit().putBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, true).apply()
+    }
+
+    /**
+     * Whether the `:8888` listener serves only the stub (protocol section 20.8): true once a hello from the
+     * bound Panel Assistant granted both `ui_subscribe` and `ui_bundle`. It persists through outages and
+     * restarts; a later accepted hello that does not grant both reopens the REST routes, and forgetting the
+     * Home Assistant binding reopens them until the new binding grants both.
+     */
+    val uiRoutesClosed: Boolean get() = prefs.getBoolean(UI_ROUTES_CLOSED_PREF, false)
+
+    /** Record the capabilities an accepted hello granted; the one writer of [uiRoutesClosed]. */
+    fun recordPanelAssistantGrant(capabilities: Collection<String>): Boolean {
+        val closed = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE in capabilities &&
+            io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE in capabilities
+        if (closed == uiRoutesClosed) return true
+        return durableCommit { putBoolean(UI_ROUTES_CLOSED_PREF, closed) }
     }
 
     fun migrationNoticeVisible(versionCode: Int = BuildConfig.VERSION_CODE): Boolean =
@@ -2260,12 +2277,6 @@ class Config private constructor(
             }
         }
 
-    // --- arrangeable dashboard layout (per-panel; serialized by the web UI, opaque to the backend) ---
-    /** Gridstack layout JSON for the Dashboard tab, persisted per-panel (empty = default layout). */
-    var uiDashboardLayout: String
-        get() = prefs.getString("ui_dashboard_layout", "")!!
-        set(v) { prefs.edit().putString("ui_dashboard_layout", v).apply() }
-
     // --- registry-driven generic access (HTTP config API + bundles + revisions) -----------------
     // These read/write a setting by its [SettingSpec] so the config API, form generation, export and
     // import all go through one typed path instead of ~35 bespoke getters. Typed convenience getters
@@ -2612,10 +2623,11 @@ class Config private constructor(
         /** The stored keys [panelAssistantConnectionSeen] reads, for listeners that must notice it turning true. */
         val PANEL_ASSISTANT_CONNECTION_KEYS = setOf(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, "ha_setup_handover")
         internal const val PANEL_ASSISTANT_CONNECTION_SEEN_PREF = "migration_notice_connection_seen"
+        internal const val UI_ROUTES_CLOSED_PREF = "ui_routes_closed"
         /** Every Config wrapper addresses one process-wide SQLite namespace, so transaction ownership
          * must be process-wide as well. */
         private val CONFIG_LOCK = Any()
-        private const val SECURITY_MODE_PREF = "device_local_hardened_security"
+        internal const val SECURITY_MODE_PREF = "device_local_hardened_security"
         /** The minted device identity. `device_local_` and unregistered: never exported, never restored. */
         internal const val DEVICE_UID_PREF = "device_local_device_uid_v1"
         private const val DEVICE_UID_BYTES = 16

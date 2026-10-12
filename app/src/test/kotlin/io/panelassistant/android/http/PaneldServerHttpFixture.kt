@@ -79,8 +79,27 @@ internal class PaneldServerHttpFixture(
     val clearStorageGate = io.panelassistant.android.util.GenerationSingleFlight()
     val companionCache get() = observations.companionServerCache
     val manageTable = io.panelassistant.android.ManageTable()
+    /** The stub's pages and socket enter these operations as a dispatcher would; channel commands are absent. */
+    private val operations = io.panelassistant.android.ManageOperations(manageTable, { io.panelassistant.android.security.LocalApprovalBroker.instance })
+    val door: io.panelassistant.android.ManageDoor = object : io.panelassistant.android.ManageDoor {
+        override fun manage(
+            commandId: String, op: String, args: org.json.JSONObject, origin: io.panelassistant.android.CommandOrigin,
+            blobs: io.panelassistant.android.ManageBlobs?, onPending: () -> Unit, done: (io.panelassistant.android.ManageReply) -> Unit,
+        ) = operations.manage(commandId, op, args, origin, blobs, onPending, done)
+        override fun submit(
+            command: io.panelassistant.android.panelassistant.PanelAssistantCommand,
+            origin: io.panelassistant.android.CommandOrigin,
+            done: (io.panelassistant.android.panelassistant.PanelAssistantCommandResult) -> Unit,
+        ) = done(io.panelassistant.android.panelassistant.PanelAssistantCommandResult.Failed("failed"))
+        override fun subscribe(family: String, origin: io.panelassistant.android.CommandOrigin, sink: io.panelassistant.android.ManageSink) =
+            operations.subscribe(family, origin, sink)
+        override fun closeOrigin(origin: io.panelassistant.android.CommandOrigin) = operations.closeOrigin(origin)
+    }
     val server = allocate(PaneldServer::class.java).apply {
         field("manageTable", this@PaneldServerHttpFixture.manageTable)
+        field("door", { door })
+        field("goneCounts", GoneCounts())
+        field("stubBlobs", StubBlobs())
         field("config", config)
         field("scope", scope)
         field("system", allocate(io.panelassistant.android.control.SystemController::class.java))
@@ -127,7 +146,6 @@ internal class PaneldServerHttpFixture(
         field("radioStatus", { null })
         field("onZigbeeJoinRetry", { error("Unavailable radio must not join") })
         field("webViewConsoleEnabled", { false })
-        field("logShipStatus", { io.panelassistant.android.logship.LogShipStatusProjection(false, false, "disabled") })
         if (logApp != null) field("logApp", logApp)
         field("powerSafety", powerSafety)
         field("onRepairPowerSafety", repairPowerSafety)
@@ -407,6 +425,7 @@ internal class PaneldServerHttpFixture(
     }
 
     override fun close() {
+        operations.stop()
         scope.cancel()
         pending.close()
         check(directory.deleteRecursively()) { "Could not remove baseline directory" }

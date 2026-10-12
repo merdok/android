@@ -64,6 +64,30 @@ internal fun interface ManageHandler {
     suspend fun handle(request: ManageRequest): ManageReply
 }
 
+/**
+ * The dispatcher entries a door calls (protocol section 20.2): named operations, channel commands and
+ * subscriptions, each with the origin the door sets. [PanelCommandDispatcher] is the production one; a door
+ * holds no handlers of its own.
+ */
+internal interface ManageDoor {
+    fun manage(
+        commandId: String,
+        op: String,
+        args: JSONObject,
+        origin: CommandOrigin,
+        blobs: ManageBlobs? = null,
+        onPending: () -> Unit = {},
+        done: (ManageReply) -> Unit,
+    )
+    fun submit(
+        command: io.panelassistant.android.panelassistant.PanelAssistantCommand,
+        origin: CommandOrigin,
+        done: (io.panelassistant.android.panelassistant.PanelAssistantCommandResult) -> Unit,
+    )
+    fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription?
+    fun closeOrigin(origin: CommandOrigin)
+}
+
 /** A sensitive operation from Panel Assistant is waiting for [approvalId] on the panel's own screen. */
 internal class ManageApprovalPending(val approvalId: String) : RuntimeException("approval pending")
 

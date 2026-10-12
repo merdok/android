@@ -14,11 +14,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PerformanceRoutesTest {
-    @Test fun `performance reads preserve admission binding errors history and ungated costs`() = testApplication {
+    @Test fun `performance reads preserve admission binding errors and root guards`() = testApplication {
         var admitted = true
         var bindingCalls = 0
         var perfCalls = 0
-        var historyHours = -1
         application {
             paneldRoot(
                 allowedHosts = { emptySet() },
@@ -33,8 +32,6 @@ class PerformanceRoutesTest {
                         },
                         perf = { perfCalls++; "{\"sample\":1}" },
                         binding = { bindingCalls++; if (bindingCalls == 1) null else "{\"bound\":true}" },
-                        costs = { "{\"cost\":1}" },
-                        history = { hours -> historyHours = hours; "{\"hours\":$hours}" },
                     )
                 }
             }
@@ -59,20 +56,12 @@ class PerformanceRoutesTest {
         assertEquals(HttpStatusCode.OK, bound.status)
         assertEquals("{\"bound\":true}", bound.bodyAsText())
 
-        assertEquals("{\"hours\":24}", client.get("/api/v1/perf/history?hours=bad").bodyAsText())
-        assertEquals(24, historyHours)
-        assertEquals("{\"hours\":7}", client.get("/api/v1/perf/history?hours=7").bodyAsText())
-        assertEquals(7, historyHours)
-
         admitted = false
         val refused = client.get("/api/v1/perf")
         assertEquals(HttpStatusCode.Forbidden, refused.status)
         assertEquals("active denied\n", refused.bodyAsText())
         assertEquals(1, perfCalls)
-        val costs = client.get("/api/v1/perf/costs")
-        assertEquals(HttpStatusCode.OK, costs.status)
-        assertEquals("{\"cost\":1}", costs.bodyAsText())
-        val badHost = client.get("/api/v1/perf/costs") { header(HttpHeaders.Host, "elsewhere.example") }
+        val badHost = client.get("/api/v1/perf") { header(HttpHeaders.Host, "elsewhere.example") }
         assertEquals(HttpStatusCode.Forbidden, badHost.status)
         assertEquals("host not allowed\n", badHost.bodyAsText())
     }

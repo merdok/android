@@ -201,7 +201,7 @@ class ManagementHttpTest {
                     val response = client.get("/api/v1/diag")
                     assertEquals(HttpStatusCode.OK, response.status)
                     assertEquals("text/plain", response.headers["Content-Type"]?.substringBefore(';'))
-                    assertEquals(report, response.bodyAsText())
+                    assertEquals(report + "gone (410) answers: 0\n", response.bodyAsText())
                 }
             }
         }

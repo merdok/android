@@ -42,9 +42,6 @@ class PowerSafetyRoutesTest {
         ).use { fixture ->
             testApplication {
                 application { fixture.mount(this) }
-                val state = client.get("/api/v1/power-safety/state")
-                assertEquals(HttpStatusCode.OK, state.status)
-                assertEquals("caution\n", state.bodyAsText())
                 val passive = client.get("/api/v1/power-safety") { header("Sec-Fetch-Site", "cross-site") }
                 assertEquals(HttpStatusCode.OK, passive.status)
                 assertEquals("caution", JSONObject(passive.bodyAsText()).getString("state"))

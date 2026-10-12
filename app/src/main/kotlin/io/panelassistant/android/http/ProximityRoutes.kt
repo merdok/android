@@ -10,8 +10,6 @@ import io.ktor.server.routing.post
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val RETIRED_PROXIMITY_OPERATION =
-    "{\"error\":\"automatic proximity learning replaced this operation\"}"
 private const val PROXIMITY_SOURCE_REQUIRED = "{\"error\":\"proximity_source_required\"}"
 
 /** Refusals are JSON like every other answer here, so the page can show the panel's own reason. */
@@ -51,19 +49,5 @@ internal fun Route.proximityRoutes(
         call.respondText(proximityJson(), ContentType.Application.Json,
             if (accepted) HttpStatusCode.Accepted else HttpStatusCode.Conflict)
     }
-    }
-    post("/proximity/teach") {
-        call.respondText("Use on-panel proximity setup from the HTML UI.\n", status = HttpStatusCode.Gone)
-    }
-    post("/proximity/test") {
-        call.respondText("Use on-panel proximity setup from the HTML UI.\n", status = HttpStatusCode.Gone)
-    }
-    post("/proximity/relearn") {
-        call.respondText("Use Reset to profile from the HTML UI.\n", status = HttpStatusCode.Gone)
-    }
-    for (path in listOf("capture", "threshold", "sensitivity", "reset")) {
-        post("/proximity/$path") {
-            call.respondText(RETIRED_PROXIMITY_OPERATION, ContentType.Application.Json, HttpStatusCode.Gone)
-        }
     }
 }

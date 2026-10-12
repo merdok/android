@@ -5,7 +5,6 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
-import io.ktor.http.headersOf
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.httpMethod
@@ -139,10 +138,19 @@ internal class ManageOpCall(
 
     override val origin: CommandOrigin get() = managed.origin
     override val args: JSONObject get() = managed.args
-    override val parameters: Parameters = managed.args.asParameters()
+    // An embedded request's `lang` is the Home Assistant user's language (the embed switch's), which stands in
+    // for Automatic and never overrides a chosen language, so it is not an explicit `?lang`.
+    override val parameters: Parameters = managed.args.asParameters(
+        setOfNotNull(ACCEPT_LANGUAGE_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
+    )
     override val request = OpCallRequest(
         parameters,
-        headersOf(io.ktor.http.HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+        Headers.build {
+            append(io.ktor.http.HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            managed.args.optString(ACCEPT_LANGUAGE_ARG).takeIf(String::isNotBlank)?.let {
+                append(io.ktor.http.HttpHeaders.AcceptLanguage, it)
+            }
+        },
         OpCallOrigin(managed.origin.peerAddress.orEmpty(), method),
         method,
         path,
@@ -248,8 +256,8 @@ internal fun manageReplyFor(status: Int, body: Any?, contentType: String?, heade
 }
 
 /** `args` as request parameters: strings, numbers and booleans by name; an array gives one value per item. */
-private fun JSONObject.asParameters(): Parameters = Parameters.build {
-    keys().forEach { key ->
+private fun JSONObject.asParameters(except: Set<String>): Parameters = Parameters.build {
+    keys().asSequence().filter { it !in except }.forEach { key ->
         when (val value = opt(key)) {
             null, JSONObject.NULL, is JSONObject -> Unit
             is JSONArray -> for (i in 0 until value.length()) {
@@ -282,6 +290,13 @@ internal class OpRoutes(private val route: Route) {
         route.post(path) { OpContext(HttpOpCall(call)).body() }
         register(HttpMethod.Post, path, name, kind, body)
     }
+
+    /**
+     * Enter a named read whose path no route of its own mounts: the stub's one handler serves the path and
+     * answers it through the dispatcher (protocol section 20.7).
+     */
+    fun served(path: String, name: String, body: suspend OpContext.() -> Unit) =
+        register(HttpMethod.Get, path, name, ManageKind.READ, body)
 
     private fun register(method: HttpMethod, path: String, name: String?, kind: ManageKind, body: suspend OpContext.() -> Unit) {
         val table = table ?: return

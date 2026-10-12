@@ -270,6 +270,7 @@ dependencies {
     // HTTP command surface (:8888) — Ktor CIO engine.
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
 
     // Ktor WS client — used by HaLink to read HA's non-admin `config/entity_registry/list_for_display`
     // (which carries each entity's device id) to resolve this panel's device-settings URL.

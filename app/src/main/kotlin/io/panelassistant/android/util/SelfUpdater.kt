@@ -21,7 +21,7 @@ object SelfUpdater {
     const val PRERELEASE = "prerelease"
     private const val REPO = "panel-assistant/android"
     private const val TAG = "ha-paneld/selfupdate"
-    private const val RELEASES_URL = "https://github.com/panel-assistant/android/releases"
+    const val RELEASES_URL = "https://github.com/panel-assistant/android/releases"
 
     /**
      * A release from the identity migration onwards carries two APKs: the bridge under the legacy id,

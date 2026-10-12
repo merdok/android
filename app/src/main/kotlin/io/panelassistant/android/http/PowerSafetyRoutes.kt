@@ -28,9 +28,6 @@ internal fun Route.powerSafetyRoutes(
     snapInvalidate: () -> Unit,
     authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
 ) {
-    get("/power-safety/state") {
-        call.respondText(powerSafety().level.wireValue + "\n", ContentType.Text.Plain)
-    }
     ops {
     get("/power-safety") {
         val advisory = powerSafetyAdvisory()

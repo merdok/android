@@ -28,11 +28,6 @@ import io.panelassistant.android.util.InstallProgress
 import io.panelassistant.android.util.Json
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
-import io.ktor.server.plugins.origin
-import io.ktor.server.request.receiveStream
-import io.ktor.server.response.respondText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,8 +43,8 @@ internal class RestoreRoutes(
     private val reader: BackupArchiveReader,
     private val profileAdmin: ProfileAdmin?,
     private val ensureCompanionHelper: () -> Boolean,
-    private val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-    private val rejectHardenedNetworkAdb: suspend (ApplicationCall, String?) -> Boolean,
+    private val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+    private val rejectHardenedNetworkAdb: suspend (OpCall, String?) -> Boolean,
     private val capabilities: () -> Capabilities,
     private val scope: CoroutineScope,
     private val executor: RestoreExecutor,
@@ -59,8 +54,11 @@ internal class RestoreRoutes(
 
     /** Restore endpoint: decrypt + validate; ?dry_run=1 reports contents without writing. A real restore is
      *  DESTRUCTIVE (config rewrite + Companion force-stop/rewrite), run off-thread with InstallProgress. */
-    suspend fun handle(call: ApplicationCall) {
-        val pw = call.request.headers["X-Backup-Passphrase"].orEmpty()
+    suspend fun handle(call: OpCall) {
+        // Over HTTP the passphrase rides a header so it never lands in a query log; a managed request carries
+        // it as `args.passphrase` and the archive as its `args.blob` (protocol section 20.5).
+        val pw = call.args?.optString("passphrase")?.takeIf(String::isNotEmpty)
+            ?: call.request.headers["X-Backup-Passphrase"].orEmpty()
         val dryRun = call.request.queryParameters["dry_run"] == "1"
         val migrationRestore = when (
             migrationRestoreAdmission(

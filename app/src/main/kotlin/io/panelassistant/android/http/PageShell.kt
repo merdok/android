@@ -85,7 +85,8 @@ internal class PageShell(
         // switcher (whose links leave the proxy) are omitted, and the tab bar and everything below it stay.
         // Only validated enum values reach the markup.
         val themeAttr = embed?.theme?.let { """ data-theme="$it"""" }.orEmpty()
-        val embedAttr = if (embed != null) " data-embedded" else ""
+        // Outside the sidebar the page talks to its panel over the stub's `/ui` socket (protocol section 20.7).
+        val embedAttr = if (embed != null) " data-embedded" else """ data-ui-socket="ui""""
         // Embedded keeps only the panel identity install.js names downloads from, as escaped attributes.
         val header = if (embed != null) """<span id="pswitch" hidden data-self-id="$panelId" data-self-name="$friendlyName"></span>""" else """<div class="hdr"><button id="navburger" class="navburger pbtn" aria-label="${esc(strings.get("shell.menu.label"))}">☰</button><h1>${brandLockup(asset)} <small id="pswitch" data-self-id="$panelId" data-self-name="$friendlyName"><span class="sep">·</span>$friendlyName</small></h1>
  <span style="display:flex;gap:10px;align-items:center">$rightControls</span></div>

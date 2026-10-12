@@ -39,12 +39,8 @@ import io.panelassistant.android.device.profile.PassiveProfileDraft
 import io.panelassistant.android.device.profile.PassiveProfileReport
 import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.logship.LogCapture
-import io.panelassistant.android.logship.LogShipStatusProjection
-import io.panelassistant.android.metrics.FeatureCosts
 import io.panelassistant.android.persistence.AppState
 import io.panelassistant.android.migration.IdentityMigrationSurface
-import io.panelassistant.android.provisioning.ProvisioningActivationSnapshot
-import io.panelassistant.android.provisioning.ProvisioningReader
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.sensors.SensorReporter
@@ -63,8 +59,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
-import io.ktor.server.cio.CIO
-import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.origin
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -121,11 +115,6 @@ class PaneldServer internal constructor(
     // Dashboard WebView console over the CDP relay; served only while log shipping is configured.
     private val logWebView: LogCapture? = null,
     private val webViewConsoleEnabled: () -> Boolean = { false },
-    // Dedicated synchronized shipper state. Never route this through the broad management cache:
-    // callers and the Dashboard projection need connection failure and recovery as they happen.
-    private val logShipStatus: () -> LogShipStatusProjection = {
-        LogShipStatusProjection(config.logShipEnabled, config.logShipActive, "unavailable")
-    },
     // EFFECTIVE backlight (sysfs actual_brightness via BrightnessController, cached) — the sensors
     // endpoint + Live-state row report what the hardware is doing, not just the Android setting.
     private val effectiveBrightness: () -> Int = { -1 },
@@ -188,10 +177,6 @@ class PaneldServer internal constructor(
     // Application-id migration: the release and offer endpoints on the bridge build, and the
     // migration-mode restore on the successor. NONE is a panel that is not migrating.
     private val identityMigration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
-    private val provisioningReader: ProvisioningReader? = null,
-    private val provisioningActivation: () -> ProvisioningActivationSnapshot = {
-        error("provisioning activation provider is unavailable")
-    },
     // Cheap process-local storage/database-health snapshot. The runtime starts at UNCHECKED, so
     // staged callers and tests that omit this provider retain an explicit, truthful initial state.
     private val storageHealth: () -> StorageHealthSnapshot = { StorageHealthRuntime.snapshot() },
@@ -225,7 +210,16 @@ class PaneldServer internal constructor(
     },
     /** The named operations the routes below register as they mount (protocol section 20.3). */
     internal val manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
+    /** The current runtime generation's dispatcher, which the stub's pages and `/ui` door enter (section 20.7). */
+    private val door: () -> io.panelassistant.android.ManageDoor? = { null },
 ) {
+    /** The stub's 410 answers, printed in `/diag` (protocol section 20.7). */
+    private val goneCounts = GoneCounts()
+    private val stubBlobs = StubBlobs()
+
+    /** The diag text, with the stub's 410 counts; `/diag`, `/api/v1/diag` and the `diag` read all answer it. */
+    private fun diagText(): String = managementObservations.diagStaleOk().trimEnd('\n') + "\n" + goneCounts.text()
+
     private suspend fun authorizeSensitive(
         call: ApplicationCall,
         operation: SensitiveOperation,
@@ -346,9 +340,13 @@ class PaneldServer internal constructor(
         haLang = call.request.queryParameters["ha_lang"],
         allowPseudo = BuildConfig.DEBUG,
     )
-    // Stored as a stop lambda over a type-inferred server local, so we never have to name Ktor's
-    // EmbeddedServer<TEngine, TConfiguration> generic type (which shifts between Ktor versions).
-    private var stopServer: (() -> Unit)? = null
+    private var listener: PaneldListener? = null
+    // Hardened mode takes the stub off the LAN (protocol section 20.7): a mode change rebinds the engine.
+    private val securityModeChanged = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == Config.SECURITY_MODE_PREF && !stopping) scope.launch(Dispatchers.IO) {
+            runCatching { listener?.rebind() }.onFailure { Log.e(TAG, "HTTP rebind for the security mode failed", it) }
+        }
+    }
     private val inspectLock = Any()
     private val directConfigMutationLock = Any()
     @Volatile private var stopping = true
@@ -369,21 +367,14 @@ class PaneldServer internal constructor(
     fun start() {
         stopping = false
         pendingApks.open()
-        // Bind the IPv6 wildcard "::" — on Android this is dual-stack (net.ipv6.bindv6only=0), so the
-        // server answers on both IPv6 and IPv4, instead of the IPv4-only default 0.0.0.0.
-        val server = scope.embeddedServer(CIO, port = config.httpPort, host = "::") {
-            mount(this)
-        }
+        val listener = PaneldListener(scope, { config.httpPort }, { config.hardenedSecurityEnabled }) { mount(this) }
         // Treat the bind as required startup, not a best-effort sidecar. A failure must close this
         // generation's admission and reach the service runtime owner, which records FAILED and prevents
         // a staged profile from being marked healthy without its management/control surface.
         try {
-            startOwnedHttpServer(
-                start = { server.start(wait = false) },
-                stop = { server.stop(500, 1500) },
-                closeIngress = pendingApks::close,
-            )
-            stopServer = { server.stop(500, 1500) }
+            listener.start(closeIngress = pendingApks::close)
+            this.listener = listener
+            config.registerChangeListener(securityModeChanged)
             haArea.startHaAreaConvergence()
             Log.i(TAG, "HTTP listening on :${config.httpPort}")
         } catch (e: Exception) {
@@ -400,8 +391,16 @@ class PaneldServer internal constructor(
                 allowedHosts = { config.httpAllowedHosts },
                 setupNeedsUser = { setupState.setupNeedsUser() },
                 setupRedirectLocation = ::setupRedirectLocation,
+                uiRoutesClosed = { config.uiRoutesClosed },
+                goneCounts = goneCounts,
             ) {
                 serveOperations(manageTable)
+                stubRoutes(
+                    door = door,
+                    blobs = stubBlobs,
+                    health = { healthLine(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() } },
+                    diag = { withContext(Dispatchers.IO) { diagText() } },
+                )
                 handBackHomeRoutes(handBackHomeDependencies(
                     config = config,
                     tameController = { tame },
@@ -435,24 +434,11 @@ class PaneldServer internal constructor(
                 // Self-contained REST API explorer (no Swagger-UI CDN bundle) + the OpenAPI spec it
                 // renders — the spec also imports into Swagger/Postman for fleet tooling.
                 apiPageRoute(::requestStrings, asset) { config.friendlyName }
-                healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() }
-                // The pre-0.8.5 flat /diag → 308 to /api/v1/diag; the other flat paths are retired.
-                legacyDiagRedirect()
 
-                // ---- /api/v1 — the canonical machine API (0.8.5 conformity pass). Every machine
-                // endpoint lives here (the pre-0.8.5 flat /diag 308s to its v1 home), except /health and
-                // /play which stay REAL at the root too — they're the
-                // external "contract" endpoints called by plain curl (no -L) from HA automations and
-                // monitors. Human pages + static assets stay top-level. ----
+                // ---- /api/v1 — the REST API, served while the routes are open (protocol section 20.8).
+                // /play stays real at the root too for curl from Home Assistant automations. The stub above
+                // serves the pages, both spellings of /health and /diag, /ui and /blob. ----
                 route("/api/v1") {
-                    provisioningReader?.let { reader ->
-                        provisioningRoutes(
-                            ProvisioningRouteDependencies(
-                                reader = reader,
-                                activation = provisioningActivation,
-                            ),
-                        )
-                    }
                     profileAdmin?.let { admin ->
                         profileRoutes(
                             ProfileRouteDependencies(
@@ -491,20 +477,17 @@ class PaneldServer internal constructor(
                     )
                     installDirectConfigPostRoute()
                     haAreaRoutes { haArea.areaJson() }
-                    configProbeRoutes(config)
                     setupRoutes { setupState }
                     haOAuthRoutes(haOAuth.routes())
                     installConfigBundleRoutes()
                     // Restore a .hpb bundle (raw body; passphrase in the X-Backup-Passphrase header so it
                     // never lands in a query log). ?dry_run=1 decrypts + reports the contents WITHOUT writing.
                     // A real restore is DESTRUCTIVE (rewrites config; force-stops + rewrites the Companion DB).
-                    post("/restore") { handleRestore(call) }
+                    ops { post("/restore") { handleRestore(call) } }
                     performanceRoutes(
                         admit = { admitActiveRead(it) },
                         perf = { PerfReader.touch(); PerfReader.json() },
                         binding = { id -> performanceBindingJson(id, performanceBindingSecret, config.panelId, performanceWorkloadValues()) },
-                        costs = FeatureCosts::json,
-                        history = { entityLearning.performanceHistoryJson(it) },
                     )
                     autoBrightnessRoutes(autoBrightnessHttpApi, { admitActiveRead(it) }, ::receiveEntityAdminJson)
                     autoSleepRoutes(autoSleepHttpApi, { admitActiveRead(it) }, ::receiveEntityAdminJson)
@@ -543,7 +526,7 @@ class PaneldServer internal constructor(
                     discoveryRoutes({ peersJson(peers()) }, { launchableAppsJson(appContext) })
                     dashboardHydrationRoute(::requestStrings) { strings -> dashboardPageHandler().json(strings) }
                     managementRoutes(
-                        diagnostics = managementObservations::diagStaleOk,
+                        diagnostics = ::diagText,
                         status = ::statusJson,
                         admitActiveRead = ::admitActiveRead,
                         refreshUpdates = {
@@ -553,7 +536,7 @@ class PaneldServer internal constructor(
                         cachedStorage = storageHealth,
                     )
                     loggingRoutes(
-                        logApp, logSystem, logWebView, webViewConsoleEnabled, logShipStatus,
+                        logApp, logSystem, logWebView, webViewConsoleEnabled,
                         admitActiveRead = { admitActiveRead(it) },
                     )
                     powerSafetyRoutes(
@@ -576,9 +559,7 @@ class PaneldServer internal constructor(
                         invalidateCompanionObservation = { managementObservations.companionServerCache.invalidate() },
                         authorizeSensitive = ::authorizeSensitive,
                     )
-                    uiLayoutRoutes(config)
                     remoteControlRoutes({ remoteControlRoutes }, ::authorizeSensitive)
-                    sensorTraceRoute()
                     screenshotRoutes(screenshots, { interactive.screenshot() }, { admitActiveRead(it) })
                     cameraRoutes(camera, ::admitActiveRead)
                     apiSpecificationRoute(asset)
@@ -630,8 +611,9 @@ class PaneldServer internal constructor(
             closeOperationAdmission = clearStorageGate::close,
             closeUploadIngress = pendingApks::close,
             stopEngine = {
-                stopServer?.invoke()
-                stopServer = null
+                config.unregisterChangeListener(securityModeChanged)
+                listener?.stop()
+                listener = null
             },
             // Serialize against an admitted start: teardown either prevents it or waits and then kills it.
             stopRelay = {
@@ -928,7 +910,7 @@ class PaneldServer internal constructor(
             wakeWords = wakeWords,
         ).build(request, passphrase)
 
-    private suspend fun handleRestore(call: ApplicationCall) {
+    private suspend fun handleRestore(call: OpCall) {
         val executor = AcceptedConfigTransaction.restoreExecutor(
             appContext = appContext,
             config = config,

@@ -20,8 +20,8 @@ internal fun Route.healthRoute(
     renderConfigConcurrencyHash: () -> String,
     panelAssistantRestartHealth: () -> String,
 ) = ops {
-    // Mounted at the root and under /api/v1: both register the one name, so the second replaces the first.
-    get("/health", name = "health") {
+    // The stub serves both spellings over HTTP (protocol section 20.7); this is the `health` read.
+    served("/health", name = "health") {
         call.respondText(healthLine(config, packageName, buildToken, renderConfigConcurrencyHash, panelAssistantRestartHealth))
     }
 }

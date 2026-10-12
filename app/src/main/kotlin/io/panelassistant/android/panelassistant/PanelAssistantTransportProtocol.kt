@@ -170,6 +170,13 @@ internal object PanelAssistantTransportProtocol {
      * ([PanelAssistantManagement]) rather than by opening a connection back to it.
      */
     const val CAPABILITY_MANAGEMENT = "management"
+    /**
+     * Protocol section 20.4 and 20.5: a Panel Assistant that grants both makes none of its HTTP calls to this
+     * panel, so the panel closes its REST routes (section 20.8, [io.panelassistant.android.Config.uiRoutesClosed]).
+     * Not offered yet: this build only reads the grant.
+     */
+    const val CAPABILITY_UI_SUBSCRIBE = "ui_subscribe"
+    const val CAPABILITY_UI_BUNDLE = "ui_bundle"
     const val MANAGE_SNAPSHOT = "snapshot"
     const val MANAGE_SETTINGS = "settings"
 

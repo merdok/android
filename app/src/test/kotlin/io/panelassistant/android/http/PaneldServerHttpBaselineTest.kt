@@ -13,15 +13,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PaneldServerHttpBaselineTest {
-    @Test fun `full production mount keeps the diag redirect and retires the other flat paths`() {
+    @Test fun `full production mount serves diag at both spellings and retires the other flat paths`() {
         PaneldServerHttpFixture().use { fixture ->
+            fixture.useWarmDiagnostics("Panel diagnostics\n", stopping = true)
             testApplication {
                 application { fixture.mount(this) }
                 val direct = createClient { followRedirects = false }
                 val diag = direct.get("/diag?redact=1")
-                assertEquals(HttpStatusCode.PermanentRedirect, diag.status)
-                assertEquals("/api/v1/diag?redact=1", diag.headers[HttpHeaders.Location])
-                assertEquals("moved-permanently: /api/v1/diag?redact=1\n", diag.bodyAsText())
+                assertEquals(HttpStatusCode.OK, diag.status)
+                assertEquals(direct.get("/api/v1/diag").bodyAsText(), diag.bodyAsText())
                 assertEquals("nosniff", diag.headers["X-Content-Type-Options"])
                 assertEquals("DENY", diag.headers["X-Frame-Options"])
 
@@ -63,12 +63,6 @@ class PaneldServerHttpBaselineTest {
             testApplication {
                 application { fixture.mount(this) }
                 assertEquals(HttpStatusCode.NotFound, client.get("/api/v1/config/probe-broker?url=").status)
-                val sink = client.post("/api/v1/config/probe-log-sink") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                    setBody("port=invalid")
-                }
-                assertEquals(HttpStatusCode.OK, sink.status)
-                assertEquals("{\"ok\":false,\"error\":\"invalid-port\"}", sink.bodyAsText())
                 val radio = client.get("/api/v1/radio")
                 assertEquals(HttpStatusCode.OK, radio.status)
                 assertEquals("{\"present\":false,\"status\":\"none\"}", radio.bodyAsText())

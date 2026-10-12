@@ -56,8 +56,6 @@ internal fun Route.performanceRoutes(
     admit: suspend (OpCall) -> Boolean,
     perf: () -> String,
     binding: (String) -> String?,
-    costs: () -> String,
-    history: (Int) -> String,
 ) {
     ops {
         get("/perf") {
@@ -76,14 +74,5 @@ internal fun Route.performanceRoutes(
             ContentType.Application.Json, HttpStatusCode.ServiceUnavailable,
         )
         call.respondText(result, ContentType.Application.Json)
-    }
-    // Sparse A/B harvesters must not activate the 2 s sampler.
-    get("/perf/costs") {
-        call.respondText(costs(), ContentType.Application.Json)
-    }
-    get("/perf/history") {
-        if (!admit(call.op())) return@get
-        val hours = call.request.queryParameters["hours"]?.toIntOrNull() ?: 24
-        call.respondText(history(hours), ContentType.Application.Json)
     }
 }

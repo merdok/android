@@ -117,11 +117,6 @@ import io.panelassistant.android.migration.IdentityMigrationGate
 import io.panelassistant.android.migration.StartDisposition
 import io.panelassistant.android.migration.SuccessorMigrationRunner
 import io.panelassistant.android.migration.SuccessorHandoff
-import io.panelassistant.android.provisioning.AndroidProvisioningObservationCollector
-import io.panelassistant.android.provisioning.ProvisioningActivationSnapshot
-import io.panelassistant.android.provisioning.ProvisioningCoordinator
-import io.panelassistant.android.provisioning.ProvisioningCoreIdentity
-import io.panelassistant.android.provisioning.toProvisioningProfile
 import io.panelassistant.android.security.ApprovalBroker
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.sensors.SensorReporter
@@ -927,15 +922,6 @@ class PaneldService : Service() {
         profile = resolvedProfile.profile
         activeProfileIdentity = resolvedProfile.summary.ref.let { "${it.id}@${it.revision}" }
         profileActivationGeneration = resolvedProfile.activationGeneration
-        val provisioningReader = ProvisioningCoordinator(
-            core = ProvisioningCoreIdentity(
-                version = BuildConfig.VERSION_NAME,
-                versionCode = BuildConfig.VERSION_CODE,
-            ),
-            profile = resolvedProfile.toProvisioningProfile(),
-            collector = AndroidProvisioningObservationCollector(this),
-            monotonicMs = { android.os.SystemClock.elapsedRealtime() },
-        )
         resolvedProfile.issues.forEach { issue ->
             Log.w(TAG, "profile ${issue.severity.name.lowercase()} ${issue.path}: ${issue.message}")
         }
@@ -1127,8 +1113,11 @@ class PaneldService : Service() {
             onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
             onConnection = { session, accepted ->
                 val route = session.route
-                route != null && HaConnectionRoutes.isCurrent(config, route) &&
+                val bound = route != null && HaConnectionRoutes.isCurrent(config, route) &&
                     (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
+                // Protocol section 20.8: the bound Panel Assistant's grant opens or closes the REST routes.
+                if (bound) config.recordPanelAssistantGrant(accepted.capabilities)
+                bound
             },
             checkPreferred = {
                 val route = HaConnectionRoutes.preferredCandidate(config)
@@ -1568,7 +1557,6 @@ class PaneldService : Service() {
             // Live log viewer sources (Logs tab). System is gated on Su.available() per request.
             logApp = logCaptureApp, logSystem = logCaptureSystem, logWebView = logCaptureWebView,
             webViewConsoleEnabled = { webViewConsoleEnabled(config) },
-            logShipStatus = logShipper::status,
             effectiveBrightness = { brightness.getBrightness() },
             onRepairCompanionUrl = { repairCompanionUrl() },
             onInstallComponent = { name, action, version -> installComponent(name, action, version) },
@@ -1626,18 +1614,10 @@ class PaneldService : Service() {
             profileRestartAllowed = { !InstallProgress.running },
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,
-            provisioningReader = provisioningReader,
-            provisioningActivation = {
-                val status = profileRegistry.status()
-                ProvisioningActivationSnapshot(
-                    phase = status.activation.phase,
-                    activeRef = status.active?.ref,
-                    generation = status.activation.generation,
-                )
-            },
             storageHealth = StorageHealthRuntime::snapshot,
             refreshStorageHealth = ::refreshStorageHealthForStatus,
             manageTable = manageTable,
+            door = { runCatching { runtime.current().commands }.getOrNull() },
         )
         storageHealthSubscription = StorageHealthRuntime.subscribe(::onStorageHealthSnapshot)
         sensors.setLearnedProximityListener {

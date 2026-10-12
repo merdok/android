@@ -70,23 +70,6 @@ class PageRoutesHttpTest {
         }
     }
 
-    @Test fun `retired test page redirects old bookmarks under the real host guard`() {
-        PaneldServerHttpFixture().use { fixture ->
-            fixture.enablePages()
-            testApplication {
-                application { fixture.mount(this) }
-                val direct = createClient { followRedirects = false }
-                val response = direct.get("/test?lang=de") { header(HttpHeaders.Cookie, "wiz_escape=1") }
-                assertEquals(HttpStatusCode.Found, response.status)
-                assertEquals("/", response.headers[HttpHeaders.Location])
-                assertEquals("nosniff", response.headers["X-Content-Type-Options"])
-                val refused = direct.get("/test") { header(HttpHeaders.Host, "elsewhere.example") }
-                assertEquals(HttpStatusCode.Forbidden, refused.status)
-                assertEquals("host not allowed\n", refused.bodyAsText())
-            }
-        }
-    }
-
     @Test fun `API specification is JSON at the canonical route and retains root admission`() {
         PaneldServerHttpFixture().use { fixture ->
             testApplication {

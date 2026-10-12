@@ -7,7 +7,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -18,7 +17,7 @@ internal fun Route.dashboardPageRoute(
     requestStrings: (OpCall) -> AppStrings,
     render: (AppStrings, EmbedMode?) -> String,
 ) {
-    ops { get("/", name = "page.info") {
+    ops { served("/", name = "page.info") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -27,9 +26,6 @@ internal fun Route.dashboardPageRoute(
         )
         call.respondText(render(strings, call.embedMode()), ContentType.Text.Html)
     } }
-    // The experimental remote-control page is withheld from 0.9.2. Keep old bookmarks
-    // useful while its tap-injection UX is reviewed for a later release.
-    get("/test") { call.respondRedirect("/") }
 }
 
 internal fun Route.dashboardHydrationRoute(
@@ -60,7 +56,7 @@ internal fun Route.configurePageRoute(
     pages: () -> PageShell,
     body: (AppStrings) -> String,
 ) = ops {
-    get("/configure", name = "page.configure") {
+    served("/configure", name = "page.configure") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -85,7 +81,7 @@ internal fun Route.setupPageRoute(
     pages: () -> PageShell,
     buildToken: () -> String,
 ) = ops {
-    get("/setup", name = "page.setup") {
+    served("/setup", name = "page.setup") {
         val strings = requestStrings(call)
         val preserveExplicitEnglish = AppLocale.canonical(
             call.request.queryParameters["lang"],
@@ -121,7 +117,7 @@ internal fun Route.profilesPageRoute(
     requestStrings: (OpCall) -> AppStrings,
     pages: () -> PageShell,
 ) = ops {
-    get("/profiles", name = "page.profiles") {
+    served("/profiles", name = "page.profiles") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -140,7 +136,7 @@ internal fun Route.installPageRoute(
     pages: () -> PageShell,
     body: (AppStrings) -> String,
 ) = ops {
-    get("/install", name = "page.install") {
+    served("/install", name = "page.install") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -170,7 +166,7 @@ internal fun Route.logsPageRoute(
     pages: () -> PageShell,
     httpPort: () -> Int,
 ) = ops {
-    get("/logs", name = "page.logs") {
+    served("/logs", name = "page.logs") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(
@@ -189,7 +185,7 @@ internal fun Route.entitiesPageRoute(
     pages: () -> PageShell,
     enabled: () -> Boolean,
 ) = ops {
-    get("/entities", name = "page.entities") {
+    served("/entities", name = "page.entities") {
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(

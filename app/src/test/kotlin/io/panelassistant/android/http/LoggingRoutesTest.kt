@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LoggingRoutesTest {
-    @Test fun `full mount preserves logging refusals and passive status`() {
+    @Test fun `full mount preserves logging refusals`() {
         PaneldServerHttpFixture().use { fixture ->
             testApplication {
                 application { fixture.mount(this) }
@@ -27,9 +27,6 @@ class LoggingRoutesTest {
                 val refused = client.get("/api/v1/logs/stream") { header("Sec-Fetch-Site", "cross-site") }
                 assertEquals(HttpStatusCode.Forbidden, refused.status)
                 assertEquals("refused: this panel does not serve active reads to another site.\n", refused.bodyAsText())
-                val passive = client.get("/api/v1/logship/status") { header("Sec-Fetch-Site", "cross-site") }
-                assertEquals(HttpStatusCode.OK, passive.status)
-                assertEquals("{\"enabled\":false,\"configured\":false,\"text\":\"disabled\"}", passive.bodyAsText())
             }
         }
     }

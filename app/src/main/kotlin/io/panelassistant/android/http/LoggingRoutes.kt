@@ -22,17 +22,10 @@ internal fun Route.loggingRoutes(
     logSystem: LogCapture?,
     logWebView: LogCapture?,
     webViewConsoleEnabled: () -> Boolean,
-    logShipStatus: () -> LogShipStatusProjection,
     admitActiveRead: suspend (ApplicationCall) -> Boolean,
 ) {
     // The `logs` subscription family follows the same capture the stream below serves (protocol 20.4).
     manageTable()?.logSource = logApp?.let(::LogCaptureSource)
-    get("/logship/status") {
-        // Passive read of what the shipper is actually doing, including Dashboard state.
-        // Distinct from probe-log-sink, which transmits: this one only reports, so it
-        // is safe to poll while a page is open.
-        call.respondText(logShipStatusJson(logShipStatus()), ContentType.Application.Json)
-    }
     // Live log tail as Server-Sent Events (?source=app|system|webview). Feeds the Logs tab;
     // also curl-able (`curl -N .../api/v1/logs/stream`). Lines are pre-redacted.
     get("/logs/stream") {

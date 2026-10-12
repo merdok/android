@@ -2,12 +2,15 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.util.GuardDbProcessAdmission
 import io.panelassistant.android.util.isLocalSource
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.plugins.origin
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.request.uri
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
@@ -19,6 +22,9 @@ internal fun Application.paneldRoot(
     allowedHosts: () -> Set<String>,
     setupNeedsUser: () -> Boolean,
     setupRedirectLocation: (ApplicationCall) -> String,
+    /** Whether only the stub serves (protocol section 20.8); see [StubEndpoints]. */
+    uiRoutesClosed: () -> Boolean = { false },
+    goneCounts: GoneCounts = GoneCounts(),
     routes: Route.() -> Unit,
 ) {
     intercept(ApplicationCallPipeline.Plugins) {
@@ -36,7 +42,9 @@ internal fun Application.paneldRoot(
             call.respondText("guard database maintenance owns this process\n", status = HttpStatusCode.Locked)
             return@intercept finish()
         }
-        if (embed == null && call.request.uri.substringBefore('?') in PaneldServer.WIZARD_REDIRECT_PAGES &&
+        // A gone page (protocol section 20.8) answers 410 below, after the guards, not the Setup redirect.
+        val gone = StubEndpoints.gone(call.request.httpMethod, call.request.path(), uiRoutesClosed())
+        if (embed == null && !gone && call.request.uri.substringBefore('?') in PaneldServer.WIZARD_REDIRECT_PAGES &&
             call.request.cookies["wiz_escape"] == null && setupNeedsUser()
         ) {
             call.respondRedirect(setupRedirectLocation(call))
@@ -57,6 +65,12 @@ internal fun Application.paneldRoot(
             return@intercept finish()
         }
         if (!call.admitEmbedProof(PanelAssistantEmbedKeys.instance)) return@intercept finish()
+        // Protocol sections 20.7 and 20.8: past the guards, a path the stub does not serve is gone.
+        if (gone) {
+            goneCounts.count(call.request.httpMethod, call.request.path())
+            call.respondText(StubEndpoints.GONE_BODY, ContentType.Application.Json, HttpStatusCode.Gone)
+            return@intercept finish()
+        }
     }
     routing(routes)
 }

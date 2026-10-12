@@ -11,20 +11,6 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
-internal fun Route.sensorTraceRoute() {
-    // Debug-only sensor trace (RAM ring buffer, on by default) for fit-testing the
-    // auto-brightness + proximity filters. CSV by default (drop into a plot); ?format=json
-    // for programmatic use / a future on-panel chart. Not an HA surface.
-    get("/sensortrace") {
-        if (call.request.queryParameters["format"] == "json") {
-            call.respondText(io.panelassistant.android.sensors.SensorTrace.toJson(), ContentType.Application.Json)
-        } else {
-            call.respondText(io.panelassistant.android.sensors.SensorTrace.toCsv(), ContentType("text", "csv"))
-        }
-    }
-
-}
-
 internal fun Route.debugInspectionRoutes(
     appContext: Context,
     config: Config,

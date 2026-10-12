@@ -137,7 +137,7 @@ internal class PanelCommandDispatcher(
     manageTable: ManageTable = ManageTable(),
     manageFamilies: Map<String, ManageFamily> = ManageFamilies.DEFAULT,
     approvalPollMs: Long = 1_000,
-) : LiveSettingHandlers {
+) : LiveSettingHandlers, ManageDoor {
     enum class Kind { LATEST, ACTION }
 
     private val lifecycle = RetirableMutationGate()
@@ -149,22 +149,22 @@ internal class PanelCommandDispatcher(
      * The one entry every door calls for a named read or command (protocol section 20.2): see
      * [ManageOperations.manage]. Channel commands keep [submit].
      */
-    fun manage(
+    override fun manage(
         commandId: String,
         op: String,
         args: org.json.JSONObject,
         origin: CommandOrigin,
-        blobs: ManageBlobs? = null,
-        onPending: () -> Unit = {},
+        blobs: ManageBlobs?,
+        onPending: () -> Unit,
         done: (ManageReply) -> Unit,
     ) = operations.manage(commandId, op, args, origin, blobs, onPending, done)
 
     /** Follow a subscription family (protocol section 20.4); see [ManageOperations.subscribe]. */
-    fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? =
+    override fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? =
         operations.subscribe(family, origin, sink)
 
     /** End every subscription [origin] holds, as its door does when the connection closes. */
-    fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
+    override fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
     private val queue = CommandQueue(
         onQueueWait = { waitNanos ->
             FeatureCosts.registry.recordSynchronousElapsed(FeatureCostOperation.COMMAND_QUEUE_WAIT, waitNanos)
@@ -224,7 +224,7 @@ internal class PanelCommandDispatcher(
      * action queue. [done] receives exactly one result. Approvals a sensitive command needs bind to
      * [origin]'s approval key.
      */
-    fun submit(
+    override fun submit(
         command: PanelAssistantCommand,
         origin: CommandOrigin,
         done: (PanelAssistantCommandResult) -> Unit,
@@ -730,6 +730,8 @@ internal class PanelCommandDispatcher(
     ) {
         if (!always && !config.hardenedSecurityEnabled) return
         val origin = checkNotNull(currentOrigin.get()) { "sensitive ${operation.name} dispatched without an origin" }
+        // Protocol section 20.2: a loopback peer (the stub in hardened mode) is exempt, as it is over HTTP.
+        if (!always && origin.peerAddress?.let { io.panelassistant.android.util.isLoopbackPeer(it) } == true) return
         val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, origin.approvalKey, payload, summary)
         if (decision != ApprovalBroker.Decision.APPROVED) {
             throw SensitiveApprovalPendingException(
