@@ -694,8 +694,14 @@ class Config private constructor(
         prefs.edit().putBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, true).apply()
     }
 
+    /**
+     * Only a panel upgraded from a broker-era install is told to install Panel Assistant. A fresh install
+     * waiting for setup already shows its setup code, which leads to Panel Assistant, and must not show a
+     * second notice over it.
+     */
     fun migrationNoticeVisible(versionCode: Int = BuildConfig.VERSION_CODE): Boolean =
-        !panelAssistantConnectionSeen && prefs.getInt("migration_notice_dismissed_version", -1) != versionCode
+        prefs.getBoolean(LEGACY_ORIGIN_PREF, false) && !panelAssistantConnectionSeen &&
+            prefs.getInt("migration_notice_dismissed_version", -1) != versionCode
 
     /** Acknowledges only this build; installing a later build brings an unconnected panel's notice back. */
     fun dismissMigrationNotice(versionCode: Int = BuildConfig.VERSION_CODE): Boolean =
@@ -1460,9 +1466,12 @@ class Config private constructor(
      * Remove [retired] keys, among them the legacy broker address and credentials. A panel whose last session
      * was accepted, or whose integration claimed its update entity, keeps that as connection evidence, so
      * the upgrade never brings back the "install Panel Assistant" notice for a panel it already manages.
+     * Broker-era state is also the one proof that this store predates Panel Assistant, so it is kept as
+     * the notice's origin before the keys go.
      */
     private fun SharedPreferences.Editor.retireStoredKeys(retired: List<String>) {
         val all = prefs.all
+        if (retired.any(SettingsRegistry::isBrokerEra)) putBoolean(LEGACY_ORIGIN_PREF, true)
         if (all["panel_assistant_authority"] in setOf("shadow", "native") ||
             (all["panel_assistant_update_owner_seen_ms"] as? Long ?: 0L) > 0L
         ) {
@@ -1587,6 +1596,8 @@ class Config private constructor(
         /** The stored keys [panelAssistantConnectionSeen] reads, for listeners that must notice it turning true. */
         val PANEL_ASSISTANT_CONNECTION_KEYS = setOf(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, "ha_setup_handover")
         internal const val PANEL_ASSISTANT_CONNECTION_SEEN_PREF = "migration_notice_connection_seen"
+        /** Set once when an upgrade retires broker-era state: the store came from a pre-1.0 install. */
+        internal const val LEGACY_ORIGIN_PREF = "migration_notice_legacy_origin"
         /** Every Config wrapper addresses one process-wide SQLite namespace, so transaction ownership
          * must be process-wide as well. */
         internal val CONFIG_LOCK = Any()

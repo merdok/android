@@ -168,8 +168,10 @@ object SettingsRegistry {
     const val BROKER_PREFIX = "mqtt_"
 
     /** Whether [key] is retired: dropped from the live store, from bundles and backups, and from writes. */
-    fun isRetired(key: String): Boolean =
-        key in RETIRED_KEYS || key in RETIRED_STATE_KEYS || key.startsWith(BROKER_PREFIX)
+    fun isRetired(key: String): Boolean = key in RETIRED_KEYS || isBrokerEra(key)
+
+    /** Whether [key] is state only a broker-era (pre-1.0) install wrote. */
+    fun isBrokerEra(key: String): Boolean = key in RETIRED_STATE_KEYS || key.startsWith(BROKER_PREFIX)
 
     /** The retired schema-5 key. Read only by migration, and never registered as a current setting. */
     const val LEGACY_SENSITIVITY_KEY = "auto_brightness_sensitivity"
