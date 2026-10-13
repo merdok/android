@@ -116,20 +116,22 @@
   // channel is a setting key and posts to /config.
   var ACTION_CHANNELS = { reload: 1, reboot: 1 };
 
-  // ---- Subscription families (20.4). A family that replaces several routes delivers one object
-  // keyed by part; a one-route family delivers that route's body. Floors are in milliseconds.
+  // ---- Subscription families (20.4), exactly as the panel defines them (ManageFamilies in
+  // ManageOperations.kt; a JVM test pins the two together). A one-read family delivers that read's body;
+  // a family of several reads delivers one object keyed by op name, on both transports. Floors are in
+  // milliseconds.
   var FAMILIES = {
-    perf: { floor: 2000, read: "perf" },
-    sensors: { floor: 2000, read: "sensors" },
-    camera: { floor: 2000, read: "camera.status" },
-    health: { floor: 5000, read: "health" },
-    entities: { floor: 5000, parts: { sync: "dashboard.entities.sync", issues: "dashboard.entities.issues" } },
-    proximity: { floor: 1000, read: "proximity" },
-    microphone: { floor: 2000, read: "voice.microphone" },
-    radio: { floor: 5000, read: "radio" },
-    install: { floor: 2000, parts: { status: "install.status", pending: "install.apk.pending" } },
-    setup: { floor: 2000, parts: { setup: "setup", oauth: "ha.oauth.status" } },
-    logs: { floor: 1000, append: true },
+    perf: { floor: 2000, reads: ["perf"] },
+    sensors: { floor: 2000, reads: ["sensors"] },
+    camera: { floor: 2000, reads: ["camera.status"] },
+    health: { floor: 5000, reads: ["health"] },
+    entities: { floor: 5000, reads: ["dashboard.entities", "dashboard.entities.sync", "dashboard.entities.issues"] },
+    proximity: { floor: 1000, reads: ["proximity"] },
+    microphone: { floor: 2000, reads: ["voice.microphone"] },
+    radio: { floor: 5000, reads: ["radio"] },
+    install: { floor: 2000, reads: ["install.status", "install.apk.pending"] },
+    setup: { floor: 2000, reads: ["setup", "ha.oauth.status"] },
+    logs: { floor: 1000, reads: [], append: true },
   };
 
   var DEADLINE_MS = 10000;
@@ -258,16 +260,15 @@
     if (family.append) return startEventStream(sub);
     var last = null;
     function poll() {
-      var names = family.parts || { "": family.read };
-      var keys = Object.keys(names);
-      Promise.all(keys.map(function (key) {
-        return self.request(names[key], key === "" ? sub.args : {}).then(function (reply) {
+      var reads = family.reads, single = reads.length === 1;
+      Promise.all(reads.map(function (op) {
+        return self.request(op, single ? sub.args : {}).then(function (reply) {
           if (reply.outcome !== "applied") throw reply;
           return reply.result;
         });
       })).then(function (bodies) {
         var value = bodies[0];
-        if (family.parts) { value = {}; keys.forEach(function (key, i) { value[key] = bodies[i]; }); }
+        if (!single) { value = {}; reads.forEach(function (op, i) { value[op] = bodies[i]; }); }
         var text = typeof value === "string" ? value : JSON.stringify(value);
         if (sub.stopped || text === last) return;
         last = text;

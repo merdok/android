@@ -177,12 +177,12 @@ export async function attachUiSocket(server, answer, { record = process.env.UI_S
         if (family.append) { streamLogs(sub, rest, update); return; }
         const read = async () => {
           if (sub.stopped) return;
-          const parts = family.parts || { '': family.read };
-          const keys = Object.keys(parts);
-          const replies = await Promise.all(keys.map((key) => reply(parts[key], key === '' ? rest : {}, socketUrl)));
+          const reads = family.reads, single = reads.length === 1;
+          const replies = await Promise.all(reads.map((op) => reply(op, single ? rest : {}, socketUrl)));
           if (sub.stopped) return;
           const ok = replies.every((item) => item.outcome === 'applied');
-          const value = !ok ? null : family.parts ? Object.fromEntries(keys.map((key, i) => [key, replies[i].result])) : replies[0].result;
+          // Keyed by op name, as the panel's own family registry delivers a family of several reads.
+          const value = !ok ? null : !single ? Object.fromEntries(reads.map((op, i) => [op, replies[i].result])) : replies[0].result;
           const text = JSON.stringify([ok, value]);
           if (text !== sub.last) { sub.last = text; update(value, ok ? 'known' : 'unavailable'); }
           sub.timer = setTimeout(read, floors[name] ?? family.floor);

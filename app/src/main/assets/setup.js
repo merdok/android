@@ -1137,8 +1137,8 @@
   function follow() {
     if (journeyFeed || (journey && journey.complete)) return;
     journeyFeed = transport.subscribe("setup", function (value, state) {
-      if (state !== "known" || !value || !value.setup) return;
-      journey = value.setup;
+      if (state !== "known" || !value || !value["setup"]) return;
+      journey = value["setup"];
       render();
       if (journey.complete && journeyFeed) { journeyFeed.close(); journeyFeed = null; }
     });

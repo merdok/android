@@ -112,6 +112,8 @@ const listRequests = [];
 
 global.fetch = async (url, options = {}) => {
   if ((options.method || 'GET') === 'POST') return response({ ok: true });
+  // The entities family also reads the unfiltered list (dashboard.entities), as the panel's family does.
+  if (url.endsWith('/dashboard/entities')) return response({ items: [], total: 0 });
   if (url.includes('/entities/issues')) return response({ items: [], dashboard_issue_count: 0, dynamic_expressions: [] });
   if (url.endsWith('/entities/sync')) return response(syncStatus);
   if (url.includes('/entities?')) {

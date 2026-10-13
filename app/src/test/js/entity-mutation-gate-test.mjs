@@ -66,6 +66,8 @@ global.fetch = async (url, options = {}) => {
     if (url.endsWith('/policy') && deferPolicy) return policyResponse;
     return response({ok:true,stream_changed:false,entity_count:4});
   }
+  // The entities family also reads the unfiltered list (dashboard.entities), as the panel's family does.
+  if (url.endsWith('/dashboard/entities')) return response({ items: [], total: 0 });
   if (url.includes('/entities/issues')) return response({items:[{fingerprint:'issue-1',blocking:true}],dashboard_issue_count:1});
   if (url.includes('/entities?')) return response({items:[{entity_id:'light.test',reasons:'dashboard'}],total:1});
   if (url.endsWith('/entities/sync')) return response(status);

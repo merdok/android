@@ -217,7 +217,7 @@
         return;
       }
       if (lost) { clearTimeout(lost); lost = null; }
-      var d = (value && value.status) || {};
+      var d = (value && value['install.status']) || {};
       if (d.running) { onRunning(d); return; }
       handle.close(); onDone(d);
     });
