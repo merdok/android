@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { loadTransport } from './page-transport.mjs';
 
 const source = fs.readFileSync(process.argv[2], 'utf8');
 const created = [];
@@ -70,6 +71,10 @@ global.fetch = async (url, options = {}) => {
   if (url.endsWith('/entities/sync')) return response(status);
   throw new Error('unexpected request ' + method + ' ' + url);
 };
+
+global.window = {};
+
+loadTransport(process.argv[2]);
 
 vm.runInThisContext(source, {filename: process.argv[2]});
 const settle = async () => { for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve)); };

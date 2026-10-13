@@ -69,17 +69,19 @@ class AssetSyntaxTest {
             global.URLSearchParams=URLSearchParams;
             ${NodeI18n.REAL_BRIDGE}vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
             const cfg=window.ConfigurePage;
-            if(cfg.configSchemaUrl('fr')!=='api/v1/config/schema?lang=zh_CN&ha_lang=fr'||data.selectedLanguage!=='"zh_CN"')process.exit(2);
+            // The schema request's HTTP form, as the page transport builds it from the page's own args.
+            const schemaUrl=h=>window.PaneldTransport.httpRequestFor('config.schema',cfg.configSchemaArgs(h)).url;
+            if(schemaUrl('fr')!=='api/v1/config/schema?lang=zh_CN&ha_lang=fr'||data.selectedLanguage!=='"zh_CN"')process.exit(2);
             location.search='?lang=auto&theme=dark';
-            if(cfg.configSchemaUrl('fr')!=='api/v1/config/schema?ha_lang=fr'||data.selectedLanguage!==undefined||location.search!=='?theme=dark')process.exit(4);
+            if(schemaUrl('fr')!=='api/v1/config/schema?ha_lang=fr'||data.selectedLanguage!==undefined||location.search!=='?theme=dark')process.exit(4);
             data.selectedLanguage='"fr"';location.search='';
-            if(cfg.configSchemaUrl('de')!=='api/v1/config/schema?lang=fr&ha_lang=de')process.exit(5);
+            if(schemaUrl('de')!=='api/v1/config/schema?lang=fr&ha_lang=de')process.exit(5);
             delete data.selectedLanguage;
-            if(cfg.configSchemaUrl('zh-Hans')!=='api/v1/config/schema?ha_lang=zh-Hans')process.exit(6);
+            if(schemaUrl('zh-Hans')!=='api/v1/config/schema?ha_lang=zh-Hans')process.exit(6);
             data.selectedLanguage='"bad language"';
-            if(cfg.configSchemaUrl('de')!=='api/v1/config/schema?ha_lang=de')process.exit(7);
+            if(schemaUrl('de')!=='api/v1/config/schema?ha_lang=de')process.exit(7);
             let requests=0;
-            global.fetch=()=>{requests++;return Promise.resolve({json:()=>Promise.resolve([])})};
+            global.fetch=()=>{requests++;return Promise.resolve({ok:true,status:200,json:()=>Promise.resolve([]),text:()=>Promise.resolve('[]')})};
             cfg.values.ui_language='auto';cfg.haUserStatus={phase:'connected',language:'de'};
             cfg.render=()=>{};cfg.configCardGeometryChanged=()=>{};
             function usesHaLanguage(tag){
@@ -87,7 +89,7 @@ class AssetSyntaxTest {
               cfg.reloadSchemaForHaLanguage();return requests>before;
             }
             data.selectedLanguage='"sv-SE"';
-            if(cfg.configSchemaUrl('de')!=='api/v1/config/schema?lang=sv-SE&ha_lang=de'||!usesHaLanguage('sv-SE'))process.exit(8);
+            if(schemaUrl('de')!=='api/v1/config/schema?lang=sv-SE&ha_lang=de'||!usesHaLanguage('sv-SE'))process.exit(8);
             if(usesHaLanguage('de-DE'))process.exit(9);
             for(const locale of ['en','de','fr','it','es','zh-Hans','nl','pl','uk','cs','pt-BR']){
               if(usesHaLanguage(locale)||usesHaLanguage(locale+'-Test'))process.exit(10);
@@ -314,6 +316,7 @@ class AssetSyntaxTest {
             global.document={hidden:false,getElementById:k=>ids[k],querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>el()};
             global.setInterval=()=>0;global.confirm=()=>false;global.alert=()=>{};
             global.fetch=(url)=>Promise.resolve({ok:true,json:()=>Promise.resolve(url.includes('/issues')?{dashboard_issue_count:1,blocking_issue_count:ignoredMode?0:1,ignored_issue_count:ignoredMode?1:0,items:[{blocking:!ignoredMode,ignored:ignoredMode,fingerprint:'0123456789abcdef',view_title:issue,source_locations:[issue],rule_summary:issue,candidate_count:1600,limit:64,reason:issue,recommendation:issue}],dynamic_expressions:[{source_location:issue,literal:issue,fingerprint:'dynamic-1',truncated:true}]}:{state:'active',stream_entity_count:10,stream_mode:'filtered',catalog_count:100,suggested_count:0,unresolved_count:2,last_sync_at:0,db_bytes:0}),text:()=>Promise.resolve('')});
+            global.window={};${NodeI18n.REAL_BRIDGE}
             vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
             setImmediate(()=>{const row=ids['entity-issues-list'].child,html=row.innerHTML,dynamic=ids['entity-dynamic-list'].child.innerHTML;if(!ids['entity-status'].innerHTML.includes('2 dynamic expressions not statically resolvable'))process.exit(7);if(html.includes(issue)||!html.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(2);if(ignoredMode){if(ids['entity-issues-summary'].textContent.includes('requires review')||!ids['entity-issues-summary'].textContent.includes('previously allowed'))process.exit(3);if(row.className!=='entity-issue allowed'||!row.child||row.child.textContent!=='Re-enable safety check')process.exit(4)}else{if(!ids['entity-issues-summary'].textContent.includes('1 check requires review'))process.exit(3);if(row.className!=='entity-issue blocking'||!html.includes('Automatic updates paused')||!row.child||row.child.textContent!=='Ignore potential entities and continue')process.exit(4)}if(dynamic.includes(issue)||!dynamic.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(5);if(ids['entity-dynamic'].hidden)process.exit(6)});
         """.trimIndent()
@@ -337,6 +340,7 @@ class AssetSyntaxTest {
             const gap={type:'compatibility_gap',blocking:false,ignorable:false,ignored:false,fingerprint:'gap-1',severity:'warning',view_title:'Overview',source_locations:['dashboard.views[0].cards[0]'],rule_summary:'Button Card uses JavaScript templates',candidate_count:null,limit:null,reason:'Dependencies are hidden.',recommendation:'Keep dependencies explicit.'};
             const overflow={type:'diagnostic_limit',blocking:true,ignorable:false,ignored:false,fingerprint:'overflow-1',severity:'error',view_title:'Dashboard',source_locations:['dashboard'],rule_summary:'Dashboard has more safety checks than can be reviewed',candidate_count:null,limit:null,reason:'Checks exceed the diagnostic limit.',recommendation:'Simplify the dashboard.'};
             global.fetch=(url)=>Promise.resolve({ok:true,json:()=>Promise.resolve(url.includes('/issues')?{dashboard_issue_count:3,blocking_issue_count:1,ignored_issue_count:0,items:[overflow,gap,notice],dynamic_expressions:[]}:{state:'blocked',stream_entity_count:10,stream_mode:'filtered',catalog_count:100,suggested_count:0,blocking_issue_count:1,automatic_activation_blocked:true,unresolved_count:0,last_sync_at:0,db_bytes:0}),text:()=>Promise.resolve('')});
+            global.window={};${NodeI18n.REAL_BRIDGE}
             vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
             setImmediate(()=>{const rows=ids['entity-issues-list'].children,summary=ids['entity-issues-summary'].textContent;if(rows.length!==3||!summary.includes('1 check requires review'))process.exit(2);const overflowRow=rows[0],gapRow=rows[1],limited=rows[2];if(overflowRow.className!=='entity-issue blocking'||!overflowRow.innerHTML.includes('Automatic updates paused')||overflowRow.child)process.exit(5);if(gapRow.className!=='entity-issue advisory'||!gapRow.innerHTML.includes('Limited coverage')||gapRow.innerHTML.includes('Candidate set')||gapRow.child)process.exit(3);if(limited.className!=='entity-issue advisory'||!limited.innerHTML.includes('Limited coverage')||!limited.innerHTML.includes('Button Card has limited entity discovery support')||limited.innerHTML.includes('Candidate set')||limited.child)process.exit(4)});
         """.trimIndent()

@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { loadTransport } from './page-transport.mjs';
 import { i18nHelper, installHaNotice } from '../../../../tools/test/fixtures/i18n-bridge.mjs';
 
 const source = fs.readFileSync(process.argv[2], 'utf8');
@@ -50,6 +51,7 @@ global.setInterval = (fn) => { ticks.push(fn); return 0; };
 global.setTimeout = (fn) => { fn(); return 0; };
 
 installHaNotice(globalThis);
+loadTransport(process.argv[2]);
 vm.runInThisContext(source, { filename: 'buildwatch.js' });
 
 async function poll(line) {

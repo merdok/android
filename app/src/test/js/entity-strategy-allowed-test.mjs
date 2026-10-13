@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { loadTransport } from './page-transport.mjs';
 
 const source = fs.readFileSync(process.argv[2], 'utf8');
 
@@ -70,6 +71,7 @@ async function render({ items, strategySelectorIgnored }) {
       unresolved_count: 0, last_sync_at: 0, db_bytes: 0, strategy_selector_ignored: strategySelectorIgnored,
     });
   };
+  loadTransport(process.argv[2]);
   vm.runInThisContext(source, { filename: process.argv[2] });
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));

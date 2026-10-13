@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { loadTransport } from './page-transport.mjs';
 
 const source = fs.readFileSync(process.argv[2], 'utf8');
 
@@ -122,6 +123,8 @@ global.fetch = async (url, options = {}) => {
   }
   throw new Error(`unexpected request ${url}`);
 };
+
+loadTransport(process.argv[2]);
 
 vm.runInThisContext(source, { filename: process.argv[2] });
 
