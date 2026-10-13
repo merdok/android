@@ -1,5 +1,10 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.panelassistant.PanelAssistantBlobs
+import io.panelassistant.android.panelassistant.PanelAssistantManageReply
+import io.panelassistant.android.panelassistant.PanelAssistantManagement
+import io.panelassistant.android.sensors.HaApiSessionProvider
+import org.json.JSONObject
 import android.content.Context
 import android.util.Log
 import io.panelassistant.android.Config
@@ -776,34 +781,20 @@ class PaneldServer internal constructor(
     }
 
     /**
-     * The named requests Panel Assistant makes over its session (protocol section 20.3): `status`, and the
-     * update and backup routes, whose bytes move through [blobs]. Null for a name this build does not serve.
+     * What Panel Assistant reads and asks over its session: the snapshot, the managed settings and the named
+     * requests (protocol section 20.3), `status` and the update and backup routes, whose bytes move through
+     * Panel Assistant's blob view with [auth]'s credential.
      */
-    internal suspend fun managementRequest(
-        op: String,
-        args: org.json.JSONObject,
-        onPending: () -> Unit,
-        blobs: io.panelassistant.android.panelassistant.PanelAssistantBlobs,
-    ): io.panelassistant.android.panelassistant.PanelAssistantManageReply? {
-        if (op == MANAGE_STATUS) {
-            val body = withContext(Dispatchers.IO) {
-                statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof"))
+    internal fun panelAssistantManagement(auth: HaApiSessionProvider): PanelAssistantManagement {
+        val blobs = PanelAssistantBlobs(auth)
+        return PanelAssistantManagement.of(::managementSnapshot, ::applyManagedSettings) { op, args, onPending ->
+            if (op == MANAGE_STATUS) {
+                val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
+                return@of PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
             }
-            return io.panelassistant.android.panelassistant.PanelAssistantManageReply(
-                io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.OUTCOME_APPLIED,
-                null,
-                org.json.JSONObject(body),
-            )
-        }
-        return ControlPlaneSessionOps.request(op, args, controlPlane(), blobs) { operation, payload, summary ->
-            authorizeSessionRequest(
-                hardened = config.hardenedSecurityEnabled,
-                operation = operation,
-                payload = payload,
-                summary = summary,
-                broker = LocalApprovalBroker.instance,
-                onPending = onPending,
-            )
+            ControlPlaneSessionOps.request(op, args, controlPlane(), blobs) { operation, payload, summary ->
+                authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
+            }
         }
     }
 
