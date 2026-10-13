@@ -75,24 +75,21 @@
   // absent token means "nothing to say" rather than "healthy". Rendered here rather than through the
   // Information page's banner zone because that hydrates once and would freeze mid-outage; this poll
   // already runs on every page.
-  // `ha_src` matters for one state only, and it may be ABSENT: it names a source only when one
-  // actually observed the state. Panel Assistant reports deliberate shutdown through the native
-  // session; a connection loss without that notice claims only that Home Assistant is gone.
+  // Only Panel Assistant's notice reports a deliberate shutdown; a connection loss that follows one
+  // claims only that Home Assistant is gone.
   var HA_TEXT = {
-    shutting_down: { key: "shell.runtime.ha_lifecycle.offline", text: "Home Assistant has gone offline — controls may be temporarily unavailable.", step: "stopping" },
+    shutting_down: { key: "shell.runtime.ha_lifecycle.shutting_down", text: "Home Assistant is shutting down — controls may be temporarily unavailable.", step: "stopping" },
     starting: { key: "shell.runtime.ha_lifecycle.starting", text: "Home Assistant is starting.", step: "starting" },
     back_online: { key: "shell.runtime.ha_lifecycle.back_online", text: "Home Assistant is back online." }
   };
-  var HA_TEXT_SOCKET = {
-    shutting_down: { key: "shell.runtime.ha_lifecycle.shutting_down", text: "Home Assistant is shutting down — controls may be temporarily unavailable.", step: "stopping" }
-  };
+  var HA_TEXT_OFFLINE = { key: "shell.runtime.ha_lifecycle.offline", text: "Home Assistant has gone offline — controls may be temporarily unavailable.", step: "stopping" };
   // The diagnostics row's idle wording, kept here so the row and the banner are rendered from the SAME
   // /health observation. A server-rendered advisory used to sit beside them; it could not retract
   // itself after recovery, so it was removed rather than kept in step.
   var HA_ROW_REFUSED = "watching; Home Assistant does not permit WebSocket lifecycle events for this user";
-  function haBanner(state, src, refused, notice) {
-    var copy = ((src === "socket" || src === "native") && ownValue(HA_TEXT_SOCKET, state)) || ownValue(HA_TEXT, state);
-    if (notice && state === "connection_lost") copy = HA_TEXT.shutting_down;
+  function haBanner(state, refused, notice) {
+    var copy = ownValue(HA_TEXT, state);
+    if (notice && state === "connection_lost") copy = HA_TEXT_OFFLINE;
     var outage = notice && (state === "shutting_down" || state === "starting" || state === "connection_lost");
     var overdue = outage && notice.expected !== null && notice.elapsed !== null && notice.elapsed > notice.expected;
     var grace = outage && state === "connection_lost" && notice.grace > 0;
@@ -273,14 +270,13 @@
       var notice = t.match(/(?:^|\s)pa_notice=([01])(?:\s|$)/);
       if (notice && requestedNoticeEpoch === noticeEpoch) migrationBanner(notice[1] === "1");
       var mh = t.match(/ha=(\S+)/);
-      var ms = t.match(/ha_src=(\S+)/);
       var mr = t.match(/ha_refused=1/);
       var reason = t.match(/(?:^|\s)ha_reason=(\S+)/);
       function timingToken(name) {
         var match = t.match(new RegExp("(?:^|\\s)" + name + "=(\\d+)(?:\\s|$)"));
         return match ? Number(match[1]) : null;
       }
-      haBanner(mh ? mh[1] : "", ms ? ms[1] : "", !!mr, reason ? {
+      haBanner(mh ? mh[1] : "", !!mr, reason ? {
         reason:reason[1], elapsed:timingToken("ha_elapsed_ms"), expected:timingToken("ha_expected_ms"), grace:timingToken("ha_grace_ms") || 0
       } : null);
       var mn = t.match(/ha_net=(\S+)/);

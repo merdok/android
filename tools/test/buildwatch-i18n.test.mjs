@@ -118,10 +118,9 @@ test('lifecycle copy uses the closed key set, keeps glyphs decorative, and clear
   const rig = await loadBuildwatch({ translations, locale: 'zh-Hans' });
 
   const cases = [
-    ['ha=shutting_down', 'shell.runtime.ha_lifecycle.offline', '家庭助理已离线。', 'working', 'Stopping'],
+    ['ha=shutting_down', 'shell.runtime.ha_lifecycle.shutting_down', '家庭助理正在关闭。', 'working', 'Stopping'],
     ['ha=starting', 'shell.runtime.ha_lifecycle.starting', '家庭助理正在启动。', 'working', 'Starting'],
     ['ha=back_online', 'shell.runtime.ha_lifecycle.back_online', '家庭助理已恢复在线。', 'resolved', 'Resolved'],
-    ['ha=shutting_down ha_src=socket', 'shell.runtime.ha_lifecycle.shutting_down', '家庭助理正在关闭。', 'working', 'Stopping'],
   ];
   for (const [tokens, key, banner, severity, pill] of cases) {
     rig.calls.splice(0);
@@ -459,16 +458,16 @@ test('offline story waits for grace and shows measured countdown with subdued qu
   await rig.poll('ha=connection_lost ha_reason=unknown ha_grace_ms=0');
   assert.match(rig.ids.halifecell.textContent, /Reason unknown/);
   assert.match(rig.ids.halifecell.textContent, /Time back has not been measured yet/);
-  await rig.poll('ha=shutting_down ha_src=native ha_reason=core_update ha_elapsed_ms=1000 ha_expected_ms=121000');
+  await rig.poll('ha=shutting_down ha_reason=core_update ha_elapsed_ms=1000 ha_expected_ms=121000');
   assert.match(rig.ids.halifecell.textContent, /Home Assistant Core update/);
   assert.match(rig.ids.halifecell.textContent, /Expected back in 2:00/);
-  await rig.poll('ha=starting ha_src=native ha_reason=restart ha_elapsed_ms=181000 ha_expected_ms=121000');
+  await rig.poll('ha=starting ha_reason=restart ha_elapsed_ms=181000 ha_expected_ms=121000');
   assert.match(noticeText(rig.ids.halifebar), /Taking longer than usual/);
   assert.match(noticeText(rig.ids.halifebar), /1:00 past the estimate/);
   assert.equal(notice(rig.ids.halifebar).severity, 'working');
   await rig.poll('ha=starting ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
   assert.match(noticeText(rig.ids.halifebar), /60:00 past the estimate/);
-  await rig.poll('ha=back_online ha_src=native ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
+  await rig.poll('ha=back_online ha_reason=restart ha_elapsed_ms=3721000 ha_expected_ms=121000');
   assert.doesNotMatch(noticeText(rig.ids.halifebar), /Taking longer|past the estimate/);
   await rig.poll('ha=normal ha_reason=unknown');
   assert.equal(rig.ids.halifebar.style.display, 'none');

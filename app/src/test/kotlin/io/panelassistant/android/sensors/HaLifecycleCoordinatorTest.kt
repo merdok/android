@@ -13,16 +13,10 @@ class HaLifecycleCoordinatorTest {
         onChanged = { seen += 1 },
     )
 
-    @Test fun aLocallyNoticedConnectionLossCarriesNoSource() {
+    @Test fun aLocallyNoticedConnectionLossIsAConnectionLoss() {
         val c = coordinator()
         c.onNativeDisconnected()
-        val snap = c.snapshot()
-        assertEquals(HaLifecycleState.CONNECTION_LOST, snap.state)
-        assertNull("nobody observed this state; naming a source would invent an observation", snap.source)
-    }
-
-    @Test fun theInitialNormalCarriesNoSource() {
-        assertNull("nothing has been observed yet", coordinator().snapshot().source)
+        assertEquals(HaLifecycleState.CONNECTION_LOST, c.snapshot().state)
     }
 
     @Test fun repeatedIdenticalSignalsDoNotRenotifyTheListener() {
@@ -33,8 +27,8 @@ class HaLifecycleCoordinatorTest {
     }
 
     @Test fun thePublishDecisionNeverGoesBackwardsAndNeverRepeatsItself() {
-        val older = HaLifecycle.Snapshot(HaLifecycleState.SHUTTING_DOWN, HaLifecycleSource.NATIVE, false, 3L, 0L)
-        val newer = HaLifecycle.Snapshot(HaLifecycleState.BACK_ONLINE, HaLifecycleSource.NATIVE, false, 4L, 8_000L)
+        val older = HaLifecycle.Snapshot(HaLifecycleState.SHUTTING_DOWN, false, 3L, 0L)
+        val newer = HaLifecycle.Snapshot(HaLifecycleState.BACK_ONLINE, false, 4L, 8_000L)
         assertTrue(lifecyclePublishDecision(newer, older))
         assertFalse("an older revision must lose, even though it renders differently",
             lifecyclePublishDecision(older, newer))
@@ -43,7 +37,7 @@ class HaLifecycleCoordinatorTest {
     }
 
     @Test fun theRemainingLifetimeIsNotPartOfTheRenderingIdentity() {
-        val early = HaLifecycle.Snapshot(HaLifecycleState.BACK_ONLINE, HaLifecycleSource.NATIVE, false, 4L, 8_000L)
+        val early = HaLifecycle.Snapshot(HaLifecycleState.BACK_ONLINE, false, 4L, 8_000L)
         val late = early.copy(revision = 5L, backOnlineRemainingMs = 1_000L)
         assertFalse(
             "a notice merely aging is not a new fact and must not renotify",

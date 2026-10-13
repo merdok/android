@@ -3,8 +3,6 @@ package io.panelassistant.android.sensors
 import io.panelassistant.android.haLifecycleClock
 
 /** Panel Assistant is the only reporter of Home Assistant lifecycle intent. */
-internal enum class HaLifecycleSource { NATIVE }
-
 internal enum class HaLifecyclePhase { SHUTTING_DOWN, STARTING, READY }
 internal enum class HaLifecycleReason(val wireValue: String) {
     RESTART("restart"), HOST_REBOOT("host_reboot"), CORE_UPDATE("core_update"), UNKNOWN("unknown")
@@ -57,14 +55,6 @@ internal class HaLifecycle(
     private var backOnlineSinceMs = 0L
 
     /**
-     * Which source OBSERVED the current state, or null when no source did: the initial NORMAL, a
-     * connection loss noticed locally, and a decayed recovery notice are the panel's own inferences,
-     * and labelling them with a source that never reported them would be a small lie the diagnostics
-     * repeat. Null is rendered as "no source", not defaulted to one.
-     */
-    private var source: HaLifecycleSource? = null
-
-    /**
      * Which OUTAGE this is, incremented when one opens. The machine's only other memory of "which
      * outage am I in" is the live state, and that is erased the moment a recovery notice decays to
      * NORMAL — which is what let a second, independent clearer announce the same recovery again.
@@ -84,7 +74,7 @@ internal class HaLifecycle(
     /**
      * Everything a consumer's rendering can depend on, captured under ONE lock acquisition, with the
      * revision that produced it. Reading the parts separately allows a torn tuple — a state from one
-     * moment paired with a source from another — so this is the ONLY read the machine's owners expose;
+     * moment paired with a reason from another — so this is the ONLY read the machine's owners expose;
      * the revision additionally lets a publisher reject an older snapshot instead of letting it
      * overwrite a newer one.
      *
@@ -94,7 +84,6 @@ internal class HaLifecycle(
      */
     data class Snapshot(
         val state: HaLifecycleState,
-        val source: HaLifecycleSource?,
         /** Legacy diagnostic field; direct Core subscriptions are no longer requested. */
         val refused: Boolean,
         val revision: Long,
@@ -106,7 +95,7 @@ internal class HaLifecycle(
     )
 
     fun snapshot(nowMs: Long): Snapshot = synchronized(lock) {
-        Snapshot(stateLocked(nowMs), source, false, revision, remainingLocked(nowMs),
+        Snapshot(stateLocked(nowMs), false, revision, remainingLocked(nowMs),
             if (current == HaLifecycleState.CONNECTION_LOST) (10_000L - (nowMs - lostSinceMs).coerceAtLeast(0L)).coerceAtLeast(0L) else 0L,
             notice?.reason ?: HaLifecycleReason.UNKNOWN,
             notice?.elapsedMs?.let { elapsed ->
@@ -135,8 +124,6 @@ internal class HaLifecycle(
         val elapsed = nowMs - backOnlineSinceMs
         if (elapsed >= backOnlineWindowMs || elapsed < 0L) {
             current = HaLifecycleState.NORMAL
-            // The notice has lapsed; nothing is being reported, so no source is reporting it.
-            source = null
             revision++
         }
         return current
@@ -156,8 +143,6 @@ internal class HaLifecycle(
                     current = HaLifecycleState.CONNECTION_LOST
                     lostSinceMs = nowMs
                     notice = null
-                    // The connection ended without a lifecycle explanation.
-                    source = null
                     revision++
                 }
             }
@@ -170,11 +155,9 @@ internal class HaLifecycle(
         if (next.phase == HaLifecyclePhase.READY) {
             if (observed == HaLifecycleState.SHUTTING_DOWN || observed == HaLifecycleState.STARTING ||
                 (observed == HaLifecycleState.CONNECTION_LOST && nowMs - lostSinceMs >= 10_000L)) {
-                source = HaLifecycleSource.NATIVE
                 enterBackOnlineLocked(nowMs)
             } else if (observed == HaLifecycleState.CONNECTION_LOST) {
                 current = HaLifecycleState.NORMAL
-                source = null
                 recoveryAnnouncedEpisode = episode
                 revision++
             }
@@ -182,7 +165,6 @@ internal class HaLifecycle(
         }
         notice = next
         noticeReceivedMs = nowMs
-        source = HaLifecycleSource.NATIVE
         if (observed == HaLifecycleState.NORMAL || observed == HaLifecycleState.BACK_ONLINE) bumpEpisodeLocked()
         current = if (next.phase == HaLifecyclePhase.SHUTTING_DOWN) HaLifecycleState.SHUTTING_DOWN else HaLifecycleState.STARTING
         revision++
@@ -190,9 +172,8 @@ internal class HaLifecycle(
 
     /** A replaced native endpoint retires its predecessor's outage. */
     fun onNativeRetired(nowMs: Long) = synchronized(lock) {
-        if (stateLocked(nowMs) != HaLifecycleState.NORMAL || source != null) revision++
+        if (stateLocked(nowMs) != HaLifecycleState.NORMAL) revision++
         current = HaLifecycleState.NORMAL
-        source = null
         notice = null
     }
 
@@ -201,7 +182,6 @@ internal class HaLifecycle(
         if (stateLocked(nowMs) == HaLifecycleState.CONNECTION_LOST) {
             current = HaLifecycleState.NORMAL
             recoveryAnnouncedEpisode = episode
-            source = null
             revision++
         }
     }
@@ -224,7 +204,6 @@ internal class HaLifecycle(
             // Already told the user this outage ended. Land on NORMAL without re-announcing.
             if (current != HaLifecycleState.NORMAL) {
                 current = HaLifecycleState.NORMAL
-                source = null
                 revision++
             }
             return
@@ -255,7 +234,7 @@ internal object HaLifecycleMessage {
         val elapsed = snap.elapsedMs
         val overdue = expected != null && elapsed != null && elapsed > expected
         val headline = if (overdue) "Taking longer than usual"
-        else text(snap.state, snap.source) ?: "Home Assistant has gone offline — controls may be temporarily unavailable."
+        else text(snap.state) ?: "Home Assistant has gone offline — controls may be temporarily unavailable."
         val reason = when (snap.reason) {
             HaLifecycleReason.RESTART -> "Home Assistant restart"
             HaLifecycleReason.HOST_REBOOT -> "Host reboot"
@@ -270,11 +249,10 @@ internal object HaLifecycleMessage {
         return "$headline · $reason · $forecast"
     }
 
-    fun text(state: HaLifecycleState, source: HaLifecycleSource?): String? = when (state) {
-        // Only a Panel Assistant notice proves lifecycle intent.
-        HaLifecycleState.SHUTTING_DOWN -> if (source == HaLifecycleSource.NATIVE)
+    fun text(state: HaLifecycleState): String? = when (state) {
+        // Only a Panel Assistant notice enters SHUTTING_DOWN, so it always proves lifecycle intent.
+        HaLifecycleState.SHUTTING_DOWN ->
             "Home Assistant is shutting down — controls may be temporarily unavailable."
-        else "Home Assistant has gone offline — controls may be temporarily unavailable."
         HaLifecycleState.STARTING ->
             "Home Assistant is starting."
         HaLifecycleState.BACK_ONLINE ->
