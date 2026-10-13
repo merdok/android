@@ -367,7 +367,10 @@ class PaneldServer internal constructor(
     fun start() {
         stopping = false
         pendingApks.open()
-        val listener = PaneldListener(scope, { config.httpPort }, { listenerOffLan(config) }) { mount(this) }
+        val listener = PaneldListener(
+            scope, { config.httpPort }, { listenerOffLan(config) },
+            onBindFailure = { Log.e(TAG, "HTTP bind on :${config.httpPort} failed", it) },
+        ) { mount(this) }
         // Treat the bind as required startup, not a best-effort sidecar. A failure must close this
         // generation's admission and reach the service runtime owner, which records FAILED and prevents
         // a staged profile from being marked healthy without its management/control surface.

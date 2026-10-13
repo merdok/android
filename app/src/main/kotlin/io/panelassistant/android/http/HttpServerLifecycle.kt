@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.ktor.server.application.Application
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -25,18 +26,33 @@ internal class PaneldListener(
     private val scope: CoroutineScope,
     private val port: () -> Int,
     private val hardened: () -> Boolean,
+    /** A bind that failed (thrown, or raised inside the engine); a rebind keeps trying. */
+    private val onBindFailure: (Throwable) -> Unit = {},
+    private val retryInitialMs: Long = 500,
+    private val retryMaxMs: Long = 30_000,
     private val module: Application.() -> Unit,
 ) {
     private var stopEngine: (() -> Unit)? = null
+    /** The mode the engine is bound for; null while no engine is bound. */
     private var boundHardened: Boolean? = null
+    private var started = false
+    @Volatile private var stopped = false
 
     /** Bind now; a failure releases the engine, runs [closeIngress] and propagates. */
     @Synchronized
     fun start(closeIngress: () -> Unit) {
+        bind(closeIngress)
+        started = true
+    }
+
+    private fun bind(closeIngress: () -> Unit) {
         val mode = hardened()
         // Stored as a stop lambda over a type-inferred local, so Ktor's EmbeddedServer generic type (which
         // shifts between Ktor versions) is never named.
-        val server = scope.embeddedServer(CIO, port = port(), host = listenerHost(mode)) { module() }
+        // CIO also raises a failed bind inside the engine's own coroutines: report it here rather than let it
+        // reach the service scope, which has no handler, as an uncaught exception.
+        val engineScope = CoroutineScope(scope.coroutineContext + CoroutineExceptionHandler { _, failure -> onBindFailure(failure) })
+        val server = engineScope.embeddedServer(CIO, port = port(), host = listenerHost(mode)) { module() }
         startOwnedHttpServer(
             start = { server.start(wait = false) },
             stop = { server.stop(500, 1500) },
@@ -46,36 +62,47 @@ internal class PaneldListener(
         boundHardened = mode
     }
 
-    /** Bind again when the security mode moved; true when it did. Nothing happens once [stop] has run. */
-    @Synchronized
+    /**
+     * Bind again when the security mode moved; true once bound for the new mode, false when nothing needed
+     * doing or [stop] ran first. Without a listener the panel's own WebView cannot sign in, so a bind that fails
+     * (the old socket may hold the port for a while) is retried with backoff until it succeeds; meanwhile the
+     * listener records itself unbound. Blocks its caller, which runs it off the main thread.
+     */
     fun rebind(): Boolean {
-        val stop = stopEngine ?: return false
-        if (boundHardened == hardened()) return false
-        stop()
-        stopEngine = null
-        // The old socket may hold the port briefly after it closes; without a listener the panel's own WebView
-        // cannot sign in, so a failed bind is retried a few times before it is reported.
-        var attempt = 0
+        synchronized(this) {
+            if (stopped || !started) return false
+            if (stopEngine != null && boundHardened == hardened()) return false
+            stopEngine?.invoke()
+            stopEngine = null
+            boundHardened = null
+        }
+        var waitMs = retryInitialMs
         while (true) {
-            try {
-                start(closeIngress = {})
-                return true
-            } catch (failure: Exception) {
-                if (++attempt >= REBIND_ATTEMPTS) throw failure
-                Thread.sleep(REBIND_RETRY_MS)
+            synchronized(this) {
+                if (stopped) return false
+                if (stopEngine != null) return true
+                try {
+                    bind(closeIngress = {})
+                    return true
+                } catch (failure: Exception) {
+                    onBindFailure(failure)
+                }
             }
+            Thread.sleep(waitMs)
+            waitMs = minOf(waitMs * 2, retryMaxMs)
         }
     }
 
+    /** Whether an engine is bound now. */
+    @Synchronized
+    fun bound(): Boolean = stopEngine != null
+
     @Synchronized
     fun stop() {
+        stopped = true
         stopEngine?.invoke()
         stopEngine = null
-    }
-
-    private companion object {
-        const val REBIND_ATTEMPTS = 5
-        const val REBIND_RETRY_MS = 500L
+        boundHardened = null
     }
 }
 
