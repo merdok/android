@@ -268,14 +268,15 @@ internal class ManageOperations(
     /**
      * Follow [family] for [origin]. The first update carries the current value; later ones follow changes,
      * never more often than the family's floor, with at most one update outstanding (a newer value replaces
-     * an unsent one). One origin subscribing twice to a family shares one subscription, whose updates go to
-     * the newest sink. Null when the family is unknown or the origin already holds the most it may.
+     * an unsent one). One owner ([CommandOrigin.subscriptionOwner]: the socket, or the origin) subscribing twice
+     * to a family shares one subscription, whose updates go to the newest sink. Null when the family is unknown
+     * or the owner already holds the most it may.
      */
     fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? {
         val definition = families[family] ?: return null
         if (!job.isActive) return null
         synchronized(lock) {
-            val held = subscriptions.getOrPut(origin.approvalKey) { LinkedHashMap() }
+            val held = subscriptions.getOrPut(origin.subscriptionOwner) { LinkedHashMap() }
             held[family]?.let { shared ->
                 shared.replaceSink(sink)
                 return shared
@@ -288,9 +289,9 @@ internal class ManageOperations(
         }
     }
 
-    /** End every subscription [origin] holds, as a door does when its connection closes. */
+    /** End every subscription [origin]'s owner holds (that socket only, when it has one), as a door does when its connection closes. */
     fun closeOrigin(origin: CommandOrigin) {
-        val held = synchronized(lock) { subscriptions.remove(origin.approvalKey)?.values?.toList().orEmpty() }
+        val held = synchronized(lock) { subscriptions.remove(origin.subscriptionOwner)?.values?.toList().orEmpty() }
         held.forEach { it.stop() }
     }
 
@@ -410,7 +411,7 @@ internal class ManageOperations(
 
         override fun close() {
             synchronized(lock) {
-                val held = subscriptions[origin.approvalKey]
+                val held = subscriptions[origin.subscriptionOwner]
                 if (held?.get(definition.name) === this) held.remove(definition.name)
             }
             stop()

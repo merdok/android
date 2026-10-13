@@ -318,7 +318,8 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
         }
         val dispatcher = door() ?: return@webSocket close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "starting"))
         val peerAddress = call.request.origin.remoteAddress
-        val origin = CommandOrigin.peer(peerAddress)
+        // Approvals bind to the peer; subscriptions belong to this socket alone.
+        val origin = CommandOrigin.peer(peerAddress).withConnection(UUID.randomUUID().toString())
         // Hardened mode keeps the door to loopback: a LAN socket open when it turns on is closed at once.
         if (!isLoopbackPeer(peerAddress)) launch {
             while (isActive) {

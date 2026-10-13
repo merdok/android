@@ -54,11 +54,21 @@ internal data class CommandOrigin private constructor(
     val approvalKey: String,
     val requestId: String? = null,
     val peerAddress: String? = null,
+    /** The connection that carries this origin's requests, when a door has one per socket. */
+    val connection: String? = null,
 ) {
     val isPanelAssistant: Boolean get() = approvalKey == PANEL_ASSISTANT
     val isUser: Boolean get() = approvalKey.startsWith(USER_PREFIX)
 
+    /**
+     * Who owns a subscription (protocol section 20.9 check 4): the connection when there is one, so two tabs
+     * from one address hold, cap and close their own; the approval principal otherwise.
+     */
+    val subscriptionOwner: String get() = connection?.let { "$approvalKey#$it" } ?: approvalKey
+
     fun withRequestId(requestId: String?): CommandOrigin = copy(requestId = requestId)
+
+    fun withConnection(connection: String): CommandOrigin = copy(connection = connection)
 
     companion object {
         const val PANEL_ASSISTANT = "panel_assistant"

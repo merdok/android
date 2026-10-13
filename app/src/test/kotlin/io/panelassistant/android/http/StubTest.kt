@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.get
 import io.ktor.client.request.put
 import io.ktor.client.request.request
@@ -29,6 +30,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import io.panelassistant.android.CommandOrigin
 import io.panelassistant.android.Config
@@ -217,6 +219,38 @@ internal class StubTest : PanelRuntimeRig() {
         val afterClose = reads.get()
         Thread.sleep(400)
         assertTrue("the closed socket's subscription stopped reading", reads.get() <= afterClose + 1)
+    }
+
+    @Test fun twoSocketsFromOneAddressKeepAndCloseTheirOwnSubscriptions() = testApplication {
+        val table = ManageTable()
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        table.register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", reads.incrementAndGet())) }
+        val rig = managedRig(table, families = mapOf("probe" to ManageFamily("probe", 100, listOf("probe"))))
+        stub { rig.commands }
+        val ws = createClient { install(ClientWebSockets) }
+        val first = ws.webSocketSession("/ui")
+        val second = ws.webSocketSession("/ui")
+        suspend fun DefaultClientWebSocketSession.subscribe(id: String) {
+            assertEquals("applied", exchange(JSONObject().put("kind", "manage").put("command_id", id).put("op", "subscribe").put("args", JSONObject().put("family", "probe"))).getString("outcome"))
+        }
+        suspend fun DefaultClientWebSocketSession.nextUpdate(): JSONObject = withTimeout(5_000) {
+            while (true) {
+                val frame = JSONObject((incoming.receive() as Frame.Text).readText())
+                if (frame.has("subscription")) return@withTimeout frame
+            }
+            @Suppress("UNREACHABLE_CODE") error("unreachable")
+        }
+
+        first.subscribe("a")
+        first.nextUpdate()
+        second.subscribe("b")
+        second.nextUpdate()
+        first.close()
+
+        // The other tab's subscription is its own: it keeps receiving after the first socket closes.
+        assertEquals("b", second.nextUpdate().getString("subscription"))
+        assertEquals("b", second.nextUpdate().getString("subscription"))
+        second.close()
     }
 
     @Test fun anUploadedBlobIsTakenOnceAndOnlyWithItsOwnHash() = testApplication {
