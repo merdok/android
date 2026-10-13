@@ -6,6 +6,7 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.DiscoveryResult
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.dashboardEntityLearningEnabled
 import io.panelassistant.android.peersJson
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.backup.PanelBackup
@@ -48,6 +49,7 @@ import io.panelassistant.android.provisioning.ProvisioningReader
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.sensors.SensorReporter
+import io.panelassistant.android.setHaBaseUrl
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
 import io.panelassistant.android.util.CompanionInstaller

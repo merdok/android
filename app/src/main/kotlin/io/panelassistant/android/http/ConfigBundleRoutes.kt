@@ -9,6 +9,7 @@ import io.panelassistant.android.config.Scope
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.LogShipEndpoint
 import io.panelassistant.android.util.Json

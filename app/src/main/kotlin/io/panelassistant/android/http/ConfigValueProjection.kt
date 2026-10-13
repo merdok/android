@@ -3,10 +3,13 @@ package io.panelassistant.android.http
 import io.panelassistant.android.appVersion
 import io.panelassistant.android.Config
 import io.panelassistant.android.DashboardEntityBackupState
+import io.panelassistant.android.autoSleep
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingType
 import io.panelassistant.android.config.SettingSpec
 import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.haRefreshToken
+import io.panelassistant.android.haToken
 import io.panelassistant.android.util.Json
 import io.panelassistant.android.i18n.Strings as AppStrings
 

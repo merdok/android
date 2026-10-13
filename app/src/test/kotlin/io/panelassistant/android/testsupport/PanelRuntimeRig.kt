@@ -40,6 +40,7 @@ import io.panelassistant.android.hardware.LedController
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.platform.RootShell
+import io.panelassistant.android.setAutoSleep
 import io.panelassistant.android.state.SoftwareTarget
 import io.panelassistant.android.state.SoftwareUpdateSources
 import io.panelassistant.android.state.StateConverger

@@ -4,6 +4,9 @@ import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.Config
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.HaAuthSnapshot
+import io.panelassistant.android.beginHaOAuthAttempt
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.isHaOAuthAttemptCurrent
 import io.panelassistant.android.stableOwner
 import io.panelassistant.android.i18n.Strings as AppStrings
 import io.panelassistant.android.i18n.CatalogueLoader

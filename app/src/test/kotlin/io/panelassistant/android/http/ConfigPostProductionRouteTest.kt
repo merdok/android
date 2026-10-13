@@ -15,11 +15,14 @@ import io.panelassistant.android.control.PowerSafetyAssessment
 import io.panelassistant.android.control.PowerSafetyObservation
 import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.control.SystemController
+import io.panelassistant.android.haToken
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.persistence.SqliteStatePreferences
 import io.panelassistant.android.persistence.StateMutation
 import io.panelassistant.android.persistence.StateNamespacePersistence
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
+import io.panelassistant.android.setHaConnection
 import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.sensors.SensorReporter
 import io.panelassistant.android.security.LocalApprovalBroker

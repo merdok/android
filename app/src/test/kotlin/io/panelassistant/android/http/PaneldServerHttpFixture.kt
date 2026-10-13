@@ -7,6 +7,8 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.sensors.SensorReporter
+import io.panelassistant.android.setDashboardEntityLearningEnabled
+import io.panelassistant.android.setHaConnection
 import io.panelassistant.android.util.guardDbAppStaging
 import io.ktor.server.application.Application
 import java.io.File

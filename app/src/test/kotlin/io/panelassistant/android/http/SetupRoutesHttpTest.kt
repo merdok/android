@@ -5,6 +5,7 @@ import io.panelassistant.android.DiscoveryResult
 import io.panelassistant.android.GuidedSetupPresence
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.dashboard.EntityLearningManager
+import io.panelassistant.android.dashboardEntityLearningEnabled
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
@@ -14,6 +15,13 @@ import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
+import io.panelassistant.android.setHaConnection
+import io.panelassistant.android.setHaSetupHandover
+import io.panelassistant.android.setupEntityFilterAnswered
+import io.panelassistant.android.setupEverCompleted
+import io.panelassistant.android.setupHomeDashboardChosen
+import io.panelassistant.android.setupIdentityConfirmed
+import io.panelassistant.android.setupRenderAttestation
 import java.lang.reflect.Proxy
 import org.json.JSONObject
 import org.junit.Assert.assertEquals

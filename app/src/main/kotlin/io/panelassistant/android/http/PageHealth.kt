@@ -11,6 +11,7 @@ import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.Config
 import io.panelassistant.android.dashboard.EntityCatalogStore
 import io.panelassistant.android.dashboard.SchemaReconcileAction
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.UpdateChecker
 
 /** Shared health observations and findings for page, setup and status projections. */

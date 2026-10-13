@@ -6,6 +6,7 @@ import io.panelassistant.android.RendererAdmissionPresentation
 import io.panelassistant.android.RendererAdmissionRuntime
 import io.panelassistant.android.RendererMode
 import io.panelassistant.android.control.SystemController
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.DashboardTheme
 
 /**

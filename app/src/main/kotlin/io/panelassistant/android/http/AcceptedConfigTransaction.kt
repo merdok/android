@@ -6,6 +6,9 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.DashboardEntityBackupState
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.dashboardEntityLearningEnabled
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.isHaOAuthAttemptCurrent
 import io.panelassistant.android.normalizeDashboardEntityPath
 import io.panelassistant.android.stableOwner
 import io.panelassistant.android.config.Capabilities

@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.Config
 import io.panelassistant.android.MigrationNotice
 import io.panelassistant.android.appVersion
+import io.panelassistant.android.haLinkUrl
 import io.panelassistant.android.i18n.AppLocale
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.i18n.Strings as AppStrings

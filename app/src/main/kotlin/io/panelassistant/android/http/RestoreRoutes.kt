@@ -4,6 +4,7 @@ import io.panelassistant.android.canonicalHaOrigin
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.panelAssistantDiscoveryId
 import io.panelassistant.android.backup.PanelBackup
 import io.panelassistant.android.backup.CompanionRestore

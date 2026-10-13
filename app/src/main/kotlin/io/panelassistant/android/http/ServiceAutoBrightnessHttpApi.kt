@@ -1,6 +1,7 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
+import io.panelassistant.android.haAuthSnapshot
 import io.panelassistant.android.stableOwner
 import io.panelassistant.android.control.AmbientThemeReason
 import io.panelassistant.android.control.AmbientThemeReport

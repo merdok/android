@@ -1,5 +1,8 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.haRefreshToken
+import io.panelassistant.android.haToken
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.util.HaLink
 import io.ktor.client.request.forms.submitForm

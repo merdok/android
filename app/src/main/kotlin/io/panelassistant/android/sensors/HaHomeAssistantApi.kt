@@ -4,6 +4,8 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.DashboardAuth
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.HaCredentialManager
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.stableOwner
 import io.panelassistant.android.util.BoundedStreams
 import io.panelassistant.android.util.HaTransportEvidence
