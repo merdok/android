@@ -42,7 +42,11 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
+import io.panelassistant.android.security.ApprovalBroker
+import io.panelassistant.android.security.LocalApprovalBroker
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
@@ -269,7 +273,7 @@ internal fun Route.stubRoutes(
     }
     route(StubEndpoints.UI, HttpMethod.Get) {
         install(loopbackOnly)
-        uiSocket(door, blobs)
+        uiSocket(door, blobs, hardened)
     }
 }
 
@@ -300,10 +304,12 @@ internal const val ACCEPT_LANGUAGE_ARG = "accept_language"
 
 /**
  * `GET /ui`: the stub's door (protocol section 20.2). One text frame per request object; the origin is the
- * peer's address whatever the frame says; replies, `pending_approval` interim answers and subscription
- * updates are one text frame each. Closing the socket ends every subscription its origin holds.
+ * peer's address whatever the frame says; replies, interim `pending_approval` answers (marked `interim`) and
+ * subscription updates are one text frame each. A `pending_approval` without `interim` is final, as an HTTP
+ * 202 approval answer is. Closing the socket ends every subscription its origin holds; turning hardened mode on
+ * closes a LAN peer's socket.
  */
-private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
+private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: () -> Boolean) {
     application.pluginOrNull(WebSockets) ?: application.install(WebSockets) { maxFrameSize = MAX_FRAME_BYTES }
     webSocket {
         // A cross-site page opening the socket is the WebSocket form of the cross-site write OriginGuard refuses.
@@ -311,7 +317,18 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
             return@webSocket close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "cross-origin refused"))
         }
         val dispatcher = door() ?: return@webSocket close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "starting"))
-        val origin = CommandOrigin.peer(call.request.origin.remoteAddress)
+        val peerAddress = call.request.origin.remoteAddress
+        val origin = CommandOrigin.peer(peerAddress)
+        // Hardened mode keeps the door to loopback: a LAN socket open when it turns on is closed at once.
+        if (!isLoopbackPeer(peerAddress)) launch {
+            while (isActive) {
+                if (hardened()) {
+                    close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "loopback only in hardened mode"))
+                    break
+                }
+                delay(HARDENED_CHECK_MS)
+            }
+        }
         val subscriptions = ConcurrentHashMap<String, ManageSubscription>()
         val open = java.util.concurrent.atomic.AtomicBoolean(true)
         // One sender, so frames leave in the order they were queued.
@@ -336,6 +353,10 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
         )
         fun answer(commandId: String, outcome: String, code: String? = null, result: Any? = null) =
             answer(commandId, ManageReply(outcome, code, result))
+        fun interim(commandId: String, approvalId: String? = null) = send(
+            JSONObject().put("command_id", commandId).put("outcome", PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL)
+                .put("interim", true).apply { approvalId?.let { put("result", JSONObject().put("approval_id", it)) } },
+        )
         try {
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue
@@ -348,24 +369,56 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
                 val args = request.optJSONObject("args") ?: JSONObject()
                 when (request.optString("kind")) {
                     "command" -> {
-                        val deadlineAt = System.nanoTime() / 1_000_000 + request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)
+                        val deadlineMs = request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)
                         val value = request.opt("value")
-                        dispatcher.submit(
-                            PanelAssistantCommand(
-                                channel = request.optString("channel"),
-                                payload = if (value is String) value else value?.toString().orEmpty(),
-                                requestId = commandId,
-                                admit = {
-                                    when {
-                                        !open.get() -> PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
-                                        System.nanoTime() / 1_000_000 > deadlineAt ->
-                                            PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_EXPIRED)
-                                        else -> null
+                        val channel = request.optString("channel")
+                        val payload = if (value is String) value else value?.toString().orEmpty()
+                        // A sensitive command is held for its approval on the panel's screen: the door answers
+                        // an interim pending_approval, waits, runs it again once approved and answers the
+                        // outcome, as Panel Assistant's processor does on the session.
+                        fun run(held: Boolean) {
+                            val deadlineAt = System.nanoTime() / 1_000_000 + deadlineMs
+                            dispatcher.submit(
+                                PanelAssistantCommand(
+                                    channel = channel,
+                                    payload = payload,
+                                    requestId = commandId,
+                                    admit = {
+                                        when {
+                                            !open.get() -> PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
+                                            System.nanoTime() / 1_000_000 > deadlineAt ->
+                                                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_EXPIRED)
+                                            else -> null
+                                        }
+                                    },
+                                ),
+                                origin,
+                            ) { result ->
+                                if (result !is PanelAssistantCommandResult.ApprovalPending) return@submit answer(commandId, commandReply(result))
+                                // Asked again after an approval was consumed: one interim answer per command.
+                                if (held) return@submit answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_APPROVAL_TIMEOUT)
+                                interim(commandId, result.approvalId)
+                                launch {
+                                    val heldAt = System.nanoTime()
+                                    while (true) {
+                                        delay(APPROVAL_POLL_MS)
+                                        when (LocalApprovalBroker.instance.state(result.approvalId)) {
+                                            ApprovalBroker.State.PENDING -> continue
+                                            ApprovalBroker.State.APPROVED -> { run(held = true); break }
+                                            ApprovalBroker.State.ABSENT -> {
+                                                val expired = (System.nanoTime() - heldAt) / 1_000_000 >= ApprovalBroker.DEFAULT_TTL_MS
+                                                answer(
+                                                    commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED,
+                                                    if (expired) PanelAssistantCommandProcessor.CODE_APPROVAL_TIMEOUT else PanelAssistantCommandProcessor.CODE_APPROVAL_DENIED,
+                                                )
+                                                break
+                                            }
+                                        }
                                     }
-                                },
-                            ),
-                            origin,
-                        ) { result -> answer(commandId, commandReply(result)) }
+                                }
+                            }
+                        }
+                        run(held = false)
                     }
                     "manage" -> when (val op = request.optString("op")) {
                         "subscribe" -> {
@@ -398,7 +451,7 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
                         )
                         else -> dispatcher.manage(
                             commandId, op, args, origin, blobs,
-                            onPending = { answer(commandId, PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL) },
+                            onPending = { interim(commandId) },
                         ) { reply -> answer(commandId, reply) }
                     }
                     else -> answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantTransportProtocol.CODE_INVALID_FORMAT)
@@ -434,6 +487,9 @@ private fun commandReply(result: PanelAssistantCommandResult): ManageReply = whe
     is PanelAssistantCommandResult.Refused -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_REFUSED, result.code)
     is PanelAssistantCommandResult.Failed -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_FAILED, result.code)
 }
+
+private const val HARDENED_CHECK_MS = 500L
+private const val APPROVAL_POLL_MS = 1_000L
 
 /** Frames into the panel are capped at 2 MiB (section 20.1); larger bodies move as blobs. */
 private const val MAX_FRAME_BYTES = 2L * 1024 * 1024

@@ -344,8 +344,9 @@
       }
       var waiter = message && self.pending[message.command_id];
       if (!waiter) return;
-      if (message.outcome === "pending_approval") {
-        // Interim: the panel holds the command until it is approved on its own screen.
+      if (message.outcome === "pending_approval" && message.interim) {
+        // Interim: the panel holds the command until it is approved on its own screen, then answers again.
+        // A pending_approval without `interim` is final, as an HTTP 202 approval answer is.
         clearTimeout(waiter.timer); waiter.timer = null;
         return;
       }

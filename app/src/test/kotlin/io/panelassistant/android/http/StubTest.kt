@@ -317,6 +317,79 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(expected, actual)
     }
 
+    @Test fun aRouteAnsweringItsApprovalChallengeSettlesTheRequest() = testApplication {
+        val table = ManageTable()
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                serveOperations(table)
+                route("/api/v1") {
+                    ops { post("/held") { call.respondText("""{"error":"approval-required","approval_id":"a1"}""", io.ktor.http.ContentType.Application.Json, HttpStatusCode.Accepted) } }
+                }
+                stubRoutes({ rigs.last().commands }, StubBlobs(), health = { "health\n" }, diag = { "diag\n" })
+            }
+        }
+        startApplication()
+        managedRig(table)
+
+        val reply = socket { exchange(JSONObject().put("kind", "manage").put("command_id", "h1").put("op", "held")) }
+
+        // Final, as the same route's HTTP 202 is: the page is never left waiting for an answer that will not come.
+        assertEquals("pending_approval", reply.getString("outcome"))
+        assertFalse(reply.optBoolean("interim"))
+    }
+
+    @Test fun aHeldChannelCommandAnswersInterimThenItsOutcomeOnceApproved() = testApplication {
+        val rig = managedRig(ManageTable()) { it.setSecurityMode(Config.SecurityMode.HARDENED) }
+        // A LAN peer's sensitive command is held for approval (this stub is mounted without the door's own
+        // hardened check, so the dispatcher's approval rule is what runs).
+        stub(peer = "192.168.50.20") { rig.commands }
+
+        val frames = socket {
+            send(Frame.Text(JSONObject().put("kind", "command").put("command_id", "c1").put("channel", "reboot").put("value", "PRESS").toString()))
+            val held = JSONObject((incoming.receive() as Frame.Text).readText())
+            assertTrue(LocalApprovalBroker.instance.approve(held.getJSONObject("result").getString("approval_id")))
+            held to withTimeout(10_000) { JSONObject((incoming.receive() as Frame.Text).readText()) }
+        }
+
+        assertEquals("pending_approval", frames.first.getString("outcome"))
+        assertTrue(frames.first.getBoolean("interim"))
+        assertEquals("c1", frames.second.getString("command_id"))
+        assertEquals("applied", frames.second.getString("outcome"))
+    }
+
+    @Test fun turningHardenedModeOnClosesALanSocketAtOnce() {
+        val lan = NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && !it.isLoopback }
+            .flatMap { it.inetAddresses.toList() }
+            .firstOrNull { it is java.net.Inet4Address && !it.isLinkLocalAddress && io.panelassistant.android.util.isLocalSource(it.hostAddress) }
+        assumeTrue("needs a private-range LAN IPv4 address", lan != null)
+        val table = ManageTable()
+        table.register("probe.origin", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("ok", true)) }
+        val rig = managedRig(table)
+        val port = ServerSocket(0).use { it.localPort }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val listener = PaneldListener(scope, { port }, { listenerOffLan(rig.config) }) {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                stubRoutes({ rig.commands }, StubBlobs(), health = { "health\n" }, diag = { "diag\n" }, hardened = { rig.config.hardenedSecurityEnabled })
+            }
+        }
+        val http = io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp) { install(ClientWebSockets) }
+        try {
+            listener.start(closeIngress = {})
+            val closed = kotlinx.coroutines.runBlocking {
+                http.webSocket("ws://${lan!!.hostAddress}:$port/ui") {
+                    assertEquals("applied", exchange(JSONObject().put("kind", "manage").put("command_id", "l1").put("op", "probe.origin")).getString("outcome"))
+                    assertTrue(rig.config.setSecurityMode(Config.SecurityMode.HARDENED))
+                    withTimeout(3_000) { runCatching { while (true) incoming.receive() }.exceptionOrNull() }
+                }
+            }
+            assertTrue("the open LAN socket was closed", closed != null)
+        } finally {
+            http.close()
+            listener.stop()
+            scope.cancel()
+        }
+    }
+
     @Test fun aCrossSitePageCannotOpenTheSocket() = testApplication {
         val rig = managedRig(ManageTable())
         stub { rig.commands }
@@ -411,8 +484,11 @@ internal class StubTest : PanelRuntimeRig() {
 
     // ---- helpers ----
 
-    private fun ApplicationTestBuilder.stub(door: () -> io.panelassistant.android.ManageDoor?) {
+    private fun ApplicationTestBuilder.stub(peer: String? = null, door: () -> io.panelassistant.android.ManageDoor?) {
         application {
+            if (peer != null) intercept(io.ktor.server.application.ApplicationCallPipeline.Setup) {
+                context.mutableOriginConnectionPoint.remoteAddress = peer
+            }
             paneldRoot({ emptySet() }, { false }, { "/setup" }) {
                 stubRoutes(door, StubBlobs(), health = { "health\n" }, diag = { "diag\n" })
             }
@@ -431,7 +507,7 @@ internal class StubTest : PanelRuntimeRig() {
         return withTimeout(10_000) {
             while (true) {
                 val frame = JSONObject((incoming.receive() as Frame.Text).readText())
-                if (frame.optString("command_id") == request.getString("command_id") && frame.optString("outcome") != "pending_approval") {
+                if (frame.optString("command_id") == request.getString("command_id") && !frame.optBoolean("interim")) {
                     return@withTimeout frame
                 }
             }
