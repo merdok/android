@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BROWSERS, THEMES, VIEWS, launch, loadCatalogues, measureCell, runPage, selection, startLayoutServer, verdict } from './language-layout/harness.mjs';
 import { PAGES } from './language-layout/pages/index.mjs';
+import { journey } from './language-layout/pages/setup.mjs';
 
 const { catalogues, locales, scales } = await loadCatalogues();
 const configure = PAGES.find((page) => page.name === 'configure');
@@ -12,6 +13,34 @@ const profiles = PAGES.find((page) => page.name === 'profiles');
 const server = await startLayoutServer(PAGES, catalogues, locales);
 const origin = `http://127.0.0.1:${server.address().port}`;
 test.after(() => new Promise((done) => server.close(done)));
+
+test('Setup dashboard confirmation keeps both actions inside its card', { timeout: 120_000 }, async () => {
+  const setup = PAGES.find((page) => page.name === 'setup');
+  const state = journey();
+  state.next = 'render_proof';
+  state.steps = state.steps.map((step) => ({ ...step, status: step.stage === 'render_proof' ? 'blocked' : 'complete' }));
+  const attestation = {
+    ...setup,
+    api(url, ...args) { return url.pathname === '/api/v1/setup' ? state : setup.api(url, ...args); },
+    async ready(frame) { await frame.waitForSelector('#wiz-step a.wiz-secondary'); },
+  };
+  const fixture = await startLayoutServer([attestation], catalogues, locales);
+  try {
+    for (const engine of BROWSERS) {
+      const browser = await launch(engine);
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await measureCell(page, `http://127.0.0.1:${fixture.address().port}`, attestation, VIEWS.find((view) => view.name === 'direct-desktop'), 'light', 'en');
+        const bounds = await page.locator('#wiz-step a.wiz-secondary').evaluate((action) => {
+          const card = action.closest('.card').getBoundingClientRect();
+          const box = action.getBoundingClientRect();
+          return { left: box.left - card.left, right: card.right - box.right };
+        });
+        assert.ok(bounds.left >= 0 && bounds.right >= 0, `${engine}: the complete recovery action must fit inside its card: ${JSON.stringify(bounds)}`);
+      } finally { await browser.close(); }
+    }
+  } finally { await new Promise((done) => fixture.close(done)); }
+});
 
 function breakLayout() {
   const card = document.querySelector('#cfg-groups .card');
