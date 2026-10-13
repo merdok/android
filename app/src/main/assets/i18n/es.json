@@ -2894,7 +2894,7 @@
       "text": "apagado real de la retroiluminación mediante su bl_power"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "apagado real de la retroiluminación mediante el RPC local del fabricante; si no, tiempo de espera de pantalla de Android",
+      "text": "apagado real de la retroiluminación por RPC local del fabricante; tiempo de espera de pantalla de Android si el fabricante no responde",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },

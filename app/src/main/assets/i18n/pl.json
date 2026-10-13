@@ -2544,7 +2544,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.backlight_off_vendor": {
-   "text": "rzeczywiste wyłączenie podświetlenia przez lokalne RPC producenta; w przeciwnym razie wygaszanie ekranu Androida",
+   "text": "rzeczywiste wyłączenie podświetlenia przez lokalne RPC producenta; wygaszanie ekranu systemu Android, gdy producent nie odpowiada",
    "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
    "state": "machine-cross-checked"
   },

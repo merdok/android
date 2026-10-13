@@ -2894,7 +2894,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "echtes Abschalten der Hintergrundbeleuchtung per lokaler RPC des Herstellers; sonst Android-Bildschirm-Timeout",
+      "text": "echte Abschaltung der Hintergrundbeleuchtung per lokalem Hersteller-RPC; Android-Bildschirm-Timeout, wenn der Hersteller nicht antwortet",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },

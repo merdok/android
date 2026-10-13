@@ -2544,7 +2544,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.backlight_off_vendor": {
-   "text": "echte uitschakeling van de achtergrondverlichting via de lokale RPC van de fabrikant; anders Android-schermtime-out",
+   "text": "echt uitzetten van de achtergrondverlichting via de lokale RPC van de fabrikant; Android-schermtime-out als de fabrikant niet antwoordt",
    "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
    "state": "machine-cross-checked"
   },
