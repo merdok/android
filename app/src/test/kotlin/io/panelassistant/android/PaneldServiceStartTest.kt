@@ -31,7 +31,7 @@ class PaneldServiceStartTest {
     // After an update the accessibility bind's second revive asked an already promoted service to
     // promote again, and Android 8.1 stopped it on a stale timer and crashed it.
     @Test fun aServiceAlreadyForegroundIsNeverAskedToPromoteAgain() {
-        for (sdk in 26..35) {
+        for (sdk in 26..30) {
             for (visible in listOf(false, true)) {
                 val requests = mutableListOf<String>()
                 dispatchPanelServiceStart(
@@ -41,6 +41,16 @@ class PaneldServiceStartTest {
                 )
                 assertEquals("API $sdk, visible=$visible", listOf("ordinary"), requests)
             }
+        }
+    }
+
+    // Android 12 refuses a background promotion after an ordinary start, which a start requested while
+    // the old generation stops would need.
+    @Test fun fromAndroid12AnAlreadyForegroundServiceKeepsTheForegroundStart() {
+        for (sdk in 31..35) {
+            val requests = mutableListOf<String>()
+            dispatchPanelServiceStart(sdk, false, true, { requests += "ordinary" }, { requests += "foreground" })
+            assertEquals("API $sdk", listOf("foreground"), requests)
         }
     }
 }
