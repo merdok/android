@@ -10,12 +10,13 @@ internal enum class DashboardProbeOutcome { UNCHANGED, CHANGED }
  * scan ever committed; a live revision is always a hash, so the comparison owes a scan there too.
  */
 internal fun dashboardProbeOutcome(
+    configuredHomeDashboard: String,
     resolvedPath: String,
     boundPath: String,
     liveRevision: String,
     storedRevision: String,
 ): DashboardProbeOutcome = when {
-    resolvedScopeRequiresRebind(boundPath, resolvedPath) -> DashboardProbeOutcome.CHANGED
+    resolvedScopeRequiresRebind(configuredHomeDashboard, boundPath, resolvedPath) -> DashboardProbeOutcome.CHANGED
     liveRevision != storedRevision -> DashboardProbeOutcome.CHANGED
     else -> DashboardProbeOutcome.UNCHANGED
 }

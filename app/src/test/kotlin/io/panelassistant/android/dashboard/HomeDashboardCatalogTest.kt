@@ -6,7 +6,9 @@ import io.panelassistant.android.stableOwner
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
 import org.json.JSONObject
+import io.panelassistant.android.liveHomeDashboardResolution
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -242,6 +244,62 @@ class HomeDashboardCatalogTest {
         assertEquals(office, authority.resolve(key, { true }) { reads++; office })
         assertEquals(2, reads)
     }
+
+    @Test fun `a panel moved to a Home Assistant without its dashboard shows the default and finds the dashboard once created`() = runTest {
+        // A panel set to /wall-panel, signed in to a Home Assistant that has only `map`: the scanner
+        // and the renderer resolve through the same authority, with the scanner's live-read rule.
+        val configured = "/wall-panel"
+        val dashboards = mutableListOf("map")
+        var reads = 0
+        suspend fun read() = readHomeDashboardResolution({ command ->
+            when (val type = command.getString("type")) {
+                "auth/current_user" -> { reads++; result(JSONObject().put("is_admin", true)) }
+                "get_panels" -> result(JSONObject())
+                "lovelace/dashboards/list" -> result(JSONArray().apply {
+                    dashboards.forEach { put(JSONObject().put("url_path", it).put("title", it)) }
+                })
+                "frontend/get_user_data", "frontend/get_system_data" -> result(JSONObject().put("value", JSONObject()))
+                else -> error("unexpected command $type")
+            }
+        }, configured)
+        val authority = HomeDashboardResolutionAuthority()
+        val key = HomeDashboardResolutionAuthority.Key("https://dev", HaAuthOwner("https://dev", "refresh", "client", ""), configured)
+        suspend fun resolve() = authority.resolve(key, { true }, homeDashboardResolutionMustBeLive(configured)) { read() }
+
+        val standIn = checkNotNull(resolve())
+        assertEquals("/map", standIn.path)
+        assertTrue(homeDashboardIsSubstitute(configured, standIn))
+        // The scan keeps its configured scope: no rebind, so it commits instead of relaunching forever.
+        assertFalse(resolvedScopeRequiresRebind(configured, configured, standIn.path!!))
+        assertEquals(DashboardProbeOutcome.UNCHANGED, dashboardProbeOutcome(configured, standIn.path!!, configured, "aa", "aa"))
+        // The renderer holds the stand-in provisionally, so its next rebuild asks again.
+        assertFalse(liveHomeDashboardResolution(owner(configured), standIn).confirmed)
+
+        // Each pass asks again while the stand-in is shown, so the owner creating the dashboard is seen.
+        assertEquals("/map", resolve()?.path)
+        dashboards += "wall-panel"
+        val found = checkNotNull(resolve())
+        assertEquals(EntityLearningProtocol.HomeDashboardSource.EXPLICIT, found.source)
+        assertEquals(configured, found.path)
+        assertFalse(homeDashboardIsSubstitute(configured, found))
+        assertTrue(liveHomeDashboardResolution(owner(configured), found).confirmed)
+        assertEquals(3, reads)
+        // A real answer is the process answer again.
+        assertEquals(configured, resolve()?.path)
+        assertEquals(3, reads)
+    }
+
+    @Test fun `Auto still rebinds to the dashboard the account default resolves to`() {
+        assertTrue(resolvedScopeRequiresRebind("", "/", "/map"))
+        assertEquals(DashboardProbeOutcome.CHANGED, dashboardProbeOutcome("", "/map", "/", "aa", "aa"))
+        val userDefault = EntityLearningProtocol.HomeDashboardResolution("/map", EntityLearningProtocol.HomeDashboardSource.USER_DEFAULT)
+        assertFalse("Auto showing its default is no stand-in", homeDashboardIsSubstitute("", userDefault))
+        assertTrue(liveHomeDashboardResolution(owner(""), userDefault).confirmed)
+    }
+
+    private fun owner(path: String) = io.panelassistant.android.HomeDashboardResolutionOwner(
+        HaAuthOwner("https://dev", "refresh", "client", ""), path,
+    )
 
     @Test fun `authenticated token cannot be paired with a replacement credential owner`() {
         val before = HaAuthSnapshot("https://ha", "access-a", "refresh-a", 10, "client")

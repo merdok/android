@@ -12237,6 +12237,16 @@
       "text": "Délai d’inactivité tactile (secondes)",
       "sourceHash": "c5068fba0df696eb1d804e4710a04fbf3dec581802683f77e2ef1b9276198932",
       "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.detail": {
+      "text": "{configured} n’existe pas sur ce Home Assistant ; le panneau affiche donc {shown}.",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "Tableau de bord introuvable",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+      "state": "machine-cross-checked"
     }
   }
 }

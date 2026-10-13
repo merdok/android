@@ -88,26 +88,26 @@ class EntityLearningHoldRecoveryTest {
     @Test fun `a probe reports a change only for a different dashboard or a different revision`() {
         assertEquals(
             DashboardProbeOutcome.UNCHANGED,
-            dashboardProbeOutcome(resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
+            dashboardProbeOutcome(configuredHomeDashboard = "", resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
         )
         assertEquals(
             DashboardProbeOutcome.CHANGED,
-            dashboardProbeOutcome(resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "bb", storedRevision = "aa"),
+            dashboardProbeOutcome(configuredHomeDashboard = "", resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "bb", storedRevision = "aa"),
         )
         // The account default moved to another dashboard: the bound scope no longer describes the panel.
         assertEquals(
             DashboardProbeOutcome.CHANGED,
-            dashboardProbeOutcome(resolvedPath = "/dashboard-wall", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
+            dashboardProbeOutcome(configuredHomeDashboard = "", resolvedPath = "/dashboard-wall", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
         )
         // A view of the same dashboard is the same scope.
         assertEquals(
             DashboardProbeOutcome.UNCHANGED,
-            dashboardProbeOutcome(resolvedPath = "/lovelace/kiosk", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
+            dashboardProbeOutcome(configuredHomeDashboard = "", resolvedPath = "/lovelace/kiosk", boundPath = "/lovelace", liveRevision = "aa", storedRevision = "aa"),
         )
         // Nothing committed yet: a scan is owed whatever is live.
         assertEquals(
             DashboardProbeOutcome.CHANGED,
-            dashboardProbeOutcome(resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "aa", storedRevision = ""),
+            dashboardProbeOutcome(configuredHomeDashboard = "", resolvedPath = "/lovelace", boundPath = "/lovelace", liveRevision = "aa", storedRevision = ""),
         )
     }
 

@@ -64,7 +64,11 @@ internal class HomeDashboardResolutionAuthority {
             // replayed it and the launch cache persisted and opened a path the account cannot reach.
             // The zero itself is still not cached: the recovery screen tells the user to create or
             // grant a dashboard and retry, and that retry must reach Home Assistant again.
-            if (resolution.path != null) {
+            //
+            // A stand-in for an explicitly configured dashboard this Home Assistant does not offer is
+            // not cached either, for the same reason: the notice asks the owner to create that
+            // dashboard, and only a fresh read can see that they did.
+            if (resolution.path != null && !homeDashboardIsSubstitute(key.configuredPath, resolution)) {
                 cached = Cached(key, resolution)
             } else {
                 cached = cached?.takeIf { it.key != key }
@@ -185,3 +189,24 @@ internal suspend fun readHomeDashboardResolution(
  */
 internal fun homeDashboardResolutionMustBeLive(configuredHomeDashboard: String): Boolean =
     io.panelassistant.android.util.DashboardPath.followsAccountDefault(configuredHomeDashboard)
+
+/**
+ * Whether [resolution] stands in for an explicitly configured dashboard that this Home Assistant does not
+ * offer: the panel shows the account's default instead and says so.
+ *
+ * A panel moved to another Home Assistant keeps its `home_dashboard`, which the new one may not have.
+ * The resolver then falls through to the user default, the system default or the first legal
+ * dashboard; this names that case once, for the memo, the renderer and its notice.
+ */
+internal fun homeDashboardIsSubstitute(
+    configuredHomeDashboard: String,
+    resolution: EntityLearningProtocol.HomeDashboardResolution,
+): Boolean = resolution.path != null &&
+    !io.panelassistant.android.util.DashboardPath.followsAccountDefault(configuredHomeDashboard) &&
+    resolution.source in SUBSTITUTE_SOURCES
+
+private val SUBSTITUTE_SOURCES = setOf(
+    EntityLearningProtocol.HomeDashboardSource.USER_DEFAULT,
+    EntityLearningProtocol.HomeDashboardSource.SYSTEM_DEFAULT,
+    EntityLearningProtocol.HomeDashboardSource.FIRST_LEGAL,
+)

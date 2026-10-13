@@ -564,12 +564,13 @@ class EntityLearningManager(
             ) {
                 readHomeDashboardResolution(request, snapshot.configuredHomeDashboard)
             }?.path ?: error("Home Assistant reported no legal dashboard")
-            if (resolvedScopeRequiresRebind(snapshot.dashboardPath, resolved)) {
+            if (resolvedScopeRequiresRebind(snapshot.configuredHomeDashboard, snapshot.dashboardPath, resolved)) {
                 outcome = DashboardProbeOutcome.CHANGED
                 return@withHaSocket
             }
             val configJson = readDashboardConfig(request, resolved) ?: error("dashboard configuration unavailable")
             outcome = dashboardProbeOutcome(
+                configuredHomeDashboard = snapshot.configuredHomeDashboard,
                 resolvedPath = resolved,
                 boundPath = snapshot.dashboardPath,
                 liveRevision = DashboardConfigurationLint.revision(configJson),
@@ -1418,7 +1419,7 @@ class EntityLearningManager(
      * reproduces them exactly, so migrating them would be code carrying risk for no gain.
      */
     private fun reconcileResolvedScope(snapshot: EntityLearningSyncSnapshot, resolved: String): Boolean {
-        if (!resolvedScopeRequiresRebind(snapshot.dashboardPath, resolved)) return false
+        if (!resolvedScopeRequiresRebind(snapshot.configuredHomeDashboard, snapshot.dashboardPath, resolved)) return false
         val origin = snapshot.state.origin
         // The currency checks inside the resolve above guard the READ. This is a durable write, and it
         // happens later: between the two, the endpoint or the configured dashboard can change under a
