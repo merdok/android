@@ -20,7 +20,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.json.JSONObject
-import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import io.panelassistant.android.config.Capabilities
@@ -55,7 +54,7 @@ class ConfigTransactionTest {
                 )),
                 DeviceFacts("unmatched", "unmatched", ""),
             ) { registry ->
-                val prefs = fakePreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
+                val prefs = configTestPreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
                 val config = Config(prefs.instance)
                 config.attachProfile(registry.resolveForStartup().profile)
                 assertBrightnessReads(config, expected.first, expected.second)
@@ -87,7 +86,7 @@ class ConfigTransactionTest {
                 if (minimum.key in defaults) storedChoices += listOf(maximum.key to 20, maximum.key to 30)
                 if (maximum.key in defaults) storedChoices += listOf(minimum.key to 70, minimum.key to 60)
                 for ((storedKey, storedValue) in storedChoices) {
-                    val prefs = fakePreferences(initial = mapOf(
+                    val prefs = configTestPreferences(initial = mapOf(
                         "panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test",
                         storedKey to storedValue,
                     ))
@@ -118,7 +117,7 @@ class ConfigTransactionTest {
         )),
         DeviceFacts("unmatched", "unmatched", ""),
     ) { registry ->
-        val prefs = fakePreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
+        val prefs = configTestPreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
         val declared = registry.resolveForStartup().profile
         val config = Config(prefs.instance)
         config.attachProfile(declared)
@@ -164,7 +163,7 @@ class ConfigTransactionTest {
         BundledProfileFixtures.rawByName(),
         DeviceFacts("portal", "omni", ""),
     ) { registry ->
-        val prefs = fakePreferences(initial = mapOf("panel_id" to "profile_defaults_test", "friendly_name" to "Profile defaults test"))
+        val prefs = configTestPreferences(initial = mapOf("panel_id" to "profile_defaults_test", "friendly_name" to "Profile defaults test"))
         val config = Config(prefs.instance)
         val resolved = registry.resolveForStartup()
         assertEquals("meta-portal-10-gen2", resolved.profile.id)
@@ -192,7 +191,7 @@ class ConfigTransactionTest {
     ) { registry ->
         val resolved = registry.resolveForStartup()
         for (stored in listOf(96, 100)) {
-            val prefs = fakePreferences(initial = mapOf("dashboard_zoom" to stored))
+            val prefs = configTestPreferences(initial = mapOf("dashboard_zoom" to stored))
             repeat(3) {
                 val config = Config(prefs.instance)
                 config.attachProfile(resolved.profile)
@@ -204,7 +203,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun changingProfilesChangesOnlyAbsentValuesAndNeverSeedsPreferences() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val portal = BundledProfileFixtures.profile("meta-portal-10-gen2")
         val generic = BundledProfileFixtures.profile("generic")
@@ -226,7 +225,7 @@ class ConfigTransactionTest {
 
     @Test fun acceptedZoomImportsRemainExplicitAcrossProfileChangesAndRestart() {
         for (imported in listOf("85", "96", "100")) {
-            val prefs = fakePreferences()
+            val prefs = configTestPreferences()
             val config = Config(prefs.instance)
             config.attachProfile(BundledProfileFixtures.profile("meta-portal-10-gen2"))
             val editor = config.editor()
@@ -245,8 +244,8 @@ class ConfigTransactionTest {
         )),
         DeviceFacts("test-panel", "test-device", "fw-1"),
     ) { registry ->
-        val absent = Config(fakePreferences().instance)
-        val storedPrefs = fakePreferences(initial = mapOf("dashboard_zoom" to 100))
+        val absent = Config(configTestPreferences().instance)
+        val storedPrefs = configTestPreferences(initial = mapOf("dashboard_zoom" to 100))
         val explicit = Config(storedPrefs.instance)
         val initial = registry.resolveForStartup()
         absent.attachProfile(initial.profile)
@@ -288,7 +287,7 @@ class ConfigTransactionTest {
         )),
         DeviceFacts("unmatched", "unmatched", ""),
     ) { registry ->
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val profile = registry.resolveForStartup().profile
         config.attachProfile(profile)
@@ -324,7 +323,7 @@ class ConfigTransactionTest {
         assertEquals(false, listOf("network_adb_enabled", "zigbee_router_enabled").any(prefs.values::containsKey))
         // An explicit OFF an older build stored under the controller keys survives the fold against a
         // default-ON profile, and without the configured flag it still never claims the vendor gateway.
-        val legacyPrefs = fakePreferences(initial = mapOf(
+        val legacyPrefs = configTestPreferences(initial = mapOf(
             "config_schema" to SettingsRegistry.SCHEMA,
             "network_adb_enabled" to false, "zigbee_router_enabled" to false,
         ))
@@ -337,7 +336,7 @@ class ConfigTransactionTest {
         assertEquals("false", explicit.getRaw(SettingsRegistry.spec("network_adb")!!))
         assertEquals("false", explicit.getRaw(SettingsRegistry.spec("zigbee_router")!!))
         // A stored value this build does not declare reads as the profile's default, not a fixed literal.
-        val undeclared = Config(fakePreferences(initial = mapOf(
+        val undeclared = Config(configTestPreferences(initial = mapOf(
             "dashboard_theme" to "Sepia", "camera_resolution" to "4k",
         )).instance)
         undeclared.attachProfile(profile)
@@ -345,7 +344,7 @@ class ConfigTransactionTest {
         assertEquals("1080p", undeclared.cameraResolution.wire)
         assertEquals("Dark", undeclared.getRaw(SettingsRegistry.spec("dashboard_theme")!!))
         assertEquals("1080p", undeclared.getRaw(SettingsRegistry.spec("camera_resolution")!!))
-        val hardened = Config(fakePreferences(initial = mapOf("device_local_hardened_security" to true)).instance)
+        val hardened = Config(configTestPreferences(initial = mapOf("device_local_hardened_security" to true)).instance)
         hardened.attachProfile(profile)
         assertFalse(hardened.networkAdbEnabled)
         assertEquals("false", hardened.getRaw(SettingsRegistry.spec("network_adb")!!))
@@ -383,7 +382,7 @@ class ConfigTransactionTest {
 
     @Test fun legacyKioskAllowanceIsIgnoredWithoutChangingLockOrOtherSettings() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
-            val prefs = fakePreferences(initial = mapOf(
+            val prefs = configTestPreferences(initial = mapOf(
                 "config_schema" to schema,
                 "kiosk_companion_packages" to "com.example.ava,com.other.app",
                 "kiosk_lock" to true,
@@ -429,7 +428,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun firstConfigReadRepairsLegacyAreaBeforeReportingOverride() = testApplication {
-        val stale = fakePreferences(initial = mapOf(
+        val stale = configTestPreferences(initial = mapOf(
             "ha_area" to "null",
             "device_local_ha_area_user_override" to true,
         ))
@@ -457,7 +456,7 @@ class ConfigTransactionTest {
         assertEquals("", stale.values["ha_area"])
         assertEquals(false, stale.values["device_local_ha_area_user_override"])
 
-        val rawOnly = fakePreferences(initial = mapOf("ha_area" to "null"))
+        val rawOnly = configTestPreferences(initial = mapOf("ha_area" to "null"))
         assertEquals("", Config(rawOnly.instance).getRaw(areaSpec))
         assertEquals("", rawOnly.values["ha_area"])
 
@@ -468,7 +467,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun storedLiteralNullAreaIsClearedBeforeThePanelCanReportIt() {
-        val stale = fakePreferences(initial = mapOf(
+        val stale = configTestPreferences(initial = mapOf(
             "ha_area" to "null",
             "device_local_ha_area_user_override" to true,
         ))
@@ -478,7 +477,7 @@ class ConfigTransactionTest {
         assertFalse(config.haAreaUserOverride)
         assertEquals("", Config(stale.instance).haArea)
 
-        val named = fakePreferences(initial = mapOf("ha_area" to "Office"))
+        val named = configTestPreferences(initial = mapOf("ha_area" to "Office"))
         assertEquals("Office", Config(named.instance).haArea)
         assertEquals("Office", named.values["ha_area"])
 
@@ -495,7 +494,7 @@ class ConfigTransactionTest {
         val writerFinished = CountDownLatch(1)
         var config: Config? = null
         var writer: Thread? = null
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_area" to "null", "device_local_ha_area_user_override" to true),
             onGetString = { key, value ->
                 if (key == "ha_area" && value == "null" && writer == null) {
@@ -521,7 +520,7 @@ class ConfigTransactionTest {
     @Test fun liveMigrationRemovesUpdateOwnersAndExposureFlagsWithoutChangingOtherSettings() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
             val retired = retiredUpdatePreferences()
-            val prefs = fakePreferences(initial = retired + mapOf(
+            val prefs = configTestPreferences(initial = retired + mapOf(
                 "config_schema" to schema,
                 "panel_id" to "existing-panel",
                 "mqtt_broker" to "tcp://ha:1883",
@@ -549,56 +548,8 @@ class ConfigTransactionTest {
         }
     }
 
-    @Test fun typedWritersStoreWhatTheirSpecStoresAndRefuseWhatItRefuses() {
-        val prefs = fakePreferences()
-        val config = Config(prefs.instance)
-
-        config.setTameVendorPackages(" com.vendor.one, android com.vendor.one\ncom.vendor.two ")
-        assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
-        for (refused in listOf("com.good;reboot", (0..128).joinToString(" ") { "com.vendor.pkg$it" })) {
-            assertTrue(runCatching { config.setTameVendorPackages(refused) }.exceptionOrNull() is IllegalArgumentException)
-            assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
-        }
-
-        assertTrue(config.setHaConnection(" http://ha.local:8123/ ", "token-one"))
-        assertEquals("http://ha.local:8123", config.haUrl)
-        for (refused in listOf("http://owner:secret@ha.local:8123", "ftp://ha.local", "http://ha.local:8123/?next=1")) {
-            assertFalse(refused, config.setHaConnection(refused, "token-two"))
-            assertFalse(refused, config.setBorrowedRendererSettings(refused, "token-two", "refresh", 1L, "client", 90))
-            assertEquals("http://ha.local:8123", config.haUrl)
-            assertEquals("token-one", config.haToken)
-            assertFalse(config.rendererLaunchPending)
-        }
-    }
-
-    @Test fun liveMigrationFoldsTheControllerKeysIntoEachSettingsOwnKey() {
-        for (schema in listOf(14, SettingsRegistry.SCHEMA)) {
-            // The controllers acted on their own keys; a registry write they had not followed disagrees.
-            val prefs = fakePreferences(initial = mapOf(
-                "config_schema" to schema,
-                "network_adb_enabled" to true, "network_adb" to false,
-                "zigbee_router_enabled" to false, "zigbee_router_configured" to true,
-            ))
-            val config = Config(prefs.instance)
-
-            assertTrue("migration from schema $schema", config.migrateLiveStore())
-            assertTrue(config.networkAdbEnabled)
-            assertFalse(config.zigbeeRouterEnabled)
-            assertTrue(config.zigbeeRouterConfigured)
-            assertEquals(true, prefs.values["network_adb"])
-            assertEquals(false, prefs.values["zigbee_router"])
-            assertEquals("true", config.getRaw(SettingsRegistry.spec("network_adb")!!))
-            assertEquals("false", config.getRaw(SettingsRegistry.spec("zigbee_router")!!))
-            assertFalse(prefs.values.containsKey("network_adb_enabled"))
-            assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
-            val committed = prefs.values.toMap()
-            assertTrue(Config(prefs.instance).migrateLiveStore())
-            assertEquals("a second startup must be a no-op", committed, prefs.values)
-        }
-    }
-
     @Test fun liveMigrationCarriesTheAddressFamilyToItsRenamedKey() {
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "config_schema" to 14,
             "mqtt_address_family" to "Force IPv4",
             "mqtt_broker" to "tcp://ha:1883",
@@ -618,7 +569,7 @@ class ConfigTransactionTest {
     @Test fun upgradeDeletesTheBrokerCredentialsAndEveryStateTheRemovedClientKept() {
         for (schema in listOf(14, SettingsRegistry.SCHEMA)) {
             val removed = removedClientPreferences()
-            val prefs = fakePreferences(initial = removed + mapOf(
+            val prefs = configTestPreferences(initial = removed + mapOf(
                 "config_schema" to schema,
                 "panel_id" to "existing-panel",
                 "ha_url" to "http://ha.local:8123",
@@ -640,7 +591,7 @@ class ConfigTransactionTest {
 
     @Test fun onlyAnAcceptedSessionOrAClaimedUpdateCarriesConnectionEvidenceAcrossTheUpgrade() {
         for (authority in listOf("", "mqtt")) {
-            val prefs = fakePreferences(initial = mapOf(
+            val prefs = configTestPreferences(initial = mapOf(
                 "config_schema" to SettingsRegistry.SCHEMA,
                 "panel_assistant_authority" to authority,
             ))
@@ -651,7 +602,7 @@ class ConfigTransactionTest {
             assertFalse("authority '$authority' is no evidence of Panel Assistant", config.panelAssistantConnectionSeen)
         }
         for (evidence in listOf("panel_assistant_authority" to "shadow", "panel_assistant_update_owner_seen_ms" to 99L)) {
-            val prefs = fakePreferences(initial = mapOf("config_schema" to SettingsRegistry.SCHEMA, evidence))
+            val prefs = configTestPreferences(initial = mapOf("config_schema" to SettingsRegistry.SCHEMA, evidence))
             val config = Config(prefs.instance)
 
             assertTrue(config.migrateLiveStore())
@@ -662,7 +613,7 @@ class ConfigTransactionTest {
 
     @Test fun aFailedPurgeLeavesTheBrokerCredentialsForTheNextStartupToRetry() {
         val initial = removedClientPreferences() + mapOf("config_schema" to SettingsRegistry.SCHEMA)
-        val prefs = fakePreferences(initial = initial, commitSucceeds = false)
+        val prefs = configTestPreferences(initial = initial, commitSucceeds = false)
 
         assertFalse(Config(prefs.instance).migrateLiveStore())
         assertEquals("a failed commit removes nothing", initial, prefs.values)
@@ -695,7 +646,7 @@ class ConfigTransactionTest {
                 "panel_id" to "existing-panel",
                 "ha_expose_wake_on_wave" to false,
             )
-            val prefs = fakePreferences(initial = initial, commitSucceeds = false)
+            val prefs = configTestPreferences(initial = initial, commitSucceeds = false)
 
             assertFalse(Config(prefs.instance).migrateLiveStore())
             assertEquals("failed commit must remove nothing or advance no marker", initial, prefs.values)
@@ -721,11 +672,11 @@ class ConfigTransactionTest {
     }
 
     @Test fun dashboardNetworkWarningUpgradeMaterializesDefaultAndPreservesOptOut() {
-        val untouched = fakePreferences(initial = mapOf("config_schema" to 10))
+        val untouched = configTestPreferences(initial = mapOf("config_schema" to 10))
         assertTrue(Config(untouched.instance).migrateLiveStore())
         assertEquals(true, untouched.values["dashboard_network_warning"])
 
-        val optedOut = fakePreferences(initial = mapOf(
+        val optedOut = configTestPreferences(initial = mapOf(
             "config_schema" to 10,
             "dashboard_network_warning" to false,
         ))
@@ -734,7 +685,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun uiLanguageDefaultsToAutoAndRoundTripsAnExplicitChoice() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertEquals(SettingsRegistry.DEFAULT_UI_LANGUAGE, config.uiLanguage)
@@ -747,7 +698,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun cachedHaVersionIsScopedToTheExactCurrentRendererEndpoint() {
-        val prefs = fakePreferences(initial = mapOf("ha_url" to "https://ha.example"))
+        val prefs = configTestPreferences(initial = mapOf("ha_url" to "https://ha.example"))
         val config = Config(prefs.instance)
 
         assertTrue(config.setHaServerVersionIfOwned("https://ha.example/", "2026.4.2"))
@@ -761,7 +712,7 @@ class ConfigTransactionTest {
     // caller turns an empty result with no such marker into an authentication verdict, which is how a
     // panel ends up parked on a credential screen for a credential nothing ever rejected.
     @Test fun anAbandonedResolutionReportsThatNoCredentialWasJudged() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "https://ha.example",
                 "ha_token" to "token",
@@ -782,7 +733,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun generatedPanelIdentityIsPersistedOnce() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertEquals("px30_evb_b818", config.ensurePanelId { "px30_evb_b818" })
@@ -792,7 +743,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun explicitPanelIdentityIsNeverReplacedByGeneration() {
-        val prefs = fakePreferences(initial = mapOf("panel_id" to "alpha"))
+        val prefs = configTestPreferences(initial = mapOf("panel_id" to "alpha"))
         val config = Config(prefs.instance)
 
         assertEquals("alpha", config.ensurePanelId { "generated_panel" })
@@ -800,7 +751,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedGeneratedIdentityCommitStillReturnsTheGeneratedValue() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         assertEquals("px30_evb_b818", config.ensurePanelId { "px30_evb_b818" })
@@ -808,7 +759,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun nativeKioskDefaultsOnAndPersistsExplicitOverrides() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertTrue(config.dashboardNativeKiosk)
@@ -822,7 +773,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun autoSleepDefaultsOffAndPersistsBeforeRuntimeRefresh() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertFalse(config.autoSleep)
@@ -843,7 +794,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun autoSleepSavedOverHttpRefreshesTheControllerOnceBeforeTheBridgeRuns() {
-        val config = Config(fakePreferences(initial = mapOf("auto_sleep_source" to "touch")).instance)
+        val config = Config(configTestPreferences(initial = mapOf("auto_sleep_source" to "touch")).instance)
         val spec = requireNotNull(SettingsRegistry.spec("auto_sleep"))
         val refreshes = mutableListOf<Boolean>()
         val refresh = { refreshes += config.autoSleep }
@@ -859,7 +810,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun localPresenceIsTheFreshDefaultAndSurvivesEnablingAndRestart() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         assertEquals("panel", config.autoSleepSource)
         assertEquals(AutoSleepWriteResult.COMMITTED, config.setAutoSleep(true))
@@ -867,7 +818,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun legacyEnabledAutoSleepPreservesHaThroughDisableAndRestart() {
-        val prefs = fakePreferences(initial = mapOf("auto_sleep" to true))
+        val prefs = configTestPreferences(initial = mapOf("auto_sleep" to true))
         val config = Config(prefs.instance)
         assertEquals("home_assistant", config.autoSleepSource)
         assertEquals(AutoSleepWriteResult.COMMITTED, config.setAutoSleep(false))
@@ -876,16 +827,16 @@ class ConfigTransactionTest {
     }
 
     @Test fun legacyDisabledAutoSleepRetainsHaWhileFreshMigrationChoosesPanel() {
-        val old = fakePreferences(initial = mapOf("auto_sleep" to false))
+        val old = configTestPreferences(initial = mapOf("auto_sleep" to false))
         assertTrue(Config(old.instance).migrateAutoSleepSource())
         assertEquals("home_assistant", Config(old.instance).autoSleepSource)
-        val fresh = fakePreferences()
+        val fresh = configTestPreferences()
         assertTrue(Config(fresh.instance).migrateAutoSleepSource())
         assertEquals("panel", Config(fresh.instance).autoSleepSource)
     }
 
     @Test fun explicitPresenceSourceChangeFencesOutstandingAutoSleepWrites() {
-        val prefs = fakePreferences(initial = mapOf("auto_sleep" to true))
+        val prefs = configTestPreferences(initial = mapOf("auto_sleep" to true))
         val config = Config(prefs.instance)
         val generation = config.autoSleepGeneration
         assertTrue(config.commitRaw(SettingsRegistry.spec("auto_sleep_source")!!, "panel"))
@@ -894,7 +845,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun touchInactivityChoiceAndDelaySurviveRestart() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         assertTrue(config.commitRaw(SettingsRegistry.spec("auto_sleep_source")!!, "touch"))
         assertTrue(config.commitRaw(SettingsRegistry.spec("auto_sleep_touch_delay_seconds")!!, "45"))
@@ -904,7 +855,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun autoSleepSourceExclusionsPersistByHaInstallationAreaAndEntityId() {
-        val prefs = fakePreferences(initial = mapOf("ha_url" to "https://ha.example"))
+        val prefs = configTestPreferences(initial = mapOf("ha_url" to "https://ha.example"))
         val config = Config(prefs.instance)
 
         assertTrue(config.setAutoSleepSourceIncluded("office", "binary_sensor.office_motion", false))
@@ -917,7 +868,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun autoSleepSourceExclusionsDoNotCrossHomeAssistantInstallations() {
-        val prefs = fakePreferences(initial = mapOf("ha_url" to "https://ha-one.example"))
+        val prefs = configTestPreferences(initial = mapOf("ha_url" to "https://ha-one.example"))
         val config = Config(prefs.instance)
         assertTrue(config.setAutoSleepSourceIncluded("office", "binary_sensor.office_motion", false))
 
@@ -937,7 +888,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun autoSleepSourceExclusionsSurviveAsynchronousHaUuidAdoption() {
-        val prefs = fakePreferences(initial = mapOf("ha_url" to "https://ha.example"))
+        val prefs = configTestPreferences(initial = mapOf("ha_url" to "https://ha.example"))
         val config = Config(prefs.instance)
         assertTrue(config.setAutoSleepSourceIncluded("office", "binary_sensor.office_motion", false))
 
@@ -950,7 +901,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedAutoSleepCommitDoesNotChangeTheStoredValue() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         assertEquals(AutoSleepWriteResult.FAILED, config.setAutoSleep(true))
@@ -958,7 +909,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun launchScreenVersionAcknowledgementIsExactAndDurable() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertNull(config.lastLaunchScreenVersionCode)
@@ -969,7 +920,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedLaunchScreenAcknowledgementRemainsUnseen() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         assertFalse(config.commitLaunchScreenVersionShown(323L))
@@ -977,7 +928,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun powerSafetyAcknowledgementIsExactReplaceableAndDurable() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val first = "a".repeat(64)
         val second = "b".repeat(64)
@@ -991,7 +942,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedPowerSafetyAcknowledgementRemainsUnseen() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         assertFalse(config.commitPowerSafetyAcknowledgement("a".repeat(64)))
@@ -999,7 +950,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun automaticBrightnessMinimumDefaultsAndPersistsWithinPublicBounds() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertEquals(4, config.autoBrightnessMinimumPercent)
@@ -1013,7 +964,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun hardenedSecurityAndOwnedNetworkAdbAreDurablyMutuallyExclusive() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertTrue(config.setNetworkAdbEnabled(true))
@@ -1030,8 +981,8 @@ class ConfigTransactionTest {
     }
 
     @Test fun adaptiveLearnerConsumesCurrentProfileCaptureOnceAndRetiresAllOldCalibration() {
-        val prefs = fakePreferences()
-        val calibration = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences()
+        val calibration = configTestPreferences(initial = mapOf(
             "profile_calibration.first-panel.revision-a.prox_near_raw" to 2f,
             "profile_calibration.first-panel.revision-a.prox_far_raw" to 10f,
             "profile_calibration.first-panel.revision-a.prox_threshold" to 6f,
@@ -1052,14 +1003,14 @@ class ConfigTransactionTest {
     }
 
     @Test fun adaptiveLearnerCanConsumeUnscopedCaptureAndPurgesIncompleteStateFromBothStores() {
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "prox_near_raw" to 3f,
             "prox_far_raw" to 9f,
             "prox_threshold" to 6f,
             "prox_near_below" to true,
             "prox_sensitivity" to "HIGH",
         ))
-        val calibration = fakePreferences(initial = mapOf(
+        val calibration = configTestPreferences(initial = mapOf(
             "profile_calibration.legacy-panel.revision-a.prox_near_raw" to Float.NaN,
             "profile_calibration.legacy-panel.revision-a.prox_threshold" to 12f,
         ))
@@ -1072,8 +1023,8 @@ class ConfigTransactionTest {
     }
 
     @Test fun adaptiveLearnerFindsCaptureFromTheProfilesPreviousRevision() {
-        val prefs = fakePreferences()
-        val calibration = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences()
+        val calibration = configTestPreferences(initial = mapOf(
             "profile_calibration.panel.previous-revision.prox_near_raw" to 4f,
             "profile_calibration.panel.previous-revision.prox_far_raw" to 14f,
         ))
@@ -1090,8 +1041,8 @@ class ConfigTransactionTest {
         ).any { key == it || key.endsWith(".$it") }
 
     @Test fun buttonBacklightReplayIsScopedToARevisionThatDeclaresTheCapability() {
-        val prefs = fakePreferences(initial = mapOf("last_button_backlight" to 41))
-        val calibration = fakePreferences()
+        val prefs = configTestPreferences(initial = mapOf("last_button_backlight" to 41))
+        val calibration = configTestPreferences()
         val config = Config(prefs.instance, calibration.instance)
         config.attachProfile(profile("panel", "revision-a", hasButtonBacklight = true))
         assertEquals(41, config.lastButtonBacklight)
@@ -1109,7 +1060,7 @@ class ConfigTransactionTest {
 
     @Test fun defaultResolverUpgradeInvalidatesOldAutomaticFilterButPreservesItsIds() {
         val target = dashboardEntityTargetKey("url-key", "/")
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "ha_url" to "http://ha.local:8123",
             "home_dashboard" to "",
             "dashboard_entity_instance" to "url-key",
@@ -1150,7 +1101,7 @@ class ConfigTransactionTest {
 
     @Test fun defaultResolverUpgradeDoesNotInvalidateExplicitDashboardFilter() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "ha_url" to "http://ha.local:8123",
             "home_dashboard" to "/lovelace/kiosk",
             "dashboard_entity_instance" to "url-key",
@@ -1176,7 +1127,7 @@ class ConfigTransactionTest {
 
     @Test fun failedDefaultResolverUpgradeKeepsOldAutomaticFilterFailClosed() {
         val target = dashboardEntityTargetKey("url-key", "/")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "",
@@ -1205,7 +1156,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun disablingAndReenablingLearningRestoresThePreservedNarrowStream() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         assertTrue(config.commitDashboardEntitySubscription(true, listOf("light.kitchen"), applied = true))
 
@@ -1221,7 +1172,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun entityPromotionSourcesDefaultOn() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertTrue(config.dashboardEntityAutoStatic)
@@ -1229,7 +1180,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun livePreferenceSettersRemainStagedUntilTheBatchCommits() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         val committed = config.applyBatch {
@@ -1242,12 +1193,12 @@ class ConfigTransactionTest {
     }
 
     @Test fun explicitWakeOnWaveChoicesOverrideTheOptInDefault() {
-        assertTrue(Config(fakePreferences(initial = mapOf("wake_on_wave" to true)).instance).wakeOnWave)
-        assertFalse(Config(fakePreferences(initial = mapOf("wake_on_wave" to false)).instance).wakeOnWave)
+        assertTrue(Config(configTestPreferences(initial = mapOf("wake_on_wave" to true)).instance).wakeOnWave)
+        assertFalse(Config(configTestPreferences(initial = mapOf("wake_on_wave" to false)).instance).wakeOnWave)
     }
 
     @Test fun schemaThreeUpgradePreservesImplicitWakeAndHaExposureDefaults() {
-        val prefs = fakePreferences(initial = mapOf("config_schema" to 3))
+        val prefs = configTestPreferences(initial = mapOf("config_schema" to 3))
         val config = Config(prefs.instance)
 
         config.migrateLiveStore()
@@ -1260,7 +1211,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun freshStoreReceivesNewOptInDefaultsWhileExplicitLegacyChoicesWin() {
-        val fresh = fakePreferences()
+        val fresh = configTestPreferences()
         val freshConfig = Config(fresh.instance)
         freshConfig.migrateLiveStore()
         assertFalse(freshConfig.wakeOnWave)
@@ -1268,7 +1219,7 @@ class ConfigTransactionTest {
             assertFalse(freshConfig.haExposed(key, false))
         }
 
-        val explicit = fakePreferences(initial = mapOf(
+        val explicit = configTestPreferences(initial = mapOf(
             "config_schema" to 3,
             "wake_on_wave" to false,
             "ha_expose_auto_sleep" to false,
@@ -1292,7 +1243,7 @@ class ConfigTransactionTest {
         val legacyImage = Migrations.rescaleSensitivity(SettingsRegistry.LEGACY_NEUTRAL_SENSITIVITY)
 
         // Fresh install: the schema-1 sentinel, nothing materialized, no previous response to carry.
-        val fresh = fakePreferences()
+        val fresh = configTestPreferences()
         val freshConfig = Config(fresh.instance)
         assertTrue(freshConfig.migrateLiveStore())
         assertEquals(default, freshConfig.autoBrightnessResponsePercent)
@@ -1301,14 +1252,14 @@ class ConfigTransactionTest {
         // An 0.9.5-era panel that never opened the control. This is the shape the review called
         // indistinguishable from fresh state: no materialized sensitivity key. The schema marker is what
         // tells them apart, and a panel with the setting always has one.
-        val untouched = fakePreferences(initial = mapOf("config_schema" to 2))
+        val untouched = configTestPreferences(initial = mapOf("config_schema" to 2))
         val untouchedConfig = Config(untouched.instance)
         assertTrue(untouchedConfig.migrateLiveStore())
         assertEquals(legacyImage, untouchedConfig.autoBrightnessResponsePercent)
 
         // An explicitly tuned panel: rescaled to the identical gain, and the retired key removed so no
         // older build can read the new number under the old scale.
-        val tuned = fakePreferences(initial = mapOf(
+        val tuned = configTestPreferences(initial = mapOf(
             "config_schema" to 5,
             SettingsRegistry.LEGACY_SENSITIVITY_KEY to 5,
         ))
@@ -1319,7 +1270,7 @@ class ConfigTransactionTest {
 
         // A panel that already ran schema 6 keeps exactly what it has while advancing through later
         // additive schemas.
-        val current = fakePreferences(initial = mapOf(
+        val current = configTestPreferences(initial = mapOf(
             "config_schema" to 6,
             SettingsRegistry.RESPONSE_PERCENT_KEY to 12,
         ))
@@ -1335,7 +1286,7 @@ class ConfigTransactionTest {
      * values, so a failed commit must leave the store wholly unmigrated AND must be reported.
      */
     @Test fun aFailedLiveStoreMigrationIsReportedAndLeavesTheStoreAtItsOldSchema() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("config_schema" to 5, SettingsRegistry.LEGACY_SENSITIVITY_KEY to 5),
             commitSucceeds = false,
         )
@@ -1348,7 +1299,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun everyWakeOnWaveWriteInvalidatesAlreadyAdmittedGestureWork() {
-        val config = Config(fakePreferences().instance)
+        val config = Config(configTestPreferences().instance)
         val initial = config.wakeOnWaveGeneration
 
         config.setWakeOnWave(false)
@@ -1360,7 +1311,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedBatchCommitDoesNotPartiallyPublishStagedSetters() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         val committed = config.applyBatch {
@@ -1374,7 +1325,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun registryStagesOauthExpiryAsLongWithoutTruncation() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val spec = SettingsRegistry.spec("ha_token_expiry")!!
         val expiry = Int.MAX_VALUE.toLong() + 86_400L
@@ -1388,7 +1339,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun registryStagesVendorPackageSelectionsInTheExistingConfigOwner() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val spec = SettingsRegistry.spec("tame_vendor_packages")!!
         val normalized = "com.vendor.one com.vendor.two"
@@ -1403,7 +1354,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun legacyCredentialRestoreClearsUnrelatedTargetExpiry() {
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "ha_token" to "target-access",
             "ha_refresh_token" to "target-refresh",
             "ha_token_expiry" to 9_999_999_999L,
@@ -1426,7 +1377,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun credentialRestorePreservesItsMatchingExplicitExpiryAtomically() {
-        val prefs = fakePreferences(initial = mapOf("ha_token_expiry" to 111L))
+        val prefs = configTestPreferences(initial = mapOf("ha_token_expiry" to 111L))
         val config = Config(prefs.instance)
         val expiry = 2_345_678_901L
         val accepted = mapOf(
@@ -1447,7 +1398,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun panelIdentityAndDependentLinkInvalidationShareOneCommit() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("panel_id" to "old_panel", "ha_device_url" to "http://ha/device/old"),
         )
         val config = Config(prefs.instance)
@@ -1463,7 +1414,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun nativeHaTargetChangeInvalidatesDeviceLinkResolvedOnAnotherServer() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "https://renderer-a.example",
                 "ha_device_url" to "https://other-b.example/config/devices/device/stale-id",
@@ -1483,7 +1434,7 @@ class ConfigTransactionTest {
 
     @Test fun equivalentNativeHaUrlPreservesResolvedDeviceLink() {
         val existing = "https://ha.example/config/devices/device/current-id"
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "https://ha.example",
                 "ha_device_url" to existing,
@@ -1504,7 +1455,7 @@ class ConfigTransactionTest {
         val panel = "wall-panel"
         val native = "https://native-a.example/ha"
         val staleDevice = "https://other-b.example/config/devices/device/stale-id"
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "panel_id" to panel,
                 "ha_url" to native,
@@ -1528,7 +1479,7 @@ class ConfigTransactionTest {
         val panel = "wall-panel"
         val native = "https://native-a.example/ha"
         val device = "$native/config/devices/device/current-id"
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "panel_id" to panel,
                 "ha_url" to native,
@@ -1548,7 +1499,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun legacyDeviceLinkWithoutTargetOwnershipIsNeverFresh() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_device_url" to "https://old.example/config/devices/device/legacy-id",
                 "ha_link_at" to 1999L,
@@ -1564,7 +1515,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun importClearingCredentialIdentitiesClearsDependentSecretsInTheSameCommit() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha:8123", "ha_token" to "old-access",
                 "ha_refresh_token" to "old-refresh", "ha_client_id" to "old-client",
@@ -1586,7 +1537,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun importReplacementAccessTokenSupersedesAnUnreplacedRefreshSession() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha:8123", "ha_token" to "old-access",
                 "ha_refresh_token" to "old-refresh", "ha_token_expiry" to 1234L,
@@ -1604,7 +1555,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun importExplicitAccessTokenReassertionStillDropsTheOldRefreshSession() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_token" to "same-access", "ha_refresh_token" to "old-refresh",
                 "ha_token_expiry" to 1234L,
@@ -1621,7 +1572,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun importNewRefreshSessionAndHaUrlKeepTheirCanonicalValues() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_token" to "old-access", "ha_refresh_token" to "old-refresh"),
         )
         val config = Config(prefs.instance)
@@ -1646,7 +1597,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun borrowedRendererConnectionAndZoomPublishInOneCommit() {
-        val prefs = fakePreferences(initial = mapOf("dashboard_zoom" to 100))
+        val prefs = configTestPreferences(initial = mapOf("dashboard_zoom" to 100))
         val config = Config(prefs.instance)
 
         assertTrue(config.setBorrowedRendererSettings(
@@ -1668,7 +1619,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedBorrowedRendererCommitPublishesNothing() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("dashboard_zoom" to 100),
             commitSucceeds = false,
         )
@@ -1691,7 +1642,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun rendererSwitchAndLaunchHandoffAreDurable() {
-        val prefs = fakePreferences(initial = mapOf("dashboard_package" to "foreign.renderer"))
+        val prefs = configTestPreferences(initial = mapOf("dashboard_package" to "foreign.renderer"))
         val config = Config(prefs.instance)
 
         assertTrue(config.applyBatch {
@@ -1706,7 +1657,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun companionToBuiltinRoundTripSurvivesProcessRecreation() {
-        val prefs = fakePreferences(initial = mapOf("dashboard_package" to "builtin"))
+        val prefs = configTestPreferences(initial = mapOf("dashboard_package" to "builtin"))
         val firstProcess = Config(prefs.instance)
 
         assertTrue(firstProcess.applyBatch {
@@ -1726,7 +1677,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun importedRendererSwitchStagesLaunchHandoffInTheSameCommit() {
-        val prefs = fakePreferences(initial = mapOf("dashboard_package" to "foreign.renderer"))
+        val prefs = configTestPreferences(initial = mapOf("dashboard_package" to "foreign.renderer"))
         val config = Config(prefs.instance)
         val editor = config.editor().putString("dashboard_package", "builtin")
 
@@ -1738,7 +1689,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun entityFilterListAndEnableFlagPublishAtomically() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         assertTrue(config.setDashboardEntityFilter(true, listOf("sensor.b", "light.a", "sensor.b")))
@@ -1749,7 +1700,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedEntityFilterCommitPublishesNeitherListNorFlag() {
-        val prefs = fakePreferences(commitSucceeds = false)
+        val prefs = configTestPreferences(commitSucceeds = false)
         val config = Config(prefs.instance)
 
         assertFalse(config.setDashboardEntityFilter(true, listOf("sensor.one")))
@@ -1764,7 +1715,7 @@ class ConfigTransactionTest {
         // by a key that can no longer be constructed, and a startup finding the catalogue already synced
         // skipped the rescan meant to fix it.
         val legacyOwner = "7:url-key/lovelace/kiosk"
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -1796,7 +1747,7 @@ class ConfigTransactionTest {
         // The other half of the boundary. Migrating this would let a real dashboard change silently
         // inherit another dashboard's learned list, trading the reported bug for a silent one.
         val foreignOwner = "7:url-key/beta"
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace",
@@ -1824,7 +1775,7 @@ class ConfigTransactionTest {
         // as owned by the legacy instance under the stable key — invisible, and overwritten by the next
         // edit.
         val capturedElsewhere = dashboardEntityTargetKey("url-key", "/beta")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace",
@@ -1854,7 +1805,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun firstIdentityBindingPreservesLegacyStateForTheConfiguredDashboard() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -1879,7 +1830,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun reassertingTheLegacyDashboardBeforeMigrationStillPreservesItsList() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -1899,7 +1850,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun endpointChangeBeforeFirstMigrationHidesUnownedLegacyState() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://old-ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -1926,7 +1877,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun verifiedUuidPreservesStateAcrossUrlAliasesButNotBeforeAdoption() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -1962,7 +1913,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun dashboardChangeImmediatelyHidesStateEvenOnTheSameVerifiedInstance() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/alpha",
@@ -1995,7 +1946,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun differentHaInstanceNeverInheritsThePreviousTargetState() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha-a.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2028,7 +1979,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedIdentityPreferenceCommitPublishesNoPartialSelection() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_url" to "http://ha.local:8123", "home_dashboard" to "/lovelace/kiosk"),
             commitSucceeds = false,
         )
@@ -2044,7 +1995,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun staleUuidAdoptionCannotCrossAConcurrentDashboardChange() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_url" to "http://ha.local:8123", "home_dashboard" to "/lovelace/alpha"),
         )
         val config = Config(prefs.instance)
@@ -2062,7 +2013,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun manualFilterCutoverPublishesModeLatchAndListInOneCommit() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2086,7 +2037,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun invalidManualFilterCutoverDoesNotDisableLearning() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2105,7 +2056,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun disablingLearningAfterTargetSwitchDoesNotClaimPreviousAllowList() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/alpha",
@@ -2141,7 +2092,7 @@ class ConfigTransactionTest {
 
     @Test fun failedManualFilterCutoverPublishesNothing() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2168,7 +2119,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun activationPublishesFilterAndAppliedLatchAtomically() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_url" to "http://ha.local:8123", "home_dashboard" to "/lovelace/kiosk"),
         )
         val config = Config(prefs.instance)
@@ -2185,7 +2136,7 @@ class ConfigTransactionTest {
 
     @Test fun failedActivationCommitPublishesNeitherFilterNorAppliedLatch() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2209,7 +2160,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun cleanSlateEvidenceResetAtomicallyClearsFilterWithoutDisablingLearning() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2233,7 +2184,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun initialEntityActivationLatchSurvivesUntilSuccessButResetCannotRecreateIt() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2263,7 +2214,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun defaultEvidenceResetPreservesKnownGoodFilter() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2286,7 +2237,7 @@ class ConfigTransactionTest {
 
     @Test fun failedCleanSlateEvidenceResetPublishesNoPartialState() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2317,7 +2268,7 @@ class ConfigTransactionTest {
 
     @Test fun failedStoreResetCanRestoreTheExactOwnerScopedEvidencePreferences() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2351,7 +2302,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun disabledCleanSlateResetClearsEvidencePreferencesWithoutEnablingLearning() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2375,7 +2326,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun promotionPolicyAndResultingSubscriptionPublishInOneCommit() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf("ha_url" to "http://ha.local:8123", "home_dashboard" to "/lovelace/kiosk"),
         )
         val config = Config(prefs.instance)
@@ -2398,7 +2349,7 @@ class ConfigTransactionTest {
 
     @Test fun failedPromotionPolicyCommitLeavesPolicyAndSubscriptionUntouched() {
         val target = dashboardEntityTargetKey("url-key", "/lovelace/kiosk")
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/lovelace/kiosk",
@@ -2431,7 +2382,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun credentialGroupsAreReadFromOneImmutablePreferenceSnapshot() {
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "ha_url" to "https://ha.local",
             "ha_token" to "access",
             "ha_refresh_token" to "refresh",
@@ -2447,7 +2398,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun refreshedHaTokenCommitsOnlyWhileTheBorrowedAuthGenerationIsStillOwned() {
-        val prefs = fakePreferences(initial = mapOf(
+        val prefs = configTestPreferences(initial = mapOf(
             "ha_url" to "https://ha.local",
             "ha_token" to "old-access",
             "ha_refresh_token" to "refresh",
@@ -2469,7 +2420,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun newestBrowserLoginSupersedesAnAlreadyClaimedAttempt() {
-        val config = Config(fakePreferences(initial = mapOf("ha_url" to "https://ha.local")).instance)
+        val config = Config(configTestPreferences(initial = mapOf("ha_url" to "https://ha.local")).instance)
 
         val first = config.beginHaOAuthAttempt()
         assertTrue(config.isHaOAuthAttemptCurrent(first.epoch))
@@ -2481,7 +2432,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun separateConfigWrappersShareOneProcessWideTransactionLock() {
-        val prefs = fakePreferences(initial = mapOf("ha_url" to "https://ha.local"))
+        val prefs = configTestPreferences(initial = mapOf("ha_url" to "https://ha.local"))
         val first = Config(prefs.instance)
         val second = Config(prefs.instance)
         val writerStarted = CountDownLatch(1)
@@ -2505,7 +2456,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun ownerScopedEntityBackupStateRoundTripsInOneEditorCommit() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val state = DashboardEntityBackupState(
             instanceKey = "uuid-key",
@@ -2529,7 +2480,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun rawRegistryCommitValidatesAndDurablyPersistsOneValue() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
         val zoom = requireNotNull(SettingsRegistry.spec("dashboard_zoom"))
 
@@ -2540,7 +2491,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun rawWakeOnWaveCommitInvalidatesAlreadyAdmittedGestureWork() {
-        val config = Config(fakePreferences().instance)
+        val config = Config(configTestPreferences().instance)
         val wakeOnWave = requireNotNull(SettingsRegistry.spec("wake_on_wave"))
         val initial = config.wakeOnWaveGeneration
 
@@ -2551,7 +2502,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun rawHomeDashboardCommitPreservesItsOwnerScopedPathDependency() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             mutableMapOf(
                 "home_dashboard" to "/lovelace/old",
                 "dashboard_entity_dashboard_path" to "/lovelace",
@@ -2574,7 +2525,7 @@ class ConfigTransactionTest {
     }
 
     /** An owned, enabled, learned filter scoped to [path] — the state a re-scope has to invalidate. */
-    private fun learnedFilterAt(path: String) = fakePreferences(
+    private fun learnedFilterAt(path: String) = configTestPreferences(
         initial = mapOf(
             "ha_url" to "http://ha.local:8123",
             "home_dashboard" to path,
@@ -2594,7 +2545,7 @@ class ConfigTransactionTest {
         // neither may be withdrawn by moving between dashboards of the same Home Assistant. An exclusion
         // is the quieter of the two to lose: a dropped pin shows up as a card that stops updating, while
         // a dropped exclusion silently re-subscribes to something removed on purpose.
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "/alpha/music",
@@ -2635,7 +2586,7 @@ class ConfigTransactionTest {
         // a URL-derived key, and adoption can carry one key across origins while mDNS decides whether they
         // are aliases. So the origin is checked independently — otherwise a pin could survive onto a
         // different instance where the same entity id means something else entirely.
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://new-ha.local:8123",
                 "home_dashboard" to "/alpha",
@@ -2695,7 +2646,7 @@ class ConfigTransactionTest {
         // panel is following the account default with NO established dashboard, so its allow-list may
         // have been derived while a blank value resolved as ordinary Lovelace and could describe a
         // different panel than the frontend renders. That state is still discarded and rescanned.
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "ha_url" to "http://ha.local:8123",
                 "home_dashboard" to "",
@@ -2781,7 +2732,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun completedInstallGetsTheVersionedHomeDashboardMigrationAfterV1WasConsumed() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "device_local_setup_questions_migrated_v1" to true,
                 "device_local_setup_identity_confirmed" to true,
@@ -2797,7 +2748,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun freshGuidedSetupKeepsTheHomeDashboardQuestionOpen() {
-        val prefs = fakePreferences(
+        val prefs = configTestPreferences(
             initial = mapOf(
                 "device_local_setup_questions_migrated_v1" to true,
                 "device_local_setup_identity_confirmed" to true,
@@ -2812,7 +2763,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun freshConfigTakesTcpDefaultWithoutMaterialisingAnOldTransport() {
-        val prefs = fakePreferences()
+        val prefs = configTestPreferences()
         val config = Config(prefs.instance)
 
         config.migrateLogShipTcpDefault()
@@ -2823,7 +2774,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun upgradedAbsentProtocolKeepsItsPreviousEffectiveUdpTransport() {
-        val prefs = fakePreferences(initial = mapOf("panel_id" to "existing-panel"))
+        val prefs = configTestPreferences(initial = mapOf("panel_id" to "existing-panel"))
         val config = Config(prefs.instance)
 
         config.migrateLogShipTcpDefault()
@@ -2835,7 +2786,7 @@ class ConfigTransactionTest {
 
     @Test fun migrationNeverRewritesExplicitLogShipProtocols() {
         listOf("syslog-udp", "syslog-tcp", "http", "syslog").forEach { protocol ->
-            val prefs = fakePreferences(initial = mapOf("panel_id" to "existing", "log_ship_protocol" to protocol))
+            val prefs = configTestPreferences(initial = mapOf("panel_id" to "existing", "log_ship_protocol" to protocol))
             val config = Config(prefs.instance)
 
             config.migrateLogShipTcpDefault()
@@ -2846,7 +2797,7 @@ class ConfigTransactionTest {
     }
 
     @Test fun failedDefaultMigrationKeepsUdpInMemoryThenRetriesDurablyAndIdempotently() {
-        val prefs = fakePreferences(initial = mapOf("panel_id" to "existing"), commitSucceeds = false)
+        val prefs = configTestPreferences(initial = mapOf("panel_id" to "existing"), commitSucceeds = false)
         val config = Config(prefs.instance)
 
         config.migrateLogShipTcpDefault()
@@ -2866,12 +2817,6 @@ class ConfigTransactionTest {
         assertEquals(afterRetry, prefs.values)
     }
 
-    private data class FakePreferences(
-        val instance: SharedPreferences,
-        val values: MutableMap<String, Any?>,
-        val commitsSucceed: java.util.concurrent.atomic.AtomicBoolean,
-    )
-
     private fun profile(
         id: String,
         revision: String = "revision-a",
@@ -2883,155 +2828,4 @@ class ConfigTransactionTest {
         hasButtonBacklight = hasButtonBacklight,
     )
 
-    // ---- log-sink address consistency (0.9.7) ----------------------------------------------------
-
-    private val desyncPrefs = mapOf(
-        "log_ship_host" to "old.lan",
-        "log_ship_port" to 514,
-        "log_ship_protocol" to "syslog-tcp",
-    )
-
-    /** Stage a bundle import exactly as applyAccepted does: per-key first, then the dependency pass. */
-    private fun stageImport(config: Config, editor: SharedPreferences.Editor, accepted: Map<String, String>) {
-        accepted.forEach { (key, value) ->
-            SettingsRegistry.spec(key)?.let { spec -> config.stage(editor, spec, value) }
-        }
-        config.stageImportDependencies(editor, accepted)
-    }
-
-    @Test fun anImportedEmbeddedSinkAddressRewritesAllThreeFieldsInOneTransaction() {
-        // Without the dependency pass the host is stored verbatim and Port/Protocol keep describing
-        // somewhere else, so the panel ships to one destination while every surface reports another.
-        val prefs = fakePreferences(initial = desyncPrefs)
-        val config = Config(prefs.instance)
-        val editor = config.editor()
-
-        stageImport(config, editor, mapOf("log_ship_host" to "udp://collector.lan:1514"))
-        assertTrue(config.commit(editor))
-
-        assertEquals("collector.lan", prefs.values["log_ship_host"])
-        assertEquals(1514, prefs.values["log_ship_port"])
-        assertEquals("syslog-udp", prefs.values["log_ship_protocol"])
-        assertEquals("collector.lan", config.logShipHost)
-        assertEquals(1514, config.logShipPort)
-        assertEquals("syslog-udp", config.logShipProtocol)
-    }
-
-    @Test fun theStagedSinkTripleDoesNotDependOnAcceptedIterationOrder() {
-        // Same three entries in both directions; the committed destination must be identical.
-        val entries = listOf(
-            "log_ship_host" to "udp://collector.lan:1514",
-            "log_ship_port" to "514",
-            "log_ship_protocol" to "syslog-tcp",
-        )
-        val committed = listOf(entries, entries.reversed()).map { ordering ->
-            val prefs = fakePreferences(initial = desyncPrefs)
-            val config = Config(prefs.instance)
-            val editor = config.editor()
-            stageImport(config, editor, linkedMapOf(*ordering.toTypedArray()))
-            assertTrue(config.commit(editor))
-            Triple(
-                prefs.values["log_ship_host"], prefs.values["log_ship_port"], prefs.values["log_ship_protocol"],
-            )
-        }
-        assertEquals(committed[0], committed[1])
-        assertEquals(Triple("collector.lan", 1514, "syslog-udp"), committed[0])
-    }
-
-    @Test fun aFailedCommitLeavesTheSinkTripleAtItsPreviousConsistentDestination() {
-        // Partial admission must recover atomically: the three fields are staged into one editor, so a
-        // failed commit writes none of them rather than leaving a host that disagrees with its port.
-        val prefs = fakePreferences(initial = desyncPrefs, commitSucceeds = false)
-        val config = Config(prefs.instance)
-        val editor = config.editor()
-
-        stageImport(config, editor, mapOf("log_ship_host" to "udp://collector.lan:1514"))
-        assertFalse(config.commit(editor))
-
-        assertEquals("old.lan", prefs.values["log_ship_host"])
-        assertEquals(514, prefs.values["log_ship_port"])
-        assertEquals("syslog-tcp", prefs.values["log_ship_protocol"])
-        assertEquals("old.lan", config.logShipHost)
-        assertEquals(514, config.logShipPort)
-        assertEquals("syslog-tcp", config.logShipProtocol)
-    }
-
-    private fun fakePreferences(
-        initial: Map<String, Any?> = emptyMap(),
-        commitSucceeds: Boolean = true,
-        onGetString: ((String, String) -> Unit)? = null,
-    ): FakePreferences {
-        val values = initial.toMutableMap()
-        val commitsSucceed = java.util.concurrent.atomic.AtomicBoolean(commitSucceeds)
-        lateinit var prefs: SharedPreferences
-        prefs = Proxy.newProxyInstance(
-            SharedPreferences::class.java.classLoader,
-            arrayOf(SharedPreferences::class.java),
-        ) { _, method, args ->
-            when (method.name) {
-                "getAll" -> values.toMap()
-                "getString" -> (values[args!![0]] as? String ?: args[1]).also {
-                    if (it is String) onGetString?.invoke(args[0] as String, it)
-                }
-                "getStringSet" -> values[args!![0]] as? Set<*> ?: args[1]
-                "getInt" -> values[args!![0]] as? Int ?: args[1]
-                "getLong" -> values[args!![0]] as? Long ?: args[1]
-                "getFloat" -> values[args!![0]] as? Float ?: args[1]
-                "getBoolean" -> values[args!![0]] as? Boolean ?: args[1]
-                "contains" -> values.containsKey(args!![0])
-                "edit" -> fakeEditor(values) { commitsSucceed.get() }
-                "registerOnSharedPreferenceChangeListener", "unregisterOnSharedPreferenceChangeListener" -> null
-                "toString" -> "FakeSharedPreferences"
-                else -> error("unexpected SharedPreferences call: ${method.name}")
-            }
-        } as SharedPreferences
-        return FakePreferences(prefs, values, commitsSucceed)
-    }
-
-    private fun fakeEditor(
-        values: MutableMap<String, Any?>,
-        commitSucceeds: () -> Boolean,
-    ): SharedPreferences.Editor {
-        val writes = LinkedHashMap<String, Any?>()
-        val removals = LinkedHashSet<String>()
-        var clear = false
-        lateinit var editor: SharedPreferences.Editor
-        editor = Proxy.newProxyInstance(
-            SharedPreferences.Editor::class.java.classLoader,
-            arrayOf(SharedPreferences.Editor::class.java),
-        ) { _, method, args ->
-            when {
-                method.name.startsWith("put") -> editor.also {
-                    writes[args!![0] as String] = args[1]
-                    removals.remove(args[0])
-                }
-                method.name == "remove" -> editor.also {
-                    val key = args!![0] as String
-                    writes.remove(key)
-                    removals.add(key)
-                }
-                method.name == "clear" -> editor.also { clear = true; writes.clear(); removals.clear() }
-                method.name == "commit" -> {
-                    val succeeds = commitSucceeds()
-                    if (succeeds) {
-                        if (clear) values.clear()
-                        removals.forEach(values::remove)
-                        values.putAll(writes)
-                    }
-                    succeeds
-                }
-                method.name == "apply" -> {
-                    if (commitSucceeds()) {
-                        if (clear) values.clear()
-                        removals.forEach(values::remove)
-                        values.putAll(writes)
-                    }
-                    null
-                }
-                method.name == "toString" -> "FakeEditor"
-                else -> error("unexpected Editor call: ${method.name}")
-            }
-        } as SharedPreferences.Editor
-        return editor
-    }
 }
