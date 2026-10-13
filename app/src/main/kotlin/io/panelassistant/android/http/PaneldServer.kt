@@ -340,15 +340,13 @@ class PaneldServer internal constructor(
     private val clearStorageGate = GenerationSingleFlight()
     private val pendingApks = PendingUploadStore()
 
-    /** One set of control-route dependencies, for the HTTP routes and the Panel Assistant session alike. */
-    private val controlPlane by lazy {
-        controlPlaneDependencies(
-            appContext, config, scope, pendingApks, identityMigration,
-            playAudio, onInstallComponent,
-            buildBackupArtifact = ::buildBackupArtifact,
-            authorizeSensitive = ::authorizeSensitive,
-        )
-    }
+    /** The control-route dependencies, the same for the HTTP routes and the Panel Assistant session. */
+    private fun controlPlane() = controlPlaneDependencies(
+        appContext, config, scope, pendingApks, identityMigration,
+        playAudio, onInstallComponent,
+        buildBackupArtifact = ::buildBackupArtifact,
+        authorizeSensitive = ::authorizeSensitive,
+    )
     private val guardDbStaging = guardDbAppStaging(appContext)
 
     fun start() {
@@ -394,7 +392,7 @@ class PaneldServer internal constructor(
                     ownPackage = { appContext.packageName },
                     authorize = ::authorizeSensitive,
                 ))
-                controlPlaneRoutes(controlPlane)
+                controlPlaneRoutes(controlPlane())
                 identityMigrationRoutes(identityMigration, ::authorizeSensitive)
                 guardDbBootstrapRoutes(
                     guardDbBootstrapDependencies(appContext, config, scope, pendingApks, guardDbStaging),
@@ -797,7 +795,7 @@ class PaneldServer internal constructor(
                 org.json.JSONObject(body),
             )
         }
-        return ControlPlaneSessionOps.request(op, args, controlPlane, blobs) { operation, payload, summary ->
+        return ControlPlaneSessionOps.request(op, args, controlPlane(), blobs) { operation, payload, summary ->
             authorizeSessionRequest(
                 hardened = config.hardenedSecurityEnabled,
                 operation = operation,
