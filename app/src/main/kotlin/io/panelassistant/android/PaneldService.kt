@@ -3489,6 +3489,7 @@ class PaneldService : Service() {
     private fun promoteToForeground(notification: Notification, microphone: Boolean) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             startForeground(NOTIF_ID, notification)
+            foregroundGeneration = this
             return
         }
         var types = 0
@@ -3499,6 +3500,7 @@ class PaneldService : Service() {
             types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         }
         startForeground(NOTIF_ID, notification, types)
+        foregroundGeneration = this
     }
 
     /**
@@ -3599,6 +3601,7 @@ class PaneldService : Service() {
     )
 
     override fun onDestroy() {
+        if (foregroundGeneration === this) foregroundGeneration = null
         if (guardDbRedirect) {
             stopForeground(true)
             super.onDestroy()
@@ -4488,6 +4491,12 @@ class PaneldService : Service() {
         // coordinator's slower timer.
         @Volatile private var voiceForegroundRetry: (() -> Unit)? = null
 
+        // The generation that has called startForeground and is not yet being destroyed. A start
+        // request it receives must be ordinary: on Android 8.x a startForegroundService that follows a
+        // foreground start, an ordinary start and the promotion lands on the first start's still-armed
+        // timer, which then stops the service and crashes the process.
+        @Volatile private var foregroundGeneration: PaneldService? = null
+
         /** Called by the dashboard when it becomes visible. Inert when no service or no coordinator. */
         fun notifyActivityForeground() {
             voiceForegroundRetry?.invoke()
@@ -4555,6 +4564,7 @@ class PaneldService : Service() {
             dispatchPanelServiceStart(
                 Build.VERSION.SDK_INT,
                 fromVisibleActivity,
+                alreadyForeground = foregroundGeneration != null,
                 startOrdinary = { context.startService(intent) },
                 startForeground = { context.startForegroundService(intent) },
             )
@@ -4562,14 +4572,21 @@ class PaneldService : Service() {
     }
 }
 
-/** A visible Oreo activity may start its own service without arming the cold-process FGS timer. */
+/**
+ * A visible Oreo activity may start its own service without arming the cold-process FGS timer, and a
+ * service that is already foreground in this process is never asked to promote again: that request
+ * only arms a timer the running service has no reason to answer.
+ */
 internal fun dispatchPanelServiceStart(
     sdkInt: Int,
     fromVisibleActivity: Boolean,
+    alreadyForeground: Boolean,
     startOrdinary: () -> Unit,
     startForeground: () -> Unit,
 ) {
-    if (sdkInt >= Build.VERSION_CODES.O && !(fromVisibleActivity && sdkInt <= Build.VERSION_CODES.O_MR1)) {
+    if (sdkInt >= Build.VERSION_CODES.O && !alreadyForeground &&
+        !(fromVisibleActivity && sdkInt <= Build.VERSION_CODES.O_MR1)
+    ) {
         startForeground()
     } else {
         startOrdinary()
