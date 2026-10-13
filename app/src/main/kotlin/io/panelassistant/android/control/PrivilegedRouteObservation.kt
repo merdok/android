@@ -13,6 +13,8 @@ internal data class PrivilegedRouteObservation(
         PrivilegeRoute.SU -> directSuReady
         PrivilegeRoute.DAEMON -> helperRootReady
         PrivilegeRoute.ACCESSIBILITY -> false
+        // The app's own settings reads need no privilege, so no probe can rule them out.
+        PrivilegeRoute.APP -> true
     }
 }
 

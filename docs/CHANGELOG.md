@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New
+
+- **Screenshots and display sizing on panels without root.** On Android 11 or later, a panel without root, such as the Shelly Wall Display X2i, now shows its live screenshot in Panel Assistant, and a tap on it reaches the panel and comes back with a fresh picture. Text size and display density can be set from the Install page on the same panels, where the firmware allows it. None of this uses ADB.
+
 ### Changed
 
 - **Camera snapshots use the Home Assistant camera entity.** The separate image entity and panel JPEG endpoint are retired. Snapshots now come from the camera stream, which uses Home Assistant's normal timeout after a request.

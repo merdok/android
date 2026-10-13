@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.stableOwner
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome

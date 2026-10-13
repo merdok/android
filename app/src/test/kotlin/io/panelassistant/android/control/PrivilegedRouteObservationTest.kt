@@ -26,7 +26,9 @@ class PrivilegedRouteObservationTest {
         val observed = PrivilegedRouteObservation(directSuReady = false, helperRootReady = false)
 
         assertFalse(observed.rootControlReady)
-        PrivilegeRoute.entries.forEach { assertFalse(observed.admits(it)) }
+        PrivilegeRoute.entries.filter { it != PrivilegeRoute.APP }.forEach { assertFalse(observed.admits(it)) }
+        // The app's own settings reads need no privilege, so a rootless panel can still read its sizing.
+        assertTrue(observed.admits(PrivilegeRoute.APP))
         assertFalse(observeTypedShellCapability(directSuProbe = { false }, helperRootProbe = { false }).typedShellControlReady)
     }
 

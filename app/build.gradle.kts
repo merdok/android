@@ -50,7 +50,7 @@ val releaseLocaleFilters = listOf("en", "de", "fr", "it", "es", "zh-rCN", "nl", 
 // database schema object as the source of truth: release tags/versionNames are presentation, not a
 // statement about which on-disk structures a candidate can safely open.
 val entityCatalogSchemaSource = rootProject.file(
-    "app/src/main/kotlin/io/panelassistant/android/dashboard/EntityCatalogStore.kt",
+    "app/src/main/kotlin/io/panelassistant/android/dashboard/EntityCatalogSchema.kt",
 )
 fun entityCatalogSchemaConstant(name: String): Int {
     val match = Regex("""const\s+val\s+$name\s*=\s*(\d+)""")

@@ -5,6 +5,18 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
+import io.panelassistant.android.haClientId
+import io.panelassistant.android.haRefreshToken
+import io.panelassistant.android.haSetupHandover
+import io.panelassistant.android.haToken
+import io.panelassistant.android.haTokenExpiry
+import io.panelassistant.android.haUrl
+import io.panelassistant.android.haUrlHandover
+import io.panelassistant.android.haUrlHandoverReason
+import io.panelassistant.android.setHaClientId
+import io.panelassistant.android.setHaConnection
+import io.panelassistant.android.setHaRefreshToken
+import io.panelassistant.android.setHaTokenExpiry
 import io.panelassistant.android.util.LogShipEndpoint
 
 internal data class DirectConfigMutationPlan(

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Zgłasza naciśnięcia przycisków sprzętowych panelu do Home Assistant i umożliwia wprowadzanie dotknięć z poziomu interfejsu sterowania panelu. Nie odczytuje zawartości ekranu.</string>
+    <string name="a11y_description">Zgłasza naciśnięcia przycisków sprzętowych panelu do Home Assistant i pozwala interfejsowi sterowania panelu wprowadzać dotknięcia oraz robić zrzuty ekranu. Odczytuje zawartość okien innych aplikacji tylko po to, by wybrać Panel Assistant, gdy Android pyta, której aplikacji użyć jako ekranu głównego.</string>
     <string name="config_service_starting">Uruchamianie usługi konfiguracyjnej…</string>
     <string name="config_service_not_ready">Usługa konfiguracyjna nie jest jeszcze gotowa.</string>
     <string name="retry">Spróbuj ponownie</string>

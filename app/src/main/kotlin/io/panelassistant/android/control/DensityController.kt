@@ -20,15 +20,20 @@ internal data class DisplaySizingObservation(
  * so HA cards come out too big/small or text mis-sized vs desktop; iOS keeps these aligned, Android
  * panels frequently don't.
  *
- * Both persist across reboot (secure/system settings), so a one-shot set sticks. Both are privileged.
- * The active profile's `appCanSu` value orders live su/helper attempts; it never suppresses the
- * alternate route.
+ * Both persist across reboot (secure/system settings), so a one-shot set sticks. The active profile's
+ * `appCanSu` value orders live su/helper attempts; it never suppresses the alternate route. The app's
+ * own settings grants ([app]) come last, so a panel with root or the helper sizes exactly as before
+ * and a panel with neither still can.
  */
 class DensityController(
     private val canSu: Boolean,
     private val root: RootShell = Su,
     private val daemon: Daemon = HelperClient,
+    private val app: AppSizing? = null,
 ) {
+    /** Whether the app's own grants can apply both density and text size without root or the helper. */
+    internal fun appSizingReady(): Boolean = app?.let { it.densityReady() && it.fontReady() } == true
+
     private data class DensityState(val base: Int, val override: Int?)
 
     /**
@@ -50,6 +55,7 @@ class DensityController(
         return routedEffect(
             su = { root.run("wm density $dpi") },
             helper = { daemon.send("DENSITY $dpi") == "OK" },
+            app = { app?.setDensity(dpi) == true },
         )
     }
 
@@ -57,12 +63,14 @@ class DensityController(
     fun reset(): Boolean = routedEffect(
         su = { root.run("wm density reset") },
         helper = { daemon.send("DENSITY reset") == "OK" },
+        app = { app?.setDensity(null) == true },
     )
 
     private fun readFontScale(privilege: PrivilegedRouteObservation? = null): Float = routedValue(
         privilege = privilege,
         su = { parseRootScale(root.runOutput("settings get system font_scale 2>/dev/null")) },
         helper = { parseHelperScale(daemon.send("FONTSCALE")) },
+        app = { app?.fontScale() },
     ) ?: 1.0f
 
     /** Set the system font scale (text size). Bounded to keep text legible. Returns true if applied. */
@@ -71,6 +79,7 @@ class DensityController(
         return routedEffect(
             su = { root.run("settings put system font_scale $scale") },
             helper = { daemon.send("FONTSCALE $scale") == "OK" },
+            app = { app?.setFontScale(scale) == true },
         )
     }
 
@@ -78,12 +87,15 @@ class DensityController(
     fun resetFontScale(): Boolean = routedEffect(
         su = { root.run("settings delete system font_scale") },
         helper = { daemon.send("FONTSCALE reset") == "OK" },
+        // An app may not delete the setting; Android writes 1.0 back for a deleted one anyway.
+        app = { app?.setFontScale(1.0f) == true },
     )
 
     private fun densityState(privilege: PrivilegedRouteObservation? = null): DensityState? = routedValue(
         privilege = privilege,
         su = { parseRootDensity(root.runOutput("wm density 2>/dev/null")) },
         helper = { parseHelperDensity(daemon.send("DENSITY")) },
+        app = { app?.density()?.let { (base, override) -> DensityState(base, override) } },
     )
 
     private fun parseRootDensity(reply: String?): DensityState? {
@@ -125,10 +137,13 @@ class DensityController(
     private fun routedEffect(
         su: () -> Boolean,
         helper: () -> Boolean,
+        app: () -> Boolean,
     ): Boolean {
         val suAttempt = EffectAttempt(PrivilegeRoute.SU, su)
         val helperAttempt = EffectAttempt(PrivilegeRoute.DAEMON, helper)
-        val attempts = if (canSu) arrayOf(suAttempt, helperAttempt) else arrayOf(helperAttempt, suAttempt)
+        val appAttempt = EffectAttempt(PrivilegeRoute.APP, app)
+        val attempts = if (canSu) arrayOf(suAttempt, helperAttempt, appAttempt)
+        else arrayOf(helperAttempt, suAttempt, appAttempt)
         return ShortOperationRouter.effect(*attempts) != null
     }
 
@@ -136,10 +151,13 @@ class DensityController(
         privilege: PrivilegedRouteObservation? = null,
         su: () -> T?,
         helper: () -> T?,
+        app: () -> T?,
     ): T? {
         val suAttempt = ValueAttempt(PrivilegeRoute.SU, su)
         val helperAttempt = ValueAttempt(PrivilegeRoute.DAEMON, helper)
-        val ordered = if (canSu) arrayOf(suAttempt, helperAttempt) else arrayOf(helperAttempt, suAttempt)
+        val appAttempt = ValueAttempt(PrivilegeRoute.APP, app)
+        val ordered = if (canSu) arrayOf(suAttempt, helperAttempt, appAttempt)
+        else arrayOf(helperAttempt, suAttempt, appAttempt)
         val attempts = if (privilege == null) {
             ordered
         } else {

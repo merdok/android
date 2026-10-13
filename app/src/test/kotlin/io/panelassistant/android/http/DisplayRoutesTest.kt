@@ -57,4 +57,51 @@ class DisplayRoutesTest {
             }
         }
     }
+
+    @Test fun `a panel with neither root nor the helper applies the profile sizing through the app's own grants`() {
+        val app = io.panelassistant.android.control.FakeAppSizing(base = 240)
+        val density = DensityController(
+            false, FakeRootShell(available = false, runResult = false), FakeDaemon(available = false), app,
+        )
+        PaneldServerHttpFixture(density = density).use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                suspend fun post(body: String) = client.post("/api/v1/display/density") {
+                    header(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                    header(HttpHeaders.Accept, "application/json")
+                    setBody(body)
+                }
+                val applied = post("density=216&font=1.1")
+                assertEquals(HttpStatusCode.OK, applied.status)
+                assertEquals("applied", JSONObject(applied.bodyAsText()).getString("status"))
+                assertEquals(216, app.override)
+                assertEquals(1.1f, app.font)
+                assertEquals(DisplaySizingObservation(216, 240, 1.1f), fixture.sizingCache.peek())
+                val reset = post("action=reset")
+                assertEquals(HttpStatusCode.OK, reset.status)
+                assertEquals(null, app.override)
+                assertEquals(1.0f, app.font)
+            }
+        }
+    }
+
+    @Test fun `without the app's grants a rootless panel reports the sizing as not applied`() {
+        val app = io.panelassistant.android.control.FakeAppSizing(granted = false)
+        val density = DensityController(
+            false, FakeRootShell(available = false, runResult = false), FakeDaemon(available = false), app,
+        )
+        PaneldServerHttpFixture(density = density).use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                val refused = client.post("/api/v1/display/density") {
+                    header(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                    header(HttpHeaders.Accept, "application/json")
+                    setBody("density=216")
+                }
+                assertEquals(HttpStatusCode.InternalServerError, refused.status)
+                assertEquals("apply-failed", JSONObject(refused.bodyAsText()).getString("status"))
+                assertEquals(null, app.override)
+            }
+        }
+    }
 }

@@ -1,12 +1,18 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
+import io.panelassistant.android.commitDashboardManualEntityFilter
 import io.panelassistant.android.dashboard.EntityFilterProtocol
 import io.panelassistant.android.dashboard.EntityFilterTelemetry
 import io.panelassistant.android.dashboard.EntityLearningManager
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.panelassistant.android.dashboardEntityFilterEnabled
+import io.panelassistant.android.dashboardEntityFilterIds
+import io.panelassistant.android.setDashboardEntityFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

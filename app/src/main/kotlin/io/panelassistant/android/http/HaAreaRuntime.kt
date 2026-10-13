@@ -4,6 +4,9 @@ import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.isLiteralNullAreaName
 import io.panelassistant.android.dashboard.EntityLearningManager
+import io.panelassistant.android.haRefreshToken
+import io.panelassistant.android.haToken
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.Json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

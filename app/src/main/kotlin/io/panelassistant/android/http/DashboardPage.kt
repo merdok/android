@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
 import io.panelassistant.android.device.profile.ProfileLink
+import io.panelassistant.android.haLinkUrl
 import io.panelassistant.android.i18n.Strings as AppStrings
 
 internal fun dashboardProfileNote(links: List<ProfileLink>, strings: AppStrings): String {

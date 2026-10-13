@@ -304,3 +304,28 @@ class SettingBacklight(private val vendor: FakeVendorScreen, var setting: Int = 
     override fun setBrightnessRaw(level: Int) = setBrightness(level)
     override fun getCommanded() = setting
 }
+
+/** The app's own sizing route on a panel whose grants are held unless [granted] says otherwise. A write
+ *  lands on the fake's settings only when granted, so a test sees what the panel would read back. */
+class FakeAppSizing(
+    var base: Int = 240,
+    var override: Int? = null,
+    var font: Float = 1.0f,
+    private val granted: Boolean = true,
+) : io.panelassistant.android.control.AppSizing {
+    val writes = mutableListOf<String>()
+    override fun densityReady() = granted
+    override fun fontReady() = granted
+    override fun density() = base to override
+    override fun setDensity(dpi: Int?): Boolean {
+        writes += "density:${dpi ?: "reset"}"
+        if (granted) override = dpi
+        return granted
+    }
+    override fun fontScale() = font
+    override fun setFontScale(scale: Float): Boolean {
+        writes += "font:$scale"
+        if (granted) font = scale
+        return granted
+    }
+}

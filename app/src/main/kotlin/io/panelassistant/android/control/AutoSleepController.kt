@@ -4,6 +4,10 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.autoSleep
+import io.panelassistant.android.autoSleepSource
+import io.panelassistant.android.autoSleepTouchDelaySeconds
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.panelAssistantDiscoveryId
 import io.panelassistant.android.AutoSleepActivitySnapshot
 import io.panelassistant.android.sensors.HaPresenceAggregate

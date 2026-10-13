@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.closeBody
 import io.ktor.http.Parameters
 import kotlinx.coroutines.Dispatchers

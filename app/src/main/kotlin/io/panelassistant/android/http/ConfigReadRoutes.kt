@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.Config
 import io.panelassistant.android.DiscoveryResult
 import io.panelassistant.android.dashboard.HomeDashboardCatalog
+import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

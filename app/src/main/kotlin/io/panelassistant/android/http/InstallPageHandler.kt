@@ -26,6 +26,8 @@ internal class InstallPageHandler(
     private val tameProfileCandidates: List<TameCandidate>,
     private val recommendedDensity: Int?,
     private val recommendedFontScale: Float?,
+    /** Whether the app's own settings grants can size the display where no root route can. */
+    private val appSizingReady: () -> Boolean,
     private val catalogueLoader: () -> CatalogueLoader,
     private val radioStatus: () -> ZigbeeHealthSnapshot?,
     private val dashboardRecoveryState: () -> PanelStatus.DashboardRecoveryState,
@@ -79,7 +81,10 @@ internal class InstallPageHandler(
             apk = apkCardHtml(root, strings, config),
             uninstall = uninstallCardHtml(su, strings),
             vendor = tameCardHtml(root, strings) { tame.cardCandidates(config.tameVendorPackages, tameProfileCandidates) },
-            display = displayCardHtml(management.privilege.rootControlReady, displaySizing, strings, recommendedDensity, recommendedFontScale),
+            display = displayCardHtml(
+                management.privilege.rootControlReady || appSizingReady(),
+                displaySizing, strings, recommendedDensity, recommendedFontScale,
+            ),
             backup = backupCardHtml(companionHelper, CompanionInstaller.installedPkg(appContext) != null, strings),
         )
     }

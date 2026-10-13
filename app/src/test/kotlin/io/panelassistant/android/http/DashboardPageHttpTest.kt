@@ -68,4 +68,33 @@ class DashboardPageHttpTest {
             }
         }
     }
+
+    @Test fun `a panel without root offers the screenshot only where the accessibility capture serves`() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.enablePages()
+            fixture.enableWarmDashboard()
+            testApplication {
+                application { fixture.server.mount(this) }
+                suspend fun shot() = org.json.JSONObject(client.get("/api/v1/info?lang=en").bodyAsText()).getBoolean("shot")
+                assertEquals(false, shot())
+                val without = client.get("/?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
+                assertTrue(without.contains("id=\"infotbl\""))
+                assertTrue(!without.contains("id=\"shotcard\""))
+                fixture.useInteractive(io.panelassistant.android.control.InteractiveController(
+                    canSu = false,
+                    root = io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+                    daemon = io.panelassistant.android.control.FakeDaemon(available = false),
+                    accessibility = object : io.panelassistant.android.platform.AccessibilityActions {
+                        override fun back() = false
+                        override fun recents() = false
+                        override fun tap(x: Int, y: Int) = false
+                        override fun canScreenshot() = true
+                    },
+                ))
+                assertEquals(true, shot())
+                val html = client.get("/?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
+                assertTrue(html.contains("id=\"shotcard\" data-layout-key=\"screenshot\" data-capture-ok=\"1\""))
+            }
+        }
+    }
 }

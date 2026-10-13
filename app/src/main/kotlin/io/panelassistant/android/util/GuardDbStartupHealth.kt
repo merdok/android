@@ -9,6 +9,7 @@ import android.system.OsConstants
 import android.util.Log
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.dashboard.EntityCatalogStorePreOpen
 import io.panelassistant.android.dashboard.DatabaseRestoreGuardBinding
 import io.panelassistant.android.dashboard.DatabaseRestoreGuardContext
 import io.panelassistant.android.dashboard.DatabaseRestoreTransaction
@@ -222,7 +223,7 @@ internal object GuardDbStartupAcknowledger {
             status.role == GuardDbMaintenanceProtocol.Role.B -> GuardDbMaintenanceProtocol.RecoveryProof.NA
             status.phase == GuardDbMaintenanceProtocol.Phase.ROLLBACK_DB_RESTORED ->
                 GuardDbMaintenanceProtocol.RecoveryProof.BASELINE
-            EntityCatalogStore.lastSchemaReconcile?.let { reconcile ->
+            EntityCatalogStorePreOpen.lastSchemaReconcile?.let { reconcile ->
                 reconcile.action == SchemaReconcileAction.RESTORED &&
                     reconcile.fromVersion == status.schema?.plus(1) &&
                     reconcile.toVersion == status.schema && reconcile.restoredVersion == status.schema

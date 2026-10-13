@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Signale à Home Assistant les appuis sur les boutons matériels du panneau et permet d’injecter des appuis depuis l’interface de contrôle du panneau. Ne lit pas le contenu de l’écran.</string>
+    <string name="a11y_description">Signale à Home Assistant les appuis sur les boutons matériels du panneau et permet à l’interface de contrôle du panneau d’injecter des appuis et de faire des captures d’écran. Lit le contenu des fenêtres des autres applications uniquement pour choisir Panel Assistant quand Android demande quelle application utiliser comme écran d’accueil.</string>
     <string name="config_service_starting">Démarrage du service de configuration…</string>
     <string name="config_service_not_ready">Le service de configuration n’est pas encore prêt.</string>
     <string name="retry">Réessayer</string>

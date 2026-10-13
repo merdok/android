@@ -7,6 +7,8 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.sensors.SensorReporter
+import io.panelassistant.android.setDashboardEntityLearningEnabled
+import io.panelassistant.android.setHaConnection
 import io.panelassistant.android.util.guardDbAppStaging
 import io.ktor.server.application.Application
 import java.io.File
@@ -109,6 +111,17 @@ internal class PaneldServerHttpFixture(
         field("camera", camera)
         field("permissionStatus", permissionStatus)
         field("density", density ?: allocate(io.panelassistant.android.control.DensityController::class.java))
+        // No capture or input route at all until a test supplies one with [useInteractive].
+        field("interactive", io.panelassistant.android.control.InteractiveController(
+            canSu = false,
+            root = io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+            daemon = io.panelassistant.android.control.FakeDaemon(available = false),
+            accessibility = object : io.panelassistant.android.platform.AccessibilityActions {
+                override fun back() = false
+                override fun recents() = false
+                override fun tap(x: Int, y: Int) = false
+            },
+        ))
         field("profile", io.panelassistant.android.control.fakeProfile())
         field("catalogueLoader\$delegate", lazy {
             // Source-text reason: load runtime catalogues as the app does, so full-mount requests

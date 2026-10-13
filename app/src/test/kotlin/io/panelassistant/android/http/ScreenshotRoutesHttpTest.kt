@@ -79,4 +79,29 @@ class ScreenshotRoutesHttpTest {
             }
         }
     }
+
+    @Test fun `a panel with neither root nor the helper serves its screenshot through the accessibility capture`() {
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 1)
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.useInteractive(InteractiveController(
+                canSu = false,
+                root = FakeRootShell(available = false, runResult = false),
+                daemon = FakeDaemon(available = false),
+                accessibility = object : AccessibilityActions {
+                    override fun back() = false
+                    override fun recents() = false
+                    override fun tap(x: Int, y: Int) = false
+                    override fun canScreenshot() = true
+                    override fun screenshot(timeoutMs: Long) = png
+                },
+            ))
+            testApplication {
+                application { fixture.mount(this) }
+                val live = client.get("/api/v1/screenshot.png")
+                assertEquals(HttpStatusCode.OK, live.status)
+                assertEquals("image/png", live.headers[HttpHeaders.ContentType])
+                assertArrayEquals(png, live.bodyAsBytes())
+            }
+        }
+    }
 }

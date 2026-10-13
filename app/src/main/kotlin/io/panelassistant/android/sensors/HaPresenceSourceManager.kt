@@ -3,7 +3,10 @@ package io.panelassistant.android.sensors
 import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.HaConnectionRoutes
+import io.panelassistant.android.autoSleepExcludedEntityIds
+import io.panelassistant.android.autoSleepExclusionScope
 import io.panelassistant.android.dashboard.EntityFilterProtocol
+import io.panelassistant.android.setAutoSleepSourceIncludedIfScope
 import io.panelassistant.android.util.AddressFamilyPolicy
 import io.panelassistant.android.util.HaWebSocketClients
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession

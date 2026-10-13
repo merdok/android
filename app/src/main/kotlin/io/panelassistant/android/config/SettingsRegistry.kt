@@ -13,6 +13,10 @@ import org.json.JSONObject
 import java.util.Locale
 
 /** A legacy serialized JSON null is not an area request. Keep every other name unchanged. */
+/** The panel-id shape: lowercase letters and digits joined by single underscores. The validator and the
+ *  generated default both apply it, so a generated id and a typed one are spelled by one rule. */
+internal fun panelIdSlug(raw: String): String = raw.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "_").trim('_')
+
 internal fun isLiteralNullAreaName(raw: String): Boolean = raw.trim().equals("null", ignoreCase = true)
 
 internal fun normalizedHaAreaName(raw: String): String =
@@ -251,7 +255,7 @@ object SettingsRegistry {
                 if (raw.length > MAX_PANEL_ID_INPUT_CHARS) {
                     Validation.Bad("panel_id: must be at most $MAX_PANEL_ID_CHARS characters")
                 } else {
-                    val slug = raw.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "_").trim('_')
+                    val slug = panelIdSlug(raw)
                     if (slug.isEmpty()) Validation.Bad("panel_id: must contain a letter or digit")
                     else if (slug.length > MAX_PANEL_ID_CHARS) {
                         Validation.Bad("panel_id: must be at most $MAX_PANEL_ID_CHARS characters")
