@@ -2,7 +2,6 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.panelassistant.PanelAssistantBlobs
 import io.panelassistant.android.panelassistant.PanelAssistantManageReply
-import io.panelassistant.android.panelassistant.PanelAssistantManagement
 import io.panelassistant.android.sensors.HaApiSessionProvider
 import org.json.JSONObject
 import android.content.Context
@@ -781,20 +780,17 @@ class PaneldServer internal constructor(
     }
 
     /**
-     * What Panel Assistant reads and asks over its session: the snapshot, the managed settings and the named
-     * requests (protocol section 20.3), `status` and the update and backup routes, whose bytes move through
-     * Panel Assistant's blob view with [auth]'s credential.
+     * The named requests Panel Assistant makes over its session (protocol section 20.3): `status`, and the
+     * update and backup routes, whose bytes move through Panel Assistant's blob view with [auth]'s credential.
+     * Null for a name this build does not serve.
      */
-    internal fun panelAssistantManagement(auth: HaApiSessionProvider): PanelAssistantManagement {
-        val blobs = PanelAssistantBlobs(auth)
-        return PanelAssistantManagement.of(::managementSnapshot, ::applyManagedSettings) { op, args, onPending ->
-            if (op == MANAGE_STATUS) {
-                val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
-                return@of PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
-            }
-            ControlPlaneSessionOps.request(op, args, controlPlane(), blobs) { operation, payload, summary ->
-                authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
-            }
+    internal suspend fun managementRequest(op: String, args: JSONObject, onPending: () -> Unit, auth: HaApiSessionProvider): PanelAssistantManageReply? {
+        if (op == MANAGE_STATUS) {
+            val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
+            return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
+        }
+        return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
+            authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
         }
     }
 

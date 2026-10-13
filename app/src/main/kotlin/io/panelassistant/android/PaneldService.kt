@@ -1110,7 +1110,7 @@ class PaneldService : Service() {
                 observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
             },
             commands = panelAssistantCommands,
-            management = server.panelAssistantManagement(haSessionAuthority),
+            management = io.panelassistant.android.panelassistant.PanelAssistantManagement.of({ server.managementSnapshot() }, { settings, admit -> server.applyManagedSettings(settings, admit) }) { op, args, onPending -> server.managementRequest(op, args, onPending, haSessionAuthority) },
             onConnected = config::markPanelAssistantConnected,
             onLifecycleNotice = { notice -> haLifecycle.onNativeNotice(notice) },
             onLifecycleAuthenticated = { haLifecycle.onNativeAuthenticated() },
