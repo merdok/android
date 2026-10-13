@@ -1,16 +1,11 @@
 package io.panelassistant.android
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.database.ContentObserver
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
@@ -25,7 +20,6 @@ import android.os.Looper
 import android.os.OperationCanceledException
 import android.provider.Settings
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.webkit.WebViewCompat
 import io.panelassistant.android.camera.CameraCapabilityReason
@@ -155,7 +149,6 @@ import io.panelassistant.android.storage.DisposableFileSweeper
 import io.panelassistant.android.storage.DisposableSweepResult
 import io.panelassistant.android.storage.ProcessStartWallClock
 import io.panelassistant.android.storage.RetentionResult
-import io.panelassistant.android.storage.StorageDatabaseFailureKind
 import io.panelassistant.android.storage.StorageMaintenancePlan
 import io.panelassistant.android.storage.StorageRemediationLadder
 import io.panelassistant.android.storage.StorageRemediationOperations
@@ -169,7 +162,6 @@ import io.panelassistant.android.storage.storageMaintenancePlan
 import io.panelassistant.android.storage.StorageHealthObservationQueue
 import io.panelassistant.android.storage.StorageHealthRecoveryLifecycle
 import io.panelassistant.android.storage.StorageHealthRuntime
-import io.panelassistant.android.storage.StorageHealthSeverity
 import io.panelassistant.android.storage.StorageHealthSnapshot
 import io.panelassistant.android.storage.StorageQuickCheck
 import io.panelassistant.android.util.DashboardTheme
@@ -705,6 +697,7 @@ class PaneldService : Service() {
     private lateinit var media: io.panelassistant.android.media.PanelMediaPlayer
     private lateinit var voice: io.panelassistant.android.assist.VoiceAssistantCoordinator
     private lateinit var sharedMicrophone: io.panelassistant.android.assist.ConfiguredMicrophoneSource
+    private val notifications = ServiceNotifications(this)
     private val microphoneClaims = io.panelassistant.android.audio.MicrophoneForegroundClaims(::updateMicrophoneForeground)
     private val microphoneMute = io.panelassistant.android.audio.MicrophoneMuteWatch(
         this, { microphonePresence().offered },
@@ -769,12 +762,6 @@ class PaneldService : Service() {
     // nothing and must not be torn down as though it did. Never cleared: a stood-down generation stays
     // stood down for as long as the doomed process lives.
     @Volatile private var standingDown = false
-    // The text of the notification currently on screen, so re-issuing startForeground to change the
-    // claimed service types does not silently rewrite what the panel is telling its owner.
-    @Volatile private var foregroundStatusText = "Starting\u2026"
-    // Whether the microphone foreground-service type is currently claimed. Only ever true while
-    // something holds a microphone lease.
-    @Volatile private var microphoneForeground = false
     private val teardownBoundary = ServiceTeardownBoundary()
     private val restartAfterInternalBoundary = AtomicBoolean(false)
     private var upgradeShutdownClaim: UpgradeShutdownClaim? = null
@@ -789,7 +776,7 @@ class PaneldService : Service() {
             // A stale START_STICKY or explicit component intent may still name PaneldService after a
             // package replacement. Promote promptly, hand off to the narrow writer-free service, and
             // return before Config/AppState/profile/controller construction.
-            startForegroundCompat(nativeString(R.string.guard_db_activity_label), silent = true)
+            notifications.startForegroundCompat(nativeString(R.string.guard_db_activity_label), silent = true)
             guardDbRedirect = true
             GuardDbMaintenanceService.start(this)
             stopSelf()
@@ -799,7 +786,7 @@ class PaneldService : Service() {
             StartDisposition.RETIRED_BRIDGE -> {
                 // This bridge handed the panel to the successor. A sticky restart, a boot or an explicit
                 // intent must never bind the port or resume a kiosk loop beside it.
-                startForegroundCompat(nativeString(R.string.starting), silent = true)
+                notifications.startForegroundCompat(nativeString(R.string.starting), silent = true)
                 identityMigrationStandby = true
                 stopSelf()
                 return
@@ -807,7 +794,7 @@ class PaneldService : Service() {
             StartDisposition.PASSIVE_SUCCESSOR -> {
                 // The legacy app still owns the panel. Run only the migration, with no Config, server,
                 // mDNS or controller, until the legacy app has released it.
-                startForegroundCompat(nativeString(R.string.starting), silent = true)
+                notifications.startForegroundCompat(nativeString(R.string.starting), silent = true)
                 identityMigrationStandby = true
                 identityMigrationSticky = true
                 SuccessorMigrationRunner.runPassive(this, scope)
@@ -818,7 +805,7 @@ class PaneldService : Service() {
         // Android starts the foreground-service deadline before onCreate. Promote before profile/DB/
         // controller construction: slow root-backed initialization must never consume that deadline.
         // The bootstrap notification is deliberately silent until persisted notification policy is read.
-        startForegroundCompat(nativeString(R.string.starting), silent = true)
+        notifications.startForegroundCompat(nativeString(R.string.starting), silent = true)
         // stopSelf() clears START_STICKY, so an app-internal boundary has to re-arm its own start
         // request before exiting, and Android delivers that request into the still-live process. The
         // generation it creates here cannot outlive the exit: it could only claim the staged profile
@@ -3321,119 +3308,9 @@ class PaneldService : Service() {
     private fun onStorageHealthSnapshot(snapshot: StorageHealthSnapshot) {
         if (teardownBoundary.isStopping) return
         server.invalidateStorageHealthDiagnostics()
-        updateStorageHealthNotification(snapshot)
+        notifications.updateStorageHealthNotification(snapshot)
         runtime.observe()?.value?.core?.publishStorageHealth()
     }
-
-    private fun updateStorageHealthNotification(snapshot: StorageHealthSnapshot) {
-        when (val decision = storageHealthNotificationDecision(snapshot)) {
-            StorageHealthNotificationDecision.KeepExisting -> Unit
-            StorageHealthNotificationDecision.Cancel -> runCatching {
-                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                    .cancel(STORAGE_HEALTH_NOTIF_ID)
-            }.onFailure { Log.w(TAG, "could not clear storage health notification", it) }
-            is StorageHealthNotificationDecision.Show -> runCatching {
-                val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                mgr.createNotificationChannel(
-                    NotificationChannel(
-                        STORAGE_HEALTH_CHANNEL_ID,
-                        nativeString(R.string.storage_health_channel),
-                        NotificationManager.IMPORTANCE_HIGH,
-                    ).apply {
-                        description = nativeString(R.string.storage_health_channel_description)
-                        setSound(null, null)
-                        enableVibration(false)
-                    },
-                )
-                val storageHealthDestination = Intent()
-                storageHealthDestination.setClass(this, ConfigActivity::class.java)
-                storageHealthDestination
-                    .putExtra("path", "/")
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                val contentIntent = PendingIntent.getActivity(
-                    this,
-                    STORAGE_HEALTH_NOTIF_ID,
-                    storageHealthDestination,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
-                val (title, body) = localizedStorageHealthNotification(snapshot)
-                val notification = NotificationCompat.Builder(this, STORAGE_HEALTH_CHANNEL_ID)
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-                    .setSmallIcon(android.R.drawable.stat_notify_error)
-                    .setCategory(NotificationCompat.CATEGORY_ERROR)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setOngoing(true)
-                    .setAutoCancel(false)
-                    .setOnlyAlertOnce(true)
-                    .setSilent(true)
-                    .setContentIntent(contentIntent)
-                    .build()
-                mgr.notify(STORAGE_HEALTH_NOTIF_ID, notification)
-            }.onFailure { Log.w(TAG, "could not show storage health notification", it) }
-        }
-    }
-
-    private fun localizedStorageHealthNotification(snapshot: StorageHealthSnapshot): Pair<String, String> {
-        if (snapshot.severity == StorageHealthSeverity.CRITICAL) {
-            val capacity = if (snapshot.totalBytes > 0L) {
-                nativeString(R.string.storage_capacity_suffix, snapshot.usableBytes.coerceAtLeast(0L) / (1024L * 1024L))
-            } else ""
-            return nativeString(R.string.storage_pressure_title) to nativeString(R.string.storage_pressure_body, capacity)
-        }
-        val during = snapshot.databaseFailureOperationLabel
-            ?.let { nativeString(R.string.database_during_suffix, it) }
-            .orEmpty()
-        val body = when (snapshot.databaseFailureKind) {
-            StorageDatabaseFailureKind.STORAGE_FULL -> R.string.database_full_body
-            StorageDatabaseFailureKind.IO -> R.string.database_io_body
-            StorageDatabaseFailureKind.CORRUPTION -> R.string.database_corruption_body
-            StorageDatabaseFailureKind.BUSY -> R.string.database_busy_body
-            StorageDatabaseFailureKind.UNKNOWN, null -> R.string.database_failure_body
-        }
-        return nativeString(R.string.database_attention_title) to nativeString(body, during)
-    }
-
-    private fun notificationChannel(silent: Boolean): Pair<NotificationManager, String> {
-        val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = if (silent) SILENT_CHANNEL_ID else CHANNEL_ID
-        mgr.createNotificationChannel(
-            NotificationChannel(channelId, "Panel Assistant", NotificationManager.IMPORTANCE_MIN).apply {
-                description = nativeString(R.string.panel_agent_channel_description)
-                if (silent) {
-                    setSound(null, null)
-                    enableVibration(false)
-                    setShowBadge(false)
-                }
-            },
-        )
-        return mgr to channelId
-    }
-
-    private fun startForegroundCompat(statusText: String, silent: Boolean) {
-        foregroundStatusText = statusText
-        val (_, channelId) = notificationChannel(silent)
-        promoteToForeground(foregroundNotification(channelId, silent, statusText), microphoneForeground)
-        Log.i(TAG, "foreground service started${promotionLatencySuffix()}")
-    }
-
-    /**
-     * How long this process took to reach `startForeground`, when the platform can tell us.
-     *
-     * Android gives a `startForegroundService` caller a few seconds to promote, and on an
-     * out-of-process cold start that budget covers process creation and `Application.onCreate` as well
-     * as everything above. Missing it kills the process with `RemoteServiceException`, which is what
-     * slower Android 8.1 panels were doing. An absence of crashes cannot prove that fixed, so the
-     * margin is measured on every start instead of inferred: this is the instrument that says how much
-     * headroom the slowest panel actually has.
-     *
-     * `Process.getStartElapsedRealtime` is API 24+, and minSdk is 26, so it is always available; it is
-     * still defensive because a wrong answer here must never be the thing that fails a promote.
-     */
-    private fun promotionLatencySuffix(): String = runCatching {
-        " (promoted ${android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()} ms after process start)"
-    }.getOrDefault("")
 
     /**
      * Re-assert the database's view of locale and night mode, now that the service has promoted.
@@ -3460,32 +3337,6 @@ class PaneldService : Service() {
     }
 
     /**
-     * Claim exactly the foreground-service types this service is entitled to at this moment.
-     *
-     * The manifest declares `specialUse|microphone`, because a type can only be claimed if it is
-     * declared, but an idle panel must not be a microphone foreground service. The two-argument
-     * `startForeground` claims every type the manifest declares, so from Android 10 — where naming
-     * the set became possible — the set is named explicitly: `specialUse` on Android 14 and later,
-     * where that type exists, plus `microphone` on Android 11 and later, where *that* type exists,
-     * and then only while something holds a lease. Android 9 and earlier ignore the attribute
-     * entirely, and Android 10 has no microphone type to claim.
-     */
-    private fun promoteToForeground(notification: Notification, microphone: Boolean) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, notification)
-            return
-        }
-        var types = 0
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        }
-        if (microphone && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-        }
-        startForeground(NOTIF_ID, notification, types)
-    }
-
-    /**
      * Add or drop the microphone foreground-service type around a microphone lease.
      *
      * Call it on the main thread with `true` as the first lease opens and `false` as the last one is
@@ -3506,34 +3357,16 @@ class PaneldService : Service() {
 
     private fun updateMicrophoneForeground(active: Boolean): Boolean {
         if (standingDown || teardownBoundary.isStopping) return false
-        if (microphoneForeground == active) return true
-        val silent = if (::config.isInitialized) config.silenceBootChime else true
-        val (_, channelId) = notificationChannel(silent)
-        return runCatching {
-            promoteToForeground(foregroundNotification(channelId, silent, foregroundStatusText), active)
-            microphoneForeground = active
-        }.onFailure {
-            Log.w(TAG, "could not ${if (active) "claim" else "release"} the microphone foreground-service type", it)
-        }.isSuccess
+        return notifications.updateMicrophoneForeground(
+            active,
+            silent = if (::config.isInitialized) config.silenceBootChime else true,
+        )
     }
 
     private fun updateForegroundStatus(statusText: String) {
         if (teardownBoundary.isStopping) return
-        foregroundStatusText = statusText
-        val silent = config.silenceBootChime
-        val (mgr, channelId) = notificationChannel(silent)
-        mgr.notify(NOTIF_ID, foregroundNotification(channelId, silent, statusText))
+        notifications.updateForegroundStatus(statusText, config.silenceBootChime)
     }
-
-    private fun foregroundNotification(channelId: String, silent: Boolean, statusText: String): Notification =
-        NotificationCompat.Builder(this, channelId)
-            .setContentTitle(nativeString(R.string.app_name))
-            .setContentText(statusText)
-            .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setSilent(silent)
-            .build()
 
     /**
      * Hold Android's started-service record without owning anything until the committed process exits.
@@ -3545,11 +3378,7 @@ class PaneldService : Service() {
     private fun standDownForCommittedProcessBoundary() {
         standingDown = true
         Log.i(TAG, "service generation created inside a committed process boundary; standing down until the process exits")
-        val (mgr, channelId) = notificationChannel(silent = true)
-        runCatching {
-            mgr.notify(NOTIF_ID, foregroundNotification(channelId, silent = true, nativeString(R.string.starting)))
-        }
-            .onFailure { Log.w(TAG, "could not describe the stood-down service generation", it) }
+        notifications.describeStandingDown(nativeString(R.string.starting))
     }
 
     /**
@@ -3583,6 +3412,7 @@ class PaneldService : Service() {
     )
 
     override fun onDestroy() {
+        notifications.releaseForeground()
         if (guardDbRedirect) {
             stopForeground(true)
             super.onDestroy()
@@ -4478,14 +4308,7 @@ class PaneldService : Service() {
         }
 
         private const val TAG = "ha-paneld/svc"
-        private const val CHANNEL_ID = "ha-paneld"
-        // Channel sound is immutable after creation. A distinct ID guarantees the silence setting can
-        // supersede an older install whose original channel was created with a notification sound.
-        private const val SILENT_CHANNEL_ID = "ha-paneld-silent-v1"
-        private const val STORAGE_HEALTH_CHANNEL_ID = "ha-paneld-storage-health-v1"
-        private const val NOTIF_ID = 1
         private const val CAMERA_STOP_MS = 3_000L
-        private const val STORAGE_HEALTH_NOTIF_ID = 2
         // Daily rather than wall-clock scheduled: the service owns one immediate check, then delays
         // from completion. A bounded short retry absorbs transient StatFs/SQLite observation failures.
         private const val STORAGE_HEALTH_CHECK_MS = 24L * 3_600L * 1_000L
@@ -4539,6 +4362,7 @@ class PaneldService : Service() {
             dispatchPanelServiceStart(
                 Build.VERSION.SDK_INT,
                 fromVisibleActivity,
+                alreadyForeground = ServiceNotifications.anyServiceForeground,
                 startOrdinary = { context.startService(intent) },
                 startForeground = { context.startForegroundService(intent) },
             )
@@ -4546,14 +4370,24 @@ class PaneldService : Service() {
     }
 }
 
-/** A visible Oreo activity may start its own service without arming the cold-process FGS timer. */
+/**
+ * A visible Oreo activity may start its own service without arming the cold-process FGS timer, and
+ * through Android 11 a service already foreground in this process is never asked to promote again:
+ * that request only arms a timer the running service has no reason to answer. From Android 12 an
+ * ordinary start that reaches a new generation (one requested while the old one stops) could not
+ * promote from the background, so there the foreground start stays.
+ */
 internal fun dispatchPanelServiceStart(
     sdkInt: Int,
     fromVisibleActivity: Boolean,
+    alreadyForeground: Boolean,
     startOrdinary: () -> Unit,
     startForeground: () -> Unit,
 ) {
-    if (sdkInt >= Build.VERSION_CODES.O && !(fromVisibleActivity && sdkInt <= Build.VERSION_CODES.O_MR1)) {
+    if (sdkInt >= Build.VERSION_CODES.O &&
+        !(alreadyForeground && sdkInt <= Build.VERSION_CODES.R) &&
+        !(fromVisibleActivity && sdkInt <= Build.VERSION_CODES.O_MR1)
+    ) {
         startForeground()
     } else {
         startOrdinary()
