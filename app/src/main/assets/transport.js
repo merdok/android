@@ -46,7 +46,8 @@
     "camera.status": "GET camera/status", "camera.snapshot": "GET camera/snapshot.jpg",
     "companion.repair_url": "POST companion/repair-url",
     "config": "GET config",
-    "settings": "POST config",
+    // The route answers its HTML form page unless asked for JSON, as the Configure page always has.
+    "settings": ["POST config", { H: { Accept: "application/json" } }],
     "config.schema": "GET config/schema", "config.discovery": "GET config/discovery", "config.ha_area": "GET config/ha-area",
     "config.home_dashboards": "GET config/home-dashboards",
     "config.export": "GET config/export",
@@ -169,7 +170,8 @@
       delete rest[key];
     });
     Object.keys(options.H || {}).forEach(function (name) { headers[name] = options.H[name]; });
-    var url = path.charAt(0) === "/" ? path.slice(1) : "api/v1/" + path;
+    // Root paths ("/configure") resolve against the page base like every other URL, so they work behind a proxy path.
+    var url = /^\//.test(path) ? path.slice(1) : "api/v1/" + path;
     var query = {};
     if (r.method === "GET") query = rest;
     else if (options.b === "raw") {
@@ -526,7 +528,8 @@
     var body = document.body;
     var door = body && body.dataset ? body.dataset.uiSocket : undefined;
     if (door !== undefined && typeof WebSocket !== "undefined") {
-      var url = new URL(door || "/ui", document.baseURI || location.href);
+      // Base-relative, like every page URL, so the door is found behind a proxy path too.
+      var url = new URL(door || "ui", document.baseURI || location.href);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
       impl = new SocketTransport(url.href);
     } else {
