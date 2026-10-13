@@ -165,3 +165,28 @@ test('a known-issue entry that no longer occurs fails as stale', { timeout: 120_
   const outcome = await runPage({ pageDef: configure, browserName: 'chromium', origin, sel, scales, known });
   assert.ok(outcome.failures.some((line) => line.includes('stale known-issue entry') && line.includes('#no-such-element')), outcome.failures.join('\n'));
 });
+
+test('Consequential field instructions stay visible while entering secrets', { timeout: 120_000 }, async () => {
+  const install = PAGES.find(page => page.name === 'install');
+  const view = { ...VIEWS.find(view => view.name === 'direct-desktop'), width:390, height:844 };
+  for (const engine of BROWSERS) {
+    const browser = await launch(engine);
+    try {
+      const page = await browser.newPage({ viewport: { width:view.width, height:view.height } });
+      await measureCell(page, origin, configure, view, 'light', 'uk');
+      const input = page.locator('#cfg-ha_token input');
+      const instruction = await page.evaluate(() => HaI18n.t('configure.secret.blank_keeps_current', 'blank keeps current'));
+      const note = page.getByText(instruction, { exact:true });
+      assert.equal(await note.isVisible(), true, `${engine}: full retention instruction visible`);
+      assert.ok(await input.evaluate(input => (input.getAttribute('aria-describedby') || '').split(' ').some(id => document.getElementById(id)?.textContent === window.HaI18n.t('configure.secret.blank_keeps_current', 'blank keeps current'))));
+      assert.equal(await note.evaluate(node => node.scrollWidth <= node.clientWidth), true);
+      await input.fill('example');
+      assert.equal(await note.isVisible(), true);
+      await measureCell(page, origin, install, view, 'light', 'fr');
+      const required = await page.evaluate(() => HaI18n.t('install.backup.passphrase.placeholder', 'Passphrase (required for encrypted backup)'));
+      await page.getByLabel(required, { exact:true }).fill('example');
+      assert.equal(await page.getByText(required, { exact:true }).isVisible(), true, `${engine}: full backup requirement visible while typing`);
+      assert.equal(await page.getByText(required, { exact:true }).evaluate(node => node.scrollWidth <= node.clientWidth), true);
+    } finally { await browser.close(); }
+  }
+});

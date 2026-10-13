@@ -265,7 +265,8 @@ function backupCard(s, b) {
 <p class="note">${s.t('install.backup.description.with_companion')}</p>
 <div style="display:flex;flex-direction:column;gap:8px;max-width:440px">
 <label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:.85rem"><input type="checkbox" id="bk-comp" checked> ${s.t('install.backup.companion.include_login')}</label>
-<input type="password" id="bk-pw" placeholder="${s.t('install.backup.passphrase.placeholder')}">
+<label for="bk-pw">${s.t('install.backup.passphrase.placeholder')}</label>
+<input type="password" id="bk-pw">
 <label style="display:flex;flex-direction:row;gap:8px;align-items:flex-start;font-size:.85rem;color:#c88"><input type="checkbox" id="bk-plain"> ${s.t('install.backup.plaintext_zip')}</label>
 <button class="pbtn"${b.a11y()} onclick="doBackup(this)">⭳ ${s.t('install.backup.download')}</button>
 </div>
