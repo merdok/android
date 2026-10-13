@@ -106,7 +106,11 @@ internal fun stageDirectCredentialSettings(
         haOriginChange -> posted["ha_token"]?.takeIf(String::isNotEmpty) ?: ""
         else -> posted["ha_token"]?.takeIf(String::isNotEmpty)
     }
-    if (url != null || token != null) config.setHaConnection(url ?: previousUrl, token)
+    // A posted URL was admitted by the same spec; only a stored address an older writer let through can
+    // be refused here, and then the whole post is refused rather than storing a token beside it.
+    if (url != null || token != null) {
+        check(config.setHaConnection(url ?: previousUrl, token)) { "ha_url: the stored address is not admissible" }
+    }
 
     val clearingHa = url != null && url.isEmpty()
     val refresh = when {

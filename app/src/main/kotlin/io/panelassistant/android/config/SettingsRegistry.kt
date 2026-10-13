@@ -116,6 +116,13 @@ object SettingsRegistry {
      */
     const val RESPONSE_PERCENT_KEY = "auto_brightness_response_percent"
 
+    /** Storage keys the network ADB and Zigbee controllers used beside their setting's own key, mapped to
+     *  that key. The live-store migration carries each value across and removes the old key. */
+    val LEGACY_CONTROLLER_KEYS: Map<String, String> = mapOf(
+        "network_adb_enabled" to "network_adb",
+        "zigbee_router_enabled" to "zigbee_router",
+    )
+
     /**
      * Keys earlier builds wrote into backups and bundles that no current setting owns. A restore drops
      * them rather than refusing the whole backup, including automatic update preferences and their
@@ -123,6 +130,7 @@ object SettingsRegistry {
      */
     val RETIRED_KEYS: Set<String> = setOf(
         LEGACY_ADDRESS_FAMILY_KEY,
+        *LEGACY_CONTROLLER_KEYS.keys.toTypedArray(),
         "kiosk_companion_packages",
         "voice_state",
         "${HA_EXPOSE_PREFIX}voice_enabled",

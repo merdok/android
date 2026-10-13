@@ -282,7 +282,7 @@ class ConfigTransactionTest {
             testProfileDocument(id = "generic", fallback = true).copy(
                 settingDefaults = mapOf(
                     "dark_mode" to false, "room_temp_offset" to 1.25, "camera_resolution" to "1080p",
-                    "network_adb" to true, "zigbee_router" to true,
+                    "network_adb" to true, "zigbee_router" to true, "dashboard_theme" to "Dark",
                 ),
             ),
         )),
@@ -307,29 +307,44 @@ class ConfigTransactionTest {
             assertEquals(expected, config.getRaw(SettingsRegistry.spec(key)!!))
             assertFalse(prefs.values.containsKey(key))
         }
-        assertFalse(prefs.values.containsKey("network_adb_enabled"))
-        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
-        // Canonical live-setting commit readback is a persistence floor; the controller's alias
-        // remains its separate authority until that controller commits its own setting.
+        // One stored key per setting: a registry commit is what the controller reads back.
         for (key in listOf("network_adb", "zigbee_router")) {
             val spec = SettingsRegistry.spec(key)!!
             assertTrue(config.commitRaw(spec, "false"))
             assertEquals("false", config.getRaw(spec))
             assertEquals(false, prefs.values[key])
         }
-        assertTrue(config.networkAdbEnabled)
-        assertTrue(config.zigbeeRouterEnabled)
-        assertFalse(prefs.values.containsKey("network_adb_enabled"))
-        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
-        val explicit = Config(fakePreferences(initial = mapOf(
+        assertFalse(config.networkAdbEnabled)
+        assertFalse(config.zigbeeRouterEnabled)
+        assertTrue(config.zigbeeRouterConfigured)
+        assertTrue(config.setNetworkAdbEnabled(true))
+        config.setZigbeeRouterEnabled(true)
+        assertEquals("true", config.getRaw(SettingsRegistry.spec("network_adb")!!))
+        assertEquals("true", config.getRaw(SettingsRegistry.spec("zigbee_router")!!))
+        assertEquals(false, listOf("network_adb_enabled", "zigbee_router_enabled").any(prefs.values::containsKey))
+        // An explicit OFF an older build stored under the controller keys survives the fold against a
+        // default-ON profile, and without the configured flag it still never claims the vendor gateway.
+        val legacyPrefs = fakePreferences(initial = mapOf(
+            "config_schema" to SettingsRegistry.SCHEMA,
             "network_adb_enabled" to false, "zigbee_router_enabled" to false,
-        )).instance)
+        ))
+        val explicit = Config(legacyPrefs.instance)
         explicit.attachProfile(profile)
+        assertTrue(explicit.migrateLiveStore())
         assertFalse(explicit.networkAdbEnabled)
         assertFalse(explicit.zigbeeRouterEnabled)
         assertFalse(explicit.zigbeeRouterConfigured)
         assertEquals("false", explicit.getRaw(SettingsRegistry.spec("network_adb")!!))
         assertEquals("false", explicit.getRaw(SettingsRegistry.spec("zigbee_router")!!))
+        // A stored value this build does not declare reads as the profile's default, not a fixed literal.
+        val undeclared = Config(fakePreferences(initial = mapOf(
+            "dashboard_theme" to "Sepia", "camera_resolution" to "4k",
+        )).instance)
+        undeclared.attachProfile(profile)
+        assertEquals("Dark", undeclared.dashboardTheme)
+        assertEquals("1080p", undeclared.cameraResolution.wire)
+        assertEquals("Dark", undeclared.getRaw(SettingsRegistry.spec("dashboard_theme")!!))
+        assertEquals("1080p", undeclared.getRaw(SettingsRegistry.spec("camera_resolution")!!))
         val hardened = Config(fakePreferences(initial = mapOf("device_local_hardened_security" to true)).instance)
         hardened.attachProfile(profile)
         assertFalse(hardened.networkAdbEnabled)
@@ -528,6 +543,54 @@ class ConfigTransactionTest {
                 assertFalse("current-schema cleanup must preserve absent defaults", prefs.values.containsKey(SettingsRegistry.RESPONSE_PERCENT_KEY))
                 assertEquals(50, config.autoBrightnessResponsePercent)
             }
+            val committed = prefs.values.toMap()
+            assertTrue(Config(prefs.instance).migrateLiveStore())
+            assertEquals("a second startup must be a no-op", committed, prefs.values)
+        }
+    }
+
+    @Test fun typedWritersStoreWhatTheirSpecStoresAndRefuseWhatItRefuses() {
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+
+        config.setTameVendorPackages(" com.vendor.one, android com.vendor.one\ncom.vendor.two ")
+        assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
+        for (refused in listOf("com.good;reboot", (0..128).joinToString(" ") { "com.vendor.pkg$it" })) {
+            assertTrue(runCatching { config.setTameVendorPackages(refused) }.exceptionOrNull() is IllegalArgumentException)
+            assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
+        }
+
+        assertTrue(config.setHaConnection(" http://ha.local:8123/ ", "token-one"))
+        assertEquals("http://ha.local:8123", config.haUrl)
+        for (refused in listOf("http://owner:secret@ha.local:8123", "ftp://ha.local", "http://ha.local:8123/?next=1")) {
+            assertFalse(refused, config.setHaConnection(refused, "token-two"))
+            assertFalse(refused, config.setBorrowedRendererSettings(refused, "token-two", "refresh", 1L, "client", 90))
+            assertEquals("http://ha.local:8123", config.haUrl)
+            assertEquals("token-one", config.haToken)
+            assertFalse(config.rendererLaunchPending)
+        }
+    }
+
+    @Test fun liveMigrationFoldsTheControllerKeysIntoEachSettingsOwnKey() {
+        for (schema in listOf(14, SettingsRegistry.SCHEMA)) {
+            // The controllers acted on their own keys; a registry write they had not followed disagrees.
+            val prefs = fakePreferences(initial = mapOf(
+                "config_schema" to schema,
+                "network_adb_enabled" to true, "network_adb" to false,
+                "zigbee_router_enabled" to false, "zigbee_router_configured" to true,
+            ))
+            val config = Config(prefs.instance)
+
+            assertTrue("migration from schema $schema", config.migrateLiveStore())
+            assertTrue(config.networkAdbEnabled)
+            assertFalse(config.zigbeeRouterEnabled)
+            assertTrue(config.zigbeeRouterConfigured)
+            assertEquals(true, prefs.values["network_adb"])
+            assertEquals(false, prefs.values["zigbee_router"])
+            assertEquals("true", config.getRaw(SettingsRegistry.spec("network_adb")!!))
+            assertEquals("false", config.getRaw(SettingsRegistry.spec("zigbee_router")!!))
+            assertFalse(prefs.values.containsKey("network_adb_enabled"))
+            assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
             val committed = prefs.values.toMap()
             assertTrue(Config(prefs.instance).migrateLiveStore())
             assertEquals("a second startup must be a no-op", committed, prefs.values)

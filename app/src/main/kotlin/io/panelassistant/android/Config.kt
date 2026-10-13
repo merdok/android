@@ -517,9 +517,9 @@ class Config private constructor(
             .split(Regex("[\\s,]+")).map { it.trim() }.filter { it.isNotEmpty() }
     /** Raw user-set value (whitespace/comma-separated) — for the Configure form's input value. */
     val tameVendorPackagesRaw: String get() = stringPref("tame_vendor_packages")
-    fun setTameVendorPackages(raw: String) {
-        edit { putString("tame_vendor_packages", raw.trim()) }
-    }
+    /** Stores [raw] through the registry spec, so it is normalized and refused exactly as an import would
+     *  be; an invalid selection throws [IllegalArgumentException] and leaves the stored one unchanged. */
+    fun setTameVendorPackages(raw: String) = setRaw(specOf("tame_vendor_packages"), raw)
 
     /**
      * Extra hostnames allowed in the HTTP `Host` header — the anti-DNS-rebinding allowlist for the
@@ -600,7 +600,7 @@ class Config private constructor(
         edit { putBoolean("camera_enabled", on) }
     }
     val cameraResolution: CameraResolution
-        get() = CameraResolution.parse(stringPref("camera_resolution")) ?: CameraResolution.P720
+        get() = CameraResolution.parse(enumPref("camera_resolution")) ?: CameraResolution.P720
     val cameraFps: Int get() = intPrefInRange("camera_fps")
     val cameraKbps: Int get() = intPrefInRange("camera_kbps")
 
@@ -670,10 +670,10 @@ class Config private constructor(
     // is true (some firmwares strip persist.adb.tcp.port at boot), and only tears adb down on OFF if it
     // was ha-paneld that turned it on — never disabling adb another mechanism started.
     val networkAdbEnabled: Boolean
-        get() = prefs.getBoolean("network_adb_enabled", effectiveDefault(specOf("network_adb")).toBoolean())
+        get() = boolPref("network_adb")
     fun setNetworkAdbEnabled(on: Boolean): Boolean = synchronized(CONFIG_LOCK) {
         if (on && prefs.getBoolean(SECURITY_MODE_PREF, false)) return@synchronized false
-        durableCommit { putBoolean("network_adb_enabled", on) }
+        durableCommit { putBoolean("network_adb", on) }
     }
 
     // The last catalog targets (UpdateChecker.persistableTargets), kept only so a restart reports them.
@@ -785,9 +785,9 @@ class Config private constructor(
 
     /** Built-in renderer: who owns the dashboard's light/dark choice — [DashboardTheme.FOLLOW] (Home
      *  Assistant does, which is what [darkMode] supplies a default for) or an explicit Dark/Light this
-     *  panel imposes. A stored value this build no longer declares resolves to the default rather than
-     *  leaving the renderer with a policy it cannot act on. */
-    val dashboardTheme: String get() = DashboardTheme.policy(stringPref("dashboard_theme"))
+     *  panel imposes. A stored value this build no longer declares resolves to the profile's default rather
+     *  than leaving the renderer with a policy it cannot act on. */
+    val dashboardTheme: String get() = enumPref("dashboard_theme")
 
     /** The policy the renderer and every themed screen act on: [dashboardTheme] with Ambient resolved
      *  to the room's verdict, and to Follow while auto-brightness (the model that produces it) is off.
@@ -971,14 +971,14 @@ class Config private constructor(
     // Desired Zigbee-router state, persisted so the gateway can be auto-started on boot when nothing
     // else launches it (the NSPanel Pro gateway is not init-started — verified 2026-06-08). Default off.
     val zigbeeRouterEnabled: Boolean
-        get() = prefs.getBoolean("zigbee_router_enabled", effectiveDefault(specOf("zigbee_router")).toBoolean())
+        get() = boolPref("zigbee_router")
     // Reconcile an explicit user choice or a profile's default ON. A default OFF never claims an
     // untouched vendor gateway, so only a stored user choice may stop it at startup.
     val zigbeeRouterConfigured: Boolean
         get() = prefs.getBoolean("zigbee_router_configured", false) ||
-            (!prefs.contains("zigbee_router_enabled") && effectiveDefault(specOf("zigbee_router")) == "true")
+            (!prefs.contains("zigbee_router") && effectiveDefault(specOf("zigbee_router")) == "true")
     fun setZigbeeRouterEnabled(on: Boolean) {
-        edit { putBoolean("zigbee_router_enabled", on); putBoolean("zigbee_router_configured", true) }
+        edit { putBoolean("zigbee_router", on); putBoolean("zigbee_router_configured", true) }
     }
 
     // Optional on-panel auto-brightness engine (see control/AutoBrightnessController). Default OFF →
@@ -1247,6 +1247,13 @@ class Config private constructor(
         val default = effectiveDefault(specOf(key))
         return prefs.getString(key, default) ?: default
     }
+    /** An ENUM setting as one of its declared options: a stored value this build does not declare reads as
+     *  the active profile's default, through the same validator every write uses. */
+    internal fun enumPref(key: String): String {
+        val spec = specOf(key)
+        fun declared(raw: String?) = raw?.let { (SettingValue.validate(spec, it) as? Validation.Ok)?.normalized }
+        return declared(prefs.getString(key, null)) ?: declared(effectiveDefault(spec)) ?: spec.default
+    }
     /** An INT setting clamped to its spec's range, so the range is declared once, in the registry. */
     internal fun intPrefInRange(key: String): Int = clampToSpec(key, intPref(key))
     private fun clampToSpec(key: String, value: Int): Int = specOf(key).let { spec ->
@@ -1255,14 +1262,7 @@ class Config private constructor(
 
     /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
-        // The generic staged writer persists the registry key before controller dispatch. Keep that
-        // committed value readable; production live projections still override it with controller
-        // authority. Without a canonical value, aliases read their existing controller storage keys.
-        SettingType.BOOL -> if (prefs.contains(spec.key)) boolPref(spec.key).toString() else when (spec.key) {
-            "network_adb" -> networkAdbEnabled
-            "zigbee_router" -> zigbeeRouterEnabled
-            else -> boolPref(spec.key)
-        }.toString()
+        SettingType.BOOL -> boolPref(spec.key).toString()
         SettingType.INT -> intPref(spec.key).toString()
         SettingType.LONG -> longPref(spec.key).toString()
         SettingType.FLOAT -> {
@@ -1281,6 +1281,7 @@ class Config private constructor(
             // Same reason: an alias spelling ("follow") or a value from a build that declared a
             // different option set must present as one of THIS build's declared options.
             "dashboard_theme" -> dashboardTheme
+            "camera_resolution" -> cameraResolution.wire
             else -> stringPref(spec.key)
         }
     }
@@ -1322,6 +1323,11 @@ class Config private constructor(
                 "ha_area" -> {
                     stage(this, spec, value)
                     putBoolean(HA_AREA_USER_OVERRIDE_PREF, value.isNotBlank())
+                }
+                // A committed choice is the owner's, so the router is reconciled to it from the same commit.
+                "zigbee_router" -> {
+                    stage(this, spec, value)
+                    putBoolean("zigbee_router_configured", true)
                 }
                 else -> stage(this, spec, value)
             }
@@ -1461,6 +1467,11 @@ class Config private constructor(
             (all["panel_assistant_update_owner_seen_ms"] as? Long ?: 0L) > 0L
         ) {
             putBoolean(PANEL_ASSISTANT_CONNECTION_SEEN_PREF, true)
+        }
+        // A controller's old storage key carries its value onto the setting's own key. It is what the
+        // panel acted on, so it wins over a registry write the controller had not followed.
+        SettingsRegistry.LEGACY_CONTROLLER_KEYS.forEach { (legacy, key) ->
+            (all[legacy] as? Boolean)?.let { putBoolean(key, it) }
         }
         retired.forEach(::remove)
     }
