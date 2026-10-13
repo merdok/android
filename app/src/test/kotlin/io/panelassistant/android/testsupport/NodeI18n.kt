@@ -9,20 +9,9 @@ package io.panelassistant.android.testsupport
  * assets/. Browser and .mjs fixtures use tools/test/fixtures/i18n-bridge.mjs instead.
  */
 object NodeI18n {
-    /**
-     * Fake `fetch` answers written for page code that read only `json()` get the rest of a Response's shape
-     * the real transport reads: `text()` from the JSON, `status` from `ok` (200 unless `ok` is false), and
-     * empty `headers`. Applies to whatever `fetch` the script installs, before or after this line.
-     */
+    /** app/src/test/js/complete-fake-responses.cjs, found from the asset the script runs (src/main/assets). */
     private const val COMPLETE_FAKE_RESPONSES: String =
-        "(()=>{let raw=global.fetch;const full=r=>(!r||typeof r!=='object'||typeof r.then==='function')?r:{" +
-            "ok:r.ok===undefined?(r.status===undefined||(r.status>=200&&r.status<300)):r.ok," +
-            "status:r.status===undefined?(r.ok===false?500:200):r.status," +
-            "headers:r.headers||{get:()=>null,forEach(){}}," +
-            "json:r.json?r.json.bind(r):()=>r.text().then(JSON.parse)," +
-            "text:r.text?r.text.bind(r):()=>r.json().then(v=>typeof v==='string'?v:JSON.stringify(v))," +
-            "blob:r.blob?r.blob.bind(r):undefined,clone(){return full(r.clone?r.clone():r)}};" +
-            "Object.defineProperty(global,'fetch',{configurable:true,get(){return raw&&((...a)=>Promise.resolve(raw(...a)).then(full))},set(f){raw=f}});})();"
+        "require(require('path').join(require('path').dirname(process.argv[1]),'..','..','test','js','complete-fake-responses.cjs'));"
 
     const val REAL_BRIDGE: String =
         "(()=>{const d=global.document;global.document={getElementById:()=>null};" +

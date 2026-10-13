@@ -125,4 +125,5 @@ policyResolve(response({ok:true}));
 await policyRun;
 await settle();
 
+window.PaneldTransport.close();
 console.log('entity mutation gate deferred-fetch cases passed');

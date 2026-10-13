@@ -45,6 +45,8 @@ async function render({ items, strategySelectorIgnored }) {
     'entity-issues-summary', 'entity-issues-list', 'entity-issues-rescan', 'entity-dynamic', 'entity-dynamic-list']) {
     ids[id] = element(id);
   }
+  // Each render is a fresh page: end the previous page's subscriptions as unloading it would.
+  if (global.window && global.window.PaneldTransport) global.window.PaneldTransport.close();
   global.window = { innerHeight: 800, matchMedia: () => ({ matches: false }) };
   global.document = {
     hidden: false,
@@ -119,3 +121,4 @@ ids = await render({ items: [strategy(true)], strategySelectorIgnored: false });
 assert.equal(occurrences(ids['entity-status'].innerHTML, statusNeedle), 0, 'no status claim unless the server reports it');
 
 console.log('entity strategy allowed cases passed');
+window.PaneldTransport.close();

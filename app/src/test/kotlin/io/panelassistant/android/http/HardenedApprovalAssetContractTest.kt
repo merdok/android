@@ -120,14 +120,16 @@ class HardenedApprovalAssetContractTest {
             const fs=require('fs'),vm=require('vm'),source=fs.readFileSync(process.argv[1],'utf8');
             const start=source.indexOf('function string('),end=source.indexOf('function yamlFetch(');
             if(start<0||end<=start)process.exit(2);
+            // The page's own transport, as profiles.js holds it, carries each request.
+            global.window={};global.document={};${NodeI18n.REAL_BRIDGE}var transport=window.PaneldTransport;
             vm.runInThisContext(source.slice(start,end));
             const response=(body)=>({status:202,ok:true,text:()=>Promise.resolve(JSON.stringify(body))});
             global.fetch=()=>Promise.resolve(response({status:'accepted',restart_required:true}));
-            jsonFetch('/profiles/select').then(result=>{
+            jsonFetch('profiles.select').then(result=>{
               if(result.status!=='accepted')process.exit(3);
               global.fetch=()=>Promise.resolve(response({ok:false,error:'approval-required',message:'Approve this request on the panel, then retry it.'}));
-              return jsonFetch('/profiles/select').then(()=>process.exit(4),error=>{
-                if(error.status!==202||error.body.error!=='approval-required')process.exit(5);
+              return jsonFetch('profiles.select').then(()=>process.exit(4),error=>{
+                if(error.status!=='pending_approval'||error.body.error!=='approval-required')process.exit(5);
                 if(error.message!=='Approve this request on the panel, then retry it.')process.exit(6);
               });
             });

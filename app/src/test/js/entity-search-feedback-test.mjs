@@ -79,8 +79,13 @@ global.document = {
   querySelectorAll: (selector) => (selector === '.entity-list' ? sections.map((s) => s.card) : []),
   createElement: () => element('tr'),
 };
+// The page refreshes in the background from its `entities` subscription, which the page transport polls at
+// the family's floor; those timers are held here and fired by backgroundRefresh(), the others run for real.
 const polls = [];
-global.setInterval = (callback) => { polls.push(callback); return polls.length; };
+const realSetTimeout = setTimeout;
+global.setTimeout = (callback, ms, ...rest) => (window.PaneldTransport && ms === window.PaneldTransport.families.entities.floor
+  ? polls.push(callback)
+  : realSetTimeout(callback, ms, ...rest));
 global.confirm = () => true;
 global.alert = () => {};
 
@@ -125,6 +130,12 @@ global.fetch = async (url, options = {}) => {
 };
 
 loadTransport(process.argv[2]);
+// A background refresh: the next subscription poll finds a newer scan, which is when the page reloads its lists.
+async function backgroundRefresh() {
+  syncStatus.last_sync_at += 1;
+  for (const poll of polls.splice(0)) poll();
+  await settle();
+}
 
 vm.runInThisContext(source, { filename: process.argv[2] });
 
@@ -164,7 +175,7 @@ assert.equal(focused.length, 0, 'revealing a section must not steal focus');
 
 // --- 4. polling never scrolls and never re-announces -----------------------------------------------
 const afterSearch = scrolls.length;
-for (const poll of polls) await poll();
+await backgroundRefresh();
 await settle();
 assert.equal(scrolls.length, afterSearch, 'a poll tick must not move the page');
 assert.equal(searchStatus.textContent, 'Matches: Current: 1, Suggested: 3, Stale or noisy: 0');
@@ -180,7 +191,7 @@ await settle();
 await suggested.parts['.entity-next'].fire('click');
 await settle();
 listRequests.length = 0;
-for (const poll of polls) await poll();
+await backgroundRefresh();
 await settle();
 const polled = listRequests.find((entry) => entry.filter === 'candidate');
 assert.equal(polled.offset, '100', 'a poll must keep the current page');
@@ -196,7 +207,7 @@ checkbox.matches = (selector) => selector === '.entity-select';
 await suggested.parts.tbody.fire('change', { target: checkbox });
 await settle();
 assert.equal(suggested.parts['.entity-selected'].textContent, '1 selected');
-for (const poll of polls) await poll();
+await backgroundRefresh();
 await settle();
 assert.equal(suggested.parts['.entity-selected'].textContent, '1 selected', 'a poll must not clear the selection');
 
@@ -322,4 +333,5 @@ await type('already visible');
 await debounce();
 assert.equal(scrolls.length, beforeVisible, 'a section already in view is not scrolled again');
 
+window.PaneldTransport.close();
 console.log('entity search feedback cases passed');

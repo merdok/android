@@ -47,19 +47,26 @@ global.document = {
 global.window = { addEventListener() {}, HaI18n: i18nHelper() };
 global.location = { pathname: '/', reload() { throw new Error('reload must not fire'); } };
 global.fetch = () => Promise.resolve({ text: () => Promise.resolve(health) });
-global.setInterval = (fn) => { ticks.push(fn); return 0; };
-global.setTimeout = (fn) => { fn(); return 0; };
+global.setInterval = () => 0;
+// The page follows the `health` family, which the page transport polls at the family's floor: those timers
+// are the poll ticks; any other timer runs at once.
+global.setTimeout = (fn, ms) => {
+  if (window.PaneldTransport && ms === window.PaneldTransport.families.health.floor) ticks.push(fn); else fn();
+  return 0;
+};
 
 installHaNotice(globalThis);
 loadTransport(process.argv[2]);
 vm.runInThisContext(source, { filename: 'buildwatch.js' });
+// The subscription's first read, sent as the page starts.
+await new Promise((resolve) => setImmediate(resolve));
 
 async function poll(line) {
   health = line;
   assert.equal(ticks.length, 1, 'one poll is registered');
-  ticks[0]();
-  // Two microtask hops: fetch().then(text).then(handler).
-  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  ticks.pop()();
+  // The poll's request and its delivery settle within the turn.
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 const base = 'ha-paneld 0.9.7 panel=p build=b cfg=c';

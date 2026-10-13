@@ -128,4 +128,5 @@ await ids['entity-issues-list'].fire('click', { target: { closest: () => null } 
 assert.deepEqual(focused, [], 'an unrelated click must not move focus');
 assert.equal(scrolled.length, 0);
 
+window.PaneldTransport.close();
 console.log('entity template advisory cases passed');

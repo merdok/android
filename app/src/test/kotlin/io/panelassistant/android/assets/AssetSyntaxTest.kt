@@ -123,7 +123,7 @@ class AssetSyntaxTest {
             const announcement={textContent:''};
             global.document={getElementById:id=>id==='auto-sleep-summary'?summary:id==='auto-sleep-summary-announcement'?announcement:null,
               querySelector:()=>null,querySelectorAll:()=>[]};
-            vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
+            ${NodeI18n.REAL_BRIDGE}vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
             const timers=[];let timerId=0;
             global.setTimeout=(fn,ms)=>{const timer={id:++timerId,fn,ms,cancelled:false};timers.push(timer);return timer.id};
             global.clearTimeout=id=>{const timer=timers.find(candidate=>candidate.id===id);if(timer)timer.cancelled=true};
@@ -176,12 +176,13 @@ class AssetSyntaxTest {
               if(!historyResolve)process.exit(10);
               cfg.invalidateAutoSleepData(true);historyResolve({ok:true,json:()=>Promise.resolve({available:true,segments:[],source_lanes:[]})});await flush();
               if(cfg.autoSleepHistory!==null)process.exit(11);
-              // Stable HTTP client errors are terminal and never enter automatic recovery.
+              // Stable client refusals are terminal and never enter automatic recovery; the page names the
+              // transport's refusal code (an HTTP 403 reads as refused_hardened).
               timers.splice(0);statuses=[live];historyResults=[{status:403}];cfg.invalidateAutoSleepData();cfg.loadAutoSleepData();await flush();
-              if(!cfg.autoSleepHistoryError.includes('HTTP 403')||timers.some(timer=>!timer.cancelled))process.exit(12);
+              if(!cfg.autoSleepHistoryError.includes('refused_hardened')||timers.some(timer=>!timer.cancelled))process.exit(12);
               // A stable status client error is also terminal.
               timers.splice(0);statuses=[{httpStatus:403}];cfg.invalidateAutoSleepData();cfg.loadAutoSleepData();await flush();
-              if(!cfg.autoSleepHistoryError.includes('HTTP 403')||timers.some(timer=>!timer.cancelled))process.exit(13);
+              if(!cfg.autoSleepHistoryError.includes('refused_hardened')||timers.some(timer=>!timer.cancelled))process.exit(13);
               // A stable failure must be truthful and terminal, not silently polled forever.
               timers.splice(0);statuses=[{available:false,enabled:true,phase:'no_credible_sources',reason:'no_credible_sources',source_count:0}];
               cfg.invalidateAutoSleepData();
@@ -285,9 +286,9 @@ class AssetSyntaxTest {
         Node.assumeAvailable()
         val script = """
             const fs=require('fs'),vm=require('vm'),source=fs.readFileSync(process.argv[1],'utf8');
-            const start=source.indexOf('function rendererMeasurement('),end=source.indexOf('async function perf(){');
+            const start=source.indexOf('function rendererMeasurement('),end=source.indexOf('function perf(d,known){');
             if(start<0||end<=start)process.exit(2);
-            vm.runInThisContext(source.slice(start,end));
+            global.window={};${NodeI18n.REAL_BRIDGE}vm.runInThisContext(source.slice(start,end));
             const builtin=rendererMeasurement('builtin_unavailable',{status:'ok',pkg:'builtin',mainPct:99});
             if(builtin.header!=='· built-in observer unavailable')process.exit(3);
             if(!builtin.rows.some(row=>row.val==='reload the built-in dashboard to retry'))process.exit(4);
@@ -318,7 +319,7 @@ class AssetSyntaxTest {
             global.fetch=(url)=>Promise.resolve({ok:true,json:()=>Promise.resolve(url.includes('/issues')?{dashboard_issue_count:1,blocking_issue_count:ignoredMode?0:1,ignored_issue_count:ignoredMode?1:0,items:[{blocking:!ignoredMode,ignored:ignoredMode,fingerprint:'0123456789abcdef',view_title:issue,source_locations:[issue],rule_summary:issue,candidate_count:1600,limit:64,reason:issue,recommendation:issue}],dynamic_expressions:[{source_location:issue,literal:issue,fingerprint:'dynamic-1',truncated:true}]}:{state:'active',stream_entity_count:10,stream_mode:'filtered',catalog_count:100,suggested_count:0,unresolved_count:2,last_sync_at:0,db_bytes:0}),text:()=>Promise.resolve('')});
             global.window={};${NodeI18n.REAL_BRIDGE}
             vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
-            setImmediate(()=>{const row=ids['entity-issues-list'].child,html=row.innerHTML,dynamic=ids['entity-dynamic-list'].child.innerHTML;if(!ids['entity-status'].innerHTML.includes('2 dynamic expressions not statically resolvable'))process.exit(7);if(html.includes(issue)||!html.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(2);if(ignoredMode){if(ids['entity-issues-summary'].textContent.includes('requires review')||!ids['entity-issues-summary'].textContent.includes('previously allowed'))process.exit(3);if(row.className!=='entity-issue allowed'||!row.child||row.child.textContent!=='Re-enable safety check')process.exit(4)}else{if(!ids['entity-issues-summary'].textContent.includes('1 check requires review'))process.exit(3);if(row.className!=='entity-issue blocking'||!html.includes('Automatic updates paused')||!row.child||row.child.textContent!=='Ignore potential entities and continue')process.exit(4)}if(dynamic.includes(issue)||!dynamic.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(5);if(ids['entity-dynamic'].hidden)process.exit(6)});
+            setImmediate(()=>{const row=ids['entity-issues-list'].child,html=row.innerHTML,dynamic=ids['entity-dynamic-list'].child.innerHTML;if(!ids['entity-status'].innerHTML.includes('2 dynamic expressions not statically resolvable'))process.exit(7);if(html.includes(issue)||!html.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(2);if(ignoredMode){if(ids['entity-issues-summary'].textContent.includes('requires review')||!ids['entity-issues-summary'].textContent.includes('previously allowed'))process.exit(3);if(row.className!=='entity-issue allowed'||!row.child||row.child.textContent!=='Re-enable safety check')process.exit(4)}else{if(!ids['entity-issues-summary'].textContent.includes('1 check requires review'))process.exit(3);if(row.className!=='entity-issue blocking'||!html.includes('Automatic updates paused')||!row.child||row.child.textContent!=='Ignore potential entities and continue')process.exit(4)}if(dynamic.includes(issue)||!dynamic.includes('&lt;img src=x onerror=alert(1)&gt;'))process.exit(5);if(ids['entity-dynamic'].hidden)process.exit(6);window.PaneldTransport.close()});
         """.trimIndent()
         for (mode in listOf("blocking", "ignored")) {
             val (code, out) = Node.run("-e", script, File(dir, "entities.js").absolutePath, mode)
@@ -342,7 +343,7 @@ class AssetSyntaxTest {
             global.fetch=(url)=>Promise.resolve({ok:true,json:()=>Promise.resolve(url.includes('/issues')?{dashboard_issue_count:3,blocking_issue_count:1,ignored_issue_count:0,items:[overflow,gap,notice],dynamic_expressions:[]}:{state:'blocked',stream_entity_count:10,stream_mode:'filtered',catalog_count:100,suggested_count:0,blocking_issue_count:1,automatic_activation_blocked:true,unresolved_count:0,last_sync_at:0,db_bytes:0}),text:()=>Promise.resolve('')});
             global.window={};${NodeI18n.REAL_BRIDGE}
             vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
-            setImmediate(()=>{const rows=ids['entity-issues-list'].children,summary=ids['entity-issues-summary'].textContent;if(rows.length!==3||!summary.includes('1 check requires review'))process.exit(2);const overflowRow=rows[0],gapRow=rows[1],limited=rows[2];if(overflowRow.className!=='entity-issue blocking'||!overflowRow.innerHTML.includes('Automatic updates paused')||overflowRow.child)process.exit(5);if(gapRow.className!=='entity-issue advisory'||!gapRow.innerHTML.includes('Limited coverage')||gapRow.innerHTML.includes('Candidate set')||gapRow.child)process.exit(3);if(limited.className!=='entity-issue advisory'||!limited.innerHTML.includes('Limited coverage')||!limited.innerHTML.includes('Button Card has limited entity discovery support')||limited.innerHTML.includes('Candidate set')||limited.child)process.exit(4)});
+            setImmediate(()=>{const rows=ids['entity-issues-list'].children,summary=ids['entity-issues-summary'].textContent;if(rows.length!==3||!summary.includes('1 check requires review'))process.exit(2);const overflowRow=rows[0],gapRow=rows[1],limited=rows[2];if(overflowRow.className!=='entity-issue blocking'||!overflowRow.innerHTML.includes('Automatic updates paused')||overflowRow.child)process.exit(5);if(gapRow.className!=='entity-issue advisory'||!gapRow.innerHTML.includes('Limited coverage')||gapRow.innerHTML.includes('Candidate set')||gapRow.child)process.exit(3);if(limited.className!=='entity-issue advisory'||!limited.innerHTML.includes('Limited coverage')||!limited.innerHTML.includes('Button Card has limited entity discovery support')||limited.innerHTML.includes('Candidate set')||limited.child)process.exit(4);window.PaneldTransport.close()});
         """.trimIndent()
         val (code, out) = Node.run("-e", script, File(dir, "entities.js").absolutePath)
         assertEquals("mixed dashboard issue presentation contract failed:\n$out", 0, code)
@@ -501,7 +502,7 @@ class AssetSyntaxTest {
             global.window=global;global.location={href:'http://panel/install',search:''};
             global.document={title:'Panel',baseURI:'http://panel/',body:element('body'),getElementById(){return null},querySelector(){return null},querySelectorAll(){return []},
               createElement:tag=>element(tag),addEventListener(k,v){if(k==='submit')submitHandler=v}};
-            global.FormData=class{*[Symbol.iterator](){yield ['density','240']}};
+            global.FormData=class{*[Symbol.iterator](){yield ['density','240']}forEach(fn){for(const [k,v] of this)fn(v,k)}};
             global.setTimeout=fn=>{setImmediate(fn);return 1};
             global.fetch=(url,opts)=>{
               if(url==='api/v1/radio')return Promise.resolve({json:()=>Promise.resolve({present:false})});
@@ -537,7 +538,8 @@ class AssetSyntaxTest {
             global.fetch=url=>{
               if(url==='api/v1/radio')return Promise.resolve({json:()=>Promise.resolve({present:false})});
               if(mode==='approval')return Promise.resolve({status:202,ok:true,json:()=>Promise.resolve({error:'approval-required',message:'Approve exact export on the panel.'})});
-              return Promise.resolve({status:200,ok:true,blob:()=>Promise.resolve({size:10})});
+              // The export route answers its bundle as JSON (ConfigBundleRoutes).
+              return Promise.resolve({status:200,ok:true,headers:{get:n=>/^content-type$/i.test(n)?'application/json':null,forEach(){}},json:()=>Promise.resolve({settings:{friendly_name:'test-panel'}})});
             };
             ${NodeI18n.REAL_BRIDGE}vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
             global.configExport(true,button);
