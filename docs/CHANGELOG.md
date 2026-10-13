@@ -4,7 +4,7 @@
 
 ### New
 
-- **Screenshots and display sizing on panels without root.** On Android 11 or later, a panel without root, such as the Shelly Wall Display X2i, now shows its live screenshot in Panel Assistant, and a tap on it reaches the panel and comes back with a fresh picture. Text size and display density can be set from the Install page on the same panels, where the firmware allows it. Nothing here needs network ADB after setup, so you can turn it off.
+- **Screenshots and display sizing on panels without root.** On Android 11 or later, a panel without root, such as the Shelly Wall Display X2i, now shows its live screenshot in Panel Assistant, and a tap on it reaches the panel and comes back with a fresh picture. Text size and display density can be set from the Install page on the same panels, where the firmware allows it. None of this uses ADB.
 
 ### Changed
 
