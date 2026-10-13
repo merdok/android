@@ -135,6 +135,6 @@ internal class MigrationNotice(private val context: Context, private val config:
         private const val GUIDE_QR_SIZE_DP = 37
         private const val TAG = "ha-paneld/migration-notice"
         private val OBSERVED_KEYS = Config.PANEL_ASSISTANT_CONNECTION_KEYS +
-            setOf("migration_notice_dismissed_version", "ui_language")
+            setOf(Config.LEGACY_ORIGIN_PREF, "migration_notice_dismissed_version", "ui_language")
     }
 }
