@@ -670,9 +670,12 @@ class EntityLearningManager(
         } finally {
             dashboardCost.close()
         }
+        val streamlineTemplates = if (StreamlineTemplates.usedBy(ws.configJson)) {
+            fetchStreamlineTemplates(snapshot.baseUrl, snapshot.authToken, checkNotNull(snapshot.route))
+        } else null
         val scanCost = FeatureCosts.registry.span(FeatureCostOperation.ENTITY_STATIC_SCAN)
         val scan = try {
-            EntityLearningProtocol.scanDashboard(ws.configJson).also {
+            EntityLearningProtocol.scanDashboard(ws.configJson, streamlineTemplates).also {
                 scanCost.work(
                     units = (it.entityIds.size + it.targets.size + it.unresolved.size).toLong(),
                     bytes = ws.configJson.length.toLong(),
@@ -983,13 +986,6 @@ class EntityLearningManager(
                 if (now - promotionWindowStart > PROMOTION_WINDOW_MS) {
                     promotionWindowStart = now; promotionsInWindow = 0
                 }
-                if (promotionsInWindow >= MAX_PROMOTIONS) {
-                    store.markStatus(
-                        snapshot.instanceKey, snapshot.dashboardPath,
-                        "degraded", "runtime dependencies queued; synchronize manually",
-                    )
-                    return@launch
-                }
                 val active = withContext(Dispatchers.IO) {
                     desiredIds(
                         now, snapshot.instanceKey, snapshot.dashboardPath,
@@ -999,12 +995,19 @@ class EntityLearningManager(
                 }
                 synchronized(this@EntityLearningManager) {
                     if (!snapshot.isEligible(effectGeneration.get(), currentEffectState(), bootstrapBlockingIssues)) return@synchronized
-                    if (active != snapshot.filterIds && active.isNotEmpty()) {
-                        check(config.commitDashboardEntitySubscription(true, active, applied = true)) {
-                            "failed to commit runtime entity promotion"
+                    when (runtimePromotionDecision(active, snapshot.filterIds, promotionsInWindow, MAX_PROMOTIONS)) {
+                        RuntimePromotionDecision.UNCHANGED -> Unit
+                        RuntimePromotionDecision.CAPPED -> store.markStatus(
+                            snapshot.instanceKey, snapshot.dashboardPath,
+                            "degraded", "runtime dependencies queued; synchronize manually",
+                        )
+                        RuntimePromotionDecision.PROMOTE -> {
+                            check(config.commitDashboardEntitySubscription(true, active, applied = true)) {
+                                "failed to commit runtime entity promotion"
+                            }
+                            promotionsInWindow++
+                            onFilterChanged()
                         }
-                        promotionsInWindow++
-                        onFilterChanged()
                     }
                 }
             }
@@ -1870,6 +1873,12 @@ class EntityLearningManager(
             c.disconnect()
         }
     }
+
+    /** Best effort: without the file, the entities its templates name are learned at runtime. */
+    private suspend fun fetchStreamlineTemplates(base: String, token: String, route: HaConnectionRoute): JSONObject? =
+        runInterruptible(Dispatchers.IO) {
+            StreamlineTemplates.fetch(base, HA_CONFIG_TIMEOUT_MS) { requireCurrentHaRoute(base, token, route) }
+        }
 
     private suspend fun fetchDashboardAndRegistry(snapshot: EntityLearningSyncSnapshot): WsSnapshot {
         val base = snapshot.baseUrl
