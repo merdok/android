@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.panelassistant.android.testsupport.PageTransportOperations
 import io.panelassistant.android.device.profile.ProfilePresentation
 import org.json.JSONArray
 
@@ -116,7 +117,9 @@ class ProfilesI18nContractTest {
     private fun quotedProfileKeys(source: String): Set<String> =
         Regex("[\\\"'](profiles\\.[a-z0-9._-]*[a-z0-9_-])[\\\"']")
             .findAll(source)
-            .mapTo(sortedSetOf()) { it.groupValues[1] }
+            .map { it.groupValues[1] }
+            .filterNot { it in PageTransportOperations.NAMES }
+            .toSortedSet()
 
     private fun presentationCode(key: String): String? =
         key.removePrefix("profiles.issue.").removePrefix("profiles.result.").takeIf { it != key }

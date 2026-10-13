@@ -9,6 +9,7 @@ package io.panelassistant.android.testsupport
  * assets/. Browser and .mjs fixtures use tools/test/fixtures/i18n-bridge.mjs instead.
  */
 object NodeI18n {
+    // Source-text reason: executes the shipped i18n.js and transport.js in node, as the page shell loads them.
     /** app/src/test/js/complete-fake-responses.cjs, found from the asset the script runs (src/main/assets). */
     private const val COMPLETE_FAKE_RESPONSES: String =
         "require(require('path').join(require('path').dirname(process.argv[1]),'..','..','test','js','complete-fake-responses.cjs'));"

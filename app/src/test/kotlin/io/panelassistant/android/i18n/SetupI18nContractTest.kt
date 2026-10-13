@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.panelassistant.android.testsupport.PageTransportOperations
 
 /** Contracts the bounded translated surface of the guided Setup wizard. */
 class SetupI18nContractTest {
@@ -107,7 +108,9 @@ class SetupI18nContractTest {
     private fun literalSetupKeys(source: String): Set<String> =
         Regex("[\\\"'](setup(?:\\.[a-z0-9][a-z0-9_-]*)+)[\\\"']")
             .findAll(source)
-            .mapTo(sortedSetOf()) { it.groupValues[1] }
+            .map { it.groupValues[1] }
+            .filterNot { it in PageTransportOperations.NAMES }
+            .toSortedSet()
 
     private fun jsCalls(source: String, function: String): List<List<String>> {
         val calls = mutableListOf<List<String>>()
