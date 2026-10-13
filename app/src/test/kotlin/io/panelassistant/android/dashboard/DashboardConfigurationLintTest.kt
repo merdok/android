@@ -1018,7 +1018,7 @@ class DashboardConfigurationLintTest {
         val result = DashboardConfigurationLint.analyze(config, scan.entityIds, emptyMap())
 
         assertFalse(result.blocking)
-        assertEquals(setOf("light.main", "sensor.hidden"), scan.entityIds)
+        assertEquals(setOf("light.main", "sensor.hidden", "sensor.bubble_card_modules"), scan.entityIds)
         val gap = result.issues.single { it.type == DashboardConfigurationLint.IssueType.RUNTIME_COVERAGE }
         assertEquals("Bubble Card entity discovery depends on dashboard coverage", gap.ruleSummary)
     }
