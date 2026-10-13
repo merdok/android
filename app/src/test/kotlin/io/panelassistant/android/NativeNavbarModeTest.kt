@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.testsupport.TestSources
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
@@ -14,9 +16,7 @@ import org.junit.Test
  * — neither draws anything — so the contract worth pinning is not what it actuates but who may select
  * it, what happens to a value that becomes invalid, and that nothing treats it as a drawn bar.
  */
-class NativeNavbarModeTest {
-    // Source-text reason: the state core and command handlers need the Android service to construct.
-
+internal class NativeNavbarModeTest : PanelRuntimeRig() {
     private val navbarSpec get() = SettingsRegistry.spec("navbar_mode")!!
 
     /**
@@ -127,16 +127,17 @@ class NativeNavbarModeTest {
     /** A remote command coerces rather than rejects, and "Native" is recognised once it joins MODES, so
      *  the guard has to be explicit or a stray command would take a panel's only navigation away. */
     @Test fun `the remote command path refuses native before actuating it`() {
-        val bridge = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
-        val handler = bridge.substring(
-            bridge.indexOf("override fun handleNavbar(payload: String)"),
-            bridge.indexOf("override fun handleHomeDashboard"),
-        )
-        val guard = handler.indexOf("navbarModePermitted(")
-        val actuate = handler.indexOf("applyAcknowledgedNavbarMode(")
-        assertTrue("handleNavbar must consult navbarModePermitted", guard >= 0)
-        assertTrue("the guard must precede actuation", actuate > guard)
-        assertTrue("a refusal must republish the canonical state", handler.contains("core.reconcile(\"navbar\")\n            return"))
+        val rig = rig()
+        try {
+            rig.start()
+            assertFalse(rig.config.hasNativeNavbar)
+            val before = rig.config.navbarMode
+            // The rig's navbar controller throws if reached, so an applied result means nothing actuated.
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "navbar", "Native"))
+            assertEquals(before, rig.config.navbarMode)
+            // A permitted mode does reach the controller.
+            assertTrue(submitNative(rig, "navbar", NavbarController.MODE_ALWAYS) is PanelAssistantCommandResult.Failed)
+        } finally { rig.close() }
     }
 
     @Test fun `the public api documents native as profile gated wireFormat`() {

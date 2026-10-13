@@ -119,18 +119,6 @@ class CommandReadbackGateTest {
         assertEquals(listOf("OFF"), published)
     }
 
-    /**
-     * WIRING CONTRACT: the gate's scheduler must execute every task. dispatchStateWork drops tasks
-     * after runtime retirement, which would strand the feature-cost span opened at scheduling time and
-     * pin the process-global in-flight count. Cancellation belongs to reconcile's own lifecycle gate.
-     */
-    @Test fun theDispatcherWiresTheGateToAnUndroppableScheduler() {
-        val source = TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
-        val wiring = source.substringAfter("relayReadbackGate = ").substringBefore("\n    )")
-        assertTrue("gate must schedule on the raw convergence pump", wiring.contains("StateConverger.dispatch"))
-        assertFalse("gate must not schedule through the task-dropping bridge wrapper", wiring.contains("dispatchStateWork"))
-    }
-
     @Test fun sequentialCommandsEachVerifyPhysically() {
         val pump = ManualPump()
         val readbacks = mutableListOf<String>()

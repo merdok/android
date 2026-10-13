@@ -1,7 +1,10 @@
 package io.panelassistant.android
 
 import io.panelassistant.android.control.ControlApplyOutcome
-import java.io.File
+import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
+import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
+import io.panelassistant.android.testsupport.PanelRuntimeRig
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -16,8 +19,7 @@ import org.junit.Test
  * and startup replay commits it back over the newer one. These cases drive the real
  * [LiveSettingAuthority] through that exact sequence.
  */
-class TouchSoundExternalSupersessionTest {
-    // Source-text reason: the handler and its failure path need the Android service to construct.
+internal class TouchSoundExternalSupersessionTest : PanelRuntimeRig() {
 
     /** The inversion itself, end to end on the real authority. */
     @Test fun anUnavailableExternalChangeStillRetiresTheOlderQueuedValue() {
@@ -80,24 +82,26 @@ class TouchSoundExternalSupersessionTest {
         assertEquals(KEY, supersededKeyAfterFailedDispatch(commandKey = KEY, committedKey = KEY))
     }
 
-    /** The production wiring the cases above stand in for. */
-    @Test fun theHandlerRecordsItsCommitAndTheFailurePathReadsIt() {
-        val commands = File("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
-        val handler = commands.substring(
-            commands.indexOf("override fun handleTouchSound(payload: String)"),
-            commands.indexOf("override fun handleWatchdog(payload: String)"),
-        )
-        val consume = commands.substring(
-            commands.indexOf("private fun consume(channel: String, payloadBytes: ByteArray, origin: CommandOrigin)"),
-            commands.indexOf("private fun dispatch(channel: String, payloadBytes: ByteArray)"),
-        )
+    /** Through the production dispatcher: the actuation throws after the intent is durable. */
+    @Test fun aFailedExternalTouchSoundStillSupersedesTheQueuedValue() {
+        val superseded = CopyOnWriteArrayList<String>()
+        val rig = rig(onExternalSettingApplied = { superseded += it; true })
+        try {
+            rig.start()
+            assertTrue(rig.config.commitTouchSound(false))
+            val result = submitNative(rig, KEY, "ON")
+            assertTrue("$result", result is PanelAssistantCommandResult.Failed)
+            assertTrue("the newer intent is durable", rig.config.touchSound)
+            assertEquals(listOf(KEY), superseded.toList())
 
-        // Committed, marked, and only then actuated — the order is the fix.
-        assertTrue(handler.indexOf("config.commitTouchSound(on)") < handler.indexOf("externalIntentCommitted.set"))
-        assertTrue(handler.indexOf("externalIntentCommitted.set") < handler.indexOf("touchSound.apply(on)"))
-        // The failure path consults it, and the marker cannot outlive its dispatch.
-        assertTrue(consume.contains("supersededKeyAfterFailedDispatch("))
-        assertEquals(2, Regex("externalIntentCommitted\\.remove\\(\\)").findAll(consume).count())
+            // A command refused before it committed anything leaves the queued value alone.
+            superseded.clear()
+            assertEquals(
+                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE),
+                submitNative(rig, "prevent_idle_dim", "maybe"),
+            )
+            assertTrue(superseded.isEmpty())
+        } finally { rig.close() }
     }
 
     private fun dispatchExternal(

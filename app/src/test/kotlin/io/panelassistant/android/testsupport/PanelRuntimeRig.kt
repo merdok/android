@@ -157,6 +157,11 @@ internal abstract class PanelRuntimeRig {
         /** A panel whose CPU governors are readable, starting on this governor; null offers none. */
         cpuGovernor: String? = null,
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
+        /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
+        systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
+        onZigbeeExplicitRetry: () -> Unit = {},
+        /** Retires a queued HTTP value an external command superseded; a test records the keys. */
+        onExternalSettingApplied: (String) -> Boolean = { true },
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
@@ -186,7 +191,7 @@ internal abstract class PanelRuntimeRig {
         )
         val companion = "io.homeassistant.companion.android.minimal"
         val system = SystemController(
-            FakeSystemEnv(), FakeRootShell(), FakeDaemon(replies = mapOf("RELOAD $companion" to "OK")),
+            FakeSystemEnv(), FakeRootShell(), systemDaemon,
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
         )
@@ -278,10 +283,10 @@ internal abstract class PanelRuntimeRig {
             navigate = NavigateController(context),
             volume = volume,
             system = system,
-            // Never reached: no navbar command reaches the controller in these tests.
+            // Never usable: a navbar command that reaches the controller throws here.
             navbar = allocate(NavbarController::class.java),
             watchdog = WatchdogController(system, config),
-            // Never reached: touch_sound needs an Android audio stack, so no touch_sound command is sent.
+            // Never usable: touch_sound needs an Android audio stack, so its actuation always throws here.
             touchSound = allocate(TouchSoundController::class.java),
             bootChime = bootChime,
             zigbee = zigbee,
@@ -297,6 +302,8 @@ internal abstract class PanelRuntimeRig {
             autoBright = allocate(AutoBrightnessController::class.java),
             onDirectKioskSetting = { true },
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
+            onZigbeeExplicitRetry = onZigbeeExplicitRetry,
+            onExternalSettingApplied = onExternalSettingApplied,
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
         )
         return Rig(
