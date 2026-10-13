@@ -153,21 +153,51 @@ class ConfigAccessorDefaultCoherenceTest {
         }
     }
 
-    /** Read-only SharedPreferences proxy: every key is absent, so every read returns its default. */
-    private fun readOnlyPreferences(): SharedPreferences =
+    /**
+     * A stored value outside a setting's range reads back clamped to the range its SettingSpec declares,
+     * and an undeclared option reads as the default: the typed accessors take both from the registry.
+     */
+    @Test fun storedValuesOutsideTheSpecReadBackInsideIt() {
+        val high = Config(readOnlyPreferences(mapOf(
+            "camera_fps" to 50, "camera_kbps" to 9000, "auto_sleep_touch_delay_seconds" to 100_000,
+            "voice_mic_gain_db" to 1000, SettingsRegistry.RESPONSE_PERCENT_KEY to 150,
+            "auto_brightness_minimum_percent" to 120, "auto_brightness_maximum_percent" to 200,
+            "auto_sleep_source" to "bogus",
+        )))
+        assertEquals(30, high.cameraFps)
+        assertEquals(8000, high.cameraKbps)
+        assertEquals(86_400, high.autoSleepTouchDelaySeconds)
+        assertEquals(io.panelassistant.android.audio.MicrophoneGain.MAX_DB, high.voiceMicGainDb)
+        assertEquals(100, high.autoBrightnessResponsePercent)
+        assertEquals(SettingsRegistry.MAX_AUTOMATIC_MINIMUM_PERCENT, high.autoBrightnessMinimumPercent)
+        assertEquals(100, high.autoBrightnessMaximumPercent)
+        assertEquals("panel", high.autoSleepSource)
+
+        val low = Config(readOnlyPreferences(mapOf(
+            "camera_fps" to 0, "camera_kbps" to 1, "auto_sleep_touch_delay_seconds" to 1,
+            "voice_mic_gain_db" to -1000, SettingsRegistry.RESPONSE_PERCENT_KEY to -5,
+            "auto_brightness_minimum_percent" to 0, "auto_brightness_maximum_percent" to 0,
+        )))
+        assertEquals(1, low.cameraFps)
+        assertEquals(250, low.cameraKbps)
+        assertEquals(5, low.autoSleepTouchDelaySeconds)
+        assertEquals(io.panelassistant.android.audio.MicrophoneGain.MIN_DB, low.voiceMicGainDb)
+        assertEquals(0, low.autoBrightnessResponsePercent)
+        assertEquals(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT, low.autoBrightnessMinimumPercent)
+        assertEquals(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT + 1, low.autoBrightnessMaximumPercent)
+    }
+
+    /** Read-only SharedPreferences proxy over [stored]; every other key is absent and reads its default. */
+    private fun readOnlyPreferences(stored: Map<String, Any> = emptyMap()): SharedPreferences =
         Proxy.newProxyInstance(
             SharedPreferences::class.java.classLoader,
             arrayOf(SharedPreferences::class.java),
         ) { _, method, args ->
             when (method.name) {
-                "getAll" -> emptyMap<String, Any?>()
-                "getString" -> args!![1]
-                "getStringSet" -> args!![1]
-                "getInt" -> args!![1]
-                "getLong" -> args!![1]
-                "getFloat" -> args!![1]
-                "getBoolean" -> args!![1]
-                "contains" -> false
+                "getAll" -> stored
+                "getString", "getStringSet", "getInt", "getLong", "getFloat", "getBoolean" ->
+                    stored[args!![0] as String] ?: args[1]
+                "contains" -> args!![0] in stored
                 "registerOnSharedPreferenceChangeListener",
                 "unregisterOnSharedPreferenceChangeListener",
                 -> null

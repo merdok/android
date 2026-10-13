@@ -8,7 +8,6 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import java.security.SecureRandom
-import io.panelassistant.android.audio.MicrophoneGain
 import io.panelassistant.android.camera.CameraResolution
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.Migrations
@@ -20,13 +19,12 @@ import io.panelassistant.android.config.Validation
 import io.panelassistant.android.config.navbarModeDefault
 import io.panelassistant.android.config.isLiteralNullAreaName
 import io.panelassistant.android.config.normalizedHaAreaName
+import io.panelassistant.android.config.panelIdSlug
 import io.panelassistant.android.dashboard.HomeDashboardLaunchCache
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.persistence.AppState
 import io.panelassistant.android.persistence.DurableVisibilityPreferences
-import io.panelassistant.android.util.DashboardPath
 import io.panelassistant.android.util.DashboardTheme
-import io.panelassistant.android.util.AndroidInput
 import io.panelassistant.android.util.HaLink
 import io.panelassistant.android.util.LogShipEndpoint
 import io.panelassistant.android.util.SystemProps
@@ -158,7 +156,8 @@ class Config private constructor(
 
     // Preserve the previous HA policy for an upgraded enabled configuration. Materialise this
     // choice with the next Auto-sleep write so disabling/restarting never changes its source.
-    private val absentAutoSleepSource = if (prefs.contains("auto_sleep")) "home_assistant" else "panel"
+    private val absentAutoSleepSource =
+        if (prefs.contains("auto_sleep")) "home_assistant" else specOf("auto_sleep_source").default
     private val wakeOnWaveEpoch = AtomicLong()
     private val haOAuthAttemptEpoch = AtomicLong()
     @Volatile private var logShipAbsentProtocolFallback: String? = null
@@ -717,7 +716,7 @@ class Config private constructor(
     val dashboardPackage: String get() = stringPref("dashboard_package")
 
     fun setDashboardPackage(pkg: String) {
-        require(AndroidInput.isDashboardTarget(pkg)) { "invalid dashboard package" }
+        require(specOf("dashboard_package").validate(pkg) is Validation.Ok) { "invalid dashboard package" }
         val changed = pkg != dashboardPackage
         edit {
             putString("dashboard_package", pkg)
@@ -1012,9 +1011,9 @@ class Config private constructor(
         prefs.contains("auto_sleep_source") || durableCommit { putString("auto_sleep_source", absentAutoSleepSource) }
     }
     val autoSleepSource: String get() = prefs.getString("auto_sleep_source", null)
-        ?.takeIf { it == "panel" || it == "home_assistant" || it == "touch" }
+        ?.takeIf { it in specOf("auto_sleep_source").options }
         ?: effectiveDefault(specOf("auto_sleep_source"))
-    val autoSleepTouchDelaySeconds: Int get() = intPref("auto_sleep_touch_delay_seconds").coerceIn(5, 86_400)
+    val autoSleepTouchDelaySeconds: Int get() = intPrefInRange("auto_sleep_touch_delay_seconds")
     internal val autoSleepGeneration: Long get() = synchronized(CONFIG_LOCK) {
         prefs.getLong(AUTO_SLEEP_GENERATION_PREF, 0L)
     }
@@ -1195,8 +1194,8 @@ class Config private constructor(
     }
     val cameraResolution: CameraResolution
         get() = CameraResolution.parse(stringPref("camera_resolution")) ?: CameraResolution.P720
-    val cameraFps: Int get() = intPref("camera_fps").coerceIn(1, 30)
-    val cameraKbps: Int get() = intPref("camera_kbps").coerceIn(250, 8000)
+    val cameraFps: Int get() = intPrefInRange("camera_fps")
+    val cameraKbps: Int get() = intPrefInRange("camera_kbps")
 
     /** Exposure bias in stops; the owner clamps it to whatever range the sensor advertises. */
     val cameraExposureEv: Float get() = floatPref("camera_exposure").coerceIn(-2f, 2f)
@@ -1230,8 +1229,7 @@ class Config private constructor(
 
     val voiceSensitivity: String get() = stringPref("voice_sensitivity")
 
-    val voiceMicGainDb: Int get() =
-        intPref("voice_mic_gain_db").coerceIn(MicrophoneGain.MIN_DB, MicrophoneGain.MAX_DB)
+    val voiceMicGainDb: Int get() = intPrefInRange("voice_mic_gain_db")
 
     /** Device-local acknowledgement of the built-in launch screen for one exact app version. This is
      * outside SettingsRegistry, so config export/import cannot suppress an intro on another panel. */
@@ -2052,7 +2050,7 @@ class Config private constructor(
     // untouched vendor gateway, so only a stored user choice may stop it at startup.
     val zigbeeRouterConfigured: Boolean
         get() = prefs.getBoolean("zigbee_router_configured", false) ||
-            (!prefs.contains("zigbee_router_enabled") && profile?.settingDefaults?.get("zigbee_router") == "true")
+            (!prefs.contains("zigbee_router_enabled") && effectiveDefault(specOf("zigbee_router")) == "true")
     fun setZigbeeRouterEnabled(on: Boolean) {
         edit { putBoolean("zigbee_router_enabled", on); putBoolean("zigbee_router_configured", true) }
     }
@@ -2072,29 +2070,23 @@ class Config private constructor(
      * the effective level follows the smoothed measurement regardless of this value.
      */
     val autoBrightnessResponsePercent: Int
-        get() = intPref(SettingsRegistry.RESPONSE_PERCENT_KEY).coerceIn(0, 100)
+        get() = intPrefInRange(SettingsRegistry.RESPONSE_PERCENT_KEY)
     fun setAutoBrightnessResponsePercent(value: Int) {
-        edit { putInt(SettingsRegistry.RESPONSE_PERCENT_KEY, value.coerceIn(0, 100)) }
+        edit { putInt(SettingsRegistry.RESPONSE_PERCENT_KEY, clampToSpec(SettingsRegistry.RESPONSE_PERCENT_KEY, value)) }
     }
 
     /** Lowest automatic target in user-facing percent; the actuator's visible floor remains absolute. */
     val autoBrightnessMinimumPercent: Int
-        get() = intPref("auto_brightness_minimum_percent")
-            .coerceIn(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT, SettingsRegistry.MAX_AUTOMATIC_MINIMUM_PERCENT)
+        get() = intPrefInRange("auto_brightness_minimum_percent")
     fun setAutoBrightnessMinimumPercent(value: Int) {
-        edit {
-            putInt(
-                "auto_brightness_minimum_percent",
-                value.coerceIn(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT, SettingsRegistry.MAX_AUTOMATIC_MINIMUM_PERCENT),
-            )
-        }
+        edit { putInt("auto_brightness_minimum_percent", clampToSpec("auto_brightness_minimum_percent", value)) }
     }
 
     /** Highest automatic target; 100 preserves the uncapped curve. Manual authority is separate. */
     val autoBrightnessMaximumPercent: Int
-        get() = intPref("auto_brightness_maximum_percent").coerceIn(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT + 1, 100)
+        get() = intPrefInRange("auto_brightness_maximum_percent")
     fun setAutoBrightnessMaximumPercent(value: Int) {
-        edit { putInt("auto_brightness_maximum_percent", value.coerceIn(SettingsRegistry.MINIMUM_AUTOMATIC_PERCENT + 1, 100)) }
+        edit { putInt("auto_brightness_maximum_percent", clampToSpec("auto_brightness_maximum_percent", value)) }
     }
 
     /** Exact HA illuminance entity selected instead of the local ALS; blank uses the panel sensor. */
@@ -2328,6 +2320,11 @@ class Config private constructor(
         val default = effectiveDefault(specOf(key))
         return prefs.getString(key, default) ?: default
     }
+    /** An INT setting clamped to its spec's range, so the range is declared once, in the registry. */
+    private fun intPrefInRange(key: String): Int = clampToSpec(key, intPref(key))
+    private fun clampToSpec(key: String, value: Int): Int = specOf(key).let { spec ->
+        value.coerceIn(requireNotNull(spec.min).toInt(), requireNotNull(spec.max).toInt())
+    }
 
     /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
@@ -2515,8 +2512,8 @@ class Config private constructor(
             // Assistant is stripped. A route naming a DIFFERENT origin is left exactly as it is: rewriting
             // it would silently retarget the panel at a dashboard on another server.
             val candidate = sameOriginDashboardRoute(stored) ?: stored
-            val canonical = if (DashboardPath.followsAccountDefault(candidate)) ""
-            else DashboardPath.canonical(candidate, preserveRoute = true)
+            // The spec's own rule, without the write-time length gate: a stored value is repaired, not refused.
+            val canonical = (specOf("home_dashboard").validate(candidate) as? Validation.Ok)?.normalized
             if (canonical != null && canonical != stored) {
                 prefs.edit().putString("home_dashboard", canonical).apply()
             }
@@ -2645,11 +2642,7 @@ class Config private constructor(
         edit { putBoolean("${SettingsRegistry.HA_EXPOSE_PREFIX}$key", on) }
     }
 
-    private fun slug(s: String): String =
-        s.lowercase(Locale.ROOT)
-            .replace(Regex("[^a-z0-9]+"), "_")
-            .trim('_')
-            .ifEmpty { "ha_paneld_panel" }
+    private fun slug(s: String): String = panelIdSlug(s).ifEmpty { "ha_paneld_panel" }
 
     companion object {
         private const val TAG = "ha-paneld/config"
