@@ -9,7 +9,11 @@ import io.panelassistant.android.dashboardEntityLearningEnabled
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.coroutines.withTimeout
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
@@ -43,6 +47,43 @@ class SetupRoutesHttpTest {
                 }
                 assertEquals(HttpStatusCode.OK, response.status)
                 assertTrue(GuidedSetupPresence.activelyWalked(0L))
+            }
+        } finally {
+            GuidedSetupPresence.noteHeartbeat(Long.MIN_VALUE)
+        }
+    }
+
+    @Test fun `over the socket a visible wizard's setup reads keep it actively walked`() = withSetup { fixture ->
+        try {
+            testApplication {
+                application { fixture.mount(this) }
+                val ws = createClient { install(io.ktor.client.plugins.websocket.WebSockets) }
+                ws.webSocket("/ui") {
+                    suspend fun answer(id: String): JSONObject {
+                        while (true) {
+                            val frame = JSONObject((incoming.receive() as Frame.Text).readText())
+                            if (frame.optString("command_id") == id) return frame
+                        }
+                    }
+                    // A one-off read carries presence as an argument, where HTTP carries the header.
+                    GuidedSetupPresence.noteHeartbeat(Long.MIN_VALUE)
+                    send(Frame.Text(JSONObject().put("kind", "manage").put("command_id", "r1").put("op", "setup")
+                        .put("args", JSONObject().put("presence", "active")).toString()))
+                    assertEquals("applied", answer("r1").getString("outcome"))
+                    assertTrue("a one-off read with presence", GuidedSetupPresence.activelyWalked(0L))
+
+                    // The wizard's subscription renews it on every read of the family, not only the first.
+                    send(Frame.Text(JSONObject().put("kind", "manage").put("command_id", "s1").put("op", "subscribe")
+                        .put("args", JSONObject().put("family", "setup").put("presence", "active")).toString()))
+                    assertEquals("applied", answer("s1").getString("outcome"))
+                    // Its first read has landed once the first update arrives; then clear the heartbeat and
+                    // wait for the family's next read (its floor is two seconds) to renew it.
+                    withTimeout(5_000) { while (!JSONObject((incoming.receive() as Frame.Text).readText()).has("subscription")) Unit }
+                    GuidedSetupPresence.noteHeartbeat(Long.MIN_VALUE)
+                    val deadline = System.nanoTime() + 6_000_000_000L
+                    while (!GuidedSetupPresence.activelyWalked(0L) && System.nanoTime() < deadline) Thread.sleep(100)
+                    assertTrue("a later read of the subscription renewed it", GuidedSetupPresence.activelyWalked(0L))
+                }
             }
         } finally {
             GuidedSetupPresence.noteHeartbeat(Long.MIN_VALUE)

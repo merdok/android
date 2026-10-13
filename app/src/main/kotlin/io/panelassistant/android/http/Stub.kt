@@ -29,6 +29,7 @@ import io.panelassistant.android.CommandOrigin
 import io.panelassistant.android.ManageBlobs
 import io.panelassistant.android.ManageDoor
 import io.panelassistant.android.ManageReply
+import io.panelassistant.android.ManageSink
 import io.panelassistant.android.ManageSubscription
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
@@ -451,13 +452,15 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                             val family = args.optString("family")
                             // Updates queue behind the `applied` answer that names their subscription.
                             val answered = CompletableDeferred<Unit>()
-                            val subscription = dispatcher.subscribe(family, origin) { value, delivered ->
+                            // Every other argument reaches each read of the family (a visible wizard's presence).
+                            val familyArgs = JSONObject(args.toString()).apply { remove("family") }
+                            val subscription = dispatcher.subscribe(family, origin, sink = ManageSink { value, delivered ->
                                 val update = JSONObject().put("subscription", commandId).put(
                                     "observations",
                                     JSONArray().put(JSONObject().put("channel", family).put("state", "known").put("value", value ?: JSONObject.NULL)),
                                 )
                                 launch { answered.await(); send(update, after = delivered) }
-                            }
+                            }, args = familyArgs)
                             if (subscription == null) {
                                 answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
                             } else {

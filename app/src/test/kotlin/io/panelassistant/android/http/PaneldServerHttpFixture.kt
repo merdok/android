@@ -93,8 +93,8 @@ internal class PaneldServerHttpFixture(
             origin: io.panelassistant.android.CommandOrigin,
             done: (io.panelassistant.android.panelassistant.PanelAssistantCommandResult) -> Unit,
         ) = done(io.panelassistant.android.panelassistant.PanelAssistantCommandResult.Failed("failed"))
-        override fun subscribe(family: String, origin: io.panelassistant.android.CommandOrigin, sink: io.panelassistant.android.ManageSink) =
-            operations.subscribe(family, origin, sink)
+        override fun subscribe(family: String, origin: io.panelassistant.android.CommandOrigin, args: org.json.JSONObject, sink: io.panelassistant.android.ManageSink) =
+            operations.subscribe(family, origin, args, sink)
         override fun closeOrigin(origin: io.panelassistant.android.CommandOrigin) = operations.closeOrigin(origin)
     }
     val server = allocate(PaneldServer::class.java).apply {

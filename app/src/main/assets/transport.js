@@ -260,9 +260,10 @@
     if (family.append) return startEventStream(sub);
     var last = null;
     function poll() {
+      // The subscription's args reach every read of the family, as the panel passes them (a wizard's presence).
       var reads = family.reads, single = reads.length === 1;
       Promise.all(reads.map(function (op) {
-        return self.request(op, single ? sub.args : {}).then(function (reply) {
+        return self.request(op, sub.args).then(function (reply) {
           if (reply.outcome !== "applied") throw reply;
           return reply.result;
         });

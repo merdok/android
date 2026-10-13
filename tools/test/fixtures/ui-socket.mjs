@@ -178,7 +178,7 @@ export async function attachUiSocket(server, answer, { record = process.env.UI_S
         const read = async () => {
           if (sub.stopped) return;
           const reads = family.reads, single = reads.length === 1;
-          const replies = await Promise.all(reads.map((op) => reply(op, single ? rest : {}, socketUrl)));
+          const replies = await Promise.all(reads.map((op) => reply(op, rest, socketUrl)));
           if (sub.stopped) return;
           const ok = replies.every((item) => item.outcome === 'applied');
           // Keyed by op name, as the panel's own family registry delivers a family of several reads.

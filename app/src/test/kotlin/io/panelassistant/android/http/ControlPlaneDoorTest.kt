@@ -67,7 +67,7 @@ class ControlPlaneDoorTest {
         ) = operations.manage(commandId, op, args, origin, blobs, onPending, done)
         override fun submit(command: PanelAssistantCommand, origin: CommandOrigin, done: (PanelAssistantCommandResult) -> Unit) =
             done(PanelAssistantCommandResult.Failed("failed"))
-        override fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink) = operations.subscribe(family, origin, sink)
+        override fun subscribe(family: String, origin: CommandOrigin, args: JSONObject, sink: ManageSink) = operations.subscribe(family, origin, args, sink)
         override fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
     }
     private val pending = PendingUploadStore { "apk-token" }.apply { open() }

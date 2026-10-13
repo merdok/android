@@ -1136,12 +1136,14 @@
 
   function follow() {
     if (journeyFeed || (journey && journey.complete)) return;
+    // The wizard is visible while it follows the family (a hidden tab ends the subscription), so every read
+    // carries its presence: the panel defers its own restarts while someone is mid-walk.
     journeyFeed = transport.subscribe("setup", function (value, state) {
       if (state !== "known" || !value || !value["setup"]) return;
       journey = value["setup"];
       render();
       if (journey.complete && journeyFeed) { journeyFeed.close(); journeyFeed = null; }
-    });
+    }, { presence: "active" });
   }
 
   /* A sign-in finishing in another tab announces itself; the poll is the fallback (the panel's own

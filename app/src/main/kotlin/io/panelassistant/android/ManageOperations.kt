@@ -84,7 +84,8 @@ internal interface ManageDoor {
         origin: CommandOrigin,
         done: (io.panelassistant.android.panelassistant.PanelAssistantCommandResult) -> Unit,
     )
-    fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription?
+    /** [args] reach every read of the family, as a one-off read's do (a visible wizard's `presence`). */
+    fun subscribe(family: String, origin: CommandOrigin, args: JSONObject = JSONObject(), sink: ManageSink): ManageSubscription?
     fun closeOrigin(origin: CommandOrigin)
 }
 
@@ -270,19 +271,20 @@ internal class ManageOperations(
      * never more often than the family's floor, with at most one update outstanding (a newer value replaces
      * an unsent one). One owner ([CommandOrigin.subscriptionOwner]: the socket, or the origin) subscribing twice
      * to a family shares one subscription, whose updates go to the newest sink. Null when the family is unknown
-     * or the owner already holds the most it may.
+     * or the owner already holds the most it may. [args] are passed to every read of the family; a shared
+     * subscription reads with the newest.
      */
-    fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? {
+    fun subscribe(family: String, origin: CommandOrigin, args: JSONObject = JSONObject(), sink: ManageSink): ManageSubscription? {
         val definition = families[family] ?: return null
         if (!job.isActive) return null
         synchronized(lock) {
             val held = subscriptions.getOrPut(origin.subscriptionOwner) { LinkedHashMap() }
             held[family]?.let { shared ->
-                shared.replaceSink(sink)
+                shared.replaceSink(sink, args)
                 return shared
             }
             if (held.size >= maxSubscriptionsPerOrigin) return null
-            val created = FamilySubscription(definition, origin, sink)
+            val created = FamilySubscription(definition, origin, sink, args)
             held[family] = created
             created.start()
             return created
@@ -303,10 +305,10 @@ internal class ManageOperations(
         }
     }
 
-    private suspend fun readFamily(definition: ManageFamily, origin: CommandOrigin): Any? {
+    private suspend fun readFamily(definition: ManageFamily, origin: CommandOrigin, args: JSONObject): Any? {
         val values = definition.reads.map { name ->
             val entry = table[name] ?: return null
-            val reply = run(entry, ManageRequest(name, JSONObject(), origin, null)) {}
+            val reply = run(entry, ManageRequest(name, JSONObject(args.toString()), origin, null)) {}
             if (reply.outcome != PanelAssistantTransportProtocol.OUTCOME_APPLIED) return null
             name to reply.result
         }
@@ -318,6 +320,7 @@ internal class ManageOperations(
         private val definition: ManageFamily,
         private val origin: CommandOrigin,
         @Volatile private var sink: ManageSink,
+        @Volatile private var args: JSONObject,
     ) : ManageSubscription {
         override val family: String get() = definition.name
         private var worker: Job? = null
@@ -334,14 +337,15 @@ internal class ManageOperations(
             }
         }
 
-        fun replaceSink(replacement: ManageSink) {
+        fun replaceSink(replacement: ManageSink, newArgs: JSONObject) {
             sink = replacement
+            args = newArgs
             synchronized(slot) { last?.let { last = null } }
         }
 
         private suspend fun poll() {
             while (currentCoroutineContext().isActive) {
-                val value = runCatching { readFamily(definition, origin) }.getOrNull()
+                val value = runCatching { readFamily(definition, origin, args) }.getOrNull()
                 if (value != null) {
                     val encoded = encode(value)
                     val changed = synchronized(slot) { (encoded != last).also { if (it) last = encoded } }

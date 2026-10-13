@@ -170,8 +170,8 @@ internal class PanelCommandDispatcher(
     ) = operations.manage(commandId, op, args, origin, blobs, onPending, done)
 
     /** Follow a subscription family (protocol section 20.4); see [ManageOperations.subscribe]. */
-    override fun subscribe(family: String, origin: CommandOrigin, sink: ManageSink): ManageSubscription? =
-        operations.subscribe(family, origin, sink)
+    override fun subscribe(family: String, origin: CommandOrigin, args: org.json.JSONObject, sink: ManageSink): ManageSubscription? =
+        operations.subscribe(family, origin, args, sink)
 
     /** End every subscription [origin] holds, as its door does when the connection closes. */
     override fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)

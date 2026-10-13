@@ -32,7 +32,9 @@ internal fun Route.setupRoutes(state: () -> SetupState) = ops {
         // Everything here is an in-memory read, and SetupStateEndpointContractTest pins it.
         // Generic state readers (provisioning, diagnostics, monitoring) must not suppress
         // recovery restarts. Only the wizard UI sends this explicit heartbeat header.
-        if (call.request.headers[SETUP_PRESENCE_HEADER] == SETUP_PRESENCE_ACTIVE) {
+        // One input on every door: the socket and the session carry it as `args.presence`, HTTP as the header.
+        val presence = call.args?.optString("presence")?.takeIf(String::isNotEmpty) ?: call.request.headers[SETUP_PRESENCE_HEADER]
+        if (presence == SETUP_PRESENCE_ACTIVE) {
             GuidedSetupPresence.noteHeartbeat(android.os.SystemClock.elapsedRealtime())
         }
         call.response.headers.append(HttpHeaders.CacheControl, "no-store")
