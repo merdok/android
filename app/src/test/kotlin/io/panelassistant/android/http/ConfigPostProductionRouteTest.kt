@@ -702,6 +702,9 @@ class ConfigPostProductionRouteTest {
 
             assertEquals(1, runtimeRefreshes.size, "the concrete dispatcher effect owner must run")
             assertEquals("/lovelace/beta", config.getRaw(spec))
+            // The live handler stores the route with apply(), which reaches SQLite on the writer thread: let that
+            // write finish before a second owner reads the database, or this reads a write still in flight.
+            writer.submit {}.get(10, java.util.concurrent.TimeUnit.SECONDS)
             val reopened = Config(SqliteStatePreferences(JdbcStatePersistence(database), reopenedWriter))
             assertEquals(
                 "/lovelace/beta",
