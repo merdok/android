@@ -2977,8 +2977,8 @@ class PaneldService : Service() {
             }
             startStateObservationTick()
             // Never-blank-screen watchdog. A screen-off kills the backlight but leaves the device
-            // interactive, and nothing re-lights it — so a stray/stale screen-off (e.g. the retained-command
-            // strand) or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
+            // interactive, and nothing re-lights it — so a stray or stale screen-off command
+            // or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
             // is dark but ha-paneld did NOT deliberately turn it off, re-light it; a user-intended
             // "screen off" (isIntendedOff) is left alone.
             scope.periodic(
