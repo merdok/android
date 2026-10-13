@@ -1645,11 +1645,11 @@ class PaneldService : Service() {
     }
 
     private fun buildNetworkRuntime(identity: NetworkRuntimeIdentity): NetworkRuntime {
-        val core = buildCore(identity)
+        val core = buildCore()
         return NetworkRuntime(core, buildCommands(core), buildMdns(identity))
     }
 
-    private fun buildCore(identity: NetworkRuntimeIdentity): PanelStateCore = PanelStateCore(
+    private fun buildCore(): PanelStateCore = PanelStateCore(
         config, brightness, screen, led, ledEffect, volume, system, bootChime, zigbee, relay, cpu, adb,
         accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
@@ -1667,8 +1667,6 @@ class PaneldService : Service() {
         softwareUpdateSources = ::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
-        panelId = identity.panelId,
-        friendlyName = identity.friendlyName,
         wifiDiagnostics = wifiDiagnostics::snapshot,
         wifiOutages = { wifiOutageTracker.counts() },
         learnedProximityEligibility = sensors::hasLearnedProximity,

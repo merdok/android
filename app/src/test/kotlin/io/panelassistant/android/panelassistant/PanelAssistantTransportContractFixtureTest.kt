@@ -72,9 +72,16 @@ internal class PanelAssistantTransportContractFixtureTest : PanelRuntimeRig() {
     fun `every channel descriptor this build describes matches the exported producer fixture`() {
         val fixture = JSONObject(resource(PRODUCER_FIXTURE))
         // A numbered family is pinned by the members the fixture names; the rest of the family is the same descriptor.
-        val registered = everyChannel().map { it.replace(Regex("^(relay|button_led)[0-9]+$"), "${'$'}11") }
-        val wires = (registered + fixture.getJSONArray("channelDescriptors").objects().map { it.getString("channel") } +
-            listOf("reload", "reboot", "button")).distinct().sorted()
+        val family = Regex("^(relay|button_led)[0-9]+$")
+        fun sample(key: String) = family.matchEntire(key)?.let { it.groupValues[1] + "1" } ?: key
+        val registered = everyChannel().map(::sample).toSet()
+        val fixtureChannels = fixture.getJSONArray("channelDescriptors").objects().map { it.getString("channel") }
+        val actions = setOf("reload", "reboot", "button")
+        val wires = (registered + fixtureChannels + actions).sorted()
+        if (!recordingProducer()) {
+            val unregistered = fixtureChannels.filter { sample(it) !in registered + actions }
+            assertEquals("fixture channels the state core no longer registers", emptyList<String>(), unregistered)
+        }
         val described = wires.map { wire ->
             val descriptor = PanelAssistantChannelCatalog.describe(wire)
             assertNotNull("$wire must remain describable", descriptor)

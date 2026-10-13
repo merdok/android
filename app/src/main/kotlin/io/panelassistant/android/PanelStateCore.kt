@@ -101,9 +101,6 @@ internal class PanelStateCore(
     private val storageHealth: () -> StorageHealthSnapshot = StorageHealthRuntime::snapshot,
     // The root helper's command line, for the button backlight.
     private val helperSend: (String) -> String? = HelperClient::send,
-    // Immutable identity of this runtime generation; Config stays live for everything else.
-    private val panelId: String = config.panelId,
-    private val friendlyName: String = config.friendlyName,
     private val wifiDiagnostics: (WifiDiagnosticDemand) -> WifiDiagnosticSnapshot = { WifiDiagnosticSnapshot() },
     private val wifiOutages: () -> WifiOutageCounts? = { null },
     private val learnedProximityEligibility: () -> Boolean = { false },
@@ -455,18 +452,20 @@ internal class PanelStateCore(
                 try {
                     val nativeBase = config.haUrl.trim().trimEnd('/')
                     if (nativeBase.isBlank()) return@Thread
-                    val target = HaLink.resolutionTarget(nativeBase, panelId)
+                    // The Panel Assistant entry names this panel's device; without one there is nothing to link.
+                    val entryId = HaConnectionRoutes.panelAssistantEntryId(config) ?: return@Thread
+                    val target = HaLink.resolutionTarget(nativeBase, entryId)
                     if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return@Thread
                     val stillCurrent = {
-                        lifecycle.isOpen() &&
-                            config.haUrl.trim().trimEnd('/') == nativeBase && config.panelId == panelId
+                        lifecycle.isOpen() && config.haUrl.trim().trimEnd('/') == nativeBase &&
+                            HaConnectionRoutes.panelAssistantEntryId(config) == entryId
                     }
                     val auth = HaCredentialManager.resolve(config, stillCurrent = stillCurrent)
                     val token = auth.session?.accessToken ?: return@Thread
                     val route = auth.route ?: return@Thread
                     val familyPolicy = io.panelassistant.android.util.AddressFamilyPolicy.fromConfig(config.addressFamily)
                     val link = HaLink.resolveWithAccessToken(
-                        route.url, token, listOf(panelId, friendlyName),
+                        route.url, token, entryId,
                         preferIpv4 = familyPolicy.initialPreferIpv4,
                         ipv4Only = familyPolicy.ipv4Only,
                     ) ?: return@Thread

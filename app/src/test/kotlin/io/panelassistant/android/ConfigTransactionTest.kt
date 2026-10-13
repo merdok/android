@@ -1468,7 +1468,7 @@ class ConfigTransactionTest {
                 "ha_url" to "https://renderer-a.example",
                 "ha_device_url" to "https://other-b.example/config/devices/device/stale-id",
                 "ha_link_at" to 1234L,
-                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", "panel-id"),
+                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", "entry-id"),
             ),
         )
         val config = Config(prefs.instance)
@@ -1488,7 +1488,7 @@ class ConfigTransactionTest {
                 "ha_url" to "https://ha.example",
                 "ha_device_url" to existing,
                 "ha_link_at" to 1234L,
-                "ha_link_target" to HaLink.resolutionTarget("https://ha.example", "panel-id"),
+                "ha_link_target" to HaLink.resolutionTarget("https://ha.example", "entry-id"),
             ),
         )
         val config = Config(prefs.instance)
@@ -1497,20 +1497,19 @@ class ConfigTransactionTest {
 
         assertEquals(existing, prefs.values["ha_device_url"])
         assertEquals(1234L, prefs.values["ha_link_at"])
-        assertEquals(HaLink.resolutionTarget("https://ha.example", "panel-id"), prefs.values["ha_link_target"])
+        assertEquals(HaLink.resolutionTarget("https://ha.example", "entry-id"), prefs.values["ha_link_target"])
     }
 
     @Test fun openInHaNeverExposesDeviceIdOwnedByAnotherNativeServer() {
-        val panel = "wall-panel"
+        val entry = "entry-id"
         val native = "https://native-a.example/ha"
         val staleDevice = "https://other-b.example/config/devices/device/stale-id"
         val prefs = fakePreferences(
             initial = mapOf(
-                "panel_id" to panel,
                 "ha_url" to native,
                 "ha_base_url" to "https://companion-c.example",
                 "ha_device_url" to staleDevice,
-                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", panel),
+                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", entry),
                 "ha_link_at" to 1234L,
             ),
         )
@@ -1518,30 +1517,34 @@ class ConfigTransactionTest {
 
         assertEquals("the native renderer target is safe while its device id resolves", native, config.haLinkUrl)
         assertFalse(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget(native, panel),
+            HaLink.resolutionTarget(native, entry),
             nowMs = 2000L,
             ttlMs = 10_000L,
         ))
     }
 
     @Test fun openInHaUsesDeviceIdOnlyWhenItsNativeTargetOwnsIt() {
-        val panel = "wall-panel"
+        val entry = "entry-id"
         val native = "https://native-a.example/ha"
         val device = "$native/config/devices/device/current-id"
         val prefs = fakePreferences(
             initial = mapOf(
-                "panel_id" to panel,
                 "ha_url" to native,
                 "ha_device_url" to device,
-                "ha_link_target" to HaLink.resolutionTarget(native, panel),
+                "ha_link_target" to HaLink.resolutionTarget(native, entry),
                 "ha_link_at" to 1234L,
             ),
         )
         val config = Config(prefs.instance)
 
+        assertEquals("no learned Panel Assistant entry owns the device link", native, config.haLinkUrl)
+        assertTrue(HaConnectionRoutes.learn(
+            config, HaConnectionRoutes.current(config),
+            HaConnectionAdvertisement("a".repeat(32), "b".repeat(32), emptyList()), entry,
+        ))
         assertEquals(device, config.haLinkUrl)
         assertTrue(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget("$native/", panel),
+            HaLink.resolutionTarget("$native/", entry),
             nowMs = 2000L,
             ttlMs = 10_000L,
         ))
@@ -1557,7 +1560,7 @@ class ConfigTransactionTest {
         val config = Config(prefs.instance)
 
         assertFalse(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget("https://old.example", "panel"),
+            HaLink.resolutionTarget("https://old.example", "entry-id"),
             nowMs = 2000L,
             ttlMs = 10_000L,
         ))

@@ -269,8 +269,6 @@ internal abstract class PanelRuntimeRig {
             softwareUpdateSources = { updateSources.get() },
             storageHealth = { storageReads.incrementAndGet(); storage.get() },
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
-            panelId = PANEL,
-            friendlyName = "Golden panel",
             wifiOutages = wifiOutages,
             learnedProximityEligibility = { true },
             learnedProximityState = learnedProximityState,

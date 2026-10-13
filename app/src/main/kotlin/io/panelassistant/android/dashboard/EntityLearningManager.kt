@@ -1581,7 +1581,7 @@ class EntityLearningManager(
                 val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                     deviceRegistry,
                     areas,
-                    panelAssistantEntryIds(request, deviceRegistry),
+                    panelAssistantEntryIds(),
                 )
                 // Login shortname, best-effort: only config/auth/list carries it and only admins may
                 // call it (verified against core source — auth/current_user has display name only).
@@ -1604,14 +1604,8 @@ class EntityLearningManager(
         }.getOrDefault(HaAreaCatalog(ownerKey = ownerKey))
     }
 
-    /** The Panel Assistant entries proven to be this panel, read over the same registry socket. */
-    private suspend fun panelAssistantEntryIds(
-        request: suspend (JSONObject) -> JSONObject,
-        deviceRegistry: JSONObject,
-    ): Set<String> = io.panelassistant.android.sensors.HaPanelDeviceMatcher.panelAssistantEntryIds(
-        io.panelassistant.android.sensors.HaPanelDeviceMatcher.readProbe(request, deviceRegistry),
-        io.panelassistant.android.panelAssistantDiscoveryId(config.deviceUid), HaConnectionRoutes.panelAssistantEntryId(config),
-    )
+    /** The Panel Assistant entry the last `hello` named, which is this panel's device. */
+    private fun panelAssistantEntryIds(): Set<String> = setOfNotNull(HaConnectionRoutes.panelAssistantEntryId(config))
 
     /** Non-secret digest identifying the HA endpoint and credential generation used by area operations. */
     fun haAreaOwnerKey(): String = credentialFingerprint()
@@ -1643,7 +1637,7 @@ class EntityLearningManager(
                     val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                         deviceRegistry,
                         areas,
-                        panelAssistantEntryIds(request, deviceRegistry),
+                        panelAssistantEntryIds(),
                     )
                     if (!device.found || device.deviceId.isBlank()) return@withHaSocket
                     if (requested.isBlank()) {
