@@ -3062,14 +3062,12 @@ class DashboardActivity : AppCompatActivity() {
                 provisionalHomeDashboardEpoch = dashboardNavigationEpoch
             }
         }
-        if (provisionalPath == null) {
-            showAdmissionProgressScreen(
-                R.string.selecting_ha_dashboard,
-                R.string.notice_hero_finding_dashboards,
-                R.string.notice_line_ha_dashboard,
-                R.string.selecting_ha_dashboard_detail,
-            )
-        }
+        // Not a renderer CHECKING: compatibility already admitted this renderer, and recording CHECKING here
+        // outlived the dashboard it loaded (status `checking` while rendered, after every launch-cache miss).
+        if (provisionalPath == null) showV2CompatibilityScreen(
+            getString(R.string.selecting_ha_dashboard), getString(R.string.selecting_ha_dashboard_detail), null,
+            AdmissionRetryClass.MANUAL_ONLY, null, getString(R.string.notice_hero_finding_dashboards), getString(R.string.notice_line_ha_dashboard),
+        )
         homeDashboardJob = activityScope.launch {
             val resolution = withContext(Dispatchers.IO) {
                 EntityLearningRuntime.resolveHomeDashboard(
