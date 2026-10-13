@@ -45,8 +45,7 @@ class PanelAssistantStateReporterTest {
         val h = Harness()
         h.sink("screen", """{"state":"ON","brightness":40}""")
         h.sink("relay1", "OFF")
-        h.sink("storage_health", "healthy")
-        h.sink("storage_health_attributes", """{"quick_check":"ok","nested":{"x":1}}""")
+        h.bound("storage_health", Observation.Known("healthy", """{"quick_check":"ok","nested":{"x":1}}"""))
         h.open()
 
         val begin = h.next(2)
@@ -55,7 +54,7 @@ class PanelAssistantStateReporterTest {
         assertEquals(listOf("relay1", "screen", "storage_health"), channels(begin))
         val storage = observation(begin, "storage_health")
         assertEquals("healthy", storage.getString("value"))
-        assertTrue("attributes were not folded into $storage", storage.has("attributes"))
+        assertTrue("attributes were not carried with $storage", storage.has("attributes"))
         assertEquals("ok", storage.getJSONObject("attributes").getString("quick_check"))
         assertFalse(storage.getJSONObject("attributes").has("nested"))
         assertNull("nothing is sent until full_begin is acknowledged", h.reporter.next(3, TOKEN, 0))
@@ -75,11 +74,11 @@ class PanelAssistantStateReporterTest {
         assertNull(h.reporter.next(5, TOKEN, 0))
     }
 
-    @Test fun anAttributeChangeReReportsItsParentUnderTheParentChannel() {
+    @Test fun anAttributeChangeReReportsItsChannel() {
         val h = Harness().synced()
         h.sink("diag_wifi_outages_24h", "3")
         h.ack(h.next(10).getLong("id"))
-        h.sink("diag_wifi_outages_attributes", """{"is_lower_bound":true}""")
+        h.bound("diag_wifi_outages_24h", Observation.Known("3", """{"is_lower_bound":true}"""))
         val delta = h.next(11)
         assertEquals(listOf("diag_wifi_outages_24h"), channels(delta))
         assertTrue(observation(delta, "diag_wifi_outages_24h").optJSONObject("attributes")?.optBoolean("is_lower_bound") == true)
@@ -87,7 +86,7 @@ class PanelAssistantStateReporterTest {
 
     @Test fun updateChannelsReportUnderTheirWireIds() {
         val h = Harness().synced()
-        h.sink("software_update_paneld", """{"installed_version":"1","in_progress":false}""")
+        h.sink("update_paneld", """{"installed_version":"1","in_progress":false}""")
         assertEquals(listOf("update_paneld"), channels(h.next(10)))
     }
 
@@ -222,8 +221,8 @@ class PanelAssistantStateReporterTest {
 
     private class Harness(
         initial: List<String> = listOf(
-            "screen", "relay1", "relay2", "relay3", "relay4", "relay5", "storage_health", "storage_health_attributes",
-            "diag_wifi_outages_24h", "diag_wifi_outages_attributes", "software_update_paneld", "diag_ip", "diag_cpu", "volume",
+            "screen", "relay1", "relay2", "relay3", "relay4", "relay5", "storage_health",
+            "diag_wifi_outages_24h", "update_paneld", "diag_ip", "diag_cpu", "volume",
         ),
         describe: (String) -> PanelAssistantChannelDescriptor? = PanelAssistantChannelCatalog::describe,
     ) {

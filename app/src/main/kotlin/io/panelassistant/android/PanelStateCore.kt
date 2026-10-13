@@ -169,7 +169,8 @@ internal class PanelStateCore(
         fun channel(key: String, observe: () -> Observation) = c.register(StateConverger.Channel(key, observe))
 
         channel("storage_health") {
-            known(storageHealth().severity.name.lowercase(Locale.ROOT))
+            val health = storageHealth()
+            Observation.Known(health.severity.name.lowercase(Locale.ROOT), storageHealthAttributes(health))
         }
         // An update channel withheld (ha-paneld's under a Panel Assistant lease, or the Companion's while no
         // Companion is installed) is unavailable rather than leaving a stale version behind.
@@ -180,9 +181,6 @@ internal class PanelStateCore(
                     else known(SoftwareUpdates.stateJson(inputs))
                 } ?: unknown
             }
-        }
-        channel("storage_health_attributes") {
-            known(storageHealthAttributes(storageHealth()))
         }
         channel("screen") {
             if (!config.haExposed("screen", true)) return@channel unknown
@@ -233,12 +231,7 @@ internal class PanelStateCore(
             if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
             val snapshot = autoSleepActivity()
             if (!config.autoSleep || !snapshot.policyHealthy) Observation.Unavailable
-            else known(if (snapshot.holdingAwake) "ON" else "OFF")
-        }
-        // Folded into auto_sleep_activity: its attributes.
-        channel("auto_sleep_activity_attributes") {
-            if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
-            known(autoSleepActivityProjection(autoSleepActivity()).attributes)
+            else Observation.Known(if (snapshot.holdingAwake) "ON" else "OFF", autoSleepActivityProjection(snapshot).attributes)
         }
         channel("navbar") { known(config.navbarMode) }
 
@@ -266,21 +259,15 @@ internal class PanelStateCore(
             else unknown
         }
 
-        // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
-        // attribute; without it Home Assistant records a capped 200 as an exact measurement.
-        channel("diag_wifi_outages_attributes") {
-            // The attributes ride with the count and share its opt-in.
-            val exposed = config.haExposed(
-                "diag_wifi_outages_24h",
-                requireNotNull(SettingsRegistry.spec("diag_wifi_outages_24h")).haExposedByDefault,
-            )
-            wifiOutageAttributeObservation(exposed, wifiOutages())
-        }
-
         for (key in diagKeys()) channel(key) {
             // Transport-dependent Wi-Fi diagnostics are unavailable rather than a literal "unknown".
             val exposedByDefault = requireNotNull(SettingsRegistry.spec(key)).haExposedByDefault
-            diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
+            val observation = diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
+            // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
+            // attribute; without it Home Assistant records a capped 200 as an exact measurement.
+            if (key == "diag_wifi_outages_24h" && observation is Observation.Known) {
+                wifiOutages()?.let { observation.copy(attributes = wifiOutageAttributes(it)) } ?: observation
+            } else observation
         }
         return c
     }
@@ -374,10 +361,7 @@ internal class PanelStateCore(
             }
             if (observation.possible.zigbee) register("zigbee_gateway_health") {
                 if (!capabilityShape.current().live.zigbee) Observation.Unavailable
-                else known(zigbeeHealth().state.wireValue)
-            }
-            if (observation.possible.zigbee) register("zigbee_gateway_health_attributes") {
-                known(zigbeeHealth().attributesJson())
+                else zigbeeHealth().let { Observation.Known(it.state.wireValue, it.attributesJson()) }
             }
             if (observation.possible.cpu) register("cpu_governor") {
                 if (!capabilityShape.current().live.cpu) known("unknown")
@@ -510,7 +494,8 @@ internal class PanelStateCore(
 
     private fun publishButton(event: String) {
         lifecycle.runIfOpen(Unit) {
-            runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event) }
+            // The event type's wire code is its key name in lower case.
+            runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event.lowercase(Locale.ROOT)) }
         }
     }
 
@@ -558,8 +543,6 @@ internal class PanelStateCore(
 
     fun publishZigbeeHealth() {
         lifecycle.runIfOpen(Unit) {
-            // The attributes first, so the native report carries them with the state.
-            reconcile("zigbee_gateway_health_attributes")
             reconcile("zigbee_gateway_health")
         }
     }
@@ -568,7 +551,6 @@ internal class PanelStateCore(
     fun publishStorageHealth() {
         lifecycle.runIfOpen(Unit) {
             reconcile("storage_health")
-            reconcile("storage_health_attributes")
         }
     }
 
@@ -665,8 +647,6 @@ internal class PanelStateCore(
     }
 
     fun publishAutoSleepActivityNow() {
-        // The attributes first, so the native report carries them with the state.
-        reconcile("auto_sleep_activity_attributes")
         reconcile("auto_sleep_activity")
     }
 
@@ -936,23 +916,6 @@ internal val WIFI_DIAGNOSTIC_KEYS = setOf("diag_wifi_ssid", "diag_wifi_rssi")
 /** Whether the published count is a total or a known lower bound, so HA never records a floor as exact. */
 internal fun wifiOutageAttributes(counts: WifiOutageCounts): String =
     JSONObject().put("is_lower_bound", counts.saturated).toString()
-
-/**
- * What the outage-attributes channel should carry right now.
- *
- * The attributes share the count's opt-in: hiding the sensor makes them unavailable rather than
- * leave a stale `is_lower_bound` for an entity nobody exposed. Pure so the
- * expose/hide/reconnect boundary is checked by behaviour, not by reading source.
- */
-internal fun wifiOutageAttributeObservation(
-    exposed: Boolean,
-    counts: WifiOutageCounts?,
-): io.panelassistant.android.state.StateConverger.Observation =
-    if (!exposed || counts == null) {
-        io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    } else {
-        io.panelassistant.android.state.StateConverger.Observation.Known(wifiOutageAttributes(counts))
-    }
 
 /** Path-free, bounded Home Assistant attributes derived from the shared immutable snapshot. */
 internal fun storageHealthAttributes(snapshot: StorageHealthSnapshot): String {

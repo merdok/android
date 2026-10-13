@@ -20,7 +20,8 @@ class StateConverger {
     sealed interface Observation {
         /** What a sink may receive. Unknown publishes nothing, so it is never reported. */
         sealed interface Reportable : Observation
-        data class Known(val payload: String) : Reportable
+        /** [attributes] is the JSON object of attributes reported with the value, when the channel has any. */
+        data class Known(val payload: String, val attributes: String? = null) : Reportable
         data object Unknown : Observation
         data object Unavailable : Reportable
     }

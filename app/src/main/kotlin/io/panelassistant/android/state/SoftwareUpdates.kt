@@ -101,7 +101,7 @@ internal object SoftwareUpdates {
     private const val UNSUPPORTED_PREFIX = "unsupported "
     private const val MAX_SUMMARY_CHARS = 255
 
-    fun stateChannelKey(component: SoftwareComponent) = "software_update_${component.wire}"
+    fun stateChannelKey(component: SoftwareComponent) = "update_${component.wire}"
 
     internal fun normalized(component: SoftwareComponent, version: String): String =
         if (component == SoftwareComponent.COMPANION) UpdateChecker.stripVariant(version) else version.trim()

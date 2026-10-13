@@ -85,6 +85,19 @@ internal abstract class PanelRuntimeRig {
         assertTrue("command worker drained", done.await(20, TimeUnit.SECONDS))
     }
 
+    /** Every channel a panel with every capability registers once those capabilities are observed. */
+    protected fun everyChannel(): Set<String> {
+        val rig = rig(hasCamera = true, hasCht8305 = true)
+        try {
+            rig.core.ensureCapabilityChannels(
+                Capabilities(zigbeePresent = true, cpuGovernors = true, networkAdb = true, relays = 2, buttonLeds = 1),
+            )
+            return rig.core.stateChannelKeys()
+        } finally {
+            rig.close()
+        }
+    }
+
     // ---- rig ----
 
     protected class Rig(
@@ -118,6 +131,7 @@ internal abstract class PanelRuntimeRig {
         hasTemperature: Boolean = true,
         buttonKeys: io.panelassistant.android.device.PanelButtonKeys = io.panelassistant.android.device.PanelButtonKeys.UNKNOWN,
         hasHumidity: Boolean = true,
+        hasCht8305: Boolean = false,
         hasCamera: Boolean = false,
         cameraAvailability: () -> Boolean? = { hasCamera },
         learnedProximityState: () -> Boolean? = { null },
@@ -142,6 +156,7 @@ internal abstract class PanelRuntimeRig {
         helperSend: ((String) -> String?)? = null,
         /** A panel whose CPU governors are readable, starting on this governor; null offers none. */
         cpuGovernor: String? = null,
+        wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
@@ -240,7 +255,7 @@ internal abstract class PanelRuntimeRig {
             hasProximity = true,
             hasTemperature = hasTemperature,
             hasHumidity = hasHumidity,
-            hasCht8305 = false,
+            hasCht8305 = hasCht8305,
             hasButtonBacklight = true,
             media = media,
             hasCamera = cameraAvailability,
@@ -251,7 +266,7 @@ internal abstract class PanelRuntimeRig {
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
             panelId = PANEL,
             friendlyName = "Golden panel",
-            wifiOutages = { WifiOutageCounts(last24h = 3) },
+            wifiOutages = wifiOutages,
             learnedProximityEligibility = { true },
             learnedProximityState = learnedProximityState,
         )

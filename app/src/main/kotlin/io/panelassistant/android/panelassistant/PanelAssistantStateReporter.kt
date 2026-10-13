@@ -37,7 +37,7 @@ internal class PanelAssistantStateReporter(
     private val outstanding = LinkedHashMap<Long, Batch>()
     private var phase = Phase.IDLE
     private var described: Set<String> = emptySet()
-    /** Events waiting for the session loop, each a wire channel and the event as its source emitted it. */
+    /** Events waiting for the session loop, each a wire channel and its event code. */
     private val events = ArrayDeque<Pair<String, String>>()
     private var lastEventId = 0L
 
@@ -52,7 +52,6 @@ internal class PanelAssistantStateReporter(
 
     private class Entry {
         var observation: StateConverger.Observation.Reportable? = null
-        var attributes: StateConverger.Observation.Reportable? = null
         /** Advances whenever the observation or its attributes change; a repeat is a refresh. */
         var revision = 0L
         var dirty = false
@@ -89,18 +88,8 @@ internal class PanelAssistantStateReporter(
         synchronized(lock) {
             // A retired bridge generation can still deliver a late observation; it never overwrites the live one.
             if (bound != generation) return
-            val parent = PanelAssistantChannelCatalog.FOLDED[channel]
-            val wire = parent ?: PanelAssistantChannelCatalog.wireChannel(channel) ?: return
-            val entry = entries.getOrPut(wire) { Entry() }
-            val changed = if (parent != null) {
-                if (entry.attributes == observation) return
-                entry.attributes = observation
-                // The parent is re-reported with its new attributes once it has an observation.
-                if (entry.observation == null) return
-                true
-            } else {
-                (entry.observation != observation).also { entry.observation = observation }
-            }
+            val entry = entries.getOrPut(channel) { Entry() }
+            val changed = (entry.observation != observation).also { entry.observation = observation }
             // A new value is eligible at once; a repeat keeps any retry delay a failure set.
             if (changed) {
                 entry.revision++
@@ -116,7 +105,7 @@ internal class PanelAssistantStateReporter(
         describable(synchronized(lock) { source }.invoke().served)
 
     private fun describable(keys: Collection<String>): Map<String, PanelAssistantChannelDescriptor> =
-        keys.mapNotNull(PanelAssistantChannelCatalog::wireChannel).distinct().sorted()
+        keys.distinct().sorted()
             .mapNotNull { wire -> describe(wire)?.let { wire to it } }
             .toMap()
 
@@ -131,7 +120,7 @@ internal class PanelAssistantStateReporter(
     fun offer(): PanelAssistantHelloOffer {
         val shape = synchronized(lock) { source }.invoke()
         val descriptors = describable(shape.served)
-        val unsupported = shape.unsupported.mapNotNull(PanelAssistantChannelCatalog::wireChannel)
+        val unsupported = shape.unsupported
             .filter { (describe(it) != null || it in PanelAssistantChannelCatalog.RETIRED_CHANNELS) }
             .distinct().sorted()
         return PanelAssistantHelloOffer(descriptors.values.toList(), unsupported)
@@ -153,9 +142,8 @@ internal class PanelAssistantStateReporter(
 
     private fun nextEventLocked(id: Long, session: String): String? {
         while (phase == Phase.DELTA) {
-            val (channel, event) = events.removeFirstOrNull() ?: return null
-            val code = describe(channel)?.code(event)
-            if (code == null) {
+            val (channel, code) = events.removeFirstOrNull() ?: return null
+            if (describe(channel)?.options?.contains(code) != true) {
                 log("native transport dropped an undeclared event channel=$channel")
                 continue
             }
@@ -203,7 +191,6 @@ internal class PanelAssistantStateReporter(
         val wire: String,
         val descriptor: PanelAssistantChannelDescriptor,
         val observation: StateConverger.Observation.Reportable,
-        val attributes: StateConverger.Observation.Reportable?,
         val revision: Long,
         val refresh: Boolean,
     )
@@ -246,7 +233,7 @@ internal class PanelAssistantStateReporter(
                 entry.dirty = false
                 continue
             }
-            candidates += Candidate(wire, descriptor, observation, entry.attributes, entry.revision, entry.acknowledged == entry.revision)
+            candidates += Candidate(wire, descriptor, observation, entry.revision, entry.acknowledged == entry.revision)
         }
         if (phase == Phase.DELTA && candidates.isEmpty()) return null
         return sync to candidates
@@ -294,7 +281,7 @@ internal class PanelAssistantStateReporter(
             PanelAssistantWireValue.Unavailable -> json.put("state", PanelAssistantTransportProtocol.STATE_UNAVAILABLE)
             is PanelAssistantWireValue.Known -> {
                 json.put("state", PanelAssistantTransportProtocol.STATE_KNOWN).put("value", value.value)
-                PanelAssistantValueTranslation.attributes(candidate.attributes)?.let { json.put("attributes", it) }
+                PanelAssistantValueTranslation.attributes(candidate.observation)?.let { json.put("attributes", it) }
                 if (candidate.refresh) json.put("refresh", true)
             }
         }

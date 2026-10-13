@@ -1,10 +1,9 @@
 package io.panelassistant.android.panelassistant
 
-import io.panelassistant.android.state.SoftwareUpdates
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.state.StateConverger
-import io.panelassistant.android.testsupport.TestSources
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -15,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Base64
 
-class PanelAssistantChannelCatalogTest {
+internal class PanelAssistantChannelCatalogTest : PanelRuntimeRig() {
     @Test fun theFormerSnapshotImageIsRetiredInsteadOfDescribed() {
         assertNull(PanelAssistantChannelCatalog.describe("camera_snapshot"))
         assertTrue("camera_snapshot" in PanelAssistantChannelCatalog.RETIRED_CHANNELS)
@@ -33,8 +32,6 @@ class PanelAssistantChannelCatalogTest {
         assertEquals(PanelAssistantWireValue.Known(true), PanelAssistantValueTranslation.translate(descriptor, StateConverger.Observation.Known("ON")))
     }
 
-    // Source-text reason: the registration sites in PanelStateCore.kt are the channel list; no runtime enumerates every family.
-
     @Test fun mediaIsAnEnabledMediaPlayerTheNativeTransportCommands() {
         val json = PanelAssistantChannelCatalog.describe("media")!!.toJson()
         assertEquals("media_player", json.getString("platform"))
@@ -43,30 +40,17 @@ class PanelAssistantChannelCatalogTest {
         assertTrue(json.getBoolean("enabled_default"))
         assertTrue(json.isNull("entity_category"))
         assertTrue("media_player" in PanelAssistantCommandTranslation.COMMANDABLE_PLATFORMS)
-        assertTrue("the converger registers media", "media" in convergerChannels())
+        assertTrue("the converger registers media", "media" in everyChannel())
     }
 
-    @Test fun everyConvergerChannelIsDescribedOrFolded() {
-        val keys = convergerChannels()
-        // The scan must find the channels it exists to guard, or an empty scan would pass vacuously.
-        assertTrue("scan found only ${keys.size} channels: $keys", keys.size >= 40)
-        assertTrue(keys.containsAll(listOf("screen", "relay1", "button_led64", "cpu_governor", "room_humidity", "diag_wifi_outages_attributes")))
-        val undescribed = keys.filter { key ->
-            val wire = PanelAssistantChannelCatalog.wireChannel(key)
-            if (wire == null) key !in PanelAssistantChannelCatalog.FOLDED else PanelAssistantChannelCatalog.describe(wire) == null
-        }
+    @Test fun everyRegisteredChannelIsDescribed() {
+        val keys = everyChannel()
+        // The rig must register the channels this exists to guard, or an empty set would pass vacuously.
+        assertTrue("registered only ${keys.size} channels: $keys", keys.size >= 40)
+        assertTrue(keys.containsAll(listOf("screen", "relay1", "button_led1", "cpu_governor", "room_humidity", "update_paneld")))
+        val undescribed = keys.filter { PanelAssistantChannelCatalog.describe(it) == null }
         assertEquals("converger channels with no descriptor", emptyList<String>(), undescribed)
         assertNull(PanelAssistantChannelCatalog.describe("future_leaf"))
-    }
-
-    @Test fun attributeChannelsFoldIntoTheirParentsAndUpdateChannelsTakeTheirWireIds() {
-        assertNull(PanelAssistantChannelCatalog.wireChannel("storage_health_attributes"))
-        assertNull(PanelAssistantChannelCatalog.wireChannel("diag_wifi_outages_attributes"))
-        assertEquals("storage_health", PanelAssistantChannelCatalog.FOLDED["storage_health_attributes"])
-        assertEquals("diag_wifi_outages_24h", PanelAssistantChannelCatalog.FOLDED["diag_wifi_outages_attributes"])
-        assertEquals("update_paneld", PanelAssistantChannelCatalog.wireChannel("software_update_paneld"))
-        assertEquals("update_companion", PanelAssistantChannelCatalog.wireChannel("software_update_companion"))
-        assertEquals("screen", PanelAssistantChannelCatalog.wireChannel("screen"))
     }
 
     @Test fun renamingADisplayLabelChangesNoWireCode() {
@@ -133,9 +117,8 @@ class PanelAssistantChannelCatalogTest {
     @Test fun descriptorJsonHasEveryRequiredFieldWithTheIntegrationsGrammar() {
         val code = Regex("^[a-z][a-z0-9_]{0,63}$")
         val suffix = Regex("^[a-z0-9][a-z0-9_]{0,47}$")
-        for (key in convergerChannels()) {
-            val wire = PanelAssistantChannelCatalog.wireChannel(key) ?: continue
-            val json = described(wire).toJson()
+        for (key in everyChannel()) {
+            val json = described(key).toJson()
             assertTrue(json.toString(), code.matches(json.getString("translation_key")))
             assertTrue(json.toString(), suffix.matches(json.getString("unique_suffix")))
             assertEquals(json.toString(), json.isNull("family"), json.isNull("index"))
@@ -159,27 +142,5 @@ class PanelAssistantChannelCatalogTest {
         val descriptor = PanelAssistantChannelCatalog.describe(wire)
         assertNotNull("no descriptor for $wire", descriptor)
         return descriptor!!
-    }
-
-
-
-    companion object {
-        /** Every channel the state core registers with its converger, read from the registration sites. */
-        fun convergerChannels(): List<String> {
-            val core = TestSources.kotlin("PanelStateCore.kt").readText()
-            val converger = core.substringAfter("private fun createStateConverger()").substringBefore("fun addStateSink(")
-            val capabilities = core.substringAfter("fun ensureCapabilityChannels(").substringBefore("fun start()")
-            fun list(name: String) = Regex("""\"([a-z0-9_]+)\"""").findAll(
-                core.substringAfter("val $name = listOf(").substringBefore(")"),
-            ).map { it.groupValues[1] }.toList()
-            val literals = Regex("""channel\(\s*"([a-z0-9_]+)"""").findAll(converger).map { it.groupValues[1] }.toList()
-            require(converger.contains("SoftwareUpdates.stateChannelKey(component)"))
-            val families = Regex("""register\("([a-z_]+?)(\${'$'}n)?"""").findAll(capabilities).flatMap { match ->
-                if (match.groupValues[2].isEmpty()) sequenceOf(match.groupValues[1])
-                else sequenceOf("${match.groupValues[1]}1", "${match.groupValues[1]}64")
-            }.toList()
-            return (literals + list("DIAG_KEYS") + list("ROOM_KEYS") + families +
-                listOf("software_update_paneld", "software_update_companion")).distinct()
-        }
     }
 }
