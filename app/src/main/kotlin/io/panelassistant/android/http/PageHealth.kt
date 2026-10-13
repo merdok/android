@@ -9,7 +9,7 @@ import io.panelassistant.android.control.PowerSafetyAdvisoryPolicy
 import io.panelassistant.android.control.PowerSafetyAssessment
 import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.Config
-import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.dashboard.EntityCatalogStorePreOpen
 import io.panelassistant.android.dashboard.SchemaReconcileAction
 import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.UpdateChecker
@@ -85,8 +85,8 @@ internal class PageHealth(
         // their settings may have reset and to check them, and once they have been recovered that is both
         // untrue and actionless. A warning demanding no action teaches people to ignore warnings. The
         // event itself remains visible in diagnostics.
-        if (EntityCatalogStore.lastConfigRestore != null) return null
-        return EntityCatalogStore.lastSchemaReconcile
+        if (EntityCatalogStorePreOpen.lastConfigRestore != null) return null
+        return EntityCatalogStorePreOpen.lastSchemaReconcile
             ?.takeIf { it.action == SchemaReconcileAction.PRESERVED_FRESH }
             ?.let { it.fromVersion to it.toVersion }
     }
