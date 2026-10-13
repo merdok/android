@@ -33,6 +33,8 @@ internal object StreamlineTemplates {
     val REMOTE_PATHS = listOf("/hacsfiles/$FILE", "/local/$FILE", "/local/community/$FILE")
     const val MAX_BYTES = 1L * 1024 * 1024
     private const val MAX_DEPTH = 8
+    // Nesting fans out multiplicatively; a real dashboard expands to tens of cards.
+    private const val MAX_EXPANSIONS = 1_000
     private const val TAG = "EntityLearning"
 
     // Built into the card and overridable by either source, exactly as the card merges it.
@@ -58,12 +60,13 @@ internal object StreamlineTemplates {
     fun fetch(base: String, timeoutMs: Int, beforeRequest: () -> Unit = {}): JSONObject? {
         for (path in REMOTE_PATHS) {
             beforeRequest()
-            val c = (URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
-                instanceFollowRedirects = false
-                connectTimeout = timeoutMs
-                readTimeout = timeoutMs
-            }
+            var c: HttpURLConnection? = null
             try {
+                c = (URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = false
+                    connectTimeout = timeoutMs
+                    readTimeout = timeoutMs
+                }
                 if (c.responseCode !in 200..299) {
                     c.closeBody()
                     continue
@@ -78,7 +81,7 @@ internal object StreamlineTemplates {
             } catch (failure: ByteLimitExceeded) {
                 Log.w(TAG, "streamline templates at $path unreadable: ${failure.message}")
             } finally {
-                c.disconnect()
+                c?.disconnect()
             }
         }
         Log.w(TAG, "streamline templates unavailable; their entities are learned at runtime")
@@ -106,7 +109,7 @@ internal object StreamlineTemplates {
                 is JSONObject -> {
                     val name = value.opt("template") as? String
                     if (value.optString("type") == CARD_TYPE && name != null &&
-                        name !in stack && stack.size < MAX_DEPTH
+                        name !in stack && stack.size < MAX_DEPTH && out.length() < MAX_EXPANSIONS
                     ) {
                         templates.optJSONObject(name)?.let { expand(it, value.opt("variables")) }?.let { card ->
                             out.put(card)

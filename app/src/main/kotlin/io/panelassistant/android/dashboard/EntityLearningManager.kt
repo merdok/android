@@ -670,8 +670,11 @@ class EntityLearningManager(
         } finally {
             dashboardCost.close()
         }
-        val streamlineTemplates = if (StreamlineTemplates.usedBy(ws.configJson)) {
-            fetchStreamlineTemplates(snapshot.baseUrl, snapshot.authToken, checkNotNull(snapshot.route))
+        // Best effort: without the file, the entities its templates name are learned at runtime.
+        val streamlineTemplates = if (StreamlineTemplates.usedBy(ws.configJson)) runInterruptible(Dispatchers.IO) {
+            StreamlineTemplates.fetch(snapshot.baseUrl, HA_CONFIG_TIMEOUT_MS) {
+                requireCurrentHaRoute(snapshot.baseUrl, snapshot.authToken, checkNotNull(snapshot.route))
+            }
         } else null
         val scanCost = FeatureCosts.registry.span(FeatureCostOperation.ENTITY_STATIC_SCAN)
         val scan = try {
@@ -1873,12 +1876,6 @@ class EntityLearningManager(
             c.disconnect()
         }
     }
-
-    /** Best effort: without the file, the entities its templates name are learned at runtime. */
-    private suspend fun fetchStreamlineTemplates(base: String, token: String, route: HaConnectionRoute): JSONObject? =
-        runInterruptible(Dispatchers.IO) {
-            StreamlineTemplates.fetch(base, HA_CONFIG_TIMEOUT_MS) { requireCurrentHaRoute(base, token, route) }
-        }
 
     private suspend fun fetchDashboardAndRegistry(snapshot: EntityLearningSyncSnapshot): WsSnapshot {
         val base = snapshot.baseUrl

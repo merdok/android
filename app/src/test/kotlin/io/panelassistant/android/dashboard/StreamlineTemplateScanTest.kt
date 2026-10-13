@@ -175,6 +175,21 @@ class StreamlineTemplateScanTest {
         }
     }
 
+    @Test fun nestedFanOutStopsAtTheExpansionBound() {
+        // Each level invokes the next ten times: unbounded, four levels expand to over 11,000 cards.
+        val yaml = (0..4).joinToString("\n") { level ->
+            val child = if (level < 4) "{type: custom:streamline-card, template: t${level + 1}}" else "{type: tile, entity: light.leaf}"
+            "t$level:\n  card:\n    type: grid\n    cards: [${List(10) { child }.joinToString(", ")}]"
+        }
+        val root = org.json.JSONObject("""{"views":[{"cards":[{"type":"custom:streamline-card","template":"t0"}]}]}""")
+        val cards = StreamlineTemplates.expandedCards(root, requireNotNull(StreamlineTemplates.parse(yaml)))
+        assertTrue(cards.length() in 1..1_000)
+    }
+
+    @Test fun aMalformedBaseIsNoTemplatesRatherThanAFailedSync() {
+        assertNull(StreamlineTemplates.fetch("not a url", 1_000))
+    }
+
     @Test fun fetchGivesUpQuietlyWhenNoPathAnswers() {
         val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
             routing { get("{path...}") { call.respondText("", status = HttpStatusCode.NotFound) } }
