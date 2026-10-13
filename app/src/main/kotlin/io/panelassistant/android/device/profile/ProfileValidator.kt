@@ -1,5 +1,9 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.config.SettingType
+import io.panelassistant.android.config.SettingValue
+import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.config.Validation
 import io.panelassistant.android.device.LedMechanism
 import io.panelassistant.android.device.LocalWake
 import io.panelassistant.android.device.ScreenOff
@@ -9,6 +13,26 @@ import io.panelassistant.android.hardware.TransferCurve
 import java.net.URI
 
 internal object ProfileValidator {
+    /** Admit against the existing registry before converting YAML scalars to canonical config text. */
+    internal fun settingDefault(key: String, value: Any?): Validation {
+        if (SettingsRegistry.isRetired(key)) return Validation.Bad("$key: retired setting")
+        val spec = SettingsRegistry.spec(key) ?: return Validation.Bad("$key: unknown setting")
+        if (spec.readOnly || spec.transient) return Validation.Bad("$key: setting is not persistent and writable")
+        if (key in SettingsRegistry.machineOwnedKeys) return Validation.Bad("$key: setting is machine-owned state")
+        val typeMatches = when (spec.type) {
+            SettingType.BOOL -> value is Boolean
+            SettingType.INT, SettingType.LONG -> value is Int || value is Long || value is java.math.BigInteger
+            SettingType.FLOAT -> value is Number
+            SettingType.ENUM, SettingType.STRING, SettingType.PASSWORD -> value is String
+        }
+        if (!typeMatches) return Validation.Bad("$key: expected a YAML ${spec.type.name.lowercase()} scalar")
+        val admitted = SettingValue.validate(spec, value.toString())
+        if (admitted is Validation.Ok && spec.type == SettingType.INT && admitted.normalized.toIntOrNull() == null) {
+            return Validation.Bad("$key: integer exceeds the stored Int range")
+        }
+        return admitted
+    }
+
     private val idPattern = Regex("^[a-z0-9](?:[a-z0-9.-]{0,126}[a-z0-9])?$")
     private val packagePattern = Regex("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$")
     // An instance name glob (letters, digits, hyphens and *) then a DNS-SD service: ShellyWallDisplay-*._shelly._tcp.
@@ -82,6 +106,17 @@ internal object ProfileValidator {
         }
         boundedRequiredText(document.displayName, "display_name")
         boundedRequiredText(document.socClass, "soc_class")
+        val settingDefaults = mutableMapOf<String, String>()
+        document.settingDefaults.forEach { (key, value) ->
+            val admitted = settingDefault(key, value)
+            if (admitted is Validation.Bad) reject("setting_defaults.$key", admitted.reason)
+            if (admitted is Validation.Ok) settingDefaults[key] = admitted.normalized
+        }
+        SettingsRegistry.automaticBrightnessBoundsError(
+            settingDefaults,
+            requireNotNull(SettingsRegistry.spec("auto_brightness_minimum_percent")).default.toInt(),
+            requireNotNull(SettingsRegistry.spec("auto_brightness_maximum_percent")).default.toInt(),
+        )?.let { reject("setting_defaults.auto_brightness_maximum_percent", it) }
         boundedRequiredText(document.metadata.author, "metadata.author")
         document.metadata.source?.let { validHttpsUrl(it, "metadata.source") }
         if (document.metadata.links.size > 8) reject("metadata.links", "At most 8 display links are allowed.", "profile-link-count-limit")

@@ -1647,7 +1647,7 @@ class PaneldService : Service() {
 
     private fun buildCore(identity: NetworkRuntimeIdentity): PanelStateCore = PanelStateCore(
         config, brightness, screen, led, ledEffect, volume, system, bootChime, zigbee, relay, cpu, adb,
-        accessibilityEnabled(), profile.evdevButtons.isNotEmpty(),
+        accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
         sensors.hasProximity(),
         sensors.hasTemperature(), sensors.hasHumidity(),
@@ -1660,7 +1660,6 @@ class PaneldService : Service() {
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
         autoSleepActivity = { autoSleep.activitySnapshot() },
-        cameraSnapshotUrl = { cameraSnapshotUrl(identity) },
         softwareUpdateSources = ::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
@@ -1673,12 +1672,6 @@ class PaneldService : Service() {
     ).also { core ->
         core.addStateSink(panelAssistantShadow.bindShape(core::nativeChannelShape))
         core.addEventSink(panelAssistantShadow::event)
-    }
-
-    /** Where Home Assistant fetches a still from. Re-derived per use like the configuration URL, so a DHCP
-     * move cannot leave the snapshot pointing at an address this panel no longer holds. */
-    private fun cameraSnapshotUrl(identity: NetworkRuntimeIdentity): String? = localIpv4()?.let {
-        io.panelassistant.android.util.LocalAdminEndpoint.url(it, identity.httpPort, "/api/v1/camera/snapshot.jpg")
     }
 
     private fun buildCommands(core: PanelStateCore): PanelCommandDispatcher = PanelCommandDispatcher(

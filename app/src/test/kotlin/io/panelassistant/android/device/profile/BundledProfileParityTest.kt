@@ -451,6 +451,19 @@ class BundledProfileParityTest {
         )
     }
 
+    @Test fun theX2iDeclaresNoPhysicalKeysAndTheFieldRoundTrips() {
+        assertNotNull(ProfileMetadata.schema.fields.singleOrNull { it.path == "input.has_physical_buttons" })
+        assertEquals(io.panelassistant.android.device.PanelButtonKeys.NONE, bundledById.getValue("shelly-wall-display-x2i").profile().buttonKeys())
+        assertEquals(io.panelassistant.android.device.PanelButtonKeys.UNKNOWN, bundledById.getValue("generic").profile().buttonKeys())
+        val generic = bundledById.getValue("generic").document
+        for (declared in listOf(null, false, true)) {
+            val doc = generic.copy(input = generic.input.copy(hasPhysicalButtons = declared))
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(doc))
+            assertEquals("$declared", emptyList<ProfileIssue>(), parsed.issues)
+            assertEquals("$declared", declared, parsed.document!!.input.hasPhysicalButtons)
+        }
+    }
+
     @Test fun vendorServiceRoundTripsValidatesAndIsDeclaredForStargate() {
         for (path in listOf("platform.launcher.vendor_service", "platform.launcher.vendor_service.activity", "platform.launcher.vendor_service.port")) {
             assertNotNull("$path must be described to the profile editor", ProfileMetadata.schema.fields.singleOrNull { it.path == path })
@@ -1063,11 +1076,11 @@ class BundledProfileParityTest {
         val EXPECTED_BUNDLED_SHA256 = mapOf(
             "generic.yaml" to "16088624128aa375bc28fb747e535f93aa43c65881b5041a6fedc3ce4de056d2",
             "meta-portal.yaml" to "2817983e13d4e7d327149caecebf400276afdba02b330d46422bcb8b74ddd5de",
-            "meta-portal-10-gen2.yaml" to "7348c9344bb3d3d150060555681afcdd170e4d04e917a2785ee1b7c80019c36e",
+            "meta-portal-10-gen2.yaml" to "9c2f19ef4bb776e585c17a8bbab9245e5a3ce474aa7e2c3d70758474023da130",
             "nspanel-pro.yaml" to "1865621fc603342cde28875b5a9a071c8e5ae4f46800eba8c76b97847c6db9c6",
             "s9e.yaml" to "23874b2a79cb674d77c8b0ad0703ad1ee2cf4db925414e3e12b38354169f7a3f",
             "shelly-wall-display-v2.yaml" to "5419e96aa4d3ac5a1e4dcc353e6a3068330bf856a17cc6b8b32fbce48ea20b62",
-            "shelly-wall-display-x2i.yaml" to "a2a9a35484a1f922fcb71b5b71843cc52c41ca3d559f1b0d12c887c7068d6a3b",
+            "shelly-wall-display-x2i.yaml" to "7be797de2cf7457a5d2b1f6a14dba462cce251edd03ab691d86bd22ca0467d0d",
             "shelly-wall-display.yaml" to "245b8eee0b1fc816742477f2eda764c2bbb3ca44b44c44e76faff90e7678760e",
             "smt1019.yaml" to "72c5a1fb9118c48c6f66193584ce9a4d0e3181ae0d218f8e2735c783f6716438",
             "tpa10.yaml" to "077ff9cb33f483e6497c149d2dc01ba6db49d85f4c4ac0965d7087a58577aa3a",

@@ -24,6 +24,8 @@ data class ProfileDocument(
     val display: ProfileDisplay,
     val provisioning: ProfileProvisioning,
     val soc: ProfileSoc? = null,
+    /** Registry setting keys with typed YAML defaults; validation retains the original scalar types. */
+    val settingDefaults: Map<String, Any?> = emptyMap(),
 )
 
 data class ProfileProvenance(
@@ -275,7 +277,11 @@ data class ProfileIdentity(
     val modelLabelStrategy: String = "display-name",
 )
 
-data class ProfileInput(val evdevButtons: List<ProfileEvdevButton> = emptyList())
+data class ProfileInput(
+    val evdevButtons: List<ProfileEvdevButton> = emptyList(),
+    /** False declares a panel with no physical keys; null (the key absent) is unknown. */
+    val hasPhysicalButtons: Boolean? = null,
+)
 
 data class ProfileEvdevButton(
     val node: String,

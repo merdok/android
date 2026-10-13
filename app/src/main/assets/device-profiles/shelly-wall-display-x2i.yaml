@@ -1,6 +1,6 @@
 schema: 2
 id: shelly-wall-display-x2i
-version: 2.5.0
+version: 2.6.0
 display_name: Shelly Wall Display X2i
 soc_class: rk3326
 soc:
@@ -109,6 +109,8 @@ identity:
   model_label_strategy: display-name
 input:
   evdev_buttons: []
+  # No physical keys at all (the panel has no button), so no button event is offered to Home Assistant.
+  has_physical_buttons: false
 cpu: {}
 display:
   geometry:

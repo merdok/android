@@ -43,7 +43,7 @@
     "auto_sleep.source": ["POST auto-sleep/source", { b: "json" }],
     "backup": "POST backup",
     "restore": ["POST restore", { b: "raw", h: { passphrase: "X-Backup-Passphrase" } }],
-    "camera.status": "GET camera/status", "camera.snapshot": "GET camera/snapshot.jpg",
+    "camera.status": "GET camera/status",
     "companion.repair_url": "POST companion/repair-url",
     "config": "GET config",
     // The route answers its HTML form page unless asked for JSON, as the Configure page always has.

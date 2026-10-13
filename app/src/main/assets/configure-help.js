@@ -186,7 +186,6 @@
       // also work from Home Assistant.
       return [cfg.el("p", {}, linkifyWords(f.help, [
         ["RTSP", "rtsp://" + location.hostname + ":" + CAMERA_RTSP_PORT + "/live"],
-        ["JPEG", window.PaneldTransport.httpRequestFor("camera.snapshot", {}).url],
       ]))];
     }
     return renderHelpMarkdown(f.help);

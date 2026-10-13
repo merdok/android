@@ -562,7 +562,7 @@ class PaneldServer internal constructor(
                     )
                     remoteControlRoutes({ remoteControlRoutes }, ::authorizeSensitive)
                     screenshotRoutes(screenshots, { interactive.screenshot() }, { admitActiveRead(it) })
-                    cameraRoutes(camera, ::admitActiveRead)
+                    cameraRoutes(camera)
                     apiSpecificationRoute(asset)
                     tameRoutes {
                         TameRoutes(

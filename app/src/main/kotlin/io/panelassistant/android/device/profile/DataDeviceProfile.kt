@@ -1,6 +1,7 @@
 package io.panelassistant.android.device.profile
 
 import io.panelassistant.android.device.BacklightRoute
+import io.panelassistant.android.config.Validation
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.device.EvdevButton
 import io.panelassistant.android.device.LedMechanism
@@ -25,6 +26,10 @@ class DataDeviceProfile internal constructor(
     override val id = document.id
     override val displayName = document.displayName
     override val socClass = document.socClass
+    override val settingDefaults = document.settingDefaults.mapValues { (key, value) ->
+        (ProfileValidator.settingDefault(key, value) as? Validation.Ok)?.normalized
+            ?: error("Invalid setting default '$key' in an unvalidated profile.")
+    }
     override val soc = document.soc
     override val profileLinks = buildList {
         document.metadata.source?.let { add(ProfileLink("Panel details", it)) }
@@ -35,6 +40,7 @@ class DataDeviceProfile internal constructor(
     override val hasRecents = document.platform.hasRecents
     override val declarationsFromCatalog = true
     override val hasNativeNavbar = document.platform.hasNativeNavbar
+    override val hasPhysicalButtons = document.input.hasPhysicalButtons
     override val vendorHomePackages = document.platform.launcher.vendorHomePackages.toSet()
     override val vendorService = document.platform.launcher.vendorService?.let { VendorService.of(it.activity, it.port) }
     // Never default an unknown name to NONE: a NONE LED is stated unsupported and Panel Assistant deletes

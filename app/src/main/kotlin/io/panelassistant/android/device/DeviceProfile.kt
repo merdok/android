@@ -34,6 +34,9 @@ interface DeviceProfile {
     /** SoC class, e.g. "PX30 / rk3326". */
     val socClass: String
 
+    /** Validated canonical setting defaults, used only while a registry key has no stored value. */
+    val settingDefaults: Map<String, String> get() = emptyMap()
+
     /** Optional profile-evidenced SoC model, CPU topology and introduction year. */
     val soc: ProfileSoc? get() = null
 
@@ -93,6 +96,16 @@ interface DeviceProfile {
      * probe; an explicit false overrides generic resources that incorrectly advertise a suppressed bar.
      * Shared by native-mode admission and the default soft-navbar decision. */
     val hasNativeNavbar: Boolean? get() = null
+
+    /** `input.has_physical_buttons`: false declares no physical keys, so no button event is offered; null is unknown. */
+    val hasPhysicalButtons: Boolean? get() = null
+
+    /** What the profile says about the panel's keys, for the button event. */
+    fun buttonKeys(): PanelButtonKeys = when {
+        evdevButtons.isNotEmpty() -> PanelButtonKeys.PROFILED
+        hasPhysicalButtons == false -> PanelButtonKeys.NONE
+        else -> PanelButtonKeys.UNKNOWN
+    }
 
     /** Vendor apps that register HOME but are not app drawers, from `platform.launcher.vendor_home_packages`;
      *  the navbar Launcher button skips them. Default empty. */
@@ -448,3 +461,6 @@ data class TameCandidate(
  * the node's only writer.
  */
 enum class BacklightRoute { SETTING, NODE }
+
+/** The panel's physical keys as its profile declares them: mapped evdev keys, none at all, or unknown. */
+enum class PanelButtonKeys { PROFILED, NONE, UNKNOWN }

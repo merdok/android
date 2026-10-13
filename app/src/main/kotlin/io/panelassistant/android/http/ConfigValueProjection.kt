@@ -232,7 +232,7 @@ internal class ConfigValueProjection(
                 "\"summary\":${s(summary?.text.orEmpty())}," +
                 "\"summaryLanguage\":$summaryLanguageJson," +
                 "\"shortDescriptionUsefulInPopover\":${spec.shortDescriptionUsefulInPopover}," +
-                "\"default\":${s(spec.default)}," +
+                "\"default\":${s(config.effectiveDefault(spec, caps))}," +
                 "\"tier\":${s(spec.tierFor(caps).name)}," +
                 "\"scope\":${s(spec.scope.name)}," +
                 "\"secret\":${spec.secret}," +

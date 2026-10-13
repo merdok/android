@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.device.PanelButtonKeys
 import io.panelassistant.android.state.SoftwareUpdates
 import android.os.SystemClock
 import android.util.Log
@@ -77,7 +78,7 @@ internal class PanelStateCore(
     private val buttonsEnabled: Boolean,
     // Panel has hardware buttons instrumented via the daemon (evdev): the event channel exists even when
     // the accessibility key capture is off (e.g. the WF1589T power button).
-    private val hasEvdevButtons: Boolean,
+    private val buttonKeys: PanelButtonKeys,
     // Capability snapshot supplier (null = no gating, used by tests). Called off the main thread.
     capabilities: (() -> Capabilities)? = null,
     private val hasProximity: Boolean,
@@ -98,8 +99,6 @@ internal class PanelStateCore(
     private val lightChannel: () -> Boolean? = { true },
     // Service-owned auto-sleep policy projection.
     private val autoSleepActivity: () -> AutoSleepActivitySnapshot = { AutoSleepActivitySnapshot() },
-    // The panel's own snapshot endpoint, as Home Assistant must dial it; null when no LAN address is known.
-    private val cameraSnapshotUrl: () -> String? = { null },
     // Inputs for the update channels: installed versions, same-policy catalog targets, install-lane
     // ownership and Panel Assistant ownership. Null registers no update channels.
     private val softwareUpdateSources: (() -> SoftwareUpdateSources)? = null,
@@ -236,10 +235,6 @@ internal class PanelStateCore(
         channel("prevent_idle_dim") { known(if (config.preventIdleDim) "ON" else "OFF") }
         channel("auto_brightness") { known(if (config.autoBrightness) "ON" else "OFF") }
         channel("camera_enabled") { known(if (config.cameraEnabled) "ON" else "OFF") }
-        channel("camera_snapshot") {
-            cameraSnapshotUrl()?.takeIf { config.cameraEnabled && it.isNotBlank() }?.let(known)
-                ?: Observation.Unavailable
-        }
         channel("auto_sleep_activity") {
             if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
             val snapshot = autoSleepActivity()
@@ -321,10 +316,13 @@ internal class PanelStateCore(
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
         val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot())
-        val events = listOf(BUTTON_EVENT_CHANNEL).filter { buttonsEnabled || hasEvdevButtons }
+        // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
+        val noKeys = buttonKeys == PanelButtonKeys.NONE
+        val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }
         return PanelAssistantChannelShape(
             served + actions.filter { it.second }.map { it.first } + events,
-            unsupported + actions.filterNot { it.second }.map { it.first } + PanelAssistantChannelCatalog.RETIRED_CHANNELS,
+            unsupported + actions.filterNot { it.second }.map { it.first } + PanelAssistantChannelCatalog.RETIRED_CHANNELS +
+                listOf(BUTTON_EVENT_CHANNEL).filter { noKeys },
         )
     }
 
@@ -337,7 +335,7 @@ internal class PanelStateCore(
         "temperature" -> hasTemperature
         "humidity" -> hasHumidity
         MEDIA_CHANNEL -> media != null
-        "camera_enabled", "camera_snapshot" -> hasCamera()
+        "camera_enabled" -> hasCamera()
         "proximity", "proximity_level" -> learnedProximity
         "illuminance" -> lightChannel()
         // LedFactory returns the no-op controller only for a profile declaring no LED. A declared LED stays
@@ -554,18 +552,11 @@ internal class PanelStateCore(
         dispatchStateWork { reconcile("kiosk_lock") }
     }
 
-    /** The camera snapshot channel. Nothing here is periodic; the camera opens when a person looks at the
-     *  card, never because the panel reported. */
-    fun publishCameraSnapshot() {
-        reconcile("camera_snapshot")
-    }
-
     /** Re-report the camera surface after a change made outside a command (the Configure page, a bundle
      *  import, provisioning). */
     fun publishCameraState() {
         dispatchStateWork {
             reconcile("camera_enabled")
-            publishCameraSnapshot()
         }
     }
 
