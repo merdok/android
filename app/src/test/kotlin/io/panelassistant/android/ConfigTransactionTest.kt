@@ -5,7 +5,6 @@ import io.panelassistant.android.config.Migrations
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.fakeProfile
 import io.panelassistant.android.device.DeviceProfile
-import io.panelassistant.android.util.HaLink
 import io.panelassistant.android.util.CompanionInstaller
 import io.panelassistant.android.http.LocalizedConfigSchema
 import io.panelassistant.android.http.configReadRoutes
@@ -20,7 +19,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.json.JSONObject
-import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import io.panelassistant.android.config.Capabilities
@@ -1462,110 +1460,6 @@ class ConfigTransactionTest {
         assertFalse(prefs.values.containsKey("ha_device_url"))
     }
 
-    @Test fun nativeHaTargetChangeInvalidatesDeviceLinkResolvedOnAnotherServer() {
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "ha_url" to "https://renderer-a.example",
-                "ha_device_url" to "https://other-b.example/config/devices/device/stale-id",
-                "ha_link_at" to 1234L,
-                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", "entry-id"),
-            ),
-        )
-        val config = Config(prefs.instance)
-
-        config.setHaConnection("https://renderer-c.example/", "native-token")
-
-        assertEquals("https://renderer-c.example", prefs.values["ha_url"])
-        assertFalse("a device id belongs to one HA instance", prefs.values.containsKey("ha_device_url"))
-        assertFalse("the replacement target must resolve immediately", prefs.values.containsKey("ha_link_at"))
-        assertFalse("the stale cache owner must be discarded", prefs.values.containsKey("ha_link_target"))
-    }
-
-    @Test fun equivalentNativeHaUrlPreservesResolvedDeviceLink() {
-        val existing = "https://ha.example/config/devices/device/current-id"
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "ha_url" to "https://ha.example",
-                "ha_device_url" to existing,
-                "ha_link_at" to 1234L,
-                "ha_link_target" to HaLink.resolutionTarget("https://ha.example", "entry-id"),
-            ),
-        )
-        val config = Config(prefs.instance)
-
-        config.setHaConnection("https://ha.example/", "replacement-token")
-
-        assertEquals(existing, prefs.values["ha_device_url"])
-        assertEquals(1234L, prefs.values["ha_link_at"])
-        assertEquals(HaLink.resolutionTarget("https://ha.example", "entry-id"), prefs.values["ha_link_target"])
-    }
-
-    @Test fun openInHaNeverExposesDeviceIdOwnedByAnotherNativeServer() {
-        val entry = "entry-id"
-        val native = "https://native-a.example/ha"
-        val staleDevice = "https://other-b.example/config/devices/device/stale-id"
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "ha_url" to native,
-                "ha_base_url" to "https://companion-c.example",
-                "ha_device_url" to staleDevice,
-                "ha_link_target" to HaLink.resolutionTarget("https://other-b.example", entry),
-                "ha_link_at" to 1234L,
-            ),
-        )
-        val config = Config(prefs.instance)
-
-        assertEquals("the native renderer target is safe while its device id resolves", native, config.haLinkUrl)
-        assertFalse(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget(native, entry),
-            nowMs = 2000L,
-            ttlMs = 10_000L,
-        ))
-    }
-
-    @Test fun openInHaUsesDeviceIdOnlyWhenItsNativeTargetOwnsIt() {
-        val entry = "entry-id"
-        val native = "https://native-a.example/ha"
-        val device = "$native/config/devices/device/current-id"
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "ha_url" to native,
-                "ha_device_url" to device,
-                "ha_link_target" to HaLink.resolutionTarget(native, entry),
-                "ha_link_at" to 1234L,
-            ),
-        )
-        val config = Config(prefs.instance)
-
-        assertEquals("no learned Panel Assistant entry owns the device link", native, config.haLinkUrl)
-        assertTrue(HaConnectionRoutes.learn(
-            config, HaConnectionRoutes.current(config),
-            HaConnectionAdvertisement("a".repeat(32), "b".repeat(32), emptyList()), entry,
-        ))
-        assertEquals(device, config.haLinkUrl)
-        assertTrue(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget("$native/", entry),
-            nowMs = 2000L,
-            ttlMs = 10_000L,
-        ))
-    }
-
-    @Test fun legacyDeviceLinkWithoutTargetOwnershipIsNeverFresh() {
-        val prefs = fakePreferences(
-            initial = mapOf(
-                "ha_device_url" to "https://old.example/config/devices/device/legacy-id",
-                "ha_link_at" to 1999L,
-            ),
-        )
-        val config = Config(prefs.instance)
-
-        assertFalse(config.haDeviceLinkIsFresh(
-            HaLink.resolutionTarget("https://old.example", "entry-id"),
-            nowMs = 2000L,
-            ttlMs = 10_000L,
-        ))
-    }
-
     @Test fun importClearingCredentialIdentitiesClearsDependentSecretsInTheSameCommit() {
         val prefs = fakePreferences(
             initial = mapOf(
@@ -2869,12 +2763,6 @@ class ConfigTransactionTest {
         assertEquals(afterRetry, prefs.values)
     }
 
-    private data class FakePreferences(
-        val instance: SharedPreferences,
-        val values: MutableMap<String, Any?>,
-        val commitsSucceed: java.util.concurrent.atomic.AtomicBoolean,
-    )
-
     private fun profile(
         id: String,
         revision: String = "revision-a",
@@ -2957,84 +2845,5 @@ class ConfigTransactionTest {
         assertEquals("old.lan", config.logShipHost)
         assertEquals(514, config.logShipPort)
         assertEquals("syslog-tcp", config.logShipProtocol)
-    }
-
-    private fun fakePreferences(
-        initial: Map<String, Any?> = emptyMap(),
-        commitSucceeds: Boolean = true,
-        onGetString: ((String, String) -> Unit)? = null,
-    ): FakePreferences {
-        val values = initial.toMutableMap()
-        val commitsSucceed = java.util.concurrent.atomic.AtomicBoolean(commitSucceeds)
-        lateinit var prefs: SharedPreferences
-        prefs = Proxy.newProxyInstance(
-            SharedPreferences::class.java.classLoader,
-            arrayOf(SharedPreferences::class.java),
-        ) { _, method, args ->
-            when (method.name) {
-                "getAll" -> values.toMap()
-                "getString" -> (values[args!![0]] as? String ?: args[1]).also {
-                    if (it is String) onGetString?.invoke(args[0] as String, it)
-                }
-                "getStringSet" -> values[args!![0]] as? Set<*> ?: args[1]
-                "getInt" -> values[args!![0]] as? Int ?: args[1]
-                "getLong" -> values[args!![0]] as? Long ?: args[1]
-                "getFloat" -> values[args!![0]] as? Float ?: args[1]
-                "getBoolean" -> values[args!![0]] as? Boolean ?: args[1]
-                "contains" -> values.containsKey(args!![0])
-                "edit" -> fakeEditor(values) { commitsSucceed.get() }
-                "registerOnSharedPreferenceChangeListener", "unregisterOnSharedPreferenceChangeListener" -> null
-                "toString" -> "FakeSharedPreferences"
-                else -> error("unexpected SharedPreferences call: ${method.name}")
-            }
-        } as SharedPreferences
-        return FakePreferences(prefs, values, commitsSucceed)
-    }
-
-    private fun fakeEditor(
-        values: MutableMap<String, Any?>,
-        commitSucceeds: () -> Boolean,
-    ): SharedPreferences.Editor {
-        val writes = LinkedHashMap<String, Any?>()
-        val removals = LinkedHashSet<String>()
-        var clear = false
-        lateinit var editor: SharedPreferences.Editor
-        editor = Proxy.newProxyInstance(
-            SharedPreferences.Editor::class.java.classLoader,
-            arrayOf(SharedPreferences.Editor::class.java),
-        ) { _, method, args ->
-            when {
-                method.name.startsWith("put") -> editor.also {
-                    writes[args!![0] as String] = args[1]
-                    removals.remove(args[0])
-                }
-                method.name == "remove" -> editor.also {
-                    val key = args!![0] as String
-                    writes.remove(key)
-                    removals.add(key)
-                }
-                method.name == "clear" -> editor.also { clear = true; writes.clear(); removals.clear() }
-                method.name == "commit" -> {
-                    val succeeds = commitSucceeds()
-                    if (succeeds) {
-                        if (clear) values.clear()
-                        removals.forEach(values::remove)
-                        values.putAll(writes)
-                    }
-                    succeeds
-                }
-                method.name == "apply" -> {
-                    if (commitSucceeds()) {
-                        if (clear) values.clear()
-                        removals.forEach(values::remove)
-                        values.putAll(writes)
-                    }
-                    null
-                }
-                method.name == "toString" -> "FakeEditor"
-                else -> error("unexpected Editor call: ${method.name}")
-            }
-        } as SharedPreferences.Editor
-        return editor
     }
 }
