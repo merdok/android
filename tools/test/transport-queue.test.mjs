@@ -22,8 +22,8 @@ function page() {
     location: { href: 'http://panel.test/' },
     WebSocket: FakeSocket,
     Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
-    setTimeout(fn, ms) { timers.push({ fn, ms }); return timers.length; },
-    clearTimeout() {},
+    setTimeout(fn, ms) { timers.push({ fn, ms, cancelled: false }); return timers.length; },
+    clearTimeout(id) { if (timers[id - 1]) timers[id - 1].cancelled = true; },
     fetch() { throw new Error('unexpected fetch'); },
   });
   return { transport: window.PaneldTransport, sockets, timers };
@@ -63,4 +63,19 @@ test('a request still waiting is sent when the socket opens', async () => {
   await ticks();
   sockets[0].onopen();
   assert.deepEqual(sockets[0].sent.map((frame) => frame.op), ['display.density']);
+});
+
+test('a request that has left is not given up by its timer: it waits for its answer, as HTTP does', async () => {
+  const { transport, sockets, timers } = page();
+  let settled = null;
+  const reply = transport.request('backup', {}).then((answer) => { settled = answer; }, (error) => { settled = error; });
+  await ticks();
+  sockets[0].onopen();
+  timers.filter((timer) => !timer.cancelled).forEach((timer) => timer.fn()); // a long backup outlives every timer
+  await ticks();
+  assert.equal(settled, null, 'not rejected while the panel may still be making the backup');
+  const sent = sockets[0].sent[0];
+  sockets[0].onmessage({ data: JSON.stringify({ command_id: sent.command_id, outcome: 'applied', result: { ok: true } }) });
+  await reply;
+  assert.equal(settled.outcome, 'applied');
 });

@@ -330,7 +330,7 @@
       // Only requests still waiting for their answer are queued: a request that timed out or failed with
       // a closed socket left the queue when it was rejected, so a failed write never runs later.
       var queue = self.queue; self.queue = [];
-      queue.forEach(function (entry) { socket.send(entry.text); });
+      queue.forEach(function (entry) { socket.send(entry.text); self.sent(entry.id); });
       // Re-subscribe after a reconnect: the panel forgot the old subscriptions with the old socket.
       self.live.forEach(function (sub) { if (!sub.id && !sub.opening) self.open(sub); });
     };
@@ -384,14 +384,20 @@
   SocketTransport.prototype.send = function (message) {
     var text = JSON.stringify(message);
     this.connect();
-    if (this.ready) this.socket.send(text); else this.queue.push({ id: message.command_id, text: text });
+    if (this.ready) { this.socket.send(text); this.sent(message.command_id); } else this.queue.push({ id: message.command_id, text: text });
+  };
+  // A request that has left is answered, or fails with its socket, as an HTTP request is; it is never given
+  // up while the panel may still apply it, so its no-answer timer only runs while it waits in the queue.
+  SocketTransport.prototype.sent = function (id) {
+    var waiter = this.pending[id];
+    if (waiter && waiter.timer) { clearTimeout(waiter.timer); waiter.timer = null; }
   };
   SocketTransport.prototype.exchange = function (message, deadline) {
     var self = this;
     return new Promise(function (resolve, reject) {
       var waiter = { resolve: resolve, reject: reject, timer: null };
       self.pending[message.command_id] = waiter;
-      // No answer well past the deadline: the request never reached a panel that could answer.
+      // Still queued well past the deadline: the request never reached a panel that could answer.
       waiter.timer = setTimeout(function () {
         delete self.pending[message.command_id];
         self.queue = self.queue.filter(function (entry) { return entry.id !== message.command_id; });
