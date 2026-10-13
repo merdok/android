@@ -73,6 +73,8 @@ internal class PageShell(
         translationPrefixes: Set<String> = setOf("shell."),
         preserveExplicitEnglish: Boolean = false,
         embed: EmbedMode? = null,
+        /** The requesting peer's address; it decides whether the page may use the `/ui` socket. */
+        peer: String? = null,
     ): String {
         // Capture panel identity once so title, switcher metadata and visible name cannot disagree if a
         // concurrent config save replaces the live identity while this response is being rendered.
@@ -85,8 +87,10 @@ internal class PageShell(
         // switcher (whose links leave the proxy) are omitted, and the tab bar and everything below it stay.
         // Only validated enum values reach the markup.
         val themeAttr = embed?.theme?.let { """ data-theme="$it"""" }.orEmpty()
-        // Outside the sidebar the page talks to its panel over the stub's `/ui` socket (protocol section 20.7).
-        val embedAttr = if (embed != null) " data-embedded" else """ data-ui-socket="ui""""
+        // Outside the sidebar the page talks to its panel over the stub's `/ui` socket (protocol section 20.7),
+        // when its peer may open it: hardened mode keeps the socket to loopback, so a LAN page there stays on HTTP.
+        val socket = !config.hardenedSecurityEnabled || peer?.let { io.panelassistant.android.util.isLoopbackPeer(it) } == true
+        val embedAttr = if (embed != null) " data-embedded" else if (socket) """ data-ui-socket="ui"""" else ""
         // Embedded keeps only the panel identity install.js names downloads from, as escaped attributes.
         val header = if (embed != null) """<span id="pswitch" hidden data-self-id="$panelId" data-self-name="$friendlyName"></span>""" else """<div class="hdr"><button id="navburger" class="navburger pbtn" aria-label="${esc(strings.get("shell.menu.label"))}">☰</button><h1>${brandLockup(asset)} <small id="pswitch" data-self-id="$panelId" data-self-name="$friendlyName"><span class="sep">·</span>$friendlyName</small></h1>
  <span style="display:flex;gap:10px;align-items:center">$rightControls</span></div>
@@ -143,6 +147,7 @@ $extraScripts<script src="assets/power-safety.js"></script>
         body: String,
         strings: AppStrings = catalogueLoader.strings(AppLocale.ENGLISH),
         embed: EmbedMode? = null,
+        peer: String? = null,
     ): String {
         val haLink = if (config.haLinkUrl.isNotBlank())
             """<a class="pbtn" href="${esc(config.haLinkUrl)}" target="_blank" rel="noopener">${esc(strings.get("shell.open_in_ha"))}</a>""" else ""
@@ -173,6 +178,7 @@ $approvalKeyAfter""",
             strings = strings,
             translationPrefixes = setOf("shell.", "$active.", "runtime."),
             embed = embed,
+            peer = peer,
         )
     }
 

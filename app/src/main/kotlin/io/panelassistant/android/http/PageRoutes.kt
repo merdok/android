@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 internal fun Route.dashboardPageRoute(
     requestStrings: (OpCall) -> AppStrings,
-    render: (AppStrings, EmbedMode?) -> String,
+    render: (AppStrings, EmbedMode?, String?) -> String,
 ) {
     ops { served("/", name = "page.info") {
         val strings = requestStrings(call)
@@ -24,7 +24,7 @@ internal fun Route.dashboardPageRoute(
             HttpHeaders.ContentLanguage,
             strings.languages(setOf("shell.", "dashboard.")).joinToString(", "),
         )
-        call.respondText(render(strings, call.embedMode()), ContentType.Text.Html)
+        call.respondText(render(strings, call.embedMode(), call.origin.peerAddress), ContentType.Text.Html)
     } }
 }
 
@@ -70,6 +70,7 @@ internal fun Route.configurePageRoute(
                 body = body(strings),
                 strings = strings,
                 embed = call.embedMode(),
+                peer = call.origin.peerAddress,
             ),
             ContentType.Text.Html,
         )
@@ -107,6 +108,7 @@ internal fun Route.setupPageRoute(
                 translationPrefixes = setOf("shell.", "setup.", "runtime."),
                 preserveExplicitEnglish = preserveExplicitEnglish,
                 embed = call.embedMode(),
+                peer = call.origin.peerAddress,
             ),
             ContentType.Text.Html,
         )
@@ -125,7 +127,7 @@ internal fun Route.profilesPageRoute(
             strings.languages(setOf("shell.", "configure.hardened.", "profiles.")).joinToString(", "),
         )
         call.respondText(
-            pages().page("profiles", strings.get("shell.nav.profile"), profilesBody(strings), strings, call.embedMode()),
+            pages().page("profiles", strings.get("shell.nav.profile"), profilesBody(strings), strings, call.embedMode(), call.origin.peerAddress),
             ContentType.Text.Html,
         )
     }
@@ -154,7 +156,7 @@ internal fun Route.installPageRoute(
         )
         call.respondText(
             withContext(Dispatchers.IO) {
-                pages().page("install", strings.get("shell.nav.install"), body(strings), strings, call.embedMode())
+                pages().page("install", strings.get("shell.nav.install"), body(strings), strings, call.embedMode(), call.origin.peerAddress)
             },
             ContentType.Text.Html,
         )
@@ -174,7 +176,7 @@ internal fun Route.logsPageRoute(
             strings.languages(setOf("shell.", "configure.hardened.", "logs.")).joinToString(", "),
         )
         call.respondText(
-            pages().page("logs", strings.get("shell.nav.logs"), logsBody(strings, httpPort()), strings, call.embedMode()),
+            pages().page("logs", strings.get("shell.nav.logs"), logsBody(strings, httpPort()), strings, call.embedMode(), call.origin.peerAddress),
             ContentType.Text.Html,
         )
     }
@@ -199,7 +201,7 @@ internal fun Route.entitiesPageRoute(
                 .distinct().sorted().joinToString(", "),
         )
         call.respondText(
-            pages().page("entities", strings.get("shell.nav.entities"), entitiesBody(strings, enabled()), strings, call.embedMode()),
+            pages().page("entities", strings.get("shell.nav.entities"), entitiesBody(strings, enabled()), strings, call.embedMode(), call.origin.peerAddress),
             ContentType.Text.Html,
         )
     }

@@ -9,7 +9,10 @@ import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.server.plugins.mutableOriginConnectionPoint
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.plugin
 import io.ktor.server.routing.HttpMethodRouteSelector
@@ -119,7 +122,36 @@ internal class StubTest : PanelRuntimeRig() {
                 for (path in listOf("/test", "/api/v1/sensortrace", "/api/v1/proximity/teach", "/api/v1//sensortrace", "/api/v1/%73ensortrace")) {
                     assertEquals(path, HttpStatusCode.Gone, client.get(path).status)
                 }
-                assertTrue(client.get("/api/v1/diag").bodyAsText().contains("GET /api/v1/sensortrace 1\n"))
+                // Counted as routing reads the path: the three spellings of sensortrace are one path.
+                assertTrue(client.get("/api/v1/diag").bodyAsText().contains("GET /api/v1/sensortrace 3\n"))
+            }
+        }
+    }
+
+    @Test fun aPageNamesTheSocketOnlyWhenItsPeerMayOpenIt() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.enablePages()
+            fixture.enableConfigurePage(false)
+            var peer = "192.168.50.20"
+            testApplication {
+                application {
+                    intercept(io.ktor.server.application.ApplicationCallPipeline.Setup) {
+                        context.mutableOriginConnectionPoint.remoteAddress = peer
+                    }
+                    fixture.mount(this)
+                }
+                suspend fun socketNamed(): Boolean {
+                    val page = client.get("/configure") { header(HttpHeaders.Cookie, "wiz_escape=1") }
+                    val html = page.bodyAsText()
+                    assertEquals(html.take(300), HttpStatusCode.OK, page.status)
+                    return html.contains("data-ui-socket=\"ui\"")
+                }
+
+                assertTrue("relaxed: a LAN page uses the socket", socketNamed())
+                assertTrue(fixture.config.setSecurityMode(Config.SecurityMode.HARDENED))
+                assertFalse("hardened: a LAN page stays on HTTP, which it may use", socketNamed())
+                peer = "127.0.0.1"
+                assertTrue("hardened: the panel's own loopback page uses the socket", socketNamed())
             }
         }
     }

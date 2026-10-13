@@ -422,7 +422,7 @@ class PaneldServer internal constructor(
                 guardDbBootstrapRoutes(
                     guardDbBootstrapDependencies(appContext, config, scope, pendingApks, guardDbStaging),
                 )
-                dashboardPageRoute(::requestStrings) { strings, embed -> dashboardPageHandler().html(strings, embed) }
+                dashboardPageRoute(::requestStrings) { strings, embed, peer -> dashboardPageHandler().html(strings, embed, peer) }
                 assetRoutes(asset)
                 // Tabbed multi-page shell. `/` stays the existing dashboard (now with a tab bar); the
                 // other tabs are dedicated pages that consume /api/v1.

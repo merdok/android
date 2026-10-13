@@ -56,7 +56,7 @@ internal class DashboardPageHandler(
         return """{"banners":${jsonStr(advisories.render(s, h, strings))},"shot":${s.privilege.rootControlReady},"shotCached":${jsonStr(screenshots.placeholderUrl() ?: "")},"versionCode":${BuildConfig.VERSION_CODE},"package":${jsonStr(BuildConfig.APPLICATION_ID)},"controls":${jsonStr(rows.controls(s, strings))},"cards":{$cards}}"""
     }
 
-    fun html(strings: AppStrings, embed: EmbedMode? = null): String {
+    fun html(strings: AppStrings, embed: EmbedMode? = null, peer: String? = null): String {
         // Stale-while-revalidate: render the last-known snapshot instantly (placeholders if none yet)
         // and let the page hydrate/refresh from /api/v1/info when the snapshot is missing or old.
         val s = managementObservations.snapCache.peek()
@@ -80,6 +80,7 @@ internal class DashboardPageHandler(
             bodyAttrs = """data-ver="${Config.VERSION}" data-build="${buildToken()}" data-cfg="${renderConfigConcurrencyHash()}" data-hydrate="${if (s == null) "cold" else if (hydrate) "1" else "0"}" data-hardened="${if (config.hardenedSecurityEnabled) "1" else "0"}"""",
             rightControls = rightControls,
             embed = embed,
+            peer = peer,
             extraScripts = """<script src="assets/card-size-memory.js"></script>
 <script src="assets/card-column-alignment.js"></script>
 <script src="info.js"></script>
