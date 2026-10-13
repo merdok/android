@@ -62,12 +62,19 @@ internal object StubEndpoints {
     val DIAG = listOf("/diag", "/api/v1/diag")
     const val UI = "/ui"
     const val BLOB = "/blob/{token}"
+    /**
+     * Sign-in navigations, served by their existing handlers until the setup page carries them (protocol section
+     * 20.6): the panel's own WebView opens the first on loopback (DashboardRecovery.kt) and Home Assistant
+     * redirects the browser to the second. Neither is a page module's REST read, so closing the routes must not
+     * end sign-in.
+     */
+    val SIGN_IN = listOf("/api/v1/ha/oauth/panel-start", "/api/v1/ha/oauth/callback")
 
     val ENDPOINTS: Set<Pair<HttpMethod, String>> = buildSet {
         // 1. Bundle files, served from the APK.
         listOf("/info.js", "/info.css", "/icon.svg", "/favicon.svg", "/assets/{f...}").forEach { add(HttpMethod.Get to it) }
-        // 2. The pages, 3. health, 4. diag, 5. the door, 6. blobs.
-        (PAGES.keys + HEALTH + DIAG + UI + BLOB).forEach { add(HttpMethod.Get to it) }
+        // 2. The pages, 3. health, 4. diag, 5. the door, 6. blobs; and the sign-in navigations.
+        (PAGES.keys + HEALTH + DIAG + UI + BLOB + SIGN_IN).forEach { add(HttpMethod.Get to it) }
         add(HttpMethod.Put to BLOB)
     }
 

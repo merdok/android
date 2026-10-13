@@ -100,6 +100,10 @@ internal class StubTest : PanelRuntimeRig() {
                 val serving = registered.filter { (method, template) -> probe(method, template) != HttpStatusCode.Gone }.toSet()
 
                 assertEquals(StubEndpoints.ENDPOINTS, serving)
+                // Closing the routes keeps panel sign-in: the WebView's start and Home Assistant's redirect back.
+                for (path in listOf("/api/v1/ha/oauth/panel-start", "/api/v1/ha/oauth/callback")) {
+                    assertTrue(path, client.get(path).status != HttpStatusCode.Gone)
+                }
             }
         }
     }
