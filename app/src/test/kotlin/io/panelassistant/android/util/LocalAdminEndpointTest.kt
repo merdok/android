@@ -102,7 +102,6 @@ class LocalAdminEndpointTest {
                 true,
                 io.panelassistant.android.sensors.HaLifecycle.Snapshot(
                     state = io.panelassistant.android.sensors.HaLifecycleState.CONNECTION_LOST,
-                    source = io.panelassistant.android.sensors.HaLifecycleSource.NATIVE,
                     refused = true,
                     revision = 0L,
                     backOnlineRemainingMs = 0L,

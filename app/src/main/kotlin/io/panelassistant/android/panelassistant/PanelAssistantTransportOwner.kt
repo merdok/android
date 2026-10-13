@@ -154,7 +154,7 @@ internal data class PanelAssistantTransportStatus(
  * rather than the slow interval.
  *
  * Credentials come from the shared [HaApiSessionProvider]; this owner holds no token cache. It sends
- * `hello`, protocol pings, the [shadow] reporter's `report_state` requests on a session granted `state`,
+ * `hello`, protocol pings, the [reporter]'s `report_state` requests on a session granted `state`,
  * and the answers to the commands a session delivers, which run on the panel's own command authority
  * through [commands]. A hello refused `entry_removed` waits on the slow schedule like any terminal
  * refusal, until the panel is added again.
@@ -177,7 +177,7 @@ internal class PanelAssistantTransportOwner(
     private val closeTimeoutMs: Long = 2_000L,
     private val log: (String) -> Unit = { message -> Log.i(TAG, message) },
     /** Null reports no state and offers no capability, exactly as the handshake-only slice did. */
-    private val shadow: PanelAssistantShadowReporter? = null,
+    private val reporter: PanelAssistantStateReporter? = null,
     /** Samples the running panel before this accepted session starts its full state report. */
     private val observeForHello: suspend () -> Boolean,
     /** Null offers neither commands nor approval. */
@@ -216,7 +216,7 @@ internal class PanelAssistantTransportOwner(
     private val restartWake = Channel<Unit>(Channel.CONFLATED)
 
     /**
-     * Held for a generation's whole run, teardown included. The shadow reporter has no session identity, so
+     * Held for a generation's whole run, teardown included. The state reporter has no session identity, so
      * a replaced generation still closing it must finish before the next one opens it, or its late close
      * would switch reporting off for the new session. A generation cancelled while waiting never takes it.
      */
@@ -339,21 +339,20 @@ internal class PanelAssistantTransportOwner(
                         val streamClientId = voiceStream?.clientId()
                         val offered = PanelAssistantTransportProtocol.CAPABILITIES.filter { capability ->
                             when (capability) {
-                                PanelAssistantTransportProtocol.CAPABILITY_STATE -> shadow != null
+                                PanelAssistantTransportProtocol.CAPABILITY_STATE -> reporter != null
                                 // Proofs are verified by the web server, whatever else the session carries.
                                 PanelAssistantTransportProtocol.CAPABILITY_EMBED_PROOF -> embedKeys != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE -> voice?.offered() == true
-                                PanelAssistantTransportProtocol.CAPABILITY_MEDIA -> shadow != null
+                                PanelAssistantTransportProtocol.CAPABILITY_MEDIA -> reporter != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE_STREAM_SESSION -> streamClientId != null
                                 PanelAssistantTransportProtocol.CAPABILITY_MANAGEMENT -> management != null
                                 else -> commands != null
                             }
                         }
-                        val offer = shadow?.offer()
+                        val offer = reporter?.offer()
                         val described = offer?.descriptors.orEmpty()
                         when (val outcome = handshake(opened, demand.identity, offered, described, offer?.unsupported.orEmpty(), streamClientId)) {
                             is PanelAssistantHelloOutcome.Accepted -> {
-                                shadow?.granted(outcome.session.capabilities)
                                 if (generation.get() != run || !onConnection(session, outcome.session)) {
                                     throw PanelAssistantProtocolException("Home Assistant connection owner changed")
                                 }
@@ -367,7 +366,7 @@ internal class PanelAssistantTransportOwner(
                                     session = outcome.session,
                                 ))
                                 hadSession = true
-                                val reporting = shadow?.takeIf {
+                                val reporting = reporter?.takeIf {
                                     PanelAssistantTransportProtocol.CAPABILITY_STATE in outcome.session.capabilities
                                 }
                                 // Commands run only on a session that granted them.
@@ -427,11 +426,7 @@ internal class PanelAssistantTransportOwner(
                                 lifecycleCurrent(run, onLifecycleAuthenticated)
                                 // A panel awaiting its owner's confirmation is managed by Panel Assistant, not missing it.
                                 if (outcome.code in ENROLLMENT_REFUSALS) onConnected()
-                                // An integration that does not render a gated channel refuses its descriptor;
-                                // withhold it and say hello again at once rather than on the slow schedule.
-                                val regated = outcome.code == PanelAssistantTransportProtocol.CODE_INVALID_FORMAT &&
-                                    shadow?.granted(emptyList()) == true
-                                if (regated) Retry.Fast(outcome.code) else refusalRetry(outcome.code, monotonicMillis() < warmUntil)
+                                refusalRetry(outcome.code, monotonicMillis() < warmUntil)
                             }
                         }
                     }
@@ -546,7 +541,7 @@ internal class PanelAssistantTransportOwner(
         run: Long,
         connection: PanelAssistantTransportConnection,
         session: PanelAssistantSession,
-        reporting: PanelAssistantShadowReporter?,
+        reporting: PanelAssistantStateReporter?,
         commanding: PanelAssistantCommandProcessor?,
         speaking: PanelAssistantVoice?,
         streaming: PanelAssistantVoiceStream?,
@@ -579,7 +574,7 @@ internal class PanelAssistantTransportOwner(
         run: Long,
         connection: PanelAssistantTransportConnection,
         session: PanelAssistantSession,
-        reporting: PanelAssistantShadowReporter?,
+        reporting: PanelAssistantStateReporter?,
         commanding: PanelAssistantCommandProcessor?,
         managing: PanelAssistantManagementRequests?,
         frames: Channel<String>,
@@ -593,7 +588,7 @@ internal class PanelAssistantTransportOwner(
         var sentRestart: RestartRequest? = null
         var nextPingAt = monotonicMillis() + pingIntervalMs
         var pongDeadline: Long? = null
-        if (reporting != null) log("native transport shadow reporting started")
+        if (reporting != null) log("native transport state reporting started")
         while (true) {
             val now = monotonicMillis()
             val notice = restart.get()

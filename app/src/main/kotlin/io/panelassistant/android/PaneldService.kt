@@ -145,7 +145,7 @@ import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantCommandSink
 import io.panelassistant.android.panelassistant.PanelAssistantHelloIdentity
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
 import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
@@ -647,7 +647,7 @@ class PaneldService : Service() {
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
     // the active profile's.
-    private val panelAssistantShadow = PanelAssistantShadowReporter(describe = { wire ->
+    private val panelAssistantReporter = PanelAssistantStateReporter(describe = { wire ->
         if (wire == "button" && ::profile.isInitialized) {
             io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.buttonDescriptor(profile.evdevButtons.mapTo(linkedSetOf()) { it.eventType })
         } else io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.describe(wire)
@@ -1092,7 +1092,7 @@ class PaneldService : Service() {
                 }.getOrDefault(emptyList())
                 io.panelassistant.android.util.localPanelAddresses(primary)
             },
-            shadow = panelAssistantShadow,
+            reporter = panelAssistantReporter,
             observeForHello = {
                 val observed = runtime.observe() ?: return@PanelAssistantTransportOwner false
                 observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
@@ -1113,8 +1113,10 @@ class PaneldService : Service() {
             onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
             onConnection = { session, accepted ->
                 val route = session.route
-                route != null && HaConnectionRoutes.isCurrent(config, route) &&
-                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
+                (route != null && HaConnectionRoutes.isCurrent(config, route) &&
+                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true))
+                    // The device link is keyed on the learned entry, so a first or changed entry resolves it now.
+                    .also { learned -> if (learned) runtime.observe()?.value?.core?.maybeResolveHaLink() }
             },
             checkPreferred = {
                 val route = HaConnectionRoutes.preferredCandidate(config)
@@ -1646,11 +1648,11 @@ class PaneldService : Service() {
     }
 
     private fun buildNetworkRuntime(identity: NetworkRuntimeIdentity): NetworkRuntime {
-        val core = buildCore(identity)
+        val core = buildCore()
         return NetworkRuntime(core, buildCommands(core), buildMdns(identity))
     }
 
-    private fun buildCore(identity: NetworkRuntimeIdentity): PanelStateCore = PanelStateCore(
+    private fun buildCore(): PanelStateCore = PanelStateCore(
         config, brightness, screen, led, ledEffect, volume, system, bootChime, zigbee, relay, cpu, adb,
         accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
@@ -1668,16 +1670,14 @@ class PaneldService : Service() {
         softwareUpdateSources = ::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
-        panelId = identity.panelId,
-        friendlyName = identity.friendlyName,
         wifiDiagnostics = wifiDiagnostics::snapshot,
         wifiOutages = { wifiOutageTracker.counts() },
         learnedProximityEligibility = sensors::hasLearnedProximity,
         learnedProximityState = sensors::learnedProximityState,
         usbDebugging = usbDebugging::observation,
     ).also { core ->
-        core.addStateSink(panelAssistantShadow.bindShape(core::nativeChannelShape))
-        core.addEventSink(panelAssistantShadow::event)
+        core.addStateSink(panelAssistantReporter.bindShape(core::nativeChannelShape))
+        core.addEventSink(panelAssistantReporter::event)
     }
 
     private fun buildCommands(core: PanelStateCore): PanelCommandDispatcher = PanelCommandDispatcher(
@@ -2982,8 +2982,8 @@ class PaneldService : Service() {
             }
             startStateObservationTick()
             // Never-blank-screen watchdog. A screen-off kills the backlight but leaves the device
-            // interactive, and nothing re-lights it — so a stray/stale screen-off (e.g. the retained-command
-            // strand) or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
+            // interactive, and nothing re-lights it — so a stray or stale screen-off command
+            // or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
             // is dark but ha-paneld did NOT deliberately turn it off, re-light it; a user-intended
             // "screen off" (isIntendedOff) is left alone.
             scope.periodic(

@@ -37,11 +37,11 @@ val Config.haBaseUrl: String get() = prefs.getString("ha_base_url", "")!!
 fun Config.setHaBaseUrl(url: String) { prefs.edit().putString("ha_base_url", url).apply() }
 
 /** Best "Open in HA" target. Never expose an unowned legacy cache or a device id resolved for a
- * different native endpoint/panel while its asynchronous repair is still running. */
+ * different native endpoint or Panel Assistant entry while its asynchronous repair is still running. */
 val Config.haLinkUrl: String get() {
-    val nativeTarget = haUrl.takeIf(String::isNotBlank)?.let { HaLink.resolutionTarget(it, panelId) }
+    val nativeTarget = HaConnectionRoutes.panelAssistantEntryId(this)?.let { HaLink.resolutionTarget(haUrl, it) }
     val ownedDeviceUrl = haDeviceUrl.takeIf {
-        haDeviceLinkTarget.isNotBlank() && (nativeTarget == null || haDeviceLinkTarget == nativeTarget)
+        haDeviceLinkTarget.isNotBlank() && (haUrl.isBlank() || haDeviceLinkTarget == nativeTarget)
     }
     return ownedDeviceUrl ?: haUrl.ifBlank { haBaseUrl }
 }

@@ -84,7 +84,7 @@ class HaConnectionRoutesTest {
         assertNull(HaConnectionRoutes.panelAssistantEntryId(config))
         assertTrue(HaConnectionRoutes.learn(config, HaConnectionRoutes.current(config), advertisement(), "01J00000000000000000000CCC"))
         assertEquals("01J00000000000000000000CCC", HaConnectionRoutes.panelAssistantEntryId(config))
-        // A hello without the field, from an older Panel Assistant, puts the panel back on the probe.
+        // A hello without the field names no entry, so none is kept.
         assertTrue(learn(config))
         assertNull(HaConnectionRoutes.panelAssistantEntryId(config))
         assertTrue(HaConnectionRoutes.learn(config, HaConnectionRoutes.current(config), advertisement(), "01J00000000000000000000CCC"))

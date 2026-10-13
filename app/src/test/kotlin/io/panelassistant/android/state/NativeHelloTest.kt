@@ -1,7 +1,7 @@
 package io.panelassistant.android.state
 
 import io.panelassistant.android.testsupport.PanelRuntimeRig
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.requestLocalObservation
 import io.panelassistant.android.util.ServiceRuntimeOwner
 import kotlinx.coroutines.runBlocking
@@ -28,7 +28,7 @@ internal class NativeHelloTest : PanelRuntimeRig() {
             // An ordinary local pass establishes which channels this hardware can actually read.
             // Bind a fresh reporter afterwards: its accepted hello must produce those observations
             // even though no periodic tick has supplied its initial cache yet.
-            val reference = PanelAssistantShadowReporter(log = {})
+            val reference = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(reference.bindShape(rig.core::nativeChannelShape))
             requestLocalObservation(owner) { it.core }
             drainStatePump()
@@ -38,7 +38,7 @@ internal class NativeHelloTest : PanelRuntimeRig() {
             assertTrue("fixture must expose a meaningful state surface: $knowable", knowable.size >= 20)
             assertTrue(knowable.containsAll(listOf("screen", "navigate", "home_dashboard", "storage_health", "relay1")))
 
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             val hello = native.offer()
             val described = hello.descriptors.map { it.channel }.toSet()

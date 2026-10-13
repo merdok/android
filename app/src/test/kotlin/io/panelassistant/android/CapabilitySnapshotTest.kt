@@ -44,7 +44,7 @@ class CapabilitySnapshotTest {
     }
 
     @Test
-    fun `connect and reannounce each invoke the capability supplier exactly once`() {
+    fun `each snapshot invokes the capability supplier exactly once`() {
         var calls = 0
         val source = CapabilitySnapshotSource(supplier = {
             calls += 1
@@ -54,12 +54,10 @@ class CapabilitySnapshotTest {
         val connectAnnouncement = source.snapshot()
         assertEquals(1, calls)
         assertTrue(connectAnnouncement!!.canSetDisplay)
-        assertEquals(connectAnnouncement, source.initialSnapshot())
 
         val reannouncement = source.snapshot()
         assertEquals(2, calls)
         assertFalse(reannouncement!!.canSetDisplay)
-        assertEquals(connectAnnouncement, source.initialSnapshot())
     }
 
     @Test
@@ -67,11 +65,10 @@ class CapabilitySnapshotTest {
         val source = CapabilitySnapshotSource(null)
 
         assertNull(source.snapshot())
-        assertNull(source.initialSnapshot())
     }
 
     @Test
-    fun `failed live snapshot degrades closed without aborting discovery`() {
+    fun `failed live snapshot degrades closed without aborting the hello`() {
         var calls = 0
         var failures = 0
         val source = CapabilitySnapshotSource(
@@ -85,7 +82,6 @@ class CapabilitySnapshotTest {
         val snapshot = source.snapshot()
 
         assertEquals(Capabilities(), snapshot)
-        assertEquals(Capabilities(), source.initialSnapshot())
         assertEquals(1, calls)
         assertEquals(1, failures)
     }

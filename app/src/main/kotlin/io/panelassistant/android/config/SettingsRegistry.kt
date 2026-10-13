@@ -30,9 +30,9 @@ internal fun normalizedHaAreaName(raw: String): String =
  * Coverage note: this first pass registers the settings whose current value is **Config-backed**
  * (read directly from durable config state). Controller-sourced entities (touch sound, CPU profile,
  * network ADB, zigbee), option-driven selects (navbar/cpu), the core controls (screen/led/volume/
- * navigate), publish-only sensors, dynamic relay/button-LED entities, and the action buttons are
- * published by a separate discovery pass (they are not "settings" or need a runtime value provider);
- * they are gated in by capability at publish time. See the discovery rewrite (Stage C).
+ * navigate), read-only sensors, dynamic relay/button-LED entities, and the action buttons are
+ * channels registered by the state core (they are not "settings" or need a runtime value provider);
+ * they are gated in by capability when the channel is described.
  */
 object SettingsRegistry {
 
@@ -301,8 +301,8 @@ object SettingsRegistry {
             key = "ha_area", type = SettingType.STRING, group = "Identity",
             tier = Tier.BASIC, summary = "Home Assistant area this panel belongs to.",
             label = "Area in Home Assistant", default = "", picker = "ha_area", scope = Scope.DEVICE,
-            // liveApply with a no-op dispatcher on purpose: this key needs NO runtime rebuild (discovery
-            // reads it at next publish; the HA write-back is a post-commit server side effect) — but as
+            // liveApply with a no-op dispatcher on purpose: this key needs NO runtime rebuild (the HA
+            // write-back is a post-commit server side effect) — but as
             // a non-live key it dragged a FULL network reconfigure behind every wizard dashboard answer,
             // and the HTTP server blip failed the user's next request on hardware.
             liveApply = true,
@@ -343,7 +343,7 @@ object SettingsRegistry {
             label = "Auto sleep", default = "false", scope = Scope.DEVICE,
             liveApply = true,
             help = "Switch the screen off after the selected presence mode’s learned delay or the chosen touch inactivity delay. Manual screen control remains separate.",
-            ha = haEntity("switch", "auto_sleep", "Auto sleep") {
+            ha = haEntity("switch", "auto_sleep") {
                 entityCategory("config")
             },
         ),
@@ -358,8 +358,8 @@ object SettingsRegistry {
             optionRequires = mapOf("Native" to { caps: Capabilities -> caps.hasNativeNavbar }),
             derivedDefault = ::navbarModeDefault,
             help = "Soft on-screen navigation bar for panels with no native navbar. **Native** leaves navigation to the panel's own Android bar and draws nothing.\n\nHiding the Android system bars, from the built-in renderer's fullscreen setting or the Android dashboard lock, still hides a native bar.",
-            ha = haEntity("select", "navbar", "Navbar") {
-                capabilityOptions(NAVBAR_OPTIONS)
+            ha = haEntity("select", "navbar") {
+                options(NAVBAR_OPTIONS)
                 entityCategory("config")
             },
         ),
@@ -370,7 +370,7 @@ object SettingsRegistry {
             liveApply = true,
             help = "Wake after a calibrated clear-to-near-to-clear wave. Set up proximity on the panel; touch-to-wake remains available.",
             availableWhen = { it.hasProximity },
-            ha = haEntity("switch", "wake_on_wave", "Wake on wave") {
+            ha = haEntity("switch", "wake_on_wave") {
                 entityCategory("config")
             },
         ),
@@ -380,7 +380,7 @@ object SettingsRegistry {
             label = "Lock Android to dashboard (experimental)", default = "false", scope = Scope.DEVICE,
             liveApply = true,
             help = "Root-only casual-use lock. Hides Android system bars and returns to the selected dashboard within about 3 seconds when another app or Recents opens. It does not hide Home Assistant navigation.\n\nRelease it:\n\n- here, or from Home Assistant\n- through adb\n- with 7 rapid top-left taps\n- during the 60-second unlocked window after reboot",
-            ha = haEntity("switch", "kiosk_lock", "Android dashboard lock") {
+            ha = haEntity("switch", "kiosk_lock") {
                 entityCategory("config")
             },
         ),
@@ -396,7 +396,7 @@ object SettingsRegistry {
             tier = Tier.BASIC, summary = "Play the system tap sound.",
             label = "Touch sound", default = "true", scope = Scope.PORTABLE,
             liveApply = true,
-            ha = haEntity("switch", "touch_sound", "Touch sound") {
+            ha = haEntity("switch", "touch_sound") {
                 entityCategory("config")
             },
         ),
@@ -448,7 +448,7 @@ object SettingsRegistry {
             label = "Auto-brightness", default = "false", scope = Scope.PORTABLE,
             liveApply = true,
             help = "On-panel engine maps a lux stream to the backlight (off = HA drives the screen).",
-            ha = haEntity("switch", "auto_brightness", "Auto-brightness") {
+            ha = haEntity("switch", "auto_brightness") {
                 entityCategory("config")
             },
         ),
@@ -492,7 +492,7 @@ object SettingsRegistry {
             help = "Live CPU scaling profile until reboot; Auto = the SoC's dynamic governor.",
             transient = true,
             availableWhen = { it.cpuGovernors },
-            ha = haEntity("select", "cpu_governor", "CPU profile") {
+            ha = haEntity("select", "cpu_governor") {
                 options(CPU_GOVERNOR_OPTIONS)
                 entityCategory("config")
             },
@@ -759,7 +759,7 @@ object SettingsRegistry {
             liveApply = true,
             help = "**Security risk:** keeps classic ADB listening on TCP port 5555 across boots and reconnects.\n\nEnable only during active maintenance on a trusted network. If ADB was enabled outside Panel Assistant, it must also be disabled there.",
             availableWhen = { it.networkAdb },
-            ha = haEntity("switch", "network_adb", "Network ADB") {
+            ha = haEntity("switch", "network_adb") {
                 entityCategory("config")
             },
         ),
@@ -874,7 +874,7 @@ object SettingsRegistry {
             label = "Screen brightness", default = "",
             help = "Current screen state and brightness. Home Assistant presents the light's native 0–255 brightness as a percentage.",
             haExposedByDefault = true,
-            ha = haEntity("light", "screen", "Screen", readOnly = true) {
+            ha = haEntity("light", "screen", readOnly = true) {
             },
         ),
         SettingSpec(
@@ -883,7 +883,7 @@ object SettingsRegistry {
             label = "Panel volume", default = "",
             help = "Current panel media volume reported on its native 0–100 percent scale.",
             haExposedByDefault = true,
-            ha = haEntity("number", "volume", "Volume", readOnly = true) {
+            ha = haEntity("number", "volume", readOnly = true) {
                 range(0, 100, 1)
                 unit("%")
             },
@@ -895,7 +895,7 @@ object SettingsRegistry {
             label = "Ambient light", default = "",
             haExposedByDefault = true,
             availableWhen = { it.hasLight },
-            ha = haEntity("sensor", "illuminance", "Illuminance", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "illuminance", readOnly = true, periodicRefresh = true) {
                 deviceClass("illuminance")
                 unit("lx")
                 stateClass("measurement")
@@ -908,7 +908,7 @@ object SettingsRegistry {
             label = "Proximity", default = "",
             haExposedByDefault = true,
             availableWhen = { it.hasLearnedProximity },
-            ha = haEntity("binary_sensor", "proximity", "Proximity", readOnly = true) {
+            ha = haEntity("binary_sensor", "proximity", readOnly = true) {
                 deviceClass("occupancy")
             },
         ),
@@ -919,7 +919,7 @@ object SettingsRegistry {
             help = "Normalized learned proximity level from 0 to 100 percent; binary sources report 0 or 100.",
             haExposedByDefault = true,
             availableWhen = { it.hasLearnedProximity },
-            ha = haEntity("sensor", "proximity_level", "Proximity level", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "proximity_level", readOnly = true, periodicRefresh = true) {
                 unit("%")
                 stateClass("measurement")
             },
@@ -930,7 +930,7 @@ object SettingsRegistry {
             label = "Auto-sleep activity", default = "",
             help = "Whether the auto-sleep policy is currently holding the panel awake. The Home Assistant entity provides the activity history timeline.",
             haExposedByDefault = false,
-            ha = haEntity("binary_sensor", "auto_sleep_activity", "Auto-sleep activity", readOnly = true) {
+            ha = haEntity("binary_sensor", "auto_sleep_activity", readOnly = true) {
             },
         ),
         SettingSpec(
@@ -940,7 +940,7 @@ object SettingsRegistry {
             label = "Temperature", default = "",
             haExposedByDefault = true,
             availableWhen = { it.hasTemperature },
-            ha = haEntity("sensor", "temperature", "Temperature", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "temperature", readOnly = true, periodicRefresh = true) {
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -953,7 +953,7 @@ object SettingsRegistry {
             label = "Humidity", default = "",
             haExposedByDefault = true,
             availableWhen = { it.hasHumidity },
-            ha = haEntity("sensor", "humidity", "Humidity", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "humidity", readOnly = true, periodicRefresh = true) {
                 deviceClass("humidity")
                 unit("%")
                 stateClass("measurement")
@@ -970,7 +970,7 @@ object SettingsRegistry {
             tier = Tier.BASIC, summary = "This panel's local IPv4 address.",
             label = "IP address", default = "",
             haExposedByDefault = false,
-            ha = haEntity("sensor", "diag_ip", "IP address", readOnly = true) {
+            ha = haEntity("sensor", "diag_ip", readOnly = true) {
                 textValue()
                 entityCategory("diagnostic")
             },
@@ -981,7 +981,7 @@ object SettingsRegistry {
             label = "CPU usage", default = "",
             help = "Overall CPU busy percentage (root/su panels; unavailable on sandbox-walled panels).",
             haExposedByDefault = false,
-            ha = haEntity("sensor", "diag_cpu", "CPU usage", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "diag_cpu", readOnly = true, periodicRefresh = true) {
                 unit("%")
                 stateClass("measurement")
                 entityCategory("diagnostic")
@@ -992,7 +992,7 @@ object SettingsRegistry {
             tier = Tier.BASIC, summary = "Used memory as a percentage.",
             label = "Memory usage", default = "",
             haExposedByDefault = false,
-            ha = haEntity("sensor", "diag_memory", "Memory usage", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "diag_memory", readOnly = true, periodicRefresh = true) {
                 unit("%")
                 stateClass("measurement")
                 entityCategory("diagnostic")
@@ -1004,7 +1004,7 @@ object SettingsRegistry {
             label = "SoC temperature", default = "",
             help = "System-on-chip temperature (root/su panels; unavailable on sandbox-walled panels).",
             haExposedByDefault = false,
-            ha = haEntity("sensor", "diag_soc_temp", "SoC temperature", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "diag_soc_temp", readOnly = true, periodicRefresh = true) {
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -1017,7 +1017,7 @@ object SettingsRegistry {
             label = "Last boot time", default = "",
             help = "When the panel last booted (a timestamp — HA shows the elapsed uptime).",
             haExposedByDefault = false,
-            ha = haEntity("sensor", "diag_boot", "Last boot time", readOnly = true) {
+            ha = haEntity("sensor", "diag_boot", readOnly = true) {
                 deviceClass("timestamp")
                 textValue()
                 entityCategory("diagnostic")
@@ -1030,7 +1030,7 @@ object SettingsRegistry {
             help = "Current Wi-Fi network name while Wi-Fi is the active connection. This can identify a location and enters HA history when exposed; Android may hide it unless network-information permission is available.",
             haExposedByDefault = false,
             availableWhen = { it.hasWifiSsid },
-            ha = haEntity("sensor", "diag_wifi_ssid", "Wi-Fi network", readOnly = true) {
+            ha = haEntity("sensor", "diag_wifi_ssid", readOnly = true) {
                 textValue()
                 entityCategory("diagnostic")
             },
@@ -1045,7 +1045,6 @@ object SettingsRegistry {
             ha = haEntity(
                 "sensor",
                 "diag_wifi_rssi",
-                "Wi-Fi signal strength",
                 readOnly = true, periodicRefresh = true,
             ) {
                 deviceClass("signal_strength")
@@ -1067,7 +1066,6 @@ object SettingsRegistry {
             ha = haEntity(
                 "sensor",
                 "diag_wifi_outages_24h",
-                "Wi-Fi outages (24 h)",
                 readOnly = true, periodicRefresh = true,
             ) {
                 stateClass("measurement")
@@ -1085,7 +1083,7 @@ object SettingsRegistry {
             label = "Room temperature", default = "",
             help = "Room air temperature from the panel's supported climate sensor (calibration offset applied).",
             haExposedByDefault = true, availableWhen = { it.hasCht8305 },
-            ha = haEntity("sensor", "room_temp", "Room temperature", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "room_temp", readOnly = true, periodicRefresh = true) {
                 deviceClass("temperature")
                 unit("°C")
                 stateClass("measurement")
@@ -1097,7 +1095,7 @@ object SettingsRegistry {
             tier = Tier.ADVANCED, summary = "Room humidity from the climate sensor.",
             label = "Room humidity", default = "",
             haExposedByDefault = true, availableWhen = { it.hasCht8305 },
-            ha = haEntity("sensor", "room_humidity", "Room humidity", readOnly = true, periodicRefresh = true) {
+            ha = haEntity("sensor", "room_humidity", readOnly = true, periodicRefresh = true) {
                 deviceClass("humidity")
                 unit("%")
                 stateClass("measurement")

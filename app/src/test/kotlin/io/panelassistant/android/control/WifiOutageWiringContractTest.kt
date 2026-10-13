@@ -34,13 +34,6 @@ class WifiOutageWiringContractTest {
         assertTrue(diagKeys.contains("\"diag_wifi_outages_24h\""))
     }
 
-    @Test fun theSensorPublishesWhetherItsNumberIsAFloor() {
-        // An integer state cannot say "at least"; without the attribute Home Assistant records a
-        // capped 200 as an exact measurement while the panel's own row says it is a floor.
-        assertTrue(core.contains("""channel("diag_wifi_outages_attributes")"""))
-        assertTrue(core.contains("""put("is_lower_bound", counts.saturated)"""))
-    }
-
     @Test fun legacyXmlMirrorIsExcludedFromAndroidBackup() {
         // StateBackupPolicy's DEVICE_LOCAL gates only the app's own sealed restore flow. Android
         // backup and device-to-device transfer need their own exclusion, or the record migrates to

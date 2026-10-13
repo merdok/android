@@ -1,7 +1,7 @@
 package io.panelassistant.android.state
 
 import io.panelassistant.android.testsupport.PanelRuntimeRig
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.util.SuccessStickyProbe
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,7 +16,7 @@ internal class NativeCameraChannelTest : PanelRuntimeRig() {
         val probe = SuccessStickyProbe(probe = { enumerated }, nowMs = { now })
         val rig = rig(cameraAvailability = probe::get)
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             enumerated = false
@@ -37,7 +37,7 @@ internal class NativeCameraChannelTest : PanelRuntimeRig() {
         val probe = SuccessStickyProbe<Boolean>(probe = { probes++; error("camera service starting") }, nowMs = { now })
         val rig = rig(cameraAvailability = probe::get)
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             now = 999L
@@ -57,7 +57,7 @@ internal class NativeCameraChannelTest : PanelRuntimeRig() {
         val probe = SuccessStickyProbe(probe = { enumerated }, nowMs = { now })
         val rig = rig(cameraAvailability = probe::get)
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertCameraOffered(native, true)
             enumerated = true
@@ -71,7 +71,7 @@ internal class NativeCameraChannelTest : PanelRuntimeRig() {
         }
     }
 
-    private fun assertCameraOffered(native: PanelAssistantShadowReporter, offered: Boolean) {
+    private fun assertCameraOffered(native: PanelAssistantStateReporter, offered: Boolean) {
         val offer = native.offer()
         assertEquals("camera descriptor in hello", offered, offer.descriptors.any { it.channel == "camera_enabled" })
         assertEquals("only settled absence is explicitly unsupported", !offered, "camera_enabled" in offer.unsupported)

@@ -123,7 +123,7 @@ internal object PanelAssistantValueTranslation {
      * payload is not a JSON object.
      */
     fun attributes(observation: StateConverger.Observation.Reportable?): JSONObject? {
-        val payload = (observation as? StateConverger.Observation.Known)?.payload ?: return null
+        val payload = (observation as? StateConverger.Observation.Known)?.attributes ?: return null
         val json = parse(payload) ?: return null
         val flat = JSONObject()
         for (key in json.keys()) {

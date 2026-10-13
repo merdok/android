@@ -2,7 +2,6 @@ package io.panelassistant.android
 
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.sensors.HaLifecycle
-import io.panelassistant.android.sensors.HaLifecycleSource
 import io.panelassistant.android.sensors.HaLifecycleState
 import io.panelassistant.android.util.HaTransportEvidence
 import io.panelassistant.android.util.HaTransportFault
@@ -34,7 +33,7 @@ class HaLifecycleNoticeTest {
     }
 
     private fun snapshot(state: HaLifecycleState) =
-        HaLifecycle.Snapshot(state, HaLifecycleSource.NATIVE, false, 1L, 8_000L)
+        HaLifecycle.Snapshot(state, false, 1L, 8_000L)
 
     @Test fun panelThatMissedStopShowsOfflineAfterConnectionLoss() {
         val tracker = HaLifecycle()

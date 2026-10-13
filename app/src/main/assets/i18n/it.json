@@ -4113,11 +4113,6 @@
       "state": "machine-cross-checked",
       "text": "stream su {url} (non per la dashboard di questo pannello)"
     },
-    "dashboard.runtime.convergence": {
-      "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
-      "state": "machine-cross-checked",
-      "text": "{channels} canali · {dirty} da sincronizzare · {inFlight} in corso · {unknown} sconosciuti · conferme {successes}/{failures} · in sospeso {pending}"
-    },
     "dashboard.runtime.database.on_disk": {
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",
       "state": "machine-cross-checked",

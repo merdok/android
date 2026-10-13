@@ -36,8 +36,6 @@ internal data class HaPresenceRequest(
     val controllerEpoch: Long = 0L,
     /** The panel's locally configured area name; when set it names the room presence sources come from. */
     val preferredAreaName: String = "",
-    /** The Panel Assistant discovery id, which proves this panel's `panel_assistant` device; null without one. */
-    val discoveryId: String? = null,
 )
 
 internal enum class HaPresencePhase {
@@ -157,14 +155,11 @@ internal data class HaPresenceRegistrySnapshot(
     val areas: JSONObject,
     val entities: JSONObject,
     val states: JSONArray,
-    /** [HaPanelDeviceMatcher.readProbe]'s response; null when no Panel Assistant device was probed. */
-    val panelAssistantProbe: JSONObject? = null,
 )
 
 internal data class HaPanelAreaRegistrySnapshot(
     val devices: JSONObject,
     val areas: JSONObject,
-    val panelAssistantProbe: JSONObject? = null,
 )
 
 internal enum class HaPanelAreaPrerequisitePhase { ASSIGNED, UNASSIGNED, AUTH_FAILED, UNAVAILABLE }
@@ -182,7 +177,7 @@ internal interface HaPresenceTransport {
     suspend fun registry(baseUrl: String, accessToken: String): HaPresenceRegistrySnapshot
     suspend fun panelAreaRegistry(baseUrl: String, accessToken: String): HaPanelAreaRegistrySnapshot {
         val snapshot = registry(baseUrl, accessToken)
-        return HaPanelAreaRegistrySnapshot(snapshot.devices, snapshot.areas, snapshot.panelAssistantProbe)
+        return HaPanelAreaRegistrySnapshot(snapshot.devices, snapshot.areas)
     }
     suspend fun history(
         baseUrl: String,
@@ -297,7 +292,6 @@ internal class HaPresenceSourceManager(
 
     suspend fun prerequisite(
         preferredAreaName: String = "",
-        discoveryId: String? = null,
     ): HaPanelAreaPrerequisite {
         return try {
             suspend fun resolveAndRead(force: Boolean): Pair<HaApiSession, HaPanelAreaRegistrySnapshot> {
@@ -315,7 +309,7 @@ internal class HaPresenceSourceManager(
             val area = HaPresenceProtocol.projectPanelArea(
                 snapshot.devices,
                 snapshot.areas,
-                HaPanelDeviceMatcher.panelAssistantEntryIds(snapshot.panelAssistantProbe, discoveryId, panelAssistantEntryId()),
+                setOfNotNull(panelAssistantEntryId()),
                 preferredAreaName,
             )
             HaPanelAreaPrerequisite(
@@ -565,8 +559,7 @@ internal class HaPresenceSourceManager(
             if (error is HaAuthenticationException) throw error
             throw DiscoveryFailure("registry_transport", error)
         }
-        val panelAssistantEntryIds =
-            HaPanelDeviceMatcher.panelAssistantEntryIds(snapshot.panelAssistantProbe, requested.discoveryId, panelAssistantEntryId())
+        val panelAssistantEntryIds = setOfNotNull(panelAssistantEntryId())
         // Preserve the independently resolvable panel Area in a projection failure. This keeps the
         // status coherent with the prerequisite endpoint and lets clients distinguish a terminal
         // failure from a stale result for a previously selected Area.
@@ -861,32 +854,27 @@ internal class KtorHaPresenceTransport(
         var devices: JSONObject? = null
         var areas: JSONObject? = null
         var entities: JSONObject? = null
-        var probe: JSONObject? = null
         withCommandSocket(baseUrl, accessToken) { request ->
             devices = request(JSONObject().put("type", "config/device_registry/list"))
             areas = request(JSONObject().put("type", "config/area_registry/list"))
             entities = request(JSONObject().put("type", "config/entity_registry/list_for_display"))
-            probe = HaPanelDeviceMatcher.readProbe(request, devices, entities)
         }
         return HaPresenceRegistrySnapshot(
             checkNotNull(devices),
             checkNotNull(areas),
             checkNotNull(entities),
             states(baseUrl, accessToken),
-            probe,
         )
     }
 
     override suspend fun panelAreaRegistry(baseUrl: String, accessToken: String): HaPanelAreaRegistrySnapshot {
         var devices: JSONObject? = null
         var areas: JSONObject? = null
-        var probe: JSONObject? = null
         withCommandSocket(baseUrl, accessToken) { request ->
             devices = request(JSONObject().put("type", "config/device_registry/list"))
             areas = request(JSONObject().put("type", "config/area_registry/list"))
-            probe = HaPanelDeviceMatcher.readProbe(request, devices)
         }
-        return HaPanelAreaRegistrySnapshot(checkNotNull(devices), checkNotNull(areas), probe)
+        return HaPanelAreaRegistrySnapshot(checkNotNull(devices), checkNotNull(areas))
     }
 
     override suspend fun history(
