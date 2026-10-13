@@ -422,6 +422,24 @@ internal class DashboardRetryPolicy(
     }
 }
 
+/** What the dashboard does when the screen goes dark. */
+internal enum class ScreenOffStep { FREEZE, SETTLE, QUIET_RELOAD }
+
+/**
+ * Decide the screen-off step. Freezing a page that has not connected yet strands it: a WebView paused
+ * before its first commit never draws and never connects, and the handshake watchdog is off while dark,
+ * so nothing retries until the screen wakes. Reproduced on a Sonoff NSPanel 86 on 2026-10-13 (3 of 6 dark cold
+ * starts) when the panel's own screen-off landed just after the WebView was built. So a load in flight
+ * runs live through the settle window, as a screen-off memory reload already does, and freezes when it
+ * connects or when the window ends. An auth latch freezes at once: its page never connects.
+ */
+internal fun screenOffStep(frontendConnected: Boolean, authLatched: Boolean, reloadDue: Boolean): ScreenOffStep = when {
+    authLatched -> ScreenOffStep.FREEZE
+    !frontendConnected -> ScreenOffStep.SETTLE
+    reloadDue -> ScreenOffStep.QUIET_RELOAD
+    else -> ScreenOffStep.FREEZE
+}
+
 /** How a blocked renderer-admission verdict may recover on its own. Classified by the caller so the
  * policy stays pure: [FROM_BASE] backs off exponentially toward the ceiling (transport faults, where
  * the server's return should be noticed quickly), [AT_CEILING] probes only at the ceiling cadence
