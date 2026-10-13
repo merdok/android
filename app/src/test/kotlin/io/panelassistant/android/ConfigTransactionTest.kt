@@ -23,8 +23,349 @@ import org.json.JSONObject
 import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import io.panelassistant.android.config.Capabilities
+import io.panelassistant.android.device.profile.BundledProfileFixtures
+import io.panelassistant.android.device.profile.DeviceFacts
+import io.panelassistant.android.device.profile.EvdevDeviceInspector
+import io.panelassistant.android.device.profile.ProfileActivationPhase
+import io.panelassistant.android.device.profile.ProfileMutation
+import io.panelassistant.android.device.profile.ProfilePreferences
+import io.panelassistant.android.device.profile.ProfileSelection
+import io.panelassistant.android.device.profile.ProfileYaml
+import io.panelassistant.android.device.profile.RuntimeProfileRegistry
+import io.panelassistant.android.device.profile.testProfileDocument
+import io.panelassistant.android.http.ConfigValueProjection
+import io.panelassistant.android.i18n.CatalogueLoader
+import java.io.File
+import java.nio.file.Files
+import org.json.JSONArray
 
 class ConfigTransactionTest {
+    @Test fun admittedBrightnessPairsAndPartialDefaultsReachTypedRawAndConfigureReadsWithoutWrites() {
+        val minimum = SettingsRegistry.spec("auto_brightness_minimum_percent")!!
+        val maximum = SettingsRegistry.spec("auto_brightness_maximum_percent")!!
+        for ((defaults, expected) in listOf(
+            mapOf(minimum.key to 30, maximum.key to 60) to (30 to 60),
+            mapOf(minimum.key to 90) to (90 to maximum.default.toInt()),
+            mapOf(maximum.key to 10) to (minimum.default.toInt() to 10),
+        )) {
+            withProfileRegistry(
+                mapOf("generic.yaml" to ProfileYaml.serialize(
+                    testProfileDocument(id = "generic", fallback = true).copy(settingDefaults = defaults),
+                )),
+                DeviceFacts("unmatched", "unmatched", ""),
+            ) { registry ->
+                val prefs = fakePreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
+                val config = Config(prefs.instance)
+                config.attachProfile(registry.resolveForStartup().profile)
+                assertBrightnessReads(config, expected.first, expected.second)
+                assertBrightnessDefaults(config, expected.first, expected.second)
+                for (spec in listOf(minimum, maximum)) {
+                    assertFalse(prefs.values.containsKey(spec.key))
+                }
+            }
+        }
+    }
+
+    @Test fun conflictingStoredBrightnessBoundDiscardsProfileBoundsWithoutSeedingAbsentChoices() {
+        val minimum = SettingsRegistry.spec("auto_brightness_minimum_percent")!!
+        val maximum = SettingsRegistry.spec("auto_brightness_maximum_percent")!!
+        for (defaults in listOf(
+            mapOf(minimum.key to 30, maximum.key to 60),
+            mapOf(minimum.key to 30),
+            mapOf(maximum.key to 60),
+        )) {
+            withProfileRegistry(
+                mapOf("generic.yaml" to ProfileYaml.serialize(
+                    testProfileDocument(id = "generic", fallback = true).copy(settingDefaults = defaults),
+                )),
+                DeviceFacts("unmatched", "unmatched", ""),
+            ) { registry ->
+                val declared = registry.resolveForStartup().profile
+                val product = BundledProfileFixtures.profile("generic")
+                val storedChoices = mutableListOf<Pair<String, Int>>()
+                if (minimum.key in defaults) storedChoices += listOf(maximum.key to 20, maximum.key to 30)
+                if (maximum.key in defaults) storedChoices += listOf(minimum.key to 70, minimum.key to 60)
+                for ((storedKey, storedValue) in storedChoices) {
+                    val prefs = fakePreferences(initial = mapOf(
+                        "panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test",
+                        storedKey to storedValue,
+                    ))
+                    repeat(2) {
+                        val config = Config(prefs.instance)
+                        for (profile in listOf(declared, product, declared)) {
+                            config.attachProfile(profile)
+                            assertBrightnessReads(
+                                config,
+                                if (storedKey == minimum.key) storedValue else minimum.default.toInt(),
+                                if (storedKey == maximum.key) storedValue else maximum.default.toInt(),
+                            )
+                        }
+                        assertBrightnessDefaults(config, minimum.default.toInt(), maximum.default.toInt())
+                        assertEquals(storedValue, prefs.values[storedKey])
+                        assertFalse(prefs.values.containsKey(if (storedKey == minimum.key) maximum.key else minimum.key))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun savedBrightnessPairSurvivesProfileChangesAndRestart() = withProfileRegistry(
+        mapOf("generic.yaml" to ProfileYaml.serialize(
+            testProfileDocument(id = "generic", fallback = true).copy(settingDefaults = mapOf(
+                "auto_brightness_minimum_percent" to 30, "auto_brightness_maximum_percent" to 60,
+            )),
+        )),
+        DeviceFacts("unmatched", "unmatched", ""),
+    ) { registry ->
+        val prefs = fakePreferences(initial = mapOf("panel_id" to "brightness_defaults_test", "friendly_name" to "Brightness defaults test"))
+        val declared = registry.resolveForStartup().profile
+        val config = Config(prefs.instance)
+        config.attachProfile(declared)
+        val editor = config.editor()
+        stageImport(config, editor, mapOf("auto_brightness_minimum_percent" to "70", "auto_brightness_maximum_percent" to "90"))
+        assertTrue(config.commit(editor))
+        for (current in listOf(config, Config(prefs.instance))) {
+            for (profile in listOf(declared, BundledProfileFixtures.profile("generic"), declared)) {
+                current.attachProfile(profile)
+                assertBrightnessReads(current, 70, 90)
+            }
+        }
+        assertEquals(70, prefs.values["auto_brightness_minimum_percent"])
+        assertEquals(90, prefs.values["auto_brightness_maximum_percent"])
+    }
+
+    private fun assertBrightnessReads(config: Config, minimum: Int, maximum: Int) {
+        assertEquals(minimum, config.autoBrightnessMinimumPercent)
+        assertEquals(maximum, config.autoBrightnessMaximumPercent)
+        val projection = profileProjection(config)
+        val values = JSONObject(projection.settingsValuesJson())
+        val current = projection.currentValues()
+        for ((key, expected) in listOf("auto_brightness_minimum_percent" to minimum, "auto_brightness_maximum_percent" to maximum)) {
+            assertEquals(expected.toString(), config.getRaw(SettingsRegistry.spec(key)!!))
+            assertEquals(expected, values.getInt(key))
+            assertEquals(expected.toString(), current[key])
+        }
+    }
+
+    private fun assertBrightnessDefaults(config: Config, minimum: Int, maximum: Int) {
+        val strings = CatalogueLoader { path ->
+            File(BundledProfileFixtures.assetsDirectory.parentFile, path).readText()
+        }.strings("en")
+        val schema = JSONArray(profileProjection(config).schemaJson(strings, Capabilities(), emptyMap(), null, null))
+        val settings = (0 until schema.length()).map(schema::getJSONObject).associateBy { it.getString("key") }
+        for ((key, expected) in listOf("auto_brightness_minimum_percent" to minimum, "auto_brightness_maximum_percent" to maximum)) {
+            assertEquals(expected.toString(), config.effectiveDefault(SettingsRegistry.spec(key)!!))
+            assertEquals(expected.toString(), settings.getValue(key).getString("default"))
+        }
+    }
+
+    @Test fun freshPortalStartupUsesTheDeclaredZoomInTypedRawAndConfigureReads() = withProfileRegistry(
+        BundledProfileFixtures.rawByName(),
+        DeviceFacts("portal", "omni", ""),
+    ) { registry ->
+        val prefs = fakePreferences(initial = mapOf("panel_id" to "profile_defaults_test", "friendly_name" to "Profile defaults test"))
+        val config = Config(prefs.instance)
+        val resolved = registry.resolveForStartup()
+        assertEquals("meta-portal-10-gen2", resolved.profile.id)
+        config.attachProfile(resolved.profile)
+        assertEquals(85, config.dashboardZoom)
+        assertEquals("85", config.getRaw(SettingsRegistry.spec("dashboard_zoom")!!))
+        val projection = profileProjection(config)
+        assertEquals(85, JSONObject(projection.settingsValuesJson()).getInt("dashboard_zoom"))
+        assertEquals("85", projection.currentValues()["dashboard_zoom"])
+        // Execute Configure schema projection with the shipped English catalogue as input data.
+        val strings = CatalogueLoader { path ->
+            File(BundledProfileFixtures.assetsDirectory.parentFile, path).readText()
+        }.strings("en")
+        val schema = JSONArray(projection.schemaJson(
+            strings, Capabilities(), emptyMap(), null, null,
+        ))
+        val zoom = (0 until schema.length()).map(schema::getJSONObject).single { it.getString("key") == "dashboard_zoom" }
+        assertEquals("85", zoom.getString("default"))
+        assertFalse(prefs.values.containsKey("dashboard_zoom"))
+    }
+
+    @Test fun profileStartupPreservesExplicitZoomIncludingTheOldProductDefault() = withProfileRegistry(
+        BundledProfileFixtures.rawByName(),
+        DeviceFacts("portal", "omni", ""),
+    ) { registry ->
+        val resolved = registry.resolveForStartup()
+        for (stored in listOf(96, 100)) {
+            val prefs = fakePreferences(initial = mapOf("dashboard_zoom" to stored))
+            repeat(3) {
+                val config = Config(prefs.instance)
+                config.attachProfile(resolved.profile)
+                assertEquals(stored, config.dashboardZoom)
+                assertEquals(stored.toString(), config.getRaw(SettingsRegistry.spec("dashboard_zoom")!!))
+            }
+            assertEquals(stored, prefs.values["dashboard_zoom"])
+        }
+    }
+
+    @Test fun changingProfilesChangesOnlyAbsentValuesAndNeverSeedsPreferences() {
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        val portal = BundledProfileFixtures.profile("meta-portal-10-gen2")
+        val generic = BundledProfileFixtures.profile("generic")
+        repeat(3) {
+            config.attachProfile(portal)
+            assertEquals(85, config.dashboardZoom)
+            config.attachProfile(generic)
+            assertEquals(100, config.dashboardZoom)
+            assertFalse(prefs.values.containsKey("dashboard_zoom"))
+        }
+        val editor = config.editor()
+        stageImport(config, editor, mapOf("dashboard_zoom" to "100"))
+        assertTrue(config.commit(editor))
+        for (profile in listOf(portal, generic, portal)) {
+            config.attachProfile(profile)
+            assertEquals(100, config.dashboardZoom)
+        }
+    }
+
+    @Test fun acceptedZoomImportsRemainExplicitAcrossProfileChangesAndRestart() {
+        for (imported in listOf("85", "96", "100")) {
+            val prefs = fakePreferences()
+            val config = Config(prefs.instance)
+            config.attachProfile(BundledProfileFixtures.profile("meta-portal-10-gen2"))
+            val editor = config.editor()
+            stageImport(config, editor, mapOf("dashboard_zoom" to imported))
+            assertTrue(config.commit(editor))
+            val restarted = Config(prefs.instance)
+            restarted.attachProfile(BundledProfileFixtures.profile("generic"))
+            assertEquals(imported.toInt(), restarted.dashboardZoom)
+            assertEquals(imported.toInt(), prefs.values["dashboard_zoom"])
+        }
+    }
+
+    @Test fun catalogueImportIsInertAndUnhealthyActivationRestoresThePriorDefaultWithoutChangingChoices() = withProfileRegistry(
+        mapOf("generic.yaml" to ProfileYaml.serialize(
+            testProfileDocument(id = "generic", fallback = true),
+        )),
+        DeviceFacts("test-panel", "test-device", "fw-1"),
+    ) { registry ->
+        val absent = Config(fakePreferences().instance)
+        val storedPrefs = fakePreferences(initial = mapOf("dashboard_zoom" to 100))
+        val explicit = Config(storedPrefs.instance)
+        val initial = registry.resolveForStartup()
+        absent.attachProfile(initial.profile)
+        explicit.attachProfile(initial.profile)
+        val raw = ProfileYaml.serialize(
+            testProfileDocument().copy(settingDefaults = mapOf("dashboard_zoom" to 85)),
+        )
+        val preview = registry.preview(raw)
+        assertTrue(preview.issues.toString(), preview.compatible)
+        assertTrue(registry.importProfile(raw, preview.previewToken!!) is ProfileMutation.Success)
+        assertEquals(100, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        assertTrue(registry.select(
+            ProfileSelection.Pinned(preview.summary!!.ref),
+            registry.status().catalogRevision,
+        ) is ProfileMutation.Success)
+        val unproven = registry.resolveForStartup()
+        absent.attachProfile(unproven.profile)
+        explicit.attachProfile(unproven.profile)
+        assertEquals(85, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        val recovered = registry.resolveForStartup()
+        assertEquals(ProfileActivationPhase.ROLLED_BACK, registry.status().activation.phase)
+        absent.attachProfile(recovered.profile)
+        explicit.attachProfile(recovered.profile)
+        assertEquals(100, absent.dashboardZoom)
+        assertEquals(100, explicit.dashboardZoom)
+        assertEquals(100, storedPrefs.values["dashboard_zoom"])
+    }
+
+    @Test fun admittedGenericDefaultsReachBooleanFloatAndEnumAccessors() = withProfileRegistry(
+        mapOf("generic.yaml" to ProfileYaml.serialize(
+            testProfileDocument(id = "generic", fallback = true).copy(
+                settingDefaults = mapOf(
+                    "dark_mode" to false, "room_temp_offset" to 1.25, "camera_resolution" to "1080p",
+                    "network_adb" to true, "zigbee_router" to true,
+                ),
+            ),
+        )),
+        DeviceFacts("unmatched", "unmatched", ""),
+    ) { registry ->
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        val profile = registry.resolveForStartup().profile
+        config.attachProfile(profile)
+        assertFalse(config.darkMode)
+        assertEquals(1.25f, config.roomTempOffsetC, 0f)
+        assertEquals("1080p", config.cameraResolution.wire)
+        assertTrue(config.networkAdbEnabled)
+        assertTrue(config.zigbeeRouterEnabled)
+        assertTrue(config.zigbeeRouterConfigured)
+        assertFalse(config.setSecurityMode(Config.SecurityMode.HARDENED))
+        assertEquals(Config.SecurityMode.RELAXED, config.securityMode)
+        for ((key, expected) in mapOf(
+            "dark_mode" to "false", "room_temp_offset" to "1.25", "camera_resolution" to "1080p",
+            "network_adb" to "true", "zigbee_router" to "true",
+        )) {
+            assertEquals(expected, config.getRaw(SettingsRegistry.spec(key)!!))
+            assertFalse(prefs.values.containsKey(key))
+        }
+        assertFalse(prefs.values.containsKey("network_adb_enabled"))
+        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
+        // Canonical live-setting commit readback is a persistence floor; the controller's alias
+        // remains its separate authority until that controller commits its own setting.
+        for (key in listOf("network_adb", "zigbee_router")) {
+            val spec = SettingsRegistry.spec(key)!!
+            assertTrue(config.commitRaw(spec, "false"))
+            assertEquals("false", config.getRaw(spec))
+            assertEquals(false, prefs.values[key])
+        }
+        assertTrue(config.networkAdbEnabled)
+        assertTrue(config.zigbeeRouterEnabled)
+        assertFalse(prefs.values.containsKey("network_adb_enabled"))
+        assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
+        val explicit = Config(fakePreferences(initial = mapOf(
+            "network_adb_enabled" to false, "zigbee_router_enabled" to false,
+        )).instance)
+        explicit.attachProfile(profile)
+        assertFalse(explicit.networkAdbEnabled)
+        assertFalse(explicit.zigbeeRouterEnabled)
+        assertFalse(explicit.zigbeeRouterConfigured)
+        assertEquals("false", explicit.getRaw(SettingsRegistry.spec("network_adb")!!))
+        assertEquals("false", explicit.getRaw(SettingsRegistry.spec("zigbee_router")!!))
+        val hardened = Config(fakePreferences(initial = mapOf("device_local_hardened_security" to true)).instance)
+        hardened.attachProfile(profile)
+        assertFalse(hardened.networkAdbEnabled)
+        assertEquals("false", hardened.getRaw(SettingsRegistry.spec("network_adb")!!))
+    }
+
+    private fun profileProjection(config: Config) = ConfigValueProjection(
+        config, { emptyMap() }, { emptyMap() }, { emptyMap() }, { emptySet() }, { "{}" }, { "{}" }, { null },
+    )
+
+    private fun withProfileRegistry(
+        bundled: Map<String, String>,
+        facts: DeviceFacts,
+        test: (RuntimeProfileRegistry) -> Unit,
+    ) {
+        val directory = Files.createTempDirectory("profile-setting-defaults").toFile()
+        val values = mutableMapOf<String, Any>()
+        val preferences = object : ProfilePreferences {
+            override fun getString(key: String, default: String) = values[key] as? String ?: default
+            override fun getLong(key: String, default: Long) = values[key] as? Long ?: default
+            override fun put(vararg entries: Pair<String, Any?>): Boolean {
+                entries.forEach { (key, value) -> if (value == null) values.remove(key) else values[key] = value }
+                return true
+            }
+        }
+        try {
+            test(RuntimeProfileRegistry(
+                filesDir = directory, preferences = preferences, bundledLoader = { bundled }, facts = facts,
+                coreVersion = "1.0.0", clock = { 1000L },
+                evdevInspector = EvdevDeviceInspector { null },
+            ))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test fun legacyKioskAllowanceIsIgnoredWithoutChangingLockOrOtherSettings() {
         for (schema in listOf(13, SettingsRegistry.SCHEMA)) {
             val prefs = fakePreferences(initial = mapOf(

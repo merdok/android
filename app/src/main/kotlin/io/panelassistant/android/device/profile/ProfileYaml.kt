@@ -168,7 +168,7 @@ internal object ProfileYaml {
 
     private val ROOT_KEYS = setOf(
         "schema", "id", "version", "display_name", "soc_class", "soc", "metadata", "requires", "match", "platform", "hardware",
-        "sensors", "identity", "input", "cpu", "display", "provisioning",
+        "sensors", "identity", "input", "cpu", "display", "provisioning", "setting_defaults",
     )
 
     private const val MAX_EVENTS = 20_000
@@ -254,6 +254,10 @@ private class SchemaReader(private val issues: MutableList<ProfileIssue>) {
             version = string(root, "version", "$", required = true).orEmpty(),
             displayName = string(root, "display_name", "$", required = true).orEmpty(),
             socClass = string(root, "soc_class", "$", required = true).orEmpty(),
+            settingDefaults = map(
+                root["setting_defaults"], "setting_defaults", emptySet(),
+                required = root.containsKey("setting_defaults"), allowAnyKeys = true,
+            ).orEmpty(),
             soc = soc?.let {
                 ProfileSoc(
                     model = string(it, "model", "soc", required = true).orEmpty(),
@@ -721,6 +725,7 @@ internal fun ProfileDocument.toYamlMap(): Map<String, Any?> = linkedMapOf(
     "version" to version,
     "display_name" to displayName,
     "soc_class" to socClass,
+    "setting_defaults" to settingDefaults.takeIf { it.isNotEmpty() },
     "soc" to soc?.let {
         linkedMapOf(
             "model" to it.model,

@@ -1,6 +1,7 @@
 package io.panelassistant.android.device.profile
 
 import io.panelassistant.android.device.BacklightRoute
+import io.panelassistant.android.config.Validation
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.device.EvdevButton
 import io.panelassistant.android.device.LedMechanism
@@ -25,6 +26,10 @@ class DataDeviceProfile internal constructor(
     override val id = document.id
     override val displayName = document.displayName
     override val socClass = document.socClass
+    override val settingDefaults = document.settingDefaults.mapValues { (key, value) ->
+        (ProfileValidator.settingDefault(key, value) as? Validation.Ok)?.normalized
+            ?: error("Invalid setting default '$key' in an unvalidated profile.")
+    }
     override val soc = document.soc
     override val profileLinks = buildList {
         document.metadata.source?.let { add(ProfileLink("Panel details", it)) }

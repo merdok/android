@@ -10,6 +10,95 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProfileYamlSecurityTest {
+    @Test fun `automatic brightness defaults reject equal and inverted ranges after YAML parsing`() {
+        for ((minimum, maximum) in listOf(90 to 10, 30 to 30)) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(
+                settingDefaults = mapOf(
+                    "auto_brightness_minimum_percent" to minimum,
+                    "auto_brightness_maximum_percent" to maximum,
+                ),
+            )))
+            assertTrue(parsed.issues.toString(), parsed.issues.isEmpty())
+            val issues = ProfileValidator.validate(requireNotNull(parsed.document), "1.0.0", bundled = false)
+            assertTrue("accepted $minimum..$maximum", issues.any {
+                it.severity == ProfileIssueSeverity.ERROR && it.path.startsWith("setting_defaults")
+            })
+        }
+    }
+
+    @Test fun `automatic brightness defaults admit ordered pairs and either partial bound`() {
+        for (defaults in listOf(
+            mapOf("auto_brightness_minimum_percent" to 30, "auto_brightness_maximum_percent" to 60),
+            mapOf("auto_brightness_minimum_percent" to 90),
+            mapOf("auto_brightness_maximum_percent" to 10),
+        )) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(settingDefaults = defaults)))
+            assertTrue(parsed.issues.toString(), parsed.issues.isEmpty())
+            val issues = ProfileValidator.validate(requireNotNull(parsed.document), "1.0.0", bundled = false)
+            assertTrue("rejected $defaults: $issues", issues.isEmpty())
+        }
+    }
+
+    @Test fun `generic typed setting defaults survive YAML round trip and registry admission`() {
+        val document = testProfileDocument().copy(settingDefaults = mapOf(
+            "dark_mode" to false,
+            "dashboard_zoom" to 85,
+            "room_temp_offset" to 1.25,
+            "camera_resolution" to "1080P",
+        ))
+        val parsed = ProfileYaml.parse(ProfileYaml.serialize(document))
+        assertTrue(parsed.issues.toString(), parsed.issues.isEmpty())
+        val restored = requireNotNull(parsed.document)
+        assertEquals(document, restored)
+        assertTrue(ProfileValidator.validate(restored, "1.0.0", bundled = false).isEmpty())
+        assertEquals(mapOf(
+            "dark_mode" to "false", "dashboard_zoom" to "85", "room_temp_offset" to "1.25", "camera_resolution" to "1080p",
+        ), DataDeviceProfile(restored, "1.0.0", ProfileYaml.sha256(ProfileYaml.serialize(restored)), false).settingDefaults)
+    }
+
+    @Test fun `profile setting defaults reject invalid types ranges nested values and unusable keys`() {
+        val invalid = listOf(
+            "dark_mode" to "false",
+            "dashboard_zoom" to "85",
+            "dashboard_zoom" to 85.5,
+            "dashboard_zoom" to true,
+            "dashboard_zoom" to 49,
+            "dashboard_zoom" to 301,
+            "room_temp_offset" to "1.25",
+            "room_temp_offset" to -20.1,
+            "room_temp_offset" to 20.1,
+            "room_temp_offset" to Double.NaN,
+            "room_temp_offset" to Double.POSITIVE_INFINITY,
+            "camera_resolution" to "unsupported",
+            "camera_resolution" to 720,
+            "dark_mode" to listOf(false),
+            "dashboard_zoom" to mapOf("value" to 85),
+            "dashboard_zoom" to null,
+            "unknown_future_setting" to 85,
+            "dashboard_overscroll" to false,
+            "illuminance" to 1,
+            "cpu_governor" to "Auto",
+            "dashboard_entity_learning_applied" to true,
+        )
+        for ((key, value) in invalid) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(settingDefaults = mapOf(key to value))))
+            val issues = parsed.issues + parsed.document?.let { ProfileValidator.validate(it, "1.0.0", bundled = false) }.orEmpty()
+            assertTrue("accepted $key=$value", issues.any {
+                it.severity == ProfileIssueSeverity.ERROR && (it.path == "setting_defaults" || it.path == "setting_defaults.$key")
+            })
+        }
+    }
+
+    @Test fun `profile setting defaults require a key value mapping`() {
+        for (section in listOf("[]", "85", "null", "true")) {
+            val raw = ProfileYaml.serialize(testProfileDocument()) + "\nsetting_defaults: $section\n"
+            val parsed = ProfileYaml.parse(raw)
+            assertTrue("accepted $section", parsed.issues.any {
+                it.severity == ProfileIssueSeverity.ERROR && it.path == "setting_defaults"
+            })
+        }
+    }
+
     @Test fun `controlled parser and validator outcomes carry additive stable presentation metadata`() {
         val wrongType = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument()).replace("schema: 2", "schema: wrong"))
         val parserIssue = requireNotNull(wrongType.issues.firstOrNull { it.message == "Expected a 32-bit integer." })

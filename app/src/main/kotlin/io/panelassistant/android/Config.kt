@@ -17,10 +17,6 @@ import io.panelassistant.android.config.SettingType
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
-import io.panelassistant.android.config.defaultBool
-import io.panelassistant.android.config.defaultFloat
-import io.panelassistant.android.config.defaultInt
-import io.panelassistant.android.config.defaultLong
 import io.panelassistant.android.config.navbarModeDefault
 import io.panelassistant.android.config.isLiteralNullAreaName
 import io.panelassistant.android.config.normalizedHaAreaName
@@ -66,8 +62,11 @@ internal data class HaAuthSnapshot(
  * land on one without. Coercing such a value to the derived default rather than to `Off` is
  * deliberate — on a panel with no system bar that yields working navigation instead of none.
  */
-internal fun resolveNavbarMode(stored: String?, caps: Capabilities): String {
-    val default = requireNotNull(SettingsRegistry.spec("navbar_mode")).defaultFor(caps)
+internal fun resolveNavbarMode(
+    stored: String?,
+    caps: Capabilities,
+    default: String = requireNotNull(SettingsRegistry.spec("navbar_mode")).defaultFor(caps),
+): String {
     if (stored == null) return default
     if (!navbarModePermitted(stored, caps.hasNativeNavbar)) return default
     return stored
@@ -230,7 +229,7 @@ class Config private constructor(
      * commit share [CONFIG_LOCK] with network-ADB ownership so concurrent local/network requests
      * cannot cross and leave both durable authorities enabled. */
     fun setSecurityMode(mode: SecurityMode): Boolean = synchronized(CONFIG_LOCK) {
-        if (mode == SecurityMode.HARDENED && prefs.getBoolean("network_adb_enabled", false)) return@synchronized false
+        if (mode == SecurityMode.HARDENED && networkAdbEnabled) return@synchronized false
         durableCommit { putBoolean(SECURITY_MODE_PREF, mode == SecurityMode.HARDENED) }
     }
 
@@ -411,7 +410,7 @@ class Config private constructor(
      *  service starts mDNS or the Panel Assistant session, so a later Android device-name change cannot
      *  silently rename the panel. The fallback remains for callers that run before service startup. */
     val panelId: String
-        get() = prefs.getString("panel_id", null) ?: defaultPanelId()
+        get() = prefs.getString("panel_id", profile?.settingDefaults?.get("panel_id")) ?: defaultPanelId()
 
     /** Materialize the valid generated identity once. Explicit identities always win, and a failed
      *  durable write leaves the same generated fallback available without claiming it is missing. */
@@ -649,7 +648,7 @@ class Config private constructor(
      * rather than the exact registration id.)
      */
     val friendlyName: String
-        get() = prefs.getString("friendly_name", null)?.takeIf { it.isNotBlank() } ?: deviceName()
+        get() = stringPref("friendly_name").takeIf { it.isNotBlank() } ?: deviceName()
     /**
      * Settings.Secure.ANDROID_ID, reported as the Home Assistant device `serial_number`.
      *
@@ -1013,7 +1012,8 @@ class Config private constructor(
         prefs.contains("auto_sleep_source") || durableCommit { putString("auto_sleep_source", absentAutoSleepSource) }
     }
     val autoSleepSource: String get() = prefs.getString("auto_sleep_source", null)
-        ?.takeIf { it == "panel" || it == "home_assistant" || it == "touch" } ?: absentAutoSleepSource
+        ?.takeIf { it == "panel" || it == "home_assistant" || it == "touch" }
+        ?: effectiveDefault(specOf("auto_sleep_source"))
     val autoSleepTouchDelaySeconds: Int get() = intPref("auto_sleep_touch_delay_seconds").coerceIn(5, 86_400)
     internal val autoSleepGeneration: Long get() = synchronized(CONFIG_LOCK) {
         prefs.getLong(AUTO_SLEEP_GENERATION_PREF, 0L)
@@ -1264,7 +1264,8 @@ class Config private constructor(
     // Network-adb persist INTENT (the switch). ha-paneld re-asserts adb-tcp at boot/reconnect when this
     // is true (some firmwares strip persist.adb.tcp.port at boot), and only tears adb down on OFF if it
     // was ha-paneld that turned it on — never disabling adb another mechanism started.
-    val networkAdbEnabled: Boolean get() = prefs.getBoolean("network_adb_enabled", false)
+    val networkAdbEnabled: Boolean
+        get() = prefs.getBoolean("network_adb_enabled", effectiveDefault(specOf("network_adb")).toBoolean())
     fun setNetworkAdbEnabled(on: Boolean): Boolean = synchronized(CONFIG_LOCK) {
         if (on && prefs.getBoolean(SECURITY_MODE_PREF, false)) return@synchronized false
         durableCommit { putBoolean("network_adb_enabled", on) }
@@ -1381,7 +1382,7 @@ class Config private constructor(
      *  Assistant does, which is what [darkMode] supplies a default for) or an explicit Dark/Light this
      *  panel imposes. A stored value this build no longer declares resolves to the default rather than
      *  leaving the renderer with a policy it cannot act on. */
-    val dashboardTheme: String get() = DashboardTheme.policy(prefs.getString("dashboard_theme", null))
+    val dashboardTheme: String get() = DashboardTheme.policy(stringPref("dashboard_theme"))
 
     /** The policy the renderer and every themed screen act on: [dashboardTheme] with Ambient resolved
      *  to the room's verdict, and to Follow while auto-brightness (the model that produces it) is off.
@@ -1930,7 +1931,10 @@ class Config private constructor(
     // authority and is only selectable where a declaration or firmware probe confirms one. Persisted so the mode is
     // restored on boot; a stored value that this panel may no longer use falls back to the default.
     val navbarMode: String
-        get() = resolveNavbarMode(prefs.getString("navbar_mode", null), navbarCapabilities())
+        get() {
+            val caps = navbarCapabilities()
+            return resolveNavbarMode(prefs.getString("navbar_mode", null), caps, effectiveDefault(specOf("navbar_mode"), caps))
+        }
 
     /**
      * The capability inputs [navbarModeDefault] reads, built here from the resolved profile plus the
@@ -2025,8 +2029,7 @@ class Config private constructor(
     val logShipProtocol: String
         get() = LogShipEndpoint.protocol(
             prefs.getString("log_ship_protocol", null)
-                ?: logShipAbsentProtocolFallback
-                ?: specOf("log_ship_protocol").default,
+                ?: effectiveDefault(specOf("log_ship_protocol")),
         )
     /** True only when shipping is enabled AND a sink host is configured. */
     val logShipActive: Boolean get() = logShipEnabled && logShipHost.isNotBlank()
@@ -2043,11 +2046,13 @@ class Config private constructor(
     }
     // Desired Zigbee-router state, persisted so the gateway can be auto-started on boot when nothing
     // else launches it (the NSPanel Pro gateway is not init-started — verified 2026-06-08). Default off.
-    val zigbeeRouterEnabled: Boolean get() = prefs.getBoolean("zigbee_router_enabled", false)
-    // True once the user has EXPLICITLY toggled the zigbee switch. Gates boot-reconcile: we only enforce
-    // an off-state (killing a vendor-started gateway) when the user actually asked for off — never by our
-    // default — so panels relying on stock vendor Zigbee are left untouched until configured.
-    val zigbeeRouterConfigured: Boolean get() = prefs.getBoolean("zigbee_router_configured", false)
+    val zigbeeRouterEnabled: Boolean
+        get() = prefs.getBoolean("zigbee_router_enabled", effectiveDefault(specOf("zigbee_router")).toBoolean())
+    // Reconcile an explicit user choice or a profile's default ON. A default OFF never claims an
+    // untouched vendor gateway, so only a stored user choice may stop it at startup.
+    val zigbeeRouterConfigured: Boolean
+        get() = prefs.getBoolean("zigbee_router_configured", false) ||
+            (!prefs.contains("zigbee_router_enabled") && profile?.settingDefaults?.get("zigbee_router") == "true")
     fun setZigbeeRouterEnabled(on: Boolean) {
         edit { putBoolean("zigbee_router_enabled", on); putBoolean("zigbee_router_configured", true) }
     }
@@ -2271,32 +2276,71 @@ class Config private constructor(
     // import all go through one typed path instead of ~35 bespoke getters. Typed convenience getters
     // above remain for callers; they read the same durable keys.
 
-    // The [SettingsRegistry] SettingSpec is the SOLE authority for every registry-backed key's default:
+    // The [SettingsRegistry] SettingSpec owns the vocabulary for every registry-backed key's default:
     // the typed convenience accessors above read their default through these helpers rather than each
     // re-declaring a literal that must be kept coherent with the spec by hand. A key with no spec is a
     // programming error (surfaces at test time), never a silent fallback to some other literal.
     private fun specOf(key: String): SettingSpec =
         SettingsRegistry.spec(key) ?: error("no SettingSpec registered for '$key'")
 
-    private fun boolPref(key: String): Boolean = prefs.getBoolean(key, specOf(key).defaultBool())
-    private fun intPref(key: String): Int = prefs.getInt(key, specOf(key).defaultInt())
-    private fun longPref(key: String): Long = prefs.getLong(key, specOf(key).defaultLong())
+    /** Default for the active profile; reads never materialize it as a user preference. */
+    fun effectiveDefault(spec: SettingSpec, caps: Capabilities? = null): String {
+        val declared = profile?.settingDefaults?.get(spec.key)
+        return when (spec.key) {
+            "navbar_mode" -> resolveNavbarMode(declared, caps ?: navbarCapabilities())
+            "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
+            "auto_sleep_source" -> declared ?: absentAutoSleepSource
+            "network_adb" -> if (hardenedSecurityEnabled) "false" else declared ?: spec.default
+            "auto_brightness_minimum_percent", "auto_brightness_maximum_percent" ->
+                profileBrightnessDefault(spec, declared)
+            else -> declared ?: spec.default
+        }
+    }
+
+    /** A stored opposing bound wins over a conflicting profile range; absent keys stay unpersisted. */
+    private fun profileBrightnessDefault(spec: SettingSpec, declared: String?): String {
+        if (declared == null) return spec.default
+        val minimum = specOf("auto_brightness_minimum_percent")
+        val maximum = specOf("auto_brightness_maximum_percent")
+        val bounds = listOf(minimum, maximum).associate { bound ->
+            bound.key to prefs.getInt(
+                bound.key, profile?.settingDefaults?.get(bound.key)?.toInt() ?: bound.default.toInt(),
+            ).toString()
+        }
+        return if (SettingsRegistry.automaticBrightnessBoundsError(
+                bounds, minimum.default.toInt(), maximum.default.toInt(),
+            ) == null) declared else spec.default
+    }
+
+    private fun boolPref(key: String): Boolean = prefs.getBoolean(key, effectiveDefault(specOf(key)).toBoolean())
+    private fun intPref(key: String): Int = prefs.getInt(key, effectiveDefault(specOf(key)).toIntOrNull() ?: 0)
+    private fun longPref(key: String): Long = prefs.getLong(key, effectiveDefault(specOf(key)).toLongOrNull() ?: 0L)
     private fun floatPref(key: String): Float {
         val spec = specOf(key)
-        val default = spec.defaultFloat()
+        val default = effectiveDefault(spec).toFloatOrNull() ?: 0f
         val persisted = prefs.getFloat(key, default)
         val normalized = (SettingValue.validate(spec, persisted.toString()) as? Validation.Ok)?.normalized
             ?: (SettingValue.validate(spec, default.toString()) as? Validation.Ok)?.normalized
             ?: default.toString()
         return normalized.toFloatOrNull() ?: default
     }
-    private fun stringPref(key: String): String = prefs.getString(key, specOf(key).default) ?: specOf(key).default
+    private fun stringPref(key: String): String {
+        val default = effectiveDefault(specOf(key))
+        return prefs.getString(key, default) ?: default
+    }
 
-    /** Current raw string value for a registry key (the spec default if unset). */
+    /** Current raw string value for a registry key (the active profile's default if unset). */
     fun getRaw(spec: SettingSpec): String = when (spec.type) {
-        SettingType.BOOL -> prefs.getBoolean(spec.key, spec.defaultBool()).toString()
-        SettingType.INT -> prefs.getInt(spec.key, spec.defaultInt()).toString()
-        SettingType.LONG -> prefs.getLong(spec.key, spec.defaultLong()).toString()
+        // The generic staged writer persists the registry key before controller dispatch. Keep that
+        // committed value readable; production live projections still override it with controller
+        // authority. Without a canonical value, aliases read their existing controller storage keys.
+        SettingType.BOOL -> if (prefs.contains(spec.key)) boolPref(spec.key).toString() else when (spec.key) {
+            "network_adb" -> networkAdbEnabled
+            "zigbee_router" -> zigbeeRouterEnabled
+            else -> boolPref(spec.key)
+        }.toString()
+        SettingType.INT -> intPref(spec.key).toString()
+        SettingType.LONG -> longPref(spec.key).toString()
         SettingType.FLOAT -> {
             // Legacy stores and restored databases can bypass current write admission. [floatPref]
             // gives both typed runtime accessors and this raw projection the same validated effective
@@ -2313,7 +2357,7 @@ class Config private constructor(
             // Same reason: an alias spelling ("follow") or a value from a build that declared a
             // different option set must present as one of THIS build's declared options.
             "dashboard_theme" -> dashboardTheme
-            else -> prefs.getString(spec.key, spec.default) ?: spec.default
+            else -> stringPref(spec.key)
         }
     }
 
