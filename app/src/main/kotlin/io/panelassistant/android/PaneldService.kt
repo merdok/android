@@ -1112,8 +1112,11 @@ class PaneldService : Service() {
             onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
             onConnection = { session, accepted ->
                 val route = session.route
-                route != null && HaConnectionRoutes.isCurrent(config, route) &&
+                val learned = route != null && HaConnectionRoutes.isCurrent(config, route) &&
                     (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
+                // The device link is keyed on the learned entry, so a first or changed entry resolves it now.
+                if (learned) runtime.observe()?.value?.core?.maybeResolveHaLink()
+                learned
             },
             checkPreferred = {
                 val route = HaConnectionRoutes.preferredCandidate(config)
