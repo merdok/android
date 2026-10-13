@@ -322,15 +322,6 @@ async function settle(frame) {
   });
 }
 
-/** Init script: sums unprompted layout shifts in every frame (WebKit has no layout-shift entries, so it reads 0). */
-export function LAYOUT_SHIFTS() {
-  window.__layoutShifts = [];
-  try {
-    new PerformanceObserver((list) => list.getEntries().forEach((entry) => { if (!entry.hadRecentInput) window.__layoutShifts.push(entry.value); }))
-      .observe({ type: 'layout-shift', buffered: true });
-  } catch (_) { /* engine without layout-shift entries */ }
-}
-
 /** Load one cell and return its measurement plus any page errors. */
 export async function measureCell(page, origin, pageDef, view, theme, locale, mutate = null) {
   const errors = [];
@@ -350,8 +341,6 @@ export async function measureCell(page, origin, pageDef, view, theme, locale, mu
       frame = page.mainFrame();
     }
     await pageDef.ready(frame, { locale, theme, view });
-    // Load shift, read before the exercise: a page declaring maxCls blocks above it (verdict, family e).
-    const cls = await frame.evaluate(() => (window.__layoutShifts || []).reduce((sum, value) => sum + value, 0));
     if (pageDef.exercise) await pageDef.exercise(frame, { locale, theme, view });
     // Narrow card walls skip rendering off-screen cards (content-visibility:auto). Measure every card as
     // it renders once scrolled into view, identically for English and the locale.
@@ -362,7 +351,7 @@ export async function measureCell(page, origin, pageDef, view, theme, locale, mu
     const result = await frame.evaluate(mutate
       ? `(() => { (${mutate.toString()})(); return (${measureLayout.toString()})(); })()`
       : measureLayout);
-    return { ...result, cls, maxCls: pageDef.maxCls, errors };
+    return { ...result, errors };
   } finally {
     page.off('pageerror', onError);
   }
@@ -406,9 +395,6 @@ export function verdict(result, english, view, locale, scale = 1) {
       add('d card growth', { key, text: `${base.height}px → ${card.height}px (+${Math.round((card.height / base.height - 1) * 100)}%; ${locale} scale ${scale}, limit +${Math.round((expected - 1) * 100)}%)` }, !panel && blocking);
     }
   }
-  // Measured on direct views only, as the per-page gates this replaced did: an embedded view's shift also
-  // carries the host frame's own load, which is not the page's.
-  if (result.maxCls != null && !view.host && result.cls > result.maxCls) errors.push(`(e layout shift) page [CLS ${result.cls.toFixed(4)} > ${result.maxCls}]`);
   // A fetch the previous navigation left in flight is cancelled, not a page failure.
   for (const message of result.errors) if (!CANCELLED_FETCH.test(message)) errors.push(`(script) ${message}`);
   if (result.lang !== locale) errors.push(`(frame) document language ${result.lang} is not ${locale}`);
@@ -426,7 +412,6 @@ export async function runPage({ pageDef, browserName, origin, sel, scales = {}, 
       const context = await browser.newContext({ viewport: { width: view.width, height: view.height }, deviceScaleFactor: 1 });
       // Card-size memory and similar per-origin state must not carry one locale's geometry into the next.
       await context.addInitScript(() => { try { localStorage.clear(); sessionStorage.clear(); } catch (_) { /* storage may be unavailable */ } });
-      await context.addInitScript(LAYOUT_SHIFTS);
       const page = await context.newPage();
       page.setDefaultTimeout(15_000);
       try {

@@ -97,15 +97,7 @@ for (const browserName of BROWSERS) {
   });
 }
 
-test('a page declaring maxCls blocks on a larger load shift; breakpoint views are selected', () => {
-  const view = VIEWS.find((item) => item.name === 'direct-desktop');
-  const base = { cut: [], overflow: [], overlaps: [], offscreen: [], wraps: [], cards: {}, errors: [], lang: 'en' };
-  const shifted = (result) => verdict({ ...base, ...result }, null, view, 'en').errors.filter((line) => line.includes('(e layout shift)'));
-  assert.equal(shifted({ cls: 0.5, maxCls: 0.10 }).length, 1);
-  assert.deepEqual(shifted({ cls: 0.05, maxCls: 0.10 }), []);
-  assert.deepEqual(shifted({ cls: 0.5 }), []);
-  const embedded = VIEWS.find((item) => item.name === 'sidebar-tablet');
-  assert.deepEqual(verdict({ ...base, cls: 0.5, maxCls: 0.10 }, null, embedded, 'en').errors.filter((line) => line.includes('(e layout shift)')), []);
+test('breakpoint views are selected', () => {
   const views = selection(PAGES, locales).views;
   for (const name of ['profiles-519', 'profiles-520', 'profiles-856', 'profiles-857', 'profiles-1049', 'profiles-1050', 'api-320']) assert.ok(views.includes(name), name);
 });

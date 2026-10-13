@@ -5159,8 +5159,12 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     assert.equal(new URL((await preview).url()).searchParams.get('minimum_percent'), '12');
     for (const width of [320, 768, 1200]) {
       await page.setViewportSize({ width, height: 600 });
-      await page.locator('#cfg-auto_brightness_maximum_percent').scrollIntoViewIfNeeded();
-      const bounds = await page.locator('#cfg-auto_brightness_maximum_percent').evaluate((row) => ({ width: row.clientWidth, scrollWidth: row.scrollWidth }));
+      const bounds = await (await page.waitForFunction(() => {
+        const row = document.querySelector('#cfg-auto_brightness_maximum_percent');
+        if (!row) return false;
+        row.scrollIntoView({ block: 'nearest' });
+        return row.clientWidth > 0 ? { width: row.clientWidth, scrollWidth: row.scrollWidth } : false;
+      })).jsonValue();
       assert.ok(bounds.width > 0 && bounds.scrollWidth <= bounds.width + 1, `${engine} row overflows at ${width}: ${JSON.stringify(bounds)}`);
     }
     await maximum.fill('12'); await page.locator('#savebtn').focus(); await page.locator('#savebtn').press('Enter');

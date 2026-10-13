@@ -48,6 +48,9 @@ the check that a translation has not broken a page.
   page overflow, overlap, an off-screen control, a wrapping title, unexplained card growth) in both
   browsers, that panel sizes only report (b) and (d), and that a stale known issue fails.
 
+The language gate checks functional geometry. The CLS matrix below measures layout stability separately
+and stays report-only; a single page-load CLS reading does not decide this gate.
+
 ### Run it
 
 ```bash

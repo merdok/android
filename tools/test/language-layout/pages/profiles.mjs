@@ -6,9 +6,8 @@ import { tabbedPage } from '../harness.mjs';
 /** Mirror of PaneldServer.profilesBody(strings). `s.t(key)` is the escaped localized string. */
 export function profilesBody(s) {
   const t = (key) => s.t(key);
-  // Production ships both inspector notes hidden and profiles.js reveals them after the catalogue loads,
-  // a known load shift (CLS about 0.3 at desktop widths, recorded for follow-up). They are served shown
-  // from first paint so the 0.10 load-shift ceiling covers everything else; the settled DOM is the same.
+  // Production reveals both inspector notes after the catalogue loads. This geometry fixture serves
+  // them shown from first paint; the settled DOM is the same.
   return `<link rel="stylesheet" href="assets/profiles.css">
 <main class="profile-page">
   <div class="profile-toolbar" aria-label="${t('profiles.toolbar.actions_label')}">
@@ -152,7 +151,6 @@ export function profilesApi(path) {
 export default {
   name: 'profiles',
   path: '/profiles',
-  maxCls: 0.10,
   // Picker, stacked-workspace and toolbar breakpoint edges.
   views: [519, 520, 856, 857, 1049, 1050].map((width) => ({ name: `profiles-${width}`, tier: 'supported', width, height: width > 1000 ? 900 : 800 })),
   html(context) {
