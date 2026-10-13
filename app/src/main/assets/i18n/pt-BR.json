@@ -12237,6 +12237,16 @@
       "text": "As configurações foram alteradas fora desta página",
       "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
       "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.detail": {
+      "text": "{configured} não existe neste Home Assistant, então o painel mostra {shown}.",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "Dashboard não encontrado",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+      "state": "machine-cross-checked"
     }
   }
 }

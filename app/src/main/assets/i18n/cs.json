@@ -12237,6 +12237,16 @@
       "text": "Trvá to déle než obvykle",
       "sourceHash": "1a5787cd1c50370a5f25674b47d5ccbedd5182efd90dd526dae38c7f732463df",
       "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.detail": {
+      "text": "{configured} v tomto Home Assistant není, panel proto zobrazuje {shown}.",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "Ovládací panel nenalezen",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+      "state": "machine-cross-checked"
     }
   }
 }

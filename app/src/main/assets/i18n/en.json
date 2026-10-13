@@ -36161,6 +36161,41 @@
       "softMaxChars": 12,
       "hardMaxChars": 24
     },
+    "shell.dashboard_substitute.detail": {
+      "text": "{configured} is not on this Home Assistant, so the panel shows {shown}.",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "surface": "shell",
+      "context": "Second line of a small notice at the bottom of the panel's dashboard, shown while the panel's configured home dashboard does not exist on the Home Assistant it is signed in to and the panel shows that Home Assistant's default dashboard instead. {configured} is the configured dashboard path (for example /wall-panel), {shown} the path being shown instead (for example /lovelace).",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.dashboard_substitute.title"
+      ],
+      "placeholders": [
+        "{configured}",
+        "{shown}"
+      ],
+      "frozen": [
+        "{configured}",
+        "{shown}",
+        "Home Assistant"
+      ],
+      "softMaxChars": 80,
+      "hardMaxChars": 120
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "Dashboard not found",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+      "surface": "shell",
+      "context": "Title of a small notice at the bottom of the panel's dashboard, shown while the panel's configured home dashboard does not exist on the Home Assistant it is signed in to; it stays until that dashboard exists or another is chosen.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.dashboard_substitute.detail"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 24,
+      "hardMaxChars": 32
+    },
     "shell.github.title": {
       "text": "Panel Assistant on GitHub",
       "sourceHash": "f5a3f0d6d16ca9fe0f1f8cca2494622b9d1b32b33d516463370460f68e71e18c",

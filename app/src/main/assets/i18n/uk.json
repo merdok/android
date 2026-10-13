@@ -12237,6 +12237,16 @@
    "text": "Спробувати ще раз",
    "sourceHash": "d8b8392e2c542950ca64867168e4ef87d4ad606882d5898f826b51c6d553988f",
    "state": "machine-cross-checked"
+  },
+  "shell.dashboard_substitute.detail": {
+   "text": "{configured} немає в цьому Home Assistant, тому панель показує {shown}.",
+   "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+   "state": "machine-cross-checked"
+  },
+  "shell.dashboard_substitute.title": {
+   "text": "Інформаційну панель не знайдено",
+   "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+   "state": "machine-cross-checked"
   }
  }
 }

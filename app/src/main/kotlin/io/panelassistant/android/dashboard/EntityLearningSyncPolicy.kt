@@ -70,9 +70,16 @@ internal data class EntityLearningEffectState(
  * Under Auto the scope is a standing binding until a resolution answers; comparing by DASHBOARD rather
  * than by route is what lets a view of the same dashboard keep its learned list while a genuinely
  * different dashboard gives it up.
+ *
+ * Only Auto rebinds. An explicit setting always scopes to the configured dashboard, so when this Home
+ * Assistant does not offer it and the resolver stands another in, a rebind could never take: the next
+ * pass scoped to the configured path again, disagreed again, and relaunched with no backoff, about
+ * twice a second, while the renderer stayed held (a panel moved to another Home Assistant). The
+ * stand-in is scanned under the configured scope instead, and the panel says it is showing it.
  */
-internal fun resolvedScopeRequiresRebind(currentScope: String, resolved: String): Boolean =
-    dashboardEntityScopePath(currentScope) != dashboardEntityScopePath(resolved)
+internal fun resolvedScopeRequiresRebind(configuredHomeDashboard: String, currentScope: String, resolved: String): Boolean =
+    io.panelassistant.android.util.DashboardPath.followsAccountDefault(configuredHomeDashboard) &&
+        dashboardEntityScopePath(currentScope) != dashboardEntityScopePath(resolved)
 
 internal data class EntityLearningSyncSnapshot(
     val generation: Long,
