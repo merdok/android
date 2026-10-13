@@ -2,7 +2,7 @@ package io.panelassistant.android.state
 
 import io.panelassistant.android.control.UsbDebuggingObserver
 import io.panelassistant.android.panelassistant.PanelAssistantReportResult
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.testsupport.PanelRuntimeRig
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -15,7 +15,7 @@ internal class NativeUsbDebuggingTest : PanelRuntimeRig() {
     @Test fun unreadableUsbDebuggingRemainsAnOfferedDiagnosticOnRootlessPanels() {
         val rig = rig()
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
             val descriptor = native.offer().descriptors.single { it.channel == "diag_usb_debugging" }
@@ -38,7 +38,7 @@ internal class NativeUsbDebuggingTest : PanelRuntimeRig() {
     @Test fun nativeReportsReplaceEnabledUsbDebuggingWithUnavailableThenDisabled() {
         var setting: String? = "1"
         val observer = UsbDebuggingObserver(sdkInt = { 29 }, readSetting = { setting })
-        val native = PanelAssistantShadowReporter(log = {})
+        val native = PanelAssistantStateReporter(log = {})
         val converger = StateConverger()
         converger.register(StateConverger.Channel("diag_usb_debugging", observer::observation))
         converger.addSink(native.bind { converger.keys() })
