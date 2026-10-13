@@ -135,7 +135,7 @@ browserTest('Version picker explains unavailable releases and keeps permitted ch
   ];
   const { page } = await rig(t, {
     noHelper: true,
-    html: '<div class="comprow" data-name="paneld"><span class="cver">1.0</span><select class="cchan"><option>stable</option></select><div class="cvsel choice-list"></div><a class="cnotes"></a><button class="cinstall" data-root="1"></button><a class="cdl">Download</a></div>',
+    html: '<div class="comprow" data-name="paneld"><span class="cver">1.0</span><select class="cchan"><option>stable</option></select><div class="cvsel choice-list"></div><a class="cnotes">Notes</a><button class="cinstall" data-root="1"></button><a class="cdl">Download</a></div>',
     route(request, response, url) {
       if (url.pathname !== '/api/v1/install/versions') return false;
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ versions })); return true;
@@ -574,7 +574,7 @@ browserTest('Restore preview shows escaped server warnings before confirmation',
 for (const engine of ['Chromium', 'WebKit']) browserTest(`Release radio labels wrap and submit the chosen tag in ${engine}`, async t => {
   let posted;
   const { page } = await rig(t, { engine, noHelper: true,
-    html: '<div class="comprow" data-name="paneld"><div class="cvsel choice-list" onchange="verChanged(\'paneld\')"></div><a class="cnotes"></a><button class="cinstall" data-root="1" onclick="installSel(\'paneld\',this)"></button><p id="comp-msg"></p></div>',
+    html: '<div class="comprow" data-name="paneld"><div class="cvsel choice-list" onchange="verChanged(\'paneld\')"></div><a class="cnotes">Notes</a><button class="cinstall" data-root="1" onclick="installSel(\'paneld\',this)"></button><p id="comp-msg"></p></div>',
     route(request, response, url) {
       if (url.pathname === '/api/v1/install/versions') {
         response.writeHead(200, { 'content-type': 'application/json' });
