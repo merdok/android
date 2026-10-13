@@ -326,8 +326,10 @@
     socket.onopen = function () {
       self.ready = true;
       self.attempt = 0;
+      // Only requests still waiting for their answer are queued: a request that timed out or failed with
+      // a closed socket left the queue when it was rejected, so a failed write never runs later.
       var queue = self.queue; self.queue = [];
-      queue.forEach(function (text) { socket.send(text); });
+      queue.forEach(function (entry) { socket.send(entry.text); });
       // Re-subscribe after a reconnect: the panel forgot the old subscriptions with the old socket.
       self.live.forEach(function (sub) { if (!sub.id && !sub.opening) self.open(sub); });
     };
@@ -362,6 +364,7 @@
       self.ready = false;
       self.subs = {};
       var pending = self.pending; self.pending = {};
+      self.queue = []; // every queued request belongs to a waiter rejected below; subscriptions reopen on reconnect
       Object.keys(pending).forEach(function (id) {
         if (pending[id].timer) clearTimeout(pending[id].timer);
         pending[id].reject(new Error("panel socket closed"));
@@ -380,7 +383,7 @@
   SocketTransport.prototype.send = function (message) {
     var text = JSON.stringify(message);
     this.connect();
-    if (this.ready) this.socket.send(text); else this.queue.push(text);
+    if (this.ready) this.socket.send(text); else this.queue.push({ id: message.command_id, text: text });
   };
   SocketTransport.prototype.exchange = function (message, deadline) {
     var self = this;
@@ -390,6 +393,7 @@
       // No answer well past the deadline: the request never reached a panel that could answer.
       waiter.timer = setTimeout(function () {
         delete self.pending[message.command_id];
+        self.queue = self.queue.filter(function (entry) { return entry.id !== message.command_id; });
         reject(new Error("no answer from the panel"));
       }, deadline + 5000);
       self.send(message);
