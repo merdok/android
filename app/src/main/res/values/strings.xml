@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name" translatable="false">Panel Assistant</string>
     <string name="wordmark_description" translatable="false">Panel Assistant</string>
-    <string name="a11y_description">Reports panel hardware-button presses to Home Assistant and lets the panel control UI inject taps and take screenshots. Reads the screen only to choose Panel Assistant when Android asks which app to use as Home.</string>
+    <string name="a11y_description">Reports panel hardware-button presses to Home Assistant and lets the panel control UI inject taps and take screenshots. Reads other apps\' window content only to choose Panel Assistant when Android asks which app to use as Home.</string>
     <string name="config_service_starting">Starting the configuration service…</string>
     <string name="config_service_not_ready">The configuration service is not ready yet.</string>
     <string name="retry">Retry</string>
