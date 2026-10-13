@@ -5160,7 +5160,6 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     for (const width of [320, 768, 1200]) {
       await page.setViewportSize({ width, height: 600 });
       await page.locator('#cfg-auto_brightness_maximum_percent').scrollIntoViewIfNeeded();
-      await page.locator('#cfg-auto_brightness_maximum_percent').waitFor({ state: 'visible' });
       const bounds = await page.locator('#cfg-auto_brightness_maximum_percent').evaluate((row) => ({ width: row.clientWidth, scrollWidth: row.scrollWidth }));
       assert.ok(bounds.width > 0 && bounds.scrollWidth <= bounds.width + 1, `${engine} row overflows at ${width}: ${JSON.stringify(bounds)}`);
     }
