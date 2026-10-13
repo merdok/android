@@ -124,6 +124,11 @@ class StreamlineTemplateScanTest {
         assertTrue(scan("""{"type":"custom:streamline-card","template":"loop_template"}""").entityIds.isEmpty())
     }
 
+    @Test fun aSelfReferencingTemplateIsExpandedOnceNotUntilTheDepthBound() {
+        val root = org.json.JSONObject("""{"views":[{"cards":[{"type":"custom:streamline-card","template":"loop_template"}]}]}""")
+        assertEquals(1, StreamlineTemplates.expandedCards(root, StreamlineTemplates.parse(remoteYaml)).length())
+    }
+
     @Test fun expansionAddsDependenciesButNotTemplateDiagnostics() {
         val card = """{"type":"custom:streamline-card","template":"room_thermostat_template_v3","variables":{"room":"office"}}"""
         val without = scan(card, remote = null)
