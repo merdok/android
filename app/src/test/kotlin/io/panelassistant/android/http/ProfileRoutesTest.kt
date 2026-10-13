@@ -465,6 +465,28 @@ class ProfileRoutesTest {
         assertEquals(1, probes)
     }
 
+    @Test
+    fun theSocketCarriesTheYamlBodyAndPreviewTokenThePageSendsAsArguments() = testApplication {
+        val admin = FakeProfileAdmin()
+        val table = io.panelassistant.android.ManageTable()
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                serveOperations(table)
+                route("/api/v1") { profileRoutes(ProfileRouteDependencies(admin)) }
+                socketDoorOnto(table)
+            }
+        }
+        val yaml = "schema: 2\nid: imported.test\n"
+
+        val refused = socketRequest("profiles.import", JSONObject().put("body", yaml))
+        val imported = socketRequest("profiles.import", JSONObject().put("body", yaml).put("preview_token", "preview-token"))
+
+        assertEquals("refused", refused.getString("outcome"))
+        assertEquals(imported.toString(), "applied", imported.getString("outcome"))
+        assertEquals("profile-imported", imported.getJSONObject("result").getString("presentation_code"))
+        assertEquals(yaml, admin.importedYaml)
+    }
+
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.postJson(path: String, body: String) =
         client.post(path) { contentType(ContentType.Application.Json); setBody(body) }
 

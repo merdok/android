@@ -14,6 +14,25 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ProximityRoutesTest {
+    @Test fun `the socket's own page may run proximity calibration`() = testApplication {
+        val table = io.panelassistant.android.ManageTable()
+        var received = ""
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                serveOperations(table)
+                route("/api/v1") {
+                    proximityRoutes(hasProximity = { true }, proximityJson = { "{\"present\":true}" }, calibrate = { action, id -> received = "$action/$id"; true })
+                }
+                socketDoorOnto(table)
+            }
+        }
+
+        val reply = socketRequest("proximity.calibration", org.json.JSONObject().put("action", "start").put("sessionId", "session-3"))
+
+        assertEquals("applied", reply.getString("outcome"))
+        assertEquals("start/session-3", received)
+    }
+
     @Test fun `proximity calibration keeps UI origin form and source guards`() = testApplication {
         var present = false
         var accepted = false

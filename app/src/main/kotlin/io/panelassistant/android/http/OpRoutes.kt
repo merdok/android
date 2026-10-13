@@ -141,12 +141,20 @@ internal class ManageOpCall(
     // An embedded request's `lang` is the Home Assistant user's language (the embed switch's), which stands in
     // for Automatic and never overrides a chosen language, so it is not an explicit `?lang`.
     override val parameters: Parameters = managed.args.asParameters(
-        setOfNotNull(ACCEPT_LANGUAGE_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
+        setOfNotNull(ACCEPT_LANGUAGE_ARG, RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
     )
+
+    /**
+     * A raw body, as the page transport sends one (the bytes its `args.blob` names, or the text of `args.body`),
+     * replaces the `args` JSON as the request body; its type is the blob's, or plain text.
+     */
+    private val rawBodyType: String? = managed.args.optJSONObject("blob")?.optString("type")?.takeIf(String::isNotBlank)
+        ?: (if (managed.args.opt(RAW_BODY_ARG) is String) "text/plain; charset=utf-8" else null)
+
     override val request = OpCallRequest(
         parameters,
         Headers.build {
-            append(io.ktor.http.HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            append(io.ktor.http.HttpHeaders.ContentType, rawBodyType ?: ContentType.Application.Json.toString())
             managed.args.optString(ACCEPT_LANGUAGE_ARG).takeIf(String::isNotBlank)?.let {
                 append(io.ktor.http.HttpHeaders.AcceptLanguage, it)
             }
@@ -212,6 +220,7 @@ internal class ManageOpCall(
             val bytes = managed.blobs?.take(ref) ?: throw java.io.IOException("blob unavailable")
             return ByteArrayInputStream(bytes)
         }
+        (managed.args.opt(RAW_BODY_ARG) as? String)?.let { return ByteArrayInputStream(it.toByteArray(Charsets.UTF_8)) }
         return ByteArrayInputStream(managed.args.toString().toByteArray(Charsets.UTF_8))
     }
 
@@ -263,6 +272,9 @@ internal fun manageReplyFor(status: Int, body: Any?, contentType: String?, heade
     }
     return ManageReply(outcome, code, body, status, contentType, headers)
 }
+
+/** The `args` key that carries a raw text body (YAML, for the profile editor), as the page transport sends it. */
+private const val RAW_BODY_ARG = "body"
 
 /** `args` as request parameters: strings, numbers and booleans by name; an array gives one value per item. */
 private fun JSONObject.asParameters(except: Set<String>): Parameters = Parameters.build {

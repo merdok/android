@@ -201,7 +201,9 @@ private suspend fun handlePreview(
 }
 
 private suspend fun handleImport(call: OpCall, dependencies: ProfileRouteDependencies) {
-    val token = call.request.headers["X-Profile-Preview-Token"]?.trim().orEmpty()
+    // One input on every door: `args.preview_token`, or the header HTTP carries it in.
+    val token = (call.args?.optString("preview_token")?.takeIf(String::isNotEmpty)
+        ?: call.request.headers["X-Profile-Preview-Token"])?.trim().orEmpty()
     if (token.isBlank() || token.length > 512) {
         call.respondProfileError(HttpStatusCode.BadRequest, "preview-token-required")
         return

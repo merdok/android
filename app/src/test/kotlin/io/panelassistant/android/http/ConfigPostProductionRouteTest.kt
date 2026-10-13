@@ -306,6 +306,26 @@ class ConfigPostProductionRouteTest {
         }
 
 
+    @Test fun `the socket imports the bundle text the page sends as its body`() =
+        withRouteConfig { config, _, server, _ ->
+            val table = io.panelassistant.android.ManageTable()
+            testApplication {
+                application {
+                    paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                        serveOperations(table)
+                        route("/api/v1") { with(server) { installConfigBundleRoutes() } }
+                        socketDoorOnto(table)
+                    }
+                }
+                val bundle = ConfigBundle.fromValues(mapOf("friendly_name" to "Imported over the socket")).serialize()
+
+                val reply = socketRequest("config.import", JSONObject().put("body", bundle))
+
+                assertEquals("applied", reply.getString("outcome"), reply.toString())
+                assertEquals("Imported over the socket", config.friendlyName)
+            }
+        }
+
     @Test fun `production bundle import exports redacted values and revision restore undoes the commit`() =
         withRouteConfig { config, _, server, _ ->
             config.setHaConnection("http://ha.test", "private-test-value")
