@@ -95,7 +95,7 @@ internal class StubTest : PanelRuntimeRig() {
                 assertTrue(diag, diag.contains("GET /api/v1/radio 1\n"))
 
                 val registered = registeredRoutes(requireNotNull(root))
-                assertTrue("every closed endpoint is mounted", registered.containsAll(StubEndpoints.ENDPOINTS))
+                assertEquals("every closed endpoint is mounted", emptySet<Pair<HttpMethod, String>>(), StubEndpoints.ENDPOINTS - registered)
 
                 val serving = registered.filter { (method, template) -> probe(method, template) != HttpStatusCode.Gone }.toSet()
 
@@ -116,7 +116,7 @@ internal class StubTest : PanelRuntimeRig() {
                 val radio = client.get("/api/v1/radio")
                 assertEquals(HttpStatusCode.OK, radio.status)
                 assertEquals("{\"present\":false,\"status\":\"none\"}", radio.bodyAsText())
-                for (path in listOf("/test", "/api/v1/sensortrace", "/api/v1/proximity/teach")) {
+                for (path in listOf("/test", "/api/v1/sensortrace", "/api/v1/proximity/teach", "/api/v1//sensortrace", "/api/v1/%73ensortrace")) {
                     assertEquals(path, HttpStatusCode.Gone, client.get(path).status)
                 }
                 assertTrue(client.get("/api/v1/diag").bodyAsText().contains("GET /api/v1/sensortrace 1\n"))
@@ -321,8 +321,8 @@ internal class StubTest : PanelRuntimeRig() {
         val port = ServerSocket(0).use { it.localPort }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val listener = PaneldListener(scope, { port }, { listenerOffLan(rig.config) }) {
-            paneldRoot({ emptySet() }, { false }, { "/setup" }, uiRoutesClosed = { rig.config.uiRoutesClosed }, hardened = { rig.config.hardenedSecurityEnabled }) {
-                stubRoutes({ rig.commands }, StubBlobs(), health = { "health\n" }, diag = { "diag\n" })
+            paneldRoot({ emptySet() }, { false }, { "/setup" }, uiRoutesClosed = { rig.config.uiRoutesClosed }) {
+                stubRoutes({ rig.commands }, StubBlobs(), health = { "health\n" }, diag = { "diag\n" }, hardened = { rig.config.hardenedSecurityEnabled })
                 route("/api/v1") { discoveryRoutes({ """{"peers":[]}""" }, { """{"apps":[]}""" }) }
             }
         }
@@ -353,6 +353,12 @@ internal class StubTest : PanelRuntimeRig() {
                 }
                 assertEquals("applied", reply?.getString("outcome"))
             }
+            // Every spelling of the door and blob paths that routing resolves is refused to a LAN peer as well.
+            for (path in listOf("//ui", "/%75i")) {
+                assertEquals(path, 403, rawStatus(lan, port, path, upgrade = true))
+            }
+            assertEquals(101, rawStatus(InetAddress.getByName("127.0.0.1"), port, "/%75i", upgrade = true))
+            assertEquals(403, rawStatus(lan, port, "/%62lob/x", upgrade = false))
             assertTrue("routes open: the LAN connects", connects(lan, port))
 
             assertTrue(rig.config.recordPanelAssistantGrant(listOf(
@@ -437,6 +443,19 @@ internal class StubTest : PanelRuntimeRig() {
         val answer = LinkedBlockingQueue<PanelAssistantCommandResult>()
         rig.commands.submit(PanelAssistantCommand(channel, "PRESS", admit = { null }), origin) { answer.put(it) }
         return requireNotNull(answer.poll(20, TimeUnit.SECONDS)) { "$channel answered" }
+    }
+
+    /** The status a raw HTTP/1.1 GET of [path] answers, sent byte for byte so no client normalizes the path. */
+    private fun rawStatus(address: InetAddress, port: Int, path: String, upgrade: Boolean): Int = Socket().use { socket ->
+        socket.connect(InetSocketAddress(address, port), 2_000)
+        socket.soTimeout = 5_000
+        val headers = buildString {
+            append("GET ").append(path).append(" HTTP/1.1\r\nHost: ").append(address.hostAddress).append(':').append(port).append("\r\n")
+            if (upgrade) append("Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n")
+            append("\r\n")
+        }
+        socket.getOutputStream().apply { write(headers.toByteArray(Charsets.US_ASCII)); flush() }
+        socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine().split(' ')[1].toInt()
     }
 
     private fun connects(address: InetAddress, port: Int): Boolean = runCatching {

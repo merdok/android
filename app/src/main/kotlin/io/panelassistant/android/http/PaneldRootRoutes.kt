@@ -2,7 +2,6 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.util.GuardDbProcessAdmission
 import io.panelassistant.android.util.isLocalSource
-import io.panelassistant.android.util.isLoopbackPeer
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -26,8 +25,6 @@ internal fun Application.paneldRoot(
     /** Whether only the stub serves (protocol section 20.8); see [StubEndpoints]. */
     uiRoutesClosed: () -> Boolean = { false },
     goneCounts: GoneCounts = GoneCounts(),
-    /** Hardened mode: the stub's new door and blobs (section 20.7) answer loopback peers only. */
-    hardened: () -> Boolean = { false },
     routes: Route.() -> Unit,
 ) {
     intercept(ApplicationCallPipeline.Plugins) {
@@ -70,17 +67,8 @@ internal fun Application.paneldRoot(
         if (!call.admitEmbedProof(PanelAssistantEmbedKeys.instance)) return@intercept finish()
         // Protocol sections 20.7 and 20.8: past the guards, a path the stub does not serve is gone.
         if (gone) {
-            goneCounts.count(call.request.httpMethod, call.request.path())
+            goneCounts.count(call.request.httpMethod, StubEndpoints.normalize(call.request.path()))
             call.respondText(StubEndpoints.GONE_BODY, ContentType.Application.Json, HttpStatusCode.Gone)
-            return@intercept finish()
-        }
-        // Protocol section 20.7: hardened mode keeps the stub off the LAN. Pages, health, diag and REST answer
-        // the LAN as before until the routes close (section 20.8), when the listener binds loopback only; the
-        // `/ui` door and blobs, which did not exist before, never answer a LAN peer in hardened mode.
-        if (hardened() && StubEndpoints.loopbackOnly(call.request.path()) &&
-            !isLoopbackPeer(call.request.origin.remoteAddress)
-        ) {
-            call.respondText("loopback only in hardened mode\n", status = HttpStatusCode.Forbidden)
             return@intercept finish()
         }
     }

@@ -2,9 +2,11 @@ package io.panelassistant.android.http
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.decodeURLPart
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
 import io.ktor.server.plugins.origin
@@ -15,6 +17,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
+import io.ktor.server.routing.route
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.utils.io.jvm.javaio.toInputStream
@@ -34,6 +37,7 @@ import io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
 import io.panelassistant.android.util.BoundedStreams
 import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.SelfUpdater
+import io.panelassistant.android.util.isLoopbackPeer
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -97,11 +101,15 @@ internal object StubEndpoints {
         return ENDPOINTS.any { (m, template) -> m == asked && matches(template, path) }
     }
 
-    /** The stub endpoints hardened mode keeps off the LAN even while the REST routes are open. */
-    fun loopbackOnly(path: String): Boolean = path == UI || matches(BLOB, path)
+    /** [rawPath] as routing reads it: percent-decoded, repeated slashes collapsed, no trailing slash. */
+    fun normalize(rawPath: String): String =
+        "/" + runCatching { rawPath.decodeURLPart() }.getOrDefault(rawPath).split('/').filter(String::isNotEmpty).joinToString("/")
 
-    fun gone(method: HttpMethod, path: String, routesClosed: Boolean): Boolean =
-        path.trimEnd('/').ifEmpty { "/" } in RETIRED || (routesClosed && !admits(method, path))
+    /** Whether [rawPath] is gone: a step-1 retirement, or any path the stub does not serve once the routes close. */
+    fun gone(method: HttpMethod, rawPath: String, routesClosed: Boolean): Boolean {
+        val path = normalize(rawPath)
+        return path in RETIRED || (routesClosed && !admits(method, path))
+    }
 
     private fun matches(template: String, path: String): Boolean {
         val want = template.split('/').filter(String::isNotEmpty)
@@ -223,16 +231,28 @@ internal fun Route.stubRoutes(
     blobs: StubBlobs,
     health: suspend () -> String,
     diag: suspend () -> String,
+    /** Hardened mode: the door and blobs, which did not exist before, never answer a LAN peer (section 20.7). */
+    hardened: () -> Boolean = { false },
 ) {
     StubEndpoints.PAGES.forEach { (path, name) -> get(path) { call.answerPage(door, "page.$name") } }
     StubEndpoints.HEALTH.forEach { path -> get(path) { call.respondText(health()) } }
     StubEndpoints.DIAG.forEach { path -> get(path) { call.respondText(diag(), ContentType.Text.Plain) } }
-    get(StubEndpoints.BLOB) {
+    // Checked after routing, on the routes themselves, so every spelling of a path that reaches them is covered.
+    val loopbackOnly = createRouteScopedPlugin("StubLoopbackOnly") {
+        onCall { call ->
+            if (hardened() && !isLoopbackPeer(call.request.origin.remoteAddress)) {
+                call.respondText("loopback only in hardened mode\n", status = HttpStatusCode.Forbidden)
+            }
+        }
+    }
+    route(StubEndpoints.BLOB) {
+    install(loopbackOnly)
+    get {
         val found = blobs.download(call.parameters["token"].orEmpty())
             ?: return@get call.respondText("no such blob\n", status = HttpStatusCode.NotFound)
         call.respondBytes(found.first, ContentType.parse(found.second))
     }
-    put(StubEndpoints.BLOB) {
+    put {
         val token = call.parameters["token"].orEmpty()
         val bytes = try {
             java.io.ByteArrayOutputStream().also { out ->
@@ -246,7 +266,11 @@ internal fun Route.stubRoutes(
             else -> call.respondText(StubBlobs.reference(token, bytes, "application/octet-stream").toString(), ContentType.Application.Json)
         }
     }
-    uiSocket(door, blobs)
+    }
+    route(StubEndpoints.UI, HttpMethod.Get) {
+        install(loopbackOnly)
+        uiSocket(door, blobs)
+    }
 }
 
 /** A page through the dispatcher: the query, the embed switch and `Accept-Language` become its `args`. */
@@ -281,7 +305,7 @@ internal const val ACCEPT_LANGUAGE_ARG = "accept_language"
  */
 private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs) {
     application.pluginOrNull(WebSockets) ?: application.install(WebSockets) { maxFrameSize = MAX_FRAME_BYTES }
-    webSocket(StubEndpoints.UI) {
+    webSocket {
         // A cross-site page opening the socket is the WebSocket form of the cross-site write OriginGuard refuses.
         if (!OriginGuard.allowed(HttpMethod.Post.value, call.request.headers[HttpHeaders.Origin], null, call.request.headers[HttpHeaders.Host])) {
             return@webSocket close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "cross-origin refused"))

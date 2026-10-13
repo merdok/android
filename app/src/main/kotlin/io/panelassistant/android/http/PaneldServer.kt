@@ -393,7 +393,6 @@ class PaneldServer internal constructor(
                 setupRedirectLocation = ::setupRedirectLocation,
                 uiRoutesClosed = { config.uiRoutesClosed },
                 goneCounts = goneCounts,
-                hardened = { config.hardenedSecurityEnabled },
             ) {
                 serveOperations(manageTable)
                 stubRoutes(
@@ -401,6 +400,7 @@ class PaneldServer internal constructor(
                     blobs = stubBlobs,
                     health = { healthLine(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() } },
                     diag = { withContext(Dispatchers.IO) { diagText() } },
+                    hardened = { config.hardenedSecurityEnabled },
                 )
                 handBackHomeRoutes(handBackHomeDependencies(
                     config = config,
