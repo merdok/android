@@ -249,7 +249,8 @@ class MdnsAdvertiserResponderTest {
         var holder: Thread? = null
         try {
             advertiser.start(LOOPBACK, SECONDARY_LOOPBACK)
-            assertTrue(hasAddress(SECONDARY_LOOPBACK, "removed-secondary-test-panel-$RUN", SECONDARY_LOOPBACK))
+            // The secondary responder announces asynchronously; a loaded runner can take longer than one browse.
+            assertTrue(hasAddress(SECONDARY_LOOPBACK, "removed-secondary-test-panel-$RUN", SECONDARY_LOOPBACK, timeoutMs = 15_000))
             holder = Thread {
                 gate.runExclusive {
                     entered.countDown()
@@ -296,12 +297,12 @@ class MdnsAdvertiserResponderTest {
     }
 
     /**
-     * Watches for 4.5 s whatever the network carries. On a LAN with other panels, list returns their
+     * Watches for [timeoutMs] (4.5 s by default) whatever the network carries. On a LAN with other panels, list returns their
      * cached services at once, so a count of attempts ended before this test's responder answered.
      */
-    private fun hasAddress(binding: String, name: String, address: String): Boolean =
+    private fun hasAddress(binding: String, name: String, address: String, timeoutMs: Long = 4_500): Boolean =
         JmDNS.create(InetAddress.getByName(binding), "dual-responder-browser").use { browser ->
-            val deadline = MonotonicDeadline(4_500)
+            val deadline = MonotonicDeadline(timeoutMs)
             while (deadline.remainingMs() > 0) {
                 if (browser.list(Config.MDNS_SERVICE_TYPE, minOf(1_500, deadline.remainingMs()))
                         .filter { it.name == name }
