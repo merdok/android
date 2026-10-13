@@ -334,6 +334,32 @@ internal class StubTest : PanelRuntimeRig() {
         assertTrue("the closed socket's subscription stopped reading", reads.get() <= afterClose + 1)
     }
 
+    @Test fun aLateUnsubscribeOfAnOlderIdLeavesTheNewerSubscriptionRunning() = testApplication {
+        val table = ManageTable()
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        table.register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", reads.incrementAndGet())) }
+        val rig = managedRig(table, families = mapOf("probe" to ManageFamily("probe", 100, listOf("probe"))))
+        stub { rig.commands }
+
+        val updates = socket {
+            fun subscribe(id: String) = JSONObject().put("kind", "manage").put("command_id", id).put("op", "subscribe").put("args", JSONObject().put("family", "probe"))
+            assertEquals("applied", exchange(subscribe("a")).getString("outcome"))
+            assertEquals("applied", exchange(subscribe("b")).getString("outcome"))
+            // The page re-subscribed (a radio join poll) and only now unsubscribes its old id.
+            assertEquals("applied", exchange(JSONObject().put("kind", "manage").put("command_id", "u").put("op", "unsubscribe").put("args", JSONObject().put("subscription", "a"))).getString("outcome"))
+            val seen = mutableListOf<String>()
+            withTimeout(5_000) {
+                while (seen.size < 2) {
+                    val frame = JSONObject((incoming.receive() as Frame.Text).readText())
+                    if (frame.has("subscription")) seen += frame.getString("subscription")
+                }
+            }
+            seen
+        }
+
+        assertEquals(listOf("b", "b"), updates)
+    }
+
     @Test fun twoSocketsFromOneAddressKeepAndCloseTheirOwnSubscriptions() = testApplication {
         val table = ManageTable()
         val reads = java.util.concurrent.atomic.AtomicInteger()
