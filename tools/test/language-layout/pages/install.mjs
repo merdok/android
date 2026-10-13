@@ -12,7 +12,7 @@ export function payload(url, method) {
   const path = url.pathname;
   if (path === '/api/v1/packages') return { packages: [{ pkg: 'io.example.hostile', label: HOSTILE_ONE }] };
   if (path === '/api/v1/install/versions') return { versions: [
-    { tag: 'v2026.10.0', version: '2026.10.0', installable: false, unavailableReason: 'above_panel_limit', maxVersion: '2026.9.4', action: 'Upgrade' },
+    { tag: 'v2026.10.0', version: '2026.10.0', installable: false, unavailableReason: 'above_panel_limit', maxVersion: '2026.9.4', action: 'Upgrade', presentations: { action: { code: 'version-upgrade', params: {} } } },
     { tag: 'v2026.9.4-long', version: '2026.9.4-expanded-release-candidate', installable: true, action: 'Upgrade', presentations: { action: { code: 'version-upgrade', params: {} } }, notes: 'https://example.invalid/releases', apk: 'https://example.invalid/releases/download/test/app.apk' },
   ] };
   if (path === '/api/v1/install/apk/pending') return { pending: true, package: 'io.example.pending_application_with_a_very_long_identifier', version: '2026.9.4-expanded-release-candidate', discard: 'discard-reference' };
