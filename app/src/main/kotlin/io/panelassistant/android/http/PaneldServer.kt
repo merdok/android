@@ -820,11 +820,21 @@ class PaneldServer internal constructor(
 
     /**
      * Every other name goes to the dispatcher's one table of named operations with Panel Assistant's origin
-     * (protocol section 20.2), so the session and the stub's socket serve each operation from one definition.
+     * (protocol section 20.2), so the session and the stub's socket serve each read from one definition.
      * Bodies that must move as blobs are left to the session's own operations above. Null when no
      * dispatcher holds the name.
      */
     private suspend fun manageThroughDispatcher(op: String, args: JSONObject, onPending: () -> Unit): PanelAssistantManageReply? {
+        val kind = manageTable[op]?.kind ?: return null
+        // Panel Assistant changes this panel only through its own operations above and the settings allowlist
+        // (protocol section 20.2); through this fall-through it may read, never command.
+        if (kind != io.panelassistant.android.ManageKind.READ) {
+            return PanelAssistantManageReply(
+                PanelAssistantTransportProtocol.OUTCOME_REFUSED,
+                io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE,
+                null,
+            )
+        }
         val dispatcher = door() ?: return null
         val reply = kotlinx.coroutines.suspendCancellableCoroutine<io.panelassistant.android.ManageReply> { waiting ->
             dispatcher.manage(

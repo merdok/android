@@ -289,6 +289,28 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals("applied", reconnected.getString("outcome"))
     }
 
+    @Test fun panelAssistantMayReadButNeverCommandThroughTheFallThrough() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.values["friendly_name"] = "Contract panel"
+            testApplication {
+                application { fixture.mount(this) }
+                startApplication()
+                val noSession = io.panelassistant.android.sensors.HaApiSessionProvider { error("no Home Assistant session in this test") }
+                val before = fixture.config.friendlyName
+                val bundle = io.panelassistant.android.config.ConfigBundle.fromValues(mapOf("friendly_name" to "Written by Panel Assistant")).serialize()
+
+                val (imported, read) = kotlinx.coroutines.runBlocking {
+                    fixture.server.managementRequest("config.import", JSONObject().put("body", bundle), {}, noSession) to
+                        fixture.server.managementRequest("radio", JSONObject(), {}, noSession)
+                }
+
+                assertEquals(listOf("refused", "not_commandable"), listOf(imported?.outcome, imported?.code))
+                assertEquals("its settings stay as they were", before, fixture.config.friendlyName)
+                assertEquals("applied", read?.outcome)
+            }
+        }
+    }
+
     @Test fun aSocketSubscriptionSendsObservationFramesAndEndsWithTheSocket() = testApplication {
         val table = ManageTable()
         val reads = java.util.concurrent.atomic.AtomicInteger()
