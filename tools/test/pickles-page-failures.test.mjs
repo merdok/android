@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import { chromium, webkit } from 'playwright-core';
+import { attachUiSocket, loopbackAnswer } from './fixtures/ui-socket.mjs';
 
 const assets = join(process.cwd(), '../../app/src/main/assets');
 const fixtures = join(process.cwd(), '../../app/build/test-fixtures/pickles');
@@ -14,12 +15,13 @@ const names = { configure: 'config', dashboard: 'info', api: 'openapi.json', pro
 const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', tier: 'BASIC', available: true, help: 'Touch sound' }];
 
 async function harness(surface, locale, { fail = true, failurePath = endpoints[surface] } = {}) {
-  let reads = 0;
+  let reads = 0, infoReads = 0;
   const html = await readFile(join(fixtures, `${surface}-${locale}.html`), 'utf8');
   const server = createServer(async (request, response) => {
     const path = new URL(request.url, 'http://panel.test').pathname;
     const json = (data, status = 200) => { response.writeHead(status, { 'content-type': 'application/json' }); response.end(JSON.stringify(data)); };
     if (path === '/page') { reads++; response.setHeader('content-type', 'text/html'); response.end(html); return; }
+    if (path === '/api/v1/info') infoReads++;
     if (fail && path === failurePath) { json({ message: '<script>{x}</script> load unavailable' }, 503); return; }
     if (path === '/api/v1/config/schema') { json(schema); return; }
     if (path === '/api/v1/config') { json({ settings: { touch_sound: 'false' }, ha_expose: {}, ha_auth: {} }); return; }
@@ -35,7 +37,10 @@ async function harness(surface, locale, { fail = true, failurePath = endpoints[s
     } catch { response.writeHead(404); response.end(); }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  return { url: `http://127.0.0.1:${server.address().port}/page`, recover: () => { fail = false; }, reads: () => reads, close: () => new Promise(resolve => server.close(resolve)) };
+  // The pages are the production documents, so outside the sidebar they talk over the stub's /ui socket: the
+  // fixture door answers each request from the routes above, as the panel's door answers from its handlers.
+  await attachUiSocket(server, loopbackAnswer(server), { record: null });
+  return { url: `http://127.0.0.1:${server.address().port}/page`, recover: () => { fail = false; }, reads: () => reads, infoReads: () => infoReads, close: () => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }) };
 }
 
 for (const [engine, type, launch] of [
@@ -99,15 +104,15 @@ for (const [engine, type, launch] of [
         const errors = []; page.on('pageerror', error => errors.push(error.message));
         if (surface === 'dashboard-stale') await page.addInitScript(() => {
           const timeout = window.setTimeout; window.setTimeout = (fn, ms, ...args) => timeout(fn, ms === 3000 ? 0 : ms, ...args);
-          const fetch = window.fetch.bind(window); window.completedInfoReads = 0;
-          window.fetch = (input, options) => fetch(input, options).then(response => {
-            if (String(input).startsWith('api/v1/info')) window.completedInfoReads++;
-            return response;
-          });
         });
         try {
           await page.goto(rig.url);
-          if (surface === 'dashboard-stale') await page.waitForFunction(() => window.completedInfoReads === 11);
+          if (surface === 'dashboard-stale') {
+            const deadline = Date.now() + 30000;
+            while (rig.infoReads() < 11 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+            assert.equal(rig.infoReads(), 11, 'the bounded cold-hydration retries all ran');
+            await page.waitForTimeout(200);
+          }
           else await page.locator('#cfg-touch_sound').waitFor();
           assert.equal(await page.locator('main.pickles').count(), 0);
           if (surface === 'dashboard-stale') assert.match(await page.locator('#infotbl').textContent(), /Warm <panel>/);
