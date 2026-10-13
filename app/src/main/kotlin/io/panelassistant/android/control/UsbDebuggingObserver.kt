@@ -19,6 +19,7 @@ internal class UsbDebuggingObserver(
 
     fun state(): Boolean? {
         // Android 17 redacts this setting to 0 for ordinary apps. A redacted zero is not OFF.
+        // AOSP source: https://android.googlesource.com/platform/frameworks/base/+/5d466bf8025ed8a68d9d49b47289f4f5cefbc139
         // A preview of 17 can still identify itself as API 36.
         if (sdkInt() >= 37 || (sdkInt() == 36 && previewSdkInt() > 0)) return null
         return when (runCatching(readSetting).getOrNull()) {
