@@ -241,7 +241,8 @@ private fun parseJsonBody(text: String): Any {
 
 /**
  * The outcome a route's HTTP status reads as, the same table the page transport's HTTP implementation uses
- * (`outcomeFor` in transport.js), so a page sees one outcome on either transport: success applies, an approval
+ * (`outcomeFor` in transport.js), so a page sees one outcome on either transport: 2xx applies (a redirect is not
+ * an answer a request can use, so 3xx fails like any other unexpected status), an approval
  * request is pending, `403` refuses as `refused_hardened`, `404`/`405`/`410` as `unknown_command`,
  * `409`/`423`/`429` as `not_commandable`, any other client error as `invalid_value`; `503` fails as
  * `hardware_unavailable` and any other server error fails.
@@ -250,7 +251,7 @@ internal fun manageReplyFor(status: Int, body: Any?, contentType: String?, heade
     val approvalRequired = status == 202 && (body as? JSONObject)?.optString("error") == "approval-required"
     val (outcome, code) = when {
         approvalRequired -> PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL to null
-        status in 200..399 -> PanelAssistantTransportProtocol.OUTCOME_APPLIED to null
+        status in 200..299 -> PanelAssistantTransportProtocol.OUTCOME_APPLIED to null
         status == 403 -> PanelAssistantTransportProtocol.OUTCOME_REFUSED to PanelAssistantCommandProcessor.CODE_REFUSED_HARDENED
         status == 404 || status == 405 || status == 410 ->
             PanelAssistantTransportProtocol.OUTCOME_REFUSED to PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND

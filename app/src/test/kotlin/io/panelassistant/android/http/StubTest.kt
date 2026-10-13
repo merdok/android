@@ -158,6 +158,26 @@ internal class StubTest : PanelRuntimeRig() {
         }
     }
 
+    @Test fun aPageTakesItsPresentationFromTheEmbedHeaderAndItsLanguageFromTheQuery() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.enablePages()
+            fixture.enableConfigurePage(false)
+            testApplication {
+                application { fixture.mount(this) }
+                suspend fun page(query: String, embed: String? = null) = client.get("/configure$query") {
+                    header(HttpHeaders.Cookie, "wiz_escape=1")
+                    embed?.let { header(EmbedMode.HEADER, it) }
+                }.bodyAsText()
+
+                val queried = page("?embed=true&theme=dark&hide=install&lang=de")
+                assertFalse("the query cannot switch the page into embedded mode", queried.contains("data-embedded"))
+                assertFalse(queried.contains("data-theme=\"dark\""))
+                assertTrue("the query's language still applies", queried.contains("<html lang=\"de\""))
+                assertTrue(page("", embed = "v=1;theme=dark").contains("data-embedded"))
+            }
+        }
+    }
+
     @Test fun theGatePersistsAcrossARestartAndALaterHelloWithoutBothGrantsReopensIt() {
         val closing = hello(PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE, "management")
         val persisted = PaneldServerHttpFixture().use { first ->
@@ -360,6 +380,7 @@ internal class StubTest : PanelRuntimeRig() {
             405 to ("refused" to "unknown_command"), 410 to ("refused" to "unknown_command"), 409 to ("refused" to "not_commandable"),
             423 to ("refused" to "not_commandable"), 429 to ("refused" to "not_commandable"), 400 to ("refused" to "invalid_value"),
             413 to ("refused" to "invalid_value"), 503 to ("failed" to "hardware_unavailable"), 500 to ("failed" to "failed"),
+            302 to ("failed" to "failed"),
         )
 
         val actual = expected.keys.associateWith { status ->

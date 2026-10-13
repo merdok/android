@@ -295,11 +295,15 @@ internal fun Route.stubRoutes(
     }
 }
 
-/** A page through the dispatcher: the query, the embed switch and `Accept-Language` become its `args`. */
+/**
+ * A page through the dispatcher. Its `args` are the locale signals of the query (`lang`, and `ha_lang`, which the
+ * Setup redirect carries), the presentation the embed header asks for, and `Accept-Language`: the query never
+ * switches presentation, so `?embed=1` alone renders the ordinary page.
+ */
 private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: String) {
     val dispatcher = door() ?: return respondText("starting\n", status = HttpStatusCode.ServiceUnavailable)
     val args = JSONObject()
-    request.queryParameters.entries().forEach { (name, values) -> values.firstOrNull()?.let { args.put(name, it) } }
+    PAGE_QUERY_ARGS.forEach { name -> request.queryParameters[name]?.let { args.put(name, it) } }
     embedMode()?.let { embed ->
         args.put("embed", true)
         embed.lang?.let { if (!args.has("lang")) args.put("lang", it) }
@@ -316,6 +320,9 @@ private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: Stri
     val type = reply.contentType?.let(ContentType::parse) ?: ContentType.Text.Plain
     respondText(reply.result as? String ?: reply.result?.toString().orEmpty(), type, HttpStatusCode.fromValue(reply.status))
 }
+
+/** The query parameters a page reads: its locale signals. */
+private val PAGE_QUERY_ARGS = listOf("lang", "ha_lang")
 
 /** The `args` key a page request carries the browser's `Accept-Language` in. */
 internal const val ACCEPT_LANGUAGE_ARG = "accept_language"
