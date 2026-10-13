@@ -85,4 +85,54 @@ class LocalAdminEndpointTest {
         val closed = java.net.ServerSocket(0).use { it.localPort }
         assertFalse("nothing listening", LocalAdminReadiness.pageAnswers(LocalAdminEndpoint.url("127.0.0.1", closed, "/configure"), timeoutMs = 300))
     }
+
+    /**
+     * The longest health line the app can produce still passes the panel's own liveness probe, and one
+     * over the bound does not. Panel Assistant reads the same line under the same bound (PMARCH-18): at
+     * 512 bytes a restart notice on a panel with a long ID failed its poll exactly when it mattered.
+     */
+    @Test
+    fun theLongestHealthLineStillAnswersTheProbe() {
+        val worst = "ha-paneld 1.0.0-preview1 panel=${"p".repeat(63)} build=1725312345678 cfg=0123abcd" +
+            io.panelassistant.android.http.panelAssistantDiscoveryHealthToken("install", "android") +
+            io.panelassistant.android.http.packageHealthToken("io.panelassistant.android") +
+            io.panelassistant.android.http.versionCodeHealthToken(Int.MAX_VALUE) +
+            io.panelassistant.android.http.protocolHealthToken(999, 999) +
+            io.panelassistant.android.http.haLifecycleHealthToken(
+                true,
+                io.panelassistant.android.sensors.HaLifecycle.Snapshot(
+                    state = io.panelassistant.android.sensors.HaLifecycleState.CONNECTION_LOST,
+                    source = io.panelassistant.android.sensors.HaLifecycleSource.NATIVE,
+                    refused = true,
+                    revision = 0L,
+                    backOnlineRemainingMs = 0L,
+                    offlineGraceRemainingMs = 9_999_999_999L,
+                    reason = io.panelassistant.android.sensors.HaLifecycleReason.HOST_REBOOT,
+                    elapsedMs = 9_999_999_999L,
+                    expectedMs = 9_999_999_999L,
+                ),
+            ) +
+            // The network suffix with every count at a size a week of probing could reach.
+            " ha_net=critical ha_net_cause=latency ha_resp=critical ha_net_p95=9999999 ha_net_n=9999999" +
+            " ha_net_miss=9999999 ha_net_age=9999999999" +
+            " pa_restarting=panel,recovery,999999 pa_notice=1\n"
+        assertTrue("worst line is ${worst.length} bytes", worst.length < LocalAdminReadiness.MAX_HEALTH_RESPONSE_BYTES - 200)
+        val tooLong = "ha-paneld 1.0.0 panel=p " + "x".repeat(LocalAdminReadiness.MAX_HEALTH_RESPONSE_BYTES.toInt()) + "\n"
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        for ((path, line) in listOf("/worst" to worst, "/long" to tooLong)) {
+            server.createContext(path) { exchange ->
+                val body = line.toByteArray()
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
+        }
+        server.start()
+        try {
+            val port = server.address.port
+            assertTrue(LocalAdminReadiness.healthProbe(LocalAdminEndpoint.url("127.0.0.1", port, "/worst")))
+            assertFalse(LocalAdminReadiness.healthProbe(LocalAdminEndpoint.url("127.0.0.1", port, "/long")))
+        } finally {
+            server.stop(0)
+        }
+    }
 }

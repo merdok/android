@@ -54,7 +54,7 @@ class LocalAdminReadiness(
     }
 
     companion object {
-        internal const val MAX_HEALTH_RESPONSE_BYTES = 512L
+        internal const val MAX_HEALTH_RESPONSE_BYTES = 1024L
 
         internal fun isExpectedHealthResponse(status: Int, body: String): Boolean =
             status == HttpURLConnection.HTTP_OK && body.startsWith("ha-paneld ")
