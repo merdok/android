@@ -3573,6 +3573,11 @@
       "sourceHash": "52eb514e213a290a3b780b56757c47dcd6085f1f359e4f1e74b4355133e7711b",
       "state": "machine-cross-checked"
     },
+    "dashboard.fact.usb_debugging": {
+      "text": "Depuração USB",
+      "sourceHash": "b717e583d6326d6b22ebe7350400ad7894456fc01a7a98710d34967300728636",
+      "state": "machine-cross-checked"
+    },
     "dashboard.fact.webview_reporting": {
       "text": "Relatórios do WebView do sistema",
       "sourceHash": "8a803bb805676261f2d7d35ad7880bec48082293ee16ed448bf0deceb816bec4",
@@ -4681,6 +4686,11 @@
     "dashboard.value.set": {
       "text": "definido",
       "sourceHash": "6ee0eb490ff832101cf82a3d387c35f29e4230be786978f7acf9e811febf6723",
+      "state": "machine-cross-checked"
+    },
+    "dashboard.value.unknown": {
+      "text": "desconhecido",
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
       "state": "machine-cross-checked"
     },
     "entities.age.days": {

@@ -204,6 +204,10 @@ internal object PanelAssistantChannelCatalog {
 
     private val HAND_WRITTEN: Map<String, PanelAssistantChannelDescriptor> = listOf(
         PanelAssistantChannelDescriptor(
+            channel = "diag_usb_debugging", platform = "binary_sensor", translationKey = "usb_debugging",
+            uniqueSuffix = "usb_debugging", kind = PanelAssistantValueKind.BOOLEAN, entityCategory = "diagnostic",
+        ),
+        PanelAssistantChannelDescriptor(
             channel = "camera_enabled", platform = "camera", translationKey = "camera",
             uniqueSuffix = "camera", kind = PanelAssistantValueKind.BOOLEAN,
         ),

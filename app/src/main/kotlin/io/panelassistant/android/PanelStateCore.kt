@@ -115,6 +115,7 @@ internal class PanelStateCore(
     // Learned proximity once it is settled; null while the calibration is still loading or has closed, so a
     // transient false is never stated to Home Assistant as a panel without the sensor.
     private val learnedProximityState: () -> Boolean? = { null },
+    private val usbDebugging: () -> Observation.Reportable = { Observation.Unavailable },
 ) {
     private val lifecycle = RetirableMutationGate()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<StateCoreListener>()
@@ -173,6 +174,8 @@ internal class PanelStateCore(
         val c = StateConverger()
         c.addSink { channel, observation, done -> sinks.forEach { it(channel, observation, done) } }
         fun channel(key: String, observe: () -> Observation) = c.register(StateConverger.Channel(key, observe))
+
+        channel("diag_usb_debugging", usbDebugging)
 
         channel("storage_health") {
             known(storageHealth().severity.name.lowercase(Locale.ROOT))

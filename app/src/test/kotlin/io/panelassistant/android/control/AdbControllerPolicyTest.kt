@@ -292,7 +292,7 @@ class AdbControllerPolicyTest {
         assertEquals("persistent (5555) · listener unreadable", networkAdbDiagnostic(persisted = true, active = null))
         assertEquals("active (5555) · external — not persisted by Panel Assistant", networkAdbDiagnostic(persisted = false, active = true))
         assertEquals("off", networkAdbDiagnostic(persisted = false, active = false))
-        assertEquals("off", networkAdbDiagnostic(persisted = false, active = null))
+        assertEquals("unknown", networkAdbDiagnostic(persisted = false, active = null))
     }
 
     @Test fun `listener proof fails closed on unreadable truncated or malformed inventory`() {

@@ -7,6 +7,7 @@ import io.panelassistant.android.i18n.Strings as AppStrings
 private fun runtimeValue(value: String, strings: AppStrings): String = when (value) {
     "on" -> strings.get("dashboard.value.on")
     "off" -> strings.get("dashboard.value.off")
+    "unknown" -> strings.get("dashboard.value.unknown")
     "none" -> strings.get("dashboard.value.none")
     "unavailable" -> strings.get("dashboard.common.unavailable")
     "Relaxed" -> strings.get("dashboard.runtime.security_relaxed")
