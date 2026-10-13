@@ -744,6 +744,7 @@ class PaneldService : Service() {
     private lateinit var relay: RelayController
     private lateinit var cpu: CpuController
     private lateinit var adb: AdbController
+    private val usbDebugging by lazy { io.panelassistant.android.control.UsbDebuggingObserver(this) }
     private lateinit var power: PowerController
     private lateinit var powerSafety: PowerSafetyController
     private lateinit var profile: DeviceProfile
@@ -1656,6 +1657,7 @@ class PaneldService : Service() {
         wifiOutages = { wifiOutageTracker.counts() },
         learnedProximityEligibility = sensors::hasLearnedProximity,
         learnedProximityState = sensors::learnedProximityState,
+        usbDebugging = usbDebugging::observation,
     ).also { core ->
         core.addStateSink(panelAssistantShadow.bindShape(core::nativeChannelShape))
         core.addEventSink(panelAssistantShadow::event)
@@ -2182,7 +2184,7 @@ class PaneldService : Service() {
             // A persisted intent is reported by whether adbd really listens: its own property writes
             // would otherwise read as active while vendor init or an adbd restart has dropped TCP.
             networkAdbActive = if (persistedAdb) adb.listenerState(allowRootCrossCheck = privilege.directSuReady)
-                else adb.isActive(allowRootCrossCheck = privilege.directSuReady),
+                else adb.activeState(allowRootCrossCheck = privilege.directSuReady),
             zigbee = zigbee.observe(includeRole = true, directSuReady = privilege.directSuReady),
             relayCount = relay.count(allowRootProbe = privilege.directSuReady),
             buttonLedCount = relay.ledCount(),
@@ -2281,6 +2283,7 @@ class PaneldService : Service() {
             "Relays" to controllers.relayCount.let { if (it > 0) it.toString() else "none" },
             "CPU profile" to (controllers.cpuTier ?: "n/a"),
             "Network ADB" to networkAdbDiagnostic(controllers.networkAdbPersisted, controllers.networkAdbActive),
+            "USB debugging" to usbDebugging.statusText(),
             "Log shipping" to logShipper.statusText(),
             "Audio playback" to audio.snapshot().statusText(),
         )

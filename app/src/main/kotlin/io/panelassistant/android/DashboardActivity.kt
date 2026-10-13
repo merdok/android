@@ -174,46 +174,6 @@ private data class V2BridgeDocument(
     val filterLease: EntityFilterTelemetry.Lease?,
 )
 
-internal data class HomeDashboardResolutionOwner(
-    val authOwner: HaAuthOwner,
-    val configuredPath: String,
-)
-
-/** Owns the only scan-independent dashboard-list result allowed to admit the renderer. */
-internal class HomeDashboardResolutionAttemptGate {
-    data class Ticket(val epoch: Long, val owner: HomeDashboardResolutionOwner)
-
-    @Volatile private var current: Ticket? = null
-    private var nextEpoch = 0L
-
-    @Synchronized fun start(owner: HomeDashboardResolutionOwner): Ticket =
-        Ticket(++nextEpoch, owner).also { current = it }
-
-    fun owns(ticket: Ticket, currentOwner: HomeDashboardResolutionOwner): Boolean =
-        current == ticket && ticket.owner == currentOwner
-
-    @Synchronized fun invalidate() { current = null }
-}
-
-internal data class OwnedHomeDashboardResolution(
-    val owner: HomeDashboardResolutionOwner,
-    val resolution: EntityLearningProtocol.HomeDashboardResolution,
-    /** False while the value is the persisted launch cache — already rendering, awaiting the live
-     *  answer that confirms, corrects or (on a confirmed empty list) replaces it. */
-    val confirmed: Boolean = true,
-)
-
-/**
- * The home dashboard path [resolution] holds for [owner], or null while there is none yet: nothing
- * resolved, resolution invalidated for a re-admission, a setting or credential change that has not
- * reached the activity's rebuild, or a confirmed list with no legal dashboard. Null means "not yet",
- * never an error; each caller decides what waiting looks like.
- */
-internal fun ownedHomeDashboardPath(
-    resolution: OwnedHomeDashboardResolution?,
-    owner: HomeDashboardResolutionOwner,
-): String? = resolution?.takeIf { it.owner == owner }?.resolution?.path
-
 internal class EntityFilterRetryPolicy(
     private val delaysMs: LongArray = longArrayOf(30_000L, 120_000L, 600_000L),
 ) {
@@ -251,6 +211,7 @@ class DashboardActivity : AppCompatActivity() {
     private var root: FrameLayout? = null                       // holds the swipe layout + fullscreen video
     private var lifecycleBar: HaLifecycleBar? = null            // native HA outage bar, lives inside `root`
     private var networkChip: HaNetworkChip? = null              // native "HA network slow" chip, same root
+    private var substituteChip: DashboardSubstituteChip? = null // "Dashboard not found", same root
 
     /**
      * Marshals to the UI thread because the state machine is driven from the service's IO scope.
@@ -281,6 +242,13 @@ class DashboardActivity : AppCompatActivity() {
         lifecycleBar = null
         networkChip?.detach()
         networkChip = null
+        substituteChip?.detach()
+        substituteChip = null
+    }
+
+    private fun updateSubstituteChip() {
+        val owned = homeDashboardResolution?.takeIf { it.owner == homeDashboardOwner(activityConfig) }
+        substituteChip?.update(owned?.owner?.configuredPath.orEmpty(), owned?.resolution)
     }
     private var entityFilterSignature = "disabled"
     private var preparedEntityFilter: PreparedEntityFilter? = null
@@ -3112,14 +3080,12 @@ class DashboardActivity : AppCompatActivity() {
                 provisionalHomeDashboardEpoch = dashboardNavigationEpoch
             }
         }
-        if (provisionalPath == null) {
-            showAdmissionProgressScreen(
-                R.string.selecting_ha_dashboard,
-                R.string.notice_hero_finding_dashboards,
-                R.string.notice_line_ha_dashboard,
-                R.string.selecting_ha_dashboard_detail,
-            )
-        }
+        // Not a renderer CHECKING: compatibility already admitted this renderer, and recording CHECKING here
+        // outlived the dashboard it loaded (status `checking` while rendered, after every launch-cache miss).
+        if (provisionalPath == null) showV2CompatibilityScreen(
+            getString(R.string.selecting_ha_dashboard), getString(R.string.selecting_ha_dashboard_detail), null,
+            AdmissionRetryClass.MANUAL_ONLY, null, getString(R.string.notice_hero_finding_dashboards), getString(R.string.notice_line_ha_dashboard),
+        )
         homeDashboardJob = activityScope.launch {
             val resolution = withContext(Dispatchers.IO) {
                 EntityLearningRuntime.resolveHomeDashboard(
@@ -3162,7 +3128,8 @@ class DashboardActivity : AppCompatActivity() {
                 return@launch
             }
             admissionRetryPolicy.reset()
-            homeDashboardResolution = OwnedHomeDashboardResolution(currentOwner, resolution)
+            homeDashboardResolution = liveHomeDashboardResolution(currentOwner, resolution)
+            updateSubstituteChip()
             val launchOwner = HomeDashboardLaunchCache.ownerFingerprint(
                 currentOwner.authOwner, currentOwner.configuredPath,
             )
@@ -3366,6 +3333,8 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         networkChip = HaNetworkChip.attach(this, container)
+        substituteChip = DashboardSubstituteChip.attach(this, container)
+        updateSubstituteChip()
         redrawLifecycleBar()
         val target = currentUrl(config, homePath)
         noteAppNavigationTarget(android.net.Uri.parse(target).path.orEmpty())

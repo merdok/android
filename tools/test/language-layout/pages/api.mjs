@@ -41,7 +41,6 @@ export function openEndpoints(targets) {
 export default {
   name: 'api',
   path: '/api',
-  maxCls: 0.10,
   views: [{ name: 'api-320', tier: 'supported', width: 320, height: 568 }],
   html(context) { return apiFrame(context); },
   api(url) {

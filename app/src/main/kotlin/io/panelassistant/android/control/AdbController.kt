@@ -385,6 +385,7 @@ internal fun networkAdbDiagnostic(persisted: Boolean, active: Boolean?): String 
     persisted && active == false -> "persistent (5555) · NOT listening; Panel Assistant re-asserts it when it next starts"
     persisted -> "persistent (5555) · listener unreadable"
     active == true -> "active (5555) · external — not persisted by Panel Assistant"
+    active == null -> "unknown"
     else -> "off"
 }
 

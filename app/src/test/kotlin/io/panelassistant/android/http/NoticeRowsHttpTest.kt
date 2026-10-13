@@ -137,7 +137,7 @@ class NoticeRowsHttpTest {
         PaneldServerHttpFixture().use { fixture ->
             fixture.useManagementStatus {}
             fixture.values["zigbee_router_configured"] = true
-            fixture.values["zigbee_router_enabled"] = true
+            fixture.values["zigbee_router"] = true
             fixture.server.set("storageHealth", { storage(StorageHealthSeverity.CRITICAL) })
             fixture.server.set("radioStatus", { ZigbeeHealthSnapshot(state = ZigbeeHealthState.DEGRADED_UNJOINED, joined = false) })
             testApplication {

@@ -2,6 +2,8 @@ package io.panelassistant.android
 
 import android.content.SharedPreferences
 import io.panelassistant.android.Config.Companion.CONFIG_LOCK
+import io.panelassistant.android.config.SettingValue
+import io.panelassistant.android.config.Validation
 import io.panelassistant.android.dashboard.HomeDashboardLaunchCache
 import io.panelassistant.android.util.HaLink
 
@@ -211,16 +213,21 @@ internal fun Config.isHaOAuthAttemptCurrent(epoch: Long): Boolean = synchronized
     haOAuthAttemptEpoch.get() == epoch
 }
 
+/** [url] as the `ha_url` spec stores it, or null when the spec refuses it. */
+private fun Config.admittedHaUrl(url: String): String? =
+    (SettingValue.validate(specOf("ha_url"), url) as? Validation.Ok)?.normalized
+
 /** Persist the built-in renderer connection (HTTP config page / provisioning). A null token leaves
- *  it unchanged. */
-fun Config.setHaConnection(url: String, token: String?) {
+ *  it unchanged. A URL the `ha_url` spec refuses stores nothing and returns false. */
+fun Config.setHaConnection(url: String, token: String?): Boolean {
+    val normalized = admittedHaUrl(url) ?: return false
     edit {
-        val normalized = url.trim().trimEnd('/')
         if (normalized != haUrl.trim().trimEnd('/') || (token != null && token != haToken)) forgetHaRoutes(this)
         putString("ha_url", normalized)
         stageDashboardEntityHaUrlChange(this, normalized)
         if (token != null) putString("ha_token", token)
     }
+    return true
 }
 
 /** Persist a refresh result only while the complete auth generation used to obtain it is still
@@ -254,7 +261,7 @@ fun Config.setBorrowedRendererSettings(
     tokenExpiry: Long,
     clientId: String,
     zoom: Int?,
-): Boolean = applyBatch {
+): Boolean = admittedHaUrl(url) != null && applyBatch {
     setHaConnection(url, accessToken)
     setHaRefreshToken(refreshToken)
     setHaTokenExpiry(tokenExpiry)

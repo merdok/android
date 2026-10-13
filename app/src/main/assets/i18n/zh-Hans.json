@@ -3558,6 +3558,11 @@
       "state": "machine-cross-checked",
       "text": "系统 WebView"
     },
+    "dashboard.fact.usb_debugging": {
+      "text": "USB 调试",
+      "sourceHash": "b717e583d6326d6b22ebe7350400ad7894456fc01a7a98710d34967300728636",
+      "state": "machine-cross-checked"
+    },
     "dashboard.fact.webview_reporting": {
       "sourceHash": "8a803bb805676261f2d7d35ad7880bec48082293ee16ed448bf0deceb816bec4",
       "state": "machine-cross-checked",
@@ -4667,6 +4672,11 @@
       "sourceHash": "6ee0eb490ff832101cf82a3d387c35f29e4230be786978f7acf9e811febf6723",
       "state": "machine-cross-checked",
       "text": "已设置"
+    },
+    "dashboard.value.unknown": {
+      "text": "未知",
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
+      "state": "machine-cross-checked"
     },
     "entities.age.days": {
       "sourceHash": "a41234397f3c63b22d27312ffcea05114f8d3ae9d602ef1320168a6eae9ca361",
@@ -12236,6 +12246,16 @@
     "shell.pickles.retry": {
       "text": "重试",
       "sourceHash": "d8b8392e2c542950ca64867168e4ef87d4ad606882d5898f826b51c6d553988f",
+      "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.detail": {
+      "text": "此 Home Assistant 中没有 {configured}，因此面板显示 {shown}。",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "state": "machine-cross-checked"
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "未找到仪表板",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
       "state": "machine-cross-checked"
     }
   }

@@ -64,7 +64,7 @@ internal class DashboardRows(
         return displayCell(v, size)
     }
 
-    private val NET_KEYS = listOf("Local IP", "Local IPv6", "HTTP port", "mDNS", "Network ADB")
+    private val NET_KEYS = listOf("Local IP", "Local IPv6", "HTTP port", "mDNS", "Network ADB", "USB debugging")
     private val HA_LIFECYCLE_FACT = "HA lifecycle"
     private val HA_NETWORK_FACT = "HA network path"
     private val HA_RENDERER_FACT = "HA renderer"

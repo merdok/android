@@ -79,6 +79,7 @@ internal fun factLabel(key: String, strings: AppStrings): String {
         "Relays" -> "relays"
         "CPU profile" -> "cpu_profile"
         "Network ADB" -> "network_adb"
+        "USB debugging" -> "usb_debugging"
         "Log shipping" -> "log_shipping"
         "Audio playback" -> "audio_playback"
         "App database" -> "app_database"
@@ -103,7 +104,7 @@ internal fun factRowsHtml(
     displayCell: (String) -> String,
 ): String {
     return keys.filter { facts.containsKey(it) }.joinToString("\n") { k ->
-        val v = facts.getValue(k)
+        val v = facts.getValue(k).let { if (k == "USB debugging") localizedRuntimeValue(k, it, strings) else it }
         // Version: plain text + a compact GitHub releases icon (a hyperlinked version reads ugly).
         val cell = if (k == "ha-paneld") {
             """${esc(v)}&nbsp;<a class="gh gh-inline" href="$RELEASES_URL" target="_blank" rel="noopener" """ +

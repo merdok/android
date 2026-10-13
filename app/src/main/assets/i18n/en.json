@@ -9843,6 +9843,20 @@
       "softMaxChars": 24,
       "hardMaxChars": 48
     },
+    "dashboard.fact.usb_debugging": {
+      "text": "USB debugging",
+      "sourceHash": "b717e583d6326d6b22ebe7350400ad7894456fc01a7a98710d34967300728636",
+      "surface": "dashboard",
+      "context": "Observed USB debugging status row label",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "USB"
+      ],
+      "softMaxChars": 24,
+      "hardMaxChars": 48
+    },
     "dashboard.fact.webview_reporting": {
       "text": "System WebView reporting",
       "sourceHash": "8a803bb805676261f2d7d35ad7880bec48082293ee16ed448bf0deceb816bec4",
@@ -13079,6 +13093,18 @@
       "frozen": [],
       "softMaxChars": 8,
       "hardMaxChars": 16
+    },
+    "dashboard.value.unknown": {
+      "text": "unknown",
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
+      "surface": "dashboard",
+      "context": "A runtime value Android does not let the panel observe",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 20,
+      "hardMaxChars": 40
     },
     "entities.age.days": {
       "context": "entities.js.age: visible Entities page copy.",
@@ -36160,6 +36186,41 @@
       "frozen": [],
       "softMaxChars": 12,
       "hardMaxChars": 24
+    },
+    "shell.dashboard_substitute.detail": {
+      "text": "{configured} is not on this Home Assistant, so the panel shows {shown}.",
+      "sourceHash": "1b33b87eed8112b692093bb12c893c73a31240400c3723a583c424a796b6f221",
+      "surface": "shell",
+      "context": "Second line of a small notice at the bottom of the panel's dashboard, shown while the panel's configured home dashboard does not exist on the Home Assistant it is signed in to and the panel shows that Home Assistant's default dashboard instead. {configured} is the configured dashboard path (for example /wall-panel), {shown} the path being shown instead (for example /lovelace).",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.dashboard_substitute.title"
+      ],
+      "placeholders": [
+        "{configured}",
+        "{shown}"
+      ],
+      "frozen": [
+        "{configured}",
+        "{shown}",
+        "Home Assistant"
+      ],
+      "softMaxChars": 80,
+      "hardMaxChars": 120
+    },
+    "shell.dashboard_substitute.title": {
+      "text": "Dashboard not found",
+      "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
+      "surface": "shell",
+      "context": "Title of a small notice at the bottom of the panel's dashboard, shown while the panel's configured home dashboard does not exist on the Home Assistant it is signed in to; it stays until that dashboard exists or another is chosen.",
+      "risk": "ordinary",
+      "siblings": [
+        "shell.dashboard_substitute.detail"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 24,
+      "hardMaxChars": 32
     },
     "shell.github.title": {
       "text": "Panel Assistant on GitHub",
