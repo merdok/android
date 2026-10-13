@@ -7,6 +7,7 @@ import io.panelassistant.android.security.ApprovalBroker
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -87,6 +88,13 @@ internal interface ManageDoor {
     /** [args] reach every read of the family, as a one-off read's do (a visible wizard's `presence`). */
     fun subscribe(family: String, origin: CommandOrigin, args: JSONObject = JSONObject(), sink: ManageSink): ManageSubscription?
     fun closeOrigin(origin: CommandOrigin)
+
+    /**
+     * Run [action] once when this door's dispatcher stops (a runtime generation is replaced): a socket opened
+     * against it closes, so its page reconnects to the new one. Runs at once when it has already stopped.
+     * Closing the returned handle forgets [action].
+     */
+    fun onStopped(action: () -> Unit): AutoCloseable
 }
 
 /** A sensitive operation from Panel Assistant is waiting for [approvalId] on the panel's own screen. */
@@ -197,7 +205,16 @@ internal class ManageOperations(
         }
         val request = ManageRequest(op, args, origin, blobs)
         if (entry.kind == ManageKind.READ) {
-            scope.launch { done(run(entry, request, onPending)) }
+            // Started even if this owner stops first, so a stop answers it as failed rather than dropping it.
+            scope.launch(start = CoroutineStart.ATOMIC) {
+                val answer = try {
+                    run(entry, request, onPending)
+                } catch (cancelled: CancellationException) {
+                    done(ManageReply.failed())
+                    throw cancelled
+                }
+                done(answer)
+            }
             return
         }
         val record = synchronized(lock) {
@@ -216,8 +233,19 @@ internal class ManageOperations(
             null
         }
         if (record != null) return record()
-        scope.launch {
-            val answer = run(entry, request, onPending)
+        scope.launch(start = CoroutineStart.ATOMIC) {
+            val answer = try {
+                run(entry, request, onPending)
+            } catch (cancelled: CancellationException) {
+                // This owner stopped mid-command: everyone waiting hears it failed, never nothing.
+                val waiters = synchronized(lock) {
+                    remembered[origin.approvalKey]?.get(commandId)?.let { recorded ->
+                        recorded.waiters.toList().also { recorded.waiters.clear() }
+                    }.orEmpty()
+                }
+                waiters.forEach { it(ManageReply.failed()) }
+                throw cancelled
+            }
             val waiters = synchronized(lock) {
                 val recorded = remembered[origin.approvalKey]?.get(commandId) ?: return@synchronized emptyList()
                 recorded.answer = answer
@@ -279,16 +307,23 @@ internal class ManageOperations(
         if (!job.isActive) return null
         synchronized(lock) {
             val held = subscriptions.getOrPut(origin.subscriptionOwner) { LinkedHashMap() }
-            held[family]?.let { shared ->
-                shared.replaceSink(sink, args)
-                return shared
-            }
+            held[family]?.let { shared -> return shared.attach(sink, args) }
             if (held.size >= maxSubscriptionsPerOrigin) return null
             val created = FamilySubscription(definition, origin, sink, args)
             held[family] = created
+            val handle = created.attach(sink, args)
             created.start()
-            return created
+            return handle
         }
+    }
+
+    private val stopActions = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
+    /** See [ManageDoor.onStopped]. */
+    fun onStopped(action: () -> Unit): AutoCloseable {
+        stopActions += action
+        if (!job.isActive && stopActions.remove(action)) action()
+        return AutoCloseable { stopActions.remove(action) }
     }
 
     /** End every subscription [origin]'s owner holds (that socket only, when it has one), as a door does when its connection closes. */
@@ -299,10 +334,16 @@ internal class ManageOperations(
 
     fun stop() {
         job.cancel()
-        synchronized(lock) {
+        // Commands still running are answered here or by their own cancellation, whichever takes them first.
+        val unanswered = synchronized(lock) {
             subscriptions.clear()
-            remembered.clear()
+            remembered.values.flatMap { byId ->
+                byId.values.filter { it.answer == null }.flatMap { recorded -> recorded.waiters.toList().also { recorded.waiters.clear() } }
+            }.also { remembered.clear() }
         }
+        unanswered.forEach { runCatching { it(ManageReply.failed()) } }
+        // Each door opened against this owner closes, so its page reconnects to the generation that replaces it.
+        stopActions.toList().forEach { action -> if (stopActions.remove(action)) runCatching(action) }
     }
 
     private suspend fun readFamily(definition: ManageFamily, origin: CommandOrigin, args: JSONObject): Any? {
@@ -321,9 +362,40 @@ internal class ManageOperations(
         private val origin: CommandOrigin,
         @Volatile private var sink: ManageSink,
         @Volatile private var args: JSONObject,
-    ) : ManageSubscription {
-        override val family: String get() = definition.name
+    ) {
         private var worker: Job? = null
+        /** One per subscribe call, oldest first; guarded by the owner's lock. The newest one's sink receives. */
+        private val handles = ArrayList<Handle>()
+
+        /** One subscriber of the shared worker; closing the last one ends the worker. */
+        inner class Handle(val handleSink: ManageSink, val handleArgs: JSONObject) : ManageSubscription {
+            override val family: String get() = definition.name
+            override fun close() = detach(this)
+        }
+
+        /** Add a subscriber, under the owner's lock; the newest receives the current value next. */
+        fun attach(newSink: ManageSink, newArgs: JSONObject): Handle {
+            val handle = Handle(newSink, newArgs)
+            handles += handle
+            replaceSink(newSink, newArgs)
+            return handle
+        }
+
+        private fun detach(handle: Handle) {
+            val last = synchronized(lock) {
+                if (!handles.remove(handle)) return
+                if (handles.isEmpty()) {
+                    val held = subscriptions[origin.subscriptionOwner]
+                    if (held?.get(definition.name) === this) held.remove(definition.name)
+                    true
+                } else {
+                    // A late unsubscribe of an older id leaves the newer subscriber in charge.
+                    handles.last().let { replaceSink(it.handleSink, it.handleArgs) }
+                    false
+                }
+            }
+            if (last) stop()
+        }
         private val slot = Any()
         private var outstanding = false
         private var unsent: Any? = null
@@ -413,13 +485,6 @@ internal class ManageOperations(
             worker?.cancel()
         }
 
-        override fun close() {
-            synchronized(lock) {
-                val held = subscriptions[origin.subscriptionOwner]
-                if (held?.get(definition.name) === this) held.remove(definition.name)
-            }
-            stop()
-        }
     }
 
     private companion object {

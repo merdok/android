@@ -343,6 +343,11 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
             return@webSocket close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "cross-origin refused"))
         }
         val dispatcher = door() ?: return@webSocket close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "starting"))
+        // The socket belongs to this dispatcher's generation: when a runtime replacement stops it, the socket
+        // closes and the page reconnects (and resubscribes) to the new one; requests in flight answer failed.
+        val generationEnded = dispatcher.onStopped {
+            launch { close(CloseReason(CloseReason.Codes.GOING_AWAY, "panel runtime restarted")) }
+        }
         val peerAddress = call.request.origin.remoteAddress
         // Approvals bind to the peer; subscriptions belong to this socket alone.
         val origin = CommandOrigin.peer(peerAddress).withConnection(UUID.randomUUID().toString())
@@ -491,6 +496,7 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
             }
         } finally {
             open.set(false)
+            generationEnded.close()
             queued.close()
             dispatcher.closeOrigin(origin)
         }

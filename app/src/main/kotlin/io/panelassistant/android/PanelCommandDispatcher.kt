@@ -174,6 +174,8 @@ internal class PanelCommandDispatcher(
         operations.subscribe(family, origin, args, sink)
 
     /** End every subscription [origin] holds, as its door does when the connection closes. */
+    override fun onStopped(action: () -> Unit): AutoCloseable = operations.onStopped(action)
+
     override fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
     private val queue = CommandQueue(
         onQueueWait = { waitNanos ->

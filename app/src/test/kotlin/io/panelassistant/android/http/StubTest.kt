@@ -239,6 +239,56 @@ internal class StubTest : PanelRuntimeRig() {
         }
     }
 
+    @Test fun aStoppingDispatcherAnswersItsRequestsInFlightAsFailed() {
+        val table = ManageTable()
+        table.register("probe.hold", ManageKind.READ) { kotlinx.coroutines.awaitCancellation() }
+        table.register("probe.held_command", ManageKind.COMMAND) { kotlinx.coroutines.awaitCancellation() }
+        val rig = managedRig(table)
+        val answers = LinkedBlockingQueue<ManageReply>()
+        rig.commands.manage("h1", "probe.hold", JSONObject(), CommandOrigin.peer("192.0.2.4")) { answers.put(it) }
+        rig.commands.manage("c1", "probe.held_command", JSONObject(), CommandOrigin.peer("192.0.2.4")) { answers.put(it) }
+        Thread.sleep(200)
+
+        rig.close()
+        rigs.remove(rig)
+
+        val settled = listOf(answers.poll(5, TimeUnit.SECONDS), answers.poll(5, TimeUnit.SECONDS))
+        assertEquals(listOf("failed", "failed"), settled.map { it?.outcome })
+    }
+
+    @Test fun aRuntimeReplacementClosesTheSocketSettlesItsRequestAndTheReconnectionServes() = testApplication {
+        val table = ManageTable()
+        table.register("probe.hold", ManageKind.READ) { kotlinx.coroutines.awaitCancellation() }
+        table.register("probe.origin", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("ok", true)) }
+        val before = managedRig(table)
+        val after = managedRig(table)
+        var current = before.commands
+        stub { current }
+        val ws = createClient { install(ClientWebSockets) }
+
+        val old = ws.webSocketSession("/ui")
+        // One answered request first: the socket is then bound to the generation running now.
+        assertEquals("applied", old.exchange(JSONObject().put("kind", "manage").put("command_id", "o1").put("op", "probe.origin")).getString("outcome"))
+        old.send(Frame.Text(JSONObject().put("kind", "manage").put("command_id", "h1").put("op", "probe.hold").toString()))
+        Thread.sleep(200)
+        // A rename replaces the runtime generation: the service switches to the new dispatcher and stops the old one.
+        current = after.commands
+        before.close()
+        rigs.remove(before)
+
+        // The old socket closes (the page's transport then fails what it was waiting for and reconnects); an
+        // answer that still leaves before the close says the request failed.
+        val frames = mutableListOf<JSONObject>()
+        val closed = withTimeout(5_000) {
+            runCatching { while (true) frames += JSONObject((old.incoming.receive() as Frame.Text).readText()) }.exceptionOrNull()
+        }
+        val reconnected = socket { exchange(JSONObject().put("kind", "manage").put("command_id", "r1").put("op", "probe.origin")) }
+
+        assertTrue("the old socket closed", closed != null)
+        assertTrue("nothing it answered claims success: $frames", frames.all { it.optString("outcome") == "failed" })
+        assertEquals("applied", reconnected.getString("outcome"))
+    }
+
     @Test fun aSocketSubscriptionSendsObservationFramesAndEndsWithTheSocket() = testApplication {
         val table = ManageTable()
         val reads = java.util.concurrent.atomic.AtomicInteger()

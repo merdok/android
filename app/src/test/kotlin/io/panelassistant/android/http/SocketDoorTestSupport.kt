@@ -32,6 +32,7 @@ internal fun tableDoor(table: ManageTable): ManageDoor {
         override fun subscribe(family: String, origin: CommandOrigin, args: JSONObject, sink: ManageSink) =
             operations.subscribe(family, origin, args, sink)
         override fun closeOrigin(origin: CommandOrigin) = operations.closeOrigin(origin)
+        override fun onStopped(action: () -> Unit): AutoCloseable = operations.onStopped(action)
     }
 }
 

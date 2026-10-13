@@ -96,6 +96,7 @@ internal class PaneldServerHttpFixture(
         override fun subscribe(family: String, origin: io.panelassistant.android.CommandOrigin, args: org.json.JSONObject, sink: io.panelassistant.android.ManageSink) =
             operations.subscribe(family, origin, args, sink)
         override fun closeOrigin(origin: io.panelassistant.android.CommandOrigin) = operations.closeOrigin(origin)
+        override fun onStopped(action: () -> Unit): AutoCloseable = operations.onStopped(action)
     }
     val server = allocate(PaneldServer::class.java).apply {
         field("manageTable", this@PaneldServerHttpFixture.manageTable)
