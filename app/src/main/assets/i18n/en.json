@@ -11488,26 +11488,6 @@
       "softMaxChars": 64,
       "hardMaxChars": 104
     },
-    "dashboard.runtime.convergence": {
-      "text": "{channels} channels · {dirty} dirty · {inFlight} in-flight · {unknown} unknown · ack {successes}/{failures} · pending {pending}",
-      "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics closed-state value or structured evidence summary; preserve status severity and runtime placeholders and render as text, not HTML.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{channels}",
-        "{dirty}",
-        "{inFlight}",
-        "{unknown}",
-        "{successes}",
-        "{failures}",
-        "{pending}"
-      ],
-      "frozen": [],
-      "softMaxChars": 178,
-      "hardMaxChars": 254
-    },
     "dashboard.runtime.database.on_disk": {
       "text": "{bytes} on disk",
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",

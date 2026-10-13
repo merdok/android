@@ -21,7 +21,7 @@ import org.json.JSONObject
  * Everything else is called by the transport owner's single session coroutine, which also owns every send,
  * so message ids stay strictly increasing in send order.
  */
-internal class PanelAssistantShadowReporter(
+internal class PanelAssistantStateReporter(
     private val describe: (String) -> PanelAssistantChannelDescriptor? = PanelAssistantChannelCatalog::describe,
     private val retryDelayMs: Long = 5_000L,
     private val resultTimeoutMs: Long = 15_000L,
@@ -41,11 +41,6 @@ internal class PanelAssistantShadowReporter(
     private val events = ArrayDeque<Pair<String, String>>()
     private var lastEventId = 0L
 
-    /** Gated channels the last session did not grant; until a grant, a hello leaves them out. */
-    @Volatile private var withheld: Set<String> = PanelAssistantTransportProtocol.GATED_CHANNELS.values.toSet()
-
-    /** What [withheld] was when the last hello's offer was read; a grant that changes it changes the hello. */
-    @Volatile private var offeredWithheld: Set<String> = withheld
     private var retryPhaseAt = 0L
 
     /** Totals for this process, for status and tests. */
@@ -83,7 +78,7 @@ internal class PanelAssistantShadowReporter(
             ++generation
         }
         wake.trySend(Unit)
-        return { channel, observation, _ -> record(bound, channel, observation) }
+        return { channel, observation -> record(bound, channel, observation) }
     }
 
     /**
@@ -122,21 +117,8 @@ internal class PanelAssistantShadowReporter(
 
     private fun describable(keys: Collection<String>): Map<String, PanelAssistantChannelDescriptor> =
         keys.mapNotNull(PanelAssistantChannelCatalog::wireChannel).distinct().sorted()
-            .filter { it !in withheld }
             .mapNotNull { wire -> describe(wire)?.let { wire to it } }
             .toMap()
-
-    /**
-     * Record what the session granted. A newly granted gated channel makes [descriptorsChanged] true, so
-     * the session ends and the next hello describes it; a refusal or an older integration withholds it again,
-     * and the return says whether that withdrew a channel the last hello described.
-     */
-    fun granted(capabilities: Collection<String>): Boolean {
-        val next = PanelAssistantTransportProtocol.GATED_CHANNELS.filterKeys { it !in capabilities }.values.toSet()
-        val withdrawn = !withheld.containsAll(next)
-        withheld = next
-        return withdrawn
-    }
 
     /** Descriptors for a `hello`; [open] later receives the same set. */
     fun descriptors(): List<PanelAssistantChannelDescriptor> = describable().values.toList()
@@ -148,10 +130,9 @@ internal class PanelAssistantShadowReporter(
      */
     fun offer(): PanelAssistantHelloOffer {
         val shape = synchronized(lock) { source }.invoke()
-        offeredWithheld = withheld
         val descriptors = describable(shape.served)
         val unsupported = shape.unsupported.mapNotNull(PanelAssistantChannelCatalog::wireChannel)
-            .filter { it !in withheld && (describe(it) != null || it in PanelAssistantChannelCatalog.RETIRED_CHANNELS) }
+            .filter { (describe(it) != null || it in PanelAssistantChannelCatalog.RETIRED_CHANNELS) }
             .distinct().sorted()
         return PanelAssistantHelloOffer(descriptors.values.toList(), unsupported)
     }
@@ -183,7 +164,7 @@ internal class PanelAssistantShadowReporter(
         return null
     }
 
-    /** Start reporting on an accepted shadow session described by [channels]. */
+    /** Start reporting on an accepted session described by [channels]. */
     fun open(channels: Collection<PanelAssistantChannelDescriptor>) = synchronized(lock) {
         described = channels.mapTo(HashSet()) { it.channel }
         events.clear()
@@ -211,13 +192,11 @@ internal class PanelAssistantShadowReporter(
     fun fullSyncComplete(): Boolean = synchronized(lock) { phase == Phase.DELTA }
 
     /**
-     * True when the bridge now serves a different channel set than the session described, or a grant
-     * changed which gated channels a hello leaves out: a gated channel the panel cannot fill must still
-     * reach the integration as `unsupported`, which removes an entity an earlier session created.
+     * True when the bridge now serves a different channel set than the session described.
      */
     fun descriptorsChanged(): Boolean {
         val current = describable().keys
-        return synchronized(lock) { phase != Phase.IDLE && (current != described || withheld != offeredWithheld) }
+        return synchronized(lock) { phase != Phase.IDLE && current != described }
     }
 
     private class Candidate(
@@ -289,7 +268,7 @@ internal class PanelAssistantShadowReporter(
             if (value == null) {
                 entry.skipped = candidate.revision
                 untranslatable++
-                log("native transport shadow skipped untranslatable observation channel=${candidate.wire}")
+                log("native transport state skipped untranslatable observation channel=${candidate.wire}")
                 continue
             }
             observations.put(observationJson(candidate, value))
@@ -304,7 +283,7 @@ internal class PanelAssistantShadowReporter(
             else -> phase
         }
         if (sync != PanelAssistantTransportProtocol.SYNC_DELTA) {
-            log("native transport shadow report_state $sync id=$id observations=${carried.size}")
+            log("native transport state report_state $sync id=$id observations=${carried.size}")
         }
         return PanelAssistantTransportProtocol.reportState(id, session, sync, observations)
     }
@@ -334,7 +313,7 @@ internal class PanelAssistantShadowReporter(
                     if (code != null) {
                         entry.rejected = revision
                         rejections++
-                        log("native transport shadow observation rejected channel=$wire code=$code")
+                        log("native transport state observation rejected channel=$wire code=$code")
                     } else {
                         entry.acknowledged = revision
                     }
@@ -342,7 +321,7 @@ internal class PanelAssistantShadowReporter(
                 phase = when {
                     batch.sync == PanelAssistantTransportProtocol.SYNC_FULL_BEGIN && phase == Phase.BEGIN_SENT -> Phase.FULL_END
                     batch.sync == PanelAssistantTransportProtocol.SYNC_FULL_END && phase == Phase.END_SENT -> {
-                        log("native transport shadow full sync complete channels=${described.size}")
+                        log("native transport state full sync complete channels=${described.size}")
                         Phase.DELTA
                     }
                     else -> phase
@@ -362,7 +341,7 @@ internal class PanelAssistantShadowReporter(
     }
 
     private fun failLocked(batch: Batch, now: Long, why: String, id: Long) {
-        log("native transport shadow report_state id=$id ${batch.sync} failed: $why")
+        log("native transport state report_state id=$id ${batch.sync} failed: $why")
         for (wire in batch.channels.keys) {
             val entry = entries[wire] ?: continue
             entry.inFlight = false

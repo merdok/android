@@ -145,7 +145,7 @@ import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantCommandSink
 import io.panelassistant.android.panelassistant.PanelAssistantHelloIdentity
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
 import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
@@ -647,7 +647,7 @@ class PaneldService : Service() {
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
     // the active profile's.
-    private val panelAssistantShadow = PanelAssistantShadowReporter(describe = { wire ->
+    private val panelAssistantReporter = PanelAssistantStateReporter(describe = { wire ->
         if (wire == "button" && ::profile.isInitialized) {
             io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.buttonDescriptor(profile.evdevButtons.mapTo(linkedSetOf()) { it.eventType })
         } else io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.describe(wire)
@@ -1091,7 +1091,7 @@ class PaneldService : Service() {
                 }.getOrDefault(emptyList())
                 io.panelassistant.android.util.localPanelAddresses(primary)
             },
-            shadow = panelAssistantShadow,
+            reporter = panelAssistantReporter,
             observeForHello = {
                 val observed = runtime.observe() ?: return@PanelAssistantTransportOwner false
                 observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
@@ -1674,8 +1674,8 @@ class PaneldService : Service() {
         learnedProximityEligibility = sensors::hasLearnedProximity,
         learnedProximityState = sensors::learnedProximityState,
     ).also { core ->
-        core.addStateSink(panelAssistantShadow.bindShape(core::nativeChannelShape))
-        core.addEventSink(panelAssistantShadow::event)
+        core.addStateSink(panelAssistantReporter.bindShape(core::nativeChannelShape))
+        core.addEventSink(panelAssistantReporter::event)
     }
 
     private fun buildCommands(core: PanelStateCore): PanelCommandDispatcher = PanelCommandDispatcher(

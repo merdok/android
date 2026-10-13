@@ -10,10 +10,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PanelAssistantShadowReporterTest {
+class PanelAssistantStateReporterTest {
 
     @Test fun actionDescriptorsAreOfferedWithoutStateObservations() {
-        val reporter = PanelAssistantShadowReporter()
+        val reporter = PanelAssistantStateReporter()
         reporter.bindShape {
             PanelAssistantChannelShape(served = listOf("reload"), unsupported = listOf("reboot"))
         }
@@ -28,7 +28,7 @@ class PanelAssistantShadowReporterTest {
 
     @Test fun knownRetiredChannelsStayUnsupportedWithoutDescriptorsWhileUnknownNamesAreOmitted() {
         val retired = listOf("self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update")
-        val reporter = PanelAssistantShadowReporter()
+        val reporter = PanelAssistantStateReporter()
         reporter.bindShape {
             PanelAssistantChannelShape(
                 served = listOf("update_paneld", "update_companion"),
@@ -197,20 +197,18 @@ class PanelAssistantShadowReporterTest {
         val retired = h.bound
         h.bound = h.reporter.bind { h.keys }
         h.sink("relay1", "ON")
-        val thrown = runCatching { retired("relay1", Observation.Known("OFF")) {} }.exceptionOrNull()
+        val thrown = runCatching { retired("relay1", Observation.Known("OFF")) }.exceptionOrNull()
         assertNull("a late observation must never throw into the convergence pump", thrown)
         assertEquals(true, observation(h.next(10), "relay1").getBoolean("value"))
     }
 
-    @Test fun theSinkDoesNoTranslationAndIgnoresItsAcknowledgement() {
+    @Test fun theSinkDoesNoTranslation() {
         var described = 0
         val h = Harness(describe = { wire -> described++; PanelAssistantChannelCatalog.describe(wire) })
         described = 0
-        var acknowledged = false
-        repeat(100) { h.bound("volume", Observation.Known("not a number")) { acknowledged = true } }
+        repeat(100) { h.bound("volume", Observation.Known("not a number")) }
         assertEquals(0, described)
         assertEquals(0L, h.reporter.untranslatable)
-        assertFalse(acknowledged)
         assertTrue(h.reporter.wake.tryReceive().isSuccess)
     }
 
@@ -230,10 +228,10 @@ class PanelAssistantShadowReporterTest {
         describe: (String) -> PanelAssistantChannelDescriptor? = PanelAssistantChannelCatalog::describe,
     ) {
         val keys = initial.toMutableList()
-        val reporter = PanelAssistantShadowReporter(describe = describe, log = {})
+        val reporter = PanelAssistantStateReporter(describe = describe, log = {})
         var bound: StateSink = reporter.bind { keys.toList() }
 
-        fun sink(channel: String, payload: String) = bound(channel, Observation.Known(payload)) {}
+        fun sink(channel: String, payload: String) = bound(channel, Observation.Known(payload))
 
         fun open() = reporter.open(reporter.descriptors())
 

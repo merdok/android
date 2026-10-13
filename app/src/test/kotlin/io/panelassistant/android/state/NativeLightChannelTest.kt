@@ -1,7 +1,7 @@
 package io.panelassistant.android.state
 
 import io.panelassistant.android.testsupport.PanelRuntimeRig
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -17,7 +17,7 @@ internal class NativeLightChannelTest : PanelRuntimeRig() {
         var answer: Boolean? = null
         val rig = rig(lightChannel = { answer })
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.start()
             assertOffered(native, described = false, unsupported = false)
@@ -34,7 +34,7 @@ internal class NativeLightChannelTest : PanelRuntimeRig() {
     @Test(timeout = 90_000) fun aSettledAbsentSensorIsStatedUnsupported() {
         val rig = rig(lightChannel = { false })
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.start()
             assertOffered(native, described = false, unsupported = true)
@@ -46,7 +46,7 @@ internal class NativeLightChannelTest : PanelRuntimeRig() {
     @Test(timeout = 90_000) fun aSensorThatReportedStaysDescribed() {
         val rig = rig(lightChannel = { true })
         try {
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             rig.start()
             assertOffered(native, described = true, unsupported = false)
@@ -55,7 +55,7 @@ internal class NativeLightChannelTest : PanelRuntimeRig() {
         }
     }
 
-    private fun assertOffered(native: PanelAssistantShadowReporter, described: Boolean, unsupported: Boolean) {
+    private fun assertOffered(native: PanelAssistantStateReporter, described: Boolean, unsupported: Boolean) {
         val offer = native.offer()
         assertEquals("illuminance descriptor in hello", described, offer.descriptors.any { it.channel == "illuminance" })
         assertEquals("illuminance stated unsupported", unsupported, "illuminance" in offer.unsupported)

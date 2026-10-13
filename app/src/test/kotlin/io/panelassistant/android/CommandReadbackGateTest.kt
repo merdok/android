@@ -85,7 +85,7 @@ class CommandReadbackGateTest {
         val pump = ManualPump()
         val published = Collections.synchronizedList(mutableListOf<String>())
         val converger = StateConverger()
-        converger.addSink { _, observation, _ -> published += (observation as StateConverger.Observation.Known).payload }
+        converger.addSink { _, observation -> published += (observation as StateConverger.Observation.Known).payload }
         val hardware = java.util.concurrent.atomic.AtomicReference("ON")
         val observeEntered = CountDownLatch(1)
         val observeRelease = CountDownLatch(1)

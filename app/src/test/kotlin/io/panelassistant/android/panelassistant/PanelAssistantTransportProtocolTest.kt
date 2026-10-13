@@ -275,17 +275,6 @@ class PanelAssistantTransportProtocolTest {
         assertNull(session(frame).embed)
     }
 
-    @Test fun `the hello offers no withdrawal and the retired reply fields are never read`() {
-        assertFalse(PanelAssistantTransportProtocol.CAPABILITIES.contains("mqtt_withdraw"))
-        assertFalse(JSONObject(PanelAssistantTransportProtocol.CANONICAL_CONTRACT).toString().contains("mqtt_withdraw"))
-        // A result without `authority` or `mqtt_discovery` is a session; one still carrying them is the same session.
-        val plain = session(accepted())
-        val legacy = session(accepted().apply {
-            getJSONObject("result").put("authority", "shadow").put("mqtt_discovery", "withdraw")
-        })
-        assertEquals(plain, legacy)
-    }
-
     @Test fun `entry_removed is a refusal code`() {
         assertEquals(
             PanelAssistantHelloOutcome.Refused("entry_removed"),

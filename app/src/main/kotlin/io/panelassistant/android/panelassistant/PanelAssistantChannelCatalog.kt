@@ -177,7 +177,7 @@ internal object PanelAssistantChannelCatalog {
             channel = channel,
             platform = platform,
             translationKey = channel,
-            // The retired discovery tombstone's id, so a later entity attaches to the same suffix.
+            // The id earlier entities were created under, so a later entity attaches to the same suffix.
             uniqueSuffix = channel,
             kind = if (choices == null) PanelAssistantValueKind.BOOLEAN else PanelAssistantValueKind.OPTION,
             entityCategory = "config",

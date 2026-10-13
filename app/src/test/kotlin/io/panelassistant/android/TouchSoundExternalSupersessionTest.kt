@@ -40,7 +40,7 @@ class TouchSoundExternalSupersessionTest {
         assertEquals("true", config.value)
 
         // The failure path must still retire the older queued value.
-        supersededKeyAfterFailedDispatch(topicKey = KEY, committedKey = committed)
+        supersededKeyAfterFailedDispatch(commandKey = KEY, committedKey = committed)
             ?.let { assertTrue(authority.discard(it)) }
         assertTrue("the stale queued value survived", authority.pendingSnapshot().isEmpty())
 
@@ -69,15 +69,15 @@ class TouchSoundExternalSupersessionTest {
         assertNull(committed)
         assertEquals("false", config.value)
 
-        assertNull(supersededKeyAfterFailedDispatch(topicKey = KEY, committedKey = committed))
+        assertNull(supersededKeyAfterFailedDispatch(commandKey = KEY, committedKey = committed))
         assertEquals(mapOf(KEY to "false"), authority.pendingSnapshot())
     }
 
     /** A key committed by an earlier dispatch cannot retire a value the current command never named. */
     @Test fun aKeyFromAnotherCommandIsNeverSuperseded() {
-        assertNull(supersededKeyAfterFailedDispatch(topicKey = KEY, committedKey = "silence_boot_chime"))
-        assertNull(supersededKeyAfterFailedDispatch(topicKey = null, committedKey = KEY))
-        assertEquals(KEY, supersededKeyAfterFailedDispatch(topicKey = KEY, committedKey = KEY))
+        assertNull(supersededKeyAfterFailedDispatch(commandKey = KEY, committedKey = "silence_boot_chime"))
+        assertNull(supersededKeyAfterFailedDispatch(commandKey = null, committedKey = KEY))
+        assertEquals(KEY, supersededKeyAfterFailedDispatch(commandKey = KEY, committedKey = KEY))
     }
 
     /** The production wiring the cases above stand in for. */

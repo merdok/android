@@ -3753,11 +3753,6 @@
    "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
    "state": "machine-cross-checked"
   },
-  "dashboard.runtime.convergence": {
-   "text": "{channels} kanalen · {dirty} gewijzigd · {inFlight} onderweg · {unknown} onbekend · bevestigd {successes}/{failures} · in behandeling {pending}",
-   "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
-   "state": "machine-cross-checked"
-  },
   "dashboard.runtime.database.on_disk": {
    "text": "{bytes} op schijf",
    "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",

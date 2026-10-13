@@ -51,11 +51,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import org.json.JSONObject
 
-/** Notified when a local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
-internal fun interface StateCoreListener {
-    fun onCapabilitiesObserved(observation: CapabilityObservation)
-}
-
 /**
  * The panel's one state owner for a network runtime generation: every state channel's authoritative
  * observation, the local observation pass, and what the panel can describe. Output leaves only through
@@ -117,8 +112,8 @@ internal class PanelStateCore(
     private val learnedProximityState: () -> Boolean? = { null },
 ) {
     private val lifecycle = RetirableMutationGate()
-    private val listeners = java.util.concurrent.CopyOnWriteArrayList<StateCoreListener>()
-    private val sinks = java.util.concurrent.CopyOnWriteArrayList<StateSink>()
+    /** Notified when a local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
+    @Volatile var onCapabilitiesObserved: ((CapabilityObservation) -> Unit)? = null
     @Volatile private var nativeEventSink: ((channel: String, event: String) -> Unit)? = null
     private val haLinkResolutionThread = AtomicReference<Thread?>()
     private var buttonSubscription: ButtonBus.Subscription? = null
@@ -171,7 +166,6 @@ internal class PanelStateCore(
         val known = { payload: String -> Observation.Known(payload) }
         val unknown = Observation.Unknown
         val c = StateConverger()
-        c.addSink { channel, observation, done -> sinks.forEach { it(channel, observation, done) } }
         fun channel(key: String, observe: () -> Observation) = c.register(StateConverger.Channel(key, observe))
 
         channel("storage_health") {
@@ -292,12 +286,10 @@ internal class PanelStateCore(
     }
 
     /** Every admitted observation reaches [sink], independently of any transport's delivery capacity. */
-    fun addStateSink(sink: StateSink) { sinks += sink }
+    fun addStateSink(sink: StateSink) = converger.addSink(sink)
 
     /** Hand transient events (button presses) to the native transport; it never blocks the caller. */
     fun addEventSink(sink: (channel: String, event: String) -> Unit) { nativeEventSink = sink }
-
-    fun addListener(listener: StateCoreListener) { listeners += listener }
 
 
     fun reconcile(key: String, admit: () -> Boolean = { true }) = converger.reconcile(key, admit)
@@ -673,10 +665,6 @@ internal class PanelStateCore(
     }
 
     fun publishAutoSleepActivityNow() {
-        val exposed = config.haExposed("auto_sleep_activity", true)
-        val snapshot = if (!exposed) AutoSleepActivitySnapshot() else runCatching(autoSleepActivity)
-            .onFailure { Log.w(TAG, "auto-sleep policy snapshot failed; reporting unavailable", it) }
-            .getOrDefault(AutoSleepActivitySnapshot())
         // The attributes first, so the native report carries them with the state.
         reconcile("auto_sleep_activity_attributes")
         reconcile("auto_sleep_activity")
@@ -771,7 +759,7 @@ internal class PanelStateCore(
             capabilityObservation.changedKeys().forEach {
                 reconcile(it)
             }
-            listeners.forEach { it.onCapabilitiesObserved(capabilityObservation) }
+            onCapabilitiesObserved?.invoke(capabilityObservation)
         }
         val observedOffGeneration = screen.currentOffGeneration()
         val physicallyDark = screen.observedDark()
@@ -877,7 +865,7 @@ internal class PanelStateCore(
             rssi = true,
             privilegedRoute = capabilityShape.current().live.networkAdb,
         )).rssiDbm?.toString()
-        // Rolling outage counts stay reported (retained last value) through a Wi-Fi dropout —
+        // Rolling outage counts keep their last reported value through a Wi-Fi dropout —
         // that dropout is exactly what they exist to report — so they are not WIFI_DIAGNOSTIC_KEYS.
         "diag_wifi_outages_24h" -> wifiOutages()?.last24h?.toString()
         // Room climate — apply the calibration offset to temperature; humidity is reported whole-percent.
@@ -1052,7 +1040,7 @@ internal fun autoSleepActivityProjection(snapshot: AutoSleepActivitySnapshot): A
 }
 
 /** A mode-change signal carries no truth. The admitted runtime generation samples the service-owned
- * authority immediately before it clears stale state and schedules fresh discovery. */
+ * authority immediately before it clears stale state and re-observes the channel. */
 internal fun refreshLearnedProximityFromAuthority(
     admitted: Boolean,
     eligible: () -> Boolean,
@@ -1122,7 +1110,7 @@ internal data class CapabilityObservation(
 /**
  * Separates monotonic channel shape from the latest live probe. Once hardware has been confirmed its
  * channel identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
- * the entity. Newly confirmed channels can be registered and announced by the existing runtime.
+ * the entity. Newly confirmed channels can be registered and described by the existing runtime.
  */
 internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {
     init {
@@ -1159,13 +1147,12 @@ internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {
         CapabilityObservation(possible, live, live, grew = false)
 }
 
-/** One immutable capability value per discovery announcement, with a short monotonic burst cache. */
+/** One immutable capability value per hello, with a short monotonic burst cache. */
 internal class CapabilitySnapshotSource(
     private val supplier: (() -> Capabilities)?,
     private val onFailure: (Exception) -> Unit = {},
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
-    private val initial = AtomicReference<Capabilities?>()
     private var latest: Capabilities? = null
     private var latestAtMs = Long.MIN_VALUE
 
@@ -1185,17 +1172,14 @@ internal class CapabilitySnapshotSource(
             source()
         } catch (e: Exception) {
             onFailure(e)
-            // A failed live probe must not abort the complete discovery announcement. All-false is the
+            // A failed live probe must not abort the hello. All-false is the
             // fail-closed settings view; hardware entities driven by constructor/profile facts continue.
             Capabilities()
         }
-        initial.compareAndSet(null, value)
         latest = value
         latestAtMs = nowMs()
         return value
     }
-
-    fun initialSnapshot(): Capabilities? = initial.get()
 
     @Synchronized
     fun invalidate() {
