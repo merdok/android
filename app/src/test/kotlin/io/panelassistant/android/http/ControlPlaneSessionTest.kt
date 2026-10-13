@@ -208,6 +208,37 @@ class ControlPlaneSessionTest {
         assertTrue(received.isEmpty())
     }
 
+    @Test fun aBackupApprovalCoversOnlyTheExportAndDestinationItWasGivenFor() = runTest {
+        val broker = ApprovalBroker(monotonicMs = { testScheduler.currentTime })
+        val hardened: suspend (SensitiveOperation, String, String) -> String? = { operation, payload, summary ->
+            authorizeSessionRequest(true, operation, payload, summary, broker, onPending = {})
+        }
+        fun backup(companion: String, token: String = "upload-token-00001") = async {
+            ControlPlaneSessionOps.request(
+                "backup",
+                JSONObject().put("allow_plaintext", "1").put("include_companion", companion).put("blob_token", token),
+                routes(), blobs, hardened,
+            )
+        }
+        val first = backup("false")
+        runCurrent()
+        broker.approve(broker.pending().single().id)
+        // The same token with a different export, and the same export to another destination, are new requests:
+        // the approval given for the first admits neither.
+        val changed = backup("true")
+        val elsewhere = backup("false", token = "upload-token-00002")
+        runCurrent()
+        assertEquals(2, broker.pending().size)
+        changed.cancel()
+        elsewhere.cancel()
+        runCurrent()
+        assertTrue(backupRequests.isEmpty())
+        // The approved request itself still runs.
+        advanceTimeBy(1_500)
+        assertEquals("applied", first.await()!!.outcome)
+        assertEquals(listOf(CompanionBackupRequest.EXCLUDED to ""), backupRequests)
+    }
+
     @Test fun aCommitAsksForTheSameApprovalAsTheHttpCommit() {
         request("install.apk", offer("1.0.1".toByteArray()))
         val asked = mutableListOf<Pair<SensitiveOperation, String>>()

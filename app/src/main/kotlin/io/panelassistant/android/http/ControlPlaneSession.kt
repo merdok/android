@@ -83,7 +83,9 @@ internal object ControlPlaneSessionOps {
             is BackupRequest.Refused -> return reply(parsed.answer)
             is BackupRequest.Accepted -> parsed
         }
-        authorize(SensitiveOperation.BACKUP_EXPORT, "$BACKUP\u0000$token", BACKUP_APPROVAL_SUMMARY)?.let { return refused(it) }
+        // The approval covers exactly what the archive contains and where it goes, as the HTTP route's does.
+        authorize(SensitiveOperation.BACKUP_EXPORT, "$BACKUP\u0000${parameters.canonicalDigest()}\u0000$token", BACKUP_APPROVAL_SUMMARY)
+            ?.let { return refused(it) }
         var uploaded: PanelAssistantBlobs.Reference? = null
         buildAndDeliverBackup(routes, request) { built, release ->
             try {
