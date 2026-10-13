@@ -74,6 +74,9 @@ object EntityLearningProtocol {
     private val EXPANDABLE_TARGET_KEYS = TARGET_KEYS - "entity_id"
     private val TEMPLATE_MARKERS = listOf("{{", "{%", "[[[", "hass.states", "states[")
     private val PSEUDO_DOMAINS = setOf("variables", "config", "hass", "state", "states", "entity")
+    // Entities a card reads by itself, named nowhere in its configuration. Bubble Card reads its module
+    // registry on every card; an ID Home Assistant lacks is dropped against the catalogue like any other.
+    private val CARD_ENTITY_DEPENDENCIES = mapOf("custom:bubble-card" to listOf("sensor.bubble_card_modules"))
 
     internal const val MAX_NATIVE_BRIDGE_PAYLOAD_CHARS = 1_000_000
     internal const val MAX_OBSERVER_WS_FRAME_CHARS = 786_432
@@ -103,8 +106,12 @@ object EntityLearningProtocol {
             .put("fingerprint", fingerprint)
     }
 
-    /** Scan every nested dashboard value. False-positive entity-like strings are removed against the catalog later. */
-    fun scanDashboard(configJson: String): ScanResult {
+    /**
+     * Scan every nested dashboard value. False-positive entity-like strings are removed against the catalog later.
+     * [streamlineTemplates] is Streamline Card's remote template file; with it, or with templates kept in the
+     * dashboard, each streamline card is also scanned as its expansion (entities and targets only).
+     */
+    fun scanDashboard(configJson: String, streamlineTemplates: JSONObject? = null): ScanResult {
         val root = JSONObject(configJson)
         val ids = linkedSetOf<String>()
         val targets = linkedSetOf<String>()
@@ -164,6 +171,7 @@ object EntityLearningProtocol {
             when (value) {
                 is JSONObject -> {
                     val type = value.optString("type")
+                    CARD_ENTITY_DEPENDENCIES[type]?.let(ids::addAll)
                     if (type == "custom:auto-entities") {
                         // Selector filters are not walked for ordinary literal IDs, but their dynamic
                         // expressions are still valuable configuration evidence. Selector admission
@@ -235,6 +243,13 @@ object EntityLearningProtocol {
             }
         }
         walk(root, "dashboard")
+        // Expansions add dependencies only: the dashboard's own unresolved and dynamic-expression evidence
+        // stays what its configuration says, so the Entities surface does not list template internals.
+        val unresolvedBefore = unresolved.toSet()
+        val dynamicBefore = dynamicExpressions.keys.toSet()
+        walk(StreamlineTemplates.expandedCards(root, streamlineTemplates), "dashboard.streamline")
+        unresolved.retainAll(unresolvedBefore)
+        dynamicExpressions.keys.retainAll(dynamicBefore)
         return ScanResult(
             entityIds = ids,
             targets = targets.toList(),
