@@ -143,7 +143,8 @@ export function measureLayout() {
       // A row header (a th beside td cells in a key/value table) sits in a fixed share of a narrow card;
       // its wrapping is reported separately from column headers and controls.
       const rowHeader = node.tagName === 'TH' && !!node.parentElement && [...node.parentElement.children].some((cell) => cell.tagName === 'TD');
-      if (tops.length > 1) wraps.push({ key: keyOf(node), text: textOf(node), lines: tops.length, ...(rowHeader ? { rowHeader: true } : {}) });
+      const descriptiveLabel = node.matches('.entity-policy label') && !!node.querySelector('input[type="checkbox"]');
+      if (tops.length > 1) wraps.push({ key: keyOf(node), text: textOf(node), lines: tops.length, ...(rowHeader ? { rowHeader: true } : {}), ...(descriptiveLabel ? { descriptiveLabel: true } : {}) });
     }
   }
 

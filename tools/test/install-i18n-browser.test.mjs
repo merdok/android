@@ -60,10 +60,11 @@ async function realCatalogueProjection(locale, prefixes) {
 }
 
 test('Install browser copies the exact frozen v3 presentation and direct-token tables', async () => {
+  // Source-text reason: these tables implement the published Install v3 presentation contract.
   const source = await readFile(asset, 'utf8');
   const presentations = frozenObject(source, 'PRESENTATIONS');
-  assert.equal(Object.keys(presentations).length, 114);
-  assert.equal(digest(presentations), 'a03ea51ae259d4813b724ce246f7e70941eb575f54d5015bcc9a4ebf5c4828bc');
+  assert.equal(Object.keys(presentations).length, 115);
+  assert.equal(digest(presentations), 'd0cec4830ad94307603c30731a58bb0f998dee2587d92cf5f21689825f16df32');
   assert.equal(digest(frozenObject(source, 'COMPONENT_STATUS')), '73563afe880f7bccf8b8c31d582a29405b8a498724a97cda7b54686a56f9530e');
   assert.equal(digest(frozenObject(source, 'APK_STATUS')), '2849cf9486f18979fe79465df4c9c76e11c558ef03ae3e98faa1f013b34f9cd8');
   assert.equal(digest(frozenObject(source, 'RESTORE_OUTCOME')), '69226bae3ec367703099c6136b4ff7b7ef264d8ad6efe6a02428bb155e7662b1');

@@ -39,12 +39,17 @@ the check that a translation has not broken a page.
 - **Row headers** of key/value tables (a `th` beside `td` cells, 46% of a narrow card) are reported when
   they wrap, not blocking: keeping them on one line needs shorter translations or a table layout that
   changes English.
+- **Descriptive Entities checkbox labels** may wrap and are reported. Clipping, overflow, overlap,
+  reachability and excessive card growth retain their normal checks.
 - **Known translation-length issues** (`language-layout/known-issues.json`): breakages only a shorter
   translation can fix (English must stay as it is, and no layout keeps the label whole at that width). Each
   is reported on every run; an entry that no longer occurs fails as stale, so fixed ones must be removed.
 - `language-layout-harness.test.mjs` proves every check can fail (injected cut-off text, nowrap overflow,
   page overflow, overlap, an off-screen control, a wrapping title, unexplained card growth) in both
   browsers, that panel sizes only report (b) and (d), and that a stale known issue fails.
+
+The language gate checks functional geometry. The CLS matrix below measures layout stability separately
+and stays report-only; a single page-load CLS reading does not decide this gate.
 
 ### Run it
 

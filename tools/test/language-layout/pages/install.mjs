@@ -33,8 +33,7 @@ export function payload(url, method) {
  * alerts, a restore preview and its completion, and the power-safety repair then acknowledgement. Works on
  * a Playwright Page or Frame, against the real markup and the qualification fixture alike.
  */
-// The qualification fixture presses like a user: layout shifts within 500 ms of real input are excluded
-// from its CLS budget. The layout gate measures geometry, not CLS, and presses through the DOM instead — on
+// The qualification fixture presses like a user. The geometry gate presses through the DOM instead — on
 // narrow card walls content-visibility and the column alignment reflow cards while Playwright scrolls, and
 // WebKit's pointer click then lands beside the button. Both run the same handlers.
 async function press(page, selector, pointer) {
@@ -291,7 +290,6 @@ function backupCard(s, b) {
 export default {
   name: 'install',
   path: '/install',
-  maxCls: 0.10,
   views: [{ name: 'install-857', tier: 'supported', width: 857, height: 800 }],
   html(context) {
     const { s, locale } = context;

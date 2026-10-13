@@ -16,6 +16,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.UnknownHostException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -145,6 +146,7 @@ class LogShipTransportTest {
         port: Int,
         host: String = "127.0.0.1",
         panelId: String = "panel-a",
+        sinkFactory: LogSinkFactory = NetworkLogSinkFactory,
     ) : AutoCloseable {
         private val executor = Executors.newSingleThreadExecutor { r ->
             Thread(r, "logship-transport-test").apply { isDaemon = true }
@@ -159,7 +161,7 @@ class LogShipTransportTest {
                 listener.set(candidate)
                 AutoCloseable { listener.compareAndSet(candidate, null) }
             },
-            sinkFactory = NetworkLogSinkFactory,
+            sinkFactory = sinkFactory,
         )
 
         fun start() = shipper.start()
@@ -417,7 +419,16 @@ class LogShipTransportTest {
     @Test(timeout = 20_000)
     fun anUnresolvableHostReportsTheFaultNotJustItsOwnName() {
         val host = "no-such-host.invalid"
-        Harness(LogShipEndpoint.SYSLOG_TCP, 514, host = host).use { harness ->
+        // Exercise the real transport failure path without depending on the runner's DNS latency.
+        val unknownHost = LogSinkFactory { target, encode ->
+            NetworkLogSinkFactory.create(
+                target,
+                encode,
+                LogAddressResolver { unresolvedHost, _ -> throw UnknownHostException(unresolvedHost) },
+                LogShipper.NETWORK_TIMEOUT_MS.toLong(),
+            )
+        }
+        Harness(LogShipEndpoint.SYSLOG_TCP, 514, host = host, sinkFactory = unknownHost).use { harness ->
             harness.start()
             harness.emit(logcatLine("I", "unreachable"))
             await { failureReason(harness.shipper.statusText()) != null }
