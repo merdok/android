@@ -2874,7 +2874,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "skutečné vypnutí podsvícení přes místní RPC výrobce; jinak časový limit obrazovky Androidu",
+      "text": "skutečné vypnutí podsvícení přes lokální RPC výrobce; časový limit obrazovky Androidu, když výrobce neodpoví",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },
