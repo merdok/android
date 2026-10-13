@@ -10,6 +10,35 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProfileYamlSecurityTest {
+    @Test fun `automatic brightness defaults reject equal and inverted ranges after YAML parsing`() {
+        for ((minimum, maximum) in listOf(90 to 10, 30 to 30)) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(
+                settingDefaults = mapOf(
+                    "auto_brightness_minimum_percent" to minimum,
+                    "auto_brightness_maximum_percent" to maximum,
+                ),
+            )))
+            assertTrue(parsed.issues.toString(), parsed.issues.isEmpty())
+            val issues = ProfileValidator.validate(requireNotNull(parsed.document), "1.0.0", bundled = false)
+            assertTrue("accepted $minimum..$maximum", issues.any {
+                it.severity == ProfileIssueSeverity.ERROR && it.path.startsWith("setting_defaults")
+            })
+        }
+    }
+
+    @Test fun `automatic brightness defaults admit ordered pairs and either partial bound`() {
+        for (defaults in listOf(
+            mapOf("auto_brightness_minimum_percent" to 30, "auto_brightness_maximum_percent" to 60),
+            mapOf("auto_brightness_minimum_percent" to 90),
+            mapOf("auto_brightness_maximum_percent" to 10),
+        )) {
+            val parsed = ProfileYaml.parse(ProfileYaml.serialize(testProfileDocument().copy(settingDefaults = defaults)))
+            assertTrue(parsed.issues.toString(), parsed.issues.isEmpty())
+            val issues = ProfileValidator.validate(requireNotNull(parsed.document), "1.0.0", bundled = false)
+            assertTrue("rejected $defaults: $issues", issues.isEmpty())
+        }
+    }
+
     @Test fun `generic typed setting defaults survive YAML round trip and registry admission`() {
         val document = testProfileDocument().copy(settingDefaults = mapOf(
             "dark_mode" to false,

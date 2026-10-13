@@ -2291,8 +2291,25 @@ class Config private constructor(
             "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
             "auto_sleep_source" -> declared ?: absentAutoSleepSource
             "network_adb" -> if (hardenedSecurityEnabled) "false" else declared ?: spec.default
+            "auto_brightness_minimum_percent", "auto_brightness_maximum_percent" ->
+                profileBrightnessDefault(spec, declared)
             else -> declared ?: spec.default
         }
+    }
+
+    /** A stored opposing bound wins over a conflicting profile range; absent keys stay unpersisted. */
+    private fun profileBrightnessDefault(spec: SettingSpec, declared: String?): String {
+        if (declared == null) return spec.default
+        val minimum = specOf("auto_brightness_minimum_percent")
+        val maximum = specOf("auto_brightness_maximum_percent")
+        val bounds = listOf(minimum, maximum).associate { bound ->
+            bound.key to prefs.getInt(
+                bound.key, profile?.settingDefaults?.get(bound.key)?.toInt() ?: bound.default.toInt(),
+            ).toString()
+        }
+        return if (SettingsRegistry.automaticBrightnessBoundsError(
+                bounds, minimum.default.toInt(), maximum.default.toInt(),
+            ) == null) declared else spec.default
     }
 
     private fun boolPref(key: String): Boolean = prefs.getBoolean(key, effectiveDefault(specOf(key)).toBoolean())

@@ -106,10 +106,17 @@ internal object ProfileValidator {
         }
         boundedRequiredText(document.displayName, "display_name")
         boundedRequiredText(document.socClass, "soc_class")
+        val settingDefaults = mutableMapOf<String, String>()
         document.settingDefaults.forEach { (key, value) ->
             val admitted = settingDefault(key, value)
             if (admitted is Validation.Bad) reject("setting_defaults.$key", admitted.reason)
+            if (admitted is Validation.Ok) settingDefaults[key] = admitted.normalized
         }
+        SettingsRegistry.automaticBrightnessBoundsError(
+            settingDefaults,
+            requireNotNull(SettingsRegistry.spec("auto_brightness_minimum_percent")).default.toInt(),
+            requireNotNull(SettingsRegistry.spec("auto_brightness_maximum_percent")).default.toInt(),
+        )?.let { reject("setting_defaults.auto_brightness_maximum_percent", it) }
         boundedRequiredText(document.metadata.author, "metadata.author")
         document.metadata.source?.let { validHttpsUrl(it, "metadata.source") }
         if (document.metadata.links.size > 8) reject("metadata.links", "At most 8 display links are allowed.", "profile-link-count-limit")
