@@ -408,7 +408,10 @@ class DashboardActivity : AppCompatActivity() {
     // window, then freeze — so we never reload into a frozen WebView, but also never leave it churning
     // behind a dark screen forever. Fires only if the frontend hasn't already connected (which freezes early).
     private val darkSettle = Runnable {
-        if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !screenAwake) web?.pauseTimers()
+        if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !screenAwake) {
+            if (!frontendConnected) Log.w(TAG, "dark settle: the dashboard did not connect within ${DARK_SETTLE_MS}ms — freezing until the screen wakes")
+            web?.pauseTimers()
+        }
     }
     // Time-based memory ceiling. onTrimMemory's RUNNING_* levels are deprecated + never delivered on
     // Android 14 (the fleet), so a periodic check is the portable ceiling: reload invisibly at the next
@@ -857,9 +860,6 @@ class DashboardActivity : AppCompatActivity() {
             resumeOwnsAdmissionVisibility(android.os.Build.VERSION.SDK_INT)) {
             onAdmissionVisibilityChanged(true)
         }
-        // Created dark: let the initial load settle, then freeze (onLoadStarted skipped the watchdog;
-        // onConnectionStatus freezes earlier if the frontend connects first).
-        if (!screenAwake) main.postDelayed(darkSettle, DARK_SETTLE_MS)
     }
 
     /** Any touch (the WebView consumes them, but the activity sees them first) resets the idle clock. */
@@ -1329,19 +1329,25 @@ class DashboardActivity : AppCompatActivity() {
             }
         } else {
             wakeMediaRecovery.invalidate()
-            w.onPause()
             main.removeCallbacks(watchdog) // a paused WebView can't complete the handshake — don't loop
-            if (authLatched) { w.pauseTimers(); return }
-            if (reloadDue()) {
-                // Reload to shed memory, but DON'T pause timers yet — a paused WebView can't load. Let it
-                // run; onConnectionStatus freezes it the moment it connects, or darkSettle freezes it after
-                // the settle window if it never does. Either way it doesn't churn all night.
-                reloadPending = false
-                lastFullLoadAt = SystemClock.elapsedRealtime()
-                doReloadNoWatchdog("quiet reload (screen off, due)")
-                scheduleDarkSettle()
-            } else {
-                w.pauseTimers()
+            when (screenOffStep(frontendConnected, authLatched, reloadDue())) {
+                ScreenOffStep.FREEZE -> { w.onPause(); w.pauseTimers() }
+                // A load still in flight: leave the WebView live, untouched, so it can draw and connect.
+                // onConnectionStatus freezes it the moment it connects, darkSettle at the end of the window.
+                ScreenOffStep.SETTLE -> {
+                    Log.i(TAG, "screen off before the dashboard connected — keeping the load live for ${DARK_SETTLE_MS}ms")
+                    scheduleDarkSettle()
+                }
+                ScreenOffStep.QUIET_RELOAD -> {
+                    // Reload to shed memory, but DON'T pause timers yet — a paused WebView can't load. Let it
+                    // run; onConnectionStatus freezes it the moment it connects, or darkSettle freezes it after
+                    // the settle window if it never does. Either way it doesn't churn all night.
+                    w.onPause()
+                    reloadPending = false
+                    lastFullLoadAt = SystemClock.elapsedRealtime()
+                    doReloadNoWatchdog("quiet reload (screen off, due)")
+                    scheduleDarkSettle()
+                }
             }
         }
     }
@@ -1679,7 +1685,14 @@ class DashboardActivity : AppCompatActivity() {
         clearedThisLoad = false
         lastFullLoadAt = SystemClock.elapsedRealtime()
         BuiltinDashboard.recordLoadStart(lastFullLoadAt) // TTI origin (first call since process start = cold)
-        if (screenAwake) armWatchdog(INITIAL_HANDSHAKE_MS) else main.removeCallbacks(watchdog)
+        if (screenAwake) { armWatchdog(INITIAL_HANDSHAKE_MS); return }
+        // A load issued while dark (a remote reload, a rebuild) may land in a WebView that an earlier
+        // screen-off froze, where it can never connect. Run it live through the settle window instead;
+        // the watchdog stays off until the screen wakes, so a dark panel still never reload-loops.
+        main.removeCallbacks(watchdog)
+        web?.let { it.onResume(); it.resumeTimers() }
+        Log.i(TAG, "load started while the screen is dark — running it live for ${DARK_SETTLE_MS}ms")
+        scheduleDarkSettle()
     }
 
     private fun armWatchdog(ms: Long) {

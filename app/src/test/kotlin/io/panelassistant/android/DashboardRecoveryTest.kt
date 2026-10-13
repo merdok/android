@@ -43,6 +43,23 @@ class DashboardRecoveryTest {
         assertEquals(90_000L, policy.connectionFailureDelay(wasConnected = true))
     }
 
+    @Test fun `a screen-off during a load that has not connected keeps it live instead of freezing it`() {
+        // The NSPanel 86 stall: the panel's own screen-off landed just after the WebView was built.
+        assertEquals(ScreenOffStep.SETTLE, screenOffStep(frontendConnected = false, authLatched = false, reloadDue = false))
+        // A load already in flight is not reloaded on top of, even when a memory reload is due.
+        assertEquals(ScreenOffStep.SETTLE, screenOffStep(frontendConnected = false, authLatched = false, reloadDue = true))
+    }
+
+    @Test fun `a screen-off freezes a connected dashboard, or reloads it quietly when a reload is due`() {
+        assertEquals(ScreenOffStep.FREEZE, screenOffStep(frontendConnected = true, authLatched = false, reloadDue = false))
+        assertEquals(ScreenOffStep.QUIET_RELOAD, screenOffStep(frontendConnected = true, authLatched = false, reloadDue = true))
+    }
+
+    @Test fun `a screen-off freezes the auth-latch page at once, since it never connects`() {
+        assertEquals(ScreenOffStep.FREEZE, screenOffStep(frontendConnected = false, authLatched = true, reloadDue = true))
+        assertEquals(ScreenOffStep.FREEZE, screenOffStep(frontendConnected = true, authLatched = true, reloadDue = true))
+    }
+
     @Test fun `a retry over the committed reconnecting page loads the dashboard afresh`() {
         val ha = "http://192.0.2.10:8123"
         // The committed document DevTools reported on the trapped panel (2026-09-25), with HA serving.
