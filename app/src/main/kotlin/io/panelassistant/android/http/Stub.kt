@@ -160,7 +160,14 @@ internal class StubBlobs(
     private val ttlMs: Long = 10 * 60_000L,
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : ManageBlobs {
-    private class Slot(val upload: Boolean, val expiresAt: Long, @Volatile var bytes: ByteArray?, val type: String)
+    private class Slot(
+        val upload: Boolean,
+        val expiresAt: Long,
+        @Volatile var bytes: ByteArray?,
+        val type: String,
+        /** For an upload: the most bytes its PUT may carry (the size `blob.upload` declared, within the cap). */
+        val limit: Long = 0,
+    )
 
     private val slots = ConcurrentHashMap<String, Slot>()
     private val random = SecureRandom()
@@ -184,11 +191,19 @@ internal class StubBlobs(
         return reference(token, bytes, type)
     }
 
-    /** Answer `blob.upload`: where the reader PUTs the bytes it then names in `args.blob`. */
-    fun mintUpload(type: String): JSONObject {
-        val token = mint(Slot(upload = true, expiresAt = nowMs() + ttlMs, bytes = null, type = type))
-        return JSONObject().put("url", "/blob/$token").put("max_size", maxBytes)
+    /**
+     * Answer `blob.upload`: where the reader PUTs the bytes it then names in `args.blob`. A declared [size] bounds
+     * that PUT; without one the cap does.
+     */
+    fun mintUpload(type: String, size: Long? = null): JSONObject {
+        val limit = size?.takeIf { it in 0..maxBytes.toLong() } ?: maxBytes.toLong()
+        val token = mint(Slot(upload = true, expiresAt = nowMs() + ttlMs, bytes = null, type = type, limit = limit))
+        return JSONObject().put("url", "/blob/$token").put("max_size", limit)
     }
+
+    /** The most bytes a PUT to [token] may carry, or null when [token] names no open upload. */
+    fun uploadLimit(token: String): Long? =
+        slots[token]?.takeIf { it.upload && it.bytes == null && it.expiresAt > nowMs() }?.limit
 
     override fun take(ref: JSONObject): ByteArray? {
         val token = ref.optString("url").substringAfterLast('/')
@@ -212,8 +227,6 @@ internal class StubBlobs(
         slot.bytes = bytes
         return true
     }
-
-    fun limit(): Int = maxBytes
 
     companion object {
         /** Backups reach 64 MiB (section 20.1). */
@@ -258,9 +271,14 @@ internal fun Route.stubRoutes(
     }
     put {
         val token = call.parameters["token"].orEmpty()
+        // The token first, then the declared length, so nothing is read for a request that cannot be accepted.
+        val limit = blobs.uploadLimit(token)
+            ?: return@put call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
+        val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        if (declared != null && declared > limit) return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
         val bytes = try {
             java.io.ByteArrayOutputStream().also { out ->
-                call.receiveChannel().toInputStream().use { BoundedStreams.copy(it, out, blobs.limit().toLong()) }
+                call.receiveChannel().toInputStream().use { BoundedStreams.copy(it, out, limit) }
             }.toByteArray()
         } catch (_: ByteLimitExceeded) {
             return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
@@ -448,7 +466,10 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                         // Section 20.5: the door answers this itself, without reaching the panel's operations.
                         "blob.upload" -> answer(
                             commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED,
-                            result = blobs.mintUpload(args.optString("type").ifEmpty { ContentType.Application.OctetStream.toString() }),
+                            result = blobs.mintUpload(
+                                args.optString("type").ifEmpty { ContentType.Application.OctetStream.toString() },
+                                args.optLong("size", -1).takeIf { it >= 0 },
+                            ),
                         )
                         else -> dispatcher.manage(
                             commandId, op, args, origin, blobs,

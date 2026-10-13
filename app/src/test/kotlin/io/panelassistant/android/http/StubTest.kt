@@ -289,6 +289,26 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals("refused", mismatched.getString("outcome"))
     }
 
+    @Test fun anUploadIsRefusedBeforeItsBodyWhenItsTokenOrDeclaredSizeDoNotAdmitIt() = testApplication {
+        val rig = managedRig(ManageTable())
+        stub { rig.commands }
+        val tenBytes = ByteArray(10) { it.toByte() }
+
+        val unknown = client.put("/blob/no-such-token") { setBody(ByteArray(1_000_000)) }
+        val (tooLarge, fits) = socket {
+            fun upload(id: String) = JSONObject().put("kind", "manage").put("command_id", id).put("op", "blob.upload")
+                .put("args", JSONObject().put("size", tenBytes.size).put("type", "application/octet-stream"))
+            val first = exchange(upload("u1")).getJSONObject("result")
+            assertEquals(10, first.getInt("max_size"))
+            val second = exchange(upload("u2")).getJSONObject("result").getString("url")
+            client.put(first.getString("url")) { setBody(ByteArray(20)) }.status to client.put(second) { setBody(tenBytes) }.status
+        }
+
+        assertEquals(HttpStatusCode.NotFound, unknown.status)
+        assertEquals("more than the declared size is refused", HttpStatusCode.PayloadTooLarge, tooLarge)
+        assertEquals(HttpStatusCode.OK, fits)
+    }
+
     @Test fun aBlobAReplyCarriesIsReadOnce() = testApplication {
         val table = ManageTable()
         val bytes = ByteArray(1024) { it.toByte() }
