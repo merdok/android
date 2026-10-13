@@ -9,6 +9,7 @@ import { PAGES } from './language-layout/pages/index.mjs';
 const { catalogues, locales, scales } = await loadCatalogues();
 const configure = PAGES.find((page) => page.name === 'configure');
 const profiles = PAGES.find((page) => page.name === 'profiles');
+const entities = PAGES.find((page) => page.name === 'entities');
 const server = await startLayoutServer(PAGES, catalogues, locales);
 const origin = `http://127.0.0.1:${server.address().port}`;
 test.after(() => new Promise((done) => server.close(done)));
@@ -30,6 +31,32 @@ function breakLayout() {
 }
 
 for (const browserName of BROWSERS) {
+  test(`descriptive Entities checkbox labels may wrap but clipping fails · ${browserName}`, { timeout: 120_000 }, async () => {
+    const browser = await launch(browserName);
+    try {
+      const view = VIEWS.find((item) => item.name === 'sidebar-phone');
+      const context = await browser.newContext({ viewport: { width: view.width, height: view.height } });
+      const page = await context.newPage();
+      const english = await measureCell(page, origin, entities, view, 'dark', 'en');
+      const wrapped = await measureCell(page, origin, entities, view, 'dark', 'de', () => {
+        const label = document.querySelector('.entity-policy label');
+        label.id = 'mutant-descriptive-label';
+        label.style.maxWidth = '180px';
+      });
+      const outcome = verdict(wrapped, english, view, 'de', scales.de);
+      assert.ok(outcome.reports.some((line) => line.includes('(d descriptive label wraps) #mutant-descriptive-label')), outcome.reports.join('\n'));
+      assert.ok(!outcome.errors.some((line) => line.includes('wraps') && line.includes('#mutant-descriptive-label')), outcome.errors.join('\n'));
+      const clipped = await measureCell(page, origin, entities, view, 'dark', 'de', () => {
+        const label = document.querySelector('.entity-policy label');
+        label.id = 'mutant-descriptive-label';
+        label.style.cssText = 'max-width:180px;max-height:12px;overflow:hidden';
+      });
+      assert.ok(verdict(clipped, english, view, 'de', scales.de).errors.some((line) => line.includes('(a cut off)') && line.includes('#mutant-descriptive-label')), 'clipped descriptive text must still fail');
+      await context.close();
+    } finally {
+      await browser.close();
+    }
+  });
   test(`language layout checks can fail · ${browserName}`, { timeout: 120_000 }, async () => {
     const browser = await launch(browserName);
     try {

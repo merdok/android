@@ -389,8 +389,9 @@ export function verdict(result, english, view, locale, scale = 1) {
   const wrapsInEnglish = englishKeys('wraps');
   // Row headers of key/value tables wrap in a fixed 46% column; making them single-line needs either
   // shorter translations or a table layout that changes English, so they are reported, not blocking,
-  // (see tools/test/README.md). Column headers and controls block.
-  for (const item of result.wraps) add(item.rowHeader ? 'd row header wraps' : 'd wraps', item, !panel && !isEnglish && !item.rowHeader && !wrapsInEnglish.has(item.key));
+  // (see tools/test/README.md). Descriptive Entities checkbox labels may wrap too; their clipping,
+  // overflow, overlap, reachability and card growth are still checked independently.
+  for (const item of result.wraps) add(item.rowHeader ? 'd row header wraps' : item.descriptiveLabel ? 'd descriptive label wraps' : 'd wraps', item, !panel && !isEnglish && !item.rowHeader && !item.descriptiveLabel && !wrapsInEnglish.has(item.key));
   if (!isEnglish && english) {
     // Rule (iii): every card more than 20% taller than English is reported. It blocks only when its
     // growth exceeds the locale's expected length scale by more than 20% (a corner case, not the length
