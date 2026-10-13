@@ -98,3 +98,35 @@ internal class EntityTelemetryAccumulator(private val maxIds: Int) {
     private fun saturatingAdd(left: Long, right: Long): Long =
         if (right > 0L && left > Long.MAX_VALUE - right) Long.MAX_VALUE else left + right
 }
+
+/** Serializes the final generation check with evidence reset. A batch that entered first is cleared
+ * by reset; a batch that reaches the barrier after reset observes the replacement generation. */
+internal class EntityTelemetryWriteBarrier(
+    private val currentGeneration: () -> Long,
+) {
+    private val lock = Any()
+
+    fun writeIfCurrent(admittedGeneration: Long, write: () -> Unit): Boolean = synchronized(lock) {
+        if (admittedGeneration != currentGeneration()) return@synchronized false
+        write()
+        true
+    }
+
+    fun invalidateAndWrite(invalidate: () -> Unit, write: () -> Unit) = synchronized(lock) {
+        invalidate()
+        write()
+    }
+}
+
+/** Run follow-up work only after releasing the telemetry barrier. Follow-ups may enter the manager
+ * monitor; reset takes that monitor before this barrier, so nesting them would invert the lock order. */
+internal fun writeEntityTelemetryThen(
+    barrier: EntityTelemetryWriteBarrier,
+    admittedGeneration: Long,
+    write: () -> Unit,
+    afterWrite: () -> Unit,
+): Boolean {
+    val admitted = barrier.writeIfCurrent(admittedGeneration, write)
+    if (admitted) afterWrite()
+    return admitted
+}

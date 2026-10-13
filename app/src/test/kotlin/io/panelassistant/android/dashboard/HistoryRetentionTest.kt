@@ -31,14 +31,14 @@ class HistoryRetentionTest {
         db = DriverManager.getConnection("jdbc:sqlite:${File(directory, "catalog.db").path}")
         listOf(
             "CREATE TABLE app_state(namespace TEXT, state_key TEXT, value_text TEXT, updated_at INTEGER)",
-            EntityCatalogStore.ENTITY_TABLE_SQL,
-            EntityCatalogStore.DASHBOARD_TABLE_SQL,
-            EntityCatalogStore.DASHBOARD_ENTITY_TABLE_SQL,
-            EntityCatalogStore.DASHBOARD_ENTITY_TRAFFIC_TABLE_SQL,
-            EntityCatalogStore.DASHBOARD_METRIC_TABLE_SQL,
-            EntityCatalogStore.AMBIENT_HISTORY_TABLE_SQL,
-            EntityCatalogStore.PROXIMITY_MODEL_TABLE_SQL,
-            EntityCatalogStore.PROXIMITY_SAMPLE_TABLE_SQL,
+            EntityCatalogSchema.ENTITY_TABLE_SQL,
+            EntityCatalogSchema.DASHBOARD_TABLE_SQL,
+            EntityCatalogSchema.DASHBOARD_ENTITY_TABLE_SQL,
+            EntityCatalogSchema.DASHBOARD_ENTITY_TRAFFIC_TABLE_SQL,
+            EntityCatalogSchema.DASHBOARD_METRIC_TABLE_SQL,
+            EntityCatalogSchema.AMBIENT_HISTORY_TABLE_SQL,
+            EntityCatalogSchema.PROXIMITY_MODEL_TABLE_SQL,
+            EntityCatalogSchema.PROXIMITY_SAMPLE_TABLE_SQL,
         ).forEach(::exec)
     }
 
