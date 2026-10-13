@@ -34,7 +34,7 @@ internal class PanelAssistantBlobs(
 
     /** GET [reference] into [destination]; anything but exactly its size and SHA-256 is refused. */
     suspend fun download(reference: Reference, destination: File): Fetched = withContext(Dispatchers.IO) {
-        val connection = open(reference.path, "GET") ?: return@withContext Fetched.UNAVAILABLE
+        val connection = runCatching { open(reference.path, "GET") }.getOrNull() ?: return@withContext Fetched.UNAVAILABLE
         try {
             if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext Fetched.UNAVAILABLE
             val digest = MessageDigest.getInstance("SHA-256")
@@ -68,7 +68,7 @@ internal class PanelAssistantBlobs(
         if (!TOKEN.matches(token)) return@withContext null
         val path = PATH + token
         val size = file.length()
-        val connection = open(path, "PUT") ?: return@withContext null
+        val connection = runCatching { open(path, "PUT") }.getOrNull() ?: return@withContext null
         try {
             connection.doOutput = true
             connection.setFixedLengthStreamingMode(size)

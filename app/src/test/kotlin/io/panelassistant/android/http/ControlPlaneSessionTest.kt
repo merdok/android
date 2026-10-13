@@ -146,9 +146,9 @@ class ControlPlaneSessionTest {
     @Test fun bytesThatAreNotTheAnnouncedOnesAreRefusedAndStageNothing() {
         val apk = "1.0.1".toByteArray()
         val tampered = request("install.apk", offer(apk, sha = sha256("other".toByteArray())))!!
-        assertEquals(listOf("refused", "invalid_value", "blob-mismatch"), listOf(tampered.outcome, tampered.code, tampered.result!!.getString("error")))
+        assertEquals(listOf("refused", "invalid_value", "blob-mismatch"), listOf(tampered.outcome, tampered.code, tampered.result?.optString("error")))
         val longer = request("install.apk", offer(apk, token = "download-token-0002", size = 3))!!
-        assertEquals("blob-mismatch", longer.result!!.getString("error"))
+        assertEquals("blob-mismatch", longer.result?.optString("error"))
         assertNull(pending.pendingSummary())
 
         // The single staging slot was released: an honest pull still stages.
@@ -156,12 +156,12 @@ class ControlPlaneSessionTest {
     }
 
     @Test fun aReferenceOutsideThePanelsOwnBlobViewIsRefusedBeforeAnyConnection() {
-        for (url in listOf("http://elsewhere.example/api/panel_assistant/blob/download-token-0001", "/api/other/download-token-0001", PanelAssistantBlobs.PATH + "short")) {
+        for (url in listOf("/api/other/download-token-0001", "http://elsewhere.example/api/panel_assistant/blob/download-token-0001", PanelAssistantBlobs.PATH + "short")) {
             val reply = request(
                 "install.apk",
                 JSONObject().put("blob", JSONObject().put("url", url).put("size", 5).put("sha256", sha256("1.0.1".toByteArray()))),
             )!!
-            assertEquals(listOf("refused", "invalid-request"), listOf(reply.outcome, reply.result!!.getString("error")))
+            assertEquals(listOf("refused", "invalid-request"), listOf(reply.outcome, reply.result?.optString("error")))
         }
         assertTrue(requests.isEmpty())
     }
@@ -190,13 +190,13 @@ class ControlPlaneSessionTest {
             "backup",
             JSONObject().put("allow_plaintext", "1").put("include_companion", "false").put("blob_token", "upload-token-00001"),
         )!!
-        assertEquals(listOf("refused", "blob-unavailable"), listOf(reply.outcome, reply.result!!.getString("error")))
+        assertEquals(listOf("refused", "blob-unavailable"), listOf(reply.outcome, reply.result?.optString("error")))
         assertFalse(built!!.file.exists())
     }
 
     @Test fun aBackupKeepsTheHttpRequestRulesAndItsApproval() {
         val unacknowledged = request("backup", JSONObject().put("include_companion", "false").put("blob_token", "upload-token-00001"))!!
-        assertEquals("passphrase-required", unacknowledged.result!!.getString("error"))
+        assertEquals("passphrase-required", unacknowledged.result?.optString("error"))
         val asked = mutableListOf<SensitiveOperation>()
         val denied = request(
             "backup",

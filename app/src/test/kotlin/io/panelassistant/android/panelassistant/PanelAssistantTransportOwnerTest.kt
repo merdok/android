@@ -1088,7 +1088,7 @@ class PanelAssistantTransportOwnerTest {
         runCurrent()
         assertEquals(listOf("install.apk.commit" to """{"token":"t-1"}"""), seen)
         val interim = JSONObject(connection.sent.last())
-        assertEquals(listOf("c1", "pending_approval"), listOf("command_id", "outcome").map(interim::getString))
+        assertEquals(listOf("c1", "pending_approval"), listOf("command_id", "outcome").map(interim::optString))
 
         approved.complete(Unit)
         runCurrent()
