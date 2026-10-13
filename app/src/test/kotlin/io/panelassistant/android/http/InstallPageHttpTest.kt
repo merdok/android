@@ -55,4 +55,26 @@ class InstallPageHttpTest {
             }
         }
     }
+
+    @Test fun `a rootless panel unlocks display sizing only where the app holds both grants`() {
+        for (granted in listOf(false, true)) {
+            val density = io.panelassistant.android.control.DensityController(
+                false,
+                io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+                io.panelassistant.android.control.FakeDaemon(available = false),
+                io.panelassistant.android.control.FakeAppSizing(granted = granted),
+            )
+            PaneldServerHttpFixture(density = density).use { fixture ->
+                fixture.enablePages()
+                fixture.enableInstallPage(root = false)
+                testApplication {
+                    application { fixture.server.mount(this) }
+                    val html = client.get("/install?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
+                    assertTrue(html.contains("data-layout-key=\"display-sizing\""))
+                    assertEquals(!granted, html.contains("value=\"200\" style=\"width:96px\" disabled>"))
+                    assertEquals(granted, html.contains("value=\"200\" style=\"width:96px\">"))
+                }
+            }
+        }
+    }
 }
