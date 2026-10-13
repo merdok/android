@@ -1069,6 +1069,42 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
+    @Test fun aNamedRequestCarriesItsArgumentsAndAnswersPendingApprovalBeforeItsResult() = runTest {
+        val management = FakeManagement()
+        val approved = CompletableDeferred<Unit>()
+        val seen = mutableListOf<Pair<String, String>>()
+        management.serve = { op, args, onPending ->
+            seen += op to args.toString()
+            onPending()
+            approved.await()
+            PanelAssistantManageReply("applied", null, JSONObject().put("status", "started"))
+        }
+        val connection = FakeConnection(Ha.accepting(capabilities = listOf("management")))
+        val harness = harness(connection, management = management)
+        harness.owner.replaceDemand(DEMAND)
+        runCurrent()
+
+        connection.inbound.trySend(Ha.manage("c1", "install.apk.commit", args = JSONObject().put("token", "t-1")))
+        runCurrent()
+        assertEquals(listOf("install.apk.commit" to """{"token":"t-1"}"""), seen)
+        val interim = JSONObject(connection.sent.last())
+        assertEquals(listOf("c1", "pending_approval"), listOf("command_id", "outcome").map(interim::optString))
+
+        approved.complete(Unit)
+        runCurrent()
+        val final = JSONObject(connection.sent.last())
+        assertEquals(listOf("c1", "applied"), listOf("command_id", "outcome").map(final::getString))
+        assertEquals("started", final.getJSONObject("result").getString("status"))
+
+        // A name this build does not serve is refused, as any unknown request is.
+        management.serve = { _, _, _ -> null }
+        connection.inbound.trySend(Ha.manage("c2", "install.component", args = JSONObject()))
+        runCurrent()
+        val refused = JSONObject(connection.sent.last())
+        assertEquals(listOf("c2", "refused", "unknown_command"), listOf("command_id", "outcome", "code").map(refused::getString))
+        harness.owner.close()
+    }
+
     @Test fun aSnapshotStillBuildingNeverHoldsTheReconnectAfterTheSessionEnds() = runTest {
         val building = CompletableDeferred<Unit>()
         val management = object : PanelAssistantManagement by FakeManagement() {
@@ -1511,6 +1547,10 @@ class PanelAssistantTransportOwnerTest {
             written += settings
             return null
         }
+
+        var serve: suspend (String, JSONObject, () -> Unit) -> PanelAssistantManageReply? = { _, _, _ -> null }
+
+        override suspend fun request(op: String, args: JSONObject, onPending: () -> Unit) = serve(op, args, onPending)
     }
 
     private class ImmediateSink(private val result: PanelAssistantCommandResult = PanelAssistantCommandResult.Applied) :
@@ -1748,7 +1788,13 @@ class PanelAssistantTransportOwnerTest {
             )
             .toString()
 
-        fun manage(commandId: String, op: String, session: String = "opaque-session", settings: JSONObject? = null): String =
+        fun manage(
+            commandId: String,
+            op: String,
+            session: String = "opaque-session",
+            settings: JSONObject? = null,
+            args: JSONObject? = null,
+        ): String =
             JSONObject()
                 .put("id", 1)
                 .put("type", "event")
@@ -1756,7 +1802,8 @@ class PanelAssistantTransportOwnerTest {
                     "event",
                     JSONObject().put("kind", "manage").put("command_id", commandId).put("session", session)
                         .put("op", op).put("deadline_ms", 10_000)
-                        .apply { if (settings != null) put("settings", settings) },
+                        .apply { if (settings != null) put("settings", settings) }
+                        .apply { if (args != null) put("args", args) },
                 )
                 .toString()
 

@@ -22,17 +22,31 @@ internal interface PanelAssistantManagement {
      */
     suspend fun applySettings(settings: Map<String, String>, admit: () -> Boolean): String?
 
+    /**
+     * Run the request named [op] with [args], a name per REST path (protocol section 20.3); null when this
+     * build serves no such name. [onPending] sends the interim `pending_approval` answer while a sensitive
+     * request waits for its approval on the panel.
+     */
+    suspend fun request(op: String, args: JSONObject, onPending: () -> Unit): PanelAssistantManageReply?
+
     companion object {
         fun of(
             read: suspend () -> PanelAssistantManagementSnapshot,
             write: suspend (Map<String, String>, () -> Boolean) -> String?,
+            serve: suspend (String, JSONObject, () -> Unit) -> PanelAssistantManageReply? = { _, _, _ -> null },
         ): PanelAssistantManagement = object : PanelAssistantManagement {
             override suspend fun snapshot() = read()
 
             override suspend fun applySettings(settings: Map<String, String>, admit: () -> Boolean) = write(settings, admit)
+
+            override suspend fun request(op: String, args: JSONObject, onPending: () -> Unit) = serve(op, args, onPending)
         }
     }
 }
+
+/** A named request's final answer: its outcome, the refusal code, and the result body. */
+/** [result] is the body a route returns (protocol section 20.2): a JSON object or array, a string for text, or null. */
+internal data class PanelAssistantManageReply(val outcome: String, val code: String?, val result: Any?)
 
 /**
  * The settings Panel Assistant may write over the session, and the order they are checked in.
@@ -85,7 +99,7 @@ internal class PanelAssistantManagementRequests(
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
 
-    private class Answer(val commandId: String, val outcome: String, val code: String?, val result: JSONObject?)
+    private class Answer(val commandId: String, val outcome: String, val code: String?, val result: Any?)
 
     private val lock = Any()
     @Volatile private var closed = false
@@ -146,7 +160,15 @@ internal class PanelAssistantManagementRequests(
                     else -> refused(code)
                 }
             }
-            else -> refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND)
+            else -> {
+                val reply = management.request(event.op, event.args ?: JSONObject()) {
+                    synchronized(lock) {
+                        outbox.addLast(Answer(event.commandId, PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL, null, null))
+                    }
+                    wake.trySend(Unit)
+                } ?: return refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND)
+                Answer(event.commandId, reply.outcome, reply.code, reply.result)
+            }
         }
     }
 

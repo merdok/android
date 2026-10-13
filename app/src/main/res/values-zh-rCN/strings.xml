@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">向 Home Assistant 报告面板硬件按钮的按下操作，并允许面板控制界面注入点按操作和截取屏幕。仅在 Android 询问使用哪个应用作为主屏幕时读取其他应用的窗口内容，以选择 Panel Assistant。</string>
+    <string name="a11y_description">向 Home Assistant 报告面板硬件按钮的按下操作，并允许面板控制界面注入点按操作和截取屏幕。仅在 Android 询问使用哪个应用作为主屏幕时读取其他应用的窗口内容以选择 Panel Assistant，以及在 Android 要求确认本应用的更新时点按“安装”。</string>
     <string name="config_service_starting">正在启动配置服务…</string>
     <string name="config_service_not_ready">配置服务尚未就绪。</string>
     <string name="retry">重试</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Informa a Home Assistant de las pulsaciones de los botones físicos del panel y permite que la interfaz de control del panel inyecte toques y haga capturas de pantalla. Solo lee el contenido de las ventanas de otras aplicaciones para elegir Panel Assistant cuando Android pregunta qué aplicación usar como pantalla de inicio.</string>
+    <string name="a11y_description">Informa a Home Assistant de las pulsaciones de los botones físicos del panel y permite que la interfaz de control del panel inyecte toques y haga capturas de pantalla. Solo lee el contenido de las ventanas de otras aplicaciones para elegir Panel Assistant cuando Android pregunta qué aplicación usar como pantalla de inicio, y para pulsar Instalar cuando Android pide confirmar una actualización de esta aplicación.</string>
     <string name="config_service_starting">Iniciando el servicio de configuración…</string>
     <string name="config_service_not_ready">El servicio de configuración aún no está listo.</string>
     <string name="retry">Reintentar</string>

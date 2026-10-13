@@ -12,6 +12,8 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.uri
 import io.ktor.server.response.respondText
+import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
+import kotlinx.coroutines.delay
 import java.security.MessageDigest
 
 /**
@@ -70,6 +72,54 @@ internal suspend fun authorizeSensitiveRequest(
     if (decision == ApprovalBroker.Decision.APPROVED) return true
     call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)
     return false
+}
+
+/** The approval peer for requests Panel Assistant makes over its own session (protocol section 20.2 origin key). */
+internal const val PANEL_ASSISTANT_APPROVAL_PEER = "panel_assistant"
+
+/**
+ * The session form of [authorizeSensitiveRequest]: the same policy for a request Panel Assistant makes over
+ * its own session, which has no HTTP peer. Relaxed mode admits it as it admits a LAN request. Hardened mode
+ * asks the same one-shot broker, bound to the session's origin key, calls [onPending] once so Panel
+ * Assistant hears `pending_approval`, and waits for the physical decision. Null to go ahead, else the
+ * refusal code; a cancelled wait withdraws its approval request.
+ */
+internal suspend fun authorizeSessionRequest(
+    hardened: Boolean,
+    operation: SensitiveOperation,
+    payload: String,
+    summary: String,
+    broker: ApprovalBroker,
+    onPending: () -> Unit,
+    pollMs: Long = 1_000L,
+): String? {
+    if (!hardened) return null
+    val (decision, id) = broker.request(operation, PANEL_ASSISTANT_APPROVAL_PEER, payload, summary)
+    if (decision == ApprovalBroker.Decision.APPROVED) return null
+    onPending()
+    var settled = false
+    try {
+        while (true) {
+            delay(pollMs)
+            when (broker.state(id)) {
+                ApprovalBroker.State.PENDING -> continue
+                ApprovalBroker.State.APPROVED -> {
+                    // The exact replay consumes the approval, as an HTTP retry does.
+                    settled = true
+                    return if (broker.request(operation, PANEL_ASSISTANT_APPROVAL_PEER, payload, summary).first ==
+                        ApprovalBroker.Decision.APPROVED
+                    ) null else PanelAssistantCommandProcessor.CODE_APPROVAL_TIMEOUT
+                }
+                // The broker keeps no denied state: a record gone was denied, displaced or expired.
+                ApprovalBroker.State.ABSENT -> {
+                    settled = true
+                    return PanelAssistantCommandProcessor.CODE_APPROVAL_DENIED
+                }
+            }
+        }
+    } finally {
+        if (!settled) broker.deny(id)
+    }
 }
 
 internal fun Parameters.canonicalDigest(): String {

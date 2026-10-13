@@ -92,9 +92,10 @@ internal sealed interface PanelAssistantSessionEvent {
     ) : PanelAssistantSessionEvent
 
     /**
-     * A management request ([op] `snapshot` or `settings`) on a session that granted `management`. Its
-     * [session], [commandId] and [deadlineMs] mean what a command's do; [settings] is null when absent or
-     * malformed.
+     * A management request on a session that granted `management`: [op] `snapshot`, `settings`, or a name
+     * per REST path (protocol section 20.3). Its [session], [commandId] and [deadlineMs] mean what a
+     * command's do; [settings] is null when absent or malformed; [args] is the request's arguments, null
+     * when absent or not an object.
      */
     data class Manage(
         val commandId: String,
@@ -102,6 +103,7 @@ internal sealed interface PanelAssistantSessionEvent {
         val op: String,
         val settings: Map<String, String>?,
         val deadlineMs: Long?,
+        val args: JSONObject? = null,
     ) : PanelAssistantSessionEvent
 
     /** A command event with no usable `command_id`: there is nothing to answer it with. */
@@ -240,6 +242,8 @@ internal object PanelAssistantTransportProtocol {
         .joinToString("") { byte -> (byte.toInt() and 0xff).toString(16).padStart(2, '0') }
 
     private val CODE = Regex("^[a-z][a-z0-9_]{0,63}$")
+    /** A management op: a code, or a REST path's name with `.` separators (section 20.3). */
+    private val OP = Regex("^[a-z][a-z0-9_.]{0,63}$")
     private val COMMAND_ID = Regex("^[A-Za-z0-9_-]{1,64}$")
     private val VERSION = Regex("^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$")
     private val ENTRY_ID = Regex("^[0-9A-Za-z_-]{1,64}$")
@@ -328,7 +332,7 @@ internal object PanelAssistantTransportProtocol {
         commandId: String,
         outcome: String,
         code: String?,
-        result: JSONObject? = null,
+        result: Any? = null,
     ): String =
         JSONObject()
             .put("id", id)
@@ -515,9 +519,10 @@ internal object PanelAssistantTransportProtocol {
         return PanelAssistantSessionEvent.Manage(
             commandId = commandId,
             session = event.opt("session") as? String,
-            op = (event.opt("op") as? String)?.takeIf(CODE::matches).orEmpty(),
+            op = (event.opt("op") as? String)?.takeIf(OP::matches).orEmpty(),
             settings = settings,
             deadlineMs = deadline(event),
+            args = event.optJSONObject("args"),
         )
     }
 }

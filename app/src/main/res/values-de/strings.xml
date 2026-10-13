@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Meldet Betätigungen der Hardwaretasten des Panels an Home Assistant und ermöglicht der Panel-Steuerung Tippeingaben und Bildschirmfotos. Liest Fensterinhalte anderer Apps nur, um Panel Assistant zu wählen, wenn Android fragt, welche App als Startbildschirm dienen soll.</string>
+    <string name="a11y_description">Meldet Betätigungen der Hardwaretasten des Panels an Home Assistant und ermöglicht der Panel-Steuerung Tippeingaben und Bildschirmfotos. Liest Fensterinhalte anderer Apps nur, um Panel Assistant zu wählen, wenn Android fragt, welche App als Startbildschirm dienen soll, und um auf Installieren zu tippen, wenn Android die Bestätigung eines Updates dieser App verlangt.</string>
     <string name="config_service_starting">Der Konfigurationsdienst wird gestartet…</string>
     <string name="config_service_not_ready">Der Konfigurationsdienst ist noch nicht bereit.</string>
     <string name="retry">Erneut versuchen</string>

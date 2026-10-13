@@ -1,5 +1,9 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.panelassistant.PanelAssistantBlobs
+import io.panelassistant.android.panelassistant.PanelAssistantManageReply
+import io.panelassistant.android.sensors.HaApiSessionProvider
+import org.json.JSONObject
 import android.content.Context
 import android.util.Log
 import io.panelassistant.android.Config
@@ -365,6 +369,14 @@ class PaneldServer internal constructor(
     )
     private val clearStorageGate = GenerationSingleFlight()
     private val pendingApks = PendingUploadStore()
+
+    /** The control-route dependencies, the same for the HTTP routes and the Panel Assistant session. */
+    private fun controlPlane() = controlPlaneDependencies(
+        appContext, config, scope, pendingApks, identityMigration,
+        playAudio, onInstallComponent,
+        buildBackupArtifact = ::buildBackupArtifact,
+        authorizeSensitive = ::authorizeSensitive,
+    )
     private val guardDbStaging = guardDbAppStaging(appContext)
 
     fun start() {
@@ -416,14 +428,7 @@ class PaneldServer internal constructor(
                     ownPackage = { appContext.packageName },
                     authorize = ::authorizeSensitive,
                 ))
-                controlPlaneRoutes(
-                    controlPlaneDependencies(
-                        appContext, config, scope, pendingApks, identityMigration,
-                        playAudio, onInstallComponent,
-                        buildBackupArtifact = ::buildBackupArtifact,
-                        authorizeSensitive = ::authorizeSensitive,
-                    ),
-                )
+                controlPlaneRoutes(controlPlane())
                 identityMigrationRoutes(identityMigration, ::authorizeSensitive)
                 guardDbBootstrapRoutes(
                     guardDbBootstrapDependencies(appContext, config, scope, pendingApks, guardDbStaging),
@@ -798,6 +803,41 @@ class PaneldServer internal constructor(
         )
     }
 
+    /**
+     * The named requests Panel Assistant makes over its session (protocol section 20.3): `status`, and the
+     * update and backup routes, whose bytes move through Panel Assistant's blob view with [auth]'s credential.
+     * Null for a name this build does not serve.
+     */
+    internal suspend fun managementRequest(op: String, args: JSONObject, onPending: () -> Unit, auth: HaApiSessionProvider): PanelAssistantManageReply? {
+        if (op == MANAGE_STATUS) {
+            val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
+            return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
+        }
+        return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
+            authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
+        } ?: manageThroughDispatcher(op, args, onPending)
+    }
+
+    /**
+     * Every other name goes to the dispatcher's one table of named operations with Panel Assistant's origin
+     * (protocol section 20.2), so the session and the stub's socket serve each operation from one definition.
+     * Bodies that must move as blobs are left to the session's own operations above. Null when no
+     * dispatcher holds the name.
+     */
+    private suspend fun manageThroughDispatcher(op: String, args: JSONObject, onPending: () -> Unit): PanelAssistantManageReply? {
+        val dispatcher = door() ?: return null
+        val reply = kotlinx.coroutines.suspendCancellableCoroutine<io.panelassistant.android.ManageReply> { waiting ->
+            dispatcher.manage(
+                java.util.UUID.randomUUID().toString(), op, args, io.panelassistant.android.CommandOrigin.panelAssistant(),
+                blobs = null, onPending = onPending,
+            ) { answer -> if (waiting.isActive) waiting.resume(answer) {} }
+        }
+        if (reply.outcome == PanelAssistantTransportProtocol.OUTCOME_REFUSED &&
+            reply.code == io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND
+        ) return null
+        return PanelAssistantManageReply(reply.outcome, reply.code, reply.result)
+    }
+
     /** Settings Panel Assistant writes over its session, through the Configure page's own validation. */
     internal suspend fun applyManagedSettings(settings: Map<String, String>, admit: () -> Boolean): String? =
         io.panelassistant.android.panelassistant.PanelAssistantManagedSettings.apply(
@@ -965,6 +1005,8 @@ class PaneldServer internal constructor(
     }
 
     companion object {
+        /** The session name for `GET /api/v1/status` (protocol section 20.3); `args.home_proof` adds the HOME proof. */
+        internal const val MANAGE_STATUS = "status"
         private const val TAG = "ha-paneld/http"
         private const val TAME_SHUTDOWN_MS = 5_000L
         private const val REMOTE_CONTROL_SHUTDOWN_MS = 5_000L

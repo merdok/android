@@ -218,6 +218,27 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(CommandOrigin.PANEL_ASSISTANT, origins[1].approvalKey)
     }
 
+    @Test fun aSessionManageEventForAnyOtherNameReachesTheOneTableWithPanelAssistantsOrigin() {
+        PaneldServerHttpFixture().use { fixture ->
+            val origins = CopyOnWriteArrayList<CommandOrigin>()
+            fixture.manageTable.register("probe.origin", ManageKind.READ) { request ->
+                origins += request.origin
+                ManageReply("applied", null, JSONArray().put("listed"))
+            }
+            val noSession = io.panelassistant.android.sensors.HaApiSessionProvider { error("no Home Assistant session in this test") }
+
+            val (served, unknown) = kotlinx.coroutines.runBlocking {
+                fixture.server.managementRequest("probe.origin", JSONObject(), {}, noSession) to
+                    fixture.server.managementRequest("no.such.operation", JSONObject(), {}, noSession)
+            }
+
+            assertEquals("applied", served?.outcome)
+            assertEquals("""["listed"]""", served?.result.toString())
+            assertEquals(listOf(CommandOrigin.PANEL_ASSISTANT), origins.map { it.approvalKey })
+            assertEquals("an unknown name is still the session's own refusal", null, unknown)
+        }
+    }
+
     @Test fun aSocketSubscriptionSendsObservationFramesAndEndsWithTheSocket() = testApplication {
         val table = ManageTable()
         val reads = java.util.concurrent.atomic.AtomicInteger()

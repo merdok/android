@@ -137,6 +137,23 @@ internal object ConfirmedSelfInstaller {
     internal fun mayShowConfirmation(resolvedAppFlags: Int?): Boolean =
         resolvedAppFlags != null && resolvedAppFlags and ApplicationInfo.FLAG_SYSTEM != 0
 
+    /**
+     * The installer showing this app's own update confirmation, while it waits, so the app's accessibility
+     * service may press Install for it (a rootless panel with nobody standing at it, such as a Shelly Wall
+     * Display whose vendor app is device owner). Set only between showing the confirmation and the session's
+     * end, and only for the system installer the confirmation resolved to; cleared once pressed.
+     */
+    @Volatile
+    private var confirmationInstaller: String? = null
+
+    /** The installer package whose confirmation of this app's own update is waiting to be pressed, or null. */
+    fun awaitingConfirmationIn(): String? = confirmationInstaller
+
+    /** The confirmation shown by [installer] was pressed: press nothing more for this session. */
+    fun confirmationPressed(installer: String) {
+        if (confirmationInstaller == installer) confirmationInstaller = null
+    }
+
     /** Whether the installed copy of the running package is now at least [versionCode]. */
     internal fun installedAtLeast(installedVersionCode: Long?, versionCode: Long): Boolean =
         installedVersionCode != null && installedVersionCode >= versionCode
@@ -195,6 +212,7 @@ internal object ConfirmedSelfInstaller {
                     confirmation != null && runCatching {
                         val target = confirmation.resolveActivityInfo(context.packageManager, 0)?.applicationInfo
                         if (!mayShowConfirmation(target?.flags)) return@runCatching false
+                        confirmationInstaller = target?.packageName
                         context.startActivity(confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         true
                     }.getOrDefault(false)
@@ -220,6 +238,7 @@ internal object ConfirmedSelfInstaller {
                 mayHaveCommitted = committed,
             )
         } finally {
+            confirmationInstaller = null
             runCatching { context.unregisterReceiver(receiver) }
             reports.close()
         }

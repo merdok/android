@@ -13,10 +13,12 @@ import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import io.panelassistant.android.PaneldService
 import io.panelassistant.android.R
 import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.AndroidSystemEnv
+import io.panelassistant.android.util.ConfirmedSelfInstaller
 import io.panelassistant.android.util.GuardDbProcessAdmission
 import androidx.annotation.RequiresApi
 import java.io.ByteArrayOutputStream
@@ -35,6 +37,8 @@ import java.util.concurrent.atomic.AtomicReference
  * Requires `canRequestFilterKeyEvents` + `flagRequestFilterKeyEvents` in the a11y config XML.
  */
 class PanelAccessibilityService : AccessibilityService() {
+    // It also presses Install on Android's confirmation of this app's own update ([InstallConfirmation]),
+    // so a rootless panel nobody stands at can take the update Panel Assistant sends it.
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -109,6 +113,30 @@ class PanelAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.packageName == "android") {
             scheduleHomeChooserAnswer()
+        }
+        pressOwnUpdateInstall(event)
+    }
+
+    /** Press Install on Android's confirmation of this app's own update, and on nothing else. */
+    private fun pressOwnUpdateInstall(event: AccessibilityEvent?) {
+        val installer = ConfirmedSelfInstaller.awaitingConfirmationIn() ?: return
+        if (event?.packageName?.toString() != installer) return
+        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
+        // The label Android's installer shows for this app, read the way the installer reads it.
+        val label = runCatching { applicationInfo.loadLabel(packageManager).toString() }.getOrDefault("")
+        val texts = runCatching { root.findAccessibilityNodeInfosByText(label).map { it.text } }.getOrDefault(emptyList())
+        for (id in InstallConfirmation.buttonIds(installer)) {
+            val button = runCatching { root.findAccessibilityNodeInfosByViewId(id) }.getOrNull()?.firstOrNull() ?: continue
+            if (!InstallConfirmation.shouldPress(installer, root.packageName?.toString(), button.viewIdResourceName, button.isEnabled, texts, label)) {
+                Log.i(TAG, "not pressing $id in $installer: names this app=${texts.any { it?.toString()?.trim() == label }} enabled=${button.isEnabled}")
+                continue
+            }
+            // Android keeps the button disabled for a moment after the window opens; a later event retries.
+            if (button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                ConfirmedSelfInstaller.confirmationPressed(installer)
+                Log.i(TAG, "pressed Install on the confirmation of this app's own update in $installer")
+            }
+            return
         }
     }
 
