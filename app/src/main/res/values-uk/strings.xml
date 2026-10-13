@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Передає в Home Assistant натискання апаратних кнопок панелі та дає змогу інтерфейсу керування панелі імітувати дотики й робити знімки екрана. Не читає вміст вікон.</string>
+    <string name="a11y_description">Передає в Home Assistant натискання апаратних кнопок панелі та дає змогу інтерфейсу керування панелі імітувати дотики й робити знімки екрана. Зчитує екран лише для того, щоб вибрати Panel Assistant, коли Android запитує, який застосунок використовувати як головний екран.</string>
     <string name="config_service_starting">Запуск служби конфігурації…</string>
     <string name="config_service_not_ready">Служба конфігурації ще не готова.</string>
     <string name="retry">Повторити спробу</string>

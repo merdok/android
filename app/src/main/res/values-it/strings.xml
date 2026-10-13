@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="a11y_description">Segnala a Home Assistant le pressioni dei pulsanti hardware del pannello e consente all’interfaccia di controllo del pannello di simulare tocchi e acquisire schermate. Non legge il contenuto delle finestre.</string>
+    <string name="a11y_description">Segnala a Home Assistant le pressioni dei pulsanti hardware del pannello e consente all’interfaccia di controllo del pannello di simulare tocchi e acquisire schermate. Legge lo schermo solo per scegliere Panel Assistant quando Android chiede quale app usare come schermata Home.</string>
     <string name="config_service_starting">Avvio del servizio di configurazione…</string>
     <string name="config_service_not_ready">Il servizio di configurazione non è ancora pronto.</string>
     <string name="retry">Riprova</string>
