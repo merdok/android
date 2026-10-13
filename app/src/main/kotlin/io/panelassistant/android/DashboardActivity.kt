@@ -410,7 +410,7 @@ class DashboardActivity : AppCompatActivity() {
     private val darkSettle = Runnable {
         if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !screenAwake) {
             if (!frontendConnected) Log.w(TAG, "dark settle: the dashboard did not connect within ${DARK_SETTLE_MS}ms — freezing until the screen wakes")
-            web?.pauseTimers()
+            web?.let { it.onPause(); it.pauseTimers() }
         }
     }
     // Time-based memory ceiling. onTrimMemory's RUNNING_* levels are deprecated + never delivered on
@@ -860,6 +860,9 @@ class DashboardActivity : AppCompatActivity() {
             resumeOwnsAdmissionVisibility(android.os.Build.VERSION.SDK_INT)) {
             onAdmissionVisibilityChanged(true)
         }
+        // Created dark: freeze after the settle window even if no dashboard load starts (the on-panel
+        // sign-in view never calls onLoadStarted). A load that does start re-arms this window itself.
+        if (!screenAwake) main.postDelayed(darkSettle, DARK_SETTLE_MS)
     }
 
     /** Any touch (the WebView consumes them, but the activity sees them first) resets the idle clock. */
@@ -1690,6 +1693,8 @@ class DashboardActivity : AppCompatActivity() {
         // screen-off froze, where it can never connect. Run it live through the settle window instead;
         // the watchdog stays off until the screen wakes, so a dark panel still never reload-loops.
         main.removeCallbacks(watchdog)
+        // resumeTimers() is process-wide: a superseded instance must not unfreeze the owner's page.
+        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         web?.let { it.onResume(); it.resumeTimers() }
         Log.i(TAG, "load started while the screen is dark — running it live for ${DARK_SETTLE_MS}ms")
         scheduleDarkSettle()
@@ -1825,7 +1830,7 @@ class DashboardActivity : AppCompatActivity() {
             captureDashboardTheme(generation, session)
             // If we connected while the screen is off (a screen-off memory reload), freeze now — the fresh
             // page is loaded + connected, so there's nothing left to do behind the dark screen.
-            if (!screenAwake) { main.removeCallbacks(darkSettle); web?.pauseTimers() }
+            if (!screenAwake) { main.removeCallbacks(darkSettle); web?.let { it.onPause(); it.pauseTimers() } }
             Log.i(TAG, "frontend connected")
             dispatchBus(externalBus.onConnection(session, true))
         } else {
