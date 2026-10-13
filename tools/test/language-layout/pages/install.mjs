@@ -45,10 +45,10 @@ async function press(page, selector, pointer) {
 export async function exerciseStates(page, { pointer = true } = {}) {
   // The real page asks confirm() before uninstall and restore; Playwright would dismiss it.
   await page.evaluate(() => { window.confirm = () => true; });
-  await page.waitForFunction(() => document.querySelectorAll('.cvsel option').length === 4 && document.querySelector('#apk-preview button'));
+  await page.waitForFunction(() => document.querySelectorAll('.cvsel input').length === 4 && document.querySelector('#apk-preview button'));
   await page.evaluate(() => {
     const row = document.querySelector('.comprow[data-name="paneld"]');
-    if (row.querySelector('.cvsel').value !== 'v2026.9.4-long' || row.querySelector('.cinstall').disabled) throw new Error('Allowed picker choice must remain installable');
+    if (row.querySelector('.cvsel input:checked').value !== 'v2026.9.4-long' || row.querySelector('.cinstall').disabled) throw new Error('Allowed picker choice must remain installable');
   });
   await page.evaluate(() => window.installComp('paneld', 'update', document.querySelector('.cinstall')));
   // End states are recognised by their localized text or control state, never by length: a CJK
@@ -83,9 +83,9 @@ export async function exerciseStates(page, { pointer = true } = {}) {
   });
   await page.evaluate(() => {
     const row = document.querySelector('.comprow[data-name="paneld"]');
-    const picker = row.querySelector('.cvsel'); picker.value = 'v2026.10.0'; window.verChanged('paneld');
+    const picker = row.querySelector('.cvsel'); picker.querySelector('input[value="v2026.10.0"]').checked = true; window.verChanged('paneld');
     const expected = window.HaI18n.t('install.progress.above_panel_limit', '(not supported by this panel; limit {version})', { version: '2026.9.4' });
-    if (picker.selectedOptions[0].textContent !== '2026.10.0 ' + expected || !row.querySelector('.cinstall').disabled) throw new Error('Capped picker choice must explain the panel limit and stay unavailable');
+    if (picker.querySelector('input:checked+span').textContent !== '2026.10.0 ' + expected || !row.querySelector('.cinstall').disabled) throw new Error('Capped picker choice must explain the panel limit and stay unavailable');
   });
   await page.waitForTimeout(180);
 }
@@ -109,7 +109,7 @@ function builders(s, locale) {
 <div class="compname"><b>${label}</b> <span class="muted">${installed(version)}</span></div>
 <div class="comppick">
 <label class="muted">${s.t('install.components.channel')} ${name === 'paneld' ? `<span class="cpa-channel">${s.t('install.components.stable')}</span>` : `<select class="cchan" onchange="loadVersions('${name}')"><option value="stable" selected>${s.t('install.components.stable')}</option><option value="prerelease">${s.t('install.components.prerelease')}</option></select>`}</label>
-<label class="muted">${s.t('install.shared.version')} <select class="cvsel" onchange="verChanged('${name}')"><option>${s.t('install.shared.loading')}</option></select></label>
+<fieldset class="version-choices"><legend>${s.t('install.shared.version')}</legend><div class="cvsel choice-list" onchange="verChanged('${name}')">${s.t('install.shared.loading')}</div></fieldset>
 <a class="gh gh-inline cnotes" target="_blank" rel="noopener" title="${s.t('install.components.release_notes')}" aria-label="${s.t('install.components.release_notes')}" style="visibility:hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
 <button class="pbtn cinstall"${a11y()} onclick="installSel('${name}',this)" data-root="1" disabled>${s.t('install.components.install')}</button>
 </div></div>`;
@@ -313,7 +313,7 @@ ${backupCard(s, b)}
   },
   api(url, method) { return payload(url, method); },
   async ready(frame) {
-    await frame.waitForFunction(() => document.querySelectorAll('.cvsel option').length === 4
+    await frame.waitForFunction(() => document.querySelectorAll('.cvsel input').length === 4
       && document.querySelector('#uninst-pkg option[value]') && document.querySelector('#apk-preview button')
       && getComputedStyle(document.querySelector('#radiocard')).display !== 'none'
       && document.querySelector('#radio-status').textContent !== '…');
