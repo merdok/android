@@ -12,9 +12,10 @@ import java.util.concurrent.TimeUnit
  * Display sizing by the app itself, for a panel with neither root nor the helper. Text size is a
  * public system setting the `WRITE_SETTINGS` grant covers. Density goes through `cmd window density`
  * run as the app, which Android allows with the `WRITE_SECURE_SETTINGS` grant Panel Assistant makes
- * at install; the hidden `IWindowManager` call it wraps is refused to an app by reflection. Every
- * write is read back from the secure setting Android persists it in, so a firmware that refuses the
- * command reports failure rather than success.
+ * at install; the hidden `IWindowManager` call it wraps is refused to an app by reflection. Where
+ * SELinux enforces (the Meta Portal), the command cannot even find the window service from an app,
+ * so density counts as ready only once the command has answered. Every write is read back from the
+ * secure setting Android persists it in, so a firmware that refuses the command reports failure.
  */
 interface AppSizing {
     /** Whether the density grant is held. */
@@ -36,9 +37,12 @@ interface AppSizing {
 }
 
 internal class FrameworkSizing(private val context: Context) : AppSizing {
+    // The policy that hides the window service from an app cannot change while the process runs.
+    private val windowCommandAnswers by lazy { windowDensity(null)?.contains("Physical density") == true }
+
     override fun densityReady(): Boolean =
         context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
-            PackageManager.PERMISSION_GRANTED
+            PackageManager.PERMISSION_GRANTED && windowCommandAnswers
 
     override fun fontReady(): Boolean = Settings.System.canWrite(context)
 
@@ -53,21 +57,23 @@ internal class FrameworkSizing(private val context: Context) : AppSizing {
 
     override fun setDensity(dpi: Int?): Boolean {
         if (!densityReady()) return false
-        val ran = runCatching {
-            val process = ProcessBuilder("cmd", "window", "density", dpi?.toString() ?: "reset")
-                .redirectErrorStream(true)
-                .start()
-            if (!process.waitFor(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly()
-                false
-            } else {
-                val output = process.inputStream.bufferedReader().readText().trim()
-                if (output.isNotEmpty()) Log.i(TAG, "cmd window density: $output")
-                true
-            }
-        }.getOrDefault(false)
-        return ran && forcedDensity() == dpi
+        val output = windowDensity(dpi?.toString() ?: "reset") ?: return false
+        if (output.isNotEmpty()) Log.i(TAG, "cmd window density: $output")
+        return forcedDensity() == dpi
     }
+
+    /** `cmd window density [arg]` as the app: its output, or null when it did not finish in time. */
+    private fun windowDensity(arg: String?): String? = runCatching {
+        val process = ProcessBuilder(listOfNotNull("cmd", "window", "density", arg))
+            .redirectErrorStream(true)
+            .start()
+        if (!process.waitFor(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            process.destroyForcibly()
+            null
+        } else {
+            process.inputStream.bufferedReader().readText().trim()
+        }
+    }.getOrNull()
 
     override fun fontScale(): Float? =
         runCatching { Settings.System.getFloat(context.contentResolver, Settings.System.FONT_SCALE, 1.0f) }
