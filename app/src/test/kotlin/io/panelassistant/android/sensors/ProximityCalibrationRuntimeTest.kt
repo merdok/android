@@ -194,6 +194,8 @@ class ProximityCalibrationRuntimeTest {
         assertEquals("user", JSONObject(runtime.json()).getString("calibrationSource"))
         val busy = Fixture()
         busy.begin(100f)
+        // A different calibration is waiting in the store, so only the setup itself can hold it off.
+        busy.backing.inserted[key()] = row(presenceOnly())
         assertFalse(busy.runtime.reloadStored())
         assertEquals("calibrating", JSONObject(busy.runtime.statusJson()).getString("state"))
         // A restore that brought nothing new, or a store that cannot be read now, leaves the working calibration.
