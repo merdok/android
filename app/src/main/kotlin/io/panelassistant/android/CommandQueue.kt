@@ -201,7 +201,13 @@ internal class CommandQueue(
         try {
             while (true) {
                 val work = synchronized(lock) {
-                    while (accepting && pending.isEmpty()) lock.waitUninterruptibly()
+                    while (accepting && pending.isEmpty()) {
+                        try {
+                            lock.wait()
+                        } catch (_: InterruptedException) {
+                            // Retirement interrupts this worker; recheck admission before waiting again.
+                        }
+                    }
                     if (!accepting) return
                     pending.removeFirst().also {
                         if (it.latestKey == null) pendingActions--
@@ -225,19 +231,6 @@ internal class CommandQueue(
                 lock.notifyAll()
             }
         }
-    }
-
-    private fun Object.waitUninterruptibly() {
-        var interrupted = false
-        while (true) {
-            try {
-                wait()
-                break
-            } catch (_: InterruptedException) {
-                interrupted = true
-            }
-        }
-        if (interrupted) Thread.currentThread().interrupt()
     }
 
     companion object {
