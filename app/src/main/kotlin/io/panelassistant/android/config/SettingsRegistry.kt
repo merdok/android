@@ -1173,12 +1173,12 @@ object SettingsRegistry {
             ?.takeIf { it.ha != null }
 }
 
-/** Fresh defaults use the same resolved navigation presence as Native-mode admission. Keep the
- * no-way-out default for catalog-backed panels with neither Recents nor physical buttons; unknown
+/** Fresh defaults use the same resolved navigation presence as Native-mode admission. A catalog-backed
+ * panel with neither Recents nor buttons gets the swipe-revealed bar whatever its firmware claims; unknown
  * hardware must not be mistaken for measured absence. Stored choices are handled by Config. */
 internal fun navbarModeDefault(caps: Capabilities): String {
     if (caps.hasNativeNavbar) return "Native"
-    if (caps.hardwareDeclarationsKnown && !caps.hasRecents && !caps.hasEvdevButtons) return "Always on"
+    if (caps.hardwareDeclarationsKnown && !caps.hasRecents && !caps.hasEvdevButtons) return "Swipe reveal"
     return if (caps.androidShowsNavbar == false) "Swipe reveal" else "Off"
 }
 
