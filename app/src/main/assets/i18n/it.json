@@ -2894,7 +2894,7 @@
       "text": "spegnimento reale della retroilluminazione tramite su bl_power"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "spegnimento reale della retroilluminazione tramite l'RPC locale del produttore; altrimenti timeout dello schermo di Android",
+      "text": "spegnimento reale della retroilluminazione tramite l'RPC locale del produttore; timeout schermo di Android se il produttore non risponde",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },

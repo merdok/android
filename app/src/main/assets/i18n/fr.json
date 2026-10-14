@@ -2894,7 +2894,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "extinction réelle du rétroéclairage via le RPC local du fabricant ; sinon délai d'écran d'Android",
+      "text": "extinction réelle du rétroéclairage via le RPC local du fabricant ; mise en veille de l'écran d'Android si le fabricant ne répond pas",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },
