@@ -221,6 +221,8 @@ data class SettingSpec(
     // one of its choices is not. `availableWhen` cannot express this: hiding the whole setting would
     // remove working choices too. A choice with no entry here is always offered.
     val optionRequires: Map<String, (Capabilities) -> Boolean> = emptyMap(),
+    // Some BOOL settings admit safety cleanup even when their ON actuator is unavailable.
+    val valueRequires: (String, Capabilities) -> Boolean = { _, _ -> true },
     // Capability-derived fresh-install default, the sibling of [optionRequires]: where that withholds a
     // choice a panel must not have, this chooses the value a panel should start at when the user has
     // never set one. Null means [default] is the answer everywhere.
@@ -264,6 +266,10 @@ data class SettingSpec(
      */
     fun optionsFor(caps: Capabilities): List<String> =
         options.filter { optionRequires[it]?.invoke(caps) ?: true }
+
+    /** Availability of a validated, normalized value; shared by import and backup restore. */
+    fun canApplyValue(value: String, caps: Capabilities): Boolean =
+        availableWhen(caps) && (optionRequires[value]?.invoke(caps) ?: true) && valueRequires(value, caps)
 
     /**
      * The value this panel should start at when nothing was ever stored for [key]. Falls back to the

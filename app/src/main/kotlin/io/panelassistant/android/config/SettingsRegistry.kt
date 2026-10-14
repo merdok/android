@@ -381,6 +381,9 @@ object SettingsRegistry {
             tier = Tier.ADVANCED, summary = "Root only. Bring the dashboard back when another app opens.",
             label = "Lock Android to dashboard (experimental)", default = "false", scope = Scope.DEVICE,
             liveApply = true,
+            // networkAdb is the existing live direct-su observation, not helper readiness. Kiosk
+            // needs that route plus profile eligibility for ON; OFF must always permit cleanup.
+            valueRequires = { value, caps -> value != "true" || (caps.appCanSu && caps.networkAdb) },
             help = "Root-only casual-use lock. Hides Android system bars and returns to the selected dashboard within about 3 seconds when another app or Recents opens. It does not hide Home Assistant navigation.\n\nRelease it:\n\n- here, or from Home Assistant\n- through adb\n- with 7 rapid top-left taps\n- during the 60-second unlocked window after reboot",
             ha = haEntity("switch", "kiosk_lock") {
                 entityCategory("config")

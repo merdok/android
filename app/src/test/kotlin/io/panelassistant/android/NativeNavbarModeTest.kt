@@ -1,6 +1,7 @@
 package io.panelassistant.android
 
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
+import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.testsupport.TestSources
 import io.panelassistant.android.config.Capabilities
@@ -132,8 +133,10 @@ internal class NativeNavbarModeTest : PanelRuntimeRig() {
             rig.start()
             assertFalse(rig.config.hasNativeNavbar)
             val before = rig.config.navbarMode
-            // The rig's navbar controller throws if reached, so an applied result means nothing actuated.
-            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "navbar", "Native"))
+            assertEquals(
+                PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE),
+                submitNative(rig, "navbar", "Native"),
+            )
             assertEquals(before, rig.config.navbarMode)
             // A permitted mode does reach the controller.
             assertTrue(submitNative(rig, "navbar", NavbarController.MODE_ALWAYS) is PanelAssistantCommandResult.Failed)

@@ -2,6 +2,9 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.Config.SecurityMode
 import io.panelassistant.android.control.FakeDaemon
+import io.panelassistant.android.control.FakeRootShell
+import io.panelassistant.android.control.FakeSystemEnv
+import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.security.LocalApprovalBroker
@@ -31,6 +34,8 @@ internal class HardenedControlContractTest : PanelRuntimeRig() {
         val before = broker.pending().map { it.id }.toSet()
         val rig = rig(systemDaemon = systemDaemon, configure = { assertTrue(it.setSecurityMode(SecurityMode.HARDENED)) })
         try {
+            val system = SystemController(FakeSystemEnv(), FakeRootShell(), systemDaemon, isDeviceSecure = { false })
+            rig.commands.javaClass.getDeclaredField("system").apply { isAccessible = true }.set(rig.commands, system)
             rig.start()
             block(rig, before)
         } finally {

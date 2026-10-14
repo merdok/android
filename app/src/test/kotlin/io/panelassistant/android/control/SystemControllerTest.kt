@@ -132,6 +132,35 @@ class SystemControllerTest {
     }
 
     // ---------- reboot ----------
+    @Test fun rebootWithoutACredentialObservationFailsClosed() {
+        val root = FakeRootShell()
+        val daemon = FakeDaemon(replies = mapOf("REBOOT AWAIT" to "OK"))
+        val notices = mutableListOf<String>()
+        val controller = SystemController(FakeSystemEnv(), root, daemon, beforeReboot = { notices += "reboot" })
+        val refusal = runCatching { controller.reboot() }.exceptionOrNull()
+        assertTrue(refusal is DeviceCredentialRebootRefusalException)
+        assertTrue(notices.isEmpty())
+        assertTrue(daemon.sent.isEmpty())
+        assertTrue(root.ran.isEmpty())
+    }
+
+    @Test fun rebootResamplesCredentialsAfterAdmissionBeforeAnnouncingOrExecuting() {
+        val power = FakeScreenPower(deviceSecure = false)
+        val root = FakeRootShell()
+        val daemon = FakeDaemon(replies = mapOf("REBOOT AWAIT" to "OK"))
+        val notices = mutableListOf<String>()
+        val controller = SystemController(
+            FakeSystemEnv(), root, daemon, beforeReboot = { notices += "reboot" },
+            isDeviceSecure = power::isDeviceSecure,
+        )
+        controller.requireRebootAllowed()
+        power.deviceSecure = true
+        assertTrue(runCatching { controller.reboot() }.exceptionOrNull() is DeviceCredentialRebootRefusalException)
+        assertTrue(notices.isEmpty())
+        assertTrue(daemon.sent.isEmpty())
+        assertTrue(root.ran.isEmpty())
+    }
+
     @Test fun nativeActionAvailabilityFollowsExecutableRoutes() {
         val noPrivilege = SystemController(
             FakeSystemEnv(installed = setOf(MIN)),
@@ -186,7 +215,7 @@ class SystemControllerTest {
             available = outcome != null,
             longOutcomes = outcome?.let { mapOf("REBOOT AWAIT" to it) } ?: emptyMap(),
         )
-        return Triple(SystemController(FakeSystemEnv(), root, d, builtinForeground = { false }), root, d)
+        return Triple(SystemController(FakeSystemEnv(), root, d, builtinForeground = { false }, isDeviceSecure = { false }), root, d)
     }
 
     /** A panel that is genuinely going down closes the socket instead of answering, and that silence
@@ -201,7 +230,7 @@ class SystemControllerTest {
     @Test fun rebootAnnouncesBeforeTheDeviceCommand() {
         val events = mutableListOf<String>()
         val daemon = FakeDaemon(replies = mapOf("REBOOT AWAIT" to "OK"), onSend = { events += it })
-        val controller = SystemController(FakeSystemEnv(), FakeRootShell(), daemon, beforeReboot = { events += "notice" })
+        val controller = SystemController(FakeSystemEnv(), FakeRootShell(), daemon, beforeReboot = { events += "notice" }, isDeviceSecure = { false })
         controller.reboot()
         assertEquals(listOf("notice", "REBOOT AWAIT"), events)
     }

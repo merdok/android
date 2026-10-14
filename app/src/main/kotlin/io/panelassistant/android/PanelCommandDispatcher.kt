@@ -10,6 +10,7 @@ import io.panelassistant.android.control.BootChimeController
 import io.panelassistant.android.control.BrightnessController
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.CpuController
+import io.panelassistant.android.control.DeviceCredentialRebootRefusalException
 import io.panelassistant.android.control.LedCommandPolicy
 import io.panelassistant.android.control.NavbarController
 import io.panelassistant.android.control.NavbarModeApplyOutcome
@@ -323,6 +324,7 @@ internal class PanelCommandDispatcher(
                 }
             }
             "reboot" -> {
+                system.requireRebootAllowed()
                 authorizeRemoteSensitive(
                     SensitiveOperation.DEVICE_REBOOT,
                     payload,
@@ -696,7 +698,7 @@ internal class PanelCommandDispatcher(
         if (!navbarModePermitted(payload.trim().trim('"'), config.hasNativeNavbar)) {
             Log.w(TAG, "navbar: refusing $payload — this panel has no native navigation bar")
             core.reconcile("navbar")
-            return
+            throw LiveSettingUnavailableException("navbar_mode")
         }
         applyAcknowledgedNavbarMode(
             payload = payload,
@@ -1325,6 +1327,8 @@ internal fun panelAssistantCommandResult(failure: Exception?): PanelAssistantCom
     is SensitiveApprovalPendingException -> PanelAssistantCommandResult.ApprovalPending(failure.approvalId)
     is HardenedModeRefusalException ->
         PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_REFUSED_HARDENED)
+    is DeviceCredentialRebootRefusalException ->
+        PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE)
     is LiveSettingUnavailableException ->
         PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE)
     is IllegalArgumentException -> PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE)

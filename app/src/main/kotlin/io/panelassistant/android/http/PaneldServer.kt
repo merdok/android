@@ -864,6 +864,7 @@ class PaneldServer internal constructor(
                 authorizeSensitive = ::authorizeSensitive,
                 rejectHardenedNetworkAdb = ::rejectHardenedNetworkAdb,
                 planEntityBackup = ::planEntityBackup,
+                capabilities = { liveCapabilities(managementObservations.snapCache.get().caps) },
             )
         }
     }
@@ -942,6 +943,7 @@ class PaneldServer internal constructor(
             reader = BackupArchiveReader(cacheDir) { CompanionInstaller.installedPackages(appContext) },
             profileAdmin = profileAdmin,
             ensureCompanionHelper = managementObservations::ensureCompanionHelper,
+            companionHelperReady = { managementObservations.companionHelperCache.get() },
             authorizeSensitive = ::authorizeSensitive,
             rejectHardenedNetworkAdb = ::rejectHardenedNetworkAdb,
             capabilities = { liveCapabilities(managementObservations.snapCache.get().caps) },

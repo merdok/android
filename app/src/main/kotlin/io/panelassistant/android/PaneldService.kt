@@ -1288,7 +1288,7 @@ class PaneldService : Service() {
             media.hold(io.panelassistant.android.media.PanelMediaPlayer.Hold.VOICE, state.inTurn)
         }
         microphoneMute.start(scope)
-        system = SystemController(AndroidSystemEnv(this), vendorHomePackages = profile.vendorHomePackages, beforeReboot = {
+        system = SystemController(AndroidSystemEnv(this), vendorHomePackages = profile.vendorHomePackages, isDeviceSecure = AndroidScreenPower(this)::isDeviceSecure, beforeReboot = {
             announcePanelAssistantRestart("panel", "reboot", 120_000L)
         }, homeDashboard = { config.homeDashboard }, onCompanionHome = { pkg, home ->
             val generation = companionHomeReturnGeneration.incrementAndGet()
