@@ -217,6 +217,35 @@ class AppInstallerTest {
         assertFalse("neither invalid identity may reach database admission", compatibilityConsulted)
     }
 
+    @Test fun uploadedOwnPackageMustCarryAndPassItsDatabaseContract() {
+        // The Install-tab upload reaches this gate with no prepared boundary and the running package.
+        val seen = mutableListOf<DatabaseCompatibilityApkContract.Boundary>()
+        fun upload(contract: DatabaseCompatibilityApkContract.Parsed) =
+            AppInstaller.localInstallCandidateRefusal(
+                info = selfInfo(contract = contract)
+                    .copy(version = "1.1.0", versionCode = 110, nativeProtocolRange = 3..3),
+                runningPackage = AppInstaller.HA_PANELD.pkg,
+                admittedBoundary = null,
+                updatePolicy = PanelAssistantUpdatePolicy(1, 3, false),
+                currentVersion = "1.0.0",
+                currentCode = 100,
+            ) {
+                seen += it
+                "database compatibility primary unreadable"
+            }
+
+        assertEquals(
+            "candidate database compatibility metadata is missing",
+            upload(DatabaseCompatibilityApkContract.Parsed.Missing),
+        )
+        assertEquals(emptyList<DatabaseCompatibilityApkContract.Boundary>(), seen)
+        assertEquals(
+            "database compatibility primary unreadable",
+            upload(DatabaseCompatibilityApkContract.Parsed.Valid(boundary)),
+        )
+        assertEquals(listOf(boundary), seen)
+    }
+
     @Test fun unpreparedLocalInstallRequiresReadableApkButStillAllowsReadableNonSelfPackage() {
         var compatibilityConsulted = false
         val unreadable = AppInstaller.localInstallCandidateRefusal(
