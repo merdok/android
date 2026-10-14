@@ -343,6 +343,18 @@ int main(void) {
             CHECK(strcmp(output, "literal;$(not-a-command)\n") == 0,
                   "capture executes the structural argv literally without a shell\n");
             CHECK(!child_pending(), "successful timeout APIs reap their direct children\n");
+
+            // Output larger than the caller's buffer is a failure, never a truncated success: the
+            // Guard sqlite proof parses this text and must not accept a prefix of it.
+            const char *const long_argv[] = { "echo", "0123456789", NULL };
+            char small[8];
+            memset(small, 0xa5, sizeof small);
+            int overflow_timed_out = 9;
+            int overflow_status = sysexec_capture_argv_timeout(
+                echo_path, long_argv, small, sizeof small, 2000u, &overflow_timed_out);
+            CHECK(overflow_status == -1 && overflow_timed_out == 0 &&
+                  memchr(small, '\0', sizeof small) != NULL && !child_pending(),
+                  "capture output beyond its buffer is reported as failure, not truncated success\n");
         }
     }
 
