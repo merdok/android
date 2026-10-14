@@ -11,7 +11,10 @@ import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.device.profile.ProfileBackupRestoreOutcome
 import io.panelassistant.android.device.profile.ProfileBackupRestorePlan
 import io.panelassistant.android.device.profile.ProfileBackupRestoreResult
+import io.panelassistant.android.dashboard.EntityCatalogStore
 import io.panelassistant.android.persistence.AppState
+import io.panelassistant.android.persistence.CatalogProximityCalibrationCustody
+import io.panelassistant.android.persistence.ProximityCalibrationCustody
 import io.panelassistant.android.persistence.ConfigVault
 import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.util.InstallPresentation
@@ -44,6 +47,7 @@ internal class RestoreExecutor(
     private val onProfileRestartAbort: (String) -> Boolean,
     private val onDurableStateRestored: () -> Unit,
     private val onWakeWordsChanged: () -> Unit,
+    private val calibrations: ProximityCalibrationCustody = CatalogProximityCalibrationCustody(appContext),
 ) {
     suspend fun execute(
         configPlan: RestoreConfigPlan,
@@ -59,6 +63,7 @@ internal class RestoreExecutor(
         wakeWordCatalog: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
         progress: InstallProgress.Ticket,
         restoreAttempt: RestoreAttempt,
+        restorableCalibrations: List<EntityCatalogStore.ProximityModelRow> = emptyList(),
     ) {
         val before = currentValues()
         // Preview is not admission: sample current capability again for the actual execution.
@@ -125,11 +130,15 @@ internal class RestoreExecutor(
                         restoredStateRows = runCatching {
                             AppState.applyRestoredRows(appContext, restorableState)
                         }.getOrDefault(0)
-                        if (restoredStateRows > 0) {
-                            // Never fatal, exactly like the write above: the restore is
-                            // already durable, and a live re-read failing must not undo it.
-                            runCatching { onDurableStateRestored() }
-                        }
+                    }
+                    // A calibration this install already holds under the same key is kept; the
+                    // archive's copy only fills a gap. Never fatal, like the state write above.
+                    val restoredCalibrations = if (restorableCalibrations.isEmpty()) 0
+                        else runCatching { calibrations.restore(restorableCalibrations) }.getOrDefault(0)
+                    if (restoredStateRows > 0 || restoredCalibrations > 0) {
+                        // Never fatal, exactly like the writes above: the restore is
+                        // already durable, and a live re-read failing must not undo it.
+                        runCatching { onDurableStateRestored() }
                     }
                     // An ordinary restore forgives a state write that failed, because its archive
                     // survives it. A migration's receipt is about to become the only copy of a

@@ -1796,6 +1796,46 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
         observedMaintenance(now)
     }
 
+    /** Every ready calibration, for the backup archive. Unready rows hold nothing worth restoring. */
+    fun exportProximityModels(): List<ProximityModelRow> = readableDatabase.rawQuery(
+        "SELECT fingerprint,algorithm_version,behavior_signature,snapshot_json,ready,updated_at FROM proximity_model " +
+            "WHERE ready=1 ORDER BY updated_at DESC LIMIT $MAX_PROXIMITY_MODELS",
+        null,
+    ).use { cursor ->
+        buildList {
+            while (cursor.moveToNext()) add(
+                ProximityModelRow(
+                    fingerprint = cursor.getString(0),
+                    algorithmVersion = cursor.getInt(1),
+                    behaviorSignature = cursor.getString(2),
+                    snapshotJson = cursor.getString(3),
+                    ready = cursor.getInt(4) != 0,
+                    updatedAt = cursor.getLong(5),
+                ),
+            )
+        }
+    }
+
+    /**
+     * Adds a calibration carried from elsewhere (a backup, or the row saved under an older key) only when
+     * no row holds its fingerprint, so a calibration made on this install is never replaced. It touches
+     * the model table alone: no pruning, so it can evict nothing.
+     */
+    fun insertProximityModelIfAbsent(model: ProximityModelRow): Boolean = observedWrite("proximity-history") {
+        require(PROXIMITY_FINGERPRINT.matches(model.fingerprint))
+        require(model.behaviorSignature.length <= 500)
+        require(model.snapshotJson.toByteArray(Charsets.UTF_8).size <= MAX_PROXIMITY_SNAPSHOT_BYTES)
+        val values = ContentValues(6).apply {
+            put("fingerprint", model.fingerprint)
+            put("algorithm_version", model.algorithmVersion)
+            put("behavior_signature", model.behaviorSignature)
+            put("snapshot_json", model.snapshotJson)
+            put("ready", if (model.ready) 1 else 0)
+            put("updated_at", model.updatedAt)
+        }
+        writableDatabase.insertWithOnConflict("proximity_model", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L
+    }
+
     fun clearProximityLearning(fingerprint: String): Unit = observedWrite("proximity-history-reset") {
         if (!PROXIMITY_FINGERPRINT.matches(fingerprint)) return
         val db = writableDatabase

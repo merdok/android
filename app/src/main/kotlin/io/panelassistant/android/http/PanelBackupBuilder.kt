@@ -15,6 +15,9 @@ import io.panelassistant.android.persistence.ConfigVault
 import io.panelassistant.android.persistence.StateArchiveSection
 import io.panelassistant.android.persistence.BackupIdentity
 import io.panelassistant.android.persistence.RawPreferenceBackup
+import io.panelassistant.android.persistence.CatalogProximityCalibrationCustody
+import io.panelassistant.android.persistence.ProximityCalibrationBackup
+import io.panelassistant.android.persistence.ProximityCalibrationCustody
 import io.panelassistant.android.util.CompanionInstaller
 import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.Json
@@ -30,6 +33,7 @@ internal class PanelBackupBuilder(
     private val profileAdmin: ProfileAdmin?,
     private val companion: CompanionBackupOperations,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
+    private val calibrations: ProximityCalibrationCustody = CatalogProximityCalibrationCustody(appContext),
 ) {
     private data class BackupArchiveParts(
         val manifest: String,
@@ -141,6 +145,11 @@ internal class PanelBackupBuilder(
             val stateFailure = stateCapture.exceptionOrNull()
             if (stateFailure != null) Log.w(TAG, "backup could not read app_state", stateFailure)
             val stateRows = stateCapture.getOrDefault(emptyList())
+            // Its own table, so its own read: an unreadable calibration leaves it out of this archive and
+            // costs nothing else.
+            val calibrationRows = runCatching { calibrations.export() }
+                .onFailure { Log.w(TAG, "backup could not read the proximity calibration", it) }
+                .getOrDefault(emptyList())
             val state = stateRows.takeIf { it.isNotEmpty() }?.let { rows ->
                 textEntry(
                     STATE_BACKUP_ENTRY,
@@ -168,6 +177,7 @@ internal class PanelBackupBuilder(
                     state?.file?.length(),
                     stateRows.size,
                     stateFailure != null,
+                    calibrationRows,
                     wakeWordEntry?.let {
                         io.panelassistant.android.backup.WakeWordBackup.manifestFragment(it.file.length(), importedWakeWords.size)
                     },
@@ -191,6 +201,7 @@ internal class PanelBackupBuilder(
         stateBytes: Long?,
         stateRows: Int,
         stateCaptureFailed: Boolean,
+        calibrations: List<EntityCatalogStore.ProximityModelRow>,
         wakeWordSection: String?,
     ): String {
         val live = configLiveValues()
@@ -232,6 +243,7 @@ internal class PanelBackupBuilder(
             stateRows,
             stateCaptureFailed,
         )?.let { sb.append(",\"state\":").append(it) }
+        sb.append(ProximityCalibrationBackup.manifestFragment(calibrations))
         wakeWordSection?.let { sb.append(",\"wake_words\":").append(it) }
         if (companion != null) {
             val files = companion.files.mapIndexed { index, file ->
