@@ -1610,7 +1610,10 @@ class PaneldService : Service() {
             profileReport = passiveProfileProbe::report,
             profileProbe = { passiveProfileProbe.report() },
             onProfileRestart = { profileRestart.request() },
-            onDurableStateRestored = { wifiOutageTracker.adoptRestoredRecord() },
+            onDurableStateRestored = {
+                wifiOutageTracker.adoptRestoredRecord()
+                sensors.reloadProximityCalibration()
+            },
             profileRestartAllowed = { !InstallProgress.running },
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,

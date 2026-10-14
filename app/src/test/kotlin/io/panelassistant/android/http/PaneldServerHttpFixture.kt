@@ -185,6 +185,8 @@ internal class PaneldServerHttpFixture(
     fun backupBuilder(
         wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
         config: Config = this.config,
+        calibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody =
+            io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(context),
         effectiveValue: (io.panelassistant.android.config.SettingSpec, Map<String, String>) -> String = { spec, _ -> spec.default },
     ) = PanelBackupBuilder(
         appContext = context,
@@ -203,6 +205,7 @@ internal class PaneldServerHttpFixture(
             system = allocate(io.panelassistant.android.control.SystemController::class.java),
         ),
         wakeWords = wakeWords,
+        calibrations = calibrations,
     )
 
     fun useManagementStatus(

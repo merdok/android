@@ -25,6 +25,10 @@ import io.panelassistant.android.platform.SystemEnv
 import io.panelassistant.android.setHaConnection
 import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.sensors.SensorReporter
+import io.panelassistant.android.sensors.ProximityCalibrationEngine
+import io.panelassistant.android.sensors.ProximityCalibrationRuntime
+import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.persistence.ProximityCalibrationBackup
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.util.Cached
 import io.panelassistant.android.util.InstallProgress
@@ -404,6 +408,109 @@ class ConfigPostProductionRouteTest {
                 }
             }
         }
+
+    /** The model table as the panel holds it: keyed by fingerprint, and only ever added to by a restore. */
+    private class CalibrationTable(vararg rows: EntityCatalogStore.ProximityModelRow) :
+        io.panelassistant.android.persistence.ProximityCalibrationCustody {
+        val rows = rows.associateBy { it.fingerprint }.toMutableMap()
+        override fun export() = rows.values.filter { it.ready }
+        override fun restore(rows: List<EntityCatalogStore.ProximityModelRow>) =
+            rows.count { this.rows.putIfAbsent(it.fingerprint, it) == null }
+    }
+
+    private fun savedCalibration(source: String = "android-hal|fixture-sensor|build=fixture") = EntityCatalogStore.ProximityModelRow(
+        fingerprint = ProximityCalibrationRuntime.calibrationKey("nspanel_86", source),
+        algorithmVersion = ProximityCalibrationRuntime.STORAGE_VERSION,
+        behaviorSignature = "explicit-calibration-v2",
+        snapshotJson = ProximityCalibrationRuntime.encode(
+            ProximityCalibrationEngine.Calibration(mode = ProximityCalibrationEngine.Mode.RANGED, clearRaw = 120f, nearRaw = 900f),
+        ),
+        ready = true,
+        updatedAt = 1_800_000_000_000L,
+    )
+
+    /**
+     * Backup on one install, reinstall (an empty model table), restore: the calibration comes back, the
+     * running runtime is told to take it up, and a calibration the new install already made is kept.
+     * Onto another panel, or from a row that will not load, nothing is written.
+     */
+    @Test fun `a reinstall and restore of the same panel brings its proximity calibration back`() =
+        withFullReadServer { config, fixture ->
+            config.setPanelId("calibrated_panel")
+            val saved = savedCalibration()
+            val other = savedCalibration(source = "android-hal|other-sensor|build=fixture")
+            val builder = fixture.backupBuilder(null, config, calibrations = CalibrationTable(saved, other)) { spec, live ->
+                effectiveSettingValue(config, spec, live)
+            }
+            builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
+                setField(fixture.server, "applySetting", { _: String, _: String -> LiveSettingRequestOutcome.APPLIED })
+                setField(fixture.server, "onReconfigure", { _: Set<String> -> })
+                var reloads = 0
+                setField(fixture.server, "onDurableStateRestored", { reloads++; Unit })
+                // The fixture warms the 15 s management snapshot once; four restores can outlast it.
+                val observations = PaneldServer::class.java.getDeclaredField("managementObservations")
+                    .apply { isAccessible = true }.get(fixture.server) as ManagementObservations
+                val snapshot = observations.snapCache.get()
+                testApplication {
+                    application { fixture.mount(this) }
+                    suspend fun restore(bytes: ByteArray, into: CalibrationTable) {
+                        setField(fixture.server, "proximityCalibrations", into)
+                        observations.snapCache.set(snapshot)
+                        val restored = client.post("/api/v1/restore") { setBody(bytes) }
+                        assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
+                        kotlinx.coroutines.withTimeout(5_000) {
+                            while (InstallProgress.running) kotlinx.coroutines.delay(10)
+                        }
+                    }
+
+                    val reinstalled = CalibrationTable()
+                    restore(artifact.file.readBytes(), reinstalled)
+                    assertEquals(mapOf(saved.fingerprint to saved, other.fingerprint to other), reinstalled.rows.toMap())
+                    assertEquals(1, reloads)
+
+                    // A calibration made on this install since is never replaced by the archive's older copy.
+                    val recalibrated = saved.copy(snapshotJson = ProximityCalibrationRuntime.encode(
+                        ProximityCalibrationEngine.Calibration(mode = ProximityCalibrationEngine.Mode.RANGED, clearRaw = 130f, nearRaw = 950f),
+                    ), updatedAt = saved.updatedAt + 1)
+                    val kept = CalibrationTable(recalibrated)
+                    restore(artifact.file.readBytes(), kept)
+                    assertEquals(recalibrated, kept.rows[saved.fingerprint])
+                    assertEquals(other, kept.rows[other.fingerprint])
+
+                    // A malformed row is dropped on its own; the rest of the restore and the good row still land.
+                    val damaged = rewriteManifest(artifact.file) { manifest ->
+                        manifest.getJSONArray(ProximityCalibrationBackup.SECTION_KEY).getJSONObject(1).put("snapshot", "{\"version\":9}")
+                    }
+                    val partial = CalibrationTable()
+                    restore(damaged, partial)
+                    assertEquals(mapOf(saved.fingerprint to saved), partial.rows.toMap())
+
+                    // Another panel: its hardware is not this one's, so nothing is written.
+                    config.setPanelId("another_panel")
+                    val elsewhere = CalibrationTable()
+                    restore(artifact.file.readBytes(), elsewhere)
+                    assertTrue(elsewhere.rows.isEmpty())
+                }
+            }
+        }
+
+    private fun rewriteManifest(archive: File, change: (JSONObject) -> Unit): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipFile(archive).use { source ->
+            java.util.zip.ZipOutputStream(out).use { zip ->
+                source.entries().asSequence().forEach { entry ->
+                    var bytes = source.getInputStream(entry).readBytes()
+                    if (entry.name == io.panelassistant.android.backup.PanelBackup.MANIFEST_ENTRY) {
+                        bytes = JSONObject(String(bytes, Charsets.UTF_8)).also(change).toString().toByteArray(Charsets.UTF_8)
+                    }
+                    zip.putNextEntry(java.util.zip.ZipEntry(entry.name))
+                    zip.write(bytes)
+                    zip.closeEntry()
+                }
+            }
+        }
+        return out.toByteArray()
+    }
 
     @Test fun `a backup written by an MQTT release restores supported values without its broker settings`() =
         withFullReadServer { config, fixture ->

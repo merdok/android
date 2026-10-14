@@ -19,6 +19,7 @@ import io.panelassistant.android.migration.claimsRestoreAttempt
 import io.panelassistant.android.migration.migrationRestoreAdmission
 import io.panelassistant.android.persistence.BackupIdentity
 import io.panelassistant.android.persistence.RawPreferenceBackup
+import io.panelassistant.android.persistence.ProximityCalibrationBackup
 import io.panelassistant.android.persistence.StateBackupPolicy
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.BoundedStreams
@@ -390,14 +391,15 @@ internal class RestoreRoutes(
             // it still identifies the physical target: device-local rows return only to their own panel.
             // A cleared panel that no longer carries its old id is treated as a different one, which
             // withholds hardware-specific rows rather than guessing.
+            val samePanel = StateBackupPolicy.sameDevice(
+                migrationRestore = migrationRestore,
+                panelIdMatches = obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
+                discoveryIdMatches = sameDeviceByDiscoveryId,
+            )
+            val restorableCalibrations = ProximityCalibrationBackup.restorable(obj, samePanel)
             val restorableState = if (
                 archiveManifest != null && stateDisposition == StateArchiveSection.Disposition.RESTORABLE
             ) {
-                val samePanel = StateBackupPolicy.sameDevice(
-                    migrationRestore = migrationRestore,
-                    panelIdMatches = obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
-                    discoveryIdMatches = sameDeviceByDiscoveryId,
-                )
                 runCatching {
                     val ref = archiveTextRef(
                         stateObj,
@@ -548,6 +550,7 @@ internal class RestoreRoutes(
                     rawPreferences, restorableState, stateUnavailable, migrationRestore,
                     restoreWakeWords, wakeWordCatalog,
                     progress, restoreAttempt,
+                    restorableCalibrations = restorableCalibrations,
                 )
             }
             job.invokeOnCompletion {
