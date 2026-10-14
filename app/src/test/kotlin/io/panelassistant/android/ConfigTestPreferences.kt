@@ -35,7 +35,7 @@ internal fun configTestPreferences(
             "getFloat" -> values[args!![0]] as? Float ?: args[1]
             "getBoolean" -> values[args!![0]] as? Boolean ?: args[1]
             "contains" -> values.containsKey(args!![0])
-            "edit" -> fakeEditor(values) { commitsSucceed.get() }
+            "edit" -> configTestEditor(values) { commitsSucceed.get() }
             "registerOnSharedPreferenceChangeListener", "unregisterOnSharedPreferenceChangeListener" -> null
             "toString" -> "FakeSharedPreferences"
             else -> error("unexpected SharedPreferences call: ${method.name}")
@@ -44,7 +44,7 @@ internal fun configTestPreferences(
     return ConfigTestPreferences(prefs, values, commitsSucceed)
 }
 
-private fun fakeEditor(
+private fun configTestEditor(
     values: MutableMap<String, Any?>,
     commitSucceeds: () -> Boolean,
 ): SharedPreferences.Editor {
