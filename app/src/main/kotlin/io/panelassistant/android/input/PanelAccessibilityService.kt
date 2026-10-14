@@ -292,7 +292,7 @@ class PanelAccessibilityService : AccessibilityService() {
             val label = runCatching { vendor.loadLabel(context.packageManager).toString() }.getOrNull() ?: return null
             val preferences = AppState.preferences(context, "controller-state", "ha-paneld-controller-state")
             val key = PortalStartupOverlayDismissal.BOOT_KEY
-            val dismissal = PortalStartupOverlayDismissal(
+            return PortalStartupOverlayDismissal(
                 profileId = profileId,
                 bootCount = runCatching { Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT) }.getOrDefault(-1),
                 readBoot = { if (preferences.contains(key)) preferences.getInt(key, -1) else null },
@@ -307,14 +307,20 @@ class PanelAccessibilityService : AccessibilityService() {
                 post = { mainHandler.postDelayed(it, 100L) },
                 cancel = { mainHandler.removeCallbacks(it) },
             )
-            mainHandler.post {
+        }
+
+        /** Publish on main only after PaneldService owns the candidate and has checked its stop boundary. */
+        internal fun installPortalStartupOverlayDismissal(
+            dismissal: PortalStartupOverlayDismissal,
+            post: (Runnable) -> Unit = { mainHandler.post(it) },
+        ) {
+            post(Runnable {
                 startupOverlayDismissal?.close()
                 startupOverlayDismissal = dismissal
                 instance?.lastWindowState?.let {
                     dismissal.onEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, it.packageName, it.className, it.id)
                 }
-            }
-            return dismissal
+            })
         }
 
         override fun back(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false

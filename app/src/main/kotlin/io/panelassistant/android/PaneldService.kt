@@ -542,7 +542,7 @@ class PaneldService : Service() {
     private val scheduledLiveSettingRetries = mutableSetOf<String>()
     private lateinit var restartLease: ServiceRestartBarrier.Lease
     private var startupInitialization: Job? = null
-    private var portalStartupOverlayDismissal: io.panelassistant.android.input.PortalStartupOverlayDismissal? = null
+    @Volatile private var portalStartupOverlayDismissal: io.panelassistant.android.input.PortalStartupOverlayDismissal? = null
     private var pendingStart = false
     private var pendingInstalledHandoff = false
     private lateinit var mainHandler: Handler
@@ -873,11 +873,10 @@ class PaneldService : Service() {
             if (teardownBoundary.isStopping ||
                 IdentityMigrationGate.disposition(this@PaneldService) == StartDisposition.RETIRED_BRIDGE
             ) return@launch
-            portalStartupOverlayDismissal = runCatching {
+            preparePortalStartupOverlayDismissal(prepare = {
                 io.panelassistant.android.input.PanelAccessibilityService
                     .preparePortalStartupOverlayDismissal(this@PaneldService, resolvedProfile.profile.id)
-            }.onFailure { Log.w(TAG, "could not prepare the Portal startup overlay dismissal", it) }.getOrNull()
-            if (teardownBoundary.isStopping) portalStartupOverlayDismissal?.close()
+            })
             when (BundledHelperInstaller.ensureCurrent(this@PaneldService)) {
                 BundledHelperInstaller.Result.INSTALLED -> Log.i(TAG, "migrated bundled root helper for this release")
                 BundledHelperInstaller.Result.FAILED ->
@@ -904,6 +903,18 @@ class PaneldService : Service() {
                 if (pendingStart) startInitializedRuntime(pendingInstalledHandoff)
             }
         }
+    }
+
+    private fun preparePortalStartupOverlayDismissal(
+        prepare: () -> io.panelassistant.android.input.PortalStartupOverlayDismissal?,
+        install: (io.panelassistant.android.input.PortalStartupOverlayDismissal) -> Unit = {
+            io.panelassistant.android.input.PanelAccessibilityService.installPortalStartupOverlayDismissal(it)
+        },
+    ) {
+        val dismissal = runCatching(prepare)
+            .onFailure { Log.w(TAG, "could not prepare the Portal startup overlay dismissal", it) }.getOrNull()
+        portalStartupOverlayDismissal = dismissal
+        if (teardownBoundary.isStopping) dismissal?.close() else dismissal?.let(install)
     }
 
     private fun initializeRuntimeAfterDatabase(
@@ -3437,6 +3448,7 @@ class PaneldService : Service() {
     )
 
     override fun onDestroy() {
+        teardownBoundary.markStopping()
         notifications.releaseForeground()
         portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
@@ -3459,7 +3471,6 @@ class PaneldService : Service() {
             return
         }
         if (!::runtime.isInitialized) {
-            teardownBoundary.markStopping()
             startupInitialization?.invokeOnCompletion { restartLease.completeTeardown() }
             startupInitialization?.cancel()
             scope.cancel()
@@ -3473,7 +3484,6 @@ class PaneldService : Service() {
         // App-local completion may continue off-main, but every subsidiary owner shares this one budget.
         // External display/system-policy recovery remains mandatory even after this deadline expires.
         val asyncTeardownDeadline = MonotonicDeadline(ASYNC_TEARDOWN_BUDGET_MS)
-        teardownBoundary.markStopping()
         if (::migrationNotice.isInitialized) migrationNotice.close()
         // Bind any armed request to this exact lifecycle generation. A finalizer that was already in
         // flight before PREPARE cannot later satisfy or cancel the new request.
