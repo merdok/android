@@ -143,6 +143,19 @@ class InstallProgressTest {
         InstallProgress.finish(next, "done")
     }
 
+    @Test fun aFinishedTicketNoLongerOwnsTheNextOperation() {
+        val first = InstallProgress.start("first")!!
+        assertTrue(InstallProgress.owns(first))
+        InstallProgress.finish(first, "done")
+        val second = InstallProgress.start("second")!!
+        try {
+            assertFalse("a stale ticket must not own another operation", InstallProgress.owns(first))
+            assertTrue(InstallProgress.owns(second))
+        } finally {
+            InstallProgress.finish(second, "done")
+        }
+    }
+
     @Test fun staleConfigureReleaseCannotClearNewerOwner() {
         val first = InstallProgress.startConfigMutation()!!
         InstallProgress.finishConfigMutation(first)

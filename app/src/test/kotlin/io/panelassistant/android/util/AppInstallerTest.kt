@@ -441,6 +441,38 @@ AppInstaller.download("https://cdn.example/app.apk", destination, 1024L, abort) 
         assertEquals(0L, destination.length())
     }
 
+    /** A server that sends `200` with the given body and declared length, for driving [AppInstaller.download]. */
+    private fun answering(body: ByteArray, declaredLength: Long) =
+        object : java.net.HttpURLConnection(java.net.URL("https://cdn.example/app.apk")) {
+            override fun connect() = Unit
+            override fun usingProxy() = false
+            override fun disconnect() = Unit
+            override fun getResponseCode() = 200
+            override fun getContentLengthLong() = declaredLength
+            override fun getInputStream() = ByteArrayInputStream(body)
+        }
+
+    @Test fun aBodyLargerThanTheCeilingIsTooLargeEvenWithoutADeclaredLength() {
+        val destination = File.createTempFile("download-undeclared-", ".apk").also { it.deleteOnExit() }
+        val connection = answering(ByteArray(10), declaredLength = -1L)
+
+        assertEquals(
+            AppInstaller.DownloadResult.TooLarge,
+            AppInstaller.download("https://cdn.example/app.apk", destination, 4L) { connection },
+        )
+        assertEquals(0L, destination.length())
+    }
+
+    @Test fun anEmptyResponseIsAFailedDownloadNotAnApk() {
+        val destination = File.createTempFile("download-empty-", ".apk").also { it.deleteOnExit() }
+        val connection = answering(ByteArray(0), declaredLength = 0L)
+
+        assertEquals(
+            AppInstaller.DownloadResult.Failed,
+            AppInstaller.download("https://cdn.example/app.apk", destination, 1024L) { connection },
+        )
+    }
+
     @Test fun refusesNonHttpScheme() {
         assertNull("file:// target must be refused", AppInstaller.httpsRedirect(github, "file:///etc/passwd"))
         assertNull("ftp:// target must be refused", AppInstaller.httpsRedirect(github, "ftp://host/app.apk"))
