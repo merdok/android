@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.DiscoveryResult
 import io.panelassistant.android.GuidedSetupPresence
+import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.dashboard.EntityLearningManager
 import io.panelassistant.android.dashboardEntityLearningEnabled
@@ -31,6 +32,47 @@ import org.junit.Test
 import sun.misc.Unsafe
 
 class SetupRoutesHttpTest {
+    @Test fun `a configured builtin panel waiting for render proof needs no setup input`() = withSetup { fixture ->
+        fixture.config.setDashboardPackage(SystemController.BUILTIN_DASHBOARD)
+        fixture.config.setHaConnection("http://ha.example", "fixture-token")
+        fixture.config.setupIdentityConfirmed = true
+        fixture.config.setupHomeDashboardChosen = true
+        fixture.config.setupEntityFilterAnswered = true
+        fixture.config.setupEverCompleted = true
+        BuiltinDashboard.resetRendererPerf()
+        try {
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.get("/api/v1/setup")
+                assertEquals(HttpStatusCode.OK, response.status)
+                val state = JSONObject(response.bodyAsText())
+                assertFalse(state.getBoolean("complete"))
+                assertEquals("render_proof", state.getString("next"))
+                assertFalse(state.getBoolean("needs_user"))
+            }
+        } finally {
+            BuiltinDashboard.resetRendererPerf()
+        }
+    }
+
+    @Test fun `a configured panel with a missing credential still needs setup input`() = withSetup { fixture ->
+        fixture.config.setDashboardPackage(SystemController.BUILTIN_DASHBOARD)
+        fixture.config.setHaConnection("http://ha.example", "")
+        fixture.config.setupIdentityConfirmed = true
+        fixture.config.setupHomeDashboardChosen = true
+        fixture.config.setupEntityFilterAnswered = true
+        fixture.config.setupEverCompleted = true
+        testApplication {
+            application { fixture.mount(this) }
+            val response = client.get("/api/v1/setup")
+            assertEquals(HttpStatusCode.OK, response.status)
+            val state = JSONObject(response.bodyAsText())
+            assertFalse(state.getBoolean("complete"))
+            assertEquals("ha_credentials", state.getString("next"))
+            assertTrue(state.getBoolean("needs_user"))
+        }
+    }
+
     @Test fun `only the wizard heartbeat marks setup as actively walked`() = withSetup { fixture ->
         try {
             testApplication {
