@@ -173,13 +173,14 @@ internal object PanelPermissionRepair {
         val component = "$packageName/${AppIdentity.CODE_PACKAGE}.input.PanelAccessibilityService"
         fun entries() = read().orEmpty().split(':').filter { it.isNotBlank() }
         val before = entries()
-        val others = before.filterNot { accessibilityHeld(packageName, it, true) }
-        if (others.size == before.size) {
-            write((before + component).joinToString(":"))
-            return
-        }
-        if (!write(others.joinToString(":"))) return
+        val absent = before.none { accessibilityHeld(packageName, it, true) }
+        if (absent && !write((before + component).joinToString(":"))) return
         try {
+            // Force-stop can remove the enabled entry while retaining Android's crashed exclusion.
+            // Let Android observe an addition first, so the following removal is a real transition.
+            if (absent) awaitRemoval()
+            val others = entries().filterNot { accessibilityHeld(packageName, it, true) }
+            if (!write(others.joinToString(":"))) return
             awaitRemoval()
         } finally {
             // Re-read after the gap: another service may have been enabled while ours was removed.
