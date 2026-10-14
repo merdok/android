@@ -254,6 +254,29 @@
       });
       return t;
     }
+    if (f.type === "ENUM" && f.key === "auto_sleep_source") {
+      var choices = cfg.el("div", { class: "choice-list", role: "radiogroup", "aria-label": f.label });
+      f.options.forEach(function (o, index) {
+        var input = cfg.el("input", { type: "radio", name: f.key, value: o });
+        input.checked = o === v;
+        input.addEventListener("change", function () {
+          if (!input.checked) return;
+          var focused = document.activeElement === input;
+          cfg.values[f.key] = input.value; cfg.setDirty(f.key);
+          cfg.autoSleepPrerequisiteRequest++;
+          cfg.invalidateAutoSleepData(true);
+          var previousPanel = document.getElementById("auto-sleep-status");
+          if (previousPanel) previousPanel.remove();
+          cfg.render(); cfg.loadAutoSleepPrerequisite();
+          if (focused) {
+            var replacement = document.querySelector('#cfg-auto_sleep_source input:checked');
+            if (replacement) { try { replacement.focus({ preventScroll: true }); } catch (_) { replacement.focus(); } }
+          }
+        });
+        choices.appendChild(cfg.el("label", {}, [input, cfg.el("span", { text: cfg.localizedEnumOption(f, o, index) })]));
+      });
+      return choices;
+    }
     if (f.type === "ENUM") {
       var s = cfg.el("select");
       f.options.forEach(function (o, index) {
@@ -262,13 +285,6 @@
       });
       s.addEventListener("change", function () {
         cfg.values[f.key] = s.value; cfg.setDirty(f.key);
-        if (f.key === "auto_sleep_source") {
-          cfg.autoSleepPrerequisiteRequest++;
-          cfg.invalidateAutoSleepData(true);
-          var previousPanel = document.getElementById("auto-sleep-status");
-          if (previousPanel) previousPanel.remove();
-          cfg.render(); cfg.loadAutoSleepPrerequisite();
-        }
       });
       return s;
     }
@@ -685,8 +701,7 @@
     }
     var type = f.type === "PASSWORD" ? "password" : (f.type === "INT" || f.type === "FLOAT") ? "number" : "text";
     var inp = cfg.el("input", { type: type, value: f.secret && !cfg.dirtyValues[f.key] ? "" : (v == null ? "" : v) });
-    if (f.secret) inp.placeholder = cfg.i18nText("configure.secret.blank_keeps_current", "blank keeps current");
-    else if (f.placeholder) inp.placeholder = f.placeholder;   // e.g. "auto (io.homeassistant…)" on package fields
+    if (!f.secret && f.placeholder) inp.placeholder = f.placeholder;   // e.g. "auto (io.homeassistant…)" on package fields
     if (f.min != null) inp.min = f.min;
     if (f.max != null) inp.max = f.max;
     if (f.maxLength != null) inp.maxLength = f.maxLength;
