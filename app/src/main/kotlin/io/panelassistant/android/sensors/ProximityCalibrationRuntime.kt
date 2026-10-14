@@ -184,7 +184,11 @@ internal class ProximityCalibrationRuntime(
     @Synchronized
     fun resetToProfile(): Boolean {
         if (closed || view.active || saving || baseline == null) return false
-        if (runCatching { store.clearProximityLearning(fingerprint) }.isFailure) return false
+        // The old key too: a calibration carried from it would otherwise be carried back at the next start.
+        if (runCatching {
+                store.clearProximityLearning(fingerprint)
+                legacyFingerprint?.let(store::clearProximityLearning)
+            }.isFailure) return false
         userOverride = false
         readFailed = false
         sessionId = ""
@@ -194,13 +198,19 @@ internal class ProximityCalibrationRuntime(
         return true
     }
 
-    /** Takes up a calibration a restore has just written to the store. A setup in progress keeps the panel. */
+    /**
+     * Takes up a calibration a restore has just written to the store. Only a stored calibration that differs
+     * from the one running is adopted: a read that fails or finds nothing leaves the panel exactly as it was,
+     * and so does a setup in progress.
+     */
     @Synchronized
     fun reloadStored(): Boolean {
         if (closed || view.active || saving) return false
-        userOverride = false
+        val restored = runCatching { stored(fingerprint) }.getOrNull()?.second ?: return false
+        if (restored == view.calibration) return false
+        userOverride = true
         readFailed = false
-        view = engine.reset(readCalibration(), processingTime(elapsed()))
+        view = engine.reset(restored, processingTime(elapsed()))
         reportGate.reset()
         return true
     }

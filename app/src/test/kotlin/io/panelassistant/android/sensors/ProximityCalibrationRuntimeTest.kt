@@ -144,6 +144,19 @@ class ProximityCalibrationRuntimeTest {
         assertTrue(other.inserted.isEmpty())
     }
 
+    /** A reset after the carry clears the old key too, so the next start does not carry the calibration back. */
+    @Test fun aResetAfterTheCarryStaysReset() {
+        val old = row(presenceOnly()).copy(fingerprint = ProximityCalibrationRuntime.fingerprint("$PROFILE|rev-1|$SOURCE"))
+        val backing = Backing(old)
+        val carried = Fixture(backing, revision = "rev-1")
+        assertEquals("user", carried.status().getString("calibrationSource"))
+        assertTrue(carried.runtime.resetToProfile())
+        carried.runtime.close()
+        assertNull(backing.row)
+        assertTrue(backing.inserted.isEmpty())
+        assertEquals("profile", Fixture(backing, revision = "rev-1").status().getString("calibrationSource"))
+    }
+
     /** Unreadable storage is not a missing calibration: Panel Assistant must not be told to raise its setup
      *  Repair, the panel must not invite setup, and nothing stored is touched. */
     @Test fun anUnreadableStoreIsNotReportedAsCalibrationRequired() {
@@ -183,6 +196,13 @@ class ProximityCalibrationRuntimeTest {
         busy.begin(100f)
         assertFalse(busy.runtime.reloadStored())
         assertEquals("calibrating", JSONObject(busy.runtime.statusJson()).getString("state"))
+        // A restore that brought nothing new, or a store that cannot be read now, leaves the working calibration.
+        assertFalse(runtime.reloadStored())
+        backing.failRead = true
+        assertFalse(runtime.reloadStored())
+        runtime.observe(100f, now, true)
+        assertEquals("ready", JSONObject(runtime.statusJson()).getString("state"))
+        assertEquals("user", JSONObject(runtime.json()).getString("calibrationSource"))
     }
 
     /** The status endpoint's `proximity` component, from which Panel Assistant raises its calibration Repair. */
@@ -749,7 +769,11 @@ class ProximityCalibrationRuntimeTest {
             if (backing.failWrite) throw IllegalStateException("atomic transaction failed")
             backing.row = model
         }
-        override fun clearProximityLearning(fingerprint: String) { backing.clears++; backing.row = null }
+        override fun clearProximityLearning(fingerprint: String) {
+            backing.clears++
+            backing.inserted.remove(fingerprint)
+            if (backing.row?.fingerprint == fingerprint) backing.row = null
+        }
         override fun close() { backing.closes++ }
     }
     companion object {

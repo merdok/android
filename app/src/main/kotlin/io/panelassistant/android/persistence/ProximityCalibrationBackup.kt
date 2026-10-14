@@ -29,7 +29,10 @@ internal class CatalogProximityCalibrationCustody(private val context: Context) 
     override fun export() = readThenClose(EntityCatalogStore(context), { it.close() }) { it.exportProximityModels() }
 
     override fun restore(rows: List<EntityCatalogStore.ProximityModelRow>) =
-        readThenClose(EntityCatalogStore(context), { it.close() }) { store -> rows.count(store::insertProximityModelIfAbsent) }
+        readThenClose(EntityCatalogStore(context), { it.close() }) { store ->
+            // Each row on its own: one that fails must not keep the others out.
+            rows.count { row -> runCatching { store.insertProximityModelIfAbsent(row) }.getOrDefault(false) }
+        }
 }
 
 internal object ProximityCalibrationBackup {
