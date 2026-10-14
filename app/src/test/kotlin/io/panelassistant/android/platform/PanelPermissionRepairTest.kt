@@ -278,6 +278,78 @@ class PanelPermissionRepairTest {
         assertTrue(panel.root.ran.isEmpty())
     }
 
+    /** Settings writes take effect only after Android observes the changed component set. */
+    private inner class RootlessPanel(var services: String?, var enabled: Boolean = false) {
+        val writes = mutableListOf<String>()
+        var allowWrites = true
+        var duringRemoval: () -> Unit = {}
+        fun held(grant: Grant) = grant != Grant.ACCESSIBILITY ||
+            PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, services, enabled)
+        fun repair() = PanelPermissionRepair.repair(30, false, false, ::held,
+            helper(DaemonLongResult.NotSubmitted), AppIdentity.SUCCESSOR,
+            repairAccessibility = {
+                PanelPermissionRepair.reenableAccessibility(AppIdentity.SUCCESSOR,
+                    { services },
+                    { value ->
+                        writes += value
+                        if (allowWrites) {
+                            val wasListed = PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, services, true)
+                            services = value
+                            // A retained crashed component cannot be restarted by rewriting the same set.
+                            enabled = !wasListed && PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, value, true)
+                        }
+                        allowWrites
+                    },
+                    { duringRemoval() },
+                )
+            },
+        )[Grant.ACCESSIBILITY]
+    }
+
+    @Test fun startupRetriesARootlessCrashedServiceAndARepeatWritesNothing() {
+        for (component in listOf(moved, "${AppIdentity.SUCCESSOR}/.input.PanelAccessibilityService")) {
+            val panel = RootlessPanel("com.vendor/.Reader:$component")
+            assertEquals(Outcome.CLAIMED, panel.repair())
+            assertTrue(panel.enabled)
+            assertEquals("com.vendor/.Reader:$moved", panel.services)
+            assertEquals(listOf("com.vendor/.Reader", "com.vendor/.Reader:$moved"), panel.writes)
+            assertEquals(Outcome.HELD, panel.repair())
+            assertEquals(2, panel.writes.size)
+        }
+    }
+
+    @Test fun startupPreservesAServiceEnabledDuringTheRecoveryGap() {
+        val panel = RootlessPanel("com.vendor/.Reader:$moved")
+        panel.duringRemoval = { panel.services += ":com.other/.Reader" }
+        assertEquals(Outcome.CLAIMED, panel.repair())
+        assertEquals("com.vendor/.Reader:com.other/.Reader:$moved", panel.services)
+    }
+
+    @Test fun startupRestoresItsComponentEvenWhenTheRecoveryWaitFails() {
+        val panel = RootlessPanel(moved)
+        panel.duringRemoval = { throw InterruptedException("startup interrupted") }
+        assertEquals(Outcome.CLAIMED, panel.repair())
+        assertEquals(moved, panel.services)
+        assertTrue(panel.enabled)
+    }
+
+    @Test fun refusedSecureSettingsLeaveTheServiceListAndOutcomeUnchanged() {
+        val panel = RootlessPanel("com.vendor/.Reader:$moved")
+        panel.allowWrites = false
+        assertEquals(Outcome.NO_HELPER, panel.repair())
+        assertEquals("com.vendor/.Reader:$moved", panel.services)
+        assertFalse(panel.enabled)
+        assertEquals(listOf("com.vendor/.Reader"), panel.writes)
+    }
+
+    @Test fun startupAddsAnAbsentComponentWithoutRemovingOtherServices() {
+        val panel = RootlessPanel("com.vendor/.Reader")
+        panel.duringRemoval = { error("no existing component to remove") }
+        assertEquals(Outcome.CLAIMED, panel.repair())
+        assertEquals("com.vendor/.Reader:$moved", panel.services)
+        assertEquals(1, panel.writes.size)
+    }
+
     @Test fun accessibilityRequiresOurExactComponentAndTheGlobalEnableFlag() {
         for (pkg in AppIdentity.ALL) {
             val full = "$pkg/${AppIdentity.CODE_PACKAGE}.input.PanelAccessibilityService"
