@@ -542,6 +542,7 @@ class PaneldService : Service() {
     private val scheduledLiveSettingRetries = mutableSetOf<String>()
     private lateinit var restartLease: ServiceRestartBarrier.Lease
     private var startupInitialization: Job? = null
+    private var portalStartupOverlayDismissal: io.panelassistant.android.input.PortalStartupOverlayDismissal? = null
     private var pendingStart = false
     private var pendingInstalledHandoff = false
     private lateinit var mainHandler: Handler
@@ -872,6 +873,11 @@ class PaneldService : Service() {
             if (teardownBoundary.isStopping ||
                 IdentityMigrationGate.disposition(this@PaneldService) == StartDisposition.RETIRED_BRIDGE
             ) return@launch
+            portalStartupOverlayDismissal = runCatching {
+                io.panelassistant.android.input.PanelAccessibilityService
+                    .preparePortalStartupOverlayDismissal(this@PaneldService, resolvedProfile.profile.id)
+            }.onFailure { Log.w(TAG, "could not prepare the Portal startup overlay dismissal", it) }.getOrNull()
+            if (teardownBoundary.isStopping) portalStartupOverlayDismissal?.close()
             when (BundledHelperInstaller.ensureCurrent(this@PaneldService)) {
                 BundledHelperInstaller.Result.INSTALLED -> Log.i(TAG, "migrated bundled root helper for this release")
                 BundledHelperInstaller.Result.FAILED ->
@@ -3432,6 +3438,7 @@ class PaneldService : Service() {
 
     override fun onDestroy() {
         notifications.releaseForeground()
+        portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
             stopForeground(true)
             super.onDestroy()

@@ -5,6 +5,8 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -20,6 +22,7 @@ import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.AndroidSystemEnv
 import io.panelassistant.android.util.ConfirmedSelfInstaller
 import io.panelassistant.android.util.GuardDbProcessAdmission
+import io.panelassistant.android.persistence.AppState
 import androidx.annotation.RequiresApi
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
@@ -104,9 +107,14 @@ class PanelAccessibilityService : AccessibilityService() {
 
     /** Whether this connection pressed HOME to show the chooser; see [HomeChooserPolicy.next]. */
     @Volatile private var chooserShown = false
+    private var lastWindowState: WindowState? = null
+    private data class WindowState(val packageName: String?, val className: String?, val id: Int)
 
     override fun onDestroy() {
-        if (instance === this) instance = null
+        if (instance === this) {
+            startupOverlayDismissal?.close()
+            instance = null
+        }
         super.onDestroy()
     }
 
@@ -115,7 +123,31 @@ class PanelAccessibilityService : AccessibilityService() {
             scheduleHomeChooserAnswer()
         }
         pressOwnUpdateInstall(event)
+        if (event != null) {
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                lastWindowState = WindowState(event.packageName?.toString(), event.className?.toString(), event.windowId)
+            }
+            if (GuardDbProcessAdmission.ordinaryMutationsAllowed()) {
+                startupOverlayDismissal?.onEvent(event.eventType, event.packageName, event.className, event.windowId)
+            }
+        }
     }
+
+    private fun overlayWindow(): PortalStartupOverlayDismissal.Window? = runCatching {
+        val root = rootInActiveWindow ?: return@runCatching null
+        PortalStartupOverlayDismissal.Window(
+            root.windowId, root.packageName?.toString(),
+            root.findAccessibilityNodeInfosByViewId(PortalStartupOverlayDismissal.HEADER_ID).map {
+                it.text?.toString().takeIf { _ -> it.isVisibleToUser && it.isEnabled }
+            },
+            root.findAccessibilityNodeInfosByViewId(PortalStartupOverlayDismissal.SWITCH_ID).map {
+                PortalStartupOverlayDismissal.Toggle(
+                    it.isVisibleToUser, it.isEnabled,
+                    it.isCheckable && it.className?.toString() == "android.widget.Switch", it.isChecked,
+                )
+            },
+        )
+    }.getOrNull()
 
     /** Press Install on Android's confirmation of this app's own update, and on nothing else. */
     private fun pressOwnUpdateInstall(event: AccessibilityEvent?) {
@@ -249,6 +281,41 @@ class PanelAccessibilityService : AccessibilityService() {
         // actions (back/recents/home) with no root — performGlobalAction is an a11y capability.
         @Volatile
         private var instance: PanelAccessibilityService? = null
+        private var startupOverlayDismissal: PortalStartupOverlayDismissal? = null
+
+        /** Called on the service's existing IO startup lane after DB migrations and predecessor teardown. */
+        internal fun preparePortalStartupOverlayDismissal(context: Context, profileId: String): PortalStartupOverlayDismissal? {
+            if (!PortalStartupOverlayDismissal.supportsProfile(profileId)) return null
+            val vendor = runCatching { context.packageManager.getApplicationInfo(PortalStartupOverlayDismissal.PACKAGE, 0) }
+                .getOrNull() ?: return null
+            if (vendor.flags and ApplicationInfo.FLAG_SYSTEM == 0) return null
+            val label = runCatching { vendor.loadLabel(context.packageManager).toString() }.getOrNull() ?: return null
+            val preferences = AppState.preferences(context, "controller-state", "ha-paneld-controller-state")
+            val key = PortalStartupOverlayDismissal.BOOT_KEY
+            val dismissal = PortalStartupOverlayDismissal(
+                profileId = profileId,
+                bootCount = runCatching { Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT) }.getOrDefault(-1),
+                readBoot = { if (preferences.contains(key)) preferences.getInt(key, -1) else null },
+                writeBoot = { preferences.edit().putInt(key, it).commit() && preferences.getInt(key, -1) == it },
+                label = label,
+                now = android.os.SystemClock::elapsedRealtime,
+                activeWindow = { instance?.overlayWindow() },
+                back = { runCatching {
+                    instance?.takeIf { GuardDbProcessAdmission.ordinaryMutationsAllowed() }
+                        ?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false
+                }.getOrDefault(false).also { Log.i(TAG, "Portal startup overlay request: Back=$it") } },
+                post = { mainHandler.postDelayed(it, 100L) },
+                cancel = { mainHandler.removeCallbacks(it) },
+            )
+            mainHandler.post {
+                startupOverlayDismissal?.close()
+                startupOverlayDismissal = dismissal
+                instance?.lastWindowState?.let {
+                    dismissal.onEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, it.packageName, it.className, it.id)
+                }
+            }
+            return dismissal
+        }
 
         override fun back(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false
         override fun recents(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_RECENTS) ?: false
