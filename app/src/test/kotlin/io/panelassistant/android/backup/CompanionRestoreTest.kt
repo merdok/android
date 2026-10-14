@@ -43,16 +43,18 @@ class CompanionRestoreTest {
                 listOf(encoded(CompanionRestore.DATABASE_FILE)),
                 setOf("bad;pkg"),
                 temporary.root,
-            ) as CompanionRestore.PlanResult.Invalid
-        assertEquals("companion-unsupported-package", unsafePackage.presentation?.code)
+            )
+        assertTrue("unsafe package must be refused", unsafePackage is CompanionRestore.PlanResult.Invalid)
+        assertEquals("companion-unsupported-package", (unsafePackage as CompanionRestore.PlanResult.Invalid).presentation?.code)
         assertTrue(CompanionRestore.plan(pkg, emptyList(), setOf(pkg), temporary.root) is CompanionRestore.PlanResult.Invalid)
         val unsafeFile = CompanionRestore.plan(
             pkg,
             listOf(encoded("../x")),
             setOf(pkg),
             temporary.root,
-        ) as CompanionRestore.PlanResult.Invalid
-        assertEquals("companion-payload-invalid", unsafeFile.presentation?.code)
+        )
+        assertTrue("unlisted path must be refused", unsafeFile is CompanionRestore.PlanResult.Invalid)
+        assertEquals("companion-payload-invalid", (unsafeFile as CompanionRestore.PlanResult.Invalid).presentation?.code)
         assertTrue(
             CompanionRestore.plan(
                 pkg,
@@ -69,6 +71,18 @@ class CompanionRestoreTest {
                 temporary.root,
             ) is CompanionRestore.PlanResult.Invalid,
         )
+        assertEquals(emptyList<File>(), temporary.root.listFiles()?.filter { it.exists() }.orEmpty())
+    }
+
+    @Test fun aWellFormedPackageThatIsNotInstalledIsRefused() {
+        val result = CompanionRestore.plan(
+            "io.example.other",
+            listOf(encoded(CompanionRestore.DATABASE_FILE)),
+            setOf(pkg),
+            temporary.root,
+        )
+        assertTrue("an uninstalled package must be refused, got $result", result is CompanionRestore.PlanResult.Invalid)
+        assertEquals("companion-unsupported-package", (result as CompanionRestore.PlanResult.Invalid).presentation?.code)
         assertEquals(emptyList<File>(), temporary.root.listFiles()?.filter { it.exists() }.orEmpty())
     }
 

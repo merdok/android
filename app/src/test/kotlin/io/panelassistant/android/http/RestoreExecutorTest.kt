@@ -1,7 +1,16 @@
 package io.panelassistant.android.http
 
 import android.content.ContextWrapper
+import io.panelassistant.android.backup.CompanionRestore
 import io.panelassistant.android.config.Capabilities
+import io.panelassistant.android.device.profile.ProfileActivationPhase
+import io.panelassistant.android.device.profile.ProfileActivationState
+import io.panelassistant.android.device.profile.ProfileAdmin
+import io.panelassistant.android.device.profile.ProfileBackup
+import io.panelassistant.android.device.profile.ProfileBackupDecodeResult
+import io.panelassistant.android.device.profile.ProfileBackupRestorePlan
+import io.panelassistant.android.device.profile.ProfileSelection
+import io.panelassistant.android.device.profile.ProfileStatus
 import io.panelassistant.android.DashboardEntityBackupState
 import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.util.InstallProgress
@@ -9,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -262,10 +272,127 @@ class RestoreExecutorTest {
                     null, null, null, null, emptyMap(), emptyList(), false, false,
                     emptyList(), null, ticket, RestoreAttempt {},
                 )
+                assertNotNull("rollback must run", rollbackValues)
                 assertEquals("false", requireNotNull(rollbackValues)["network_adb"])
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertEquals("partial", result.getString("status"))
                 assertEquals("rollback_failed", result.getJSONObject("config").getString("status"))
+            } finally {
+                InstallProgress.finish(ticket, "test cleanup")
+            }
+        }
+    }
+
+    @Test fun migrationWhoseCarriedPreferencesFailToLandFailsAndLeavesTheStepOpen() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            var rolledBack = false
+            val answers = mutableListOf<Boolean>()
+            try {
+                // The executor's context cannot open SharedPreferences, so the carried store fails to land.
+                executor(
+                    fixture,
+                    commit = RestoreConfigCommit { values, _, _, _, publish, _, afterApply ->
+                        publish("durable")
+                        afterApply()
+                        values.size
+                    },
+                    rollback = { _, _, _, _ -> rolledBack = true; true },
+                ).execute(
+                    RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
+                    null, null, null, null, mapOf("proximity-wake-invalidation" to mapOf("k" to "v")), emptyList(),
+                    false, true, emptyList(), null, ticket, RestoreAttempt { answers += it },
+                )
+                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                assertEquals("failed", result.getString("status"))
+                assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
+                assertTrue(rolledBack)
+                assertEquals(listOf(false), answers)
+            } finally {
+                InstallProgress.finish(ticket, "test cleanup")
+            }
+        }
+    }
+
+    @Test fun companionApplyFailureRollsBackConfigAndIsNotReportedAsSuccess() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            var rolledBack = false
+            val answers = mutableListOf<Boolean>()
+            val database = folder.newFile("companion.db").apply { writeText("db") }
+            try {
+                executor(
+                    fixture,
+                    commit = RestoreConfigCommit { values, _, _, _, publish, afterCommitBeforeRenderer, _ ->
+                        publish("durable")
+                        afterCommitBeforeRenderer(RendererConfigEffects(false, false, false, null), values.size, "durable")
+                        values.size
+                    },
+                    rollback = { _, _, _, _ -> rolledBack = true; true },
+                    restoreCompanion = {
+                        CompanionApplyResult(false, InstallProgress.ComponentResult(InstallProgress.Outcome.FAILED, 0))
+                    },
+                ).execute(
+                    RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
+                    null, null, null,
+                    CompanionRestore.Plan(
+                        "io.homeassistant.companion.android.minimal",
+                        listOf(CompanionRestore.FilePayload(CompanionRestore.DATABASE_FILE, database, deleteOnClose = false)),
+                    ),
+                    emptyMap(), emptyList(), false, false, emptyList(), null, ticket, RestoreAttempt { answers += it },
+                )
+                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                assertTrue(rolledBack)
+                assertEquals("failed", result.getString("status"))
+                assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
+                assertEquals(listOf(false), answers)
+            } finally {
+                InstallProgress.finish(ticket, "test cleanup")
+            }
+        }
+    }
+
+    @Test fun rejectedProfileCatalogRollsBackConfigAndReportsFailure() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            var rolledBack = false
+            val answers = mutableListOf<Boolean>()
+            val status = ProfileStatus(1, ProfileSelection.Auto, null, ProfileActivationState(ProfileActivationPhase.ACTIVE))
+            // The interface's own restoreBackup answers REJECTED.
+            val admin = object : ProfileAdmin {
+                override fun schema() = error("unused")
+                override fun drivers() = error("unused")
+                override fun status() = status
+                override fun list() = error("unused")
+                override fun preview(rawYaml: String) = error("unused")
+                override fun importProfile(rawYaml: String, previewToken: String) = error("unused")
+                override fun exportProfile(ref: io.panelassistant.android.device.profile.ProfileRef) = error("unused")
+                override fun select(selection: ProfileSelection, expectedCatalogRevision: Long) = error("unused")
+                override fun rollbackToLastKnownGood(expectedCatalogRevision: Long) = error("unused")
+                override fun deleteProfile(ref: io.panelassistant.android.device.profile.ProfileRef, expectedCatalogRevision: Long) = error("unused")
+            }
+            try {
+                executor(
+                    fixture,
+                    commit = RestoreConfigCommit { values, _, _, _, publish, _, afterApply ->
+                        publish("durable")
+                        afterApply()
+                        values.size
+                    },
+                    rollback = { _, _, _, _ -> rolledBack = true; true },
+                    profileAdmin = admin,
+                ).execute(
+                    RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
+                    null,
+                    ProfileBackupDecodeResult(ProfileBackup(revisions = emptyList(), selection = ProfileSelection.Auto, active = null, lastKnownGood = null), emptyList()),
+                    ProfileBackupRestorePlan(status, 1, true, emptyList(), emptyList(), emptyList(), false),
+                    null, emptyMap(), emptyList(), false, false, emptyList(), null, ticket, RestoreAttempt { answers += it },
+                )
+                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                assertTrue(rolledBack)
+                assertEquals("failed", result.getString("status"))
+                assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
+                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
@@ -279,6 +406,8 @@ class RestoreExecutorTest {
         wakeWordsChanged: () -> Unit = { error("no successful wake word import") },
         commit: RestoreConfigCommit,
         rollback: suspend (Map<String, String>, DashboardEntityBackupState, String, InstallProgress.Ticket) -> Boolean,
+        restoreCompanion: (CompanionRestore.Plan) -> CompanionApplyResult = { error("no Companion payload") },
+        profileAdmin: ProfileAdmin? = null,
     ) = RestoreExecutor(
         appContext = object : ContextWrapper(null) {},
         config = fixture.config,
@@ -287,9 +416,9 @@ class RestoreExecutorTest {
         revisionValues = { values, _ -> values },
         commitConfig = commit,
         rollbackConfig = rollback,
-        restoreCompanion = { error("no Companion payload") },
+        restoreCompanion = restoreCompanion,
         reconcileAfterCompanionRestore = {},
-        profileAdmin = null,
+        profileAdmin = profileAdmin,
         onProfileRestart = { error("no profile payload") },
         onProfileRestartAbort = { error("no profile payload") },
         onDurableStateRestored = { error("no state payload") },

@@ -54,6 +54,29 @@ class BackupReconciliationTest {
         }
     }
 
+    @Test fun `builder marks an unreadable app_state in the manifest and the restore preview reports it`() {
+        PaneldServerHttpFixture().use { fixture ->
+            // This fixture's context has no database path, so the app_state read fails inside the builder.
+            val config = fixture.config
+            config.setRaw(requireNotNull(io.panelassistant.android.config.SettingsRegistry.spec("friendly_name")), "Contract panel")
+            val builder = fixture.backupBuilder(null, config) { spec, live -> effectiveSettingValue(config, spec, live) }
+            val bytes = builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
+                val manifest = JSONObject(PanelBackup.readManifest(artifact.file, 1024 * 1024)!!)
+                val state = manifest.optJSONObject("state")
+                assertEquals(manifest.toString(), "capture-failed", state?.optString("error"))
+                assertFalse(manifest.toString(), state?.has("entry") == true)
+                artifact.file.readBytes()
+            }
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.post("/api/v1/restore?dry_run=1") { setBody(bytes) }
+                val text = response.bodyAsText()
+                assertEquals(text, HttpStatusCode.OK, response.status)
+                assertEquals(text, true, JSONObject(text).optBoolean("state_unavailable"))
+            }
+        }
+    }
+
     @Test fun `builder refuses unreadable or oversized imports as a whole and releases staged files`() {
         val imports = folder.newFolder()
         val catalog = wakeWordCatalog(imports)

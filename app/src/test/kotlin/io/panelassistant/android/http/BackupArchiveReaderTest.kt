@@ -1,5 +1,6 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.backup.CompanionRestore
 import io.panelassistant.android.backup.PanelBackup
 import io.panelassistant.android.config.SettingsRegistry
 import java.io.File
@@ -54,6 +55,31 @@ class BackupArchiveReaderTest {
         }
         assertTrue("a false size must refuse the payload", result.exceptionOrNull() is IllegalArgumentException)
         assertEquals(setOf("payload", "backup.zip"), directory.list()!!.toSet())
+    }
+
+    @Test fun companionEntryWhoseSizeDiffersFromItsDeclarationIsRefused() {
+        val directory = Files.createTempDirectory("archive-reader-companion").toFile()
+        try {
+            val pkg = "io.homeassistant.companion.android.minimal"
+            val payload = File(directory, "payload").apply { writeBytes(ByteArray(10) { 1 }) }
+            val archive = File(directory, "backup.zip")
+            archive.outputStream().use {
+                PanelBackup.writeArchive(it, "{}", listOf(PanelBackup.ArchiveSource("companion/0", payload)), 1024)
+            }
+            val comp = JSONObject().put("pkg", pkg).put(
+                "files",
+                org.json.JSONArray().put(
+                    JSONObject().put("rel", CompanionRestore.DATABASE_FILE).put("entry", "companion/0").put("size", 11),
+                ),
+            )
+            val result = BackupArchiveReader(directory) { setOf(pkg) }
+                .planCompanionArchive(comp, archive, setOf("companion/0"))
+            assertTrue("a size mismatch must refuse the Companion payload, got $result", result is CompanionRestore.PlanResult.Invalid)
+            assertEquals("companion-payload-invalid", (result as CompanionRestore.PlanResult.Invalid).presentation?.code)
+            assertEquals(setOf("payload", "backup.zip"), directory.list()!!.toSet())
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 
     @Test fun malformedUtf8IsRefusedAndStagingIsRemoved() = withArchive(byteArrayOf(0xc3.toByte(), 0x28)) { reader, archive, directory ->
