@@ -217,6 +217,24 @@ class AppInstallerTest {
         assertFalse("neither invalid identity may reach database admission", compatibilityConsulted)
     }
 
+    @Test fun preparedCandidateWhoseBoundaryNoLongerMatchesAdmissionIsRefused() {
+        var compatibilityConsulted = false
+        val refusal = AppInstaller.localInstallCandidateRefusal(
+            info = selfInfo().copy(version = "1.1.0", versionCode = 110, nativeProtocolRange = 3..3),
+            runningPackage = AppInstaller.HA_PANELD.pkg,
+            admittedBoundary = boundary.copy(maximumSchema = 15),
+            updatePolicy = PanelAssistantUpdatePolicy(1, 3, false),
+            currentVersion = "1.0.0",
+            currentCode = 100,
+        ) {
+            compatibilityConsulted = true
+            null
+        }
+
+        assertEquals("prepared APK database boundary changed after admission", refusal)
+        assertFalse("a boundary other than the admitted one is never re-decided", compatibilityConsulted)
+    }
+
     @Test fun uploadedOwnPackageMustCarryAndPassItsDatabaseContract() {
         // The Install-tab upload reaches this gate with no prepared boundary and the running package.
         val seen = mutableListOf<DatabaseCompatibilityApkContract.Boundary>()
