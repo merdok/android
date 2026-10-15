@@ -177,13 +177,13 @@ class VoiceProductionHttpTest {
         mount(catalog())
         val initial = client.get("/api/v1/voice/wake-words")
         assertEquals(HttpStatusCode.OK, initial.status)
-        assertEquals("""{"wake_words":[{"id":"okay_nabu","wake_word":"Okay Nabu","imported":false}]}""", initial.bodyAsText())
+        assertEquals("""{"wake_words":[{"id":"okay_nabu","wake_word":"Okay Nabu","imported":false}],"downloads":[]}""", initial.bodyAsText())
         val imported = client.post("/api/v1/voice/wake-words") { setBody(importBody()) }
         assertEquals(HttpStatusCode.OK, imported.status)
         assertEquals("""{"id":"porch","wake_word":"Porch"}""", imported.bodyAsText())
         assertEquals(1, changed)
         val listed = client.get("/api/v1/voice/wake-words")
-        assertEquals("""{"wake_words":[{"id":"okay_nabu","wake_word":"Okay Nabu","imported":false},{"id":"porch","wake_word":"Porch","imported":true}]}""", listed.bodyAsText())
+        assertEquals("""{"wake_words":[{"id":"okay_nabu","wake_word":"Okay Nabu","imported":false},{"id":"porch","wake_word":"Porch","imported":true}],"downloads":[]}""", listed.bodyAsText())
     }
 
     @Test fun `malformed and engine refused imports never announce a change`() = testApplication {
@@ -198,6 +198,39 @@ class VoiceProductionHttpTest {
         assertEquals(0, changed)
     }
 
+    @Test fun `a listed model is offered with its author and licence, then downloaded, announced and shown as held`() = testApplication {
+        mount(catalog(downloads = true))
+        val offered = JSONObject(client.get("/api/v1/voice/wake-words").bodyAsText()).getJSONArray("downloads").getJSONObject(0)
+        assertEquals("hey_donut", offered.getString("id"))
+        assertEquals("Hey Donut", offered.getString("wake_word"))
+        assertEquals("nyc-esq", offered.getString("author"))
+        assertEquals("CC0-1.0", offered.getString("license"))
+        assertEquals(LICENSE_URL, offered.getString("license_url"))
+        assertEquals(3, offered.getInt("bytes"))
+        assertEquals(false, offered.getBoolean("installed"))
+
+        val downloaded = client.post("/api/v1/voice/wake-words") { setBody("""{"download":"hey_donut"}""") }
+
+        assertEquals(HttpStatusCode.OK, downloaded.status)
+        assertEquals("""{"id":"hey_donut","wake_word":"Hey Donut"}""", downloaded.bodyAsText())
+        assertEquals(1, changed)
+        val listed = JSONObject(client.get("/api/v1/voice/wake-words").bodyAsText())
+        assertEquals("hey_donut", listed.getJSONArray("wake_words").getJSONObject(1).getString("id"))
+        assertEquals(true, listed.getJSONArray("downloads").getJSONObject(0).getBoolean("installed"))
+    }
+
+    @Test fun `a download that fails its pinned digest is refused and never announces a change`() = testApplication {
+        mount(catalog(downloads = true))
+        served[MODEL_URL] = byteArrayOf(9, 9, 9)
+
+        val refused = client.post("/api/v1/voice/wake-words") { setBody("""{"download":"hey_donut"}""") }
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, refused.status)
+        assertEquals("""{"error":"the download does not match its pinned SHA-256"}""", refused.bodyAsText())
+        assertEquals(0, changed)
+        assertEquals(1, JSONObject(client.get("/api/v1/voice/wake-words").bodyAsText()).getJSONArray("wake_words").length())
+    }
+
     @Test fun `oversized import is rejected by body admission before catalog mutation`() = testApplication {
         mount(catalog())
         val oversized = client.post("/api/v1/voice/wake-words") { setBody("x".repeat(4 * 1024 * 1024 + 1)) }
@@ -206,14 +239,35 @@ class VoiceProductionHttpTest {
         assertEquals(0, changed)
     }
 
-    private fun catalog() = WakeWordCatalog(
+    private val donutManifest = manifest("Hey Donut", "hey_donut.tflite").toByteArray()
+    private val donutModel = byteArrayOf(1, 2, 3)
+    private val served = mutableMapOf(MANIFEST_URL to donutManifest, MODEL_URL to donutModel)
+
+    private fun catalog(downloads: Boolean = false) = WakeWordCatalog(
         bundled = object : WakeWordCatalog.BundledModels {
             override fun ids() = listOf("okay_nabu")
             override fun manifest(id: String) = manifest("Okay Nabu", "okay_nabu.tflite")
             override fun model(file: String) = byteArrayOf(1)
+            override fun downloads() = if (!downloads) "{}" else JSONObject().put(
+                "models",
+                org.json.JSONArray().put(
+                    JSONObject()
+                        .put("id", "hey_donut").put("wake_word", "Hey Donut").put("author", "nyc-esq")
+                        .put("license", "CC0-1.0").put("license_url", LICENSE_URL)
+                        .put("source", "https://github.com/nyc-esq/hey-donut")
+                        .put("manifest_url", MANIFEST_URL)
+                        .put("manifest_sha256", WakeWordCatalog.sha256(donutManifest))
+                        .put("model_sha256", WakeWordCatalog.sha256(donutModel))
+                        .put("model_bytes", donutModel.size),
+                ),
+            ).toString()
         },
         importDir = folder.root,
         accepts = { _, _ -> engineAccepts },
+        fetch = { url, dest, maxBytes ->
+            val bytes = served[url]
+            if (bytes == null || bytes.size > maxBytes) false else { dest.writeBytes(bytes); true }
+        },
     )
 
     private fun importBody() = JSONObject()
@@ -221,6 +275,13 @@ class VoiceProductionHttpTest {
         .put("manifest", manifest("Porch", "porch.tflite"))
         .put("model", "AQID")
         .toString()
+
+    private companion object {
+        const val PINNED = "https://raw.githubusercontent.com/nyc-esq/hey-donut/16b6bb104d5b7ce04b2f882c96dfaad60b292d25"
+        const val MANIFEST_URL = "$PINNED/model/hey_donut.json"
+        const val MODEL_URL = "$PINNED/model/hey_donut.tflite"
+        const val LICENSE_URL = "https://github.com/nyc-esq/hey-donut/blob/16b6bb104d5b7ce04b2f882c96dfaad60b292d25/LICENSE"
+    }
 
     private fun manifest(phrase: String, model: String) = """
         {"type":"micro","wake_word":"$phrase","author":"me","model":"$model","trained_languages":["en"],"version":2,

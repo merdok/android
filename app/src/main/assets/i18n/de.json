@@ -2073,6 +2073,41 @@
       "sourceHash": "29db9e0656abb9d76014f07d2f3faac2ece244b4b3e8c217ae984de03ab4aff8",
       "state": "machine-cross-checked"
     },
+    "configure.voice.download_author": {
+      "text": "Von {author}",
+      "sourceHash": "c63374c54075c2ecffba6bcf2f66b9b829822e5ef9dd82d4fa9033583317fece",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_button": {
+      "text": "Herunterladen",
+      "sourceHash": "d6eafe82359100423c93c5ce53c352c1b51ca1e699215fcec3f5c5dd9bf12d24",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_done": {
+      "text": "Heruntergeladen: {wake_word}.",
+      "sourceHash": "72a644b7802b2f886bd260c40866682780a3e0cc97e1572c000562248c9f5a3a",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_failed": {
+      "text": "Download fehlgeschlagen: {reason}",
+      "sourceHash": "a9cba27e078073edbace171f6262b4e66249bd4e1e0936ec33dfd8be9824cd94",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_help": {
+      "text": "Modelle, die von anderen trainiert und veröffentlicht wurden. Prüfe vor dem Herunterladen, wer es erstellt hat und unter welcher Lizenz es steht.",
+      "sourceHash": "03db31eb796091dba4fdc509ff632c3440e44a171431312abc903f0966ce0bc7",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_license": {
+      "text": "Lizenz: {license}",
+      "sourceHash": "c8c093b130e9e68910fca2abed0fd293dcf5be83e653051d2e80e0cac02f2c17",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_wake_word": {
+      "text": "Community-Aktivierungswort herunterladen",
+      "sourceHash": "ea004f814363c9d3dda271e678c42465cef574f6c505263e5e43547a3ea5d2ba",
+      "state": "machine-cross-checked"
+    },
     "configure.voice.import_button": {
       "text": "Importieren",
       "sourceHash": "2cff9baabf56ca002610e113bc94deb6ededddfc3c130365b6e88ed5195bf774",

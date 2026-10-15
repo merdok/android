@@ -1,16 +1,21 @@
 package io.panelassistant.android.assist.wakeword
 
 import android.content.Context
+import io.panelassistant.android.util.AppInstaller
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.net.URL
+import java.security.MessageDigest
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
  * Every wake word this panel can listen for: the bundled Apache-2.0 microWakeWord models, then the ones
- * a user imported. An import is a microWakeWord manifest (`.json`) and its model (`.tflite`), validated by
- * the native engine before anything can use it; a rejected import leaves the last good model of that id
- * exactly as it was.
+ * a user imported or downloaded. An import is a microWakeWord manifest (`.json`) and its model
+ * (`.tflite`), validated by the native engine before anything can use it; a rejected import leaves the
+ * last good model of that id exactly as it was. A download is an import whose files come from the app's
+ * pinned list of community models ([DownloadableWakeWord]) and match their recorded SHA-256.
  */
 class WakeWordCatalog(
     private val bundled: BundledModels,
@@ -19,6 +24,10 @@ class WakeWordCatalog(
     /** Whether the native engine accepts a model; injected so the file handling is testable. */
     private val accepts: (ByteBuffer, MicroWakeWordModelConfig) -> Boolean = { buffer, config ->
         NativeMicroWakeWord.create(buffer, config)?.let { it.close(); true } ?: false
+    },
+    /** Fetch an HTTPS URL into a file, at most so many bytes; true when it arrived whole. */
+    private val fetch: (url: String, dest: File, maxBytes: Long) -> Boolean = { url, dest, maxBytes ->
+        AppInstaller.download(url, dest, maxBytes) == AppInstaller.DownloadResult.Succeeded
     },
 ) {
     constructor(context: Context) : this(AssetModels(context), File(context.filesDir, IMPORT_DIR))
@@ -32,6 +41,10 @@ class WakeWordCatalog(
 
         @Throws(IOException::class)
         fun model(file: String): ByteArray
+
+        /** The list of models this panel may download, as JSON; none by default. */
+        @Throws(IOException::class)
+        fun downloads(): String = "{}"
     }
 
     private class AssetModels(private val context: Context) : BundledModels {
@@ -43,6 +56,9 @@ class WakeWordCatalog(
 
         override fun model(file: String): ByteArray =
             context.assets.open("${MicroWakeWordModelConfig.ASSET_DIR}/$file").use { it.readBytes() }
+
+        override fun downloads(): String =
+            context.assets.open(DOWNLOADS_ASSET).bufferedReader().use { it.readText() }
     }
 
     sealed interface ImportResult {
@@ -114,8 +130,9 @@ class WakeWordCatalog(
         staging.deleteRecursively()
         try {
             if (!staging.mkdirs()) throw IOException("cannot stage $id")
-            File(staging, "$id$JSON").writeBytes(manifest)
-            File(staging, config.modelFile).writeBytes(model)
+            // Flushed to the disk before the swap, so a power cut after it cannot leave an empty model.
+            writeSynced(File(staging, "$id$JSON"), manifest)
+            writeSynced(File(staging, config.modelFile), model)
             val target = File(importDir, id)
             val previous = File(importDir, ".previous-$id")
             previous.deleteRecursively()
@@ -130,6 +147,68 @@ class WakeWordCatalog(
             return ImportResult.Refused(failed.message ?: "the model could not be saved")
         }
         return ImportResult.Imported(config)
+    }
+
+    /** The models this panel may download, except any that would take a bundled wake word's id. */
+    fun downloadable(): List<DownloadableWakeWord> {
+        val entries = runCatching { DownloadableWakeWord.parseAll(bundled.downloads()) }.getOrDefault(emptyList())
+        val bundledIds = bundled.ids()
+        return entries.filter { it.id !in bundledIds }
+    }
+
+    /** Whether the model downloaded as [entry] is the one this panel holds under its id now. */
+    fun holds(entry: DownloadableWakeWord): Boolean = runCatching {
+        val config = synchronized(this) { recover(); importedConfig(entry.id) }
+        sha256(File(File(importDir, entry.id), config.modelFile).readBytes()) == entry.modelSha256
+    }.getOrDefault(false)
+
+    private val downloadLock = Any()
+
+    /**
+     * Download the model [id] names in [downloadable] and import it. The manifest and model are fetched
+     * into this catalogue's own directory and must match the SHA-256 the list pins; a mismatch is refused
+     * outright, never retried, and leaves any model already held under that id untouched. The network is
+     * never awaited while the catalogue is locked; downloads run one at a time, and each first clears what
+     * an interrupted one left.
+     */
+    fun download(id: String): ImportResult {
+        val entry = downloadable().firstOrNull { it.id == id }
+            ?: return ImportResult.Refused("\"$id\" is not a wake word this panel can download")
+        synchronized(downloadLock) {
+            importDir.mkdirs()
+            importDir.listFiles { file -> file.name.startsWith(DOWNLOADING) }.orEmpty().forEach { it.delete() }
+            val manifestFile = File(importDir, "$DOWNLOADING$id$JSON")
+            val modelFile = File(importDir, "$DOWNLOADING$id.tflite")
+            try {
+                val manifest = fetchPinned(entry.manifestUrl, manifestFile, MAX_MANIFEST_BYTES.toLong(), entry.manifestSha256)
+                    .getOrElse { return ImportResult.Refused(it.message!!) }
+                val config = try {
+                    MicroWakeWordModelConfig.parse(id, manifest.toString(Charsets.UTF_8))
+                } catch (invalid: IllegalArgumentException) {
+                    return ImportResult.Refused(invalid.message ?: "the downloaded manifest is not a microWakeWord manifest")
+                }
+                val modelUrl = runCatching { URL(URL(entry.manifestUrl), config.modelFile).toString() }.getOrNull()
+                    ?: return ImportResult.Refused("the manifest names a model that cannot be downloaded")
+                val model = fetchPinned(modelUrl, modelFile, entry.modelBytes, entry.modelSha256)
+                    .getOrElse { return ImportResult.Refused(it.message!!) }
+                return import(id, manifest, model)
+            } finally {
+                manifestFile.delete()
+                modelFile.delete()
+            }
+        }
+    }
+
+    /**
+     * The bytes at [url] when they arrived whole and match [sha256]. Bytes that arrived but differ are an
+     * integrity failure, told apart from a download that did not complete.
+     */
+    private fun fetchPinned(url: String, dest: File, maxBytes: Long, sha256: String): Result<ByteArray> {
+        dest.delete()
+        if (!fetch(url, dest, maxBytes)) return Result.failure(IOException("the download did not complete"))
+        val bytes = dest.readBytes()
+        if (sha256(bytes) != sha256) return Result.failure(IOException("the download does not match its pinned SHA-256"))
+        return Result.success(bytes)
     }
 
     /** One imported wake word's files, as a backup carries them and [import] takes them back. */
@@ -186,6 +265,8 @@ class WakeWordCatalog(
 
     companion object {
         const val IMPORT_DIR = "wakeword"
+        const val DOWNLOADS_ASSET = "wakeword-downloads.json"
+        private const val DOWNLOADING = ".download-"
 
         /** Home Assistant's own bounds on a satellite's wake words; one outside them refuses them all. */
         const val MAX_WAKE_WORDS = 32
@@ -215,6 +296,16 @@ class WakeWordCatalog(
                 .replace(Regex("[^a-z0-9]+"), "_").trim('_').take(64)
             return reduced.takeIf(ID::matches)
         }
+
+        private fun writeSynced(file: File, bytes: ByteArray) {
+            FileOutputStream(file).use { out ->
+                out.write(bytes)
+                out.fd.sync()
+            }
+        }
+
+        internal fun sha256(bytes: ByteArray): String =
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
         private fun direct(bytes: ByteArray): ByteBuffer =
             ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder()).apply {
