@@ -1,5 +1,5 @@
 {
-  "sourceRevision": "9e30cdd3c321ebb4fb2d30ab1cc0576700625429",
+  "sourceRevision": "502dc6575cdd214a3cc0890ea3594e60758c8b97",
   "messages": [
     {
       "name": "hello_minimal",
@@ -1275,31 +1275,6 @@
         }
       },
       "valid": false
-    },
-    {
-      "name": "hello_result_ungranted_embed_object_is_ignored",
-      "offeredCapabilities": [
-        "state"
-      ],
-      "result": {
-        "protocol": 5,
-        "session": "q0vEYzJ4bGx0V2Q3cGF4NnRqS1BmZlRk",
-        "capabilities": [
-          "state"
-        ],
-        "embed": {
-          "key_id": "0123456789abcdef",
-          "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
-        },
-        "integration": {
-          "version": "0.5.1"
-        },
-        "channels": {
-          "accepted": 0,
-          "unknown": []
-        }
-      },
-      "valid": true
     },
     {
       "name": "hello_result_grants_capability_not_offered",
