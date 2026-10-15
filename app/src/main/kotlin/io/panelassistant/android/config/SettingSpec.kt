@@ -106,6 +106,9 @@ data class Capabilities(
     // Android 10+ ships a system-wide dark/light setting; panels that have it follow the OS and hide
     // ha-paneld's own dark_mode toggle (Android 9- panels have no such control, so ours fills the gap).
     val hasSystemDarkMode: Boolean = false,
+    // The profile declares a speaker, so Panel Assistant shows the volume on the panel's media player and
+    // has no separate volume entity whose exposure a pip could choose.
+    val hasSpeaker: Boolean = false,
     // Runtime-only privilege routes. These describe what the panel can do now; they are never config
     // switches and therefore cannot be imported or changed through Home Assistant or HTTP.
     val canCaptureAndInput: Boolean = false,

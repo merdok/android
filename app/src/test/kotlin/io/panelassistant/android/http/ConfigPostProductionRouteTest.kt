@@ -171,8 +171,11 @@ class ConfigPostProductionRouteTest {
             }
         }
 
-    @Test fun `configure schema offers only system bars and native navigation the panel provides`() {
-        for (caps in listOf(Capabilities(), Capabilities(hasNativeNavbar = true), Capabilities(hasAndroidStatusBar = true))) {
+    @Test fun `configure schema offers only system bars, native navigation and the volume pip the panel provides`() {
+        for (caps in listOf(
+            Capabilities(), Capabilities(hasNativeNavbar = true), Capabilities(hasAndroidStatusBar = true),
+            Capabilities(hasSpeaker = true),
+        )) {
             withFullReadServer { _, fixture ->
                 val observations = PaneldServer::class.java.getDeclaredField("managementObservations").run {
                     isAccessible = true
@@ -193,6 +196,8 @@ class ConfigPostProductionRouteTest {
                         byKey.getValue("dashboard_fullscreen").getBoolean("available"))
                     val options = byKey.getValue("navbar_mode").getJSONArray("options")
                     assertEquals(caps.hasNativeNavbar, (0 until options.length()).any { options.getString(it) == "Native" })
+                    // With a speaker the volume is the media player's, so there is no number to expose.
+                    assertEquals(!caps.hasSpeaker, byKey.getValue("volume").getBoolean("available"))
                 }
             }
         }
