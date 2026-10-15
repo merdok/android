@@ -39,9 +39,13 @@ class HaOfflineNoticeTest {
         tracker.onNativeNotice(notice(HaLifecyclePhase.STARTING, 60_000L).copy(elapsedMs = 20_000L), 5_000L)
         assertEquals(25_000L, tracker.snapshot(10_000L).elapsedMs)
         assertTrue(HaLifecycleMessage.text(tracker.snapshot(10_000L))!!.contains("Expected back in 0:35"))
-        val overdue = HaLifecycleMessage.text(tracker.snapshot(3_700_000L))!!
+        val overdue = HaLifecycleMessage.text(tracker.snapshot(590_000L))!!
         assertTrue(overdue.startsWith("Taking longer than usual"))
-        assertTrue(overdue.contains("60:55 past the estimate"))
+        assertTrue(overdue.contains("9:05 past the estimate"))
+        // A restart past an hour keeps its card while Panel Assistant keeps re-sending it, and the overrun
+        // counts minutes beyond 60 rather than wrapping into hours.
+        tracker.onNativeNotice(notice(HaLifecyclePhase.STARTING, 60_000L).copy(elapsedMs = 3_710_000L), 595_000L)
+        assertTrue(HaLifecycleMessage.text(tracker.snapshot(600_000L))!!.contains("60:55 past the estimate"))
     }
 
     @Test fun firstRestartReportsNoMeasuredEstimateAndRetiredNativeOwnerCannotStrandIt() {

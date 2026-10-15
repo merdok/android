@@ -109,9 +109,8 @@ fun isRoutable(host: String): Boolean = parseAddress(host)?.let { !isLanLocal(it
  * loopback, which resolves on the scanning phone instead of on the panel; link-local, which is what a
  * panel shows after its DHCP lease failed and is unreachable from anywhere useful; and the wildcard.
  *
- * This matters because [io.panelassistant.android.util.LocalAdminEndpoint.externalUrl] falls back to
- * `127.0.0.1` when it is handed nothing, so a panel with no network produces a plausible, scannable and
- * completely useless URL rather than an obviously absent one.
+ * [io.panelassistant.android.util.LocalAdminEndpoint.externalUrl] is built on it, so a panel with no
+ * network produces no URL rather than a plausible, scannable and completely useless `127.0.0.1` one.
  */
 fun isScannableHost(host: String): Boolean = parseAddress(host)?.let {
     !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isAnyLocalAddress

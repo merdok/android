@@ -186,6 +186,87 @@ class StreamlineTemplateScanTest {
         assertTrue(cards.length() in 1..1_000)
     }
 
+    /** Serves [files] by path; every other path is 404. Returns the templates [StreamlineTemplates.fetch] took and the paths asked for. */
+    private fun fetchFrom(files: Map<String, String>): Pair<org.json.JSONObject?, List<String>> {
+        val requests = ConcurrentLinkedQueue<String>()
+        val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
+            routing {
+                get("{path...}") {
+                    requests.add(call.request.path())
+                    val body = files[call.request.path()]
+                    if (body != null) call.respondText(body, ContentType.Text.Plain)
+                    else call.respondText("", status = HttpStatusCode.NotFound)
+                }
+            }
+        }.start(wait = false)
+        try {
+            val port = kotlinx.coroutines.runBlocking { server.engine.resolvedConnectors().single().port }
+            return StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) to requests.toList()
+        } finally {
+            server.stop(0, 0)
+        }
+    }
+
+    // streamline-card 0.2.2 (src/evaluateYaml.js) parses with a custom `!include` tag and replaces the
+    // tagged value with the included file, resolved relative to the template file's own URL.
+    @Test fun aRemoteFileUsingIncludeStillExpandsItsInlineTemplates() {
+        val (templates, requests) = fetchFrom(mapOf(
+            "/hacsfiles/streamline-card/streamline_templates.yaml" to """
+                included_tile: !include included_tile.yaml
+                inline_tile:
+                  card:
+                    type: tile
+                    entity: light.[[room]]_inline
+            """.trimIndent(),
+            "/hacsfiles/streamline-card/included_tile.yaml" to "card:\n  type: tile\n  entity: light.[[room]]_included\n",
+        ))
+        assertEquals("the first path answered, so no other template path is tried",
+            "/hacsfiles/streamline-card/streamline_templates.yaml", requests.first())
+        assertFalse("the first path's file was not discarded", "/local/streamline-card/streamline_templates.yaml" in requests)
+        val ids = EntityLearningProtocol.scanDashboard(
+            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"inline_tile","variables":{"room":"study"}}]}]}""",
+            templates,
+        ).entityIds
+        assertTrue("light.study_inline" in ids)
+    }
+
+    // An included template is tolerated but not resolved: its entities are learned at runtime.
+    @Test fun anIncludedTemplateIsNotFetchedAndAddsNoEntity() {
+        val (templates, requests) = fetchFrom(mapOf(
+            "/hacsfiles/streamline-card/streamline_templates.yaml" to """
+                included_tile: !include included_tile.yaml
+                inline_tile:
+                  card:
+                    type: tile
+                    entity: light.[[room]]_inline
+            """.trimIndent(),
+            "/hacsfiles/streamline-card/included_tile.yaml" to "card:\n  type: tile\n  entity: light.[[room]]_included\n",
+        ))
+        assertEquals(listOf("/hacsfiles/streamline-card/streamline_templates.yaml"), requests)
+        assertEquals(setOf("light.hall_inline"), EntityLearningProtocol.scanDashboard(
+            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"inline_tile","variables":{"room":"hall"}}]}]}""",
+            templates,
+        ).entityIds.toSet())
+        assertEquals(emptySet<String>(), EntityLearningProtocol.scanDashboard(
+            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"included_tile","variables":{"room":"hall"}}]}]}""",
+            templates,
+        ).entityIds.toSet())
+    }
+
+    // The card's yaml 2.x parser accepts up to 100 alias resolutions by default (maxAliasCount).
+    @Test fun aRemoteFileWithSixtyCollectionAliasesIsKept() {
+        val yaml = "shared_style: &style {color: red}\n" + (1..60).joinToString("\n") { i ->
+            "t$i:\n  card:\n    type: tile\n    entity: light.t$i\n    style: *style"
+        }
+        val (templates, requests) = fetchFrom(mapOf("/hacsfiles/streamline-card/streamline_templates.yaml" to yaml))
+        assertEquals(listOf("/hacsfiles/streamline-card/streamline_templates.yaml"), requests)
+        val ids = EntityLearningProtocol.scanDashboard(
+            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"t60"}]}]}""",
+            templates,
+        ).entityIds
+        assertTrue("light.t60" in ids)
+    }
+
     @Test fun aMalformedBaseIsNoTemplatesRatherThanAFailedSync() {
         assertNull(StreamlineTemplates.fetch("not a url", 1_000))
     }

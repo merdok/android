@@ -22,9 +22,9 @@ object LocalAdminEndpoint {
 
     fun loopbackUrl(port: Int, pathAndQuery: String = "/"): String = url(LOOPBACK, port, pathAndQuery)
 
-    /** Prefer the LAN IPv4 address, then a globally routable IPv6 literal, then loopback. */
-    fun externalUrl(ipv4: String?, ipv6: String?, port: Int, pathAndQuery: String = "/"): String =
-        url(ipv4?.takeIf { it.isNotBlank() } ?: ipv6?.takeIf { it.isNotBlank() } ?: LOOPBACK, port, pathAndQuery)
+    /** A URL a phone on the panel's network can open: [ipv4], else [ipv6], by [scannableHost]; null when neither is. */
+    fun externalUrl(ipv4: String?, ipv6: String?, port: Int, pathAndQuery: String = "/"): String? =
+        scannableHost(ipv4, ipv6)?.let { url(it, port, pathAndQuery) }
 }
 
 /**

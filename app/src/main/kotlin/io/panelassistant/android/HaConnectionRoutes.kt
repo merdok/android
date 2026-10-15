@@ -137,7 +137,8 @@ internal object HaConnectionRoutes {
         val candidates = synchronized(selectionLock) {
             if (failureOwner != route.owner) { failureOwner = route.owner; failures.clear() }
             failures.entries.removeAll { it.value <= now }
-            (listOf(route.url, route.owner.url) + known.urls).distinct().filter { it !in failures }
+            // A failed route yields to its peers but is never the reason nothing is tried.
+            (listOf(route.url, route.owner.url) + known.urls).distinct().sortedBy { it in failures }
         }
         // Network work never holds either the configuration lock or the route bookkeeping lock.
         for (url in candidates) {

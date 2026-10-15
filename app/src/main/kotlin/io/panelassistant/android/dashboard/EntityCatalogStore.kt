@@ -229,6 +229,12 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
         writableDatabase.execSQL("UPDATE dashboard SET status=?,error=? WHERE instance=? AND path=?", arrayOf(status, error.take(500), instance, path))
     }
 
+    /** Return the dashboard to active only while its stored error is still [ifError]: one statement, so a
+     *  newer failure written by a sync or probe since the caller's decision is kept. */
+    fun recoverStatus(instance: String, path: String, ifError: String): Unit = observedWrite("catalog-status") {
+        writableDatabase.execSQL(RECOVER_STATUS_SQL, arrayOf(instance, path, ifError.take(500)))
+    }
+
     /** Commit only a complete successful HA snapshot; failures never age current rows. */
     fun commitSync(
         instance: String,
@@ -1098,6 +1104,8 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
 
     companion object {
         internal const val DATABASE_NAME = "ha-paneld.db"
+        internal val RECOVER_STATUS_SQL =
+            "UPDATE dashboard SET status='active',error='' WHERE instance=? AND path=? AND error=?"
         private const val VERSION = EntityCatalogSchema.CURRENT_VERSION
 
         private const val HOUR_MS = 3_600_000L

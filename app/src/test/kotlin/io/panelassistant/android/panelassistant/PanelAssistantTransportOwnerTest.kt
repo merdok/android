@@ -802,6 +802,25 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
+    @Test fun aLocalHelloObservationFailureDoesNotBanTheRouteItsSocketReached() = runTest {
+        val route = io.panelassistant.android.HaConnectionRoute(OWNER, OWNER.url, 0L)
+        val shadow = Shadow(listOf("screen"))
+        val connection = FakeConnection(Ha.accepting(capabilities = listOf("state")))
+        val failed = mutableListOf<io.panelassistant.android.HaConnectionRoute>()
+        var observed = 0
+        val harness = harness(connection, shadow = shadow.reporter, observeForHello = { observed++; false },
+            onTransportFailure = { failed += it })
+        harness.session = { HaApiSession(OWNER.url, "token", owner = OWNER, route = route) }
+        harness.owner.replaceDemand(DEMAND)
+        runCurrent()
+
+        assertEquals(1, observed)
+        assertEquals(listOf("panel_assistant/hello"), connection.sent.map(::kind))
+        assertTrue(connection.closed)
+        assertEquals("a local runtime replacement is not a transport failure", emptyList<Any>(), failed)
+        harness.owner.close()
+    }
+
     @Test fun theHelloStatesTheChannelsTheBridgeCannotFillAndAChannelThatBecomesUnsupportedHelloesAgain() = runTest {
         val shadow = Shadow(listOf("relay1", "temperature"))
         shadow.unsupported += "humidity"
@@ -1547,6 +1566,7 @@ class PanelAssistantTransportOwnerTest {
         addresses: () -> List<String> = { emptyList() },
         onConnection: (HaApiSession, PanelAssistantSession) -> Boolean = { _, _ -> true },
         checkPreferred: suspend () -> Boolean = { false },
+        onTransportFailure: (io.panelassistant.android.HaConnectionRoute) -> Unit = {},
     ): Harness {
         val connector = FakeConnector(this, script.toMutableList(), repeating, repeatingFailure)
         val forces = mutableListOf<Boolean>()
@@ -1571,6 +1591,7 @@ class PanelAssistantTransportOwnerTest {
             addresses = addresses,
             onConnection = onConnection,
             checkPreferred = checkPreferred,
+            onTransportFailure = onTransportFailure,
             onConnected = onConnected,
             onLifecycleNotice = onLifecycleNotice,
             onLifecycleAuthenticated = onLifecycleAuthenticated,

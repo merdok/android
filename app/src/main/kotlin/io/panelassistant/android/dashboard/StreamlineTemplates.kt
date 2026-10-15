@@ -11,8 +11,10 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
+import org.snakeyaml.engine.v2.api.ConstructNode
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
+import org.snakeyaml.engine.v2.nodes.Tag
 import org.snakeyaml.engine.v2.schema.CoreSchema
 
 /**
@@ -46,7 +48,10 @@ internal object StreamlineTemplates {
             .setSchema(CoreSchema())
             .setAllowDuplicateKeys(false)
             .setAllowRecursiveKeys(false)
-            .setMaxAliasesForCollections(50)
+            // The card parses with yaml 2.x, whose maxAliasCount default is 100.
+            .setMaxAliasesForCollections(100)
+            // An included template is not fetched: its entities are learned at runtime, and the rest of the file is kept.
+            .setTagConstructors(mapOf(Tag("!include") to ConstructNode { null }))
             .setCodePointLimit(MAX_BYTES.toInt())
             .build(),
     )

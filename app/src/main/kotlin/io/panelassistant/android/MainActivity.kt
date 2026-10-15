@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
      * the guided path stays one tap away rather than this screen re-deriving journey state).
      */
     private fun adminPath(): String = if (config.setupEverCompleted) "/configure" else "/setup"
-    private val url: String
+    private val url: String?
         get() = LocalAdminEndpoint.externalUrl(localIpv4(), localIpv6(), config.httpPort, adminPath())
     private val handler = Handler(Looper.getMainLooper())
 
@@ -58,14 +58,17 @@ class MainActivity : AppCompatActivity() {
     // The screen used to be identical whether the panel was untouched, mid-commissioning or broken, so
     // someone walking up mid-setup learnt nothing. A loopback poll of the same journey the browser
     // wizard renders fills one bold line + one hint — and, at the sign-in stage, reveals a button. The
-    // QR bitmap is never regenerated (a synchronous ZXing encode per tick would jank the screen); only
-    // the two TextViews and the button change, and only when the stage actually changes.
+    // QR bitmap is re-encoded only when the address or path changes (a synchronous ZXing encode per tick
+    // would jank the screen); otherwise only the two TextViews and the button change, and only when the
+    // stage actually changes.
     private var stageView: TextView? = null
     private var configButton: Button? = null
     private var configButtonCompact = false
     private var hintView: TextView? = null
     private var signInRow: View? = null
     private var lastStageKey: String? = null
+    // The URL the current QR encodes (null: no QR), compared with the live one on each poll tick.
+    private var encodedUrl: String? = null
     // The journey most recently applied, kept so a rebuild can restore the presentation immediately
     // rather than waiting for a future poll to report a value that has not changed.
     private var lastJourney: org.json.JSONObject? = null
@@ -83,8 +86,10 @@ class MainActivity : AppCompatActivity() {
                     conn.readTimeout = 1500
                     try { conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) } } finally { conn.disconnect() }
                 }.getOrNull()
+                val live = url
                 handler.post {
                     if (generation != introGeneration || presentedIntro == null) return@post
+                    if (live != encodedUrl) rebuildIntro()
                     body?.let { runCatching { applySetupStage(org.json.JSONObject(it)) } }
                     handler.postDelayed(this, SETUP_POLL_MS)
                 }
@@ -111,7 +116,8 @@ class MainActivity : AppCompatActivity() {
                 if (s.optString("stage") == "renderer") rendererDetail = s.optString("detail")
             }
         }
-        val key = "$complete|$next|$rendererDetail"
+        val needsUser = journey.optBoolean("needs_user", false)
+        val key = "$complete|$next|$rendererDetail|$needsUser"
         lastJourney = journey
         if (key == lastStageKey) return
         lastStageKey = key
@@ -133,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         val identity = !complete && next == "identity"
-        statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, config.setupEverCompleted)?.let(::getString).orEmpty())
+        statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, needsUser, config.setupEverCompleted)?.let(::getString).orEmpty())
         // Not set up: the pill says so, and the hint is the one line. A later stage: the stage is the line
         // and its hint the footer. No stage: the panel's description.
         stageView?.text = when {
@@ -476,20 +482,23 @@ class MainActivity : AppCompatActivity() {
         // unchanged return does not reattach the hierarchy for nothing.
         presentedIntro?.let {
             val dark = StatusSurface.darkFor(this, config)
-            if (statusSurface?.dark != dark) {
-                statusSurface = null
-                val refreshed = buildUi()
-                setContentView(refreshed)
-                presentedIntro = refreshed
-                // The rebuilt views are blank until the next poll, and the poll returns early while the
-                // journey key is unchanged — so at `ha_credentials` the stage stayed hidden, the generic
-                // hint stayed, and the sign-in button could disappear until the journey happened to move.
-                // A rebuild forgets what it last applied and reapplies the state it already has.
-                lastStageKey = null
-                lastJourney?.let { journey -> runCatching { applySetupStage(journey) } }
-            }
+            if (statusSurface?.dark != dark) rebuildIntro()
         }
         updateKioskAdminVisibility()
+    }
+
+    /** Rebuild the standing screen in place: after a theme change, or when the QR's address or path moved. */
+    private fun rebuildIntro() {
+        statusSurface = null
+        val refreshed = buildUi()
+        setContentView(refreshed)
+        presentedIntro = refreshed
+        // The rebuilt views are blank until the next poll, and the poll returns early while the
+        // journey key is unchanged — so at `ha_credentials` the stage stayed hidden, the generic
+        // hint stayed, and the sign-in button could disappear until the journey happened to move.
+        // A rebuild forgets what it last applied and reapplies the state it already has.
+        lastStageKey = null
+        lastJourney?.let { journey -> runCatching { applySetupStage(journey) } }
     }
 
     override fun onStop() {
@@ -505,7 +514,9 @@ class MainActivity : AppCompatActivity() {
         val surface = statusSurface()
         val notice = surface.notice
         // The QR leads; no address is printed, setup is continued from Panel Assistant.
-        val qr = notice.qr(url, getString(R.string.config_qr_description, url), getString(R.string.notice_qr_set_up))
+        val u = url
+        encodedUrl = u
+        val qr = u?.let { notice.qr(it, getString(R.string.config_qr_description, it), getString(R.string.notice_qr_set_up)) }
         // The line: the live setup stage, the answer to someone walking up to the panel mid-commissioning —
         // what is it doing, and do I need to act? Filled by the loopback journey poll; until it reports, the
         // panel's description.
@@ -537,7 +548,7 @@ class MainActivity : AppCompatActivity() {
         }).apply { visibility = View.GONE }
         signInRow = signIn
         surface.setBody(
-            standingNoticePill(stagePresent = false, identity = false, everCompleted = config.setupEverCompleted)
+            standingNoticePill(stagePresent = false, identity = false, needsUser = false, everCompleted = config.setupEverCompleted)
                 ?.let(::getString).orEmpty(),
             qr,
             line,

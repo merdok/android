@@ -69,6 +69,19 @@ class HaConnectionRoutesTest {
         assertEquals(listOf("/api/panel_assistant/instance", "/auth/token"), working.requests.map { it.path })
     }
 
+    @Test fun failedOnlyRouteIsStillTriedOnceItAnswersAgain() {
+        val ha = server()
+        val (config, _) = config(ha.url)
+        assertTrue(learn(config))
+        // The native owner's onTransportFailure after a dropped session or Core restart.
+        HaConnectionRoutes.failed(config, HaConnectionRoutes.current(config))
+        val session = DashboardHaApiSessionProvider(config).resolve(false)
+        assertEquals(listOf("/api/panel_assistant/instance", "/auth/token"), ha.requests.map { it.path })
+        assertEquals("fresh", session.accessToken)
+        assertEquals(ha.url, session.baseUrl)
+        assertNoProofCredentials(ha)
+    }
+
     @Test fun reusedAccessTokenStillRequiresInstanceProof() {
         val endpoint = server()
         val (config, values) = config(endpoint.url)
