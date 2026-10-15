@@ -111,6 +111,7 @@ internal class PaneldServerHttpFixture(
         field("appContext", context)
         field("pageHealth", PageHealth(context, config))
         field("cacheDir", directory)
+        field("dashboardIssueCustody", EmptyDashboardIssues)
         field("screenshots", ScreenshotCache(directory))
         // Source-text reason: provide actual bundled asset payloads through the platform reader seam.
         field("asset", { name: String -> File("src/main/assets", name).readText() })
@@ -187,6 +188,8 @@ internal class PaneldServerHttpFixture(
         config: Config = this.config,
         calibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody =
             io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(context),
+        dashboardIssues: io.panelassistant.android.persistence.DashboardIssueCustody = EmptyDashboardIssues,
+        exportState: (() -> List<io.panelassistant.android.persistence.ConfigVault.StateRow>)? = null,
         effectiveValue: (io.panelassistant.android.config.SettingSpec, Map<String, String>) -> String = { spec, _ -> spec.default },
     ) = PanelBackupBuilder(
         appContext = context,
@@ -206,6 +209,12 @@ internal class PaneldServerHttpFixture(
         ),
         wakeWords = wakeWords,
         calibrations = calibrations,
+        dashboardIssues = dashboardIssues,
+        exportState = exportState ?: {
+            io.panelassistant.android.dashboard.readThenClose(
+                io.panelassistant.android.dashboard.EntityCatalogStore(context), { it.close() },
+            ) { it.exportAppState() }
+        },
     )
 
     fun useManagementStatus(
@@ -456,6 +465,10 @@ internal class PaneldServerHttpFixture(
     }
 
     private companion object {
+        val EmptyDashboardIssues = object : io.panelassistant.android.persistence.DashboardIssueCustody {
+            override fun export() = emptyList<io.panelassistant.android.persistence.DashboardIgnoredIssue>()
+            override fun restore(rows: List<io.panelassistant.android.persistence.DashboardIgnoredIssue>) = 0
+        }
         val NO_PIPELINES = object : io.panelassistant.android.assist.AssistPipelineDirectory {
             override suspend fun list() =
                 io.panelassistant.android.assist.AssistPipelineDirectory.Result.NotConfigured("no Home Assistant link in this fixture")

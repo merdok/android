@@ -72,6 +72,7 @@ internal interface AutoSleepLearning {
     fun recordGap(partition: String, evidence: AutoSleepLocalEvidence, gapMs: Long)
     fun recordCorrection(partition: String, floorMs: Long)
     fun flush()
+    fun adoptRestoredRecord() {}
 }
 
 private class StoredAutoSleepLearning(context: Context) : AutoSleepLearning {
@@ -81,6 +82,7 @@ private class StoredAutoSleepLearning(context: Context) : AutoSleepLearning {
         store.recordGap(partition, evidence, gapMs)
     override fun recordCorrection(partition: String, floorMs: Long) = store.recordCorrection(partition, floorMs)
     override fun flush() = store.flush()
+    override fun adoptRestoredRecord() = store.adoptRestoredRecord()
 }
 
 /** One bounded owner joining immutable HA aggregates, local evidence and physical screen epochs. */
@@ -99,7 +101,7 @@ internal class AutoSleepController private constructor(
     sourceManagerFactory: ((HaPresenceAggregate) -> Boolean) -> AutoSleepManagerHandle,
 ) {
     private enum class Slot {
-        CONFIGURE, AGGREGATE, TOUCH, TAP_WAKE, PROXIMITY, SCREEN_WAKE, DEADLINE, REDISCOVER, TERMINAL,
+        CONFIGURE, RESTORED, AGGREGATE, TOUCH, TAP_WAKE, PROXIMITY, SCREEN_WAKE, DEADLINE, REDISCOVER, TERMINAL,
     }
     private enum class Admission { OPEN, CLOSING, CLOSED }
     private data class Entry(val sequence: Long, val slot: Slot, val value: Any?)
@@ -221,6 +223,7 @@ internal class AutoSleepController private constructor(
         return configureLatest()
     }
     fun refresh(): Boolean = configureLatest()
+    fun adoptRestoredRecord(): Boolean = admit(Slot.RESTORED, Unit)
     fun isCurrentConfigurationEpoch(expectedEpoch: Long): Boolean =
         admission == Admission.OPEN && controllerEpoch.get() == expectedEpoch
 
@@ -547,6 +550,10 @@ internal class AutoSleepController private constructor(
     private fun handle(entry: Entry) {
         when (entry.slot) {
             Slot.CONFIGURE -> configure(entry.value as Configuration)
+            Slot.RESTORED -> {
+                learning.adoptRestoredRecord()
+                configureLatest()
+            }
             Slot.AGGREGATE -> applyAggregate(entry.value as HaPresenceAggregate)
             Slot.TOUCH -> applyTouch(entry.value as Touch)
             Slot.TAP_WAKE -> applyTapWake(entry.value as TapWake)
@@ -663,11 +670,13 @@ internal class AutoSleepController private constructor(
             }
         } else if (next.value.enabled && usesPanelPresence) {
             partition = "panel_proximity|v1"
+            val learned = learning.learnedLease(partition, MIN_AUTO_SLEEP_LEASE_MS)
             if (policy == null) {
-                val learned = learning.learnedLease(partition, MIN_AUTO_SLEEP_LEASE_MS)
                 policy = AutoSleepPolicyReducer.initial(
                     setOf(LOCAL_SOURCE), AutoSleepPolicyConfig(learnedLeaseMs = learned.leaseMs),
                 )
+            } else {
+                reduce(AutoSleepEvent.LearnedLeaseChanged(eventTime(), learned.leaseMs), actuate = false)
             }
             applyPanelPresence(null, eventTime())
         } else if (next.value.enabled) scheduleRediscovery(next.epoch, rediscoveryToken)

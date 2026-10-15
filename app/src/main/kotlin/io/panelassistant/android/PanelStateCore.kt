@@ -407,7 +407,7 @@ internal class PanelStateCore(
     }
 
     /** Re-apply the stored button backlight level, which the hardware loses on reboot. */
-    private fun restoreButtonBacklight() {
+    fun restoreButtonBacklight() {
         if (hasButtonBacklight) {
             config.lastButtonBacklight.takeIf { it >= 0 }?.let { helperSend(buttonBacklightCommand(it, buttonBacklightTransfer)) }
         }

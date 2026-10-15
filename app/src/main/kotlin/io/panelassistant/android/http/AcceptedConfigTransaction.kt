@@ -326,6 +326,8 @@ internal class AcceptedConfigTransaction(
             onWakeWordsChanged: () -> Unit,
             calibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody =
                 io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(appContext),
+            dashboardIssues: io.panelassistant.android.persistence.DashboardIssueCustody =
+                io.panelassistant.android.persistence.CatalogDashboardIssueCustody(appContext),
         ): RestoreExecutor = RestoreExecutor(
             appContext = appContext,
             config = config,
@@ -368,6 +370,7 @@ internal class AcceptedConfigTransaction(
             onDurableStateRestored = onDurableStateRestored,
             onWakeWordsChanged = onWakeWordsChanged,
             calibrations = calibrations,
+            dashboardIssues = dashboardIssues,
         )
     }
 }

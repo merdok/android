@@ -34,6 +34,11 @@ internal class PanelBackupBuilder(
     private val companion: CompanionBackupOperations,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
     private val calibrations: ProximityCalibrationCustody = CatalogProximityCalibrationCustody(appContext),
+    private val dashboardIssues: io.panelassistant.android.persistence.DashboardIssueCustody =
+        io.panelassistant.android.persistence.CatalogDashboardIssueCustody(appContext),
+    private val exportState: () -> List<ConfigVault.StateRow> = {
+        readThenClose(EntityCatalogStore(appContext), { it.close() }) { it.exportAppState() }
+    },
 ) {
     private data class BackupArchiveParts(
         val manifest: String,
@@ -139,9 +144,7 @@ internal class PanelBackupBuilder(
             // compiles against the current compileSdk yet throws ClassCastException at runtime on
             // Android 8.1. readThenClose also isolates the close, so a store that exported successfully
             // but failed to close still contributes its rows.
-            val stateCapture = runCatching {
-                readThenClose(EntityCatalogStore(appContext), { it.close() }) { it.exportAppState() }
-            }
+            val stateCapture = runCatching(exportState)
             val stateFailure = stateCapture.exceptionOrNull()
             if (stateFailure != null) Log.w(TAG, "backup could not read app_state", stateFailure)
             val stateRows = stateCapture.getOrDefault(emptyList())
@@ -224,8 +227,14 @@ internal class PanelBackupBuilder(
             BackupIdentity.manifestFragment(
                 panelAssistantDiscoveryId(config.deviceUid),
                 appContext.packageName,
+                config.androidId.takeIf(String::isNotBlank)?.let(::panelAssistantDiscoveryId),
             ),
         )
+        config.profile?.let {
+            sb.append(",\"owner_profile\":{\"id\":").append(Json.str(it.id))
+                .append(",\"revision\":").append(Json.str(it.revision)).append('}')
+        }
+        sb.append(io.panelassistant.android.persistence.DashboardIssueBackup.manifestFragment(dashboardIssues.export()))
         sb.append(
             RawPreferenceBackup.manifestFragment { store ->
                 appContext.getSharedPreferences(store, android.content.Context.MODE_PRIVATE).all

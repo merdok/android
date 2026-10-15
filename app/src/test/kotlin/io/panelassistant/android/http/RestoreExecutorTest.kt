@@ -18,6 +18,35 @@ import org.junit.rules.TemporaryFolder
 class RestoreExecutorTest {
     @get:Rule val folder = TemporaryFolder()
 
+    @Test fun aFailedOrdinaryStateWriteIsPartialAndKeepsCommittedConfiguration() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            var attempts = 0
+            val executor = executor(
+                fixture,
+                applyState = { attempts++; 0 },
+                commit = RestoreConfigCommit { _, _, _, _, publish, _, afterApply ->
+                    publish("durable")
+                    afterApply()
+                    1
+                },
+                rollback = { _, _, _, _ -> error("state loss must not undo committed configuration") },
+            )
+            executor.execute(
+                RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
+                null, null, null, null, emptyMap(),
+                listOf(io.panelassistant.android.persistence.ConfigVault.StateRow("controller-state", "saved", "int", "4", 1L)),
+                false, false, emptyList(), null, ticket, RestoreAttempt.NONE,
+            )
+            val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+            assertEquals(1, attempts)
+            assertEquals("partial", result.getString("status"))
+            assertEquals("succeeded", result.getJSONObject("config").getString("status"))
+            assertEquals("partial", result.getJSONObject("state").getString("status"))
+            assertEquals("admitted=1; skipped=0; failed=1", result.getJSONObject("state").getString("detail"))
+        }
+    }
+
     @Test fun importsPrecedeConfigRearmingAndRemainAfterRollback() = runBlocking {
         val catalog = wakeWordCatalog(folder.newFolder())
         PaneldServerHttpFixture().use { fixture ->
@@ -279,6 +308,7 @@ class RestoreExecutorTest {
         wakeWordsChanged: () -> Unit = { error("no successful wake word import") },
         commit: RestoreConfigCommit,
         rollback: suspend (Map<String, String>, DashboardEntityBackupState, String, InstallProgress.Ticket) -> Boolean,
+        applyState: (List<io.panelassistant.android.persistence.ConfigVault.StateRow>) -> Int = { error("no state payload") },
     ) = RestoreExecutor(
         appContext = object : ContextWrapper(null) {},
         config = fixture.config,
@@ -294,5 +324,6 @@ class RestoreExecutorTest {
         onProfileRestartAbort = { error("no profile payload") },
         onDurableStateRestored = { error("no state payload") },
         onWakeWordsChanged = wakeWordsChanged,
+        applyState = applyState,
     )
 }

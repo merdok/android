@@ -15,16 +15,28 @@ import org.json.JSONObject
 object BackupIdentity {
     const val DISCOVERY_ID_KEY = "discovery_id"
     const val PACKAGE_KEY = "package"
+    const val DEVICE_LINK_KEY = "legacy_did"
     /** Written by builds before 1.0: whether the writer held a broker connection. Read from their archives only. */
     const val LEGACY_CONNECTED_KEY = "mqtt_connected"
     private val DISCOVERY_ID_RE = Regex("[0-9a-f]{64}")
 
     /** The manifest members, each prefixed with a comma; an unavailable discovery id is omitted. */
-    fun manifestFragment(discoveryId: String?, packageName: String): String = buildString {
+    fun manifestFragment(discoveryId: String?, packageName: String, deviceLink: String? = null): String = buildString {
         if (discoveryId != null && DISCOVERY_ID_RE.matches(discoveryId)) {
             append(",\"$DISCOVERY_ID_KEY\":").append(Json.str(discoveryId))
         }
         append(",\"$PACKAGE_KEY\":").append(Json.str(packageName))
+        if (deviceLink != null && DISCOVERY_ID_RE.matches(deviceLink)) {
+            append(",\"$DEVICE_LINK_KEY\":").append(Json.str(deviceLink))
+        }
+    }
+
+    /** The same reinstall link the panel reports in health. It is never copied into discovery identity.
+     * Older archives keep their historical name comparison; a present link can never fall back to it. */
+    fun sameRestoreDevice(manifest: JSONObject, ownDeviceLink: String?, legacyPanelIdMatches: Boolean): Boolean {
+        if (!manifest.has(DEVICE_LINK_KEY)) return legacyPanelIdMatches
+        val archived = manifest.opt(DEVICE_LINK_KEY) as? String ?: return false
+        return DISCOVERY_ID_RE.matches(archived) && archived == ownDeviceLink
     }
 
     /**

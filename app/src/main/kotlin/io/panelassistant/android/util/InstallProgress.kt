@@ -38,6 +38,8 @@ object InstallProgress {
         val rollback: ComponentResult? = null,
         /** Imported wake words a restore carried; absent when the backup held none. */
         val wakeWords: ComponentResult? = null,
+        /** Admitted durable state and owner choices, with withheld/failed values accounted separately. */
+        val state: ComponentResult? = null,
     )
 
     data class PresentationSnapshot(
@@ -181,6 +183,7 @@ object InstallProgress {
         result.companion?.let { append(",\"companion\":").append(componentJson(it)) }
         result.rollback?.let { append(",\"rollback\":").append(componentJson(it)) }
         result.wakeWords?.let { append(",\"wake_words\":").append(componentJson(it)) }
+        result.state?.let { append(",\"state\":").append(componentJson(it)) }
         append('}')
     }
 

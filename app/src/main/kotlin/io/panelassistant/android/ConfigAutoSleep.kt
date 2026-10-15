@@ -84,15 +84,7 @@ internal fun Config.setAutoSleepSourceIncluded(areaId: String, entityId: String,
         val areas = all.getOrPut(scope) { linkedMapOf() }
         if (merged.isNotEmpty()) areas[area] = merged
         if (areas.isEmpty()) all.remove(scope)
-        val encoded = JSONObject().apply {
-            all.toSortedMap().forEach { (storedScope, storedAreas) ->
-                put(storedScope, JSONObject().apply {
-                    storedAreas.toSortedMap().forEach { (storedArea, storedIds) ->
-                        put(storedArea, JSONArray(storedIds.toSortedSet().toList()))
-                    }
-                })
-            }
-        }.toString()
+        val encoded = encodeAutoSleepExclusions(all)
         if (encoded.toByteArray(Charsets.UTF_8).size > MAX_AUTO_SLEEP_EXCLUSIONS_BYTES) {
             return@synchronized false
         }
@@ -127,19 +119,49 @@ private fun Config.readAutoSleepExclusions(): Map<String, Map<String, Set<String
     val raw = prefs.getString(AUTO_SLEEP_EXCLUSIONS_PREF, "").orEmpty()
     if (raw.isBlank() || raw.toByteArray(Charsets.UTF_8).size > MAX_AUTO_SLEEP_EXCLUSIONS_BYTES) return emptyMap()
     return runCatching {
-        val root = JSONObject(raw)
-        root.keys().asSequence().associateWith { scope ->
-            val areas = root.getJSONObject(scope)
-            areas.keys().asSequence().mapNotNull { rawArea ->
-                val area = normalizeAutoSleepAreaId(rawArea).takeIf(String::isNotBlank) ?: return@mapNotNull null
-                val values = areas.getJSONArray(rawArea)
-                area to (0 until values.length()).mapNotNullTo(linkedSetOf()) { index ->
-                    normalizeAutoSleepEntityId(values.optString(index)).takeIf(String::isNotBlank)
-                }
-            }.toMap()
-        }
+        decodeAutoSleepExclusions(raw)
     }.onFailure { Log.w(TAG, "ignoring malformed auto-sleep source exclusions") }.getOrDefault(emptyMap())
 }
+
+/** Backup admission uses the live normalizers, rejecting malformed entries before any restore write. */
+internal fun normalizeAutoSleepExclusions(raw: String): String {
+    require(raw.toByteArray(Charsets.UTF_8).size <= MAX_AUTO_SLEEP_EXCLUSIONS_BYTES)
+    return runCatching {
+        encodeAutoSleepExclusions(decodeAutoSleepExclusions(raw.ifBlank { "{}" }, strict = true))
+    }.getOrElse { throw IllegalArgumentException("invalid auto-sleep exclusions", it) }
+}
+
+private fun decodeAutoSleepExclusions(raw: String, strict: Boolean = false): Map<String, Map<String, Set<String>>> {
+    val root = JSONObject(raw)
+    return root.keys().asSequence().associateWith { scope ->
+        if (strict) require(
+            (scope.startsWith("uuid:") && scope.removePrefix("uuid:").let { it.isNotBlank() && it.length <= 256 }) ||
+                (scope.startsWith("origin:") && scope.removePrefix("origin:").let {
+                    it.length <= 2_048 && canonicalHaOrigin(it)?.lowercase(Locale.ROOT) == it
+                }),
+        ) { "invalid auto-sleep exclusion owner" }
+        val areas = root.getJSONObject(scope)
+        areas.keys().asSequence().mapNotNull { rawArea ->
+            val area = normalizeAutoSleepAreaId(rawArea)
+            if (strict) require(area.isNotBlank()) { "invalid auto-sleep exclusion area" }
+            if (area.isBlank()) return@mapNotNull null
+            val values = areas.getJSONArray(rawArea)
+            area to (0 until values.length()).mapNotNullTo(linkedSetOf()) { index ->
+                val entity = normalizeAutoSleepEntityId(if (strict) values.get(index) as? String ?: "" else values.optString(index))
+                if (strict) require(entity.isNotBlank()) { "invalid auto-sleep exclusion source" }
+                entity.takeIf(String::isNotBlank)
+            }
+        }.toMap()
+    }
+}
+
+private fun encodeAutoSleepExclusions(all: Map<String, Map<String, Set<String>>>): String = JSONObject().apply {
+    all.toSortedMap().forEach { (scope, areas) ->
+        put(scope, JSONObject().apply {
+            areas.toSortedMap().forEach { (area, ids) -> put(area, JSONArray(ids.toSortedSet().toList())) }
+        })
+    }
+}.toString()
 
 private fun normalizeAutoSleepAreaId(raw: String): String = raw.trim().lowercase(Locale.ROOT)
     .takeIf { it.length <= 255 && it.matches(Regex("[a-z0-9_-]+")) }.orEmpty()
