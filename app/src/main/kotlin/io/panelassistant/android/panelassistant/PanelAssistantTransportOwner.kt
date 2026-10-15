@@ -396,6 +396,7 @@ internal class PanelAssistantTransportOwner(
                                 val reason = try {
                                     if (streaming != null && streamGrant != null) streaming.open(outcome.session.token, streamGrant)
                                     if (reporting != null && !observeForHello()) {
+                                        attemptedRoute = null // a local owner change, not the route's fault
                                         throw PanelAssistantProtocolException("panel state owner changed during hello")
                                     }
                                     reporting?.open(described)
