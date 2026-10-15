@@ -119,6 +119,16 @@ internal class HaLifecycle(
     fun state(nowMs: Long): HaLifecycleState = synchronized(lock) { stateLocked(nowMs) }
 
     private fun stateLocked(nowMs: Long): HaLifecycleState {
+        if (current == HaLifecycleState.SHUTTING_DOWN || current == HaLifecycleState.STARTING) {
+            // No READY may ever come (PA gone or never reloaded); give up the claim rather than hold it forever.
+            val age = nowMs - noticeReceivedMs
+            if (age >= NOTICE_LIMIT_MS || age < 0L) {
+                current = HaLifecycleState.NORMAL
+                notice = null
+                revision++
+            }
+            return current
+        }
         if (current != HaLifecycleState.BACK_ONLINE) return current
         // An injected or monotonic clock can move backwards; expire rather than extend the window.
         val elapsed = nowMs - backOnlineSinceMs
@@ -216,6 +226,13 @@ internal class HaLifecycle(
 
     companion object {
         const val DEFAULT_BACK_ONLINE_WINDOW_MS = 8_000L
+
+        /**
+         * How long a Stopping/Starting claim outlives its last Panel Assistant notice: 1.5x the worst
+         * measured production startup (395 s on 2026-10-09, usual 113 s). Measured from receipt, not
+         * from a hello, because refused hellos are normal throughout a restart.
+         */
+        const val NOTICE_LIMIT_MS = 600_000L
     }
 }
 

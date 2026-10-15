@@ -83,10 +83,11 @@ class HaLifecycleTest {
         assertNotNull(HaLifecycleMessage.text(ha.state(2_000)))
     }
 
-    @Test fun startingNeverDecaysOnItsOwn() {
+    @Test fun startingDecaysOnlyAfterTheNoticeLimit() {
         val ha = lifecycle()
         ha.notice(HaLifecyclePhase.STARTING, 1_000)
-        assertEquals(HaLifecycleState.STARTING, ha.state(9_999_000))
+        assertEquals(HaLifecycleState.STARTING, ha.state(600_999))
+        assertEquals(HaLifecycleState.NORMAL, ha.state(601_000))
     }
 
     @Test fun duplicateShutdownEventsDoNotReopenOrReannounce() {
