@@ -99,7 +99,6 @@ import io.panelassistant.android.http.retainCompanionLeaseUntilHelperIdle
 import io.panelassistant.android.logship.LogCapture
 import io.panelassistant.android.logship.LogShipper
 import io.panelassistant.android.logship.webViewConsoleEnabled
-import io.panelassistant.android.media.AudioPlaybackCoordinator
 import io.panelassistant.android.migration.AndroidIdentityMigration
 import io.panelassistant.android.migration.IdentityMigrationGate
 import io.panelassistant.android.migration.StartDisposition
@@ -500,9 +499,6 @@ class PaneldService : Service() {
     private val manageTable = ManageTable()
     private lateinit var rendererPreparation: RendererPreparationCoordinator
     private lateinit var entityLearning: EntityLearningManager
-    // Voice-assistant phase authority, driven by the coordinator. Home Assistant sees the phase as its
-    // satellite entity's state; on the panel it drives the listening indicator.
-    private val voiceStateAuthority = io.panelassistant.android.assist.VoiceStateAuthority()
     // Daily health checks, maintenance and recovery for the app database and its files.
     private val storageHealth = ServiceStorageHealth(
         this, scope, { teardownBoundary.isStopping },
@@ -578,9 +574,6 @@ class PaneldService : Service() {
     private lateinit var autoSleep: AutoSleepController
     private lateinit var haAmbientLux: HaAmbientLuxSubscriber
     private lateinit var haLinks: ServiceHaLinks
-    // The panel's side of its Assist satellite, carried on the Panel Assistant session.
-    private lateinit var panelAssistantVoice: io.panelassistant.android.panelassistant.PanelAssistantVoice
-    private val wakeWordCatalog by lazy { io.panelassistant.android.assist.wakeword.WakeWordCatalog(this) }
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
     // the active profile's.
@@ -627,45 +620,7 @@ class PaneldService : Service() {
     private lateinit var navigate: NavigateController
     private val companionHomeReturnGeneration = java.util.concurrent.atomic.AtomicLong()
     private lateinit var volume: VolumeController
-    private lateinit var audio: AudioPlaybackCoordinator
-    /** Panel Assistant's synchronised voice stream, offered whenever the library loads. */
-    private val voiceStream by lazy { io.panelassistant.android.panelassistant.PanelAssistantVoiceStream(io.panelassistant.android.media.VoiceStreamPlayer.forService(this, BuildConfig.VERSION_NAME), log = { Log.i(TAG, it) }) }
-    private lateinit var media: io.panelassistant.android.media.PanelMediaPlayer
-    private lateinit var voice: io.panelassistant.android.assist.VoiceAssistantCoordinator
-    private lateinit var sharedMicrophone: io.panelassistant.android.assist.ConfiguredMicrophoneSource
     private val notifications = ServiceNotifications(this)
-    private val microphoneClaims = io.panelassistant.android.audio.MicrophoneForegroundClaims(::updateMicrophoneForeground)
-    private val microphoneMute = io.panelassistant.android.audio.MicrophoneMuteWatch(
-        this, { microphonePresence().offered },
-        io.panelassistant.android.assist.publishMicrophoneMute { voice }, portalPrivacy = { profile.id == "meta-portal-10-gen2" })
-    // One coalesced restart per burst of voice_* changes: a bundle import writes every key in turn and
-    // must not rearm the listener once per key.
-    @Volatile private var voiceRestart: kotlinx.coroutines.Job? = null
-    private val voicePrefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == HaConnectionRoutes.EPOCH_KEY) reconfigure(setOf(key))
-        if (key != null && key.startsWith("voice_")) {
-            voiceRestart?.cancel()
-            voiceRestart = scope.launch {
-                kotlinx.coroutines.delay(VOICE_SETTINGS_COALESCE_MS)
-                voice.start()
-                panelAssistantVoice.configurationChanged()
-            }
-        }
-    }
-    /**
-     * What this panel tells Home Assistant it hears, or null when it has no microphone to be a satellite
-     * with. Read from the panel's own settings and model catalogue, which stay the one store.
-     */
-    private fun voiceConfiguration(): io.panelassistant.android.panelassistant.PanelAssistantVoiceConfiguration? =
-        io.panelassistant.android.panelassistant.PanelAssistantVoiceConfiguration.of(
-            if (::voice.isInitialized) voice.microphoneStatus()
-            else io.panelassistant.android.audio.MicrophoneStatus(microphonePresence()),
-            io.panelassistant.android.assist.VoiceSettings.parse(config.voiceEnabled, config.voiceWakeWords, config.voicePipelines),
-            wakeWordCatalog.available(),
-        )
-    /** The one place the profile's microphone declaration meets Android's report. */
-    private fun microphonePresence(of: DeviceProfile = profile) =
-        io.panelassistant.android.audio.MicrophonePresence.of(of.microphoneDeclared, this)
     private lateinit var system: SystemController
     private lateinit var tame: TameController
     private lateinit var navbar: NavbarController
@@ -700,9 +655,16 @@ class PaneldService : Service() {
     // stood down for as long as the doomed process lives.
     @Volatile private var standingDown = false
     private val teardownBoundary = ServiceTeardownBoundary()
+    // Voice, the microphone, audio playback and the media player: built, started and closed at the
+    // points below, in the order this service has always used.
+    private val voiceAudio = ServiceVoiceAudio(
+        this, scope, teardownBoundary, notifications, { config }, { profile }, { standingDown },
+        { if (::config.isInitialized) config.silenceBootChime else true },
+        { runtime }, { volume }, { mainHandler }, ::reconfigure,
+    )
     // The screen-on and WebView-provider receivers, registered at startup and released in onDestroy.
     private val receivers = ServiceReceivers(
-        this, teardownBoundary, microphoneMute,
+        this, teardownBoundary, voiceAudio.microphoneMute,
         { vendorServiceStarter }, { screen }, { core }, { webViewRebindRestart },
     )
     private val restartAfterInternalBoundary = AtomicBoolean(false)
@@ -826,7 +788,7 @@ class PaneldService : Service() {
             }
             if (GuardDbProcessAdmission.ordinaryMutationsAllowed() && !teardownBoundary.isStopping) {
                 PanelPermissionRepair.repair(
-                    this@PaneldService, microphonePresence(resolvedProfile.profile).offered,
+                    this@PaneldService, voiceAudio.microphonePresence(resolvedProfile.profile).offered,
                     cameraCapabilityReason(resolvedProfile.profile.cameraDeclared, cameraPresence.get()),
                 )
             }
@@ -974,29 +936,11 @@ class PaneldService : Service() {
             onAmbientThemeChanged = ::reconcileAmbientTheme,
         )
         haSiteMetadata = HaSiteMetadataClient(config)
-        panelAssistantVoice = io.panelassistant.android.panelassistant.PanelAssistantVoice(
-            scope = scope,
-            configuration = ::voiceConfiguration,
-            onAnnouncement = { announcement ->
-                val done = { panelAssistantVoice.played(announcement.announceId) }
-                if (::voice.isInitialized) {
-                    voice.announce(
-                        io.panelassistant.android.assist.VoiceAnnouncement(
-                            announcement.url, announcement.preannounceUrl, announcement.listenAfter,
-                            stream = announcement.stream, done = done,
-                        ),
-                    )
-                } else {
-                    done()
-                }
-            },
-            log = { message -> Log.i(TAG, message) },
-            onColors = { colors -> io.panelassistant.android.assist.VoiceAttention.colors = colors },
-        )
+        voiceAudio.buildAnnouncements()
         // The Home Assistant links and their health, built once in this order on the configuration above.
         haLinks = ServiceHaLinks(
             this, scope, config, teardownBoundary, panelAssistantReporter, panelAssistantCommands,
-            panelAssistantVoice, voiceStream, { runtime }, { server },
+            voiceAudio.panelAssistantVoice, voiceAudio.voiceStream, { runtime }, { server },
         )
         haAmbientLux = HaAmbientLuxSubscriber(
             scope = scope,
@@ -1026,20 +970,20 @@ class PaneldService : Service() {
         // The stream transport reads the owner through the FIELD so construction order does not matter:
         // it only asks for the camera once a client connects, which cannot happen before the owner
         // exists because the owner is what turns listening on.
-        sharedMicrophone = io.panelassistant.android.assist.ConfiguredMicrophoneSource(applicationContext, config)
+        voiceAudio.buildSharedMicrophone()
         cameraStream = io.panelassistant.android.camera.CameraRtspServer(
             source = { camera },
             log = { Log.w(TAG, "camera stream: $it") },
             clockUs = { android.os.SystemClock.elapsedRealtimeNanos() / 1_000L },
             audio = io.panelassistant.android.camera.AndroidCameraAudioSource(
-                source = { sharedMicrophone.get() },
+                source = { voiceAudio.sharedMicrophone.get() },
                 admitted = {
                     // Any offered microphone: an unproven silent one costs only a silent track.
-                    microphonePresence().offered && config.cameraEnabled && !teardownBoundary.isStopping &&
+                    voiceAudio.microphonePresence().offered && config.cameraEnabled && !teardownBoundary.isStopping &&
                         androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
                         android.content.pm.PackageManager.PERMISSION_GRANTED
                 },
-                foreground = { active -> microphoneClaims.set("camera", active) },
+                foreground = { active -> voiceAudio.microphoneClaims.set("camera", active) },
                 log = { message, error -> Log.w(TAG, message, error) },
             ),
         )
@@ -1069,52 +1013,7 @@ class PaneldService : Service() {
         )
         navigate = NavigateController(this)
         volume = VolumeController(this)
-        // Home Assistant's media player. Announcements (speech, with the silent tail that keeps the last
-        // syllable) go to the announcement lane below; other media streams here.
-        media = io.panelassistant.android.media.PanelMediaPlayer(
-            streams = { url, onPrepared, onEnded -> AndroidMediaStream(url, onPrepared, onEnded) },
-            post = { block -> mainHandler.post(block) },
-            announce = { url, stream ->
-                if (stream != null && ::voice.isInitialized) voice.announceStreamedMedia(url, stream) else (if (stream != null) audio.submitStreamForGeneration(stream) else audio.submitForGeneration(url, speech = true)) != null
-            },
-            cancelAnnouncement = { audio.snapshot().let { audio.cancelGeneration(it.generation) } },
-            muted = volume::isMuted,
-            setMuted = volume::setMuted,
-            log = { Log.w(TAG, it) },
-        )
-        media.setChangeListener { runCatching { runtime.current().core.mediaChanged() } }
-        audio = AudioPlaybackCoordinator(
-            AudioPlayer.factory(cacheDir, voiceStream),
-            onFailure = { error -> Log.w(TAG, "audio playback failed: ${error.javaClass.simpleName}") },
-            onBusyChanged = { busy -> media.hold(io.panelassistant.android.media.PanelMediaPlayer.Hold.ANNOUNCEMENT, busy) },
-        )
-        // Arms when the setting is on and the panel has a microphone; an unproven one (Android's report
-        // alone, which some boards make for silent hardware) is checked by the coordinator first.
-        voice = io.panelassistant.android.assist.voiceAssistantCoordinator(
-            context = this,
-            config = config,
-            scope = scope,
-            audio = audio,
-            microphone = { microphonePresence() },
-            onMicrophoneStatus = { panelAssistantVoice.configurationChanged() },
-            muted = { microphoneMute.mute.muted },
-            source = { sharedMicrophone.get() },
-            foregroundMicrophone = ::setMicrophoneForegroundActive,
-            state = voiceStateAuthority,
-            engineFactory = io.panelassistant.android.assist.MicroWakeWordEngineFactory(
-                wakeWordCatalog,
-                log = { Log.i(TAG, it) },
-                sensitivity = { config.voiceSensitivity },
-            ),
-            voice = panelAssistantVoice,
-            log = { Log.i(TAG, it) },
-        )
-        voiceStateAuthority.setChangeListener {
-            val state = voiceStateAuthority.current()
-            io.panelassistant.android.assist.VoiceAttention.phase(state)
-            media.hold(io.panelassistant.android.media.PanelMediaPlayer.Hold.VOICE, state.inTurn)
-        }
-        microphoneMute.start(scope)
+        voiceAudio.buildPlayback()
         system = SystemController(AndroidSystemEnv(this), vendorHomePackages = profile.vendorHomePackages, isDeviceSecure = AndroidScreenPower(this)::isDeviceSecure, beforeReboot = {
             announcePanelAssistantRestart("panel", "reboot", 120_000L)
         }, homeDashboard = { config.homeDashboard }, onCompanionHome = { pkg, home ->
@@ -1335,7 +1234,7 @@ class PaneldService : Service() {
             requestRestart = { recoveryRestart.request() },
         )
         server = PaneldServer(
-            config, cacheDir, scope, this, sensors, profile, system, volume, audio::submit, ::reconfigure,
+            config, cacheDir, scope, this, sensors, profile, system, volume, voiceAudio.audio::submit, ::reconfigure,
             // The dispatcher is replaceable. If its command admission is already draining, retain the
             // persisted setting and replay it against the replacement before reconfigure completes.
             { k, v ->
@@ -1347,13 +1246,10 @@ class PaneldService : Service() {
             pendingLiveSettings = liveSettingAuthority::pendingSnapshot,
             stalledLiveSettings = liveSettingAuthority::pendingStalledSnapshot,
             assistPipelines = io.panelassistant.android.assist.HaAssistPipelineDirectory(config),
-            voiceTest = io.panelassistant.android.assist.VoiceTestTrigger { voice.trigger() },
-            voiceMicrophone = { voice.microphoneStatus() },
-            wakeWords = wakeWordCatalog,
-            onWakeWordsChanged = {
-                voice.start()
-                panelAssistantVoice.configurationChanged()
-            },
+            voiceTest = io.panelassistant.android.assist.VoiceTestTrigger { voiceAudio.voice.trigger() },
+            voiceMicrophone = { voiceAudio.voice.microphoneStatus() },
+            wakeWords = voiceAudio.wakeWordCatalog,
+            onWakeWordsChanged = { voiceAudio.restartVoice() },
             // Controller-sourced setting values (their state isn't in the config namespace) so the
             // config form/schema/dashboard show live truth. Called on Ktor IO threads (su-safe).
             configLiveValues = ::currentConfigLiveValues,
@@ -1374,7 +1270,7 @@ class PaneldService : Service() {
             // One-line EFR32 radio status for the Install-tab Radio card; null when this panel has no radio.
             radioStatus = { if (profile.zigbeeGatewayDir != null) zigbeeHealth.snapshot() else null },
             camera = camera,
-            permissionStatus = { PanelPermissionRepair.observe(this, microphonePresence().offered, cameraReason()) },
+            permissionStatus = { PanelPermissionRepair.observe(this, voiceAudio.microphonePresence().offered, cameraReason()) },
             panelAssistantTransport = haLinks.panelAssistantTransport,
             onZigbeeJoinRetry = { runtime.current().commands.requestZigbeeJoin() },
             // LAN ha-paneld peers over mDNS for the header panel switcher. Captures the `mdns` FIELD (not a
@@ -1470,7 +1366,7 @@ class PaneldService : Service() {
         // SMT1019 also uses SocketLedController for RGB but has no button-backlight node.
         profile.hasButtonBacklight,
         buttonBacklightTransfer = profile.buttonBacklightTransfer,
-        media = media.takeIf { profile.hasSpeaker },
+        media = voiceAudio.media.takeIf { profile.hasSpeaker },
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
         autoSleepActivity = { autoSleep.activitySnapshot() },
@@ -1495,8 +1391,8 @@ class PaneldService : Service() {
         // SMT1019 also uses SocketLedController for RGB but has no button-backlight node.
         hasButtonBacklight = profile.hasButtonBacklight,
         buttonBacklightTransfer = profile.buttonBacklightTransfer,
-        hasMicrophone = microphonePresence().offered,
-        media = media.takeIf { profile.hasSpeaker },
+        hasMicrophone = voiceAudio.microphonePresence().offered,
+        media = voiceAudio.media.takeIf { profile.hasSpeaker },
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         autoBright = autoBright,
         onAutoBrightnessConfigChanged = { refreshAdaptiveBrightnessInputs() },
@@ -2072,7 +1968,7 @@ class PaneldService : Service() {
             "Network ADB" to networkAdbDiagnostic(controllers.networkAdbPersisted, controllers.networkAdbActive),
             "USB debugging" to usbDebugging.statusText(),
             "Log shipping" to logShipper.statusText(),
-            "Audio playback" to audio.snapshot().statusText(),
+            "Audio playback" to voiceAudio.audio.snapshot().statusText(),
         )
         appDatabase?.let { extras["App database"] = it }
         // Rolling 24-hour Wi-Fi outage count — present only once the window holds an episode or
@@ -2187,7 +2083,7 @@ class PaneldService : Service() {
                 hasWifiSsid = wifiAvailable.ssid,
                 hasCht8305 = profile.hasCht8305,
                 hasCamera = cameraPresent(),
-                microphone = microphonePresence(),
+                microphone = voiceAudio.microphonePresence(),
                 appCanSu = profile.appCanSu,
                 hasRecents = profile.hasRecents,
                 // Declared physical buttons. Populated because a capability whose value is always its
@@ -2309,9 +2205,7 @@ class PaneldService : Service() {
                         set(value) { config.cameraPermissionDeclined = value }
                 },
             )
-            config.registerChangeListener(voicePrefsListener)
-            voiceForegroundRetry = { voice.retryStart() }
-            scope.launch { if (!teardownBoundary.isStopping) voice.start() }
+            voiceAudio.start()
             storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
             registerBrightnessPreferenceObserver()
@@ -2379,11 +2273,11 @@ class PaneldService : Service() {
                         text,
                         localeTag,
                         io.panelassistant.android.assist.AnnouncementLanePlayback(
-                            audio,
+                            voiceAudio.audio,
                             onGeneration = onGeneration,
                         ),
                     )
-                }, stopPlayback = { generation -> audio.cancelGeneration(generation) }),
+                }, stopPlayback = { generation -> voiceAudio.audio.cancelGeneration(generation) }),
             )
             val startupCompanionPackage = CompanionInstaller.installedPkg(this)
                 ?: system.resolveDashboard(config.dashboardPackage)
@@ -2764,33 +2658,6 @@ class PaneldService : Service() {
         }.onFailure { Log.w(TAG, "could not reconcile native locale/night mode from the database", it) }
     }
 
-    /**
-     * Add or drop the microphone foreground-service type around a microphone lease.
-     *
-     * Call it on the main thread with `true` as the first lease opens and `false` as the last one is
-     * released; it is idempotent and inert until something actually calls it. Returns whether the
-     * type is now what was asked for, so a caller that needs the microphone can refuse to start
-     * capture it is not allowed to run. Before Android 11 there is no microphone type to claim and
-     * no while-in-use restriction to satisfy, so it succeeds without claiming anything.
-     *
-     * **Android 14 will refuse a microphone foreground service that is started from the background.**
-     * A `while-in-use` type may only be claimed from a state that allows it — an activity in the
-     * foreground, or one of the documented exemptions — and a claim made from the background throws
-     * `ForegroundServiceStartNotAllowedException` (or, on some builds, silently omits the type).
-     * That is a policy question about *when* capture may begin, and it belongs to whatever owns the
-     * leases, not here: this method reports the failure and leaves the service running with the
-     * types it already had.
-     */
-    internal fun setMicrophoneForegroundActive(active: Boolean): Boolean = microphoneClaims.set("voice", active)
-
-    private fun updateMicrophoneForeground(active: Boolean): Boolean {
-        if (standingDown || teardownBoundary.isStopping) return false
-        return notifications.updateMicrophoneForeground(
-            active,
-            silent = if (::config.isInitialized) config.silenceBootChime else true,
-        )
-    }
-
     private fun updateForegroundStatus(statusText: String) {
         if (teardownBoundary.isStopping) return
         notifications.updateForegroundStatus(statusText, config.silenceBootChime)
@@ -2816,8 +2683,7 @@ class PaneldService : Service() {
      */
     private fun closeServiceAdmissions() {
         proximityWizard?.close()
-        if (::audio.isInitialized) beginAudioTeardown(audio::closeAdmission, audio::cancelCurrent)
-        if (::media.isInitialized) media.command(io.panelassistant.android.media.PanelMediaCommand.Stop)
+        voiceAudio.closeAdmission()
         if (::kiosk.isInitialized) kiosk.closeAdmission()
         if (::navbar.isInitialized) navbar.closeAdmission()
         if (::screen.isInitialized) screen.closeAdmission()
@@ -2975,14 +2841,7 @@ class PaneldService : Service() {
             closeOwner("kiosk") { kiosk.apply(false) }
             closeOwner("navbar") { navbar.cleanup() }
             if (::entityLearning.isInitialized) EntityLearningRuntime.detach(entityLearning)
-            val audioWaitMs = minOf(asyncTeardownDeadline.remainingMs(), AUDIO_SHUTDOWN_MS)
-            val audioStopped = runCatching {
-                audioWaitMs > 0L && kotlinx.coroutines.runBlocking { audio.close(audioWaitMs) }
-            }.getOrDefault(false)
-            audioDrained.set(audioStopped)
-            if (!audioStopped) {
-                Log.w(TAG, "audio cleanup exceeded ${AUDIO_SHUTDOWN_MS}ms")
-            }
+            voiceAudio.closeAudio(asyncTeardownDeadline, audioDrained)
             // The publication target and command ingress are now terminal; drain the remaining
             // producers and hardware owners in dependency order.
             if (::zigbeeHealth.isInitialized) closeOwnerResult("Zigbee health") { zigbeeHealth.stop() }
@@ -2991,11 +2850,7 @@ class PaneldService : Service() {
             if (::autoSleep.isInitialized) {
                 closeOwnerResult("auto sleep") { autoSleep.closeAndJoin(asyncTeardownDeadline.remainingMs()) }
             }
-            if (::voice.isInitialized) {
-                voiceForegroundRetry = null
-                config.unregisterChangeListener(voicePrefsListener)
-                closeOwnerResult("voice assistant") { voice.shutdown(asyncTeardownDeadline.remainingMs()) }
-            }
+            voiceAudio.closeVoice(::closeOwnerResult, asyncTeardownDeadline)
             if (::haLinks.isInitialized) haLinks.close(::closeOwner)
             closeOwner("sensors") { sensorPersistenceClosed.set(sensors.stop()) }
             BuiltinDashboard.setForegroundGainedListener(null)
@@ -3008,9 +2863,7 @@ class PaneldService : Service() {
             // The stream transport before the camera: every client is disconnected and its lease
             // returned before the owner tears the session down, and no new client can reattach.
             if (::cameraStream.isInitialized) closeOwner("camera stream") { cameraStream.stop() }
-            if (::sharedMicrophone.isInitialized) closeOwnerResult("shared microphone") {
-                sharedMicrophone.shutdown(asyncTeardownDeadline.remainingMs())
-            }
+            voiceAudio.closeSharedMicrophone(::closeOwnerResult, asyncTeardownDeadline)
             // Before the LED: a session may hold it for indication and gives it back on close.
             if (::camera.isInitialized) {
                 closeOwnerResult("camera") {
@@ -3500,19 +3353,6 @@ class PaneldService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        private const val VOICE_SETTINGS_COALESCE_MS = 300L
-
-        // The running service, if any, for the activity's foreground signal. Android refuses a
-        // microphone foreground service started from the background, so a claim the platform refused
-        // is retried the moment the panel's own activity comes forward, rather than only on the
-        // coordinator's slower timer.
-        @Volatile private var voiceForegroundRetry: (() -> Unit)? = null
-
-        /** Called by the dashboard when it becomes visible. Inert when no service or no coordinator. */
-        fun notifyActivityForeground() {
-            voiceForegroundRetry?.invoke()
-        }
-
         internal const val TAG = "ha-paneld/svc"
         private const val CAMERA_STOP_MS = 3_000L
         // Local observation cadence; the one-minute state audit of state-convergence.md.
@@ -3527,7 +3367,6 @@ class PaneldService : Service() {
         private const val KIOSK_RECOVERY_ATTEMPTS = 3
         private const val KIOSK_CANCEL_JOIN_MS = 500L
         internal const val WAKE_WORKER_JOIN_MS = 500L
-        private const val AUDIO_SHUTDOWN_MS = 2_000L
         private const val SERVICE_DESTROY_BUDGET_MS = 1_000L
         private const val ASYNC_TEARDOWN_WAIT_MS = 10_000L
         private const val ASYNC_TEARDOWN_BUDGET_MS = 30_000L
