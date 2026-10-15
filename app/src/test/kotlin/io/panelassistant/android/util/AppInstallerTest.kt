@@ -217,6 +217,53 @@ class AppInstallerTest {
         assertFalse("neither invalid identity may reach database admission", compatibilityConsulted)
     }
 
+    @Test fun preparedCandidateWhoseBoundaryNoLongerMatchesAdmissionIsRefused() {
+        var compatibilityConsulted = false
+        val refusal = AppInstaller.localInstallCandidateRefusal(
+            info = selfInfo().copy(version = "1.1.0", versionCode = 110, nativeProtocolRange = 3..3),
+            runningPackage = AppInstaller.HA_PANELD.pkg,
+            admittedBoundary = boundary.copy(maximumSchema = 15),
+            updatePolicy = PanelAssistantUpdatePolicy(1, 3, false),
+            currentVersion = "1.0.0",
+            currentCode = 100,
+        ) {
+            compatibilityConsulted = true
+            null
+        }
+
+        assertEquals("prepared APK database boundary changed after admission", refusal)
+        assertFalse("a boundary other than the admitted one is never re-decided", compatibilityConsulted)
+    }
+
+    @Test fun uploadedOwnPackageMustCarryAndPassItsDatabaseContract() {
+        // The Install-tab upload reaches this gate with no prepared boundary and the running package.
+        val seen = mutableListOf<DatabaseCompatibilityApkContract.Boundary>()
+        fun upload(contract: DatabaseCompatibilityApkContract.Parsed) =
+            AppInstaller.localInstallCandidateRefusal(
+                info = selfInfo(contract = contract)
+                    .copy(version = "1.1.0", versionCode = 110, nativeProtocolRange = 3..3),
+                runningPackage = AppInstaller.HA_PANELD.pkg,
+                admittedBoundary = null,
+                updatePolicy = PanelAssistantUpdatePolicy(1, 3, false),
+                currentVersion = "1.0.0",
+                currentCode = 100,
+            ) {
+                seen += it
+                "database compatibility primary unreadable"
+            }
+
+        assertEquals(
+            "candidate database compatibility metadata is missing",
+            upload(DatabaseCompatibilityApkContract.Parsed.Missing),
+        )
+        assertEquals(emptyList<DatabaseCompatibilityApkContract.Boundary>(), seen)
+        assertEquals(
+            "database compatibility primary unreadable",
+            upload(DatabaseCompatibilityApkContract.Parsed.Valid(boundary)),
+        )
+        assertEquals(listOf(boundary), seen)
+    }
+
     @Test fun unpreparedLocalInstallRequiresReadableApkButStillAllowsReadableNonSelfPackage() {
         var compatibilityConsulted = false
         val unreadable = AppInstaller.localInstallCandidateRefusal(
@@ -439,6 +486,38 @@ AppInstaller.download("https://cdn.example/app.apk", destination, 1024L, abort) 
         assertFalse("a cancelled download must not issue a request at all", requested)
         assertTrue("the connection opened before the abort was seen must be closed", disconnected)
         assertEquals(0L, destination.length())
+    }
+
+    /** A server that sends `200` with the given body and declared length, for driving [AppInstaller.download]. */
+    private fun answering(body: ByteArray, declaredLength: Long) =
+        object : java.net.HttpURLConnection(java.net.URL("https://cdn.example/app.apk")) {
+            override fun connect() = Unit
+            override fun usingProxy() = false
+            override fun disconnect() = Unit
+            override fun getResponseCode() = 200
+            override fun getContentLengthLong() = declaredLength
+            override fun getInputStream() = ByteArrayInputStream(body)
+        }
+
+    @Test fun aBodyLargerThanTheCeilingIsTooLargeEvenWithoutADeclaredLength() {
+        val destination = File.createTempFile("download-undeclared-", ".apk").also { it.deleteOnExit() }
+        val connection = answering(ByteArray(10), declaredLength = -1L)
+
+        assertEquals(
+            AppInstaller.DownloadResult.TooLarge,
+            AppInstaller.download("https://cdn.example/app.apk", destination, 4L) { connection },
+        )
+        assertEquals(0L, destination.length())
+    }
+
+    @Test fun anEmptyResponseIsAFailedDownloadNotAnApk() {
+        val destination = File.createTempFile("download-empty-", ".apk").also { it.deleteOnExit() }
+        val connection = answering(ByteArray(0), declaredLength = 0L)
+
+        assertEquals(
+            AppInstaller.DownloadResult.Failed,
+            AppInstaller.download("https://cdn.example/app.apk", destination, 1024L) { connection },
+        )
     }
 
     @Test fun refusesNonHttpScheme() {

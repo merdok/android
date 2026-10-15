@@ -81,6 +81,7 @@ static int gpio_value_open_count;
 static int gpio_edge_open_count;
 static char gpio_value_fixture[128];
 static char gpio_edge_fixture[128];
+static char evdev_fixture[128];
 int __real_open(const char *path, int flags, ...);
 ssize_t __real_write(int fd, const void *buf, size_t count);
 
@@ -147,7 +148,7 @@ int __wrap_open(const char *path, int flags, ...) {
     if (strncmp(path, "/dev/input/event", 16) == 0) {
         evdev_open_count++;
         if (!evdev_open_ok) { errno = ENOENT; return -1; }
-        selected = "/dev/null";
+        selected = evdev_fixture[0] ? evdev_fixture : "/dev/null";
     } else if (strncmp(path, "/sys/class/gpio/gpio", 20) == 0) {
         size_t path_len = strlen(path);
         if (path_len >= 6 && strcmp(path + path_len - 6, "/value") == 0) {
@@ -1801,6 +1802,59 @@ static void test_grab_subscription_ownership(void) {
     sysexec_stub_reset();
 }
 
+// A subscriber whose socket died is dropped by the evdev reader's broadcast, not by an explicit
+// unsubscribe; when it was the last one, that broadcast must release the exclusive touch grab.
+static void test_dead_subscriber_on_broadcast_releases_grab(void) {
+    input_init();
+    sysexec_stub_reset();
+    evdev_open_ok = 1; evdev_grab_ok = 1;
+    snprintf(evdev_fixture, sizeof evdev_fixture, "/tmp/.hapaneld-evdev-fixture-%ld", (long)getpid());
+    (void)unlink(evdev_fixture);
+    CHECK(mkfifo(evdev_fixture, 0600) == 0, "create evdev FIFO fixture\n");
+    int feed = __real_open(evdev_fixture, O_RDWR | O_CLOEXEC);
+    sysexec_stub_set_spawn_real(1);
+    CHECK(input_watch("/dev/input/event6", 1) == 0, "grab-capable WATCH starts the evdev reader\n");
+
+    int dead[2], fresh[2];
+    socketpair(AF_UNIX, SOCK_STREAM, 0, dead);
+    socketpair(AF_UNIX, SOCK_STREAM, 0, fresh);
+    conn_ctx dead_ctx = { .fd = dead[0], .subscribed = 0 };
+    conn_ctx fresh_ctx = { .fd = fresh[0], .subscribed = 0 };
+    char subscribe[] = "SUBSCRIBE";
+    dispatch(&dead_ctx, subscribe);
+    char out[8] = "";
+    ssize_t n = read(dead[1], out, sizeof out - 1);
+    out[n > 0 ? n : 0] = '\0';
+    CHECK(strcmp(out, "OK\n") == 0, "subscriber admitted before its socket dies (got '%s')\n", out);
+    int acquired = evdev_grab_acquire_count, released = evdev_grab_release_count;
+    close(dead[1]);
+
+    struct input_event ev;
+    memset(&ev, 0, sizeof ev);
+    ev.type = EV_KEY; ev.code = KEY_POWER; ev.value = 1;
+    CHECK(feed >= 0 && write(feed, &ev, sizeof ev) == (ssize_t)sizeof ev, "feed one key event\n");
+    for (int attempt = 0; attempt < 100 && evdev_grab_release_count == released; attempt++)
+        usleep(20000);
+    CHECK(evdev_grab_release_count == released + 1,
+          "a broadcast that drops the last dead subscriber releases the live grab (got %d -> %d)\n",
+          released, evdev_grab_release_count);
+    char again[] = "SUBSCRIBE";
+    dispatch(&fresh_ctx, again);
+    n = read(fresh[1], out, sizeof out - 1);
+    out[n > 0 ? n : 0] = '\0';
+    CHECK(strcmp(out, "OK\n") == 0 && evdev_grab_acquire_count == acquired + 1,
+          "the next subscriber acquires the grab afresh after the dead one was dropped\n");
+
+    input_unsubscribe(fresh[0]);
+    close(fresh[0]); close(fresh[1]); close(dead[0]);
+    input_init();
+    if (feed >= 0) close(feed);
+    usleep(300000); // let the detached reader observe its generation change
+    sysexec_stub_set_spawn_real(0);
+    (void)unlink(evdev_fixture);
+    evdev_fixture[0] = '\0';
+}
+
 // The SMT1019 LED path: per-channel ioctl on /dev/ledjni. Untestable on owned hardware, so pin the
 // wire protocol here — the exact command numbers and the 0..255 -> 0..15 scaling. The expected values
 // are HARDCODED (not pulled from led.c's #defines) so an accidental change to either fails this test.
@@ -2416,6 +2470,7 @@ int main(int argc, char **argv) {
     test_gpio_watch_contract();
     test_subscriber_admission();
     test_grab_subscription_ownership();
+    test_dead_subscriber_on_broadcast_releases_grab();
     test_ledjni_ioctl();
     test_conn_cap();
     test_room_climate_input_allowlist();

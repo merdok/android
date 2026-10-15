@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 /* Each package's data directory is present or absent independently, and owned by its own uid — the
  * two apps carry no sharedUserId, so a panel mid-migration really does hold two distinct uids and two
@@ -30,6 +31,7 @@ static int peer_auth_test_stat(const char *path, struct stat *st) {
 
 /* White-box the accept-loop policy while replacing only stat(2). Keeping the production function in
  * this translation unit ensures the regression test cannot drift into a second implementation. */
+#define SOCK_NAME "hapaneld-helper-peer-auth-test"
 #define stat(path, st) peer_auth_test_stat((path), (st))
 #define main hapaneld_helper_main_for_peer_auth_test
 #include "../src/main.c"
@@ -42,11 +44,12 @@ void gpio_init(void) {}
 void screen_init(void) {}
 void led_init(void) {}
 int input_watch(const char *path, int grab) { (void)path; (void)grab; return 0; }
-void server_serve(int fd, enum helper_caller caller) { (void)fd; (void)caller; }
+/* An admitted connection answers one marker byte, so a test peer can tell admission from rejection. */
+void server_serve(int fd, enum helper_caller caller) { (void)caller; (void)!write(fd, "S", 1); }
 void input_unsubscribe(int fd) { (void)fd; }
 void gpio_unsubscribe(int fd) { (void)fd; }
 void conn_release(void) {}
-int conn_admit(void) { return 0; }
+int conn_admit(void) { return 1; }
 int guard_maintenance_init(void) { return 0; }
 int guard_maintenance_replacement_safe(void) { return 0; }
 int guard_maintenance_replacement_parent_grant(char nonce[65]) { (void)nonce; return -1; }
@@ -80,6 +83,56 @@ int sysexec_terminate_argv(pid_t pid, int *status) { (void)pid; (void)status; re
 #define CHECK(condition, message) do { \
     if (!(condition)) { fprintf(stderr, "FAIL: %s\n", message); return 1; } \
 } while (0)
+
+/* Connect to the test daemon and return the bytes it sends before closing, or -1 if unreachable. */
+static int connect_and_read(void) {
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof addr);
+    addr.sun_family = AF_UNIX;
+    memcpy(addr.sun_path + 1, SOCK_NAME, sizeof SOCK_NAME - 1);
+    socklen_t alen = offsetof(struct sockaddr_un, sun_path) + 1 + (sizeof SOCK_NAME - 1);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0) return -1;
+    if (connect(fd, (struct sockaddr *)&addr, alen) != 0) { close(fd); return -1; }
+    struct timeval timeout = { .tv_sec = 3, .tv_usec = 0 };
+    (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+    char buffer[8];
+    int total = 0;
+    for (;;) {
+        ssize_t n = read(fd, buffer, sizeof buffer);
+        if (n <= 0) break;
+        total += (int)n;
+    }
+    close(fd);
+    return total;
+}
+
+/* Runs the production accept loop and reports what a root peer and an unrelated uid each receive.
+ * Returns 0 when root is served and the unrelated uid is closed with no bytes. */
+static int accept_loop_rejects_unrelated_uid(void) {
+    if (getuid() != 0) return 1;
+    pid_t daemon = fork();
+    if (daemon == 0) {
+        char *argv[] = { "hapaneld-helper", NULL };
+        _exit(run_daemon(1, argv, NULL, 0));
+    }
+    if (daemon < 0) return 1;
+    int root_bytes = -1;
+    for (int attempt = 0; attempt < 100 && root_bytes < 0; attempt++) {
+        root_bytes = connect_and_read();
+        if (root_bytes < 0) usleep(20000);
+    }
+    pid_t peer = fork();
+    if (peer == 0) {
+        if (setresgid(65534, 65534, 65534) != 0 || setresuid(65534, 65534, 65534) != 0) _exit(2);
+        _exit(connect_and_read() == 0 ? 0 : 1);
+    }
+    int peer_status = -1;
+    if (peer > 0) waitpid(peer, &peer_status, 0);
+    kill(daemon, SIGKILL);
+    waitpid(daemon, NULL, 0);
+    return root_bytes == 1 && WIFEXITED(peer_status) && WEXITSTATUS(peer_status) == 0 ? 0 : 1;
+}
 
 #define ALLOWED(uid) (resolve_caller(uid) != HELPER_CALLER_NONE)
 
@@ -173,6 +226,12 @@ int main(void) {
           "root probe mode must not expose package removal");
     CHECK(!probe_command_allowed("GRANT io.panelassistant.android ACCESSIBILITY"),
           "root probe mode must not expose the grant verb");
+
+    legacy_present = 1;
+    legacy_uid = 12345;
+    successor_present = 0;
+    CHECK(accept_loop_rejects_unrelated_uid() == 0,
+          "the accept loop closes an unrelated uid before any reply while serving root");
 
     puts("peer auth tests passed");
     return 0;

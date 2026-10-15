@@ -194,6 +194,20 @@ class PanelBackupTest {
         )
     }
 
+    @Test fun archiveMissingAnAllowedButUntargetedEntryIsRefused() {
+        val payload = temporary.newFile("only.txt").apply { writeText("a") }
+        val archive = temporary.newFile("missing.zip")
+        archive.outputStream().use {
+            PanelBackup.writeArchive(
+                it,
+                """{"kind":"ha-paneld-backup","schema":2}""",
+                listOf(PanelBackup.ArchiveSource("entity/a.txt", payload)),
+            )
+        }
+        assertTrue(PanelBackup.extractArchive(archive, emptyList(), setOf("entity/a.txt")))
+        assertFalse(PanelBackup.extractArchive(archive, emptyList(), setOf("entity/a.txt", "entity/b.txt")))
+    }
+
     @Test fun artifactDeletesItsPrivateFile() {
         val file = temporary.newFile("artifact.hpb")
         PanelBackup.Artifact(file).close()

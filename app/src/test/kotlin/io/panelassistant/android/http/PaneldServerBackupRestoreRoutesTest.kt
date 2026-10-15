@@ -1,5 +1,13 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.device.profile.ProfileActivationPhase
+import io.panelassistant.android.device.profile.ProfileActivationState
+import io.panelassistant.android.device.profile.ProfileAdmin
+import io.panelassistant.android.device.profile.ProfileBackup
+import io.panelassistant.android.device.profile.ProfileRef
+import io.panelassistant.android.device.profile.ProfileSelection
+import io.panelassistant.android.device.profile.ProfileStatus
+
 import io.panelassistant.android.CommandOrigin
 import io.panelassistant.android.Config
 import io.panelassistant.android.ManageReply
@@ -396,5 +404,82 @@ class PaneldServerBackupRestoreRoutesTest {
         const val LEGACY_BACKUP = """{"kind":"ha-paneld-backup","schema":1,"panel_id":"source","config":{"panel_id":"restored"}}"""
         const val NAMED_BACKUP = """{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Must not apply"}}"""
         const val NETWORK_ADB_BACKUP = """{"kind":"ha-paneld-backup","schema":15,"config":{"network_adb":"true","friendly_name":"Must not apply"}}"""
+    }
+    @Test fun `full mount refuses a sealed backup with the wrong passphrase before parsing it`() {
+        PaneldServerHttpFixture().use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                val sealed = PanelBackup.seal(
+                    """{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Sealed panel"}}""".toByteArray(),
+                    "correct horse",
+                )
+                val response = client.post("/api/v1/restore?dry_run=1") {
+                    header("X-Backup-Passphrase", "battery staple")
+                    setBody(sealed)
+                }
+                val body = JSONObject(response.bodyAsText())
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertEquals("wrong passphrase or corrupt bundle", body.optString("error"))
+                assertEquals("restore-passphrase-or-bundle-invalid", body.optJSONObject("presentation")?.optString("code"))
+                assertEquals(false, InstallProgress.running)
+            }
+        }
+    }
+
+    @Test fun `full mount refuses a companion payload for a package the panel does not have`() {
+        PaneldServerHttpFixture().use { fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.post("/api/v1/restore?dry_run=1") {
+                    setBody(
+                        """{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored panel"},""" +
+                            """"companion":{"pkg":"io.homeassistant.companion.android.minimal",""" +
+                            """"files":[{"rel":"databases/HomeAssistantDB","b64":"ZGF0YQ=="}]}}""",
+                    )
+                }
+                val body = JSONObject(response.bodyAsText())
+                assertEquals(body.toString(), HttpStatusCode.BadRequest, response.status)
+                assertEquals("companion-unsupported-package", body.optJSONObject("presentation")?.optString("code"))
+                assertEquals("contract-panel", fixture.config.panelId)
+                assertEquals(false, InstallProgress.running)
+            }
+        }
+    }
+
+    @Test fun `full mount refuses a profile catalog the panel cannot restore`() {
+        PaneldServerHttpFixture().use { fixture ->
+            val status = ProfileStatus(1, ProfileSelection.Auto, null, ProfileActivationState(ProfileActivationPhase.ACTIVE))
+            // The interface's own planBackupRestore answers an invalid plan.
+            val admin = object : ProfileAdmin {
+                override fun schema() = error("unused")
+                override fun drivers() = error("unused")
+                override fun status() = status
+                override fun list() = error("unused")
+                override fun preview(rawYaml: String) = error("unused")
+                override fun importProfile(rawYaml: String, previewToken: String) = error("unused")
+                override fun exportProfile(ref: ProfileRef) = error("unused")
+                override fun select(selection: ProfileSelection, expectedCatalogRevision: Long) = error("unused")
+                override fun rollbackToLastKnownGood(expectedCatalogRevision: Long) = error("unused")
+                override fun deleteProfile(ref: ProfileRef, expectedCatalogRevision: Long) = error("unused")
+                override fun restoreBackup(payload: ProfileBackup, expectedCatalogRevision: Long) =
+                    error("An unrestorable catalog must never be applied")
+            }
+            val profiles = ProfileBackup(revisions = emptyList(), selection = ProfileSelection.Auto, active = null, lastKnownGood = null).toJson()
+            testApplication {
+                application {
+                    fixture.mount(this)
+                    // After mounting: the restore route reads its profile admin per request.
+                    PaneldServer::class.java.getDeclaredField("profileAdmin").apply { isAccessible = true }.set(fixture.server, admin)
+                }
+                val response = client.post("/api/v1/restore?dry_run=1") {
+                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored panel"},"profiles":$profiles}""")
+                }
+                val body = JSONObject(response.bodyAsText())
+                assertEquals(body.toString(), HttpStatusCode.UnprocessableEntity, response.status)
+                assertEquals("restore-profile-catalog-not-restorable", body.optJSONObject("presentation")?.optString("code"))
+                assertEquals("contract-panel", fixture.config.panelId)
+                assertEquals(false, InstallProgress.running)
+            }
+        }
     }
 }

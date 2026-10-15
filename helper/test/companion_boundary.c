@@ -509,6 +509,54 @@ static void test_restore_recovers_prepared_and_committed_markers(void) {
           "committed recovery removes obsolete rollback\n");
 }
 
+static void test_reload_refused_while_interrupted_transaction_pending(void) {
+    setup_fixture();
+    run_interrupted_restore(COMPANION_TEST_FAULT_AFTER_MOVES);
+    int stops = force_stop_count(), launches = relaunch_count();
+    char line[64];
+    dispatch_once("RELOAD " PKG, line, sizeof line);
+    CHECK(strcmp(line, "BUSY\n") == 0 && force_stop_count() == stops &&
+          relaunch_count() == launches,
+          "RELOAD is refused while an interrupted transaction marker is pending (got %s)\n", line);
+    dispatch_once("COMPANIONSTATUS", line, sizeof line);
+    dispatch_once("RELOAD " PKG, line, sizeof line);
+    CHECK(strcmp(line, "OK\n") == 0, "RELOAD is admitted once status recovery clears the marker\n");
+}
+
+static void test_status_recovery_holds_when_original_vanished(void) {
+    setup_fixture();
+    run_interrupted_restore(COMPANION_TEST_FAULT_AFTER_MOVES);
+    CHECK(unlink(BASE "/databases/.HomeAssistantDB.hapaneld-rollback") == 0,
+          "remove the only copy of the moved-aside DB\n");
+    char line[64];
+    dispatch_once("COMPANIONSTATUS", line, sizeof line);
+    CHECK(strcmp(line, "BUSY\n") == 0 &&
+          access(ROOT_STAGE "/.companion-restore.prepared", F_OK) == 0,
+          "status recovery keeps the marker when an existing original has vanished (got %s)\n",
+          line);
+}
+
+static void test_failed_live_to_rollback_move_rolls_back(void) {
+    setup_fixture();
+    fail_rename_call = 1; // the first rename moves the live DB to its rollback name
+    int peer[2];
+    job work;
+    pthread_t thread;
+    start(&work, &thread, peer, "COMPANIONRESTORE " PKG " 5 - -");
+    char line[64], content[32];
+    read_line(peer[1], line, sizeof line);
+    write_all(peer[1], "newdb", 5);
+    shutdown(peer[1], SHUT_WR);
+    read_line(peer[1], line, sizeof line);
+    finish(thread, peer[1]);
+    CHECK(strcmp(line, "ROLLED_BACK\n") == 0 &&
+          strcmp(slurp(DB, content, sizeof content), "database") == 0 &&
+          access(ROOT_STAGE "/.companion-restore.prepared", F_OK) != 0 &&
+          access(ROOT_STAGE "/companion-db.payload", F_OK) != 0,
+          "a failed live-to-rollback move aborts the restore with the original intact (got %s)\n",
+          line);
+}
+
 static void test_unexplained_rollback_fails_closed(void) {
     setup_fixture();
     CHECK(rename(DB, BASE "/databases/.HomeAssistantDB.hapaneld-rollback") == 0,
@@ -566,6 +614,9 @@ int main(void) {
     test_restore_distinguishes_committed_relaunch_failure();
     test_restore_reports_rollback_and_partial_failure_distinctly();
     test_restore_recovers_prepared_and_committed_markers();
+    test_reload_refused_while_interrupted_transaction_pending();
+    test_status_recovery_holds_when_original_vanished();
+    test_failed_live_to_rollback_move_rolls_back();
     test_unexplained_rollback_fails_closed();
     test_restore_rejects_nonallowlisted_packages_and_sizes();
     unlink_fixture_names();
