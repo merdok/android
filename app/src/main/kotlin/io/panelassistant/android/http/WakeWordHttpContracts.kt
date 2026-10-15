@@ -56,6 +56,7 @@ private fun wakeWordInstalled(
             HttpStatusCode.OK to "{\"id\":${Json.str(result.config.id)},\"wake_word\":${Json.str(result.config.wakeWord)}}"
         }
         is io.panelassistant.android.assist.wakeword.WakeWordCatalog.ImportResult.Refused ->
-            HttpStatusCode.UnprocessableEntity to "{\"error\":${Json.str(result.reason)}}"
+            (if (result.incomplete) HttpStatusCode.BadGateway else HttpStatusCode.UnprocessableEntity) to
+                "{\"error\":${Json.str(result.reason)}}"
     }
 }

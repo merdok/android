@@ -2108,6 +2108,11 @@
       "sourceHash": "ea004f814363c9d3dda271e678c42465cef574f6c505263e5e43547a3ea5d2ba",
       "state": "machine-cross-checked"
     },
+    "configure.voice.downloading": {
+      "text": "Téléchargement de {wake_word}…",
+      "sourceHash": "f9ebcae88d5cec9f35c0fd8301af7fc0b7437c757890ef20296297adfc3e0ca9",
+      "state": "machine-cross-checked"
+    },
     "configure.voice.import_button": {
       "text": "Importer",
       "sourceHash": "2cff9baabf56ca002610e113bc94deb6ededddfc3c130365b6e88ed5195bf774",

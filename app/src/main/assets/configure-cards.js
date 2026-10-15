@@ -367,10 +367,15 @@
 
   // A community wake word from the app's own pinned list, across the whole Voice card. The author and
   // licence of the one picked are shown before anything is fetched; the panel then checks the download
-  // against its pinned SHA-256 and its own engine. Nothing is offered that the panel already holds.
+  // against its pinned SHA-256 and its own engine. Nothing is offered that the panel already holds; the
+  // row stays while a status is showing, so the result of downloading the last offered model is seen.
   function voiceWakeWordDownloadRow() {
     var offered = (cfg.voiceWakeWordDownloads || []).filter(function (d) { return d && d.id && !d.installed; });
-    if (!offered.length) return null;
+    var status = cfg.voiceWakeWordDownloadStatus ? cfg.el("small", { class: "voice-wake-word-download-status", text: cfg.voiceWakeWordDownloadStatus }) : null;
+    var title = cfg.el("span", { text: cfg.i18nText("configure.voice.download_wake_word", "Download a community wake word") });
+    if (!offered.length) {
+      return status ? cfg.el("div", { class: "frow frow-action voice-wake-word-download" }, [cfg.el("div", { class: "flabel" }, [title, status])]) : null;
+    }
     var picked = offered.find(function (d) { return d.id === cfg.voiceWakeWordDownloadPick; }) || offered[0];
     var select = cfg.el("select", { class: "voice-wake-word-download-pick" });
     offered.forEach(function (d) {
@@ -383,13 +388,15 @@
       cfg.render();
     });
     var downloadButton = cfg.el("button", { type: "button", class: "pbtn", text: cfg.i18nText("configure.voice.download_button", "Download") });
+    // A download can take a while; the flag outlives re-renders so the button cannot start a second one.
+    downloadButton.disabled = cfg.voiceWakeWordDownloading;
     downloadButton.addEventListener("click", function () {
-      downloadButton.disabled = true;
-      downloadVoiceWakeWord(picked.id);
+      if (cfg.voiceWakeWordDownloading) return;
+      downloadVoiceWakeWord(picked);
     });
     return cfg.el("div", { class: "frow frow-action voice-wake-word-download" }, [
       cfg.el("div", { class: "flabel" }, [
-        cfg.el("span", { text: cfg.i18nText("configure.voice.download_wake_word", "Download a community wake word") }),
+        title,
         cfg.el("small", { text: cfg.i18nText("configure.voice.download_help", "Models trained and published by others. Check who made it and its licence before downloading.") }),
         cfg.el("small", { class: "voice-wake-word-download-terms" }, [
           cfg.el("span", { text: cfg.i18nText("configure.voice.download_author", "By {author}", { author: String(picked.author || "") }) + " · " }),
@@ -398,15 +405,19 @@
             text: cfg.i18nText("configure.voice.download_license", "Licence: {license}", { license: String(picked.license || "") })
           }),
         ]),
-        cfg.voiceWakeWordDownloadStatus ? cfg.el("small", { class: "voice-wake-word-download-status", text: cfg.voiceWakeWordDownloadStatus }) : null,
+        status,
       ]),
       cfg.el("div", { class: "fctl" }, [select, downloadButton]),
     ]);
   }
 
   // Asks the panel to fetch the picked model and shows what it said; a refused download changes nothing.
-  function downloadVoiceWakeWord(id) {
-    window.PaneldTransport.request("voice.wake_words.set", { download: id }).then(function (r) {
+  function downloadVoiceWakeWord(entry) {
+    cfg.voiceWakeWordDownloading = true;
+    cfg.voiceWakeWordDownloadStatus = cfg.i18nText("configure.voice.downloading", "Downloading {wake_word}…", { wake_word: String(entry.wake_word || entry.id) });
+    cfg.render();
+    window.PaneldTransport.request("voice.wake_words.set", { download: entry.id }).then(function (r) {
+      cfg.voiceWakeWordDownloading = false;
       var body = r.result && typeof r.result === "object" ? r.result : {};
       cfg.voiceWakeWordDownloadStatus = r.outcome === "applied"
         ? cfg.i18nText("configure.voice.download_done", "Downloaded {wake_word}.", { wake_word: String(body.wake_word || body.id || "") })
@@ -414,6 +425,7 @@
       cfg.voiceWakeWordsCatalog = null;
       loadVoiceWakeWords();
     }).catch(function () {
+      cfg.voiceWakeWordDownloading = false;
       cfg.voiceWakeWordDownloadStatus = cfg.i18nText("configure.voice.download_failed", "Download failed: {reason}", { reason: "" });
       cfg.render();
     });

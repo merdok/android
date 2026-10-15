@@ -231,6 +231,17 @@ class VoiceProductionHttpTest {
         assertEquals(1, JSONObject(client.get("/api/v1/voice/wake-words").bodyAsText()).getJSONArray("wake_words").length())
     }
 
+    @Test fun `a download that does not complete answers bad gateway and never announces a change`() = testApplication {
+        mount(catalog(downloads = true))
+        served.remove(MODEL_URL)
+
+        val failed = client.post("/api/v1/voice/wake-words") { setBody("""{"download":"hey_donut"}""") }
+
+        assertEquals(HttpStatusCode.BadGateway, failed.status)
+        assertEquals("""{"error":"the download did not complete"}""", failed.bodyAsText())
+        assertEquals(0, changed)
+    }
+
     @Test fun `oversized import is rejected by body admission before catalog mutation`() = testApplication {
         mount(catalog())
         val oversized = client.post("/api/v1/voice/wake-words") { setBody("x".repeat(4 * 1024 * 1024 + 1)) }

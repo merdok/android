@@ -60,7 +60,7 @@ class WakeWordDownloadTest {
 
         val result = catalog().download("nocturna")
 
-        assertEquals("the download does not match its pinned SHA-256", (result as WakeWordCatalog.ImportResult.Refused).reason)
+        assertEquals(WakeWordCatalog.ImportResult.Refused("the download does not match its pinned SHA-256"), result)
         assertArrayEquals(model, File(folder.root, "nocturna/nocturna.tflite").readBytes())
         assertEquals(listOf("nocturna"), folder.root.list()!!.toList())
     }
@@ -80,7 +80,7 @@ class WakeWordDownloadTest {
 
         val result = catalog().download("nocturna")
 
-        assertEquals("the download did not complete", (result as WakeWordCatalog.ImportResult.Refused).reason)
+        assertEquals(WakeWordCatalog.ImportResult.Refused("the download did not complete", incomplete = true), result)
         assertEquals(emptyList<String>(), folder.root.list()!!.toList())
     }
 
@@ -99,6 +99,26 @@ class WakeWordDownloadTest {
         catalog().download("nocturna")
 
         assertEquals(listOf("nocturna"), folder.root.list()!!.toList())
+    }
+
+    @Test fun `a model the owner imported under a listed id is never replaced by a download`() {
+        val own = byteArrayOf(8, 8)
+        catalog().import("nocturna", manifest("My Nocturna", "nocturna.tflite").toByteArray(), own)
+
+        val result = catalog().download("nocturna")
+
+        assertEquals("a wake word you imported is already named \"nocturna\"", (result as WakeWordCatalog.ImportResult.Refused).reason)
+        assertEquals(emptyList<String>(), fetched)
+        assertArrayEquals(own, File(folder.root, "nocturna/nocturna.tflite").readBytes())
+        assertEquals("My Nocturna", catalog().available().single { it.id == "nocturna" }.wakeWord)
+    }
+
+    @Test fun `files a killed download left are cleared at next use while no download runs`() {
+        File(folder.root, ".download-nocturna.tflite").writeBytes(byteArrayOf(1))
+
+        catalog().available()
+
+        assertEquals(emptyList<String>(), folder.root.list()!!.toList())
     }
 
     @Test fun `only listed ids can be downloaded and none may take a bundled wake word's id`() {

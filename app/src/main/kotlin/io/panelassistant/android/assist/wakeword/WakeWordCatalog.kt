@@ -7,6 +7,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -63,7 +65,8 @@ class WakeWordCatalog(
 
     sealed interface ImportResult {
         data class Imported(val config: MicroWakeWordModelConfig) : ImportResult
-        data class Refused(val reason: String) : ImportResult
+        /** [incomplete]: the files never arrived whole, so trying again later may succeed. */
+        data class Refused(val reason: String, val incomplete: Boolean = false) : ImportResult
     }
 
     /** Whether [id] names a model shipped with the app rather than one a user imported. */
@@ -162,26 +165,29 @@ class WakeWordCatalog(
         sha256(File(File(importDir, entry.id), config.modelFile).readBytes()) == entry.modelSha256
     }.getOrDefault(false)
 
-    private val downloadLock = Any()
+    private val downloadLock = ReentrantLock()
 
     /**
      * Download the model [id] names in [downloadable] and import it. The manifest and model are fetched
      * into this catalogue's own directory and must match the SHA-256 the list pins; a mismatch is refused
-     * outright, never retried, and leaves any model already held under that id untouched. The network is
-     * never awaited while the catalogue is locked; downloads run one at a time, and each first clears what
-     * an interrupted one left.
+     * outright, never retried, and leaves any model already held under that id untouched. A model the
+     * owner imported under the same id is never replaced. The network is never awaited while the catalogue
+     * is locked; downloads run one at a time, and each first clears what an interrupted one left.
      */
     fun download(id: String): ImportResult {
         val entry = downloadable().firstOrNull { it.id == id }
             ?: return ImportResult.Refused("\"$id\" is not a wake word this panel can download")
-        synchronized(downloadLock) {
+        if (File(importDir, id).isDirectory && !holds(entry)) {
+            return ImportResult.Refused("a wake word you imported is already named \"$id\"")
+        }
+        downloadLock.withLock {
             importDir.mkdirs()
-            importDir.listFiles { file -> file.name.startsWith(DOWNLOADING) }.orEmpty().forEach { it.delete() }
+            clearDownloads()
             val manifestFile = File(importDir, "$DOWNLOADING$id$JSON")
             val modelFile = File(importDir, "$DOWNLOADING$id.tflite")
             try {
                 val manifest = fetchPinned(entry.manifestUrl, manifestFile, MAX_MANIFEST_BYTES.toLong(), entry.manifestSha256)
-                    .getOrElse { return ImportResult.Refused(it.message!!) }
+                    .getOrElse { return ImportResult.Refused(it.message!!, incomplete = it is Incomplete) }
                 val config = try {
                     MicroWakeWordModelConfig.parse(id, manifest.toString(Charsets.UTF_8))
                 } catch (invalid: IllegalArgumentException) {
@@ -190,7 +196,7 @@ class WakeWordCatalog(
                 val modelUrl = runCatching { URL(URL(entry.manifestUrl), config.modelFile).toString() }.getOrNull()
                     ?: return ImportResult.Refused("the manifest names a model that cannot be downloaded")
                 val model = fetchPinned(modelUrl, modelFile, entry.modelBytes, entry.modelSha256)
-                    .getOrElse { return ImportResult.Refused(it.message!!) }
+                    .getOrElse { return ImportResult.Refused(it.message!!, incomplete = it is Incomplete) }
                 return import(id, manifest, model)
             } finally {
                 manifestFile.delete()
@@ -205,10 +211,16 @@ class WakeWordCatalog(
      */
     private fun fetchPinned(url: String, dest: File, maxBytes: Long, sha256: String): Result<ByteArray> {
         dest.delete()
-        if (!fetch(url, dest, maxBytes)) return Result.failure(IOException("the download did not complete"))
+        if (!fetch(url, dest, maxBytes)) return Result.failure(Incomplete())
         val bytes = dest.readBytes()
         if (sha256(bytes) != sha256) return Result.failure(IOException("the download does not match its pinned SHA-256"))
         return Result.success(bytes)
+    }
+
+    private class Incomplete : IOException("the download did not complete")
+
+    private fun clearDownloads() {
+        importDir.listFiles { file -> file.name.startsWith(DOWNLOADING) }.orEmpty().forEach { it.delete() }
     }
 
     /** One imported wake word's files, as a backup carries them and [import] takes them back. */
@@ -243,9 +255,17 @@ class WakeWordCatalog(
      * Finish an import the process did not live to complete. A crash between setting the working model
      * aside and moving its replacement in leaves only `.previous-<id>`: that model is put back. A crash
      * after the swap leaves both, and the new one stands. Staging directories are never in use outside
-     * [import], which holds this object's lock, so any found here are abandoned.
+     * [import], which holds this object's lock, so any found here are abandoned. A download's files are
+     * abandoned too unless a download is running, which is the only time they are in use.
      */
     private fun recover() {
+        if (downloadLock.tryLock()) {
+            try {
+                clearDownloads()
+            } finally {
+                downloadLock.unlock()
+            }
+        }
         val leftovers = importDir.listFiles { file -> file.name.startsWith(".") }.orEmpty()
         for (dir in leftovers) {
             val name = dir.name
@@ -286,7 +306,7 @@ class WakeWordCatalog(
         }
         private const val JSON = ".json"
         private const val MAX_MANIFEST_BYTES = 16 * 1024
-        private const val MAX_MODEL_BYTES = 2 * 1024 * 1024
+        internal const val MAX_MODEL_BYTES = 2 * 1024 * 1024
         /** A wake-word id: a bundled model's or an imported one's directory name. */
         internal val ID = Regex("^[a-z][a-z0-9_]{0,63}$")
 

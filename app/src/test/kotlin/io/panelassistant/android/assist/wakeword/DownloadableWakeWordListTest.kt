@@ -26,7 +26,7 @@ class DownloadableWakeWordListTest {
         for (entry in offered) {
             assertTrue(entry.id, entry.id !in bundledIds)
             assertTrue(entry.id, commit.containsMatchIn(entry.manifestUrl) && commit.containsMatchIn(entry.licenseUrl))
-            assertTrue(entry.id, entry.modelBytes <= 2L * 1024 * 1024)
+            assertTrue(entry.id, entry.modelBytes <= WakeWordCatalog.MAX_MODEL_BYTES)
         }
     }
 }

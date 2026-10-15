@@ -33,14 +33,14 @@ data class DownloadableWakeWord(
         }
 
         private fun parse(entry: JSONObject): DownloadableWakeWord {
-            fun text(key: String) = entry.getString(key).also { require(it.isNotBlank()) { key } }
-            fun https(key: String) = text(key).also { require(URL(it).protocol == "https") { key } }
-            fun digest(key: String) = text(key).also { require(SHA256.matches(it)) { key } }
+            fun field(key: String) = entry.getString(key).also { require(it.isNotBlank()) { key } }
+            fun https(key: String) = field(key).also { require(URL(it).protocol == "https") { key } }
+            fun digest(key: String) = field(key).also { require(SHA256.matches(it)) { key } }
             return DownloadableWakeWord(
-                id = text("id").also { require(WakeWordCatalog.ID.matches(it)) { "id" } },
-                wakeWord = text("wake_word"),
-                author = text("author"),
-                license = text("license"),
+                id = field("id").also { require(WakeWordCatalog.ID.matches(it)) { "id" } },
+                wakeWord = field("wake_word"),
+                author = field("author"),
+                license = field("license"),
                 licenseUrl = https("license_url"),
                 source = https("source"),
                 manifestUrl = https("manifest_url"),
