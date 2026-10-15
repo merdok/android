@@ -333,26 +333,34 @@ val compileCdpRelayArm64 = tasks.register<Exec>("compileCdpRelayArm64") {
     val src = rootProject.file("helper/cdprelay.c")
     val policy = rootProject.file("helper/cdprelay_policy.h")
     val output = file("src/main/assets/cdprelay-arm64")
-    inputs.files(src, policy)
+    inputs.files(src, policy).withPropertyName("relaySources").withPathSensitivity(PathSensitivity.RELATIVE)
     // The NDK version pins the compiler; fingerprinting its ~8,700 files on every fresh runner cost more
     // than the compile. The output is a pure function of the declared inputs, so it can come from the cache.
     outputs.cacheIf { true }
     inputs.property("ndkVersion", android.ndkVersion)
     outputs.file(output)
-    commandLine(ndkToolchainBin.resolve("aarch64-linux-android26-clang"), "-O2", "-s", "-o", output, src)
+    workingDir(rootDir)
+    commandLine(
+        ndkToolchainBin.resolve("aarch64-linux-android26-clang"), "-O2", "-s",
+        "-o", output.relativeTo(rootDir).invariantSeparatorsPath, src.relativeTo(rootDir).invariantSeparatorsPath,
+    )
 }
 
 val compileCdpRelayArm32 = tasks.register<Exec>("compileCdpRelayArm32") {
     val src = rootProject.file("helper/cdprelay.c")
     val policy = rootProject.file("helper/cdprelay_policy.h")
     val output = file("src/main/assets/cdprelay-arm")
-    inputs.files(src, policy)
+    inputs.files(src, policy).withPropertyName("relaySources").withPathSensitivity(PathSensitivity.RELATIVE)
     // The NDK version pins the compiler; fingerprinting its ~8,700 files on every fresh runner cost more
     // than the compile. The output is a pure function of the declared inputs, so it can come from the cache.
     outputs.cacheIf { true }
     inputs.property("ndkVersion", android.ndkVersion)
     outputs.file(output)
-    commandLine(ndkToolchainBin.resolve("armv7a-linux-androideabi26-clang"), "-O2", "-s", "-o", output, src)
+    workingDir(rootDir)
+    commandLine(
+        ndkToolchainBin.resolve("armv7a-linux-androideabi26-clang"), "-O2", "-s",
+        "-o", output.relativeTo(rootDir).invariantSeparatorsPath, src.relativeTo(rootDir).invariantSeparatorsPath,
+    )
 }
 
 val compileCdpRelay = tasks.register("compileCdpRelay") {
@@ -367,9 +375,11 @@ val bundledRootHelperArm64 = file("src/main/assets/hapaneld-helper-arm64")
 val bundledRootHelperArm32 = file("src/main/assets/hapaneld-helper-arm")
 
 val compileBundledRootHelperArm64 = tasks.register<Exec>("compileBundledRootHelperArm64") {
-    val sourcePaths = bundledRootHelperSources.files.sortedBy(File::getName)
-    inputs.files(helperIdentityFiles)
-    inputs.file(rootProject.file("helper/source-id.sh"))
+    // Relative arguments and input paths keep the cache key free of the checkout's location, so a new
+    // worktree reuses a compile from another one instead of rebuilding the helper.
+    val sourcePaths = bundledRootHelperSources.files.sortedBy(File::getName).map { it.relativeTo(rootDir).invariantSeparatorsPath }
+    inputs.files(helperIdentityFiles).withPropertyName("helperSources").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file("helper/source-id.sh")).withPropertyName("sourceId").withPathSensitivity(PathSensitivity.RELATIVE)
     // The NDK version pins the compiler; fingerprinting its ~8,700 files on every fresh runner cost more
     // than the compile. The output is a pure function of the declared inputs, so it can come from the cache.
     outputs.cacheIf { true }
@@ -377,16 +387,19 @@ val compileBundledRootHelperArm64 = tasks.register<Exec>("compileBundledRootHelp
     inputs.property("ndkVersion", android.ndkVersion)
     outputs.file(bundledRootHelperArm64)
     commandLine(
-        ndkToolchainBin.resolve("aarch64-linux-android26-clang"), "-O2", "-s", "-I${rootProject.file("helper/src").path}",
+        ndkToolchainBin.resolve("aarch64-linux-android26-clang"), "-O2", "-s", "-Ihelper/src",
         "-DHAPANELD_BUILD_ID=\"$helperBuildId\"",
-        "-o", bundledRootHelperArm64, *sourcePaths.toTypedArray(),
+        "-o", bundledRootHelperArm64.relativeTo(rootDir).invariantSeparatorsPath, *sourcePaths.toTypedArray(),
     )
+    workingDir(rootDir)
 }
 
 val compileBundledRootHelperArm32 = tasks.register<Exec>("compileBundledRootHelperArm32") {
-    val sourcePaths = bundledRootHelperSources.files.sortedBy(File::getName)
-    inputs.files(helperIdentityFiles)
-    inputs.file(rootProject.file("helper/source-id.sh"))
+    // Relative arguments and input paths keep the cache key free of the checkout's location, so a new
+    // worktree reuses a compile from another one instead of rebuilding the helper.
+    val sourcePaths = bundledRootHelperSources.files.sortedBy(File::getName).map { it.relativeTo(rootDir).invariantSeparatorsPath }
+    inputs.files(helperIdentityFiles).withPropertyName("helperSources").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file("helper/source-id.sh")).withPropertyName("sourceId").withPathSensitivity(PathSensitivity.RELATIVE)
     // The NDK version pins the compiler; fingerprinting its ~8,700 files on every fresh runner cost more
     // than the compile. The output is a pure function of the declared inputs, so it can come from the cache.
     outputs.cacheIf { true }
@@ -394,10 +407,11 @@ val compileBundledRootHelperArm32 = tasks.register<Exec>("compileBundledRootHelp
     inputs.property("ndkVersion", android.ndkVersion)
     outputs.file(bundledRootHelperArm32)
     commandLine(
-        ndkToolchainBin.resolve("armv7a-linux-androideabi26-clang"), "-O2", "-s", "-I${rootProject.file("helper/src").path}",
+        ndkToolchainBin.resolve("armv7a-linux-androideabi26-clang"), "-O2", "-s", "-Ihelper/src",
         "-DHAPANELD_BUILD_ID=\"$helperBuildId\"",
-        "-o", bundledRootHelperArm32, *sourcePaths.toTypedArray(),
+        "-o", bundledRootHelperArm32.relativeTo(rootDir).invariantSeparatorsPath, *sourcePaths.toTypedArray(),
     )
+    workingDir(rootDir)
 }
 
 val compileBundledRootHelper = tasks.register("compileBundledRootHelper") {
