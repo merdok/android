@@ -209,8 +209,8 @@ class LogShipAddressFamilyTest {
         val first = InetAddress.getByName("127.0.0.1")
         val second = InetAddress.getByName("127.0.0.2")
         // Remaining time is rounded down to milliseconds, so the first timeout can leave a fractional
-        // millisecond. Try the held listener twice to consume that remainder before the live route.
-        // A fresh deadline per candidate would still reach the live responder and succeed.
+        // millisecond; that remainder counts as spent, never as a fresh 1 ms window that lets the live
+        // route answer (it did, about once in 40 CI runs). A fresh deadline per candidate would reach it.
         val routes = LoopbackPortPair.bind(first, 1, second, 1)
         val hangs = Hangs()
         routes.use { hangs.use {
