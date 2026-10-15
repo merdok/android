@@ -191,7 +191,7 @@ export function tabbedPage(options) {
   return shellHtml({
     ...options,
     rightControls: options.rightControls ?? `${haLink}${ghLink}`,
-    bodyAttrs: `${options.bodyAttrs || ''}data-build="layout-gate" data-cfg="layout-gate"`,
+    bodyAttrs: `${options.bodyAttrs || ''}data-build="layout-gate"`,
     body: `${description}\n${active === 'install' ? key : ''}\n${body}\n${active !== 'install' ? key : ''}`,
     prefixes: options.prefixes || ['shell.', `${active}.`, 'runtime.'],
   });

@@ -99,7 +99,9 @@ internal fun stageDirectCredentialSettings(
     val previousExpiry = config.haTokenExpiry
     val previousClientId = config.haClientId
     val url = posted["ha_url"]
-    val haOriginChange = url != null &&
+    // A credential stored while no address was set can only belong to the first address, so setting that
+    // address keeps it: Configure sends each field as it is committed, and a token can arrive first.
+    val haOriginChange = url != null && previousUrl.isNotBlank() &&
         url.trimEnd('/') != previousUrl.trimEnd('/')
     val token = when {
         url != null && url.isEmpty() -> ""

@@ -149,7 +149,7 @@ export function measureLayout() {
   }
 
   // Cards: containment (b), overlap of controls and labels (b), and height for the growth rule (d).
-  const cardNodes = all.filter((node) => node.matches('.card,.wiz,.profile-toolbar,.profile-editor-pane,.profile-inspector,details.ep,.savebar,.topbar'));
+  const cardNodes = all.filter((node) => node.matches('.card,.wiz,.profile-toolbar,.profile-editor-pane,.profile-inspector,details.ep,.topbar'));
   for (const card of cardNodes) {
     if (cardNodes.some((other) => other !== card && other.contains(card) && other.matches('.card,.wiz'))) continue;
     const key = keyOf(card);

@@ -212,9 +212,8 @@ class HtmlUiCatalogueContractTest {
         }
     }
 
-    @Test fun `shared runtime chrome owns exactly its finite 33-key catalogue addition`() {
+    @Test fun `shared runtime chrome owns exactly its finite 32-key catalogue addition`() {
         val addedKeys = setOf(
-            "shell.settings_changed.externally",
             "shell.runtime.ha_lifecycle.offline",
             "shell.runtime.ha_lifecycle.starting",
             "shell.runtime.ha_lifecycle.back_online",

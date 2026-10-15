@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
 import io.panelassistant.android.DiscoveryResult
+import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.dashboard.HomeDashboardCatalog
 import io.panelassistant.android.haUrl
 import io.panelassistant.android.util.Json
@@ -109,6 +110,11 @@ internal fun Route.configReadRoutes(
         },
     )
     ops {
+        // Polled every half second by the `config` family: su-free, lock-free and never on the management snapshot.
+        get("/config/values") {
+            call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+            call.respondText(values().valuesJson(BuiltinDashboard.pendingRendererSettings()), ContentType.Application.Json)
+        }
         get("/config/home-dashboards") {
             val catalog = homeDashboards()
             val items = catalog.items.joinToString(",") { dashboard ->

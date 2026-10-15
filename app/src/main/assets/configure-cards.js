@@ -34,10 +34,8 @@
     // private-window completion, which cannot signal the ordinary browser context, from being overwritten
     // by that stale form value on a later unrelated save.
     cfg.values.ha_token = "";
-    cfg.savedValues.ha_token = "";
     var tokenInput = document.querySelector("#cfg-ha_token input");
     if (tokenInput) tokenInput.value = "";
-    cfg.recomputeDirty(); cfg.updateSaveUi();
     cfg.haOauthButton.disabled = true;
     setHaOauthStatus(cfg.i18nText("configure.oauth.starting", "Starting sign-in…"), false);
     cfg.haOauthAuthorizationUrl = "";
@@ -292,13 +290,13 @@
   var WAKE_WORD_GUIDE_URL = "https://panel-assistant.io/go/custom-wake-words";
 
   function loadHomeDashboards() {
-    if (cfg.dirty || cfg.haAuth.configured !== true) return;
+    if (cfg.haAuth.configured !== true) return;
     var request = ++cfg.homeDashboardRequest;
     window.PaneldTransport.request("config.home_dashboards").then(function (r) {
       if (r.outcome !== "applied") throw new Error(r.code || r.outcome);
       return r.result;
     }).then(function (body) {
-      if (request !== cfg.homeDashboardRequest || cfg.dirty) return;
+      if (request !== cfg.homeDashboardRequest) return;
       var next = (body && body.items || []).map(function (dashboard) {
         return {
           path: String(dashboard && dashboard.path || "").trim(),
@@ -454,13 +452,9 @@
       }
       if (status === "success") {
         cfg.haAuth = { configured: true, oauth: true };
-        if (cfg.haOauthTargetUrl) {
-          cfg.values.ha_url = cfg.haOauthTargetUrl;
-          cfg.savedValues.ha_url = cfg.haOauthTargetUrl;
-        }
+        if (cfg.haOauthTargetUrl) cfg.values.ha_url = cfg.haOauthTargetUrl;
         // Browser sign-in supersedes any manually typed token still present in this form.
         cfg.values.ha_token = "";
-        cfg.savedValues.ha_token = "";
         cfg.haOauthTargetUrl = "";
         cfg.autoSleepAreaGeneration++;
         cfg.autoSleepSourceUpdating = Object.create(null);
@@ -468,7 +462,7 @@
         cfg.autoSleepAssignedAreaName = "";
         cfg.autoSleepPrerequisiteRequest++;
         cfg.autoSleepPrerequisite = { eligible: false, phase: "checking", area_name: "" };
-        cfg.recomputeDirty(); cfg.updateSaveUi(); cfg.render();
+        cfg.render();
         cfg.scheduleAutoSleepPrerequisite();
         if (cfg.values.auto_sleep === "true") setTimeout(cfg.loadAutoSleepData, 0);
         loadHaUserStatus();

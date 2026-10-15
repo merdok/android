@@ -17,8 +17,8 @@ const SCRIPTS = ['/configure-state.js', '/configure-view.js', '/configure-help.j
 const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/info.css">${i18nBridge()}</head><body>
   <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
   <button id="tab-basic"></button><button id="tab-adv"></button>
-  <p id="cfg-msg"></p><p id="cfg-status"></p><div id="cfg-groups" class="cards"></div>
-  <div id="proximity-learning-mount"></div><div id="savebar" hidden><button id="savebtn"></button></div>
+  <div id="cfg-status" class="muted"></div><div id="cfg-groups" class="cards"></div>
+  <div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="cfg-help" class="cfg-help" popover="manual"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" type="button">x</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more"></a></div></div>
   <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
   ${SCRIPTS.map((s) => `<script src="${s}"></script>`).join('')}
@@ -41,7 +41,7 @@ async function panel() {
     if (path === '/api/v1/config/schema') {
       return send(JSON.stringify([{ key: 'voice_enabled', type: 'BOOL', group: 'Voice', tier: 'BASIC', available: true, label: 'Voice assistant' }]));
     }
-    if (path === '/api/v1/config') return send(JSON.stringify({ settings: { voice_enabled: 'false', dashboard_package: 'builtin' }, ha_expose: {}, ha_auth: { configured: false } }));
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return send(JSON.stringify({ settings: { voice_enabled: 'false', dashboard_package: 'builtin' }, ha_expose: {}, ha_auth: { configured: false } }));
     if (path === '/api/v1/apps') return send(JSON.stringify({ apps: [] }));
     if (path === '/api/v1/config/home-dashboards') return send(JSON.stringify({ queried: true, items: [], default: { explicit: false, path: '' } }));
     if (['/api/v1/radio', '/api/v1/proximity'].includes(path)) return send(JSON.stringify({ present: false }));

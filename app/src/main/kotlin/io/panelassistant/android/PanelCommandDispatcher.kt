@@ -770,10 +770,12 @@ internal class PanelCommandDispatcher(
             is Validation.Ok -> validated.normalized
             else -> {
                 // Refuse rather than coerce, then republish so the entity cannot go on showing a value
-                // the panel did not accept. The route itself is not logged; it names the owner's rooms.
+                // the panel did not accept. The refusal answers `refused`/`invalid_value`, so Home Assistant
+                // raises an error and restores its field instead of keeping the typed text. The route itself
+                // is not logged; it names the owner's rooms.
                 Log.w(TAG, "home_dashboard command refused: not a well-formed dashboard route")
                 core.reconcile("home_dashboard")
-                return
+                throw IllegalArgumentException("home_dashboard: not a well-formed dashboard route")
             }
         }
         val changed = target != (previousValue ?: config.homeDashboard)

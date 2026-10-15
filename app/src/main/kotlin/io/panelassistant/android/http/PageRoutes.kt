@@ -93,10 +93,6 @@ internal fun Route.setupPageRoute(
             HttpHeaders.ContentLanguage,
             strings.languages(setOf("shell.", "setup.")).joinToString(", "),
         )
-        // No data-cfg, unlike every other page: buildwatch.js reloads /configure when settings
-        // change underneath it, and that same reload mid-step would throw away what the user is
-        // typing. The wizard tracks server state by polling instead. The build token stays, so a
-        // reinstall still refreshes the page.
         call.respondText(
             pages().pageShell(
                 active = "setup",

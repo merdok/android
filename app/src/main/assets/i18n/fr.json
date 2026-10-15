@@ -58,11 +58,6 @@
       "sourceHash": "4acca2deec62ac51cb2dd452216e9edf6e7b8b46625982f24c6c9395c1e57443",
       "state": "machine-cross-checked"
     },
-    "configure.action.save": {
-      "text": "Enregistrer les modifications",
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "state": "machine-cross-checked"
-    },
     "configure.action.updated": {
       "text": "Mis à jour.",
       "sourceHash": "c890307de9b706a96bb48a12cd6cf33fd333765a1c02fd950011a914b53935f0",
@@ -1873,24 +1868,14 @@
       "sourceHash": "78d416d2e6869c26000b9ec4728509e68c4ab71fda1939964c10fef6d30eb9bb",
       "state": "machine-cross-checked"
     },
+    "configure.renderer.pending": {
+      "text": "Enregistré ; pas encore sur le tableau de bord.",
+      "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
+      "state": "machine-cross-checked"
+    },
     "configure.renderer.storage": {
       "text": "Données du moteur de rendu",
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.action": {
-      "text": "Enregistrer les modifications",
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.applied_newer_changes": {
-      "text": "Les réglages enregistrés sont appliqués ; les modifications plus récentes doivent encore être enregistrées.",
-      "sourceHash": "922c6c27af2eadf2a8bd74b0ed260b1c9955cf4b55e8dd631500349797ac4631",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.failed": {
-      "text": "Échec de l’enregistrement.",
-      "sourceHash": "19b9455ce71a631f52e74d6fc358e95b9f35ab9a933aaf2fb159d97f1246983c",
       "state": "machine-cross-checked"
     },
     "configure.save.hardware_pending": {
@@ -1903,49 +1888,9 @@
       "sourceHash": "67b5afeafe3ae46c4d5fe55a308ba88d39ff45f61c663e5fae47d17317334f3b",
       "state": "machine-cross-checked"
     },
-    "configure.save.now_applied": {
-      "text": "Les réglages enregistrés sont maintenant appliqués.",
-      "sourceHash": "f7bfcea102edeb4ba0e93aa5a17733d1de0cc1183edc5b707e474640363b018e",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.outcome_newer_changes": {
-      "text": "{outcome} Les modifications plus récentes doivent encore être enregistrées.",
-      "sourceHash": "1afa8dc5ecaddb4f7ea2e4bdf97f0ec039ea7ddbb919727f42f339178250829d",
-      "state": "machine-cross-checked"
-    },
     "configure.save.refused": {
       "text": "Non enregistré : {reason}",
       "sourceHash": "efd0fb5c5d944eaf6a7e4ebb5b08b47cc65284f06ee919bb04e2777a1e27538e",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.reload_failed": {
-      "text": "Enregistré (échec du rechargement — actualisez la page).",
-      "sourceHash": "a2dd4f224888a496a50ea48da45bb9db08515fa0c2c4d962760aa3d83fd089e6",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.saved": {
-      "text": "Enregistré.",
-      "sourceHash": "fca046ccd586c67f7fe0b3c12c29873a8abf9376f7cd514fc6272ec03b2de0b3",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.saved_newer_changes": {
-      "text": "Enregistré ; des modifications récentes restent à enregistrer.",
-      "sourceHash": "ce417972a2f79643e1f4952031e4f0878c53746492d013b7667a6238312156f7",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.saving": {
-      "text": "Enregistrement…",
-      "sourceHash": "23e39291d6135814ed7c936e278974544b0df5fbf0eb0427b6700979b7472a93",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.unavailable_to_apply": {
-      "text": "Enregistré, mais ce panneau ne peut pas encore les appliquer : {settings}.",
-      "sourceHash": "54f575188113309c907825190ece15259dc8d17ae43647dbc27c593b497258d9",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.waiting_to_apply": {
-      "text": "Réglages enregistrés en attente d’application : {settings}.",
-      "sourceHash": "38120c8464a6a191ec813e411dd11ae6c3ad94acf6cd05d5e6842f03ef02b400",
       "state": "machine-cross-checked"
     },
     "configure.secret.blank_keeps_current": {
@@ -2046,11 +1991,6 @@
     "configure.time.updated": {
       "text": "Mis à jour le {date} ({relative})",
       "sourceHash": "f30f0038ab9360511cab3626792d2c21140065599d0e2d78bca81a55b116ba63",
-      "state": "machine-cross-checked"
-    },
-    "configure.unsaved.label": {
-      "text": "Réglages non enregistrés",
-      "sourceHash": "842e70aacb24a1d6bdea7c34b46777aee7e3446d3ab8f346147b16670e5b974a",
       "state": "machine-cross-checked"
     },
     "configure.validation.invalid": {
@@ -12176,11 +12116,6 @@
     "shell.runtime.ha_network_evidence_p95_no_misses": {
       "text": "p95 {p95Ms} ms, aucune sonde perdue au cours des 5 dernières min",
       "sourceHash": "a08cd2009df8200e13ce7cdb0024bd922a85da3afde81dcc4c13bafa1749ae99",
-      "state": "machine-cross-checked"
-    },
-    "shell.settings_changed.externally": {
-      "text": "Les paramètres ont été modifiés en dehors de cette page",
-      "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
       "state": "machine-cross-checked"
     },
     "install.tame.hand_back.action": {

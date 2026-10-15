@@ -21,6 +21,7 @@ object BuiltinDashboard {
         val owner = ++nextActivityOwner
         activityOwner = owner
         authLatched = false
+        pendingSettings = null
         return owner
     }
 
@@ -46,9 +47,24 @@ object BuiltinDashboard {
         if (activityOwner == owner) appliedThemeSignature = signature
     }
 
+    @Volatile private var pendingSettings: Set<String>? = null
+
+    /**
+     * The renderer settings (see [io.panelassistant.android.config.RendererApply]) whose current value the
+     * dashboard on screen does not show yet: a key leaves the set once a load carrying its value has
+     * connected. Empty when everything is shown; null when no built-in renderer is running. Cheap and
+     * safe from any thread: the owning activity publishes it whenever it changes.
+     */
+    fun pendingRendererSettings(): Set<String>? = pendingSettings
+
+    @Synchronized fun setPendingRendererSettings(owner: Long, pending: Set<String>) {
+        if (activityOwner == owner) pendingSettings = pending
+    }
+
     @Synchronized fun releaseActivityOwner(owner: Long) {
         if (activityOwner != owner) return
         activityOwner = 0L
+        pendingSettings = null
         appliedThemeSignature = null
         authLatched = false
         foreground = false
