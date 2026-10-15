@@ -127,6 +127,10 @@ internal class DashboardEntityGate(
     var entityFilterSignature = "disabled"
         private set
     private var preparedEntityFilter: PreparedEntityFilter? = null
+
+    /** The signature of the preparation the gate was last configured from. [entityFilterSignature] can
+     *  differ from it: configuring a filter that cannot be installed records the renderer as unfiltered. */
+    val preparedSignature: String? get() = preparedEntityFilter?.signature
     var entityFilterLease: EntityFilterTelemetry.Lease? = null
         private set
     private var entityFilterNativeHold: EntityFilterNativeHold? = null

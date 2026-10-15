@@ -135,6 +135,9 @@ class DashboardActivity : AppCompatActivity() {
     // The colour-scheme policy baked into the live WebView's document-start script. Document-start
     // scripts cannot be replaced in an existing WebView, so a policy change rebuilds it (below).
     private var dashboardThemeSignature = DashboardTheme.DEFAULT
+    // The credential the last dashboard WebView was built with. Kept across a teardown: a refused login
+    // belongs to it, and changing it is the consent that lets the renderer ask Home Assistant again.
+    private var builtAuthOwner: HaAuthOwner? = null
     private var customView: View? = null                        // active onShowCustomView (fullscreen) view
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
 
@@ -263,7 +266,7 @@ class DashboardActivity : AppCompatActivity() {
     // behind a dark screen forever. Fires only if the frontend hasn't already connected (which freezes early).
     private val darkSettle = Runnable {
         if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !screenAwake) {
-            if (!frontendConnected) Log.w(TAG, "dark settle: the dashboard did not connect within ${DARK_SETTLE_MS}ms — freezing until the screen wakes")
+            if (!frontendConnected && !authLatched) Log.w(TAG, "dark settle: the dashboard did not connect within ${DARK_SETTLE_MS}ms — freezing until the screen wakes")
             web?.let { it.onPause(); it.pauseTimers() }
         }
     }
@@ -691,7 +694,8 @@ class DashboardActivity : AppCompatActivity() {
         // interval that reads as "idle for the whole uptime", so the first check would reload — throwing
         // away a sign-in the user is part-way through, and reintroducing exactly the reload churn this
         // screen exists to end. Nothing here needs shedding: the sign-in page is a single small form.
-        if (signInShownForUrl != null) { main.postDelayed(periodicCheck, PERIODIC_CHECK_MS); return }
+        // No dashboard WebView (a status screen) has nothing to shed either; its next build is a fresh load.
+        if (signInShownForUrl != null || web == null) { main.postDelayed(periodicCheck, PERIODIC_CHECK_MS); return }
         val idle = SystemClock.elapsedRealtime() - lastFullLoadAt
         when {
             idle < RELOAD_INTERVAL_MS -> {}
@@ -832,26 +836,36 @@ class DashboardActivity : AppCompatActivity() {
             }
             return
         }
-        val activeHomeDashboardOwner = homeDashboardResolution?.owner ?: homeDashboardCheckingOwner
-        val causes = buildList {
-            if (routeChangePending) add(RendererRebuildCause.ROUTE)
-            // The current WebView is the bare sign-in page: its client only permits the OAuth navigation and
-            // it carries no dashboard bridge, so loading the dashboard into it would loop the sign-in.
-            if (signInShownForUrl != null) add(RendererRebuildCause.SIGNED_IN)
-            if (compatibilityReadyUrl != null && compatibilityReadyUrl != normalizedUrl) add(RendererRebuildCause.ENDPOINT)
-            if (activeHomeDashboardOwner != null && activeHomeDashboardOwner != homeDashboardOwner(config)) {
-                add(RendererRebuildCause.HOME_DASHBOARD)
-            }
-            // Document-start scripts cannot be replaced in an existing WebView, so a filter-set, learning-mode
-            // or theme-policy change rebuilds only the WebView, keeping the service and the process alive.
-            if (prepared.signature != entityGate.entityFilterSignature) add(RendererRebuildCause.ENTITY_FILTER)
-            if (config.dashboardThemeEffective != dashboardThemeSignature) add(RendererRebuildCause.THEME)
-        }
+        // Document-start scripts cannot be replaced in an existing WebView, so a filter-set, learning-mode or
+        // theme-policy change rebuilds only the WebView, keeping the service and the process alive. Before a
+        // dashboard WebView exists, the build to come bakes whatever is configured then.
+        val dashboardBuilt = web != null && phase != RendererPhase.SIGN_IN
+        val causes = rendererRebuildCauses(
+            routeChanged = routeChangePending,
+            // The current WebView is the bare sign-in page: its client only permits the OAuth navigation and it
+            // carries no dashboard bridge, so loading the dashboard into it would loop the sign-in.
+            signedIn = signInShownForUrl != null,
+            embodied = RendererConfiguration(
+                admittedUrl = compatibilityReadyUrl,
+                homeOwner = homeDashboardResolution?.owner ?: homeDashboardCheckingOwner,
+                authOwner = builtAuthOwner,
+                filter = entityGate.preparedSignature.takeIf { dashboardBuilt },
+                theme = dashboardThemeSignature.takeIf { dashboardBuilt },
+            ),
+            wanted = RendererConfiguration(
+                admittedUrl = normalizedUrl,
+                homeOwner = homeDashboardOwner(config),
+                authOwner = config.haAuthSnapshot().stableOwner(),
+                filter = prepared.signature,
+                theme = config.dashboardThemeEffective,
+            ),
+        )
         routeChangePending = false
         if (causes.isNotEmpty()) {
             rebuildFor(causes, config, prepared)
             return
         }
+        if (!dashboardBuilt && prepared.signature != entityGate.preparedSignature) entityGate.configureEntityFilter(config, prepared)
         // Nothing to rebuild: the dashboard WebView already embodies what this reconcile checks. The entity
         // filter's settings are not among them: the learner rebuilds for those once it has re-learned.
         if (web != null && phase != RendererPhase.SIGN_IN) {
@@ -885,7 +899,13 @@ class DashboardActivity : AppCompatActivity() {
         // load replaces, is loaded again at once.
         if (nav == null && !reload && phase != RendererPhase.RECONNECTING) return
         consentToRetry("new load") // a deliberate reload/navigate (or a config change) is the retry consent
-        if (w == null) { buildAndLoad(config); return }  // defensive: relaunched with no WebView built
+        if (w == null) {
+            // No WebView to navigate: keep the target for the build in progress, which loads it (currentUrl),
+            // rather than drop it when that build is already under way.
+            nav?.let { BuiltinDashboard.navPath = it }
+            buildAndLoad(config)
+            return
+        }
         // Re-apply force-dark (only set at WebView creation otherwise) and, on the no-system-dark-mode
         // panels, write the panel's dark_mode into HA's own per-device theme store before the fresh
         // load — that store is what actually re-renders HA (see selectedThemeJs; force-dark alone is a
@@ -2185,6 +2205,7 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         web = w
+        builtAuthOwner = config.haAuthSnapshot().stableOwner()
         shownPage.forget()
         embodiment.built(rendererValues { true })
         // Wrap in a pull-to-refresh layout: a drag that starts at the very top edge of the screen and

@@ -85,6 +85,10 @@ internal enum class RendererRebuildCause(
     /** The Home Assistant address differs from the one admission checked. */
     ENDPOINT(readmit = true, resolveHome = false, consent = true),
 
+    /** The credential differs from the one the dashboard was built with: consent, so a refused login is
+     *  asked again once someone has changed the credential it refused. */
+    CREDENTIAL(readmit = true, resolveHome = true, consent = true),
+
     /** The home dashboard's owner (credential or configured path) differs from the one resolved. */
     HOME_DASHBOARD(readmit = false, resolveHome = true, consent = true),
 
@@ -93,6 +97,37 @@ internal enum class RendererRebuildCause(
 
     /** The dashboard theme policy differs from the one baked into the document-start script. */
     THEME(readmit = false, resolveHome = false, consent = true),
+}
+
+/**
+ * What the reconcile compares. As embodied by the live renderer, a field is null where nothing embodies it
+ * yet: [admittedUrl] until admission passes, [homeOwner] until the home dashboard is resolved or resolving,
+ * [authOwner] until a dashboard WebView has been built, and [filter] and [theme] while no dashboard WebView
+ * exists, because the next build bakes whatever is configured then. As wanted, every field is set.
+ */
+internal data class RendererConfiguration(
+    val admittedUrl: String?,
+    val homeOwner: HomeDashboardResolutionOwner?,
+    val authOwner: HaAuthOwner?,
+    val filter: String?,
+    val theme: String?,
+)
+
+/** Every cause for which [embodied] no longer matches [wanted], in [RendererRebuildCause] order. */
+internal fun rendererRebuildCauses(
+    routeChanged: Boolean,
+    signedIn: Boolean,
+    embodied: RendererConfiguration,
+    wanted: RendererConfiguration,
+): List<RendererRebuildCause> = buildList {
+    fun differs(now: Any?, next: Any?) = now != null && now != next
+    if (routeChanged) add(RendererRebuildCause.ROUTE)
+    if (signedIn) add(RendererRebuildCause.SIGNED_IN)
+    if (differs(embodied.admittedUrl, wanted.admittedUrl)) add(RendererRebuildCause.ENDPOINT)
+    if (differs(embodied.authOwner, wanted.authOwner)) add(RendererRebuildCause.CREDENTIAL)
+    if (differs(embodied.homeOwner, wanted.homeOwner)) add(RendererRebuildCause.HOME_DASHBOARD)
+    if (differs(embodied.filter, wanted.filter)) add(RendererRebuildCause.ENTITY_FILTER)
+    if (differs(embodied.theme, wanted.theme)) add(RendererRebuildCause.THEME)
 }
 
 /**
