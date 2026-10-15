@@ -1,6 +1,8 @@
 package io.panelassistant.android.control
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.webkit.WebView
 import io.panelassistant.android.Config
@@ -12,6 +14,7 @@ import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
@@ -109,7 +112,7 @@ class AdbController private constructor(
         // This switch is also the explicit admission control for the built-in renderer's DevTools
         // socket. Closing the global WebView debugging surface before the potentially slow root teardown
         // prevents a previously-created WebView from remaining debuggable until its next rebuild.
-        WebView.setWebContentsDebuggingEnabled(false)
+        closeWebViewDebugging()
         val complete = completeDisableTransition()
         if (complete) resealHardenedAuthorityIfExact()
         complete
@@ -126,7 +129,7 @@ class AdbController private constructor(
             // Startup/reconnect recovery always gives an interrupted OFF transition priority over the
             // stale pre-transition ownership bit. The marker remains armed if root or verification is
             // unavailable, so a later reconnect retries instead of enabling TCP.
-            WebView.setWebContentsDebuggingEnabled(false)
+            closeWebViewDebugging()
             if (available()) completeDisableTransition()
             resealHardenedAuthorityIfExact()
             return@mutate
@@ -147,7 +150,7 @@ class AdbController private constructor(
      * inactive and removes any disable marker. */
     internal fun commitHardenedWhenRemoteAdbInactive(commit: () -> Boolean): HardenedNetworkAdbAdmission =
         RemoteDebugSecurityTransitionGate.mutate {
-            WebView.setWebContentsDebuggingEnabled(false)
+            closeWebViewDebugging()
             val disableRequired = config.networkAdbEnabled || disableMarker.isPending()
             completeHardenedNetworkAdbAdmission(
                 disableRequired = disableRequired,
@@ -159,6 +162,25 @@ class AdbController private constructor(
                 commitHardened = commit,
             )
         }
+
+    /**
+     * WebView refuses the debugging toggle off its UI thread ("Toggling of Web Contents Debugging must
+     * be done on the UI thread"), and OFF arrives on the command-dispatch thread, so the call threw and
+     * the transition never ran. Run it on the main thread and wait briefly; the transition goes on
+     * either way, and the renderer reads the setting again on its next rebuild.
+     */
+    private fun closeWebViewDebugging() {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            WebView.setWebContentsDebuggingEnabled(false)
+            return
+        }
+        val done = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post {
+            runCatching { WebView.setWebContentsDebuggingEnabled(false) }
+            done.countDown()
+        }
+        done.await(WEBVIEW_DEBUG_TOGGLE_WAIT_MS, TimeUnit.MILLISECONDS)
+    }
 
     private fun completeDisableTransition(): Boolean = completeNetworkAdbDisableTransition(
         owned = { config.networkAdbEnabled },
@@ -196,6 +218,7 @@ class AdbController private constructor(
 
     companion object {
         internal const val PORT = "5555"
+        private const val WEBVIEW_DEBUG_TOGGLE_WAIT_MS = 1_000L
 
         /** DB-free successor proof: the durable OFF transition is absent and all fixed Android
          * property plus IPv4/IPv6 listener observations remain inactive across restart settling. */
