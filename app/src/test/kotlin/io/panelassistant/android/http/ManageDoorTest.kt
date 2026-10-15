@@ -10,6 +10,7 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.LiveSettingApplyResult
 import io.panelassistant.android.ManageFamily
 import io.panelassistant.android.ManageLogSource
+import io.panelassistant.android.ManageLogSources
 import io.panelassistant.android.ManageReply
 import io.panelassistant.android.ManageTable
 import io.panelassistant.android.control.ControlApplyOutcome
@@ -57,6 +58,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
         manageFamilies = families,
         approvalPollMs = 20,
         rebootSucceeds = rebootSucceeds,
+        deviceSecure = false,
         touchSoundHardware = touchSound,
         configure = configure,
     ).also { it.start(); rigs += it }
@@ -187,7 +189,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
         val rig = managedRig(table, families = mapOf("probe" to ManageFamily("probe", FLOOR_MS, listOf("probe"))))
         val updates = LinkedBlockingQueue<String>()
         val subscription = requireNotNull(
-            rig.commands.subscribe("probe", CommandOrigin.user("a")) { update, delivered ->
+            rig.commands.subscribe("probe", CommandOrigin.user("a")) { update, _, delivered ->
                 updates.put(update.toString()); delivered()
             },
         )
@@ -207,17 +209,19 @@ internal class ManageDoorTest : PanelRuntimeRig() {
         val follower = AtomicReference<(String) -> Unit>()
         val followed = CountDownLatch(1)
         val table = ManageTable().apply {
-            logSource = object : ManageLogSource {
-                override fun backlog() = listOf("one", "two")
-                override fun follow(onLine: (String) -> Unit): AutoCloseable {
-                    follower.set(onLine); followed.countDown()
-                    return AutoCloseable { follower.set(null) }
+            logSources = ManageLogSources { source ->
+                if (source != "app") null else object : ManageLogSource {
+                    override fun backlog() = listOf("one", "two")
+                    override fun follow(onLine: (String) -> Unit): AutoCloseable {
+                        follower.set(onLine); followed.countDown()
+                        return AutoCloseable { follower.set(null) }
+                    }
                 }
             }
         }
         val rig = managedRig(table, families = mapOf("logs" to ManageFamily("logs", FLOOR_MS, emptyList(), append = true)))
         val updates = LinkedBlockingQueue<String>()
-        rig.commands.subscribe("logs", CommandOrigin.peer("192.0.2.7")) { update, delivered ->
+        rig.commands.subscribe("logs", CommandOrigin.peer("192.0.2.7")) { update, _, delivered ->
             updates.put(update.toString()); delivered()
         }
 

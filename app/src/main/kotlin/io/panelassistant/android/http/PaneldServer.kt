@@ -122,6 +122,7 @@ class PaneldServer internal constructor(
     // Dashboard WebView console over the CDP relay; served only while log shipping is configured.
     private val logWebView: LogCapture? = null,
     private val webViewConsoleEnabled: () -> Boolean = { false },
+    private val systemLogAvailable: () -> Boolean = ::systemLogReadable,
     // EFFECTIVE backlight (sysfs actual_brightness via BrightnessController, cached) — the sensors
     // endpoint + Live-state row report what the hardware is doing, not just the Android setting.
     private val effectiveBrightness: () -> Int = { -1 },
@@ -550,7 +551,7 @@ class PaneldServer internal constructor(
                         cachedStorage = storageHealth,
                     )
                     loggingRoutes(
-                        logApp, logSystem, logWebView, webViewConsoleEnabled,
+                        logApp, logSystem, logWebView, webViewConsoleEnabled, systemLogAvailable,
                         admitActiveRead = { admitActiveRead(it) },
                     )
                     powerSafetyRoutes(

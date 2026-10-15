@@ -100,11 +100,18 @@ internal interface ManageDoor {
 /** A sensitive operation from Panel Assistant is waiting for [approvalId] on the panel's own screen. */
 internal class ManageApprovalPending(val approvalId: String) : RuntimeException("approval pending")
 
-/** The live log lines the `logs` family follows: the same source the Server-Sent Events stream reads. */
+/** The captures the `logs` family follows: the same ones, under the same checks, the Server-Sent Events stream reads. */
+internal fun interface ManageLogSources {
+    /** The capture [source] (`app`, `system`, `webview`) names, or null when the stream would refuse it now. */
+    suspend fun select(source: String): ManageLogSource?
+}
+
+/** One capture's live log lines. */
 internal interface ManageLogSource {
     /** The lines a new viewer is shown first; null when the source cannot be followed now. */
     fun backlog(): List<String>?
-    fun follow(onLine: (String) -> Unit): AutoCloseable
+    /** Null when the capture admits no further viewer now. */
+    fun follow(onLine: (String) -> Unit): AutoCloseable?
 }
 
 /**
@@ -115,7 +122,7 @@ internal class ManageTable {
     data class Entry(val name: String, val kind: ManageKind, val handler: ManageHandler)
 
     private val entries = ConcurrentHashMap<String, Entry>()
-    @Volatile var logSource: ManageLogSource? = null
+    @Volatile var logSources: ManageLogSources? = null
 
     fun register(name: String, kind: ManageKind, handler: ManageHandler) {
         require(NAME.matches(name)) { "operation name $name" }
@@ -150,9 +157,13 @@ internal object ManageFamilies {
     ).associateBy(ManageFamily::name)
 }
 
-/** Receives a subscription's updates. [delivered] is called once the update has left, which frees the slot. */
+/**
+ * Receives a subscription's updates: the family's [value] when [known], or null and not known when the family
+ * cannot be read now (protocol section 20.4's `unavailable`). [delivered] is called once the update has left,
+ * which frees the slot.
+ */
 internal fun interface ManageSink {
-    fun update(value: Any?, delivered: () -> Unit)
+    fun update(value: Any?, known: Boolean, delivered: () -> Unit)
 }
 
 internal interface ManageSubscription : AutoCloseable {
@@ -378,6 +389,8 @@ internal class ManageOperations(
             val handle = Handle(newSink, newArgs)
             handles += handle
             replaceSink(newSink, newArgs)
+            // A new log viewer gets its own source's backlog first, as a new stream does.
+            if (definition.append && worker != null) { worker?.cancel(); start() }
             return handle
         }
 
@@ -398,9 +411,8 @@ internal class ManageOperations(
         }
         private val slot = Any()
         private var outstanding = false
-        private var unsent: Any? = null
-        private var hasUnsent = false
-        /** The last value sent or queued, compared by its encoding; null before the first. */
+        private var unsent: Update? = null
+        /** The last value sent or queued, compared by its encoding ([UNAVAILABLE] when it could not be read); null before the first. */
         private var last: String? = null
 
         fun start() {
@@ -417,65 +429,66 @@ internal class ManageOperations(
 
         private suspend fun poll() {
             while (currentCoroutineContext().isActive) {
+                // A read that fails, throws or answers nothing makes the family unavailable; the next success is
+                // then a change even when it repeats the value from before the failure.
                 val value = runCatching { readFamily(definition, origin, args) }.getOrNull()
-                if (value != null) {
-                    val encoded = encode(value)
-                    val changed = synchronized(slot) { (encoded != last).also { if (it) last = encoded } }
-                    if (changed) offer(value, append = false)
-                }
+                val encoded = if (value == null) UNAVAILABLE else encode(value)
+                val changed = synchronized(slot) { (encoded != last).also { if (it) last = encoded } }
+                if (changed) offer(Update(value, value != null), append = false)
                 delay(definition.floorMs)
             }
         }
 
+        /** Follows the capture `args.source` names (`app` when absent); the stream's refusals are `unavailable`. */
         private suspend fun followLogs() {
-            val source = table.logSource ?: return
-            val backlog = source.backlog() ?: return
+            val source = table.logSources?.select(args.optString("source").ifEmpty { "app" })
+            val backlog = source?.backlog()
             val arrived = ArrayDeque<String>()
-            val follower = source.follow { line ->
+            val follower = if (backlog == null) null else source.follow { line ->
                 synchronized(arrived) {
                     arrived.addLast(line)
                     while (arrived.size > MAX_LOG_LINES) arrived.removeFirst()
                 }
             }
+            if (follower == null) {
+                offer(Update(null, false), append = true)
+                return
+            }
             try {
-                offer(JSONArray(backlog), append = true)
+                offer(Update(JSONArray(backlog), true), append = true)
                 while (currentCoroutineContext().isActive) {
                     delay(definition.floorMs)
                     val lines = synchronized(arrived) { arrived.toList().also { arrived.clear() } }
-                    if (lines.isNotEmpty()) offer(JSONArray(lines), append = true)
+                    if (lines.isNotEmpty()) offer(Update(JSONArray(lines), true), append = true)
                 }
             } finally {
                 runCatching { follower.close() }
             }
         }
 
-        private fun offer(value: Any, append: Boolean) {
+        private fun offer(update: Update, append: Boolean) {
             val send = synchronized(slot) {
                 if (outstanding) {
                     // Latest wins for a replacing family; an append family keeps every line, oldest first.
-                    unsent = if (append && hasUnsent) concat(unsent as JSONArray, value as JSONArray) else value
-                    hasUnsent = true
+                    val queued = unsent
+                    unsent = if (append && queued != null && queued.known && update.known) {
+                        Update(concat(queued.value as JSONArray, update.value as JSONArray), true)
+                    } else update
                     false
                 } else {
                     outstanding = true
                     true
                 }
             }
-            if (send) deliver(value)
+            if (send) deliver(update)
         }
 
-        private fun deliver(value: Any) {
+        private fun deliver(update: Update) {
             val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
-            sink.update(value) {
+            sink.update(update.value, update.known) {
                 if (!delivered.compareAndSet(false, true)) return@update
                 val next = synchronized(slot) {
-                    if (hasUnsent) {
-                        hasUnsent = false
-                        unsent.also { unsent = null }
-                    } else {
-                        outstanding = false
-                        null
-                    }
+                    unsent.also { if (it == null) outstanding = false else unsent = null }
                 }
                 if (next != null && worker?.isActive == true) deliver(next)
             }
@@ -487,9 +500,14 @@ internal class ManageOperations(
 
     }
 
+    /** One update a subscription sends: a value, or null when [known] is false. */
+    private class Update(val value: Any?, val known: Boolean)
+
     private companion object {
         const val TAG = "ha-paneld/manage"
         const val MAX_LOG_LINES = 512
+        /** [FamilySubscription]'s record of an unreadable family; no [encode] output is empty. */
+        const val UNAVAILABLE = ""
 
         fun encode(value: Any?): String = when (value) {
             is JSONObject, is JSONArray -> value.toString()

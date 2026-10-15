@@ -459,10 +459,13 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                             val answered = CompletableDeferred<Unit>()
                             // Every other argument reaches each read of the family (a visible wizard's presence).
                             val familyArgs = JSONObject(args.toString()).apply { remove("family") }
-                            val subscription = dispatcher.subscribe(family, origin, sink = ManageSink { value, delivered ->
+                            val subscription = dispatcher.subscribe(family, origin, sink = ManageSink { value, known, delivered ->
                                 val update = JSONObject().put("subscription", commandId).put(
                                     "observations",
-                                    JSONArray().put(JSONObject().put("channel", family).put("state", "known").put("value", value ?: JSONObject.NULL)),
+                                    JSONArray().put(
+                                        JSONObject().put("channel", family).put("state", if (known) "known" else "unavailable")
+                                            .put("value", if (known) value ?: JSONObject.NULL else JSONObject.NULL),
+                                    ),
                                 )
                                 launch { answered.await(); send(update, after = delivered) }
                             }, args = familyArgs)

@@ -39,6 +39,10 @@ internal class PaneldServerHttpFixture(
     powerSafety: () -> io.panelassistant.android.control.PowerSafetyAssessment = { error("Unexpected power assessment") },
     repairPowerSafety: () -> io.panelassistant.android.control.PowerSafetyRepairResult = { error("Unexpected power repair") },
     logApp: io.panelassistant.android.logship.LogCapture? = null,
+    logSystem: io.panelassistant.android.logship.LogCapture? = null,
+    logWebView: io.panelassistant.android.logship.LogCapture? = null,
+    webViewConsoleEnabled: () -> Boolean = { false },
+    systemLogAvailable: () -> Boolean = { false },
 ) : java.io.Closeable {
     val directory = Files.createTempDirectory("paneld-http-baseline").toFile()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -159,8 +163,11 @@ internal class PaneldServerHttpFixture(
         field("autoSleepHttpApi", AutoSleepHttpApi.UNAVAILABLE)
         field("radioStatus", { null })
         field("onZigbeeJoinRetry", { error("Unavailable radio must not join") })
-        field("webViewConsoleEnabled", { false })
+        field("webViewConsoleEnabled", webViewConsoleEnabled)
+        field("systemLogAvailable", systemLogAvailable)
         if (logApp != null) field("logApp", logApp)
+        if (logSystem != null) field("logSystem", logSystem)
+        if (logWebView != null) field("logWebView", logWebView)
         field("powerSafety", powerSafety)
         field("onRepairPowerSafety", repairPowerSafety)
         field("freshPowerSafetyRepairCapability", { io.panelassistant.android.control.PowerRepairCapability.APP_ONLY })

@@ -58,12 +58,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -82,7 +84,7 @@ internal class StubTest : PanelRuntimeRig() {
     }
 
     private fun managedRig(table: ManageTable, families: Map<String, ManageFamily> = emptyMap(), configure: (Config) -> Unit = {}): Rig =
-        rig(manageTable = table, manageFamilies = families, approvalPollMs = 20, configure = configure).also { it.start(); rigs += it }
+        rig(manageTable = table, manageFamilies = families, approvalPollMs = 20, deviceSecure = false, configure = configure).also { it.start(); rigs += it }
 
     @Test fun withTheRoutesClosedOnlyTheClosedListServesAndEveryOtherPathIsCountedGone() {
         PaneldServerHttpFixture().use { fixture ->
@@ -332,6 +334,41 @@ internal class StubTest : PanelRuntimeRig() {
         val afterClose = reads.get()
         Thread.sleep(400)
         assertTrue("the closed socket's subscription stopped reading", reads.get() <= afterClose + 1)
+    }
+
+    @Test fun aFailingReadIsUnavailableOverTheSocketAndAnIdenticalRecoveryIsKnownAgain() = testApplication {
+        val table = ManageTable()
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        table.register("probe", ManageKind.READ) {
+            when (reads.incrementAndGet()) {
+                1, 2 -> ManageReply("applied", null, JSONObject().put("v", 1))
+                3 -> ManageReply("refused", "hardware_unavailable", JSONObject().put("error", "busy"), status = 503)
+                4 -> error("read threw")
+                else -> ManageReply("applied", null, JSONObject().put("v", 1))
+            }
+        }
+        val rig = managedRig(table, families = mapOf("probe" to ManageFamily("probe", 100, listOf("probe"))))
+        stub { rig.commands }
+
+        val observations = socket {
+            val applied = exchange(JSONObject().put("kind", "manage").put("command_id", "s1").put("op", "subscribe").put("args", JSONObject().put("family", "probe")))
+            assertEquals("applied", applied.getString("outcome"))
+            val seen = mutableListOf<String>()
+            withTimeout(5_000) {
+                while (seen.size < 3) {
+                    val frame = JSONObject((incoming.receive() as Frame.Text).readText())
+                    if (!frame.has("subscription")) continue
+                    val observation = frame.getJSONArray("observations").getJSONObject(0)
+                    seen += observation.getString("state") + " " + observation.get("value")
+                }
+            }
+            // Later identical reads send nothing more.
+            val extra = withTimeoutOrNull(500) { incoming.receive() }
+            assertNull("an unchanged recovered value sends nothing", extra)
+            seen
+        }
+
+        assertEquals(listOf("""known {"v":1}""", "unavailable null", """known {"v":1}"""), observations)
     }
 
     @Test fun aLateUnsubscribeOfAnOlderIdLeavesTheNewerSubscriptionRunning() = testApplication {

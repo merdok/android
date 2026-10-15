@@ -163,6 +163,8 @@ internal abstract class PanelRuntimeRig {
         approvalPollMs: Long = 1_000,
         /** Whether the privileged reboot route succeeds. */
         rebootSucceeds: Boolean = true,
+        /** Whether the panel has a lock credential, which refuses every reboot. */
+        deviceSecure: Boolean = true,
         /** Touch-sound hardware; null leaves the controller unconstructed, as no touch_sound command is sent. */
         touchSoundHardware: io.panelassistant.android.control.TouchSoundHardware? = null,
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
@@ -203,6 +205,7 @@ internal abstract class PanelRuntimeRig {
             FakeSystemEnv(), FakeRootShell(runResult = rebootSucceeds), systemDaemon,
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
+            isDeviceSecure = { deviceSecure },
         )
         val bootChime = BootChimeController(
             configured = { false },

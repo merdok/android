@@ -22,16 +22,54 @@ internal fun Route.loggingRoutes(
     logSystem: LogCapture?,
     logWebView: LogCapture?,
     webViewConsoleEnabled: () -> Boolean,
+    systemLogAvailable: () -> Boolean,
     admitActiveRead: suspend (ApplicationCall) -> Boolean,
 ) {
-    // The `logs` subscription family follows the same capture the stream below serves (protocol 20.4).
-    manageTable()?.logSource = logApp?.let(::LogCaptureSource)
+    val captures = LogCaptures(logApp, logSystem, logWebView, webViewConsoleEnabled, systemLogAvailable)
+    // The `logs` subscription family follows the capture the stream below would serve (protocol 20.4).
+    manageTable()?.logSources = captures
     // Live log tail as Server-Sent Events (?source=app|system|webview). Feeds the Logs tab;
     // also curl-able (`curl -N .../api/v1/logs/stream`). Lines are pre-redacted.
     get("/logs/stream") {
-        if (admitActiveRead(call)) handleLogStream(call, logApp, logSystem, logWebView, webViewConsoleEnabled)
+        if (admitActiveRead(call)) handleLogStream(call, captures)
     }
 }
+
+/** What a log viewer's `source` selects: its capture, or the stream's refusal of it. */
+private sealed interface LogSelection {
+    class Selected(val capture: LogCapture) : LogSelection
+    class Refused(val status: HttpStatusCode, val text: String) : LogSelection
+}
+
+/** The three captures and the one definition of which a viewer may follow, for the stream and the `logs` family. */
+private class LogCaptures(
+    private val app: LogCapture?,
+    private val system: LogCapture?,
+    private val webView: LogCapture?,
+    private val webViewConsoleEnabled: () -> Boolean,
+    private val systemLogAvailable: () -> Boolean,
+) : io.panelassistant.android.ManageLogSources {
+    suspend fun selection(source: String): LogSelection {
+        val capture = when (source) {
+            "app" -> app
+            "system" -> if (withContext(Dispatchers.IO) { systemLogAvailable() }) system else {
+                return LogSelection.Refused(HttpStatusCode.ServiceUnavailable, "system log needs root or a LOGCAT helper\n")
+            }
+            "webview" -> if (webViewConsoleEnabled()) webView else {
+                return LogSelection.Refused(HttpStatusCode.ServiceUnavailable, "webview console needs log shipping configured\n")
+            }
+            else -> return LogSelection.Refused(HttpStatusCode.BadRequest, "unknown source '$source' (app|system|webview)\n")
+        } ?: return LogSelection.Refused(HttpStatusCode.NotFound, "log viewer unavailable\n")
+        return LogSelection.Selected(capture)
+    }
+
+    override suspend fun select(source: String): io.panelassistant.android.ManageLogSource? =
+        (selection(source) as? LogSelection.Selected)?.capture?.let(::LogCaptureSource)
+}
+
+/** Whether the system log can be read: root, or a helper that serves LOGCAT. */
+internal fun systemLogReadable(): Boolean =
+    Su.availableCachedIsolated() || HelperClient.send("LOGCATCAPS") == "LOGCATCAPS 1"
 
 // ---- live log stream (SSE) ----
 
@@ -40,36 +78,13 @@ internal fun Route.loggingRoutes(
  *  dump), then live lines. A per-connection drop-oldest channel means a stalled browser can
  *  never back-pressure the capture; a 15s `: ping` comment detects dead peers so the
  *  subscription (and with it the logcat subprocess) is released. */
-private suspend fun handleLogStream(
-    call: ApplicationCall,
-    logApp: LogCapture?,
-    logSystem: LogCapture?,
-    logWebView: LogCapture?,
-    webViewConsoleEnabled: () -> Boolean,
-) {
-    val cap = when (val src = call.request.queryParameters["source"] ?: "app") {
-        "app" -> logApp
-        "system" -> if (withContext(Dispatchers.IO) {
-                Su.availableCachedIsolated() || HelperClient.send("LOGCATCAPS") == "LOGCATCAPS 1"
-            }) logSystem else {
-            call.respondText("system log needs root or a LOGCAT helper\n", status = HttpStatusCode.ServiceUnavailable)
+private suspend fun handleLogStream(call: ApplicationCall, captures: LogCaptures) {
+    val cap = when (val selection = captures.selection(call.request.queryParameters["source"] ?: "app")) {
+        is LogSelection.Selected -> selection.capture
+        is LogSelection.Refused -> {
+            call.respondText(selection.text, status = selection.status)
             return
         }
-        "webview" -> if (webViewConsoleEnabled()) logWebView else {
-            call.respondText(
-                "webview console needs log shipping configured\n",
-                status = HttpStatusCode.ServiceUnavailable,
-            )
-            return
-        }
-        else -> {
-            call.respondText("unknown source '$src' (app|system|webview)\n", status = HttpStatusCode.BadRequest)
-            return
-        }
-    }
-    if (cap == null) {
-        call.respondText("log viewer unavailable\n", status = HttpStatusCode.NotFound)
-        return
     }
     val viewer = when (val admission = cap.admitViewer()) {
         is LogCapture.ViewerAdmission.Accepted -> admission.lease
@@ -114,8 +129,8 @@ private class LogCaptureSource(private val capture: LogCapture) : io.panelassist
     override fun backlog(): List<String> = capture.initialBacklog()
 
     /** Holds a viewer lease like a stream does, so subscribers count against the same viewer limit. */
-    override fun follow(onLine: (String) -> Unit): AutoCloseable {
-        val lease = (capture.admitViewer() as? LogCapture.ViewerAdmission.Accepted)?.lease ?: return AutoCloseable {}
+    override fun follow(onLine: (String) -> Unit): AutoCloseable? {
+        val lease = (capture.admitViewer() as? LogCapture.ViewerAdmission.Accepted)?.lease ?: return null
         val subscription = capture.subscribe(onLine)
         return AutoCloseable {
             runCatching { subscription.close() }
