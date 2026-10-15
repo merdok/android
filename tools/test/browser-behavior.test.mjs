@@ -4060,7 +4060,7 @@ browserTest('Only a typed query moves the Entities page', async (t) => {
   // A mutation refresh repaints every section — refilling the tables emptied above — and must never
   // carry the viewport to Suggested.
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.locator('#entity-auto-static').uncheck();
+  await page.locator('#entity-auto-static').click();   // the harness echoes the old policy back, so the box may re-tick; only the save is under test
   await settled(page, () => !document.getElementById('entity-auto-static').disabled
     && document.querySelectorAll('[data-table="current"] tbody tr').length === 100);
   assert.equal(await page.evaluate(() => window.scrollY), 0, 'a policy save must not move the page');
