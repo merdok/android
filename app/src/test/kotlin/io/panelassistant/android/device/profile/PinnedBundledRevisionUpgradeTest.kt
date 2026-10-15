@@ -1,5 +1,7 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.junit.After
@@ -43,7 +45,7 @@ class PinnedBundledRevisionUpgradeTest {
     private val newRef = ProfileRef(vendorId, ProfileYaml.sha256(newVendorYaml))
 
     @Before fun setUp() {
-        directory = Files.createTempDirectory("pinned-bundled-upgrade-test").toFile()
+        directory = scratchDirectory("pinned-bundled-upgrade-test").toFile()
         preferences = PanelPreferences()
     }
 

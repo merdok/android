@@ -39,7 +39,7 @@ class HaOAuthFlowTest {
         flow.start("http://ha.local:8123", "http://192.168.1.20:8888", authority())
 
         assertTrue(flow.claim(state, "http://panel.local:8888") is HaOAuthClaim.WrongOrigin)
-        assertTrue(flow.claim(state, "http://192.168.1.20:8888") is HaOAuthClaim.Invalid)
+        assertEquals(HaOAuthClaim.Invalid(HaOAuthRejection.ALREADY_USED), flow.claim(state, "http://192.168.1.20:8888"))
     }
 
     @Test fun `newest attempt invalidates its predecessor and monotonic expiry removes it`() {
@@ -49,12 +49,19 @@ class HaOAuthFlowTest {
         val flow = HaOAuthFlow(nowMillis = { now }, stateToken = { tokens[next++] }, ttlMillis = 1_000)
         flow.start("http://ha-a", "http://panel:8888", authority(1))
         flow.start("http://ha-b", "http://panel:8888", authority(2))
-        assertTrue(flow.claim(tokens[0], "http://panel:8888") is HaOAuthClaim.Invalid)
+        assertEquals(HaOAuthClaim.Invalid(HaOAuthRejection.SUPERSEDED), flow.claim(tokens[0], "http://panel:8888"))
         assertEquals(1, flow.pendingCount())
 
         now = 1_000
-        assertTrue(flow.claim(tokens[1], "http://panel:8888") is HaOAuthClaim.Invalid)
+        assertEquals(HaOAuthClaim.Invalid(HaOAuthRejection.EXPIRED), flow.claim(tokens[1], "http://panel:8888"))
         assertEquals(0, flow.pendingCount())
+    }
+
+    @Test fun `a rejected callback says whether the state was never issued here or malformed`() {
+        // A fresh flow is what an app or server restart between start and callback leaves behind.
+        val flow = HaOAuthFlow(nowMillis = { 0L }, stateToken = { "e".repeat(43) })
+        assertEquals(HaOAuthClaim.Invalid(HaOAuthRejection.UNKNOWN), flow.claim("f".repeat(43), "http://panel:8888"))
+        assertEquals(HaOAuthClaim.Invalid(HaOAuthRejection.MALFORMED), flow.claim("short", "http://panel:8888"))
     }
 
     @Test fun `state syntax requires a full url-safe random token`() {

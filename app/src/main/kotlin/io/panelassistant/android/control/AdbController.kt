@@ -1,6 +1,8 @@
 package io.panelassistant.android.control
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.webkit.WebView
 import io.panelassistant.android.Config
@@ -12,6 +14,7 @@ import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
@@ -99,13 +102,17 @@ class AdbController private constructor(
             // convert an interrupted teardown into TCP enablement merely because config ownership is
             // still true from the pre-teardown state.
             if (disableMarker.isPending()) return@mutate false
+            // Without root the app cannot open the port, so recording the intent would leave a switch
+            // that reads ON over a port the app never owned (and, before OFF learned the same rule, one
+            // it could not turn off).
+            if (!available()) return@mutate false
             if (!config.setNetworkAdbEnabled(true)) return@mutate false
             return@mutate apply()
         }
         // This switch is also the explicit admission control for the built-in renderer's DevTools
         // socket. Closing the global WebView debugging surface before the potentially slow root teardown
         // prevents a previously-created WebView from remaining debuggable until its next rebuild.
-        WebView.setWebContentsDebuggingEnabled(false)
+        closeWebViewDebugging()
         val complete = completeDisableTransition()
         if (complete) resealHardenedAuthorityIfExact()
         complete
@@ -122,7 +129,7 @@ class AdbController private constructor(
             // Startup/reconnect recovery always gives an interrupted OFF transition priority over the
             // stale pre-transition ownership bit. The marker remains armed if root or verification is
             // unavailable, so a later reconnect retries instead of enabling TCP.
-            WebView.setWebContentsDebuggingEnabled(false)
+            closeWebViewDebugging()
             if (available()) completeDisableTransition()
             resealHardenedAuthorityIfExact()
             return@mutate
@@ -143,7 +150,7 @@ class AdbController private constructor(
      * inactive and removes any disable marker. */
     internal fun commitHardenedWhenRemoteAdbInactive(commit: () -> Boolean): HardenedNetworkAdbAdmission =
         RemoteDebugSecurityTransitionGate.mutate {
-            WebView.setWebContentsDebuggingEnabled(false)
+            closeWebViewDebugging()
             val disableRequired = config.networkAdbEnabled || disableMarker.isPending()
             completeHardenedNetworkAdbAdmission(
                 disableRequired = disableRequired,
@@ -156,8 +163,28 @@ class AdbController private constructor(
             )
         }
 
+    /**
+     * WebView refuses the debugging toggle off its UI thread ("Toggling of Web Contents Debugging must
+     * be done on the UI thread"), and OFF arrives on the command-dispatch thread, so the call threw and
+     * the transition never ran. Run it on the main thread and wait briefly; the transition goes on
+     * either way, and the renderer reads the setting again on its next rebuild.
+     */
+    private fun closeWebViewDebugging() {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            WebView.setWebContentsDebuggingEnabled(false)
+            return
+        }
+        val done = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post {
+            runCatching { WebView.setWebContentsDebuggingEnabled(false) }
+            done.countDown()
+        }
+        done.await(WEBVIEW_DEBUG_TOGGLE_WAIT_MS, TimeUnit.MILLISECONDS)
+    }
+
     private fun completeDisableTransition(): Boolean = completeNetworkAdbDisableTransition(
         owned = { config.networkAdbEnabled },
+        rootAvailable = ::available,
         disablePending = disableMarker::isPending,
         armDisable = disableMarker::arm,
         teardown = { Su.run(networkAdbDisableCommand()) },
@@ -191,6 +218,7 @@ class AdbController private constructor(
 
     companion object {
         internal const val PORT = "5555"
+        private const val WEBVIEW_DEBUG_TOGGLE_WAIT_MS = 1_000L
 
         /** DB-free successor proof: the durable OFF transition is absent and all fixed Android
          * property plus IPv4/IPv6 listener observations remain inactive across restart settling. */
@@ -333,6 +361,7 @@ internal class NetworkAdbDisableTransitionMarker(private val file: File) {
  * durable marker or the already-safe ownership=false state, so the next process can repeat the work. */
 internal fun completeNetworkAdbDisableTransition(
     owned: () -> Boolean,
+    rootAvailable: () -> Boolean = { true },
     disablePending: () -> Boolean,
     armDisable: () -> Boolean,
     teardown: () -> Boolean,
@@ -341,6 +370,19 @@ internal fun completeNetworkAdbDisableTransition(
     clearDisable: () -> Boolean,
 ): Boolean {
     if (!owned() && !disablePending()) return true // externally-active adb — don't kill it
+    if (!rootAvailable()) {
+        // Without root OFF cannot tear anything down, but it can still stop the app persisting the port.
+        // A port proven closed owes nothing, so intent and any old marker both go. A live listener may
+        // be one the app opened before it lost root, so the durable OFF marker stays armed and the next
+        // reassert with root finishes the teardown; ownership is cleared either way so the switch reads
+        // OFF, and the caller's success means the intent is off, not that the port is closed.
+        val closed = inactiveReadback()
+        if (!closed && !armDisable()) return false
+        if (!clearOwnership() || owned()) return false
+        if (!closed) return true
+        if (disablePending() && !clearDisable()) return false
+        return !disablePending()
+    }
     if (!armDisable()) return false
     if (!teardown()) return false
     if (!inactiveReadback()) return false

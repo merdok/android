@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.platform.Daemon
 import io.panelassistant.android.platform.DaemonLongResult
 import io.panelassistant.android.platform.DaemonStreamResult
@@ -27,7 +29,7 @@ import org.junit.Test
 class HelperSocketCompositionTest {
     @Test(timeout = 10_000)
     fun concurrentNativeSocketKeepsItsOwnGuardCustody() {
-        val root = Files.createTempDirectory("hapaneld-helper-guard-")
+        val root = scratchDirectory("hapaneld-helper-guard-")
         val socket = Path.of(System.getProperty("java.io.tmpdir"), "hapaneld-helper-${UUID.randomUUID()}.sock")
         var second: Process? = null
         try {
@@ -125,7 +127,7 @@ class HelperSocketCompositionTest {
     @Test(timeout = 10_000)
     fun connectionScopedAdmissionComposesWithNativeStreamAndCompanionFraming() {
         val daemon = IdentityAdmittingHelperClient(ChannelSessionTransport(socketPath), nowNs = { 0L })
-        val directory = Files.createTempDirectory("helper-admitted-stream-").toFile()
+        val directory = scratchDirectory("helper-admitted-stream-").toFile()
         val source = File(directory, "fixture.apk").apply { writeBytes(byteArrayOf(0x50, 0x4b, 0, 4, 0x7f)) }
         try {
             assertEquals(
@@ -148,7 +150,7 @@ class HelperSocketCompositionTest {
 
     @Test(timeout = 10_000)
     fun installTransactionCompletesTwoPhaseNativeStreamAndReleasesInput() {
-        val directory = Files.createTempDirectory("helper-socket-install-").toFile()
+        val directory = scratchDirectory("helper-socket-install-").toFile()
         val source = File(directory, "fixture.apk").apply { writeBytes(byteArrayOf(0x50, 0x4b, 0, 4, 0x7f)) }
         try {
             assertEquals(InstallOutcome.Succeeded, HelperInstallTransaction(SocketDaemon(socketPath)).install(source, File(directory, "staging")))
@@ -300,7 +302,7 @@ class HelperSocketCompositionTest {
             val lockPath = Path.of("/tmp", "hapaneld-helper-socket-composition.lock")
             fixtureLock = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE).lock()
             runCatching { Files.setPosixFilePermissions(lockPath, PosixFilePermissions.fromString("rw-rw-rw-")) }
-            guardRoot = Files.createTempDirectory("hapaneld-helper-guard-")
+            guardRoot = scratchDirectory("hapaneld-helper-guard-")
             socketPath = Path.of(System.getProperty("java.io.tmpdir"), "hapaneld-helper-${UUID.randomUUID()}.sock")
             server = ProcessBuilder(executable.absolutePath, socketPath.toString(), guardRoot.toString())
                 .redirectErrorStream(true)

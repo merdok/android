@@ -1,5 +1,7 @@
 package io.panelassistant.android.storage
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.junit.After
@@ -24,7 +26,7 @@ class DisposableFileSweeperTest {
     private val old = processStart - 2L * DISPOSABLE_ORPHAN_MINIMUM_AGE_MS
 
     @Before fun createDirectories() {
-        root = Files.createTempDirectory("disposable-sweep").toFile()
+        root = scratchDirectory("disposable-sweep").toFile()
         cacheDir = File(root, "cache").apply { mkdirs() }
         filesDir = File(root, "files").apply { mkdirs() }
     }

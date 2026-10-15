@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
@@ -27,7 +29,7 @@ class HardwareCharacterizationTest {
     }
 
     @Test fun namedDevicesAreSortedSanitizedAndBounded() {
-        val root = Files.createTempDirectory("hardware-names").toFile()
+        val root = scratchDirectory("hardware-names").toFile()
         repeat(30) { i ->
             val node = File(root, "%02d".format(i)).apply { mkdirs() }
             File(node, "name").writeText(" sensor\n$i ")

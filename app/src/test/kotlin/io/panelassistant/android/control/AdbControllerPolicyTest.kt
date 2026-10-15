@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.nio.file.Files
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -457,7 +459,7 @@ class AdbControllerPolicyTest {
     }
 
     @Test fun `corrupt marker remains a fail closed disable instruction`() {
-        val directory = Files.createTempDirectory("network-adb-disable-marker").toFile()
+        val directory = scratchDirectory("network-adb-disable-marker").toFile()
         try {
             val file = directory.resolve("network-adb-disable.v1")
             val marker = NetworkAdbDisableTransitionMarker(file)
@@ -501,6 +503,55 @@ class AdbControllerPolicyTest {
 
         assertTrue(owned)
         assertTrue(marker)
+    }
+
+    @Test fun `OFF without root clears the intent and keeps a teardown owed until root returns`() {
+        // Enabled with root, root lost, OFF requested with no marker pending: the listener may be the
+        // app's own, so OFF must not forget it.
+        var owned = true
+        var marker = false
+        var root = false
+        var listening = true
+        val teardowns = mutableListOf<Boolean>()
+        fun off() = completeNetworkAdbDisableTransition(
+            owned = { owned },
+            rootAvailable = { root },
+            disablePending = { marker },
+            armDisable = { marker = true; true },
+            teardown = { teardowns += root; if (root) listening = false; root },
+            inactiveReadback = { !listening },
+            clearOwnership = { owned = false; true },
+            clearDisable = { marker = false; true },
+        )
+
+        assertTrue(off())
+        assertFalse(owned)
+        assertTrue(marker)
+        assertTrue(teardowns.isEmpty())
+
+        // Root comes back: the reassert's transition sees the marker and closes the port.
+        root = true
+        assertTrue(off())
+        assertEquals(listOf(true), teardowns)
+        assertFalse(listening)
+        assertFalse(marker)
+    }
+
+    @Test fun `OFF without root on a closed port clears intent and any old marker`() {
+        var owned = true
+        var marker = true
+        assertTrue(completeNetworkAdbDisableTransition(
+            owned = { owned },
+            rootAvailable = { false },
+            disablePending = { marker },
+            armDisable = { marker = true; true },
+            teardown = { error("no teardown without root") },
+            inactiveReadback = { true },
+            clearOwnership = { owned = false; true },
+            clearDisable = { marker = false; true },
+        ))
+        assertFalse(owned)
+        assertFalse(marker)
     }
 
     @Test fun `Hardened commits only after settled disable ownership and marker cleanup`() {

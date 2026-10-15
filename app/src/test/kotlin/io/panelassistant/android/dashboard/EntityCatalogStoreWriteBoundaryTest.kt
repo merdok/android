@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.ContextWrapper
 import android.database.SQLException
 import org.junit.After
@@ -14,7 +16,7 @@ import java.nio.file.Files
  * the losing write is run again within its budget rather than failing the caller.
  */
 class EntityCatalogStoreWriteBoundaryTest {
-    private val directory = Files.createTempDirectory("catalog-write-boundary").toFile()
+    private val directory = scratchDirectory("catalog-write-boundary").toFile()
     private val context = object : ContextWrapper(null) {
         override fun getFilesDir(): File = directory
         override fun getNoBackupFilesDir(): File = directory

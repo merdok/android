@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
@@ -107,7 +109,7 @@ class BundledHelperInstallerTest {
     }
 
     @Test fun `stage command replaces only an unowned fixed orphan after authenticating full upload`() {
-        val root = Files.createTempDirectory("bundled-helper-stage-").toFile()
+        val root = scratchDirectory("bundled-helper-stage-").toFile()
         try {
             val dataLocal = File(root, "data/local").apply { mkdirs() }
             File(root, "dev").mkdirs()
@@ -135,7 +137,7 @@ class BundledHelperInstallerTest {
     }
 
     @Test fun `stage command preserves fixed stage when lock or native authority is active`() {
-        val root = Files.createTempDirectory("bundled-helper-stage-busy-").toFile()
+        val root = scratchDirectory("bundled-helper-stage-busy-").toFile()
         try {
             val dataLocal = File(root, "data/local").apply { mkdirs() }
             val dev = File(root, "dev").apply { mkdirs() }
@@ -169,7 +171,7 @@ class BundledHelperInstallerTest {
 
     @Test fun `every foreign journal blocks staging without changing retained custody`() {
         foreignHelperJournals.forEach { path ->
-            val root = Files.createTempDirectory("bundled-helper-foreign-stage-").toFile()
+            val root = scratchDirectory("bundled-helper-foreign-stage-").toFile()
             try {
                 val dataLocal = File(root, "data/local").apply { mkdirs() }
                 File(root, "dev").mkdirs()
@@ -242,7 +244,7 @@ class BundledHelperInstallerTest {
     }
 
     @Test fun `interrupted upload removes only its unique partial and releases admission`() {
-        val root = Files.createTempDirectory("bundled-helper-stage-signal-").toFile()
+        val root = scratchDirectory("bundled-helper-stage-signal-").toFile()
         try {
             val dataLocal = File(root, "data/local").apply { mkdirs() }
             File(root, "dev").mkdirs()
@@ -645,7 +647,7 @@ class BundledHelperInstallerTest {
     }
 
     @Test fun `read only retained record probe rejects oversized root file before cat`() {
-        val root = Files.createTempDirectory("bundled-helper-record-").toFile()
+        val root = scratchDirectory("bundled-helper-record-").toFile()
         try {
             val record = File(root, "data/local/.hapaneld-helper.legacy-takeover")
             record.parentFile!!.mkdirs()
@@ -1095,7 +1097,7 @@ class BundledHelperInstallerTest {
         candidateBytes: String = fakeHelper(stagedBuild, candidate = true, starts = true),
         test: (FreshFixture) -> Unit,
     ) {
-        val root = Files.createTempDirectory("bundled-helper-fresh-").toFile()
+        val root = scratchDirectory("bundled-helper-fresh-").toFile()
         try {
             val dataLocal = File(root, "data/local").apply { mkdirs() }
             File(root, "dev").mkdirs()
@@ -1143,7 +1145,7 @@ class BundledHelperInstallerTest {
         guardStatus: String = emptyStatus,
         test: (TakeoverFixture) -> Unit,
     ) {
-        val root = Files.createTempDirectory("bundled-helper-takeover-").toFile()
+        val root = scratchDirectory("bundled-helper-takeover-").toFile()
         try {
             val dataLocal = File(root, "data/local").apply { mkdirs() }
             File(root, "dev").mkdirs()

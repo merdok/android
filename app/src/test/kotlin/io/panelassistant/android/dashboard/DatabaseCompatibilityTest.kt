@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.util.DatabaseCompatibilityApkContract
 import java.io.File
@@ -86,7 +88,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun fileObserverDistinguishesFreshUnreadableAndIntegrityFailure() {
-        val directory = kotlin.io.path.createTempDirectory("compat-observe").toFile()
+        val directory = scratchDirectory("compat-observe").toFile()
         try {
             val target = File(directory, "ha-paneld.db")
             assertEquals(
@@ -139,7 +141,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun directOpenDoesNotReadLargeUnusedRecovery() {
-        val directory = kotlin.io.path.createTempDirectory("compat-unused-recovery").toFile()
+        val directory = scratchDirectory("compat-unused-recovery").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("current database") }
             val unused = File(directory, "ha-paneld.db.v14.premigrate")
@@ -163,7 +165,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun fileObserverInspectsOnlyRecoveryThatCanAuthorizeDowngrade() {
-        val directory = kotlin.io.path.createTempDirectory("compat-recovery").toFile()
+        val directory = scratchDirectory("compat-recovery").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("live") }
             val older = File(directory, "ha-paneld.db.v13.premigrate").apply { writeText("older") }
@@ -211,7 +213,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun malformedRecoveryNameStillPreventsFreshClassification() {
-        val directory = kotlin.io.path.createTempDirectory("compat-malformed-recovery").toFile()
+        val directory = scratchDirectory("compat-malformed-recovery").toFile()
         try {
             val target = File(directory, "ha-paneld.db")
             File(directory, "ha-paneld.db.v999999999999999999999.premigrate").writeText("retained")
@@ -235,7 +237,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun incompleteOrTemporaryRecoveryStateCannotMasqueradeAsFresh() {
-        val directory = kotlin.io.path.createTempDirectory("compat-partial-recovery").toFile()
+        val directory = scratchDirectory("compat-partial-recovery").toFile()
         try {
             val target = File(directory, "ha-paneld.db")
             listOf(
@@ -278,7 +280,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun actualDatabaseStateRatherThanTheRunningSchemaDrivesAdmission() {
-        val directory = kotlin.io.path.createTempDirectory("compat-actual-state").toFile()
+        val directory = scratchDirectory("compat-actual-state").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("synthetic future database") }
             val observed = observeDatabaseCompatibility(
@@ -335,7 +337,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun recoveryCompanionStateCannotLicenseMainOnlyRestore() {
-        val directory = kotlin.io.path.createTempDirectory("compat-recovery-sidecar").toFile()
+        val directory = scratchDirectory("compat-recovery-sidecar").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("schema15-live") }
             val premigrate = File(directory, "ha-paneld.db.v14.premigrate").apply { writeText("schema14-main") }
@@ -364,8 +366,8 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun walModeRecoveryInspectionIsIsolatedAndLeavesSourceInventoryUntouched() {
-        val directory = kotlin.io.path.createTempDirectory("compat-isolated-source").toFile()
-        val cache = kotlin.io.path.createTempDirectory("compat-isolated-cache").toFile()
+        val directory = scratchDirectory("compat-isolated-source").toFile()
+        val cache = scratchDirectory("compat-isolated-cache").toFile()
         try {
             val source = File(directory, "ha-paneld.db.v14.premigrate")
                 .apply { writeText("standalone-wal-mode-main") }
@@ -412,7 +414,7 @@ class DatabaseCompatibilityTest {
     }
 
     @Test fun orphanedNewerPremigrateCompanionBlocksFallbackToOlderRecovery() {
-        val directory = kotlin.io.path.createTempDirectory("compat-orphan-newest").toFile()
+        val directory = scratchDirectory("compat-orphan-newest").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("schema15-live") }
             val older = File(directory, "ha-paneld.db.v13.premigrate").apply { writeText("schema13-valid") }

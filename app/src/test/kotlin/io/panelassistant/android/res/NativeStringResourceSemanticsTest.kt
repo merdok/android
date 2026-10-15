@@ -1,5 +1,7 @@
 package io.panelassistant.android.res
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
@@ -66,7 +68,7 @@ class NativeStringResourceSemanticsTest {
         }
         val aapt2 = newestChild(File(sdk, "build-tools"), "aapt2")
         val androidJar = newestChild(File(sdk, "platforms"), "android.jar")
-        val root = Files.createTempDirectory("native-string-semantics")
+        val root = scratchDirectory("native-string-semantics")
         try {
             val resources = root.resolve("res").createDirectories()
             expected.forEach { (directory, strings) ->

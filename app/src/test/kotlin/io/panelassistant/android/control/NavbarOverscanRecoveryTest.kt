@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.util.DurableRecoveryMarker
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
@@ -195,7 +197,7 @@ class NavbarOverscanRecoveryTest {
     private fun withRecovery(
         block: (file: java.io.File, recovery: NavbarOverscanRecovery, commands: Commands) -> Unit,
     ) {
-        val directory = Files.createTempDirectory("navbar-overscan-test").toFile()
+        val directory = scratchDirectory("navbar-overscan-test").toFile()
         try {
             val file = directory.resolve("overscan.pending")
             val commands = Commands()

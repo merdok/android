@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.control.AMBIENT_RETENTION_MINUTES
 import java.io.File
 import java.nio.file.Files
@@ -27,7 +29,7 @@ class HistoryRetentionTest {
     private val nowMinute = now / minute
 
     @Before fun createDatabase() {
-        directory = Files.createTempDirectory("history-retention").toFile()
+        directory = scratchDirectory("history-retention").toFile()
         db = DriverManager.getConnection("jdbc:sqlite:${File(directory, "catalog.db").path}")
         listOf(
             "CREATE TABLE app_state(namespace TEXT, state_key TEXT, value_text TEXT, updated_at INTEGER)",

@@ -1,5 +1,7 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.ProcessBoundaryCommitment
 import io.panelassistant.android.ServiceBoundaryProof
 import io.panelassistant.android.ServiceGenerationAdmission
@@ -55,7 +57,7 @@ class ProfileActivationProcessBoundaryTest {
     private lateinit var panel: Panel
 
     @Before fun setUp() {
-        directory = Files.createTempDirectory("activation-boundary-test").toFile()
+        directory = scratchDirectory("activation-boundary-test").toFile()
         panel = Panel(directory)
     }
 

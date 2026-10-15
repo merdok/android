@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.backup.PanelBackup
 import io.panelassistant.android.config.SettingsRegistry
 import java.io.File
@@ -73,7 +75,7 @@ class BackupArchiveReaderTest {
     }
 
     private fun withArchive(bytes: ByteArray, test: (BackupArchiveReader, File, File) -> Unit) {
-        val directory = Files.createTempDirectory("archive-reader-test").toFile()
+        val directory = scratchDirectory("archive-reader-test").toFile()
         try {
             val payload = File(directory, "payload").apply { writeBytes(bytes) }
             val archive = File(directory, "backup.zip")

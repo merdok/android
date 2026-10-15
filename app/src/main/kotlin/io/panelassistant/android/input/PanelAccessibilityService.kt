@@ -19,6 +19,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import io.panelassistant.android.PaneldService
 import io.panelassistant.android.R
 import io.panelassistant.android.platform.AccessibilityActions
+import io.panelassistant.android.platform.accessibilityScreenshotGranted
 import io.panelassistant.android.platform.AndroidSystemEnv
 import io.panelassistant.android.util.ConfirmedSelfInstaller
 import io.panelassistant.android.util.GuardDbProcessAdmission
@@ -360,7 +361,7 @@ class PanelAccessibilityService : AccessibilityService() {
         }
 
         override fun canScreenshot(): Boolean =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && instance != null
+            accessibilityScreenshotGranted(Build.VERSION.SDK_INT, instance?.serviceInfo?.capabilities)
 
         override fun screenshot(timeoutMs: Long): ByteArray? {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null

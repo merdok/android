@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
@@ -20,7 +22,7 @@ import org.junit.Test
  */
 class NavbarVolumeReceiverTest {
     private val registered = Collections.synchronizedList(mutableListOf<BroadcastReceiver?>())
-    private val tempDir: File = Files.createTempDirectory("navbar-volume-receiver").toFile()
+    private val tempDir: File = scratchDirectory("navbar-volume-receiver").toFile()
 
     @Test fun aClosedControllerRegistersNoVolumeReceiver() {
         val navbar = navbar()

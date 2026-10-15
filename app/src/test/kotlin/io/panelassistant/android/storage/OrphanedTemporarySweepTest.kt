@@ -1,5 +1,7 @@
 package io.panelassistant.android.storage
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.util.GuardDbAppStaging
 import java.io.File
 import java.nio.file.Files
@@ -28,7 +30,7 @@ class OrphanedTemporarySweepTest {
     private val old = processStart - 2L * hour
 
     @Before fun createDirectories() {
-        root = Files.createTempDirectory("orphaned-temporary-sweep").toFile()
+        root = scratchDirectory("orphaned-temporary-sweep").toFile()
         cacheDir = File(root, "cache").apply { mkdirs() }
         filesDir = File(root, "files").apply { mkdirs() }
     }

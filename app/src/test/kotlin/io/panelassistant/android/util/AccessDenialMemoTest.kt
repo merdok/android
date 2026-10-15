@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -91,7 +93,7 @@ class AccessDenialMemoTest {
 
     @Test
     fun openAndListProbesReportReadablePathsAsPermittedAndNeverCallAMissingPathDenied() {
-        val dir = Files.createTempDirectory("denial").toFile()
+        val dir = scratchDirectory("denial").toFile()
         val file = java.io.File(dir, "f").apply { writeText("x") }
         try {
             assertEquals(false, AccessDenialMemo.openDenied(file.path))

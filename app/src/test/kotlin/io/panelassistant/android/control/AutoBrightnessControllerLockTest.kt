@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.ContentResolver
 import android.content.Context
 import android.content.ContextWrapper
@@ -416,7 +418,7 @@ class AutoBrightnessControllerLockTest {
         store: MemoryPreferenceStore = MemoryPreferenceStore(),
         clock: () -> Long = { System.nanoTime() / 1_000_000L },
     ): Harness {
-        val files = Files.createTempDirectory("auto-brightness-lock").toFile().also { it.deleteOnExit() }
+        val files = scratchDirectory("auto-brightness-lock").toFile().also { it.deleteOnExit() }
         val prefs = proxyPreferences()
         val context = FakeContext(files, prefs)
         val config = newConfig(prefs, context.contentResolver).apply {

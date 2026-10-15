@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.SharedPreferences
 import io.panelassistant.android.config.Migrations
 import io.panelassistant.android.config.SettingsRegistry
@@ -358,7 +360,7 @@ class ConfigTransactionTest {
         facts: DeviceFacts,
         test: (RuntimeProfileRegistry) -> Unit,
     ) {
-        val directory = Files.createTempDirectory("profile-setting-defaults").toFile()
+        val directory = scratchDirectory("profile-setting-defaults").toFile()
         val values = mutableMapOf<String, Any>()
         val preferences = object : ProfilePreferences {
             override fun getString(key: String, default: String) = values[key] as? String ?: default

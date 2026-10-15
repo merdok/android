@@ -1,5 +1,7 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.audio.MicrophonePresence
 import io.panelassistant.android.audio.MicrophoneStatus
@@ -992,7 +994,7 @@ class BundledProfileParityTest {
     }
 
     private fun resolve(facts: DeviceFacts): ResolvedProfile {
-        val filesDir = Files.createTempDirectory("bundled-profile-contract").toFile()
+        val filesDir = scratchDirectory("bundled-profile-contract").toFile()
         return try {
             RuntimeProfileRegistry(
                 filesDir = filesDir,
@@ -1008,7 +1010,7 @@ class BundledProfileParityTest {
     }
 
     private fun withRegistry(facts: DeviceFacts, block: (RuntimeProfileRegistry) -> Unit) {
-        val filesDir = Files.createTempDirectory("unofficial-profile-contract").toFile()
+        val filesDir = scratchDirectory("unofficial-profile-contract").toFile()
         try {
             block(
                 RuntimeProfileRegistry(

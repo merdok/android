@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
@@ -798,7 +800,7 @@ class DatabaseRestoreTransactionTest {
     }
 
     private inline fun withFiles(block: (File, File, File) -> Unit) {
-        val directory = Files.createTempDirectory("guard-db-restore-").toFile()
+        val directory = scratchDirectory("guard-db-restore-").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("schema15") }
             val staged = File(directory, "validated-v14").apply { writeText("schema14") }
