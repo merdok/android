@@ -4,6 +4,7 @@ import android.os.Handler
 import androidx.appcompat.app.AppCompatActivity
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.dashboard.AutoScopeVerification
+import io.panelassistant.android.dashboard.shouldHoldRendererForEntityBootstrap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -27,6 +28,7 @@ import org.junit.Test
 class DashboardEntityBootstrapDarkReleaseTest {
     private val auto = ""
     private var owner = 0L
+    private var gate: DashboardEntityGate? = null
 
     @Before fun claim() {
         AutoScopeVerification.invalidate()
@@ -34,15 +36,18 @@ class DashboardEntityBootstrapDarkReleaseTest {
     }
 
     @After fun release() {
+        gate?.stopLease()
         AutoScopeVerification.invalidate()
         BuiltinDashboard.releaseActivityOwner(owner)
     }
 
     @Test fun `a dark Auto panel builds its dashboard as soon as the scope is verified`() {
         val built = mutableListOf<Config>()
-        val gate = gate(config = learnedAutoPanel(), screenAwake = false, built = built)
-        AutoScopeVerification.markVerified(auto)
+        val config = learnedAutoPanel()
+        val gate = gate(config = config, screenAwake = false, built = built).also { gate = it }
+        assertTrue("held until the startup sync confirms Auto", shouldHoldRendererForEntityBootstrap(config))
 
+        AutoScopeVerification.markVerified(auto)
         runBlocking { gate.pollEntityBootstrap() }
 
         assertEquals("the dashboard is built behind the dark screen, once", 1, built.size)
@@ -50,7 +55,6 @@ class DashboardEntityBootstrapDarkReleaseTest {
             "the learned allow-list was prepared for it: ${gate.entityFilterSignature}",
             gate.entityFilterSignature.startsWith("enabled:"),
         )
-        gate.stopLease()
     }
 
     private fun gate(config: Config, screenAwake: Boolean, built: MutableList<Config>) = DashboardEntityGate(
