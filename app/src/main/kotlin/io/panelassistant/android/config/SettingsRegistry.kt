@@ -888,6 +888,8 @@ object SettingsRegistry {
             label = "Panel volume", default = "",
             help = "Current panel media volume reported on its native 0–100 percent scale.",
             haExposedByDefault = true,
+            // With a speaker, the volume is the media player's and always reported (PanelStateCore).
+            availableWhen = { !it.hasSpeaker },
             ha = haEntity("number", "volume", readOnly = true) {
                 range(0, 100, 1)
                 unit("%")
