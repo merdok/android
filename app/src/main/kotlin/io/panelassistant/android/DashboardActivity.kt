@@ -2258,6 +2258,7 @@ class DashboardActivity : AppCompatActivity() {
                     detachLifecycleBar()
                     web = null
                     shownPage.forget()
+                    interstitialShown = false // drop the dead page's cover, or the rebuilt page's first error can't raise one
                     main.removeCallbacks(watchdog)
                     main.removeCallbacks(darkSettle)
                     runCatching { customViewCallback?.onCustomViewHidden() }
