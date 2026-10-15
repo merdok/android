@@ -171,6 +171,8 @@ class WakeWordCatalog(
         held.wakeWord != entry.wakeWord || held.author != entry.author
     }.getOrDefault(false)
 
+    private fun ownImportReason(id: String) = "a wake word you imported is already named \"$id\""
+
     private val downloadLock = ReentrantLock()
 
     /**
@@ -184,9 +186,7 @@ class WakeWordCatalog(
     fun download(id: String): ImportResult {
         val entry = downloadable().firstOrNull { it.id == id }
             ?: return ImportResult.Refused("\"$id\" is not a wake word this panel can download")
-        if (ownImport(entry)) {
-            return ImportResult.Refused("a wake word you imported is already named \"$id\"")
-        }
+        if (ownImport(entry)) return ImportResult.Refused(ownImportReason(id))
         downloadLock.withLock {
             importDir.mkdirs()
             clearDownloads()
@@ -209,7 +209,12 @@ class WakeWordCatalog(
                     ?: return ImportResult.Refused("the manifest names a model that cannot be downloaded")
                 val model = fetchPinned(modelUrl, modelFile, entry.modelBytes, entry.modelSha256)
                     .getOrElse { return ImportResult.Refused(it.message!!, incomplete = it is Incomplete) }
-                return import(id, manifest, model)
+                // Rechecked and promoted under one hold of the catalogue's lock: an owner import of this id
+                // that finished while the files were downloading must still win.
+                synchronized(this) {
+                    if (ownImport(entry)) return ImportResult.Refused(ownImportReason(id))
+                    return import(id, manifest, model)
+                }
             } finally {
                 manifestFile.delete()
                 modelFile.delete()

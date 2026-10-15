@@ -149,6 +149,26 @@ class WakeWordDownloadTest {
         assertTrue(catalog.download("nocturna") is WakeWordCatalog.ImportResult.Imported)
     }
 
+    @Test fun `an owner import that finishes while the files download is kept, and the download refused`() {
+        val catalog = catalog()
+        val own = byteArrayOf(8, 8)
+        val ownManifest = manifest("My Nocturna", "nocturna.tflite").toByteArray()
+        var imported: WakeWordCatalog.ImportResult? = null
+        duringModelFetch = {
+            val owner = Thread { imported = catalog.import("nocturna", ownManifest, own) }
+            owner.start()
+            owner.join()
+        }
+
+        val result = catalog.download("nocturna")
+
+        assertTrue(imported is WakeWordCatalog.ImportResult.Imported)
+        assertEquals("a wake word you imported is already named \"nocturna\"", (result as WakeWordCatalog.ImportResult.Refused).reason)
+        assertArrayEquals(own, File(folder.root, "nocturna/nocturna.tflite").readBytes())
+        assertArrayEquals(ownManifest, File(folder.root, "nocturna/nocturna.json").readBytes())
+        assertEquals(listOf("nocturna"), folder.root.list()!!.toList())
+    }
+
     @Test fun `files a killed download left are cleared at next use while no download runs`() {
         File(folder.root, ".download-nocturna.tflite").writeBytes(byteArrayOf(1))
 
