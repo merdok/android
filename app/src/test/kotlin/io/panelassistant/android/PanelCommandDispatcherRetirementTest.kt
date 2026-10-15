@@ -55,6 +55,43 @@ internal class PanelCommandDispatcherRetirementTest : PanelRuntimeRig() {
         }
     }
 
+    @Test fun queuedActionsStillAnsweredWhenTheDispatcherStops() {
+        val rig = rig()
+        val release = CountDownLatch(1)
+        val blocking = CountDownLatch(1)
+        val results = java.util.concurrent.ConcurrentHashMap<String, MutableList<PanelAssistantCommandResult>>()
+        fun record(name: String): (PanelAssistantCommandResult) -> Unit = { result ->
+            results.computeIfAbsent(name) { java.util.Collections.synchronizedList(mutableListOf()) } += result
+        }
+        try {
+            rig.commands.submit(PanelAssistantCommand("volume", "50", admit = {
+                blocking.countDown()
+                // Swallow the retirement interrupt so the worker stays busy while the stop runs.
+                while (true) {
+                    try {
+                        if (release.await(5, TimeUnit.SECONDS)) break
+                    } catch (_: InterruptedException) {
+                    }
+                }
+                PanelAssistantCommandResult.Refused("barrier")
+            }), CommandOrigin.panelAssistant(), record("volume"))
+            assertTrue("worker reached the barrier", blocking.await(2, TimeUnit.SECONDS))
+            rig.commands.submit(PanelAssistantCommand("reload", "", admit = { null }), CommandOrigin.panelAssistant(), record("reload"))
+            rig.commands.submit(
+                PanelAssistantCommand("media", """{"action":"mute","muted":true}""", admit = { null }),
+                CommandOrigin.panelAssistant(),
+                record("media"),
+            )
+            assertFalse(rig.commands.stop(MonotonicDeadline(0)))
+            val failed = listOf(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
+            assertEquals(failed, results["reload"]?.toList())
+            assertEquals(failed, results["media"]?.toList())
+        } finally {
+            release.countDown()
+            rig.close()
+        }
+    }
+
     private fun awaitState(thread: Thread, expected: Thread.State) {
         val deadline = MonotonicDeadline(2_000)
         while (thread.state != expected && deadline.remainingMs() > 0L) Thread.yield()
