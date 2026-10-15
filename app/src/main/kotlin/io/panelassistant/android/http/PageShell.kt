@@ -124,7 +124,7 @@ internal class PageShell(
 <script id="ha-i18n" type="application/json">${browserI18nPayload(strings, translationPrefixes)}</script>
 <script src="assets/i18n.js"></script>
 <script src="assets/transport.js"></script>
-<script>/* Over the stub's socket or the sidebar relay a download link names its operation (data-op): fetch it through the page transport.
+<script>/* Over the stub's socket a download link names its operation (data-op): fetch it through the page transport, as in the sidebar relay.
 A modified click keeps the plain link; a new tab opens before the request, as a click must open it, and the file keeps the panel's name. */
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[data-op]');
 if(!a||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!(document.body.hasAttribute('data-ui-socket')||document.body.hasAttribute('data-ui-relay'))||!window.PaneldTransport)return;e.preventDefault();

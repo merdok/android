@@ -8,7 +8,7 @@ import vm from 'node:vm';
 const shell = readFileSync(new URL('../../app/src/main/kotlin/io/panelassistant/android/http/PageShell.kt', import.meta.url), 'utf8');
 const script = shell.match(/<script>(\/\* Over the stub's socket a download link[\s\S]*?)<\/script>/)[1];
 
-function load(reply) {
+function load(reply, door = 'data-ui-socket') {
   let onClick;
   const calls = [], saved = [];
   const window = {
@@ -17,7 +17,7 @@ function load(reply) {
   };
   const document = {
     addEventListener(name, fn) { if (name === 'click') onClick = fn; },
-    body: { hasAttribute: (name) => name === 'data-ui-socket', appendChild() {} },
+    body: { hasAttribute: (name) => name === door, appendChild() {} },
     createElement: () => ({ click() { saved.push(this.download); }, remove() {} }),
   };
   window.PaneldTransport = { request(op) { calls.push(['request', op]); return Promise.resolve(reply); } };
@@ -58,4 +58,19 @@ test('a saved file keeps the name the panel gave it', async () => {
   const rig = load({ outcome: 'applied', result: new Blob(['{}']), headers: { 'content-disposition': 'attachment; filename="panel-7-config.json"' } });
   await rig.click(link(''));
   assert.deepEqual(rig.saved, ['panel-7-config.json']);
+});
+
+test("in the sidebar relay a download link goes through the transport too", async () => {
+  const rig = load({ outcome: 'applied', result: new Blob(['{}']) }, 'data-ui-relay');
+  const { event } = await rig.click(link(''));
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(rig.calls, [['request', 'config.export']]);
+  assert.deepEqual(rig.saved, ['config.json']);
+});
+
+test('a page on plain HTTP leaves the link to the browser', async () => {
+  const rig = load({ outcome: 'applied', result: new Blob(['{}']) }, null);
+  const { event } = await rig.click(link(''));
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(rig.calls, []);
 });

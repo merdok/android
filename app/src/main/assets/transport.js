@@ -13,11 +13,12 @@
 // `first` marks the first known value after the subscription was (re)opened.
 //
 // Two implementations behind it:
-//  - WebSocket to the stub door `ws(s)://<page host>/ui` when <body data-ui-socket> is present (its
-//    value, when not empty, is the door's path relative to the page base);
-//  - HTTP over the existing REST routes otherwise (Panel Assistant's sidebar proxy cannot forward a
-//    WebSocket upgrade; this implementation leaves with the proxy in slice 6). It maps each name back to
-//    its route through ROUTES below and polls a subscription at its family's floor.
+//  - the 20.2 frame protocol, over one of two carriers: postMessage to Panel Assistant's sidebar when
+//    <body data-ui-relay> is present (the sidebar relays each frame over the panel's session), or a
+//    WebSocket to the stub door `ws(s)://<page host>/ui` when <body data-ui-socket> is present (its value,
+//    when not empty, is the door's path relative to the page base);
+//  - HTTP over the existing REST routes otherwise (a hardened panel's LAN pages and the fixture harness).
+//    It maps each name back to its route through ROUTES below and polls a subscription at its family's floor.
 // A hidden tab ends every subscription and opens them again on return, here and nowhere else.
 (function () {
   "use strict";
@@ -312,9 +313,12 @@
     source.onmessage = function (event) { if (!sub.stopped) sub.onValue([event.data], "known"); };
   }
 
-  // ---- WebSocket implementation (20.2 objects over the stub door) ---------------------------------
-  function SocketTransport(url) {
-    this.url = url;
+  // ---- Frame implementation (20.2 objects over a carrier) -----------------------------------------
+  // A carrier opens a link: connect(handlers) returns {send(message), close()} and calls handlers.open(),
+  // handlers.message(object) and handlers.close(). `reconnects` says whether a closed link is opened again by
+  // itself (the socket, with backoff) or only when the page next needs it (the relay).
+  function FrameTransport(carrier) {
+    this.carrier = carrier;
     this.socket = null;
     this.ready = false;
     this.queue = [];
@@ -326,27 +330,27 @@
     this.closed = false;
     this.reconnectTimer = null;
   }
-  SocketTransport.prototype.nextId = function (prefix) {
+  FrameTransport.prototype.nextId = function (prefix) {
     this.sequence += 1;
     return prefix + this.sequence.toString(36) + Math.random().toString(36).slice(2, 6);
   };
-  SocketTransport.prototype.connect = function () {
+  FrameTransport.prototype.connect = function () {
     var self = this;
     if (self.socket || self.closed) return;
-    var socket = self.socket = new WebSocket(self.url);
-    socket.onopen = function () {
+    var socket = self.socket = self.carrier.connect({ open: onopen, message: onmessage, close: onclose });
+    function onopen() {
+      if (self.socket !== socket) return;
       self.ready = true;
       self.attempt = 0;
       // Only requests still waiting for their answer are queued: a request that timed out or failed with
       // a closed socket left the queue when it was rejected, so a failed write never runs later.
       var queue = self.queue; self.queue = [];
-      queue.forEach(function (entry) { socket.send(entry.text); self.sent(entry.id); });
+      queue.forEach(function (entry) { socket.send(entry.message); self.sent(entry.id); });
       // Re-subscribe after a reconnect: the panel forgot the old subscriptions with the old socket.
       self.live.forEach(function (sub) { if (!sub.id && !sub.opening) self.open(sub); });
-    };
-    socket.onmessage = function (event) {
-      var message;
-      try { message = JSON.parse(event.data); } catch (_) { return; }
+    }
+    function onmessage(message) {
+      if (self.socket !== socket) return;
       if (message && message.subscription && Array.isArray(message.observations)) {
         var sub = self.subs[message.subscription];
         if (!sub || sub.stopped) return;
@@ -369,8 +373,9 @@
       var reply = { outcome: message.outcome, code: message.code, result: message.result === undefined ? null : message.result };
       if (message.headers) reply.headers = message.headers;
       waiter.resolve(reply);
-    };
-    socket.onclose = function () {
+    }
+    function onclose() {
+      if (self.socket !== socket) return;
       self.socket = null;
       self.ready = false;
       self.subs = {};
@@ -384,25 +389,24 @@
         sub.id = null; sub.opening = false;
         if (!sub.stopped) sub.onValue(null, "unavailable");
       });
-      if (self.closed) return;
+      if (self.closed || !self.carrier.reconnects) return;
       // Full-jitter exponential backoff from 1 s, capped at 30 s.
       var ceiling = Math.min(30000, 1000 * Math.pow(2, self.attempt));
       self.attempt += 1;
       self.reconnectTimer = setTimeout(function () { self.reconnectTimer = null; self.connect(); }, Math.random() * ceiling);
-    };
+    }
   };
-  SocketTransport.prototype.send = function (message) {
-    var text = JSON.stringify(message);
+  FrameTransport.prototype.send = function (message) {
     this.connect();
-    if (this.ready) { this.socket.send(text); this.sent(message.command_id); } else this.queue.push({ id: message.command_id, text: text });
+    if (this.ready) { this.socket.send(message); this.sent(message.command_id); } else this.queue.push({ id: message.command_id, message: message });
   };
   // A request that has left is answered, or fails with its socket, as an HTTP request is; it is never given
   // up while the panel may still apply it, so its no-answer timer only runs while it waits in the queue.
-  SocketTransport.prototype.sent = function (id) {
+  FrameTransport.prototype.sent = function (id) {
     var waiter = this.pending[id];
     if (waiter && waiter.timer) { clearTimeout(waiter.timer); waiter.timer = null; }
   };
-  SocketTransport.prototype.exchange = function (message, deadline) {
+  FrameTransport.prototype.exchange = function (message, deadline) {
     var self = this;
     return new Promise(function (resolve, reject) {
       var waiter = { resolve: resolve, reject: reject, timer: null };
@@ -416,7 +420,7 @@
       self.send(message);
     });
   };
-  SocketTransport.prototype.request = function (op, args, options) {
+  FrameTransport.prototype.request = function (op, args, options) {
     var self = this;
     var deadline = (options && options.deadline_ms) || DEADLINE_MS;
     return uploadBlobArgs(self, args || {}).then(function (sent) {
@@ -433,10 +437,10 @@
       }).then(function (bytes) { reply.result = bytes; return reply; });
     });
   };
-  SocketTransport.prototype.command = function (channel, value) {
+  FrameTransport.prototype.command = function (channel, value) {
     return this.exchange({ kind: "command", command_id: this.nextId("c"), channel: channel, value: value, deadline_ms: DEADLINE_MS }, DEADLINE_MS);
   };
-  SocketTransport.prototype.open = function (sub) {
+  FrameTransport.prototype.open = function (sub) {
     var self = this;
     sub.opening = true;
     sub.fresh = true;
@@ -454,30 +458,74 @@
       if (sub.stopped) self.unsubscribe(sub);
     }, function () { sub.opening = false; delete self.subs[message.command_id]; });
   };
-  SocketTransport.prototype.unsubscribe = function (sub) {
+  FrameTransport.prototype.unsubscribe = function (sub) {
     var id = sub.id;
     sub.id = null;
     if (!id) return;
     delete this.subs[id];
     if (this.ready) this.exchange({ kind: "manage", command_id: this.nextId("u"), op: "unsubscribe", args: { subscription: id }, deadline_ms: DEADLINE_MS }, DEADLINE_MS).catch(function () {});
   };
-  SocketTransport.prototype.start = function (sub) {
+  FrameTransport.prototype.start = function (sub) {
     sub.stopped = false;
     if (this.live.indexOf(sub) < 0) this.live.push(sub);
     this.connect();
     if (!sub.opening && !sub.id) this.open(sub);
   };
-  SocketTransport.prototype.stop = function (sub) {
+  FrameTransport.prototype.stop = function (sub) {
     sub.stopped = true;
     var index = this.live.indexOf(sub);
     if (index >= 0) this.live.splice(index, 1);
     this.unsubscribe(sub);
   };
-  SocketTransport.prototype.close = function () {
+  FrameTransport.prototype.close = function () {
     this.closed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.socket) this.socket.close();
   };
+
+  // The stub door's carrier: one WebSocket, opened again with backoff when it closes.
+  function socketCarrier(url) {
+    return {
+      reconnects: true,
+      connect: function (handlers) {
+        var socket = new WebSocket(url);
+        socket.onopen = handlers.open;
+        socket.onmessage = function (event) {
+          var message;
+          try { message = JSON.parse(event.data); } catch (_) { return; }
+          handlers.message(message);
+        };
+        socket.onclose = handlers.close;
+        return { send: function (message) { socket.send(JSON.stringify(message)); }, close: function () { socket.close(); } };
+      },
+    };
+  }
+
+  // The sidebar relay's carrier: frames posted to Panel Assistant's sidebar, the page's parent, on the page's own
+  // origin. Only the parent's messages of this type are read. {closed: true} closes the link as a socket close
+  // does; it opens again on the next frame the page sends, or at once on {open: true}.
+  var RELAY_TYPE = "panel-assistant-ui";
+  function relayCarrier(onOpenSignal) {
+    var current = null;
+    window.addEventListener("message", function (event) {
+      var data = event.data;
+      if (event.source !== window.parent || event.origin !== location.origin || !data || data.type !== RELAY_TYPE) return;
+      if (data.closed) { var link = current; current = null; if (link) link.handlers.close(); return; }
+      if (data.open) { if (!current) onOpenSignal(); return; }
+      if (current && data.frame) current.handlers.message(data.frame);
+    });
+    return {
+      reconnects: false,
+      connect: function (handlers) {
+        var link = current = { handlers: handlers };
+        Promise.resolve().then(function () { if (current === link) handlers.open(); });
+        return {
+          send: function (message) { window.parent.postMessage({ type: RELAY_TYPE, frame: message }, location.origin); },
+          close: function () { if (current === link) current = null; },
+        };
+      },
+    };
+  }
 
   // 20.5 reader-to-panel: a Blob in args.blob is uploaded through blob.upload first and replaced by its
   // reference. Text bodies (args.body) under the frame limit ride the request itself.
@@ -550,12 +598,15 @@
   function transport() {
     if (impl) return impl;
     var body = document.body;
-    var door = body && body.dataset ? body.dataset.uiSocket : undefined;
-    if (door !== undefined && typeof WebSocket !== "undefined") {
+    var data = body && body.dataset ? body.dataset : {};
+    var door = data.uiSocket;
+    if (data.uiRelay !== undefined && window.parent && window.parent !== window) {
+      var relay = impl = new FrameTransport(relayCarrier(function () { relay.connect(); }));
+    } else if (door !== undefined && typeof WebSocket !== "undefined") {
       // Base-relative, like every page URL, so the door is found behind a proxy path too.
       var url = new URL(door || "ui", document.baseURI || location.href);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-      impl = new SocketTransport(url.href);
+      impl = new FrameTransport(socketCarrier(url.href));
     } else {
       impl = new HttpTransport();
     }
