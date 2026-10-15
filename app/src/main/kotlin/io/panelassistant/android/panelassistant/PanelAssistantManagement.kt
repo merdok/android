@@ -29,10 +29,18 @@ internal interface PanelAssistantManagement {
      */
     suspend fun request(op: String, args: JSONObject, onPending: () -> Unit): PanelAssistantManageReply?
 
+    /** The dispatcher a sidebar-relayed request enters, as a `/ui` frame does (protocol section 20.2); null while none runs. */
+    fun door(): io.panelassistant.android.ManageDoor? = null
+
+    /** Where a relayed request's bodies move (section 20.5); null moves none. */
+    val blobs: PanelAssistantBlobs? get() = null
+
     companion object {
         fun of(
             read: suspend () -> PanelAssistantManagementSnapshot,
             write: suspend (Map<String, String>, () -> Boolean) -> String?,
+            door: () -> io.panelassistant.android.ManageDoor? = { null },
+            blobs: PanelAssistantBlobs? = null,
             serve: suspend (String, JSONObject, () -> Unit) -> PanelAssistantManageReply? = { _, _, _ -> null },
         ): PanelAssistantManagement = object : PanelAssistantManagement {
             override suspend fun snapshot() = read()
@@ -40,6 +48,10 @@ internal interface PanelAssistantManagement {
             override suspend fun applySettings(settings: Map<String, String>, admit: () -> Boolean) = write(settings, admit)
 
             override suspend fun request(op: String, args: JSONObject, onPending: () -> Unit) = serve(op, args, onPending)
+
+            override fun door() = door()
+
+            override val blobs: PanelAssistantBlobs? = blobs
         }
     }
 }
@@ -85,6 +97,11 @@ internal object PanelAssistantManagedSettings {
  * One session's management requests: the session check, duplicate suppression and deadline that commands
  * use, answered with a `command_result` whose `result` carries what a snapshot read.
  *
+ * A request or command the sidebar relays (it carries an `origin`) runs instead as that browser's Home Assistant
+ * user, through the same [io.panelassistant.android.http.UiFrames] handling as a `/ui` frame, one per relay
+ * connection; its answers carry the frame's `status`, `headers` and `interim`, its subscription updates leave as
+ * `panel_assistant/ui_update`, and every relayed connection closes with the session.
+ *
  * [onRequest] and [next] are called only by the session coroutine. Each request runs as a child of
  * [parent] until [close], which the session calls as it ends, so no request outlives its session;
  * completion arrives on another thread, under [lock].
@@ -102,19 +119,39 @@ internal class PanelAssistantManagementRequests(
 
     private class Answer(val commandId: String, val outcome: String, val code: String?, val result: Any?)
 
+    /** One message to send: built with its message id, then [after] once it has left. */
+    private class Outgoing(val after: () -> Unit = {}, val build: (Long) -> String)
+
     private val lock = Any()
     @Volatile private var closed = false
     /** Answers by command ID, kept for repeats; a running request maps to null. */
     private val answers = LinkedHashMap<String, Answer?>()
-    private val outbox = ArrayDeque<Answer>()
+    private val outbox = ArrayDeque<Outgoing>()
+    /** The relay connections this session carries, by user and connection. */
+    private val relays = HashMap<String, Relay>()
+
+    private fun enqueue(outgoing: Outgoing) {
+        synchronized(lock) { outbox.addLast(outgoing) }
+        wake.trySend(Unit)
+    }
+
+    private fun enqueue(answer: Answer) = enqueue(Outgoing { id ->
+        PanelAssistantTransportProtocol.commandResult(id, session.token, answer.commandId, answer.outcome, answer.code, answer.result)
+    })
 
     fun onRequest(event: PanelAssistantSessionEvent.Manage) {
+        if (event.origin != null) {
+            return relay(event.session, event.commandId, event.origin) {
+                JSONObject().put("kind", "manage").put("command_id", event.commandId).put("op", event.op)
+                    .put("args", event.args ?: JSONObject())
+            }
+        }
         val receivedAt = monotonicMillis()
         synchronized(lock) {
             // A request for another session is a replay of an old one: nothing may run it.
             if (event.session != session.token) return
             if (answers.containsKey(event.commandId)) {
-                answers[event.commandId]?.let { outbox.addLast(it); wake.trySend(Unit) }
+                answers[event.commandId]?.let { enqueue(it) }
                 return
             }
             answers[event.commandId] = null
@@ -129,14 +166,97 @@ internal class PanelAssistantManagementRequests(
             }
             synchronized(lock) {
                 answers[event.commandId] = answer
-                outbox.addLast(answer)
                 while (answers.size > maxRemembered) {
                     val oldest = answers.entries.firstOrNull { it.value != null } ?: break
                     answers.remove(oldest.key)
                 }
             }
-            wake.trySend(Unit)
+            enqueue(answer)
         }
+    }
+
+    /** A channel command the sidebar relays (it carries an `origin`). */
+    fun onRelayed(event: PanelAssistantSessionEvent.Command) {
+        val origin = event.origin ?: return
+        relay(event.session, event.commandId, origin) {
+            JSONObject().put("kind", "command").put("command_id", event.commandId).put("channel", event.channel.orEmpty())
+                .apply { event.value?.let { put("value", it) } }
+                .put("deadline_ms", event.deadlineMs ?: PanelAssistantTransportProtocol.DEFAULT_DEADLINE_MS)
+        }
+    }
+
+    private fun relay(eventSession: String?, commandId: String, origin: PanelAssistantRelayOrigin, request: () -> JSONObject) {
+        // A request for another session is a replay of an old one: nothing may run it.
+        if (eventSession != session.token || closed) return
+        val user = origin.user
+        val connection = origin.connection
+        // A malformed origin never runs, and never as Panel Assistant itself.
+        if (user == null || connection == null) {
+            return enqueue(Answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantTransportProtocol.CODE_INVALID_FORMAT, null))
+        }
+        val door = management.door()
+            ?: return enqueue(Answer(commandId, PanelAssistantTransportProtocol.OUTCOME_FAILED, PanelAssistantCommandProcessor.CODE_FAILED, null))
+        val relay = synchronized(lock) {
+            if (closed) return
+            relays.getOrPut("$user\u0000$connection") {
+                Relay(io.panelassistant.android.CommandOrigin.user(user).withConnection(connection), door)
+            }
+        }
+        relay.handle(request())
+    }
+
+    /** One relay connection: the `/ui` frame handling, and the upload token each request in flight carries. */
+    private inner class Relay(origin: io.panelassistant.android.CommandOrigin, door: io.panelassistant.android.ManageDoor) {
+        private val carriers = java.util.concurrent.ConcurrentHashMap<String, PanelAssistantRelayBlobs>()
+        val frames = io.panelassistant.android.http.UiFrames(door, origin, scope) { frame, after -> leave(frame, after) }
+
+        fun handle(request: JSONObject) {
+            val args = request.optJSONObject("args")
+            // The upload token is the transfer's, never an argument of the operation.
+            val token = args?.remove("blob_token")?.let(PanelAssistantBlobs::validToken)
+            val carrier = management.blobs?.let { PanelAssistantRelayBlobs(it, token) }
+            if (carrier != null) carriers[request.optString("command_id")] = carrier
+            frames.handle(request, carrier)
+        }
+
+        private fun leave(frame: JSONObject, after: () -> Unit) {
+            if (!frame.has("command_id")) {
+                return enqueue(Outgoing(after) { id -> PanelAssistantTransportProtocol.uiUpdate(id, session.token, frame) })
+            }
+            val commandId = frame.getString("command_id")
+            val interim = frame.optBoolean("interim")
+            val carrier = if (interim) carriers[commandId] else carriers.remove(commandId)
+            val result = frame.opt("result")
+            val text = when (result) {
+                null -> null
+                is String -> result
+                else -> result.toString()
+            }
+            // A result over the frame limit moves as a blob through the request's own token (section 20.5).
+            if (!interim && text != null && carrier?.canUpload == true && text.toByteArray(Charsets.UTF_8).size > INLINE_RESULT_BYTES) {
+                scope.launch {
+                    val type = if (result is String) "text/plain; charset=utf-8" else "application/json"
+                    val reference = runCatching { carrier.put(text.toByteArray(Charsets.UTF_8), type) }.getOrNull()
+                    if (reference != null) {
+                        frame.put("result", JSONObject().put("blob", reference))
+                    } else {
+                        frame.put("outcome", PanelAssistantTransportProtocol.OUTCOME_FAILED).put("code", PanelAssistantCommandProcessor.CODE_FAILED).remove("result")
+                    }
+                    answer(frame, after)
+                }
+                return
+            }
+            answer(frame, after)
+        }
+
+        private fun answer(frame: JSONObject, after: () -> Unit) = enqueue(Outgoing(after) { id ->
+            val extra = JSONObject()
+            for (key in listOf("status", "headers", "interim")) if (frame.has(key)) extra.put(key, frame.get(key))
+            PanelAssistantTransportProtocol.commandResult(
+                id, session.token, frame.getString("command_id"), frame.getString("outcome"),
+                frame.opt("code") as? String, frame.opt("result"), extra.takeIf { it.length() > 0 },
+            )
+        })
     }
 
     private suspend fun run(event: PanelAssistantSessionEvent.Manage, receivedAt: Long): Answer {
@@ -163,10 +283,7 @@ internal class PanelAssistantManagementRequests(
             }
             else -> {
                 val reply = management.request(event.op, event.args ?: JSONObject()) {
-                    synchronized(lock) {
-                        outbox.addLast(Answer(event.commandId, PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL, null, null))
-                    }
-                    wake.trySend(Unit)
+                    enqueue(Answer(event.commandId, PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL, null, null))
                 } ?: return refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND)
                 Answer(event.commandId, reply.outcome, reply.code, reply.result)
             }
@@ -175,15 +292,23 @@ internal class PanelAssistantManagementRequests(
 
     /** End the session's requests; one still running is cancelled and never answered. */
     fun close() {
-        closed = true
+        val ending = synchronized(lock) {
+            closed = true
+            relays.values.toList().also { relays.clear() }
+        }
+        // Every relayed connection ends with the session: its subscriptions stop and its commands fail.
+        ending.forEach { it.frames.close() }
         job.cancel()
     }
 
-    /** The next answer to send as message [id], or null. */
+    /** The next message to send as message [id], or null. */
     fun next(id: Long): String? {
-        val answer = synchronized(lock) { outbox.removeFirstOrNull() } ?: return null
-        return PanelAssistantTransportProtocol.commandResult(
-            id, session.token, answer.commandId, answer.outcome, answer.code, answer.result,
-        )
+        val outgoing = synchronized(lock) { outbox.removeFirstOrNull() } ?: return null
+        return outgoing.build(id).also { outgoing.after() }
+    }
+
+    private companion object {
+        /** Section 20.5: a relayed result larger than this moves as a blob. */
+        const val INLINE_RESULT_BYTES = 256 * 1024
     }
 }

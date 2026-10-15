@@ -50,8 +50,7 @@ internal fun sha256Hex(bytes: ByteArray): String = MessageDigest.getInstance("SH
 
 /** Shared sensitive-request decision. Hardened policy is intentionally remote-only: trusted loopback
  * callers retain the established exemption while every non-loopback request remains peer-, operation-
- * and payload-bound through the one-shot approval broker. A request Panel Assistant proved was made by a
- * Home Assistant administrator skips approval for the operations [EmbedProof.EXEMPT] names, and only those. */
+ * and payload-bound through the one-shot approval broker. */
 internal suspend fun authorizeSensitiveRequest(
     call: ApplicationCall,
     hardened: Boolean,
@@ -60,19 +59,29 @@ internal suspend fun authorizeSensitiveRequest(
     payload: String,
     summary: String,
     broker: ApprovalBroker,
-    audit: (String) -> Unit = { line -> Log.i("ha-paneld/http", line) },
 ): Boolean {
     if (!hardened || isLoopbackPeer(peer)) return true
-    val proven = call.provenEmbedRequest()
-    if (proven != null && proven.exempts(operation)) {
-        audit("approved by Home Assistant administrator ${proven.userId} via Panel Assistant: ${operation.name}")
-        return true
-    }
     val (decision, id) = broker.request(operation, peer, payload, summary)
     if (decision == ApprovalBroker.Decision.APPROVED) return true
     call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)
     return false
 }
+
+/**
+ * The sensitive operations a Home Assistant administrator's request, relayed from Panel Assistant's sidebar, may
+ * perform in hardened mode without approval on the panel (embed contract section 8, answer 3b): configuration
+ * and routine panel actions. Installing, backing up, restoring, exporting secrets and rebooting still need it.
+ */
+internal val RELAYED_ADMINISTRATOR_EXEMPT: Set<SensitiveOperation> = setOf(
+    SensitiveOperation.DISPLAY_CONFIGURATION,
+    SensitiveOperation.POWER_CONFIGURATION,
+    SensitiveOperation.POWER_SAFETY_ACKNOWLEDGEMENT,
+    SensitiveOperation.PROFILE_ACTIVATE,
+    SensitiveOperation.CAMERA_ENABLE,
+    SensitiveOperation.REMOTE_MEDIA,
+    SensitiveOperation.PACKAGE_TAME,
+    SensitiveOperation.DASHBOARD_RELOAD,
+)
 
 /** The approval peer for requests Panel Assistant makes over its own session (protocol section 20.2 origin key). */
 internal const val PANEL_ASSISTANT_APPROVAL_PEER = "panel_assistant"
@@ -160,9 +169,9 @@ internal fun exactHttpApprovalPayload(call: OpCall, bodyDigest: String): String 
  * [authorizeSensitiveRequest] for a request on either door. Over HTTP it is that function, bound to the peer
  * address. A managed request binds its approval to its origin's approval key (protocol section 20.2), so an
  * approval earned by one origin is never consumed by another: a loopback peer is exempt as on HTTP; a
- * Home Assistant administrator relayed by Panel Assistant is exempt for exactly the operations an embed
- * proof exempts; a Panel Assistant request waiting for its approval raises [ManageApprovalPending] so the
- * dispatcher answers `pending_approval` and its final outcome; any other answers the HTTP `202` body.
+ * Home Assistant administrator relayed by Panel Assistant is exempt for exactly [RELAYED_ADMINISTRATOR_EXEMPT];
+ * a Panel Assistant or relayed request waiting for its approval raises [ManageApprovalPending] so the
+ * dispatcher answers an interim `pending_approval` and then its final outcome; any other answers the HTTP `202` body.
  */
 internal suspend fun authorizeSensitiveRequest(
     call: OpCall,
@@ -177,10 +186,13 @@ internal suspend fun authorizeSensitiveRequest(
     }
     val origin = call.origin
     if (!hardened || origin.peerAddress?.let(::isLoopbackPeer) == true) return true
-    if (origin.isUser && operation in EmbedProof.EXEMPT) return true
+    if (origin.isUser && operation in RELAYED_ADMINISTRATOR_EXEMPT) {
+        Log.i("ha-paneld/http", "approved by Home Assistant administrator ${origin.approvalKey.removePrefix("user:")} via Panel Assistant: ${operation.name}")
+        return true
+    }
     val (decision, id) = broker.request(operation, origin.approvalKey, payload, summary)
     if (decision == ApprovalBroker.Decision.APPROVED) return true
-    if (origin.isPanelAssistant) throw io.panelassistant.android.ManageApprovalPending(id)
+    if (origin.isPanelAssistant || origin.isUser) throw io.panelassistant.android.ManageApprovalPending(id)
     call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)
     return false
 }

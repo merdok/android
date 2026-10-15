@@ -37,14 +37,13 @@ internal fun Application.paneldRoot(
             call.respondText("forbidden\n", status = HttpStatusCode.Forbidden)
             return@intercept finish()
         }
-        val embed = call.admitEmbedMode()
         if (GuardDbProcessAdmission.maintenanceRequired()) {
             call.respondText("guard database maintenance owns this process\n", status = HttpStatusCode.Locked)
             return@intercept finish()
         }
         // A gone page (protocol section 20.8) answers 410 below, after the guards, not the Setup redirect.
         val gone = StubEndpoints.gone(call.request.httpMethod, call.request.path(), uiRoutesClosed())
-        if (embed == null && !gone && call.request.uri.substringBefore('?') in PaneldServer.WIZARD_REDIRECT_PAGES &&
+        if (!gone && call.request.uri.substringBefore('?') in PaneldServer.WIZARD_REDIRECT_PAGES &&
             call.request.cookies["wiz_escape"] == null && setupNeedsUser()
         ) {
             call.respondRedirect(setupRedirectLocation(call))
@@ -64,7 +63,6 @@ internal fun Application.paneldRoot(
             call.respondText("host not allowed\n", status = HttpStatusCode.Forbidden)
             return@intercept finish()
         }
-        if (!call.admitEmbedProof(PanelAssistantEmbedKeys.instance)) return@intercept finish()
         // Protocol sections 20.7 and 20.8: past the guards, a path the stub does not serve is gone.
         if (gone) {
             goneCounts.count(call.request.httpMethod, StubEndpoints.normalize(call.request.path()))

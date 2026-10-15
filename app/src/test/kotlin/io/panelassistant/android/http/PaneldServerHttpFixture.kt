@@ -144,6 +144,12 @@ internal class PaneldServerHttpFixture(
         field("screenshots", ScreenshotCache(directory))
         // Source-text reason: provide actual bundled asset payloads through the platform reader seam.
         field("asset", { name: String -> File("src/main/assets", name).readText() })
+        // The bundle's listing and bytes from the same bundled files, as the APK's AssetManager would give them.
+        field("bundleAssets", object : UiBundleAssets {
+            private val root = File("src/main/assets")
+            override fun names() = root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath }.toList()
+            override fun bytes(name: String) = File(root, name).readBytes()
+        })
         field("pendingApks", pending)
         field("guardDbStaging", guardDbAppStaging(context))
         field("identityMigration", identityMigration)

@@ -223,7 +223,12 @@ class PaneldServer internal constructor(
     internal val manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
     /** The current runtime generation's dispatcher, which the stub's pages and `/ui` door enter (section 20.7). */
     private val door: () -> io.panelassistant.android.ManageDoor? = { null },
+    /** The bundle Panel Assistant keeps for the sidebar (protocol section 20.5): the APK's assets. */
+    private val bundleAssets: UiBundleAssets = UiBundleAssets.of { appContext.assets },
 ) {
+    /** The dispatcher the sidebar relay enters, as the stub's door does (protocol section 20.2). */
+    internal fun manageDoor(): io.panelassistant.android.ManageDoor? = door()
+
     /** The stub's 410 answers, printed in `/diag` (protocol section 20.7). */
     private val goneCounts = GoneCounts()
     private val stubBlobs = StubBlobs(java.io.File(cacheDir, "ui-blobs"))
@@ -818,9 +823,35 @@ class PaneldServer internal constructor(
             val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
             return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
         }
+        if (op == PanelAssistantTransportProtocol.MANAGE_BUNDLE) return uploadBundle(args, PanelAssistantBlobs(auth))
         return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
             authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
         } ?: manageThroughDispatcher(op, args, onPending)
+    }
+
+    /**
+     * `bundle` (protocol section 20.5): one zip of the files the stub's bundle routes serve, uploaded through
+     * `args.blob_token`, answered with its reference and the build token the health line reports, which keys it.
+     */
+    private suspend fun uploadBundle(args: JSONObject, blobs: PanelAssistantBlobs): PanelAssistantManageReply {
+        val token = PanelAssistantBlobs.validToken(args.opt("blob_token")) ?: return PanelAssistantManageReply(
+            PanelAssistantTransportProtocol.OUTCOME_REFUSED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_INVALID_VALUE, null,
+        )
+        val build = buildToken()
+        val file = withContext(Dispatchers.IO) {
+            File.createTempFile("bundle", ".zip", cacheDir).also { zip -> zip.outputStream().use { writeUiBundle(bundleAssets, it) } }
+        }
+        val reference = try {
+            blobs.upload(token, file, "application/zip")
+        } finally {
+            file.delete()
+        } ?: return PanelAssistantManageReply(
+            PanelAssistantTransportProtocol.OUTCOME_FAILED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_FAILED,
+            JSONObject().put("error", "blob-unavailable"),
+        )
+        return PanelAssistantManageReply(
+            PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject().put("blob", reference.json()).put("build", build),
+        )
     }
 
     /**

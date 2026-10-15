@@ -74,8 +74,16 @@ class ConfigPostProductionRouteTest {
         withFullReadServer { config, fixture ->
             testApplication {
                 application { fixture.mount(this) }
-                suspend fun schema() = client.get("/api/v1/config/schema") {
-                    header(EmbedMode.HEADER, "v=1;lang=en")
+                // The schema as the sidebar relay reads it, with the Home Assistant user's language in `args.embed`.
+                fun schema(): JSONArray {
+                    val answer = java.util.concurrent.LinkedBlockingQueue<io.panelassistant.android.ManageReply>()
+                    fixture.door.manage(
+                        java.util.UUID.randomUUID().toString(), "config.schema", JSONObject().put("embed", "v=1;lang=en"),
+                        io.panelassistant.android.CommandOrigin.user("0123456789abcdef0123456789abcdef").withConnection("relay-1"),
+                    ) { answer.put(it) }
+                    val reply = answer.poll(20, java.util.concurrent.TimeUnit.SECONDS)
+                    assertEquals("applied", reply?.outcome)
+                    return reply!!.result as JSONArray
                 }
                 for (language in listOf("de", "en")) {
                     val saved = client.submitForm("/api/v1/config", Parameters.build {
@@ -85,9 +93,7 @@ class ConfigPostProductionRouteTest {
                     assertEquals(language, config.uiLanguage)
                     val readBack = JSONObject(client.get("/api/v1/config").bodyAsText())
                     assertEquals(language, readBack.getJSONObject("settings").getString("ui_language"))
-                    val localized = schema()
-                    assertEquals(HttpStatusCode.OK, localized.status)
-                    val fields = JSONArray(localized.bodyAsText())
+                    val fields = schema()
                     val name = (0 until fields.length()).map(fields::getJSONObject)
                         .single { it.getString("key") == "friendly_name" }
                     assertEquals(if (language == "de") "de" else "en", name.getString("labelLanguage"))

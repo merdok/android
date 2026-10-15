@@ -1005,6 +1005,33 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
+    @Test fun aRelayedCommandRunsAsItsUserThroughTheSidebarDoorAndNeverThroughPanelAssistantsOwnCommands() = runTest {
+        val sink = ImmediateSink()
+        val submitted = mutableListOf<Pair<String, String>>()
+        val door = object : io.panelassistant.android.ManageDoor by io.panelassistant.android.http.tableDoor(io.panelassistant.android.ManageTable()) {
+            override fun submit(command: PanelAssistantCommand, origin: io.panelassistant.android.CommandOrigin, done: (PanelAssistantCommandResult) -> Unit) {
+                submitted += command.channel to origin.approvalKey
+                done(PanelAssistantCommandResult.Applied)
+            }
+        }
+        val management = PanelAssistantManagement.of({ error("no snapshot") }, { _, _ -> null }, door = { door })
+        val connection = FakeConnection(Ha.accepting(capabilities = listOf("commands", "management")))
+        val harness = harness(connection, commands = sink, management = management)
+        harness.owner.replaceDemand(DEMAND)
+        runCurrent()
+
+        connection.inbound.trySend(JSONObject(Ha.command("c1", "relay1", true)).apply {
+            getJSONObject("event").put("origin", JSONObject().put("user", "u1").put("connection", "browser-1"))
+        }.toString())
+        runCurrent()
+
+        assertEquals(listOf("relay1" to "user:u1"), submitted)
+        assertEquals(emptyList<Pair<String, String>>(), sink.ran)
+        val answer = JSONObject(connection.sent.last())
+        assertEquals(listOf("panel_assistant/command_result", "opaque-session", "c1", "applied"), listOf("type", "session", "command_id", "outcome").map(answer::getString))
+        harness.owner.close()
+    }
+
     @Test fun managementWritesSettingsAndRefusesReplaysAndUnknownRequests() = runTest {
         val management = FakeManagement()
         val connection = FakeConnection(Ha.accepting(capabilities = listOf("management")))
@@ -1213,13 +1240,13 @@ class PanelAssistantTransportOwnerTest {
         }
     }
 
-    @Test fun embedProofIsOfferedExactlyWhenAKeyringIsWired() = runTest {
-        for ((keys, expected) in listOf(
+    @Test fun theSidebarCapabilitiesAreOfferedExactlyWhenManagementIsWired() = runTest {
+        for ((management, expected) in listOf(
             null to emptyList(),
-            io.panelassistant.android.http.EmbedProofKeyring() to listOf("embed_proof"),
+            FakeManagement() to listOf("management", "ui_subscribe", "ui_bundle", "rest_retired"),
         )) {
             val connection = FakeConnection(Ha.accepting())
-            val harness = harness(connection, embedKeys = keys)
+            val harness = harness(connection, management = management)
             harness.owner.replaceDemand(DEMAND)
             runCurrent()
             val offered = JSONObject(connection.sent.first()).getJSONArray("capabilities")
@@ -1385,47 +1412,6 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
-    @Test fun aGrantedEmbedKeyIsHeldForItsSessionOnlyAndNeverLogged() = runTest {
-        val keys = io.panelassistant.android.http.EmbedProofKeyring()
-        val logs = mutableListOf<String>()
-        val first = FakeConnection(Ha.accepting(capabilities = listOf("embed_proof"), embed = EMBED))
-        val second = FakeConnection(Ha.accepting(capabilities = listOf("embed_proof"), embed = JSONObject(EMBED.toString()).put("key_id", "fedcba9876543210")))
-        val harness = harness(first, second, embedKeys = keys, log = { logs += it })
-        harness.owner.replaceDemand(DEMAND)
-        runCurrent()
-        assertEquals("0123456789abcdef", keys.liveKeyId())
-        assertEquals(IDENTITY.did, keys.key("0123456789abcdef")?.did)
-        assertFalse(harness.owner.status.describe().contains(EMBED.getString("key")))
-        assertFalse(harness.owner.status.session.toString().contains(EMBED.getString("key")))
-
-        first.inbound.trySend(Ha.sessionClosed("entry_unloaded"))
-        runCurrent()
-        assertNull(keys.liveKeyId())
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals("fedcba9876543210", keys.liveKeyId())
-        harness.owner.close()
-        runCurrent()
-        assertNull(keys.liveKeyId())
-        assertTrue(logs.isNotEmpty())
-        assertTrue(logs.none { it.contains(EMBED.getString("key")) })
-    }
-
-    @Test fun anEmbedGrantWithoutAUsableKeyIsAProtocolFailureAndHoldsNoKey() = runTest {
-        val keys = io.panelassistant.android.http.EmbedProofKeyring()
-        val broken = FakeConnection(Ha.accepting(capabilities = listOf("embed_proof")))
-        val good = FakeConnection(Ha.accepting(capabilities = listOf("embed_proof"), embed = EMBED))
-        val harness = harness(broken, good, embedKeys = keys)
-        harness.owner.replaceDemand(DEMAND)
-        runCurrent()
-        assertNull(keys.liveKeyId())
-        assertTrue(broken.closed)
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals("0123456789abcdef", keys.liveKeyId())
-        harness.owner.close()
-    }
-
     @Test fun anEntryRemovedRefusalRetriesSlowlyUntilThePanelIsAddedAgain() = runTest {
         val harness = harness(repeating = { FakeConnection(Ha.refusing("entry_removed")) })
         harness.owner.replaceDemand(DEMAND)
@@ -1560,7 +1546,6 @@ class PanelAssistantTransportOwnerTest {
         onLifecycleDisconnected: () -> Unit = {},
         onLifecycleRetired: () -> Unit = {},
         log: (String) -> Unit = {},
-        embedKeys: io.panelassistant.android.http.EmbedProofKeyring? = null,
         voiceStream: PanelAssistantVoiceStream? = null,
         clock: (() -> Long)? = null,
         addresses: () -> List<String> = { emptyList() },
@@ -1586,7 +1571,6 @@ class PanelAssistantTransportOwnerTest {
             observeForHello = observeForHello,
             commands = commands,
             management = management,
-            embedKeys = embedKeys,
             voiceStream = voiceStream,
             addresses = addresses,
             onConnection = onConnection,
@@ -1666,7 +1650,6 @@ class PanelAssistantTransportOwnerTest {
             capabilities: List<String> = emptyList(),
             reportError: String? = null,
             commandResultError: String? = null,
-            embed: JSONObject? = null,
             voiceStream: JSONObject? = null,
             lifecycle: JSONObject? = null,
             updatePolicy: PanelAssistantUpdatePolicy? = null,
@@ -1687,7 +1670,6 @@ class PanelAssistantTransportOwnerTest {
                                 .put("capabilities", JSONArray(capabilities))
                                 .put("integration", JSONObject().put("version", "0.3.0"))
                                 .put("channels", JSONObject().put("accepted", 0).put("unknown", JSONArray()))
-                                .apply { if (embed != null) put("embed", embed) }
                                 .apply { if (voiceStream != null) put("voice_stream_session", voiceStream) }
                                 .apply { if (lifecycle != null) put("lifecycle", lifecycle) }
                                 .apply {
@@ -1779,10 +1761,6 @@ class PanelAssistantTransportOwnerTest {
     }
 
     private companion object {
-        val EMBED: JSONObject = JSONObject()
-            .put("key_id", "0123456789abcdef")
-            .put("key", java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { (it * 7).toByte() }))
-
         /** A sent frame's command type, or its `sync` for a `report_state`. */
         fun kind(text: String): String = JSONObject(text).let { it.optString("sync").ifEmpty { it.getString("type") } }
 

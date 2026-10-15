@@ -120,15 +120,7 @@ internal class PanelAssistantTransportContractFixtureTest : PanelRuntimeRig() {
                 assertTrue("$name must parse: ${parsed.exceptionOrNull()}", parsed.isSuccess)
                 val accepted = parsed.getOrNull() as? PanelAssistantHelloOutcome.Accepted
                 assertNotNull("$name must produce an accepted session", accepted)
-                if (PanelAssistantTransportProtocol.CAPABILITY_EMBED_PROOF in accepted!!.session.capabilities) {
-                    val embed = accepted.session.embed
-                    assertNotNull("$name must carry its granted embed proof", embed)
-                    assertEquals("0123456789abcdef", embed!!.keyId)
-                    assertArrayEquals(ByteArray(32) { it.toByte() }, embed.key())
-                } else if (case.getJSONObject("result").has("embed")) {
-                    assertNull("$name must ignore an ungranted embed proof", accepted.session.embed)
-                }
-                if (PanelAssistantTransportProtocol.CAPABILITY_VOICE_STREAM_SESSION in accepted.session.capabilities) {
+                if (PanelAssistantTransportProtocol.CAPABILITY_VOICE_STREAM_SESSION in accepted!!.session.capabilities) {
                     val stream = accepted.session.voiceStream
                     assertNotNull("$name must carry its granted voice stream", stream)
                     assertEquals("CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg", stream!!.serverId)

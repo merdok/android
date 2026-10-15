@@ -162,28 +162,61 @@ internal class StubTest : PanelRuntimeRig() {
         }
     }
 
-    @Test fun aPageTakesItsPresentationFromTheEmbedHeaderAndItsLanguageFromTheQuery() {
+    @Test fun aRelayedPageTakesItsPresentationFromArgsEmbedWhileTheQueryNeverEmbedsIt() {
         PaneldServerHttpFixture().use { fixture ->
             fixture.enablePages()
             fixture.enableConfigurePage(false)
             testApplication {
                 application { fixture.mount(this) }
-                suspend fun page(query: String, embed: String? = null) = client.get("/configure$query") {
+                startApplication()
+                val queried = client.get("/configure?embed=true&theme=dark&hide=install&lang=de") {
                     header(HttpHeaders.Cookie, "wiz_escape=1")
-                    embed?.let { header(EmbedMode.HEADER, it) }
                 }.bodyAsText()
-
-                val queried = page("?embed=true&theme=dark&hide=install&lang=de")
                 assertFalse("the query cannot switch the page into embedded mode", queried.contains("data-embedded"))
                 assertFalse(queried.contains("data-theme=\"dark\""))
                 assertTrue("the query's language still applies", queried.contains("<html lang=\"de\""))
-                assertTrue(page("", embed = "v=1;theme=dark").contains("data-embedded"))
+
+                // page.configure as the sidebar relay asks for it.
+                fun relayed(args: JSONObject): String {
+                    val answer = LinkedBlockingQueue<ManageReply>()
+                    fixture.door.manage(
+                        java.util.UUID.randomUUID().toString(), "page.configure", args,
+                        CommandOrigin.user("0123456789abcdef0123456789abcdef").withConnection("relay-1"),
+                    ) { answer.put(it) }
+                    val reply = requireNotNull(answer.poll(20, TimeUnit.SECONDS))
+                    assertEquals("applied", reply.outcome)
+                    return reply.result as String
+                }
+                fun tabs(page: String) = Regex("<a href=\"([a-z./]*)[^\"]*\"").findAll(
+                    requireNotNull(Regex("<div class=\"nav\">(.*?)</div>").find(page)).groupValues[1],
+                ).map { it.groupValues[1] }.toList()
+                val plain = relayed(JSONObject())
+                assertTrue("an ordinary page links its install and logs tabs", tabs(plain).containsAll(listOf("install", "logs")))
+                assertFalse("only an embedded page uses the relay", Regex("<body[^>]*data-ui-relay").containsMatchIn(plain))
+                val embedded = relayed(JSONObject().put("embed", "v=1;theme=dark;hide=install,logs").put("lang", "de"))
+                assertTrue(Regex("<body[^>]*data-ui-relay").containsMatchIn(embedded))
+                assertFalse("an embedded page never opens the stub's socket", Regex("<body[^>]*data-ui-socket").containsMatchIn(embedded))
+                assertTrue(embedded.contains("data-theme=\"dark\""))
+                assertEquals("the named tabs are hidden, the rest stay", tabs(plain) - listOf("install", "logs"), tabs(embedded))
+                assertTrue("the explicit language still applies", embedded.contains("<html lang=\"de\""))
             }
         }
     }
 
-    @Test fun theGatePersistsAcrossARestartAndALaterHelloWithoutBothGrantsReopensIt() {
-        val closing = hello(PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE, "management")
+    @Test fun grantingUiSubscribeAndUiBundleWithoutRestRetiredLeavesRestOpen() {
+        PaneldServerHttpFixture().use { fixture ->
+            val relayOnly = hello(PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE, "management")
+            assertTrue(fixture.config.recordPanelAssistantGrant(relayOnly.capabilities))
+            assertFalse(fixture.config.uiRoutesClosed)
+            testApplication {
+                application { fixture.mount(this) }
+                assertEquals(HttpStatusCode.OK, client.get("/api/v1/radio").status)
+            }
+        }
+    }
+
+    @Test fun theGatePersistsAcrossARestartAndALaterHelloWithoutRestRetiredReopensIt() {
+        val closing = hello(PanelAssistantTransportProtocol.CAPABILITY_REST_RETIRED, "management")
         val persisted = PaneldServerHttpFixture().use { first ->
             assertTrue(first.config.recordPanelAssistantGrant(closing.capabilities))
             first.values.toMap()
@@ -194,7 +227,7 @@ internal class StubTest : PanelRuntimeRig() {
                 application { restarted.mount(this) }
                 assertEquals(HttpStatusCode.Gone, client.get("/api/v1/radio").status)
 
-                assertTrue(restarted.config.recordPanelAssistantGrant(hello(PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE).capabilities))
+                assertTrue(restarted.config.recordPanelAssistantGrant(hello(PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE).capabilities))
 
                 assertEquals(HttpStatusCode.OK, client.get("/api/v1/radio").status)
             }
@@ -766,9 +799,7 @@ internal class StubTest : PanelRuntimeRig() {
             assertEquals(403, rawStatus(lan, port, "/%62lob/x", upgrade = false))
             assertTrue("routes open: the LAN connects", connects(lan, port))
 
-            assertTrue(rig.config.recordPanelAssistantGrant(listOf(
-                PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE, PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE,
-            )))
+            assertTrue(rig.config.recordPanelAssistantGrant(listOf(PanelAssistantTransportProtocol.CAPABILITY_REST_RETIRED)))
             assertTrue(listener.rebind())
 
             assertFalse("routes closed in hardened mode: no LAN connection", connects(lan, port))
@@ -877,8 +908,7 @@ internal class StubTest : PanelRuntimeRig() {
                 .put("integration", JSONObject().put("version", "1.0.0")),
         ),
         1L,
-        offered = PanelAssistantTransportProtocol.CAPABILITIES +
-            PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE + PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE,
+        offered = PanelAssistantTransportProtocol.CAPABILITIES,
     ) as PanelAssistantHelloOutcome.Accepted).session
 
     private fun submit(rig: Rig, channel: String, origin: CommandOrigin): PanelAssistantCommandResult {

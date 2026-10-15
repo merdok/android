@@ -116,7 +116,12 @@ internal class ServiceHaLinks(
                 observed.value.core.observeForNativeHello { runtime().isCurrent(observed) }
             },
             commands = panelAssistantCommands,
-            management = io.panelassistant.android.panelassistant.PanelAssistantManagement.of({ server().managementSnapshot() }, { settings, admit -> server().applyManagedSettings(settings, admit) }) { op, args, onPending -> server().managementRequest(op, args, onPending, haSessionAuthority) },
+            management = io.panelassistant.android.panelassistant.PanelAssistantManagement.of(
+                { server().managementSnapshot() },
+                { settings, admit -> server().applyManagedSettings(settings, admit) },
+                door = { server().manageDoor() },
+                blobs = io.panelassistant.android.panelassistant.PanelAssistantBlobs(haSessionAuthority),
+            ) { op, args, onPending -> server().managementRequest(op, args, onPending, haSessionAuthority) },
             onConnected = config::markPanelAssistantConnected,
             onLifecycleNotice = { notice -> haLifecycle.onNativeNotice(notice) },
             onLifecycleAuthenticated = { haLifecycle.onNativeAuthenticated() },
@@ -125,7 +130,6 @@ internal class ServiceHaLinks(
                 haLifecycle.onNativeRetired()
                 if (HaLifecycleRuntime.setNativeWatching(haLifecycle, false)) BuiltinDashboard.onHaLifecycleChanged()
             },
-            embedKeys = io.panelassistant.android.http.PanelAssistantEmbedKeys.instance,
             voice = panelAssistantVoice,
             voiceStream = voiceStream,
             onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },

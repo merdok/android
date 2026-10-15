@@ -60,7 +60,7 @@ class PanelAssistantTransportProtocolTest {
         assertEquals(5, hello.getJSONObject("protocol").getInt("min"))
         assertEquals(5, hello.getJSONObject("protocol").getInt("max"))
         assertTrue(Regex("^[0-9a-f]{64}$").matches(hello.getString("contract_digest")))
-        assertEquals(listOf("state", "commands", "approval", "embed_proof", "voice", "media", "voice_stream_session", "management"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
+        assertEquals(listOf("state", "commands", "approval", "voice", "media", "voice_stream_session", "management", "ui_subscribe", "ui_bundle", "rest_retired"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
         val relay = hello.getJSONArray("channels").getJSONObject(0)
         assertEquals(listOf("relay3", "switch", "relay", "relay3", "relay", "3"), listOf("channel", "platform", "translation_key", "unique_suffix", "family", "index").map { relay.get(it).toString() })
     }
@@ -77,7 +77,7 @@ class PanelAssistantTransportProtocolTest {
         // Pinned as a literal: a digest derived from JSON serialisation could differ between the
         // device's org.json and the JVM's, and the integration records whatever the panel sends.
         assertEquals(
-            "15bf0d68a7edf0db83d1008f0c37c4f2804571314a3294e5049a67880da83d9c",
+            "6f1323498d65ea4d46cd1b810107d5a93474326045e0bcb4a20672eeb94ff05f",
             PanelAssistantTransportProtocol.CONTRACT_DIGEST,
         )
     }
@@ -192,35 +192,6 @@ class PanelAssistantTransportProtocolTest {
         )
     }
 
-    @Test fun `granting embed_proof makes a well-formed 32-byte key required`() {
-        val key = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { it.toByte() })
-        fun embed(keyId: Any?, value: Any?) = JSONObject().put("key_id", keyId).put("key", value)
-        val granted = session(accepted().granting("embed_proof").apply { getJSONObject("result").put("embed", embed("0123456789abcdef", key)) })
-        assertEquals("0123456789abcdef", granted.embed?.keyId)
-        assertTrue(granted.embed!!.key().contentEquals(ByteArray(32) { it.toByte() }))
-        assertFalse(granted.toString().contains(key))
-        assertFalse(granted.embed.toString().contains(key))
-
-        val short = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(31))
-        listOf<JSONObject?>(
-            null,
-            embed("0123456789ABCDEF", key),
-            embed("0123456789abcde", key),
-            embed(7, key),
-            embed("0123456789abcdef", short),
-            embed("0123456789abcdef", "$key="),
-            embed("0123456789abcdef", key.replace('A', '+')),
-            embed("0123456789abcdef", null),
-        ).forEachIndexed { index, value ->
-            val frame = accepted().granting("embed_proof").apply { if (value != null) getJSONObject("result").put("embed", value) }
-            try {
-                PanelAssistantTransportProtocol.helloOutcome(frame, 1L)
-                fail("granted case $index was accepted without a usable key")
-            } catch (expected: PanelAssistantProtocolException) {
-            }
-        }
-    }
-
     @Test fun `hello carries the voice stream client id only when it offers voice_stream_session`() {
         val id = "A".repeat(43)
         val offering = JSONObject(PanelAssistantTransportProtocol.hello(1L, IDENTITY, listOf("voice_stream_session"), voiceStreamClientId = id))
@@ -267,12 +238,6 @@ class PanelAssistantTransportProtocolTest {
             "the separate-endpoint capability is no longer offered, so a grant of it is refused",
             runCatching { session(oldName) }.exceptionOrNull() is PanelAssistantProtocolException,
         )
-    }
-
-    @Test fun `without the embed_proof grant the key is ignored`() {
-        val key = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32))
-        val frame = accepted().apply { getJSONObject("result").put("embed", JSONObject().put("key_id", "0123456789abcdef").put("key", key)) }
-        assertNull(session(frame).embed)
     }
 
     @Test fun `entry_removed is a refusal code`() {

@@ -697,16 +697,15 @@ class Config private constructor(
 
     /**
      * Whether the `:8888` listener serves only the stub (protocol section 20.8): true once a hello from the
-     * bound Panel Assistant granted both `ui_subscribe` and `ui_bundle`. It persists through outages and
-     * restarts; a later accepted hello that does not grant both reopens the REST routes, and forgetting the
-     * Home Assistant binding reopens them until the new binding grants both.
+     * bound Panel Assistant granted `rest_retired`, its promise that it makes no REST call to this panel. It
+     * persists through outages and restarts; a later accepted hello that does not grant it reopens the REST routes,
+     * and forgetting the Home Assistant binding reopens them until the new binding grants it.
      */
     val uiRoutesClosed: Boolean get() = prefs.getBoolean(UI_ROUTES_CLOSED_PREF, false)
 
     /** Record the capabilities an accepted hello granted; the one writer of [uiRoutesClosed]. */
     fun recordPanelAssistantGrant(capabilities: Collection<String>): Boolean {
-        val closed = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE in capabilities &&
-            io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE in capabilities
+        val closed = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol.CAPABILITY_REST_RETIRED in capabilities
         if (closed == uiRoutesClosed) return true
         return durableCommit { putBoolean(UI_ROUTES_CLOSED_PREF, closed) }
     }

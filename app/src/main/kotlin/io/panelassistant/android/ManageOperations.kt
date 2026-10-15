@@ -50,9 +50,9 @@ internal data class ManageReply(
  * request's reference names, or null when it names nothing usable.
  */
 internal interface ManageBlobs {
-    fun put(bytes: ByteArray, type: String): JSONObject
+    suspend fun put(bytes: ByteArray, type: String): JSONObject
     /** The uploaded body [ref] names, read once; closing it releases the bytes. */
-    fun take(ref: JSONObject): java.io.InputStream?
+    suspend fun take(ref: JSONObject): java.io.InputStream?
 }
 
 /** One named request as its handler sees it. */
