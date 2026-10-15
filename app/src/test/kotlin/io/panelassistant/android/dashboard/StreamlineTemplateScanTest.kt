@@ -304,13 +304,16 @@ class StreamlineTemplateScanTest {
                 included_tile: !include included_tile.yaml
                 local_file: !include file:///etc/hostname
                 jar: !include jar:file:/tmp/x.jar!/t.yaml
+                secure: !include https://127.0.0.1:PORT${dir}included_tile.yaml
             """.trimIndent(),
             "${dir}included_tile.yaml" to includedTile,
         )
-        serving(files::get) { port, _ ->
+        var served = 0
+        serving({ files[it]?.replace("PORT", "$served") }) { port, _ ->
+            served = port
             val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000)
             assertEquals(setOf("light.hall_included"), idsOf(templates, "included_tile"))
-            assertEquals(emptySet<String>(), idsOf(templates, "local_file") + idsOf(templates, "jar"))
+            assertEquals(emptySet<String>(), idsOf(templates, "local_file") + idsOf(templates, "jar") + idsOf(templates, "secure"))
         }
     }
 
