@@ -120,7 +120,7 @@ internal class StopWordListener(
 }
 
 /**
- * The bundled microWakeWord `stop` model (`assets/stopword/`, Apache-2.0, see `assets/voice/THIRD_PARTY.md`),
+ * The bundled microWakeWord `stop` model (`assets/stopword/`, Apache-2.0, see its `NOTICE.txt`),
  * loaded fresh for each run. It lives outside `assets/wakeword/` so it is never offered as a wake word.
  */
 internal object StopWordModel {
