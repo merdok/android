@@ -686,6 +686,7 @@ class PaneldService : Service() {
     private lateinit var cpu: CpuController
     private lateinit var adb: AdbController
     private val usbDebugging by lazy { io.panelassistant.android.control.UsbDebuggingObserver(this) }
+    private var usbDebuggingFeedback: io.panelassistant.android.control.UsbDebuggingFeedback? = null
     private lateinit var power: PowerController
     private lateinit var powerSafety: PowerSafetyController
     private lateinit var profile: DeviceProfile
@@ -2353,6 +2354,19 @@ class PaneldService : Service() {
             storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
             registerBrightnessPreferenceObserver()
+            if (io.panelassistant.android.control.UsbDebuggingFeedback.supportsProfile(profile.id)) {
+                scope.launch {
+                    io.panelassistant.android.i18n.CatalogueLoader.assets(this@PaneldService).prepareNative(config.uiLanguage)
+                    mainHandler.post {
+                        if (!teardownBoundary.isStopping && usbDebuggingFeedback == null) {
+                            usbDebuggingFeedback = io.panelassistant.android.control.UsbDebuggingFeedback.observePortal(
+                                this@PaneldService, profile.id, mainHandler, usbDebugging::state,
+                                { teardownBoundary.isStopping }, { config.uiLanguage },
+                            )
+                        }
+                    }
+                }
+            }
             refreshAdaptiveBrightnessInputs(restartSource = false)
             autoBright.activate()
             // A verdict reached while the dashboard was paused is applied when it returns to the front.
@@ -2866,6 +2880,7 @@ class PaneldService : Service() {
 
     override fun onDestroy() {
         teardownBoundary.markStopping()
+        usbDebuggingFeedback?.close()
         notifications.releaseForeground()
         portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
