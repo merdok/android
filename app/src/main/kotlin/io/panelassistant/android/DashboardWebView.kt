@@ -146,6 +146,17 @@ internal fun createDashboardWebView(
             )
         }
     }.onFailure { Log.w(TAG, "entity-learning access observer unavailable", it) }
+    // Last on purpose: it must be the outermost WebSocket wrapper to see every outbound theme save
+    // (see dashboardThemeSocketJs). Under Follow nothing is installed.
+    if (forcedThemeDark != null) runCatching {
+        if (webViewFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                this,
+                ExternalAuthProtocol.dashboardThemeSocketJs(forcedThemeDark, config.haEffectiveUrl, documentStartOrigins),
+                documentStartOrigins,
+            )
+        }
+    }.onFailure { Log.w(TAG, "dashboard theme cannot beat a theme saved in Home Assistant", it) }
     // The HA frontend relies on cookies (incl. third-party for some integrations).
     CookieManager.getInstance().setAcceptCookie(true)
     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
