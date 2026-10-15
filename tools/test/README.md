@@ -39,7 +39,8 @@ the check that a translation has not broken a page.
 - **Row headers** of key/value tables (a `th` beside `td` cells, 46% of a narrow card) are reported when
   they wrap, not blocking: keeping them on one line needs shorter translations or a table layout that
   changes English.
-- **Descriptive Entities checkbox labels** may wrap and are reported. Clipping, overflow, overlap,
+- **Descriptive labels** (Entities checkbox labels, and the label a text field carries, such as the
+  Entities search or the backup passphrase) may wrap and are reported. Clipping, overflow, overlap,
   reachability and excessive card growth retain their normal checks.
 - **Known translation-length issues** (`language-layout/known-issues.json`): breakages only a shorter
   translation can fix (English must stay as it is, and no layout keeps the label whole at that width). Each
