@@ -14,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -230,27 +231,134 @@ class StreamlineTemplateScanTest {
         assertTrue("light.study_inline" in ids)
     }
 
-    // An included template is tolerated but not resolved: its entities are learned at runtime.
-    @Test fun anIncludedTemplateIsNotFetchedAndAddsNoEntity() {
-        val (templates, requests) = fetchFrom(mapOf(
-            "/hacsfiles/streamline-card/streamline_templates.yaml" to """
+    /** Serves whatever [body] answers for a path (404 for null) on its own port; [block] gets the port and the paths asked for. */
+    private fun <T> serving(body: (String) -> String?, block: (Int, ConcurrentLinkedQueue<String>) -> T): T {
+        val requests = ConcurrentLinkedQueue<String>()
+        val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
+            routing {
+                get("{path...}") {
+                    requests.add(call.request.path())
+                    val text = body(call.request.path())
+                    if (text != null) call.respondText(text, ContentType.Text.Plain)
+                    else call.respondText("", status = HttpStatusCode.NotFound)
+                }
+            }
+        }.start(wait = false)
+        try {
+            return block(kotlinx.coroutines.runBlocking { server.engine.resolvedConnectors().single().port }, requests)
+        } finally {
+            server.stop(0, 0)
+        }
+    }
+
+    private fun idsOf(templates: org.json.JSONObject?, template: String) = EntityLearningProtocol.scanDashboard(
+        """{"views":[{"cards":[{"type":"custom:streamline-card","template":"$template","variables":{"room":"hall"}}]}]}""",
+        templates,
+    ).entityIds.toSet()
+
+    private val dir = "/hacsfiles/streamline-card/"
+    private val includedTile = "card:\n  type: tile\n  entity: light.[[room]]_included\n"
+
+    // The card resolves an include relative to the file that names it, nested includes relative to their own file.
+    @Test fun anIncludedTemplatesEntitiesAreScannedThroughTheRouteGuard() {
+        val files = mapOf(
+            "${dir}streamline_templates.yaml" to "included_tile: !include parts/included_tile.yaml\n",
+            "${dir}parts/included_tile.yaml" to "card: !include ../cards/tile.yaml\n",
+            "${dir}cards/tile.yaml" to "type: tile\nentity: light.[[room]]_nested\n",
+        )
+        serving(files::get) { port, requests ->
+            var guarded = 0
+            val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { guarded++ }
+            assertEquals(setOf("light.hall_nested"), idsOf(templates, "included_tile"))
+            assertEquals("every request, includes too, passes the route guard", requests.size, guarded)
+        }
+        // On the last template path no later request repeats the guard, so only the include's own check can end the sync.
+        val last = "/local/community/streamline-card/"
+        serving(files.mapKeys { (path, _) -> path.replace(dir, last) }::get) { port, _ ->
+            var calls = 0
+            assertThrows(IllegalStateException::class.java) {
+                StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { check(++calls < 4) { "route changed" } }
+            }
+            assertEquals("the guard stopped the include before its request", 4, calls)
+        }
+    }
+
+    // An include the card would read but the panel refuses reads as an empty template, learned at runtime.
+    @Test fun anIncludeFromAnotherOriginIsRefusedAndTheRestOfTheFileKept() {
+        serving({ "card:\n  type: tile\n  entity: light.elsewhere\n" }) { other, elsewhere ->
+            val files = mapOf(
+                "${dir}streamline_templates.yaml" to """
+                    included_tile: !include included_tile.yaml
+                    absolute: !include http://127.0.0.1:$other/absolute.yaml
+                    scheme_relative: !include //127.0.0.1:$other/scheme_relative.yaml
+                """.trimIndent(),
+                "${dir}included_tile.yaml" to includedTile,
+            )
+            serving(files::get) { port, _ ->
+                val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000)
+                assertEquals(setOf("light.hall_included"), idsOf(templates, "included_tile"))
+                assertEquals(emptySet<String>(), idsOf(templates, "absolute") + idsOf(templates, "scheme_relative"))
+            }
+            assertTrue("nothing reached the other origin: $elsewhere", elsewhere.isEmpty())
+        }
+    }
+
+    @Test fun anIncludeWithAnotherSchemeIsRefusedWithoutFailingTheFetch() {
+        val files = mapOf(
+            "${dir}streamline_templates.yaml" to """
                 included_tile: !include included_tile.yaml
-                inline_tile:
-                  card:
-                    type: tile
-                    entity: light.[[room]]_inline
+                local_file: !include file:///etc/hostname
+                jar: !include jar:file:/tmp/x.jar!/t.yaml
+                secure: !include https://127.0.0.1:PORT${dir}included_tile.yaml
             """.trimIndent(),
-            "/hacsfiles/streamline-card/included_tile.yaml" to "card:\n  type: tile\n  entity: light.[[room]]_included\n",
-        ))
-        assertEquals(listOf("/hacsfiles/streamline-card/streamline_templates.yaml"), requests)
-        assertEquals(setOf("light.hall_inline"), EntityLearningProtocol.scanDashboard(
-            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"inline_tile","variables":{"room":"hall"}}]}]}""",
-            templates,
-        ).entityIds.toSet())
-        assertEquals(emptySet<String>(), EntityLearningProtocol.scanDashboard(
-            """{"views":[{"cards":[{"type":"custom:streamline-card","template":"included_tile","variables":{"room":"hall"}}]}]}""",
-            templates,
-        ).entityIds.toSet())
+            "${dir}included_tile.yaml" to includedTile,
+        )
+        var served = 0
+        serving({ files[it]?.replace("PORT", "$served") }) { port, _ ->
+            served = port
+            val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000)
+            assertEquals(setOf("light.hall_included"), idsOf(templates, "included_tile"))
+            assertEquals(emptySet<String>(), idsOf(templates, "local_file") + idsOf(templates, "jar") + idsOf(templates, "secure"))
+        }
+    }
+
+    // As in the card, an include that does not answer loses its whole file; the next template path is tried.
+    @Test fun aMissingIncludeDiscardsItsFileLikeTheCard() {
+        val files = mapOf(
+            "${dir}streamline_templates.yaml" to "missing: !include missing.yaml\ninline_tile:\n  card: {type: tile, entity: light.hacs}\n",
+            "/local/streamline-card/streamline_templates.yaml" to "inline_tile:\n  card: {type: tile, entity: light.local}\n",
+        )
+        serving(files::get) { port, _ ->
+            assertEquals(setOf("light.local"), idsOf(StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000), "inline_tile"))
+        }
+    }
+
+    @Test fun anIncludeCycleReadsEachFileOnce() {
+        val files = mapOf(
+            "${dir}streamline_templates.yaml" to "a: !include a.yaml\nself: !include streamline_templates.yaml\n",
+            "${dir}a.yaml" to "card:\n  type: grid\n  cards:\n    - {type: tile, entity: light.a}\n    - !include b.yaml\n",
+            "${dir}b.yaml" to "type: grid\ncards:\n  - {type: tile, entity: light.b}\n  - !include a.yaml\n",
+        )
+        serving(files::get) { port, requests ->
+            val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000)
+            assertEquals(setOf("light.a", "light.b"), idsOf(templates, "a"))
+            assertEquals(requests.toList(), requests.distinct())
+        }
+    }
+
+    @Test fun includeFanOutStopsAtTheFileCap() {
+        // Every file includes two new ones: unbounded, twelve levels are 8,191 requests.
+        val node = Regex("${dir}n(\\d*)\\.yaml")
+        serving({ path ->
+            node.matchEntire(path)?.groupValues?.get(1)?.let { id ->
+                if (id.length >= 12) "{type: tile, entity: light.leaf}"
+                else "type: grid\ncards:\n  - {type: tile, entity: light.n$id}\n  - !include n${id}0.yaml\n  - !include n${id}1.yaml\n"
+            } ?: if (path == "${dir}streamline_templates.yaml") "fan:\n  card: !include n.yaml\n" else null
+        }) { port, requests ->
+            val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000)
+            assertTrue("light.n" in idsOf(templates, "fan"))
+            assertTrue("${requests.size} requests", requests.size <= 32)
+        }
     }
 
     // The card's yaml 2.x parser accepts up to 100 alias resolutions by default (maxAliasCount).
