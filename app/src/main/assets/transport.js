@@ -307,7 +307,8 @@
     var url = httpRequestFor("logs.stream", sub.args).url;
     var source = sub.source = new EventSource(url);
     source.onopen = function () { if (!sub.stopped) sub.onValue([], "known"); };
-    source.onerror = function () { if (!sub.stopped) sub.onValue(null, "unavailable"); };
+    // EventSource reconnects by itself and the panel replays the backlog, so the next opening starts afresh.
+    source.onerror = function () { if (!sub.stopped) { sub.fresh = true; sub.onValue(null, "unavailable"); } };
     source.onmessage = function (event) { if (!sub.stopped) sub.onValue([event.data], "known"); };
   }
 

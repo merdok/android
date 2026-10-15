@@ -161,3 +161,17 @@ test('a reopened log stream says live and its backlog replaces the lines shown, 
   assert.equal(rig.nodes['lg-state'].textContent, '· app · live');
   assert.equal(rig.nodes['lg-out'].childNodes.length, 1);
 });
+
+test('after the stream reconnects by itself the view says live and the replayed backlog replaces the lines', async () => {
+  const rig = await loadLogs({}, false);
+  const line = '09-03 12:34:56.789  123  456 I Tag: one';
+  rig.streams[0].onopen();
+  rig.streams[0].onmessage({ data: line });
+  rig.streams[0].onerror();
+  assert.equal(rig.nodes['lg-state'].textContent, '· reconnecting…');
+  // EventSource reopens the same stream, and the panel sends its backlog again.
+  rig.streams[0].onopen();
+  rig.streams[0].onmessage({ data: line });
+  assert.equal(rig.nodes['lg-state'].textContent, '· app · live');
+  assert.equal(rig.nodes['lg-out'].childNodes.length, 1);
+});
