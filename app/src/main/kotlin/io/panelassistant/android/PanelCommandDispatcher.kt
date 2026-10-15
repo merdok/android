@@ -390,11 +390,7 @@ internal class PanelCommandDispatcher(
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
             }
             // Kiosk lock keeps the panel on its dashboard, so neither leaves it while the lock is on.
-            "android_settings" -> {
-                if (config.kioskLock || !system.launchAndroidSettings()) {
-                    throw LiveSettingUnavailableException("android_settings")
-                }
-            }
+            "android_settings" -> if (config.kioskLock || !system.launchAndroidSettings()) throw LiveSettingUnavailableException(channel)
             "launcher" -> {
                 if (config.kioskLock) throw LiveSettingUnavailableException("launcher")
                 system.launchLauncher(config.launcherPackage)
