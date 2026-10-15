@@ -2,17 +2,10 @@ package io.panelassistant.android.control
 
 import android.content.Context
 import android.database.ContentObserver
-import android.graphics.PixelFormat
-import android.hardware.input.InputManager
-import android.os.Build
 import android.os.Handler
 import android.provider.Settings
 import android.util.Log
-import android.view.Gravity
-import android.view.WindowManager
 import android.widget.Toast
-import io.panelassistant.android.Notice
-import io.panelassistant.android.NoticeForm
 import io.panelassistant.android.i18n.CatalogueLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +21,7 @@ internal class UsbDebuggingFeedback private constructor(
 ) : ContentObserver(handler), AutoCloseable {
     private var previous: Boolean? = null
     private var closed = false
-    private var cancelShown: (() -> Unit)? = null
+    private var cancelToast: (() -> Unit)? = null
 
     override fun onChange(selfChange: Boolean) {
         if (closed) return
@@ -47,13 +40,13 @@ internal class UsbDebuggingFeedback private constructor(
             cancelFeedback()
         } else if (prior != null && current != prior) {
             cancelFeedback()
-            cancelShown = show(current)
+            cancelToast = show(current)
         }
     }
 
     private fun cancelFeedback() {
-        val cancel = cancelShown
-        cancelShown = null
+        val cancel = cancelToast
+        cancelToast = null
         cancel?.invoke()
     }
 
@@ -97,7 +90,7 @@ internal class UsbDebuggingFeedback private constructor(
             }
         }
 
-        /** Cancellation invalidates preparation, already-posted UI work and existing feedback. */
+        /** Cancellation invalidates preparation, already-posted UI work and an existing Toast. */
         fun showWhenPrepared(
             isStopping: () -> Boolean,
             prepare: (ready: (String) -> Unit) -> (() -> Unit),
@@ -119,77 +112,6 @@ internal class UsbDebuggingFeedback private constructor(
                 cancelShown = null
             }
         }
-
-        /** Main-looper lifetime shared by the overlay and its normal long-Toast fallback. */
-        fun presentStatus(
-            canOverlay: () -> Boolean,
-            attachOverlay: () -> (() -> Unit),
-            showToast: () -> (() -> Unit),
-            schedule: (Long, () -> Unit) -> (() -> Unit),
-        ): () -> Unit {
-            val remove = if (runCatching(canOverlay).getOrDefault(false)) {
-                runCatching(attachOverlay).getOrElse { showToast() }
-            } else showToast()
-            var removed = false
-            var cancelTimeout: (() -> Unit)? = null
-            val cancel = {
-                if (!removed) {
-                    removed = true
-                    cancelTimeout?.invoke()
-                    remove()
-                }
-            }
-            try {
-                cancelTimeout = schedule(8_000L, cancel)
-            } catch (error: Exception) {
-                cancel()
-                throw error
-            }
-            return cancel
-        }
-
-        private fun showStatus(context: Context, handler: Handler, text: String): () -> Unit = presentStatus(
-            canOverlay = { Settings.canDrawOverlays(context) },
-            attachOverlay = {
-                // This card belongs to the setting observer, independently of HA lifecycle notices.
-                val notice = Notice(context, backdropDark = false, form = NoticeForm.OVERLAY,
-                    brand = false, surfaceAlpha = 0xFF)
-                notice.setBody(notice.sentence(text))
-                val windows = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val params = WindowManager.LayoutParams(
-                    notice.widthPx, WindowManager.LayoutParams.WRAP_CONTENT,
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                    PixelFormat.TRANSLUCENT,
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    y = notice.px(12f)
-                    // Android 12+ otherwise blocks touches through an untrusted opaque overlay.
-                    alpha = if (Build.VERSION.SDK_INT >= 31) {
-                        context.getSystemService(InputManager::class.java).maximumObscuringOpacityForTouch
-                            .coerceAtMost(0.8f)
-                    } else 0.8f
-                }
-                windows.addView(notice.view, params)
-                val remove: () -> Unit = {
-                    runCatching { windows.removeViewImmediate(notice.view) }
-                        .onFailure { Log.w("ha-paneld", "could not remove USB debugging feedback", it) }
-                }
-                remove
-            },
-            showToast = {
-                Log.i("ha-paneld", "USB debugging feedback using long Toast fallback")
-                val toast = Toast.makeText(context.applicationContext, text, Toast.LENGTH_LONG)
-                toast.show()
-                toast::cancel
-            },
-            schedule = { delay, expire ->
-                val task = Runnable { expire() }
-                handler.postDelayed(task, delay)
-                val cancel: () -> Unit = { handler.removeCallbacks(task) }
-                cancel
-            },
-        )
 
         fun observePortal(
             context: Context,
@@ -227,8 +149,10 @@ internal class UsbDebuggingFeedback private constructor(
                     post = { handler.post(it) },
                     show = { text ->
                         runCatching {
-                            val cancel = showStatus(context.applicationContext, handler, text)
+                            val toast = Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT)
+                            toast.show()
                             Log.i("ha-paneld", "USB debugging feedback: ${if (enabled) "on" else "off"}")
+                            val cancel: () -> Unit = toast::cancel
                             cancel
                         }.onFailure { Log.w("ha-paneld", "could not show USB debugging feedback", it) }.getOrNull()
                     },
