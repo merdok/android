@@ -99,8 +99,10 @@ class ConfigOwnerChoicesTest {
             row("ui_dashboard_layout", "x".repeat(256 * 1024 + 1)),
         )
         invalid.forEach { bad ->
+            val untouched = if (bad.key == "ui_dashboard_layout") row("update_ignored", "sentinel\t1")
+                else row("ui_dashboard_layout", "must not land")
             assertThrows(IllegalArgumentException::class.java) {
-                config.planOwnerChoices(listOf(row("ui_dashboard_layout", "must not land"), bad), false, false)
+                config.planOwnerChoices(listOf(untouched, bad), false, false)
             }
             assertEquals("", config.uiDashboardLayout)
             assertTrue(config.apkUploadAllowed)
