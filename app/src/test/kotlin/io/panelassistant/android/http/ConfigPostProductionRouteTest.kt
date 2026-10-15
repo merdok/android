@@ -192,6 +192,33 @@ class ConfigPostProductionRouteTest {
             }
         }
 
+    // Configure sends each field as it is committed, so a token can reach the panel before its first address.
+    @Test fun `a token sent before the first address stays with it and never follows the panel to another`() =
+        withRouteConfig { config, _, server, _ ->
+            testApplication {
+                application {
+                    paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                        route("/api/v1") { with(server) { installDirectConfigPostRoute { Capabilities() } } }
+                    }
+                }
+                suspend fun send(key: String, value: String) {
+                    val response = client.submitForm("/api/v1/config", Parameters.build { append(key, value) }) {
+                        accept(ContentType.Application.Json)
+                    }
+                    // This rig's renderer effect fails for credential changes; what matters is what was stored.
+                    val applied = JSONObject(response.bodyAsText()).getJSONArray("applied")
+                    assertTrue((0 until applied.length()).any { applied.getString(it) == key }, "$key was not applied")
+                }
+                assertEquals("", config.haUrl)
+                send("ha_token", "first-token")
+                send("ha_url", "http://ha.first.test:8123")
+                assertEquals("http://ha.first.test:8123", config.haUrl)
+                assertEquals("first-token", config.haToken, "the token sent first belongs to the first address")
+                send("ha_url", "http://ha.other.test:8123")
+                assertEquals("", config.haToken, "a token never follows the panel to another Home Assistant")
+            }
+        }
+
     @Test fun `zoom 96 persists through the production route and invalid values explain the rule`() =
         withRouteConfig { config, _, server, _ ->
             testApplication {

@@ -35,6 +35,7 @@ const SCHEMA = [
   field('dashboard_fullscreen', 'Fullscreen', 'Dashboard'),
   field('dashboard_theme', 'Theme', 'Dashboard', { type: 'ENUM', options: ['auto', 'light', 'dark'] }),
   field('panel_id', 'Panel ID', 'Identity', { type: 'STRING', maxLength: 63 }),
+  field('ha_url', 'Home Assistant address', 'Identity', { type: 'STRING', maxLength: 255 }),
   field('ha_token', 'Access token', 'Identity', { type: 'PASSWORD', secret: true }),
   field('camera_fps', 'Frame rate', 'Camera', { type: 'INT', min: 1, max: 30, step: 1 }),
   field('camera_kbps', 'Bitrate (kbps)', 'Camera', { type: 'INT', min: 250, max: 8000, step: 250 }),
@@ -42,9 +43,9 @@ const SCHEMA = [
 
 // A fake panel. `state` is what Home Assistant (or anyone) last left on it; the test changes it directly to
 // stand for a change made elsewhere. `onPost` decides each settings write; by default it applies.
-async function harness({ onPost } = {}) {
+async function harness({ onPost, discovery = {} } = {}) {
   const state = {
-    settings: { dashboard_fullscreen: false, dashboard_theme: 'auto', panel_id: 'office_panel', ha_token: '', camera_fps: 15, camera_kbps: 2000 },
+    settings: { dashboard_fullscreen: false, dashboard_theme: 'auto', panel_id: 'office_panel', ha_url: '', ha_token: '', camera_fps: 15, camera_kbps: 2000 },
     ha_expose: {}, ha_auth: { configured: false }, apply_pending: {}, apply_stalled: [], renderer_pending: [],
   };
   const posts = [];
@@ -76,7 +77,7 @@ async function harness({ onPost } = {}) {
     if (path === '/api/v1/apps') return send({ apps: [] });
     if (path === '/api/v1/config/home-dashboards') return send({ queried: true, items: [], default: { explicit: false, path: '' } });
     if (path === '/api/v1/radio') return send({ present: false });
-    if (path === '/api/v1/config/discovery') return send('{}');
+    if (path === '/api/v1/config/discovery') return send(discovery);
     response.statusCode = 404; response.end('not found');
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -181,6 +182,30 @@ for (const engine of engines) {
     assert.deepEqual(h.posts[1], { panel_id: 'office_panel_xy' });
   });
 
+  engineTest(`${engine.name}: a discovered address nobody sent goes with the token`, async (t) => {
+    const h = await open(engine, t, { discovery: { ha_url: 'http://ha.local:8123' } });
+    const address = h.p.locator('#cfg-ha_url input');
+    await until('the discovered address offered', async () => await address.inputValue() === 'http://ha.local:8123');
+    assert.deepEqual(h.posts, [], 'an offered address is not sent on its own');
+    await h.p.locator('#cfg-ha_token input').fill('first-token');
+    await h.p.keyboard.press('Tab');
+    await until('the token sent', () => h.posts.length === 1);
+    assert.deepEqual(h.posts, [{ ha_token: 'first-token', ha_url: 'http://ha.local:8123' }]);
+  });
+
+  engineTest(`${engine.name}: two quick taps reach the panel in order, one at a time`, async (t) => {
+    const h = await open(engine, t, { onPost: async (form, { apply }) => { await new Promise((resolve) => setTimeout(resolve, 600)); return apply(form); } });
+    const fullscreen = toggle(h.p, 'dashboard_fullscreen');
+    await fullscreen.click();
+    await fullscreen.click();
+    await h.p.waitForTimeout(300);
+    assert.deepEqual(h.posts, [{ dashboard_fullscreen: 'true' }], 'the second tap waits for the first answer');
+    await until('the latest tap sent after the first answer', () => h.posts.length === 2, 3000);
+    assert.deepEqual(h.posts[1], { dashboard_fullscreen: 'false' });
+    await until('the panel and the row on the last tap', async () => h.state.settings.dashboard_fullscreen === false &&
+      await checked(h.p, 'dashboard_fullscreen') === 'false', 3000);
+  });
+
   engineTest(`${engine.name}: a sent secret is not shown back`, async (t) => {
     const h = await open(engine, t, { onPost: async (form, { state }) => ({ status: 200, body: { ok: true, status: 'saved', applied: [...form.keys()], pending: [], rejected: [] } }) });
     const token = h.p.locator('#cfg-ha_token input');
@@ -199,7 +224,7 @@ for (const engine of engines) {
     await until('the refusal on the row', async () => (await h.p.locator('#cfg-dashboard_fullscreen .cfg-row-message').count()) === 1);
     assert.equal(await checked(h.p, 'dashboard_fullscreen'), 'false');
     assert.equal(await h.p.locator('#cfg-dashboard_fullscreen .cfg-row-message').textContent(), 'Not saved: Fullscreen is not available on this panel');
-    assert.equal(await h.p.locator('#cfg-msg').textContent(), 'Not saved: Fullscreen is not available on this panel', 'announced once');
+    await until('the refusal announced', async () => await h.p.locator('#cfg-msg').textContent() === 'Not saved: Fullscreen is not available on this panel');
   });
 
   engineTest(`${engine.name}: a pushed value does not overwrite a change in flight`, async (t) => {

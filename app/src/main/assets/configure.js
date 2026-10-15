@@ -117,7 +117,10 @@
     var values = panelValues(body), expose = body.ha_expose || {}, changedKeys = [];
     Object.keys(values).forEach(function (key) {
       cfg.panel[key] = values[key];
-      if (holds[key]) { holds[key].pushed = true; return; }
+      var hold = holds[key];
+      // A proposed value nobody sent gives way when the panel's own value changes (browser sign-in wrote it).
+      if (hold && hold.local && !hold.call && values[key] !== hold.before) delete holds[key];
+      else if (hold) { hold.pushed = true; return; }
       if (typing[key] || cfg.values[key] === values[key]) return;
       cfg.values[key] = values[key];
       delete cfg.rowMessages[key];
@@ -139,7 +142,7 @@
   }
 
   function newHold(id, before) {
-    return holds[id] || (holds[id] = { seq: 0, call: 0, timer: null, before: before, pushed: false, local: false });
+    return holds[id] || (holds[id] = { seq: 0, call: 0, timer: null, before: before, pushed: false, local: false, flight: false, queued: false });
   }
 
   // The row keeps the message until it is changed again; the page's live region announces it once.
@@ -148,7 +151,11 @@
     else delete cfg.rowMessages[key];
     var old = document.querySelector("#cfg-" + key + " .cfg-row-message");
     if (old) old.remove();
-    if (message) document.getElementById("cfg-msg").textContent = message;
+    if (!message) return;
+    // Cleared first, so a refusal identical to the last one is announced again.
+    var live = document.getElementById("cfg-msg");
+    live.textContent = "";
+    setTimeout(function () { live.textContent = message; }, 50);
   }
 
   function refusal(reply, body) {
@@ -164,10 +171,20 @@
     var hold = newHold(id, expose ? cfg.panelExpose[key] : cfg.panel[key]);
     if (hold.timer) { clearTimeout(hold.timer); hold.timer = null; }
     hold.local = false;
+    // One request per key at a time, so two quick gestures cannot reach the panel out of order: a change
+    // made while one is in flight is sent, with the latest value, when that one answers.
+    if (hold.flight) { hold.queued = true; return; }
+    hold.flight = true;
     var call = hold.call = ++hold.seq;
     var args = {};
     if (expose) args[id] = cfg.expose[key] !== false ? "true" : "false";
     else args[key] = cfg.values[key] == null ? "" : cfg.values[key];
+    // A proposed address nobody has sent belongs with the credential being sent, as one change.
+    var address = holds.ha_url;
+    if (key === "ha_token" && address && address.local && !address.call) {
+      args.ha_url = cfg.values.ha_url;
+      delete holds.ha_url;
+    }
     window.PaneldTransport.request("settings", args).then(function (reply) {
       settle(id, key, expose, call, reply);
     }, function () {
@@ -177,8 +194,12 @@
 
   function settle(id, key, expose, call, reply) {
     var hold = holds[id];
-    // Only the latest send of a key counts, and a newer change scheduled meanwhile keeps the hold.
-    if (!hold || hold.call !== call || hold.timer || hold.local) return;
+    if (!hold || hold.call !== call) return;
+    hold.flight = false;
+    // A change made while this one was in flight goes now, with the latest value; its answer settles the row.
+    if (hold.queued) { hold.queued = false; send(key, expose); return; }
+    // A newer change still being stepped or typed keeps the hold.
+    if (hold.timer || hold.local) return;
     delete holds[id];
     var body = reply && reply.result && typeof reply.result === "object" ? reply.result : {};
     var partial = body.status === "saved-partial" && Array.isArray(body.applied) && body.applied.indexOf(id) >= 0;

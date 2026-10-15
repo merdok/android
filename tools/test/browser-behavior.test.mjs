@@ -359,7 +359,7 @@ browserTest('Unrelated and refused sends preserve the supported browser language
   await page.locator('#cfg-ui_language select').selectOption('en');
   const refusal = page.locator('#cfg-ui_language .cfg-row-message');
   await refusal.getByText('未保存：Locale save refused.', { exact: true }).waitFor();
-  assert.equal(await page.locator('#cfg-msg').textContent(), '未保存：Locale save refused.');
+  await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, '未保存：Locale save refused.');
   assert.equal(await page.locator('#cfg-ui_language select').inputValue(), 'auto', 'the refused language goes back to the panel value');
   await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), '"fr"');
@@ -1012,7 +1012,7 @@ browserTest('Configure refuses an invalid brightness floor without sending it an
   await floor.press('Tab');
   const rule = 'Minimum brightness must be a whole number between 4 and 99.';
   await page.locator('#cfg-auto_brightness_minimum_percent .cfg-row-message').getByText(rule, { exact: true }).waitFor();
-  assert.equal(await page.locator('#cfg-msg').textContent(), rule);
+  await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, rule);
   assert.equal(await floor.inputValue(), '12', 'the panel value comes back');
   await assert.rejects(page.waitForRequest((request) => request.url().endsWith('/api/v1/config') && request.method() === 'POST', { timeout: 200 }), /Timeout/);
   assert.equal(configPosts, 0);
@@ -1239,7 +1239,7 @@ browserTest('Configure shows a localized approval challenge on the row and puts 
   await address.press('Tab');
   const challenge = '请在面板上批准此请求，然后重试。';
   await page.locator('#cfg-ha_url .cfg-row-message').getByText(challenge, { exact: true }).waitFor();
-  assert.equal(await page.locator('#cfg-msg').textContent(), challenge);
+  await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, challenge);
   assert.equal(await address.inputValue(), 'http://ha.local:8123', 'an unapproved change is not shown as the panel value');
 });
 
@@ -3838,7 +3838,7 @@ browserTest('An empty custom dashboard path never reaches the server as Auto', a
   await input.press('Tab');
 
   await page.locator('#cfg-home_dashboard .cfg-row-message').getByText('Home dashboard has an invalid value.', { exact: true }).waitFor();
-  assert.equal(await page.locator('#cfg-msg').textContent(), 'Home dashboard has an invalid value.');
+  await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, 'Home dashboard has an invalid value.');
   await noSend(page);
   assert.deepEqual(state.posts, []);
   assert.equal(await page.locator('#cfg-home_dashboard select').inputValue(), '/alpha', 'the panel value comes back');
@@ -4315,14 +4315,14 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     await maximum.fill('12'); await maximum.press('Enter');
     const refusal = 'Not saved: auto_brightness_maximum_percent: must be above the minimum level';
     await page.locator('#cfg-auto_brightness_maximum_percent .cfg-row-message').getByText(refusal, { exact: true }).waitFor();
-    assert.equal(await page.locator('#cfg-msg').textContent(), refusal);
+    await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, refusal);
     assert.equal(await maximum.inputValue(), '70');
     assert.deepEqual(posts, [{ auto_brightness_maximum_percent: '70' }, { auto_brightness_maximum_percent: '12' }]);
     // An out-of-range maximum is never sent: the row names the rule and the stored maximum comes back.
     await maximum.fill('101'); await maximum.press('Enter');
     const rule = 'Maximum level must be a whole number between 5 and 100.';
     await page.locator('#cfg-auto_brightness_maximum_percent .cfg-row-message').getByText(rule, { exact: true }).waitFor();
-    assert.equal(await page.locator('#cfg-msg').textContent(), rule);
+    await page.waitForFunction((text) => document.getElementById('cfg-msg').textContent === text, rule);
     assert.equal(await maximum.inputValue(), '70');
     assert.equal(posts.length, 2);
     const sent = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
