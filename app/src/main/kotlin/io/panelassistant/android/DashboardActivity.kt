@@ -559,7 +559,7 @@ class DashboardActivity : AppCompatActivity() {
         true
     } catch (error: ExternalV2BridgeUnavailable) {
         Log.e(TAG, "secure V2 listener attachment failed", error)
-        statusScreens.showBlockedAdmissionScreen(
+        showDashboardBlocked(
             getString(R.string.home_assistant_stopped_loading),
             getString(R.string.home_assistant_stopped_loading_detail),
             AdmissionOutcome.BRIDGE_ATTACH_FAILED,
@@ -985,7 +985,7 @@ class DashboardActivity : AppCompatActivity() {
         val step = retryPolicy.onWatchdogFired(screenAwake)
         if (step == HandshakeRecoveryStep.NONE) return
         if (bridge.handshakeTimedOut()) {
-            statusScreens.showBlockedAdmissionScreen(
+            showDashboardBlocked(
                 getString(R.string.home_assistant_unresponsive),
                 getString(R.string.home_assistant_unresponsive_detail),
                 AdmissionOutcome.BRIDGE_HANDSHAKE_MISSED,
@@ -1901,7 +1901,7 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /** Resolve before WebView creation; entity learning may be disabled or may never have scanned. */
-    /** A dashboard-phase block replaces the admission verdict with BLOCKED, so the compatibility pass
+    /** A dashboard- or bridge-phase block replaces the admission verdict with BLOCKED, so the compatibility pass
      *  that admitted this URL no longer stands: a later rebuild must re-admit (recording ADMITTED again)
      *  rather than reuse it, or status keeps naming the block over a dashboard that rendered. */
     private fun showDashboardBlocked(title: String, detail: String, outcome: AdmissionOutcome) {
@@ -2178,7 +2178,7 @@ class DashboardActivity : AppCompatActivity() {
                 return
             }
             if (e is ExternalV2BridgeUnavailable) {
-                statusScreens.showBlockedAdmissionScreen(
+                showDashboardBlocked(
                     getString(R.string.home_assistant_could_not_open),
                     getString(R.string.home_assistant_could_not_open_detail),
                     AdmissionOutcome.BRIDGE_ATTACH_FAILED,
@@ -2332,7 +2332,7 @@ class DashboardActivity : AppCompatActivity() {
                     .onSuccess { onLoadStarted() }
                     .onFailure {
                         Log.e(TAG, "secure V2 document rotation failed", it)
-                        statusScreens.showBlockedAdmissionScreen(
+                        showDashboardBlocked(
                             getString(R.string.home_assistant_stopped_loading),
                             getString(R.string.home_assistant_stopped_loading_detail),
                             AdmissionOutcome.BRIDGE_ATTACH_FAILED,
