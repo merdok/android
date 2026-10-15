@@ -2,17 +2,6 @@ package io.panelassistant.android.input
 
 import io.panelassistant.android.platform.ActivityRef
 
-/**
- * **Answering Android's HOME chooser.** Updating the app in place makes some firmware (Meta's Portal)
- * forget the preferred HOME, and the next HOME shows "Use Panel Assistant as Home — Just once / Always".
- * A panel without root or the helper cannot set HOME again, so the accessibility service presses Always,
- * which is the setup the owner already chose (maintainer, 2026-10-12).
- *
- * The rule is Panel Assistant's ADB `home_chooser.py`, ported: while HOME is unowned, show the chooser
- * if another window covers it, tap Always only when its title names this app (the app name is not
- * translated, so this matches in any language), and dismiss a chooser it showed itself that offers
- * another app. A chooser that appeared on its own and offers another app is left alone.
- */
 /** The active window as the chooser answer reads it; [alwaysCentre] is null without an Always button. */
 internal data class ChooserWindow(
     val packageName: CharSequence?,
@@ -28,7 +17,8 @@ internal data class ChooserWindow(
  * either before the chooser is answered or while the tap on Always is on its way, which then lands on
  * the dashboard (a Meta Portal, 2026-10-15). So [VERIFY_MS] after showing or tapping it looks again,
  * and while HOME is still unowned and the chooser is not in front it shows the chooser once more, at
- * most [RETRIES] times per connection, so a chooser whose Always never takes is not pressed forever.
+ * most [RETRIES] times per connection. Always is tapped at most [TAPS] times per connection, so a
+ * chooser whose Always never takes is not pressed forever.
  */
 internal class HomeChooserAnswer(
     private val appName: String,
@@ -43,11 +33,13 @@ internal class HomeChooserAnswer(
     private var shown = false
     private var acted = false
     private var retries = 0
+    private var taps = 0
 
     fun connected() {
         shown = false
         acted = false
         retries = 0
+        taps = 0
     }
 
     fun answer() {
@@ -68,22 +60,35 @@ internal class HomeChooserAnswer(
                 acted = showChooser()
                 log("HOME is unowned; showing the chooser=$acted")
             }
-            HomeChooserPolicy.Step.TAP_ALWAYS -> {
+            HomeChooserPolicy.Step.TAP_ALWAYS -> if (taps < TAPS) {
+                taps++
                 val centre = window?.alwaysCentre
                 acted = centre != null && tap(centre.first, centre.second)
                 log("HOME chooser offers this app; tapped Always=$acted")
             }
             HomeChooserPolicy.Step.DISMISS -> log("HOME chooser offers another app; dismissed=${dismiss()}")
         }
-        if (acted && retries < RETRIES) answerAgainIn(VERIFY_MS)
+        if (acted && (retries < RETRIES || taps < TAPS)) answerAgainIn(VERIFY_MS)
     }
 
     companion object {
         const val VERIFY_MS = 2000L
         const val RETRIES = 2
+        const val TAPS = 3
     }
 }
 
+/**
+ * **Answering Android's HOME chooser.** Updating the app in place makes some firmware (Meta's Portal)
+ * forget the preferred HOME, and the next HOME shows "Use Panel Assistant as Home — Just once / Always".
+ * A panel without root or the helper cannot set HOME again, so the accessibility service presses Always,
+ * which is the setup the owner already chose (maintainer, 2026-10-12).
+ *
+ * The rule is Panel Assistant's ADB `home_chooser.py`, ported: while HOME is unowned, show the chooser
+ * if another window covers it, tap Always only when its title names this app (the app name is not
+ * translated, so this matches in any language), and dismiss a chooser it showed itself that offers
+ * another app. A chooser that appeared on its own and offers another app is left alone.
+ */
 internal object HomeChooserPolicy {
     const val ALWAYS_ID = "android:id/button_always"
     const val TITLE_ID = "android:id/title"

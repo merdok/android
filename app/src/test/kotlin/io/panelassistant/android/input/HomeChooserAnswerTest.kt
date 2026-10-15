@@ -23,6 +23,9 @@ class HomeChooserAnswerTest {
         /** The start-up's dashboard launches arriving before a chooser just shown is answered. */
         var coveredShows = 0
         var homePresses = 0
+        var taps = 0
+        /** Taps Android accepts on a chooser that then stays, as an Always that never takes would. */
+        var ignoredTaps = false
         val log = mutableListOf<String>()
         private var due: Long? = null
 
@@ -38,8 +41,11 @@ class HomeChooserAnswerTest {
             },
             dismiss = { front = dashboardWindow; true },
             tap = { x, y ->
-                if (coveringStarts > 0) { coveringStarts--; front = dashboardWindow }
-                if (front == chooser && x to y == chooser.alwaysCentre) { home = dashboard; front = dashboardWindow }
+                taps++
+                if (!ignoredTaps) {
+                    if (coveringStarts > 0) { coveringStarts--; front = dashboardWindow }
+                    if (front == chooser && x to y == chooser.alwaysCentre) { home = dashboard; front = dashboardWindow }
+                }
                 true
             },
             answerAgainIn = { due = it },
@@ -49,13 +55,14 @@ class HomeChooserAnswerTest {
         /** What the service runs: the answer on connect, on each chooser window, and when a recheck falls due. */
         fun settle() {
             answer.answer()
-            repeat(10) {
+            repeat(20) {
                 when {
-                    front == chooser -> answer.answer()
                     due != null -> { due = null; answer.answer() }
+                    front == chooser && !ignoredTaps -> answer.answer()
                     else -> return
                 }
             }
+            error("the answer never settled")
         }
     }
 
@@ -99,6 +106,16 @@ class HomeChooserAnswerTest {
         portal.settle()
         assertEquals(resolver, portal.home)
         assertEquals(3, portal.homePresses)
+    }
+
+    @Test fun anAlwaysThatNeverTakesIsTappedAtMostThreeTimes() {
+        // The tap is accepted and the chooser stays: no window event comes, only the rechecks.
+        val portal = Portal().apply { ignoredTaps = true }
+        portal.answer.connected()
+        portal.settle()
+        assertEquals(resolver, portal.home)
+        assertEquals(1, portal.homePresses)
+        assertEquals(3, portal.taps)
     }
 
     @Test fun aChooserOfferingAnotherAppThatThisServiceShowedIsDismissed() {
