@@ -18,8 +18,8 @@ import org.junit.Test
  * still registered as `IntentReceiverLeaked`. When runtime teardown overruns the service deadline the
  * queued runtime cleanup has not run by then, so the receivers must be gone before it is handed off.
  *
- * `registerReceiver` and `unregisterReceiver` are no-ops in the mockable android.jar, so the service's
- * own receiver fields are what these tests observe.
+ * `registerReceiver` and `unregisterReceiver` are no-ops in the mockable android.jar, so the receiver
+ * fields of the service's [ServiceReceivers] are what these tests observe.
  */
 class ServiceTeardownReceiverTest {
     private val receiverFields = listOf("screenOnReceiver", "webViewRebindReceiver")
@@ -27,7 +27,7 @@ class ServiceTeardownReceiverTest {
     @Test fun everyReceiverIsReleasedBeforeOnDestroyReturnsWhileRuntimeShutdownIsBlocked() {
         val service = PaneldService()
         fenceProcessExit(service)
-        for (name in receiverFields) setField(service, name, dummyReceiver())
+        for (name in receiverFields) setField(receivers(service), name, dummyReceiver())
         val lane = blockRuntimeLane(service)
         try {
             service.onDestroy()
@@ -37,7 +37,7 @@ class ServiceTeardownReceiverTest {
                 lane.finished.get(),
             )
             for (name in receiverFields) {
-                assertNull("$name must be unregistered before onDestroy returns", field(service, name))
+                assertNull("$name must be unregistered before onDestroy returns", field(receivers(service), name))
             }
         } finally {
             lane.release.countDown()
@@ -51,7 +51,7 @@ class ServiceTeardownReceiverTest {
         startReceivers(service)
 
         for (name in receiverFields) {
-            assertNull("$name must not be registered once teardown has begun", field(service, name))
+            assertNull("$name must not be registered once teardown has begun", field(receivers(service), name))
         }
     }
 
@@ -60,7 +60,7 @@ class ServiceTeardownReceiverTest {
 
         startReceivers(service)
 
-        for (name in receiverFields) assertNotNull("$name must be registered on startup", field(service, name))
+        for (name in receiverFields) assertNotNull("$name must be registered on startup", field(receivers(service), name))
     }
 
     private class BlockedLane(val release: CountDownLatch, val finished: AtomicBoolean)
@@ -91,10 +91,11 @@ class ServiceTeardownReceiverTest {
     }
 
     private fun startReceivers(service: PaneldService) {
-        for (name in listOf("startScreenOnReconciliation", "startWebViewRebindWatch")) {
-            PaneldService::class.java.getDeclaredMethod(name).apply { isAccessible = true }.invoke(service)
-        }
+        receivers(service).startScreenOnReconciliation()
+        receivers(service).startWebViewRebindWatch()
     }
+
+    private fun receivers(service: PaneldService): ServiceReceivers = field(service, "receivers") as ServiceReceivers
 
     private fun teardownBoundary(service: PaneldService): ServiceTeardownBoundary =
         field(service, "teardownBoundary") as ServiceTeardownBoundary
@@ -103,11 +104,11 @@ class ServiceTeardownReceiverTest {
         override fun onReceive(context: Context?, intent: Intent?) = Unit
     }
 
-    private fun field(service: PaneldService, name: String): Any? =
-        PaneldService::class.java.getDeclaredField(name).apply { isAccessible = true }.get(service)
+    private fun field(target: Any, name: String): Any? =
+        target.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(target)
 
-    private fun setField(service: PaneldService, name: String, value: Any?) {
-        PaneldService::class.java.getDeclaredField(name).apply { isAccessible = true }.set(service, value)
+    private fun setField(target: Any, name: String, value: Any?) {
+        target.javaClass.getDeclaredField(name).apply { isAccessible = true }.set(target, value)
     }
 
     @Suppress("UNCHECKED_CAST")
