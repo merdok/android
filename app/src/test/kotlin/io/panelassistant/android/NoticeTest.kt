@@ -2,6 +2,7 @@ package io.panelassistant.android
 
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.dashboard.EntityBootstrapProblem
+import io.panelassistant.android.http.SetupJourney
 import io.panelassistant.android.sensors.HaNetworkPath
 import io.panelassistant.android.sensors.HaNetworkPathSeverity
 import io.panelassistant.android.sensors.PathProbeCause
@@ -256,9 +257,70 @@ class NoticeTest {
 
     @Test
     fun theStandingPillSaysWhetherThePanelIsSetUp() {
-        assertEquals(R.string.notice_pill_not_set_up, standingNoticePill(stagePresent = false, identity = false, everCompleted = false))
-        assertEquals(R.string.notice_pill_not_set_up, standingNoticePill(stagePresent = true, identity = true, everCompleted = false))
-        assertEquals(R.string.notice_pill_setup, standingNoticePill(stagePresent = true, identity = false, everCompleted = false))
-        assertNull(standingNoticePill(stagePresent = false, identity = false, everCompleted = true))
+        assertEquals(R.string.notice_pill_not_set_up, standingNoticePill(stagePresent = false, identity = false, needsUser = false, everCompleted = false))
+        assertEquals(R.string.notice_pill_not_set_up, standingNoticePill(stagePresent = true, identity = true, needsUser = false, everCompleted = false))
+        assertEquals(R.string.notice_pill_setup, standingNoticePill(stagePresent = true, identity = false, needsUser = false, everCompleted = false))
+        assertNull(standingNoticePill(stagePresent = false, identity = false, needsUser = false, everCompleted = true))
+    }
+
+    /**
+     * What MainActivity.applySetupStage feeds the pill, from a real journey. applySetupStage maps
+     * every non-null `next` of an incomplete journey to a stage line (render_proof -> "Loading your
+     * dashboard..." / "Nothing to do here."), so stage presence is `!complete && next != null` and identity
+     * is `next == identity`; needsUser is the endpoint's `needs_user`, i.e. [SetupJourney.Journey.needsUser].
+     * The activity is not constructible on the JVM, so the mapping is restated here.
+     */
+    private fun pillFor(journey: SetupJourney.Journey, everCompleted: Boolean): Int? {
+        val stagePresent = !journey.complete && journey.next != null
+        val identity = !journey.complete && journey.next == SetupJourney.Stage.IDENTITY
+        return standingNoticePill(stagePresent, identity, journey.needsUser, everCompleted)
+    }
+
+    private fun configuredInputs(haCredentialed: Boolean = true) = SetupJourney.Inputs(
+        identityConfirmed = true,
+        panelId = "alpha",
+        renderer = SetupJourney.RendererChoice.Builtin,
+        haUrl = "http://ha.local:8123",
+        haCredentialed = haCredentialed,
+        haOAuthInFlight = false,
+        entityFilterAnswered = true,
+        homeDashboardChosen = true,
+        // Process-scoped built-in proof not yet re-earned after an app restart or update.
+        proof = SetupJourney.RenderProof(),
+    )
+
+    @Test
+    fun aConfiguredPanelReEarningItsRenderProofShowsNoSetupPill() {
+        val journey = SetupJourney.evaluate(configuredInputs())
+        // The path: the only unsatisfied stage is render_proof, in flight, and nobody is needed.
+        assertEquals(SetupJourney.Stage.RENDER_PROOF, journey.next)
+        assertEquals(SetupJourney.Status.IN_FLIGHT, journey.step(SetupJourney.Stage.RENDER_PROOF).status)
+        assertEquals("awaiting_frontend", journey.step(SetupJourney.Stage.RENDER_PROOF).detail)
+        assertEquals(false, journey.complete)
+        assertEquals(false, journey.needsUser)
+        assertNull("a configured panel waiting for its dashboard is not in setup", pillFor(journey, everCompleted = true))
+    }
+
+    @Test
+    fun aReArmedPanelThatLostItsCredentialStillShowsTheSetupPill() {
+        val journey = SetupJourney.evaluate(configuredInputs(haCredentialed = false))
+        assertEquals(SetupJourney.Stage.HA_CREDENTIALS, journey.next)
+        assertEquals(SetupJourney.Status.BLOCKED, journey.step(SetupJourney.Stage.HA_CREDENTIALS).status)
+        assertEquals(true, journey.needsUser)
+        assertEquals(R.string.notice_pill_setup, pillFor(journey, everCompleted = true))
+    }
+
+    @Test
+    fun aPanelThatNeverCompletedKeepsItsSetupPillWhileNobodyIsNeeded() {
+        val loading = SetupJourney.evaluate(configuredInputs())
+        assertEquals(false, loading.needsUser)
+        assertEquals(R.string.notice_pill_setup, pillFor(loading, everCompleted = false))
+        val signingIn = SetupJourney.evaluate(configuredInputs(haCredentialed = false).copy(haOAuthInFlight = true))
+        assertEquals(SetupJourney.Stage.HA_CREDENTIALS, signingIn.next)
+        assertEquals(false, signingIn.needsUser)
+        assertEquals(R.string.notice_pill_setup, pillFor(signingIn, everCompleted = false))
+        val unclaimed = SetupJourney.evaluate(configuredInputs().copy(identityConfirmed = false))
+        assertEquals(SetupJourney.Stage.IDENTITY, unclaimed.next)
+        assertEquals(R.string.notice_pill_not_set_up, pillFor(unclaimed, everCompleted = false))
     }
 }

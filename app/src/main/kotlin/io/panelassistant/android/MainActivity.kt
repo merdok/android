@@ -116,7 +116,8 @@ class MainActivity : AppCompatActivity() {
                 if (s.optString("stage") == "renderer") rendererDetail = s.optString("detail")
             }
         }
-        val key = "$complete|$next|$rendererDetail"
+        val needsUser = journey.optBoolean("needs_user", false)
+        val key = "$complete|$next|$rendererDetail|$needsUser"
         lastJourney = journey
         if (key == lastStageKey) return
         lastStageKey = key
@@ -138,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         val identity = !complete && next == "identity"
-        statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, config.setupEverCompleted)?.let(::getString).orEmpty())
+        statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, needsUser, config.setupEverCompleted)?.let(::getString).orEmpty())
         // Not set up: the pill says so, and the hint is the one line. A later stage: the stage is the line
         // and its hint the footer. No stage: the panel's description.
         stageView?.text = when {
@@ -547,7 +548,7 @@ class MainActivity : AppCompatActivity() {
         }).apply { visibility = View.GONE }
         signInRow = signIn
         surface.setBody(
-            standingNoticePill(stagePresent = false, identity = false, everCompleted = config.setupEverCompleted)
+            standingNoticePill(stagePresent = false, identity = false, needsUser = false, everCompleted = config.setupEverCompleted)
                 ?.let(::getString).orEmpty(),
             qr,
             line,

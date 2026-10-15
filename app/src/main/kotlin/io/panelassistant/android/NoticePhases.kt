@@ -105,11 +105,12 @@ internal fun entityLearningNotice(stage: Int?, count: Int?): EntityLearningNotic
 
 /**
  * The standing screen's pill: "Setup" while a later setup stage is running, "Not set up" on a panel that
- * has never completed setup, and none on a panel that has.
+ * has never completed setup, and none on a panel that has. A panel that has completed once shows "Setup"
+ * only while a person is needed ([needsUser]), so its process-scoped render_proof wait shows no pill.
  */
 @androidx.annotation.StringRes
-internal fun standingNoticePill(stagePresent: Boolean, identity: Boolean, everCompleted: Boolean): Int? = when {
-    stagePresent && !identity -> R.string.notice_pill_setup
+internal fun standingNoticePill(stagePresent: Boolean, identity: Boolean, needsUser: Boolean, everCompleted: Boolean): Int? = when {
+    stagePresent && !identity && (needsUser || !everCompleted) -> R.string.notice_pill_setup
     !everCompleted -> R.string.notice_pill_not_set_up
     else -> null
 }
