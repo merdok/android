@@ -116,33 +116,15 @@ import io.panelassistant.android.sensors.SensorLightPublisher
 import io.panelassistant.android.sensors.submitIlluminanceIfExposed
 import io.panelassistant.android.sensors.HaAmbientLuxSubscriber
 import io.panelassistant.android.sensors.HaAmbientSourcePhase
-import io.panelassistant.android.sensors.DashboardHaApiSessionProvider
-import io.panelassistant.android.sensors.HaExactEntityStreamOwner
-import io.panelassistant.android.sensors.HaLifecycleCoordinator
-import io.panelassistant.android.sensors.HaLifecycleRuntime
-import io.panelassistant.android.sensors.HaLifecycleState
-import io.panelassistant.android.sensors.HaNetworkPath
-import io.panelassistant.android.sensors.PathProbeMonitor
-import io.panelassistant.android.sensors.PathProbeRuntime
-import io.panelassistant.android.sensors.IcmpEchoSource
-import io.panelassistant.android.sensors.HaNetworkPathMonitor
-import io.panelassistant.android.sensors.HaNetworkPathRuntime
 import io.panelassistant.android.sensors.HaPresenceSourceManager
 import io.panelassistant.android.sensors.HaSiteMetadataClient
-import io.panelassistant.android.sensors.KtorHaAmbientTransport
-import io.panelassistant.android.util.AddressFamilyPolicy
-import io.panelassistant.android.panelassistant.KtorPanelAssistantTransportConnector
 import io.panelassistant.android.panelassistant.PanelAssistantApprovalState
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantCommandSink
-import io.panelassistant.android.panelassistant.PanelAssistantHelloIdentity
 import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
-import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
-import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
-import io.panelassistant.android.sensors.KtorHaExactEntityStreamTransport
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
 import io.panelassistant.android.util.DashboardTheme
@@ -498,7 +480,7 @@ class PaneldService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // One dedicated transition lane owns initial start, config rebuilds, reconnects, and final teardown.
     // Observations capture the generation and its concrete state core, dispatcher and mDNS owners together, so tick/network work cannot read a generation from one runtime and then reach a replacement through a mutable field.
-    private data class NetworkRuntime(
+    internal data class NetworkRuntime(
         val core: PanelStateCore,
         val commands: PanelCommandDispatcher,
         val mdns: MdnsAdvertiser,
@@ -600,8 +582,7 @@ class PaneldService : Service() {
     private lateinit var autoBright: AutoBrightnessController
     private lateinit var autoSleep: AutoSleepController
     private lateinit var haAmbientLux: HaAmbientLuxSubscriber
-    private lateinit var haExactEntityStream: HaExactEntityStreamOwner
-    private lateinit var panelAssistantTransport: PanelAssistantTransportOwner
+    private lateinit var haLinks: ServiceHaLinks
     // The panel's side of its Assist satellite, carried on the Panel Assistant session.
     private lateinit var panelAssistantVoice: io.panelassistant.android.panelassistant.PanelAssistantVoice
     private val wakeWordCatalog by lazy { io.panelassistant.android.assist.wakeword.WakeWordCatalog(this) }
@@ -634,10 +615,6 @@ class PaneldService : Service() {
             LocalApprovalBroker.instance.deny(approvalId)
         }
     }
-    private lateinit var haLifecycle: HaLifecycleCoordinator
-    private lateinit var haNetworkPath: HaNetworkPathMonitor
-    private lateinit var haPathProbe: PathProbeMonitor
-    private val haSocketClock: () -> Long = { android.os.SystemClock.elapsedRealtime() }
     private lateinit var haSiteMetadata: HaSiteMetadataClient
     private var brightnessObserver: ContentObserver? = null
     private var haCandidateIdentity = ""
@@ -998,33 +975,6 @@ class PaneldService : Service() {
             onAmbientThemeChanged = ::reconcileAmbientTheme,
         )
         haSiteMetadata = HaSiteMetadataClient(config)
-        val haSessionAuthority = DashboardHaApiSessionProvider(config)
-        val haApi = KtorHaAmbientTransport()
-        // The layer-3 probe is constructed before the transport so the transport can report the
-        // address each route connects on straight to it. It measures the path the dashboard is
-        // actually using; a fresh resolution could name a family the connect race already rejected.
-        haPathProbe = PathProbeMonitor(
-            source = IcmpEchoSource(),
-            // The layer-3 verdict goes straight to the one owner of the prominent warning, so a
-            // measured path fault raises the banner and the panel chip rather than sitting in a
-            // diagnostics line nobody reads until they are already debugging.
-            // Guarded: the probe is constructed first, and a diagnostic must never be the thing
-            // that crashes the service it is diagnosing.
-            onVerdict = { severity, cause ->
-                if (::haNetworkPath.isInitialized) haNetworkPath.onPathProbeVerdict(severity, cause)
-            },
-        )
-        haExactEntityStream = HaExactEntityStreamOwner(
-            scope = scope,
-            auth = haSessionAuthority,
-            transport = KtorHaExactEntityStreamTransport(
-                haApi,
-                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
-                monotonicMillis = haSocketClock,
-                onRouteConnected = { address, otherResolved -> haPathProbe.onRouteConnected(address, otherResolved) },
-            ),
-            monotonicMillis = haSocketClock,
-        )
         panelAssistantVoice = io.panelassistant.android.panelassistant.PanelAssistantVoice(
             scope = scope,
             configuration = ::voiceConfiguration,
@@ -1044,108 +994,16 @@ class PaneldService : Service() {
             log = { message -> Log.i(TAG, message) },
             onColors = { colors -> io.panelassistant.android.assist.VoiceAttention.colors = colors },
         )
-        // The native transport's own long-lived socket, on the same credential authority as the stream
-        // above and the same address-family policy as every other Home Assistant socket.
-        panelAssistantTransport = PanelAssistantTransportOwner(
-            scope = scope,
-            auth = haSessionAuthority,
-            connector = KtorPanelAssistantTransportConnector(
-                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
-            ),
-            monotonicMillis = haSocketClock,
-            addresses = {
-                val primary = runCatching {
-                    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                    cm?.getLinkProperties(cm.activeNetwork)?.linkAddresses.orEmpty().map { it.address }
-                }.getOrDefault(emptyList())
-                io.panelassistant.android.util.localPanelAddresses(primary)
-            },
-            reporter = panelAssistantReporter,
-            observeForHello = {
-                val observed = runtime.observe() ?: return@PanelAssistantTransportOwner false
-                observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
-            },
-            commands = panelAssistantCommands,
-            management = io.panelassistant.android.panelassistant.PanelAssistantManagement.of({ server.managementSnapshot() }, { settings, admit -> server.applyManagedSettings(settings, admit) }) { op, args, onPending -> server.managementRequest(op, args, onPending, haSessionAuthority) },
-            onConnected = config::markPanelAssistantConnected,
-            onLifecycleNotice = { notice -> haLifecycle.onNativeNotice(notice) },
-            onLifecycleAuthenticated = { haLifecycle.onNativeAuthenticated() },
-            onLifecycleDisconnected = { haLifecycle.onNativeDisconnected() },
-            onLifecycleRetired = {
-                haLifecycle.onNativeRetired()
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, false)) BuiltinDashboard.onHaLifecycleChanged()
-            },
-            embedKeys = io.panelassistant.android.http.PanelAssistantEmbedKeys.instance,
-            voice = panelAssistantVoice,
-            voiceStream = voiceStream,
-            onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
-            onConnection = { session, accepted ->
-                val route = session.route
-                val bound = route != null && HaConnectionRoutes.isCurrent(config, route) &&
-                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
-                if (bound) {
-                    // Protocol section 20.8: the bound Panel Assistant's grant opens or closes the REST routes.
-                    config.recordPanelAssistantGrant(accepted.capabilities)
-                    // The device link is keyed on the learned entry, so a first or changed entry resolves it now.
-                    runtime.observe()?.value?.core?.maybeResolveHaLink()
-                }
-                bound
-            },
-            checkPreferred = {
-                val route = HaConnectionRoutes.preferredCandidate(config)
-                if (route == null) false else {
-                    val session = DashboardHaApiSessionProvider(config).resolve(false)
-                    val token = session.accessToken
-                    val authenticated = if (token != null && session.route == route) {
-                        try {
-                            val probe = KtorPanelAssistantTransportConnector { AddressFamilyPolicy.fromConfig(config.addressFamily) }.connect(route.owner.url, token)
-                            probe.close()
-                            true
-                        } catch (_: Exception) { false }
-                    } else false
-                    HaConnectionRoutes.preferredResult(config, route, authenticated)
-                }
-            },
-        )
-        AppInstaller.livePanelUpdatePolicy = {
-            if (teardownBoundary.isStopping) null else panelAssistantTransport.status.liveUpdatePolicy()
-        }
-        haLifecycle = HaLifecycleCoordinator(
-            // elapsedRealtime, not wall clock: a Home Assistant restart is exactly when NTP is likely to
-            // step the panel's clock, and the back-online window must not be shortened or extended by it.
-            nowMs = { android.os.SystemClock.elapsedRealtime() },
-            onChanged = {
-                // Read the canonical snapshot rather than trusting a payload, so a diagnostic line
-                // cannot report something the machine no longer holds.
-                Log.i(TAG, "Home Assistant lifecycle: ${HaLifecycleRuntime.snapshot()?.state?.wireValue}")
-                BuiltinDashboard.onHaLifecycleChanged()
-            },
-        )
-        // The network-path monitor rides the same socket, the same clock and the same renderer poke.
-        // Installed BEFORE it is bound, because binding announces the current demand at once and that
-        // first verdict must already be readable by whoever the poke wakes.
-        haNetworkPath = HaNetworkPathMonitor(
-            nowMs = haSocketClock,
-            // Second attribution signal: while Home Assistant has announced a shutdown or a start
-            // over the Panel Assistant session, an unanswered probe is
-            // the server's doing and must not be counted as loss. Read outside the monitor's lock.
-            haRestarting = {
-                when (HaLifecycleRuntime.snapshot()?.state) {
-                    HaLifecycleState.SHUTTING_DOWN, HaLifecycleState.STARTING -> true
-                    else -> false
-                }
-            },
-            onChanged = { BuiltinDashboard.onHaLifecycleChanged() },
-            // Startup is a known high-latency period whose figures describe this panel's own load
-            // rather than the path, so observations inside it are discarded rather than judged. The
-            // process start is read on the same monotonic clock every probe is stamped with.
-            path = HaNetworkPath(processStartElapsedMs = android.os.Process.getStartElapsedRealtime()),
+        // The Home Assistant links and their health, built once in this order on the configuration above.
+        haLinks = ServiceHaLinks(
+            this, scope, config, teardownBoundary, panelAssistantReporter, panelAssistantCommands,
+            panelAssistantVoice, voiceStream, { runtime }, { server },
         )
         haAmbientLux = HaAmbientLuxSubscriber(
             scope = scope,
-            auth = haSessionAuthority,
-            transport = haApi,
-            streamOwner = haExactEntityStream,
+            auth = haLinks.haSessionAuthority,
+            transport = haLinks.haApi,
+            streamOwner = haLinks.haExactEntityStream,
             onSample = { sample -> autoBright.submitHaLux(sample.lux) },
             onStatus = { status ->
                 autoBright.setHaSourceAvailable(status.phase == HaAmbientSourcePhase.LIVE)
@@ -1410,7 +1268,7 @@ class PaneldService : Service() {
                 HaPresenceSourceManager(
                     scope = scope,
                     config = config,
-                    streamOwner = haExactEntityStream,
+                    streamOwner = haLinks.haExactEntityStream,
                     offerAggregate = offerAggregate,
                 )
             },
@@ -1477,8 +1335,8 @@ class PaneldService : Service() {
             scope = scope,
             httpPort = { config.httpPort },
             panelAssistantConnected = {
-                ::panelAssistantTransport.isInitialized &&
-                    panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
+                ::haLinks.isInitialized &&
+                    haLinks.panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
             },
             offerHandoff = { offerSuccessorHandoff() },
             // LAN delivery has installed the successor; never fall back to a release download.
@@ -1539,7 +1397,7 @@ class PaneldService : Service() {
             radioStatus = { if (profile.zigbeeGatewayDir != null) zigbeeHealth.snapshot() else null },
             camera = camera,
             permissionStatus = { PanelPermissionRepair.observe(this, microphonePresence().offered, cameraReason()) },
-            panelAssistantTransport = panelAssistantTransport,
+            panelAssistantTransport = haLinks.panelAssistantTransport,
             onZigbeeJoinRetry = { runtime.current().commands.requestZigbeeJoin() },
             // LAN ha-paneld peers over mDNS for the header panel switcher. Captures the `mdns` FIELD (not a
             // snapshot) so it follows reconfigure()'s reassignment; browsePeers null-guards the swap window.
@@ -2037,7 +1895,7 @@ class PaneldService : Service() {
             if (executionDeadline.remainingMs() > 0L) requestNetworkRecovery()
         } finally {
             if (obligationsCompleted && ownerRefresh.panelAssistantTransport) {
-                runCatching { refreshPanelAssistantTransport() }
+                runCatching { haLinks.refreshPanelAssistantTransport() }
             }
             if (!obligationsCompleted) synchronized(reconfigureKeysLock) {
                 pendingReconfigureKeys += changedKeys
@@ -2118,38 +1976,13 @@ class PaneldService : Service() {
         if (ownerRefresh.keepAwake) runCatching { power.apply(config.keepAwake) }
         if (ownerRefresh.autoSleep) runCatching { refreshAutoSleepPresence() }
         if (ownerRefresh.rendererTarget) {
-            haExactEntityStream.replaceHaLink(currentHaLinkIdentity(), config.haRouteEpoch())
+            haLinks.haExactEntityStream.replaceHaLink(currentHaLinkIdentity(), config.haRouteEpoch())
             io.panelassistant.android.http.PerfReader.updateRendererTarget(rendererTargetSnapshot())
         }
         if (ownerRefresh.camera && ::camera.isInitialized) runCatching { camera.onEnabledChanged() }
         // A camera switch moved on the Configure page, by a bundle import or by provisioning must reach
         // Home Assistant too; otherwise its switch keeps a position the panel has already left.
         if (ownerRefresh.camera) runCatching { core.publishCameraState() }
-    }
-
-    private fun currentPanelAssistantTransportDemand(): PanelAssistantTransportDemand? {
-        val auth = config.haAuthSnapshot()
-        return panelAssistantTransportDemand(
-            credential = auth.stableOwner(),
-            accessTokenPresent = auth.accessToken.isNotBlank(),
-            identity = PanelAssistantHelloIdentity(
-                did = panelAssistantDiscoveryId(config.deviceUid),
-                appVersion = BuildConfig.VERSION_NAME,
-                appVersionCode = BuildConfig.VERSION_CODE,
-            ),
-        )?.copy(routeEpoch = config.haRouteEpoch())
-    }
-
-    /** Start, keep or stop native transport only on the successfully started, admitted service owner. */
-    private fun refreshPanelAssistantTransport() {
-        if (!::panelAssistantTransport.isInitialized) return
-        val demand = currentPanelAssistantTransportDemand()
-        runtime.runIfRunning {
-            if (!teardownBoundary.isStopping) {
-                panelAssistantTransport.replaceDemand(demand)
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, demand != null)) BuiltinDashboard.onHaLifecycleChanged()
-            }
-        }
     }
 
     /** Controller reads shared by the dashboard facts, live values and capability projection. */
@@ -2501,12 +2334,7 @@ class PaneldService : Service() {
             // Everything below can start work, write hardware state, attach a process-global owner, or
             // create an overlay. Keep all of it behind the predecessor fence, not merely HTTP start.
             // Publish each holder before binding can announce its first state to a live renderer.
-            HaNetworkPathRuntime.install(haNetworkPath)
-            haExactEntityStream.bindNetworkPath(haNetworkPath)
-            PathProbeRuntime.install(haPathProbe, haSocketClock)
-            haExactEntityStream.bindPathProbe(haPathProbe)
-            HaLifecycleRuntime.install(haLifecycle)
-            BuiltinDashboard.onHaLifecycleChanged()
+            haLinks.installRuntimeHolders()
             scope.launch { AppInstaller.deleteRetiredWebViewRollback(filesDir) }
             io.panelassistant.android.camera.CameraPermissionPrompt.install(
                 object : io.panelassistant.android.camera.CameraPermissionPrompt.Store {
@@ -2805,13 +2633,10 @@ class PaneldService : Service() {
             }
             // Issue #93: read-only button-LED GPIO proof in its own coroutine, not queued behind prewarm().
             scope.launch(Dispatchers.IO) { relay.warmUp() }
-            initialNativeDemand = currentPanelAssistantTransportDemand()
+            initialNativeDemand = haLinks.currentPanelAssistantTransportDemand()
         }, complete = {
             // Demand construction reads configuration before this short, lock-admitted publication.
-            if (!teardownBoundary.isStopping) {
-                panelAssistantTransport.replaceDemand(initialNativeDemand)
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, initialNativeDemand != null)) BuiltinDashboard.onHaLifecycleChanged()
-            }
+            haLinks.publishDemand(initialNativeDemand)
         })
         Thread({
             val disposition = awaitServiceStartup(startup, startupActivationGeneration)
@@ -2897,7 +2722,7 @@ class PaneldService : Service() {
                 // authoritative onCapabilitiesChanged, and crediting an episode from it invents or
                 // discards outages on stale information.
                 wifiOutageTracker.onDefaultAvailable(network.hashCode().toLong())
-                if (::panelAssistantTransport.isInitialized) panelAssistantTransport.nudge()
+                if (::haLinks.isInitialized) haLinks.panelAssistantTransport.nudge()
                 observeTransport(network, capabilities)
                 mdnsNetworkChanged(cm.getLinkProperties(network)?.linkAddresses.orEmpty())
             }
@@ -3195,25 +3020,7 @@ class PaneldService : Service() {
                 config.unregisterChangeListener(voicePrefsListener)
                 closeOwnerResult("voice assistant") { voice.shutdown(asyncTeardownDeadline.remainingMs()) }
             }
-            if (::panelAssistantTransport.isInitialized) {
-                closeOwner("Panel Assistant transport") { panelAssistantTransport.close() }
-            }
-            if (::haExactEntityStream.isInitialized) {
-                closeOwner("HA exact entity stream") { haExactEntityStream.close() }
-                // Identity-gated: a successor service may already have installed its own coordinator by
-                // the time this (possibly deadline-late) teardown runs, and erasing it would blank the
-                // successor's live tracking. Only when THIS service's installation was actually cleared
-                // is the renderer poked, so a card rendering the dead state is re-read and hidden.
-                if (HaLifecycleRuntime.uninstall(haLifecycle)) BuiltinDashboard.onHaLifecycleChanged()
-                // Same identity gate for the network-path owner: a successor's installation survives a
-                // late predecessor teardown, and only a real clearing re-pokes the chip to hide.
-                if (::haNetworkPath.isInitialized && HaNetworkPathRuntime.uninstall(haNetworkPath)) {
-                    BuiltinDashboard.onHaLifecycleChanged()
-                }
-                // The echo probe is cleared under the same identity gate, and silently: it drives no
-                // prominent surface, so nothing needs re-poking when it goes.
-                if (::haPathProbe.isInitialized) PathProbeRuntime.uninstall(haPathProbe)
-            }
+            if (::haLinks.isInitialized) haLinks.close(::closeOwner)
             closeOwner("sensors") { sensorPersistenceClosed.set(sensors.stop()) }
             BuiltinDashboard.setForegroundGainedListener(null)
             if (::autoBright.isInitialized) {
@@ -3718,18 +3525,7 @@ class PaneldService : Service() {
     }
 
     private fun announcePanelAssistantRestart(scope: String, reason: String, expectedBackMs: Long) {
-        if (!::panelAssistantTransport.isInitialized) return
-        // One bounded acknowledgement chance before an already accepted restart or reboot tears down
-        // the socket. The notice never decides whether the restart itself may proceed.
-        try {
-            kotlinx.coroutines.runBlocking {
-                kotlinx.coroutines.withTimeoutOrNull(300L) {
-                    panelAssistantTransport.announceRestart(scope, reason, expectedBackMs).await()
-                }
-            }
-        } catch (error: Exception) {
-            Log.w(TAG, "restart notice failed; continuing the accepted restart", error)
-        }
+        if (::haLinks.isInitialized) haLinks.announcePanelAssistantRestart(scope, reason, expectedBackMs)
     }
 
     /**
