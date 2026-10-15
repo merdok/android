@@ -45,7 +45,15 @@ internal class StopWordListener(
 
     // A hit that is held clears the window and may come again a few inferences later: no cooldown, or a
     // "stop" said inside the command would leave the panel deaf to the real one for two seconds.
-    private val detector = WakeWordDetector(listOf(model), ::heard, maxActive = 1, cooldownChunks = 0, warmupInferences = 0)
+    private val detector = WakeWordDetector(
+        listOf(model),
+        ::heard,
+        maxActive = 1,
+        cooldownChunks = 0,
+        warmupInferences = 0,
+        // What came close while the panel spoke, so a stop that is heard but never fires can be tuned.
+        nearMiss = { _, mean -> if (open) log("stop word heard at ${"%.2f".format(mean)}, short of its cutoff") },
+    )
 
     // Set from any thread, taken by the delivering thread at its next frame. The listener starts guarded.
     private val guardNext = AtomicBoolean(true)
