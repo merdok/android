@@ -12,6 +12,7 @@ import io.panelassistant.android.audio.MicrophoneMuteWatch
 import io.panelassistant.android.control.ScreenController
 import io.panelassistant.android.control.VendorServiceStarter
 import io.panelassistant.android.util.ProfileRestartCoordinator
+import io.panelassistant.android.util.MonotonicDeadline
 import io.panelassistant.android.util.SingleFlightExecutor
 
 /**
@@ -26,7 +27,6 @@ import io.panelassistant.android.util.SingleFlightExecutor
 internal class ServiceReceivers(
     private val context: Context,
     private val teardownBoundary: ServiceTeardownBoundary,
-    private val screenWakeWorker: SingleFlightExecutor,
     private val microphoneMute: MicrophoneMuteWatch,
     private val vendorServiceStarter: () -> VendorServiceStarter?,
     private val screen: () -> ScreenController,
@@ -36,6 +36,10 @@ internal class ServiceReceivers(
     // Guards both receiver fields, so a startup registering on the runtime lane and onDestroy releasing
     // on the main thread cannot interleave (see releaseServiceReceivers).
     private val receiverLock = Any()
+    // Adopting a wake nobody here performed gets its own worker rather than sharing the observation
+    // tick. Single-flight is right for it: the work is
+    // idempotent and generation-guarded, so a dropped duplicate costs nothing.
+    private val screenWakeWorker = SingleFlightExecutor("ha-paneld-screen-reconcile")
     private var screenOnReceiver: BroadcastReceiver? = null
     private var webViewRebindReceiver: BroadcastReceiver? = null
 
@@ -98,6 +102,19 @@ internal class ServiceReceivers(
         screenOnReceiver = null
         webViewRebindReceiver = null
         microphoneMute.close()
+    }
+
+    /**
+     * The physical-wake reconciliation publishes INTO the network runtime, so it must be provably
+     * terminal before that runtime is retired. Called on the runtime lane after the receiver is
+     * unregistered, so no new work can be posted; joins a reconciliation already in flight.
+     */
+    fun closeScreenWakeWorker(closeOwnerResult: (String, () -> Boolean) -> Unit, deadline: MonotonicDeadline) {
+        closeOwnerResult("screen reconcile worker") {
+            screenWakeWorker.closeAndJoin(
+                minOf(deadline.remainingMs(), PaneldService.WAKE_WORKER_JOIN_MS),
+            )
+        }
     }
 
     /**

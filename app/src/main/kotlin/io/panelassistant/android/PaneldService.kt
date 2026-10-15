@@ -544,11 +544,7 @@ class PaneldService : Service() {
     private val launcherHomeFailedGeneration = java.util.concurrent.atomic.AtomicLong(Long.MIN_VALUE)
     @Volatile private var kioskReassert: OwnedThread? = null
     private val wakeOnWaveWorker = SingleFlightExecutor("ha-paneld-wake-on-wave")
-    // Adopting a wake nobody here performed gets its own worker rather than sharing the observation
-    // tick. Single-flight is right for it: the work is
-    // idempotent and generation-guarded, so a dropped duplicate costs nothing.
     private var proximityWizard: ProximityWizardCoordinator? = null
-    private val screenWakeWorker = SingleFlightExecutor("ha-paneld-screen-reconcile")
     @Volatile private var vendorServiceStarter: io.panelassistant.android.control.VendorServiceStarter? = null
     private var vendorScreen: io.panelassistant.android.platform.VendorScreen = io.panelassistant.android.platform.NoVendorScreen
 
@@ -706,7 +702,7 @@ class PaneldService : Service() {
     private val teardownBoundary = ServiceTeardownBoundary()
     // The screen-on and WebView-provider receivers, registered at startup and released in onDestroy.
     private val receivers = ServiceReceivers(
-        this, teardownBoundary, screenWakeWorker, microphoneMute,
+        this, teardownBoundary, microphoneMute,
         { vendorServiceStarter }, { screen }, { core }, { webViewRebindRestart },
     )
     private val restartAfterInternalBoundary = AtomicBoolean(false)
@@ -2955,11 +2951,7 @@ class PaneldService : Service() {
             // work can be posted; join the worker so a reconciliation already in flight cannot publish
             // through a retired owner. Ordered before the retirement fence below for exactly that reason.
             closeOwner("update entity observers") { componentOperations.detachSoftwareUpdateObservers() }
-            closeOwnerResult("screen reconcile worker") {
-                screenWakeWorker.closeAndJoin(
-                    minOf(asyncTeardownDeadline.remainingMs(), WAKE_WORKER_JOIN_MS),
-                )
-            }
+            receivers.closeScreenWakeWorker(::closeOwnerResult, asyncTeardownDeadline)
             // Commands and convergence observers can use the service-owned hardware controllers.
             // Latest live refresh/replacement work has already drained on this runtime lane. Prove the
             // remaining mutation owners terminal before dismantling any dependent controller. mDNS is
@@ -3534,7 +3526,7 @@ class PaneldService : Service() {
         private const val KIOSK_RECOVERY_RETRY_MS = 1_000L
         private const val KIOSK_RECOVERY_ATTEMPTS = 3
         private const val KIOSK_CANCEL_JOIN_MS = 500L
-        private const val WAKE_WORKER_JOIN_MS = 500L
+        internal const val WAKE_WORKER_JOIN_MS = 500L
         private const val AUDIO_SHUTDOWN_MS = 2_000L
         private const val SERVICE_DESTROY_BUDGET_MS = 1_000L
         private const val ASYNC_TEARDOWN_WAIT_MS = 10_000L
