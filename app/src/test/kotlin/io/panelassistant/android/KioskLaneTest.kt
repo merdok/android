@@ -93,7 +93,12 @@ internal class KioskLaneTest : PanelRuntimeRig() {
             onRequest.join(10_000)
 
             // The gesture's OFF: stored before the worker reaches it, so a restart now comes back unlocked.
-            assertEquals(LiveSettingRequestOutcome.DEFERRED, request(rig, authority, "false"))
+            val unlocked = CopyOnWriteArrayList<Boolean>()
+            assertEquals(
+                LiveSettingRequestOutcome.DEFERRED,
+                requestKioskEscape(authority, rig.config, { rig.commands }, { unlocked += true; true }) {},
+            )
+            assertEquals("the worker unlocks, not the fallback", emptyList<Boolean>(), unlocked.toList())
             assertFalse(rig.config.kioskLock)
             assertEquals(emptyList<Boolean>(), applied.toList())
 
@@ -108,10 +113,42 @@ internal class KioskLaneTest : PanelRuntimeRig() {
 
     @Test fun anOnThePanelCannotEnableStoresNothing() {
         val rig = kioskRig(canEnable = false)
+        val authority = authority()
         try {
-            assertEquals(LiveSettingRequestOutcome.FAILED_PENDING, request(rig, authority(), "true"))
+            assertEquals(LiveSettingRequestOutcome.FAILED_PENDING, request(rig, authority, "true"))
             assertEquals(listOf(true), applied.toList())
             assertFalse(rig.config.kioskLock)
+            // Shown as waiting to apply and retried like every live setting; the boot discard ends it.
+            assertEquals(setOf("kiosk_lock"), authority.pendingSnapshot().keys)
+        } finally {
+            rig.close()
+        }
+    }
+
+    @Test fun anOffTheStoreRefusesStillUnlocks() {
+        val rig = kioskRig()
+        val refusing = Config(fakePreferences(commitSucceeds = false).instance)
+        try {
+            requestLiveSetting(authority(), refusing, { rig.commands }, "kiosk_lock", "false") {}
+            assertEquals(listOf(false), applied.toList())
+        } finally {
+            rig.close()
+        }
+    }
+
+    @Test fun theEscapeUnlocksWhenTheStoreRefusesTheRequest() {
+        val rig = kioskRig()
+        val unlocked = CopyOnWriteArrayList<Boolean>()
+        val refusingJournal = object : LiveSettingAuthority.Journal {
+            override fun load() = emptyMap<String, LiveSettingAuthority.Pending>()
+            override fun put(key: String, value: LiveSettingAuthority.Pending) = false
+            override fun remove(key: String) = true
+        }
+        val authority = LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, refusingJournal, bootIdentity = { "boot" })
+        try {
+            val outcome = requestKioskEscape(authority, rig.config, { rig.commands }, { unlocked += true; true }) {}
+            assertEquals(LiveSettingRequestOutcome.REJECTED, outcome)
+            assertEquals(listOf(true), unlocked.toList())
         } finally {
             rig.close()
         }

@@ -34,7 +34,7 @@ class ConfigImportCapabilitiesTest {
                 field(fixture.server, "applySetting", { key: String, value: String ->
                     check(key == "kiosk_lock")
                     if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED
-                    else LiveSettingRequestOutcome.REJECTED
+                    else LiveSettingRequestOutcome.FAILED_PENDING
                 })
                 capabilities(fixture, Capabilities(appCanSu = eligible, networkAdb = directSu, canControlBootChime = true))
                 val bundle = ConfigBundle.fromValues(mapOf("friendly_name" to "Imported", "kiosk_lock" to "true")).serialize()
@@ -68,7 +68,7 @@ class ConfigImportCapabilitiesTest {
             canEnable = { false }, actuate = { cleanup = true; false }, persist = config::commitKioskLock,
         )
         field(fixture.server, "applySetting", { _: String, value: String ->
-            if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
+            if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.FAILED_PENDING
         })
         capabilities(fixture, Capabilities())
         val bundle = ConfigBundle.fromValues(mapOf("kiosk_lock" to "false")).serialize()
@@ -103,7 +103,7 @@ class ConfigImportCapabilitiesTest {
                         }
                     } else {
                         check(key == "kiosk_lock")
-                        if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
+                        if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.FAILED_PENDING
                     }
                 })
                 testApplication {

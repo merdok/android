@@ -41,6 +41,21 @@ internal fun requestLiveSetting(
     applyLiveSetting(config, commands(), appliedKey, appliedValue, previous, refreshAutoSleep)
 }
 
+/**
+ * The on-panel escape gesture: the same OFF as the :8888 toggle. When the store refuses even to record the
+ * request, [unlock] clears the lock directly, so the network-independent escape never depends on storage.
+ */
+internal fun requestKioskEscape(
+    authority: LiveSettingAuthority,
+    config: Config,
+    commands: () -> PanelCommandDispatcher,
+    unlock: () -> Boolean,
+    refreshAutoSleep: () -> Unit,
+): LiveSettingRequestOutcome =
+    requestLiveSetting(authority, config, commands, "kiosk_lock", "false", refreshAutoSleep).also { outcome ->
+        if (outcome == LiveSettingRequestOutcome.REJECTED) unlock()
+    }
+
 internal fun applyLiveSetting(
     config: Config,
     commands: PanelCommandDispatcher,
@@ -60,11 +75,14 @@ internal fun applyLiveSetting(
     // the setting even when the bridge refuses to act on it for lack of a microphone. handleVoiceEnabled
     // owns persistence itself (mirrors network_adb, whose actuator is also the sole writer).
     // Kiosk ON is durable only once the lock engaged, so its handler persists it; an OFF is fail-safe and
-    // durable before it queues, so an unlock asked for while the dispatcher drains survives a restart.
+    // durable before it queues, so an unlock asked for while the dispatcher drains survives a restart. An OFF
+    // the store refuses still queues: its handler clears the lock whether or not the write lands.
+    val kioskOff = key == "kiosk_lock" && SettingValue.parseBool(value) == false
     val actuationOwnsPersistence =
-        key == "navbar_mode" || key == "network_adb" || key == "voice_enabled" ||
-            key == "kiosk_lock" && SettingValue.parseBool(value) != false
-    if (!spec.transient && !actuationOwnsPersistence && !commitHttpLiveSetting(config, spec, value, refreshAutoSleep)) {
+        key == "navbar_mode" || key == "network_adb" || key == "voice_enabled" || key == "kiosk_lock" && !kioskOff
+    if (!spec.transient && !actuationOwnsPersistence &&
+        !commitHttpLiveSetting(config, spec, value, refreshAutoSleep) && !kioskOff
+    ) {
         return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
     }
     return commands.applySettingObserved(key, value, previous.takeUnless { spec.transient })

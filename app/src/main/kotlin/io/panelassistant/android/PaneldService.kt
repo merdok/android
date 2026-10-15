@@ -1153,7 +1153,7 @@ class PaneldService : Service() {
         kiosk.onUnlockRequested = {
             Thread {
                 if (teardownBoundary.isStopping) return@Thread
-                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, "kiosk_lock", "false") {
+                requestKioskEscape(liveSettingAuthority, config, { runtime.current().commands }, { kiosk.apply(false) }) {
                     refreshAutoSleepPresence()
                 }
             }.apply { isDaemon = true; name = "kiosk-unlock" }.start()
