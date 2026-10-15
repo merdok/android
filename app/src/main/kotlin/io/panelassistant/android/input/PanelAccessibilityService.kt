@@ -49,7 +49,7 @@ class PanelAccessibilityService : AccessibilityService() {
         if (!GuardDbProcessAdmission.ordinaryMutationsAllowed()) return
         instance = this
         revivePaneldService()
-        chooserShown = false
+        homeChooser.connected()
         if (rebindForWindowContent()) return
         // After an in-place update the chooser is already showing when Android binds the service again.
         scheduleHomeChooserAnswer()
@@ -106,8 +106,32 @@ class PanelAccessibilityService : AccessibilityService() {
             .onFailure { Log.w(TAG, "could not revive PaneldService from the accessibility bind", it) }
     }
 
-    /** Whether this connection pressed HOME to show the chooser; see [HomeChooserPolicy.next]. */
-    @Volatile private var chooserShown = false
+    /**
+     * Answers Android's HOME chooser; see [HomeChooserAnswer].
+     *
+     * Always is tapped, not clicked: on Meta's Portal an `ACTION_CLICK` only recorded HOME as chosen once
+     * (`mAlways=false`), while a tap on the button's centre, Panel Assistant's ADB method, makes it stick.
+     */
+    private val homeChooser: HomeChooserAnswer by lazy { HomeChooserAnswer(
+        appName = getString(R.string.app_name),
+        defaultHome = { AndroidSystemEnv(this).defaultHome() },
+        activeWindow = {
+            rootInActiveWindow?.let { root ->
+                val always = root.findAccessibilityNodeInfosByViewId(HomeChooserPolicy.ALWAYS_ID)?.singleOrNull()
+                val title = root.findAccessibilityNodeInfosByViewId(HomeChooserPolicy.TITLE_ID)?.singleOrNull()
+                val box = Rect().also { always?.getBoundsInScreen(it) }
+                ChooserWindow(root.packageName, title?.text, always?.isEnabled, box.takeUnless { it.isEmpty }?.let { it.centerX() to it.centerY() })
+            }
+        },
+        showChooser = { performGlobalAction(GLOBAL_ACTION_HOME) },
+        dismiss = { performGlobalAction(GLOBAL_ACTION_BACK) },
+        tap = { x, y -> tap(x, y) },
+        answerAgainIn = {
+            mainHandler.removeCallbacks(answerHomeChooser)
+            mainHandler.postDelayed(answerHomeChooser, it)
+        },
+        log = { Log.i(TAG, it) },
+    ) }
     private var lastWindowState: WindowState? = null
     private data class WindowState(val packageName: String?, val className: String?, val id: Int)
 
@@ -179,40 +203,9 @@ class PanelAccessibilityService : AccessibilityService() {
         mainHandler.postDelayed(answerHomeChooser, HOME_CHOOSER_SETTLE_MS)
     }
 
-    /**
-     * Answer Android's HOME chooser; see [HomeChooserPolicy.next].
-     *
-     * Always is tapped, not clicked: on Meta's Portal an `ACTION_CLICK` only recorded HOME as chosen once
-     * (`mAlways=false`), while a tap on the button's centre, Panel Assistant's ADB method, makes it stick.
-     */
-    private val answerHomeChooser = Runnable {
+    private val answerHomeChooser: Runnable = Runnable {
         if (!GuardDbProcessAdmission.ordinaryMutationsAllowed()) return@Runnable
-        runCatching {
-            val root = rootInActiveWindow
-            val always = root?.findAccessibilityNodeInfosByViewId(HomeChooserPolicy.ALWAYS_ID)?.singleOrNull()
-            val title = root?.findAccessibilityNodeInfosByViewId(HomeChooserPolicy.TITLE_ID)?.singleOrNull()
-            val step = HomeChooserPolicy.next(
-                home = AndroidSystemEnv(this).defaultHome(),
-                windowPackage = root?.packageName,
-                title = title?.text,
-                alwaysEnabled = always?.isEnabled,
-                appName = getString(R.string.app_name),
-                shown = chooserShown,
-            )
-            when (step) {
-                HomeChooserPolicy.Step.NONE -> Unit
-                HomeChooserPolicy.Step.SHOW_CHOOSER -> {
-                    chooserShown = true
-                    Log.i(TAG, "HOME is unowned; showing the chooser=${performGlobalAction(GLOBAL_ACTION_HOME)}")
-                }
-                HomeChooserPolicy.Step.TAP_ALWAYS -> {
-                    val box = Rect().also { always?.getBoundsInScreen(it) }
-                    Log.i(TAG, "HOME chooser offers this app; tapped Always=${!box.isEmpty && tap(box.centerX(), box.centerY())}")
-                }
-                HomeChooserPolicy.Step.DISMISS ->
-                    Log.i(TAG, "HOME chooser offers another app; dismissed=${performGlobalAction(GLOBAL_ACTION_BACK)}")
-            }
-        }.onFailure { Log.w(TAG, "could not read the HOME chooser", it) }
+        runCatching { homeChooser.answer() }.onFailure { Log.w(TAG, "could not read the HOME chooser", it) }
     }
 
     /**
