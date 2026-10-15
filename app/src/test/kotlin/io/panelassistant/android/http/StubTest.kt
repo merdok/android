@@ -40,6 +40,8 @@ import io.panelassistant.android.ManageFamily
 import io.panelassistant.android.ManageKind
 import io.panelassistant.android.ManageReply
 import io.panelassistant.android.ManageTable
+import io.panelassistant.android.navbarMode
+import io.panelassistant.android.panelassistant.CommandValue
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantHelloOutcome
@@ -638,6 +640,23 @@ internal class StubTest : PanelRuntimeRig() {
         assertFalse(reply.optBoolean("interim"))
     }
 
+    @Test fun aPageCommandReachesItsHandlerAsTheValuePanelAssistantWouldSend() = testApplication {
+        val rig = rig(navbarAcknowledges = true, deviceSecure = false).also { it.start(); rigs += it }
+        stub { rig.commands }
+
+        val outcomes = socket {
+            listOf("relay1" to true, "screen" to JSONObject().put("on", false), "navbar" to "swipe_reveal").map { (channel, value) ->
+                exchange(JSONObject().put("kind", "command").put("command_id", channel).put("channel", channel).put("value", value))
+                    .getString("outcome")
+            }
+        }
+
+        assertEquals(listOf("applied", "applied", "applied"), outcomes)
+        assertTrue(rig.sysfs.writes.toString(), "$RELAY_BASE/relay1=1" in rig.sysfs.writes)
+        assertTrue("the screen was put to sleep", rig.screen.isIntendedOff())
+        assertEquals("Swipe reveal", rig.config.navbarMode)
+    }
+
     @Test fun aHeldChannelCommandAnswersInterimThenItsOutcomeOnceApproved() = testApplication {
         val rig = managedRig(ManageTable()) { it.setSecurityMode(Config.SecurityMode.HARDENED) }
         // A LAN peer's sensitive command is held for approval (this stub is mounted without the door's own
@@ -645,7 +664,7 @@ internal class StubTest : PanelRuntimeRig() {
         stub(peer = "192.168.50.20") { rig.commands }
 
         val frames = socket {
-            send(Frame.Text(JSONObject().put("kind", "command").put("command_id", "c1").put("channel", "reboot").put("value", "PRESS").toString()))
+            send(Frame.Text(JSONObject().put("kind", "command").put("command_id", "c1").put("channel", "reboot").toString()))
             val held = JSONObject((incoming.receive() as Frame.Text).readText())
             assertTrue(LocalApprovalBroker.instance.approve(held.getJSONObject("result").getString("approval_id")))
             held to withTimeout(10_000) { JSONObject((incoming.receive() as Frame.Text).readText()) }
@@ -883,7 +902,7 @@ internal class StubTest : PanelRuntimeRig() {
 
     private fun submit(rig: Rig, channel: String, origin: CommandOrigin): PanelAssistantCommandResult {
         val answer = LinkedBlockingQueue<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, "PRESS", admit = { null }), origin) { answer.put(it) }
+        rig.commands.submit(PanelAssistantCommand(channel, CommandValue.Press, admit = { null }), origin) { answer.put(it) }
         return requireNotNull(answer.poll(20, TimeUnit.SECONDS)) { "$channel answered" }
     }
 

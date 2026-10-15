@@ -135,11 +135,11 @@ internal class NativeNavbarModeTest : PanelRuntimeRig() {
             val before = rig.config.navbarMode
             assertEquals(
                 PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE),
-                submitNative(rig, "navbar", "Native"),
+                submitNative(rig, "navbar", "native"),
             )
             assertEquals(before, rig.config.navbarMode)
             // A permitted mode does reach the controller.
-            assertTrue(submitNative(rig, "navbar", NavbarController.MODE_ALWAYS) is PanelAssistantCommandResult.Failed)
+            assertTrue(submitNative(rig, "navbar", "always_on") is PanelAssistantCommandResult.Failed)
         } finally { rig.close() }
     }
 

@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.panelassistant.CommandValue
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.testsupport.PanelRuntimeRig
@@ -48,7 +49,7 @@ internal class KioskLaneTest : PanelRuntimeRig() {
 
     private fun submit(rig: Rig, channel: String, payload: String): PanelAssistantCommandResult {
         val answer = LinkedBlockingQueue<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null }), CommandOrigin.panelAssistant()) { answer.put(it) }
+        rig.commands.submit(PanelAssistantCommand(channel, nativeValue(channel, payload), admit = { null }), CommandOrigin.panelAssistant()) { answer.put(it) }
         return requireNotNull(answer.poll(20, TimeUnit.SECONDS)) { "$channel answered" }
     }
 
@@ -122,7 +123,7 @@ internal class KioskLaneTest : PanelRuntimeRig() {
             assertTrue(rig.config.commitKioskLock(true))
             val held = holdWorker(rig)
             val off = LinkedBlockingQueue<PanelAssistantCommandResult>()
-            rig.commands.submit(PanelAssistantCommand("kiosk_lock", "OFF", admit = { null }), CommandOrigin.panelAssistant()) { off.put(it) }
+            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(false), admit = { null }), CommandOrigin.panelAssistant()) { off.put(it) }
             val relocked = AtomicReference<Boolean?>()
             val relock = thread { relocked.set(rig.commands.recoverKiosk(enable = true)) }
             // Queued behind the OFF and waiting for the worker, or already finished if it bypassed the queue.

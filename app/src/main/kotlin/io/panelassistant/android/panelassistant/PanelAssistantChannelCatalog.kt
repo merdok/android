@@ -40,8 +40,6 @@ internal data class PanelAssistantChannelDescriptor(
 
     fun code(label: String): String? = choices?.firstOrNull { it.label == label }?.code
 
-    fun label(code: String): String? = choices?.firstOrNull { it.code == code }?.label
-
     fun toJson(): JSONObject = JSONObject()
         .put("channel", channel)
         .put("platform", platform)

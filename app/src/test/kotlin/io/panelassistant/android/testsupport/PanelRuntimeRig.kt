@@ -39,7 +39,12 @@ import io.panelassistant.android.control.ZigbeeController
 import io.panelassistant.android.control.fakeProfile
 import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.hardware.LedController
+import io.panelassistant.android.config.SettingValue
+import io.panelassistant.android.panelassistant.CommandValue
+import io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
+import io.panelassistant.android.panelassistant.PanelAssistantValueKind
+import io.panelassistant.android.panelassistant.decode
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.setAutoSleep
@@ -66,10 +71,13 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 internal abstract class PanelRuntimeRig {
 
-    protected fun submitNative(rig: Rig, channel: String, payload: String): PanelAssistantCommandResult {
+    protected fun submitNative(rig: Rig, channel: String, payload: String): PanelAssistantCommandResult =
+        submitNative(rig, channel, nativeValue(channel, payload))
+
+    protected fun submitNative(rig: Rig, channel: String, value: CommandValue): PanelAssistantCommandResult {
         val done = CountDownLatch(1)
         val result = java.util.concurrent.atomic.AtomicReference<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null }), io.panelassistant.android.CommandOrigin.panelAssistant()) {
+        rig.commands.submit(PanelAssistantCommand(channel, value, admit = { null }), io.panelassistant.android.CommandOrigin.panelAssistant()) {
             result.set(it)
             done.countDown()
         }
@@ -77,12 +85,30 @@ internal abstract class PanelRuntimeRig {
         return result.get()
     }
 
+    /**
+     * The value Panel Assistant decodes for a test's [payload] on [channel]: a switch from on/off, a number, an
+     * option code, text, or a light or media object as JSON. A button takes any payload as its press; a channel
+     * this build does not describe keeps the raw string, so the dispatcher answers it as unknown.
+     */
+    protected fun nativeValue(channel: String, payload: String): CommandValue {
+        val descriptor = PanelAssistantChannelCatalog.describe(channel) ?: return CommandValue.Text(payload)
+        val wire: Any? = when (descriptor.kind) {
+            PanelAssistantValueKind.BOOLEAN -> SettingValue.parseBool(payload)
+            PanelAssistantValueKind.NUMBER -> payload.toDoubleOrNull()
+            PanelAssistantValueKind.OPTION, PanelAssistantValueKind.TEXT -> payload
+            PanelAssistantValueKind.LIGHT, PanelAssistantValueKind.MEDIA -> org.json.JSONObject(payload)
+            PanelAssistantValueKind.BUTTON -> return CommandValue.Press
+            PanelAssistantValueKind.UPDATE, PanelAssistantValueKind.EVENT -> null
+        }
+        return requireNotNull(decode(descriptor, wire)) { "$channel does not take $payload" }
+    }
+
     /** Waits until the ordered command worker has run everything queued before it. */
     protected fun barrier(rig: Rig, busy: String) {
         val done = CountDownLatch(1)
         val key = if (busy == "navigate") "home_dashboard" else "navigate"
         rig.commands.submit(
-            PanelAssistantCommand(key, "", admit = { PanelAssistantCommandResult.Refused("barrier") }),
+            PanelAssistantCommand(key, CommandValue.Text(""), admit = { PanelAssistantCommandResult.Refused("barrier") }),
             io.panelassistant.android.CommandOrigin.panelAssistant(),
         ) { done.countDown() }
         assertTrue("command worker drained", done.await(20, TimeUnit.SECONDS))
@@ -117,6 +143,7 @@ internal abstract class PanelRuntimeRig {
         val audio: android.media.ScriptedAudioManager,
         /** The CPU governor source; a test changes its governor as a thermal daemon would. */
         val metrics: io.panelassistant.android.control.FakeMetricSource,
+        val screen: ScreenController,
     ) {
         /** The service's start order: the state core's startup step. */
         fun start() {
@@ -178,6 +205,8 @@ internal abstract class PanelRuntimeRig {
         /** The kiosk controller's lock and its start-up recovery; a test records the calls. */
         kioskApply: (Boolean) -> Boolean = { true },
         kioskRecover: (Boolean) -> Boolean = { true },
+        /** Whether the navbar controller acknowledges each mode at once, drawing nothing; otherwise it is unusable. */
+        navbarAcknowledges: Boolean = false,
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = scratchDirectory("panel-runtime-rig").toFile()
@@ -252,8 +281,12 @@ internal abstract class PanelRuntimeRig {
             governor = cpuGovernor,
             availableGovernors = cpuGovernor?.let { "performance powersave schedutil" },
         )
+        // A governor write the root shell runs becomes the governor the panel reads back.
+        val cpuShell = FakeRootShell(onRun = { command ->
+            Regex("echo ([a-z0-9_]+) >").find(command)?.let { metrics.governor = it.groupValues[1] }
+        })
         val cpu = CpuController(
-            fakeProfile(), FakeRootShell(), FakeDaemon(), io.panelassistant.android.metrics.PanelMetrics(metrics),
+            fakeProfile(), cpuShell, FakeDaemon(), io.panelassistant.android.metrics.PanelMetrics(metrics),
         )
         // Only its best-effort reconnect reassertion runs, on a worker that logs and discards failure.
         val adb = allocate(AdbController::class.java)
@@ -298,8 +331,8 @@ internal abstract class PanelRuntimeRig {
             navigate = NavigateController(context),
             volume = volume,
             system = system,
-            // Never usable: a navbar command that reaches the controller throws here.
-            navbar = allocate(NavbarController::class.java),
+            // Never usable unless asked for: a navbar command that reaches the controller throws here.
+            navbar = allocate(NavbarController::class.java).also { if (navbarAcknowledges) acknowledgeModes(it) },
             watchdog = WatchdogController(system, config),
             // The real controller over fake hardware when a test drives touch_sound; otherwise never usable.
             touchSound = touchSoundHardware?.let { touchSoundController(context, it) }
@@ -328,8 +361,26 @@ internal abstract class PanelRuntimeRig {
         )
         return Rig(
             tmp, config, sysfs, core, commands, storage, storageReads, updateSources, autoSleepConfigChanges,
-            context.audio, metrics,
+            context.audio, metrics, screen,
         )
+    }
+
+    /** Let an allocated [navbar] take mode changes: each one is acknowledged as applied at once. */
+    private fun acknowledgeModes(navbar: NavbarController) {
+        fun field(name: String, value: Any) =
+            NavbarController::class.java.getDeclaredField(name).apply { isAccessible = true }.set(navbar, value)
+        fun read(work: Any, getter: String): Any? = work.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(work)
+        field("lifecycleLock", Any())
+        field("modeDispatcher", io.panelassistant.android.util.LatestDispatcher.singleSlot<Any>("rig-navbar", consume = { work ->
+            @Suppress("UNCHECKED_CAST")
+            (read(work, "getCompletion") as java.util.concurrent.CompletableFuture<io.panelassistant.android.control.NavbarModeApplyOutcome>?)
+                ?.complete(
+                    io.panelassistant.android.control.NavbarModeApplyOutcome(
+                        read(work, "getMode") as String,
+                        io.panelassistant.android.control.NavbarModeApplyStatus.APPLIED,
+                    ),
+                )
+        }))
     }
 
     /** The production controller with its state policy over [hardware] and an in-memory record. */

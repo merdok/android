@@ -71,7 +71,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
 
     private fun submit(rig: Rig, channel: String, payload: String, origin: CommandOrigin): PanelAssistantCommandResult {
         val answer = LinkedBlockingQueue<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null }), origin) { answer.put(it) }
+        rig.commands.submit(PanelAssistantCommand(channel, nativeValue(channel, payload), admit = { null }), origin) { answer.put(it) }
         return requireNotNull(answer.poll(20, TimeUnit.SECONDS)) { "$channel answered" }
     }
 

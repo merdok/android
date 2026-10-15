@@ -297,11 +297,4 @@ internal object PowerSafetyMutationPolicy {
     ): Boolean =
         (keepAwake && requestedKeepAwake == false) ||
             (preventIdleDim && requestedPreventIdleDim == false)
-
-    /** Malformed command payloads must never collapse into a safety-reducing OFF transition. */
-    fun parseGuardSwitch(payload: String): Boolean? = when {
-        payload.trim().equals("ON", ignoreCase = true) -> true
-        payload.trim().equals("OFF", ignoreCase = true) -> false
-        else -> null
-    }
 }

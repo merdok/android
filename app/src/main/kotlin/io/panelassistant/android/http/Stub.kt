@@ -31,6 +31,8 @@ import io.panelassistant.android.ManageDoor
 import io.panelassistant.android.ManageReply
 import io.panelassistant.android.ManageSink
 import io.panelassistant.android.ManageSubscription
+import io.panelassistant.android.panelassistant.CommandValue
+import io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
@@ -481,7 +483,16 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                         val deadlineMs = request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)
                         val value = request.opt("value")
                         val channel = request.optString("channel")
-                        val payload = if (value is String) value else value?.toString().orEmpty()
+                        // The value decodes as Panel Assistant's does. A channel that takes no commands keeps its
+                        // raw value, so the dispatcher answers it as the unknown channel it is.
+                        val descriptor = PanelAssistantChannelCatalog.describe(channel)
+                            ?.takeIf { it.platform in PanelAssistantCommandProcessor.COMMANDABLE_PLATFORMS }
+                        val decoded = if (descriptor == null) CommandValue.Text(value?.toString().orEmpty())
+                        else io.panelassistant.android.panelassistant.decode(descriptor, value)
+                        if (decoded == null) {
+                            answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
+                            continue
+                        }
                         // A sensitive command is held for its approval on the panel's screen: the door answers
                         // an interim pending_approval, waits, runs it again once approved and answers the
                         // outcome, as Panel Assistant's processor does on the session.
@@ -490,7 +501,7 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                             dispatcher.submit(
                                 PanelAssistantCommand(
                                     channel = channel,
-                                    payload = payload,
+                                    value = decoded,
                                     requestId = commandId,
                                     admit = {
                                         when {

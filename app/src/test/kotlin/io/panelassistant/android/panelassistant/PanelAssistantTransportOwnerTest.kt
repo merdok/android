@@ -968,7 +968,7 @@ class PanelAssistantTransportOwnerTest {
         connection.inbound.trySend(Ha.command("c1", "relay1", true))
         runCurrent()
 
-        assertEquals(listOf("relay1" to "ON"), sink.ran)
+        assertEquals(listOf("relay1" to CommandValue.Switch(true)), sink.ran)
         val answer = JSONObject(connection.sent.last())
         assertEquals(listOf("panel_assistant/command_result", "opaque-session", "c1", "applied"), listOf("type", "session", "command_id", "outcome").map(answer::getString))
         val ids = connection.sent.map { JSONObject(it).getLong("id") }
@@ -1517,11 +1517,11 @@ class PanelAssistantTransportOwnerTest {
 
     private class ImmediateSink(private val result: PanelAssistantCommandResult = PanelAssistantCommandResult.Applied) :
         PanelAssistantCommandSink {
-        val ran = mutableListOf<Pair<String, String>>()
+        val ran = mutableListOf<Pair<String, CommandValue>>()
         val withdrawn = mutableListOf<String>()
 
         override fun submit(command: PanelAssistantCommand, done: (PanelAssistantCommandResult) -> Unit) {
-            ran += command.channel to command.payload
+            ran += command.channel to command.value
             done(command.admit() ?: result)
         }
 

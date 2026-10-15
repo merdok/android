@@ -10,4 +10,8 @@ internal class ScriptedAudioManager : AudioManager() {
     override fun getStreamMaxVolume(streamType: Int): Int = 100
 
     override fun getStreamVolume(streamType: Int): Int = percent
+
+    override fun setStreamVolume(streamType: Int, index: Int, flags: Int) {
+        percent = index
+    }
 }

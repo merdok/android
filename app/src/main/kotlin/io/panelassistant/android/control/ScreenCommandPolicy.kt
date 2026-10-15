@@ -1,29 +1,21 @@
 package io.panelassistant.android.control
 
-import org.json.JSONObject
+import io.panelassistant.android.panelassistant.CommandValue
 
 /**
  * Pure parsing and sequencing policy for the Home Assistant screen light command.
  *
  * A missing brightness is carried as absent, never as zero and never as the current level, because
- * the two commands ask for different things: `{"state":"ON"}` asks for the screen to be on and says
- * nothing about brightness, while `{"state":"ON","brightness":n}` asks for both. The bridge publishes
+ * the two commands ask for different things: an ON without a level asks for the screen to be on and says
+ * nothing about brightness, while an ON with a level asks for both. The bridge publishes
  * the level actually in force either way.
  */
 internal object ScreenCommandPolicy {
     /** [brightness] is null when the command did not carry one. A present value is already floored. */
     data class Command(val on: Boolean, val brightness: Int?)
 
-    fun parse(payload: String): Command {
-        val json = JSONObject(payload)
-        val on = json.optString("state", "ON").equals("ON", ignoreCase = true)
-        val brightness = if (json.has("brightness") && !json.isNull("brightness")) {
-            json.getInt("brightness").coerceIn(BrightnessController.MIN_VISIBLE, 255)
-        } else {
-            null
-        }
-        return Command(on, brightness)
-    }
+    fun parse(light: CommandValue.Light): Command =
+        Command(light.on, light.brightness?.coerceIn(BrightnessController.MIN_VISIBLE, 255))
 
     /**
      * Run an ON command against the screen. The screen is lit first if it is not already; a bare ON on

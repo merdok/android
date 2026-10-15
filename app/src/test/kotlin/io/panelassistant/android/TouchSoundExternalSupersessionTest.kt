@@ -98,7 +98,7 @@ internal class TouchSoundExternalSupersessionTest : PanelRuntimeRig() {
             superseded.clear()
             assertEquals(
                 PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE),
-                submitNative(rig, "prevent_idle_dim", "maybe"),
+                submitNative(rig, "prevent_idle_dim", io.panelassistant.android.panelassistant.CommandValue.Text("maybe")),
             )
             assertTrue(superseded.isEmpty())
         } finally { rig.close() }

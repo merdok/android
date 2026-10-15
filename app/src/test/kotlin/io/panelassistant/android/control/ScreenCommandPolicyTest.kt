@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.panelassistant.CommandValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -14,28 +15,19 @@ class ScreenCommandPolicyTest {
 
     // --- parse: absent is absent ---
     @Test fun bareOnCarriesNoBrightness() {
-        val command = ScreenCommandPolicy.parse("""{"state":"ON"}""")
+        val command = ScreenCommandPolicy.parse(CommandValue.Light(on = true))
         assertTrue(command.on)
         assertNull("a missing brightness must not become zero or a default", command.brightness)
     }
 
-    @Test fun jsonNullBrightnessIsAbsentNotZero() {
-        assertNull(ScreenCommandPolicy.parse("""{"state":"ON","brightness":null}""").brightness)
-    }
-
     @Test fun explicitBrightnessIsFlooredAndCapped() {
-        assertEquals(BrightnessController.MIN_VISIBLE, ScreenCommandPolicy.parse("""{"state":"ON","brightness":0}""").brightness)
-        assertEquals(255, ScreenCommandPolicy.parse("""{"state":"ON","brightness":900}""").brightness)
-        assertEquals(128, ScreenCommandPolicy.parse("""{"state":"on","brightness":128}""").brightness)
+        assertEquals(BrightnessController.MIN_VISIBLE, ScreenCommandPolicy.parse(CommandValue.Light(true, 0)).brightness)
+        assertEquals(255, ScreenCommandPolicy.parse(CommandValue.Light(true, 900)).brightness)
+        assertEquals(128, ScreenCommandPolicy.parse(CommandValue.Light(true, 128)).brightness)
     }
 
     @Test fun offIsOffWhateverElseIsSent() {
-        assertFalse(ScreenCommandPolicy.parse("""{"state":"OFF","brightness":200}""").on)
-        assertFalse(ScreenCommandPolicy.parse("""{"state":"off"}""").on)
-    }
-
-    @Test fun missingStateMeansOn() {
-        assertTrue(ScreenCommandPolicy.parse("""{"brightness":90}""").on)
+        assertFalse(ScreenCommandPolicy.parse(CommandValue.Light(false, 200)).on)
     }
 
     // --- executeOn sequencing ---

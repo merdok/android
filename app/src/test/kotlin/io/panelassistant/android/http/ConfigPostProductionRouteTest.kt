@@ -9,6 +9,7 @@ import io.panelassistant.android.LiveSettingApplyResult
 import io.panelassistant.android.LiveSettingAuthority
 import io.panelassistant.android.LiveSettingRequestOutcome
 import io.panelassistant.android.dispatchLiveSetting
+import io.panelassistant.android.liveSettingValue
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.ConfigBundle
 import io.panelassistant.android.config.SettingsRegistry
@@ -808,7 +809,7 @@ class ConfigPostProductionRouteTest {
                     assertEquals(spec.key, appliedKey)
                     dispatchLiveSetting(
                         key = appliedKey,
-                        value = value,
+                        value = liveSettingValue(spec, value),
                         previousValue = previous,
                         handlers = bridge,
                     )
