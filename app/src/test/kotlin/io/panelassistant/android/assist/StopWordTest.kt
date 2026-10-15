@@ -96,6 +96,10 @@ class StopWordTest {
             "session",
             "https://ha.example",
         )
+    }
+
+    // The session loop's side, once [voice] is assigned: it takes each request as the panel queues it.
+    init {
         scope.launch { for (ignored in voice.wake) pump() }
     }
 
