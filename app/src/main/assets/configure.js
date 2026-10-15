@@ -142,7 +142,7 @@
   }
 
   function newHold(id, before) {
-    return holds[id] || (holds[id] = { seq: 0, call: 0, timer: null, before: before, pushed: false, local: false, flight: false, queued: false });
+    return holds[id] || (holds[id] = { seq: 0, call: 0, timer: null, before: before, pushed: false, local: false, flight: false, queued: null, sent: undefined });
   }
 
   // The row keeps the message until it is changed again; the page's live region announces it once.
@@ -166,19 +166,24 @@
       : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: reply.code || reply.outcome });
   }
 
-  function send(key, expose) {
+  // Sends one finished gesture. [queued] is a gesture finished while an earlier one was in flight: it carries
+  // the value as it was finished, and leaves alone any step or typing begun since.
+  function send(key, expose, queued) {
     var id = expose ? exposeId(key) : key;
     var hold = newHold(id, expose ? cfg.panelExpose[key] : cfg.panel[key]);
-    if (hold.timer) { clearTimeout(hold.timer); hold.timer = null; }
-    hold.local = false;
-    // One request per key at a time, so two quick gestures cannot reach the panel out of order: a change
-    // made while one is in flight is sent, with the latest value, when that one answers.
-    if (hold.flight) { hold.queued = true; return; }
+    var value = queued ? queued.value : expose ? cfg.expose[key] !== false : cfg.values[key] == null ? "" : cfg.values[key];
+    if (!queued) {
+      if (hold.timer) { clearTimeout(hold.timer); hold.timer = null; }
+      hold.local = false;
+    }
+    // One request per key at a time, so two quick gestures cannot reach the panel out of order: the latest
+    // gesture finished meanwhile is kept, exactly as it was finished, and goes when that one answers.
+    if (hold.flight) { hold.queued = { value: value }; return; }
     hold.flight = true;
+    hold.sent = value;
     var call = hold.call = ++hold.seq;
     var args = {};
-    if (expose) args[id] = cfg.expose[key] !== false ? "true" : "false";
-    else args[key] = cfg.values[key] == null ? "" : cfg.values[key];
+    args[id] = expose ? (value ? "true" : "false") : value;
     // A proposed address nobody has sent belongs with the credential being sent, as one change.
     var address = holds.ha_url;
     if (key === "ha_token" && address && address.local && !address.call) {
@@ -196,8 +201,8 @@
     var hold = holds[id];
     if (!hold || hold.call !== call) return;
     hold.flight = false;
-    // A change made while this one was in flight goes now, with the latest value; its answer settles the row.
-    if (hold.queued) { hold.queued = false; send(key, expose); return; }
+    // A gesture finished while this one was in flight goes now; its answer settles the row.
+    if (hold.queued) { var next = hold.queued; hold.queued = null; send(key, expose, next); return; }
     // A newer change still being stepped or typed keeps the hold.
     if (hold.timer || hold.local) return;
     delete holds[id];
@@ -212,7 +217,7 @@
     // As Home Assistant does, the row keeps the value it sent until the next push; a push that arrived during
     // the hold and moved off the old value already carries the panel's newer (or normalised) value.
     var latest = expose ? cfg.panelExpose[key] : cfg.panel[key];
-    var value = hold.pushed && latest !== hold.before ? latest : expose ? cfg.expose[key] : cfg.values[key];
+    var value = hold.pushed && latest !== hold.before ? latest : hold.sent;
     var field = fieldOf(key);
     if (!expose && field && field.secret) value = "";   // a secret is never shown back; blank keeps it
     if (expose) { cfg.expose[key] = value; cfg.panelExpose[key] = value; }

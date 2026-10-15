@@ -206,6 +206,44 @@ for (const engine of engines) {
       await checked(h.p, 'dashboard_fullscreen') === 'false', 3000);
   });
 
+  // The first answer is slow; meanwhile a second value is committed and a third is only being typed.
+  const slowFirst = () => {
+    let count = 0;
+    return async (form, { apply }) => { if (++count === 1) await new Promise((resolve) => setTimeout(resolve, 1000)); return apply(form); };
+  };
+
+  engineTest(`${engine.name}: a value committed while another is in flight goes as committed, not as the field reads later`, async (t) => {
+    const h = await open(engine, t, { onPost: slowFirst() });
+    const fps = h.p.locator('#cfg-camera_fps input');
+    await fps.fill('16'); await fps.press('Tab');
+    await h.p.waitForTimeout(100);
+    await fps.fill('17'); await fps.press('Tab');
+    await fps.fill('18');
+    await until('the committed value after the first answer', () => h.posts.length === 2, 3000);
+    await h.p.waitForTimeout(300);
+    assert.deepEqual(h.posts, [{ camera_fps: '16' }, { camera_fps: '17' }], 'an unfinished value is never sent');
+    assert.equal(h.state.settings.camera_fps, 17);
+    assert.equal(await fps.inputValue(), '18', 'the draft stays in the field');
+    assert.equal(await fps.evaluate((el) => el === document.activeElement), true);
+    await fps.press('Tab');
+    await until('the draft sent once committed', () => h.posts.length === 3, 3000);
+    assert.deepEqual(h.posts[2], { camera_fps: '18' });
+  });
+
+  engineTest(`${engine.name}: steps begun after a queued value are still sent`, async (t) => {
+    const h = await open(engine, t, { onPost: slowFirst() });
+    const fps = h.p.locator('#cfg-camera_fps input');
+    await fps.fill('16'); await fps.press('Tab');
+    await h.p.waitForTimeout(100);
+    await fps.fill('17'); await fps.press('Tab');
+    await fps.focus();
+    await h.p.keyboard.press('ArrowUp');
+    await h.p.keyboard.press('ArrowUp');
+    await until('the stepped value after the debounce', () => h.posts.length === 3, 4000);
+    assert.deepEqual(h.posts, [{ camera_fps: '16' }, { camera_fps: '17' }, { camera_fps: '19' }]);
+    await until('the panel on the last step', () => h.state.settings.camera_fps === 19, 3000);
+  });
+
   engineTest(`${engine.name}: a sent secret is not shown back`, async (t) => {
     const h = await open(engine, t, { onPost: async (form, { state }) => ({ status: 200, body: { ok: true, status: 'saved', applied: [...form.keys()], pending: [], rejected: [] } }) });
     const token = h.p.locator('#cfg-ha_token input');
