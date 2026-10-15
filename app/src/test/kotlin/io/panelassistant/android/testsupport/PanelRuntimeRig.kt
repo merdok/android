@@ -175,6 +175,9 @@ internal abstract class PanelRuntimeRig {
         onZigbeeExplicitRetry: () -> Unit = {},
         /** Retires a queued HTTP value an external command superseded; a test records the keys. */
         onExternalSettingApplied: (String) -> Boolean = { true },
+        /** The kiosk controller's lock and its start-up recovery; a test records the calls. */
+        kioskApply: (Boolean) -> Boolean = { true },
+        kioskRecover: (Boolean) -> Boolean = { true },
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = scratchDirectory("panel-runtime-rig").toFile()
@@ -313,7 +316,8 @@ internal abstract class PanelRuntimeRig {
             hasCamera = cameraAvailability,
             // Never reached: no screen brightness or auto-brightness command is sent.
             autoBright = allocate(AutoBrightnessController::class.java),
-            onDirectKioskSetting = { true },
+            kioskApply = kioskApply,
+            kioskRecover = kioskRecover,
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
             onZigbeeExplicitRetry = onZigbeeExplicitRetry,
             onExternalSettingApplied = onExternalSettingApplied,

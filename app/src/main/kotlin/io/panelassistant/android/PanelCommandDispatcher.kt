@@ -140,9 +140,10 @@ internal class PanelCommandDispatcher(
     // Home-dashboard commands change the automatic entity-learning ownership target. Notify only after
     // the normalized path is durably visible so the manager can hide/rebuild the correct subscription.
     private val onDashboardTargetChanged: () -> Unit = {},
-    // Remote kiosk commands join the service-owned coordinator used by HTTP and the local escape gesture,
-    // instead of creating a second persistence/actuation ordering lane here.
-    private val onDirectKioskSetting: (Boolean) -> Boolean,
+    // The service-owned kiosk controller. Every kiosk change and its start-up recovery runs on this
+    // dispatcher's worker, whichever door it came through, so they apply in the order they were asked for.
+    private val kioskApply: (Boolean) -> Boolean,
+    private val kioskRecover: (legacyMayBeActive: Boolean) -> Boolean,
     // A successfully executed remote setting is newer truth than any HTTP generation which timed out
     // ahead of it, even though their dispatcher conflation keys intentionally differ.
     private val onExternalSettingApplied: (String) -> Boolean = { true },
@@ -535,8 +536,9 @@ internal class PanelCommandDispatcher(
 
     override fun handleKiosk(payload: String) {
         val on = payload.trim().equals("ON", ignoreCase = true)
-        check(onDirectKioskSetting(on)) { "kiosk setting was not durably acknowledged" }
-        core.reconcile("kiosk_lock")
+        check(applyAcknowledgedKioskSetting(on, kioskApply, config::commitKioskLock) { core.reconcile("kiosk_lock") }) {
+            "kiosk setting was not durably acknowledged"
+        }
     }
 
     /** The camera master switch, commanded from Home Assistant. Enabling arms the camera and nothing more:
@@ -947,6 +949,28 @@ internal class PanelCommandDispatcher(
         return liveSettingApplyResult(result)
     }
 
+    /**
+     * Kiosk platform recovery after start-up, on the command worker so it orders with every kiosk change:
+     * [enable] false completes or clears a platform transition a prior process left for the stored setting;
+     * true re-locks if the setting is still ON when it runs, so a queued OFF ahead of it wins. Waits for the
+     * worker. Null when this dispatcher did not run it (draining or stopped): the caller asks the current one.
+     */
+    internal fun recoverKiosk(enable: Boolean): Boolean? {
+        if (!lifecycle.isOpen()) return null
+        val outcome = java.util.concurrent.CompletableFuture<Boolean?>()
+        val result = queue.runLatestResult(key = "kiosk_lock:recover", onAdmission = ::recordCommandAdmission) {
+            outcome.complete(if (enable) config.kioskLock && kioskApply(true) else kioskRecover(config.kioskLock))
+        }
+        if (!result.observeLateCompletion { terminal -> outcome.complete(recoveryNotRun(terminal)) }) {
+            outcome.complete(recoveryNotRun(result.execution))
+        }
+        return outcome.get()
+    }
+
+    /** What a recovery that ended without completing its own outcome comes to: a failure, or not run. */
+    private fun recoveryNotRun(execution: CommandQueue.Execution): Boolean? =
+        if (execution == CommandQueue.Execution.FAILED) false else null
+
     /** Close admission, cancel queued commands, then drain the running handler and Zigbee worker. */
     fun stop(deadline: MonotonicDeadline): Boolean {
         lifecycle.closeAdmission()
@@ -1302,23 +1326,6 @@ internal fun requireCameraEnableAdmission(
     if (!on) return
     check(hasCamera) { "this panel has no camera capability" }
     authorize()
-}
-
-/** One non-reentrant lane for HTTP, Home Assistant, and the on-device escape gesture. The kiosk controller is
- * service-owned, so it can apply synchronously without borrowing the replaceable command dispatcher. */
-internal class KioskSettingCoordinator(
-    private val canEnable: () -> Boolean,
-    private val actuate: (Boolean) -> Boolean,
-    private val persist: (Boolean) -> Boolean,
-) {
-    private val lock = Any()
-
-    fun apply(on: Boolean, reconcile: () -> Unit = {}): Boolean = synchronized(lock) {
-        if (on && !canEnable()) return false
-        applyAcknowledgedKioskSetting(on, actuate, persist, reconcile)
-    }
-
-    fun <T> serialized(block: () -> T): T = synchronized(lock, block)
 }
 
 internal fun applyAcknowledgedNavbarMode(

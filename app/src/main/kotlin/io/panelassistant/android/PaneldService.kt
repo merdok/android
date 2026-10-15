@@ -85,7 +85,6 @@ import io.panelassistant.android.hardware.LedFactory
 import io.panelassistant.android.hardware.Rk3576LedController
 import io.panelassistant.android.hardware.SocketLedController
 import io.panelassistant.android.config.Capabilities
-import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.defaultBool
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.dashboard.EntityLearningManager
@@ -677,7 +676,6 @@ class PaneldService : Service() {
     private lateinit var migrationNotice: MigrationNotice
     private lateinit var watchdog: WatchdogController
     private lateinit var kiosk: KioskController
-    private lateinit var kioskSettings: KioskSettingCoordinator
     private lateinit var touchSound: TouchSoundController
     private lateinit var bootChime: BootChimeController
     private lateinit var zigbee: ZigbeeController
@@ -1149,18 +1147,14 @@ class PaneldService : Service() {
         entityLearning = preparedEntityLearning
         watchdog = WatchdogController(system, config, sensors::proximityCalibrationActive)
         kiosk = KioskController(this, system, config, profile.appCanSu)
-        kioskSettings = KioskSettingCoordinator(
-            canEnable = kiosk::canEnablePersistentPolicy,
-            actuate = kiosk::apply,
-            persist = config::commitKioskLock,
-        )
-        // On-device unlock gesture (7 corner taps): persist OFF + clear the lock + tell HA — off the main
-        // thread (the gesture fires on the overlay's touch listener; root work must not run there).
+        // On-device unlock gesture (7 corner taps): the same OFF the :8888 toggle sends, through the command
+        // worker that orders every kiosk change. Off the main thread: the gesture fires on the overlay's touch
+        // listener, and the request waits for the worker.
         kiosk.onUnlockRequested = {
             Thread {
                 if (teardownBoundary.isStopping) return@Thread
-                kioskSettings.apply(false) {
-                    if (!teardownBoundary.isStopping) core.publishKioskState()
+                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, "kiosk_lock", "false") {
+                    refreshAutoSleepPresence()
                 }
             }.apply { isDaemon = true; name = "kiosk-unlock" }.start()
         }
@@ -1353,20 +1347,8 @@ class PaneldService : Service() {
             // The dispatcher is replaceable. If its command admission is already draining, retain the
             // persisted setting and replay it against the replacement before reconfigure completes.
             { k, v ->
-                if (k == "kiosk_lock") {
-                    SettingValue.parseBool(v)?.let { on ->
-                        if (kioskSettings.apply(on) { core.publishKioskState() }) {
-                            LiveSettingRequestOutcome.APPLIED
-                        } else {
-                            LiveSettingRequestOutcome.REJECTED
-                        }
-                    } ?: LiveSettingRequestOutcome.REJECTED
-                } else {
-                    liveSettingAuthority.applyOrQueueOutcomeObserved(
-                        key = k,
-                        value = v,
-                        previousValue = previousLiveSettingValue(k),
-                    ) { key, value, previous -> applyLiveSettingObserved(runtime.current().commands, key, value, previous) }
+                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, k, v) {
+                    refreshAutoSleepPresence()
                 }
             },
             onProximityCalibration = { action, id -> proximityWizard?.remote(action, id) == true },
@@ -1530,7 +1512,8 @@ class PaneldService : Service() {
         // fan-out performs for a Configure-page change, so the owner has one authority, not two.
         onCameraEnabledChanged = { if (::camera.isInitialized) runCatching { camera.onEnabledChanged() } },
         onDashboardTargetChanged = entityLearning::onTargetConfigurationChanged,
-        onDirectKioskSetting = { on -> kioskSettings.apply(on) },
+        kioskApply = kiosk::apply,
+        kioskRecover = kiosk::recoverPersistentState,
         onExternalSettingApplied = liveSettingAuthority::discard,
         onZigbeeExplicitRetry = zigbeeHealth::explicitRetry,
         onAutoSleepConfigChanged = {
@@ -1581,31 +1564,12 @@ class PaneldService : Service() {
         return resolution.enabled
     }
 
-    private fun previousLiveSettingValue(key: String): String? = SettingsRegistry.spec(key)?.let(config::getRaw)
-
     private fun applyLiveSettingObserved(
         commands: PanelCommandDispatcher,
         key: String,
         value: String,
         previousValue: String? = null,
-    ): LiveSettingApplication {
-        val spec = SettingsRegistry.spec(key)
-            ?: return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
-        val previous = previousValue ?: config.getRaw(spec)
-        // Network ADB must retain its durable ownership marker until the controller has cleared every
-        // classic/TLS property and authoritatively read them all inactive. Persisting false here first
-        // made AdbController.set(false) conclude that the listener was external and skip teardown.
-        // voice_enabled must not be persisted ahead of handleVoiceEnabled's live hasMicrophone check —
-        // this generic path runs before dispatchSetting, so pre-persisting ON here would durably record
-        // the setting even when the bridge refuses to act on it for lack of a microphone. handleVoiceEnabled
-        // owns persistence itself (mirrors kiosk_lock/network_adb, whose actuators are also the sole writer).
-        val actuationOwnsPersistence =
-            key == "navbar_mode" || key == "kiosk_lock" || key == "network_adb" || key == "voice_enabled"
-        if (!spec.transient && !actuationOwnsPersistence && !commitHttpLiveSetting(config, spec, value) { refreshAutoSleepPresence() }) {
-            return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
-        }
-        return commands.applySettingObserved(key, value, previous.takeUnless { spec.transient })
-    }
+    ): LiveSettingApplication = applyLiveSetting(config, commands, key, value, previousValue) { refreshAutoSleepPresence() }
 
     private fun replayLiveSettingObserved(
         commands: PanelCommandDispatcher,
@@ -3484,13 +3448,11 @@ class PaneldService : Service() {
                 retryDelayMs = KIOSK_RECOVERY_RETRY_MS,
                 maxAttempts = KIOSK_RECOVERY_ATTEMPTS,
                 shouldContinue = { !teardownBoundary.isStopping },
-                recover = {
-                    kioskSettings.serialized { kiosk.recoverPersistentState(config.kioskLock) }
-                },
+                // On the command worker, ordered after any kiosk change already queued; a dispatcher that
+                // is draining for a replacement answers null and the attempt waits for the next one.
+                recover = { runtime.current().commands.recoverKiosk(enable = false) },
                 enabled = { config.kioskLock },
-                enable = {
-                    kioskSettings.serialized { config.kioskLock && kiosk.apply(true) }
-                },
+                enable = { runtime.current().commands.recoverKiosk(enable = true) },
             )
             if (!recovered && !teardownBoundary.isStopping) {
                 Log.w(TAG, "kiosk platform recovery remains pending; leaving kiosk unlocked")

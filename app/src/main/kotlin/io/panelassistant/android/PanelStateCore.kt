@@ -525,12 +525,6 @@ internal class PanelStateCore(
         reconcile("volume")
     }
 
-    /** Report the kiosk-lock state — used by the on-device unlock gesture, which turns it OFF outside the
-     *  command path and must still tell HA. */
-    fun publishKioskState() {
-        dispatchStateWork { reconcile("kiosk_lock") }
-    }
-
     /** Re-report the camera surface after a change made outside a command (the Configure page, a bundle
      *  import, provisioning). */
     fun publishCameraState() {

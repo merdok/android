@@ -1,7 +1,7 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
-import io.panelassistant.android.KioskSettingCoordinator
+import io.panelassistant.android.kioskSetting
 import io.panelassistant.android.LiveSettingAuthority
 import io.panelassistant.android.LiveSettingApplyResult
 import io.panelassistant.android.LiveSettingRequestOutcome
@@ -28,12 +28,12 @@ class ConfigImportCapabilitiesTest {
                 assertTrue(config.commitKioskLock(false))
                 val available = eligible && directSu
                 var actuated = false
-                val coordinator = KioskSettingCoordinator(
+                val coordinator = kioskSetting(
                     canEnable = { available }, actuate = { actuated = true; true }, persist = config::commitKioskLock,
                 )
                 field(fixture.server, "applySetting", { key: String, value: String ->
                     check(key == "kiosk_lock")
-                    if (coordinator.apply(value == "true")) LiveSettingRequestOutcome.APPLIED
+                    if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED
                     else LiveSettingRequestOutcome.REJECTED
                 })
                 capabilities(fixture, Capabilities(appCanSu = eligible, networkAdb = directSu, canControlBootChime = true))
@@ -64,11 +64,11 @@ class ConfigImportCapabilitiesTest {
     @Test fun rootlessImportAdmitsKioskOffCleanup() = withRealConfigFixture { config, fixture ->
         assertTrue(config.commitKioskLock(true))
         var cleanup = false
-        val coordinator = KioskSettingCoordinator(
+        val coordinator = kioskSetting(
             canEnable = { false }, actuate = { cleanup = true; false }, persist = config::commitKioskLock,
         )
         field(fixture.server, "applySetting", { _: String, value: String ->
-            if (coordinator.apply(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
+            if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
         })
         capabilities(fixture, Capabilities())
         val bundle = ConfigBundle.fromValues(mapOf("kiosk_lock" to "false")).serialize()
@@ -90,7 +90,7 @@ class ConfigImportCapabilitiesTest {
                 assertTrue(config.commitKioskLock(false))
                 capabilities(fixture, Capabilities(appCanSu = true, networkAdb = true))
                 val authority = LiveSettingAuthority(setOf("ha_area"))
-                val coordinator = KioskSettingCoordinator(
+                val coordinator = kioskSetting(
                     canEnable = { false }, actuate = { error("root disappeared before actuation") }, persist = config::commitKioskLock,
                 )
                 field(fixture.server, "applySetting", { key: String, value: String ->
@@ -103,7 +103,7 @@ class ConfigImportCapabilitiesTest {
                         }
                     } else {
                         check(key == "kiosk_lock")
-                        if (coordinator.apply(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
+                        if (coordinator(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
                     }
                 })
                 testApplication {
