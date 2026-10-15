@@ -2083,6 +2083,18 @@
       "softMaxChars": 115,
       "hardMaxChars": 166
     },
+    "configure.brightness.sources_none_reporting": {
+      "text": "Illuminance sensors were found, but none is reporting a light level; an exact sensor entity id can still be entered.",
+      "sourceHash": "ef7a30455afe0ca16ee0fd6f66799b842a1b278923a104092e4f80e8434df6f4",
+      "surface": "configure",
+      "context": "brightness",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 142,
+      "hardMaxChars": 205
+    },
     "configure.brightness.sources_unavailable": {
       "text": "Home Assistant sources are unavailable; an exact sensor entity id can still be entered.",
       "sourceHash": "cb57d539905851c5c9c7144ab04547cfb584b02d55edbf16424b168726eded68",

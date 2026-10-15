@@ -5,6 +5,7 @@ import io.panelassistant.android.stableOwner
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -184,7 +185,7 @@ class HaAmbientLuxSubscriberTest {
         )
     }
 
-    @Test fun `candidate discovery is lazy single flight and ttl cached`() = runTest {
+    @Test fun `candidate discovery is lazy single flight and collapses a burst within the fresh window`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val transport = FakeTransport(FakeConnection())
         var now = 1_000_000L
@@ -205,16 +206,62 @@ class HaAmbientLuxSubscriberTest {
         )
 
         assertEquals(0, transport.statesCount)
-        repeat(20) { subscriber.refreshCandidates() }
+        repeat(20) { launch { subscriber.freshCandidates() } }
         runCurrent()
         assertEquals(1, transport.statesCount)
-        subscriber.refreshCandidates()
-        runCurrent()
+        now += 4_999L // just inside the 5 s fresh window
+        subscriber.freshCandidates()
         assertEquals(1, transport.statesCount)
-        now += 600_001L
-        subscriber.refreshCandidates()
-        runCurrent()
+        now += 1
+        subscriber.freshCandidates()
         assertEquals(2, transport.statesCount)
+        subscriber.close()
+    }
+
+    @Test fun `the source list agrees with the save once a listed sensor stops reporting`() = runTest {
+        assertListAgreesWithSave(before = state("12", "2026-07-17T09:00:00Z"), after = state("unavailable", "2026-07-17T09:01:00Z"))
+    }
+
+    @Test fun `the source list agrees with the save once an unlisted sensor starts reporting`() = runTest {
+        assertListAgreesWithSave(before = state("unavailable", "2026-07-17T09:00:00Z"), after = state("5", "2026-07-17T09:01:00Z"))
+    }
+
+    private suspend fun kotlinx.coroutines.test.TestScope.assertListAgreesWithSave(before: JSONObject, after: JSONObject) {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeTransport(FakeConnection()).apply { liveState = before }
+        var now = 1_000_000L
+        val auth = HaApiSessionProvider { HaApiSession("https://ha.example", "token", owner = OWNER) }
+        val subscriber = HaAmbientLuxSubscriber(
+            scope = this,
+            auth = auth,
+            transport = transport,
+            streamOwner = owner(dispatcher, auth, transport),
+            onSample = {},
+            workerDispatcher = dispatcher,
+            epochMillis = { now },
+        )
+        val api = io.panelassistant.android.http.ServiceAutoBrightnessHttpApi(
+            config = { error("unused") },
+            autoBright = { error("unused") },
+            sensors = { error("unused") },
+            haAmbientLux = { subscriber },
+            refreshInputs = {},
+        )
+        suspend fun listed(): Boolean? {
+            val items = JSONObject(api.haSourcesJson("", 100)).getJSONArray("items")
+            return (0 until items.length()).map(items::getJSONObject)
+                .firstOrNull { it.getString("entityId") == ENTITY }?.getBoolean("available")
+        }
+        suspend fun saves(): Boolean = api.validateHaSource(ENTITY).action.statusCode in 200..299
+
+        api.haSourcesJson("", 100)
+        runCurrent() // settle a first background read, so only the later change is under test
+        assertEquals(saves(), listed())
+        transport.liveState = after
+        now += 60_000L
+        val verdict = saves()
+        assertEquals("the list offers what the save accepts", verdict, listed())
+        assertEquals(after.getString("state") != "unavailable", verdict)
         subscriber.close()
     }
 
@@ -442,6 +489,8 @@ class HaAmbientLuxSubscriberTest {
         var historyCount = 0
         val historyRanges = mutableListOf<Pair<Long, Long>>()
         var historyResponse: ((String, Long, Long) -> JSONArray)? = null
+        /** When set, both the full states read and the exact read answer with this one entity. */
+        var liveState: JSONObject? = null
         var stateResult: CompletableDeferred<JSONObject?> =
             CompletableDeferred(state("1", "2026-07-17T09:00:00Z"))
 
@@ -454,9 +503,11 @@ class HaAmbientLuxSubscriberTest {
         override suspend fun state(baseUrl: String, accessToken: String, entityId: String): JSONObject? {
             stateCount++
             if (rejectStates-- > 0) throw HaAuthenticationException("rejected")
+            liveState?.let { return it }
             return stateResult.await()
         }
-        override suspend fun states(baseUrl: String, accessToken: String): JSONArray = JSONArray().also { statesCount++ }
+        override suspend fun states(baseUrl: String, accessToken: String): JSONArray =
+            JSONArray().also { statesCount++; liveState?.let(it::put) }
         override suspend fun config(baseUrl: String, accessToken: String): JSONObject = JSONObject()
         override suspend fun history(
             baseUrl: String,

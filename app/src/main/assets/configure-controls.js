@@ -17,7 +17,6 @@
     list.hidden = true;
     var note = cfg.el("small", { class: "picker-note", text: options.messages.initial });
     var picker = cfg.el("div", { class: "ha-entity-picker" }, [input, note]);
-    var sourcePolls = 0;
     var sourceItems = options.items || [];
     var sourceRequest = 0, sourceTimer = null;
     var activeIndex = -1;
@@ -149,13 +148,7 @@
           if (!body || body.available === false) {
             note.textContent = options.messages.unavailable;
           } else if (!renderedItems.length) {
-            if (body.refreshing === true && sourcePolls < 20) {
-              sourcePolls++;
-              note.textContent = options.messages.loading;
-              setTimeout(function () { if (request === sourceRequest) loadSources(query); }, 500);
-            } else {
-              note.textContent = options.messages.none;
-            }
+            note.textContent = sourceItems.length ? options.messages.noneReporting : options.messages.none;
           }
         })
         .catch(function () {
@@ -690,6 +683,7 @@
           available: function (count) { return cfg.i18nText("configure.brightness.sources_available", "{count} illuminance source(s) available. Blank uses the panel sensor.", { count: count }); },
           unavailable: cfg.i18nText("configure.brightness.sources_unavailable", "Home Assistant sources are unavailable; an exact sensor entity id can still be entered."),
           none: cfg.i18nText("configure.brightness.sources_none", "No Home Assistant illuminance sensors found; an exact sensor entity id can still be entered."),
+          noneReporting: cfg.i18nText("configure.brightness.sources_none_reporting", "Illuminance sensors were found, but none is reporting a light level; an exact sensor entity id can still be entered."),
           failed: cfg.i18nText("configure.brightness.sources_load_failed", "Could not load Home Assistant sources; an exact sensor entity id can still be entered.")
         },
         onItems: function (items) { cfg.haSourceItems = items; },

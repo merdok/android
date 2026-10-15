@@ -273,23 +273,17 @@ internal class PanelCommandDispatcher(
                 finish(panelAssistantCommandResult(consume(command.channel, payload, origin.withRequestId(command.requestId ?: origin.requestId))))
             }
         }
-        val admission = if (command.channel == "reload" || command.channel == "reboot") {
-            queue.submitAction(run)
-        } else {
-            queue.submitLatest(
-                key = command.channel,
-                onSkipped = { execution ->
-                    finish(if (execution == CommandQueue.Execution.SUPERSEDED) {
-                        PanelAssistantCommandResult.Superseded
-                    } else {
-                        PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
-                    })
-                },
-                command = run,
-            )
+        val onSkipped = { execution: CommandQueue.Execution ->
+            finish(if (execution == CommandQueue.Execution.SUPERSEDED) {
+                PanelAssistantCommandResult.Superseded
+            } else {
+                PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
+            })
         }
-        if (admission == CommandQueue.Admission.CLOSED || admission == CommandQueue.Admission.REJECTED) {
-            finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
+        val admission = if (command.channel == "reload" || command.channel == "reboot") {
+            queue.submitAction(onSkipped, run)
+        } else {
+            queue.submitLatest(key = command.channel, onSkipped = onSkipped, command = run)
         }
         recordCommandAdmission(admission)
     }
@@ -304,14 +298,13 @@ internal class PanelCommandDispatcher(
         val parsed = runCatching { org.json.JSONObject(command.payload) }.getOrNull()
             ?.let(io.panelassistant.android.media.PanelMediaCommand::parse)
             ?: return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
-        val admission = queue.submitAction {
+        val admission = queue.submitAction(
+            onSkipped = { finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)) },
+        ) {
             finish(
                 command.admit() ?: if (player.command(parsed)) PanelAssistantCommandResult.Applied
                 else PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED),
             )
-        }
-        if (admission == CommandQueue.Admission.CLOSED || admission == CommandQueue.Admission.REJECTED) {
-            finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED))
         }
         recordCommandAdmission(admission)
     }

@@ -89,8 +89,8 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
       if (path === '/api/v1/auto-brightness/sources') {
         sourceReads++;
-        if (sourceReads === 3) return staleSource.promise;
-        return json(sourceReads === 1 ? { items: [], refreshing: true } : {
+        if (sourceReads === 2) return staleSource.promise;
+        return json({
           items: [{ entity_id: 'sensor.office_lux', friendly_name: 'Office light', unit: 'lx' }], available: true,
         });
       }
@@ -108,7 +108,6 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     await input.waitFor();
     await input.focus();
     await page.locator('.ha-entity-option').waitFor();
-    assert.ok(sourceReads >= 2, 'refreshing catalog was polled');
     assert.equal(await input.getAttribute('aria-expanded'), 'true');
     const geometry = await page.locator('.ha-entity-listbox').evaluate((list) => {
       const rect = list.getBoundingClientRect();
@@ -173,3 +172,43 @@ browserTest('Configure offers only ambient sources that report a light level, so
   assert.equal(new URLSearchParams(posts[0]).get('auto_brightness_ha_entity'), 'sensor.study_window_illuminance');
   assert.equal(await page.locator('.ha-entity-option').count(), 1, 'a source with no reading is not offered');
 });
+
+for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
+  browserTest(`Configure says sensors exist but none reports, rather than none found, in ${engine}`, async (t) => {
+    let items = [
+      { entityId: 'sensor.hall_lux', friendlyName: 'Hall lux', unit: 'lx', currentLux: null, available: false },
+      { entityId: 'sensor.porch_lux', friendlyName: 'Porch lux', unit: 'lx', currentLux: null, available: false },
+    ];
+    const harness = await startHarness((path) => {
+      if (path === '/api/v1/config/schema') return json([{
+        key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
+        type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
+      }]);
+      if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
+      if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items });
+      if (path === '/api/v1/apps') return json({ apps: [] });
+      if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });
+      return json({});
+    }, configureVisualFixture);
+    const browser = await launcher.launch(engine === 'Chromium'
+      ? { executablePath: chrome, headless: true } : { headless: true });
+    const page = await browser.newPage({ viewport: { width: 480, height: 800 } });
+    page.setDefaultTimeout(5_000);
+    t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+    await page.goto(harness.url, { waitUntil: 'domcontentloaded' });
+    const input = page.locator('.ha-entity-input');
+    const note = page.locator('.picker-note');
+    await input.waitFor();
+    // A late status render can replace the field; focus the current one until its catalogue answers.
+    await page.waitForFunction(() => {
+      const field = document.querySelector('.ha-entity-input');
+      if (field && document.activeElement !== field) field.focus();
+      return /reporting|No Home/.test(document.querySelector('.picker-note')?.textContent || '');
+    }, null, { polling: 200, timeout: 15_000 });
+    assert.equal(await page.locator('.ha-entity-option').count(), 0, 'no source without a reading is offered');
+    assert.match(await note.textContent(), /none is reporting a light level/);
+    items = [];
+    await input.fill('x');
+    await page.waitForFunction(() => /No Home Assistant illuminance sensors found/.test(document.querySelector('.picker-note').textContent), null, { timeout: 15_000 });
+  });
+}

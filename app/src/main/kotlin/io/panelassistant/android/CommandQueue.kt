@@ -75,15 +75,23 @@ internal class CommandQueue(
      */
     fun submitLatest(key: String, onSkipped: (Execution) -> Unit, command: () -> Unit): Admission {
         require(key.isNotBlank())
-        val completion = CompletableFuture<Execution>()
-        completion.thenAccept { execution ->
-            if (execution == Execution.SUPERSEDED || execution == Execution.NOT_ADMITTED) onSkipped(execution)
-        }
-        return submit(Work(key, action = { command(); true }, completion, submittedAtNanos = nowNanos()))
+        return submit(Work(key, action = { command(); true }, skipCompletion(onSkipped), submittedAtNanos = nowNanos()))
     }
 
     fun submitAction(command: () -> Unit): Admission =
         submit(Work(latestKey = null, action = { command(); true }, completion = null, submittedAtNanos = nowNanos()))
+
+    /** [submitAction] with the [submitLatest] skip contract: [onSkipped] runs once with [Execution.NOT_ADMITTED]
+     * when the action is rejected, refused after close, or cancelled while still queued at close. */
+    fun submitAction(onSkipped: (Execution) -> Unit, command: () -> Unit): Admission =
+        submit(Work(latestKey = null, action = { command(); true }, skipCompletion(onSkipped), submittedAtNanos = nowNanos()))
+
+    private fun skipCompletion(onSkipped: (Execution) -> Unit): CompletableFuture<Execution> =
+        CompletableFuture<Execution>().also { completion ->
+            completion.thenAccept { execution ->
+                if (execution == Execution.SUPERSEDED || execution == Execution.NOT_ADMITTED) onSkipped(execution)
+            }
+        }
 
     /** Execute a state-setting command on the same ordered authority and report whether it ran. */
     fun runLatest(key: String, command: () -> Unit): Boolean = runLatestResult(key, command = command).executed
