@@ -18,6 +18,32 @@ import org.junit.rules.TemporaryFolder
 class RestoreExecutorTest {
     @get:Rule val folder = TemporaryFolder()
 
+    @Test fun policySkippedStateDoesNotHoldAMigrationWhoseAdmittedValuesAreDurable() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            val completed = mutableListOf<Boolean>()
+            val executor = executor(
+                fixture,
+                commit = RestoreConfigCommit { _, _, _, _, publish, _, afterApply ->
+                    publish("durable")
+                    afterApply()
+                    1
+                },
+                rollback = { _, _, _, _ -> error("policy exclusion is not a failed write") },
+            )
+            executor.execute(
+                RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
+                null, null, null, null, emptyMap(), emptyList(), false, true, emptyList(), null,
+                ticket, RestoreAttempt { completed += it }, stateSkipped = 3,
+            )
+            val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+            assertEquals("succeeded", result.getString("status"))
+            assertEquals("skipped", result.getJSONObject("state").getString("status"))
+            assertEquals("admitted=0; skipped=3; failed=0", result.getJSONObject("state").getString("detail"))
+            assertEquals(listOf(true), completed)
+        }
+    }
+
     @Test fun aFailedOrdinaryStateWriteIsPartialAndKeepsCommittedConfiguration() = runBlocking {
         PaneldServerHttpFixture().use { fixture ->
             val ticket = requireNotNull(InstallProgress.start("restore"))

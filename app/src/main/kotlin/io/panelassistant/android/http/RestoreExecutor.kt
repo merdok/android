@@ -92,6 +92,9 @@ internal class RestoreExecutor(
         var ownerChoicesRestored = 0
         var issuesRestored = 0
         var stateRefreshFailed = false
+        // A handover receipt requires every admitted value. A policy exclusion was never admitted,
+        // so retrying that same receipt cannot restore it and must not hold the handover forever.
+        val policySkipIsPartial = stateSkipped > 0 && !migrationRestore
         fun stateComponent(): InstallProgress.ComponentResult? {
             if (admittedStateCount == 0 && stateSkipped == 0 && !stateUnavailable) return null
             val restored = restoredStateRows + ownerChoicesRestored + issuesRestored
@@ -198,7 +201,7 @@ internal class RestoreExecutor(
                 // An archive that marked itself incomplete restored everything it held, and still
                 // must not report the plain success of one that held the panel's state.
                 message = when {
-                    stateComponent()?.status == InstallProgress.Outcome.PARTIAL || stateSkipped > 0 ->
+                    stateComponent()?.status == InstallProgress.Outcome.PARTIAL || policySkipIsPartial ->
                         "Restore partially completed; some panel state was not restored"
                     admittedPlan.skipped.isNotEmpty() -> "Restore partially completed; unavailable settings: " +
                         admittedPlan.skipped.joinToString(", ") { requireNotNull(SettingsRegistry.spec(it)).label }
@@ -208,7 +211,7 @@ internal class RestoreExecutor(
                     else -> "Restore completed"
                 } + wakeWordRestoreNote(wakeWordOutcome),
                 structured = InstallProgress.OperationResult(
-                    status = if (admittedPlan.skipped.isNotEmpty() || stateSkipped > 0 ||
+                    status = if (admittedPlan.skipped.isNotEmpty() || policySkipIsPartial ||
                         stateComponent()?.status == InstallProgress.Outcome.PARTIAL) InstallProgress.Outcome.PARTIAL
                         else restoreOverallStatus(wakeWordOutcome),
                     config = if (admittedPlan.skipped.isEmpty()) succeededComponent(configItems)
@@ -225,7 +228,7 @@ internal class RestoreExecutor(
                 ),
                 presentation = when {
                     admittedPlan.skipped.isNotEmpty() ||
-                        stateSkipped > 0 || stateComponent()?.status == InstallProgress.Outcome.PARTIAL ||
+                        policySkipIsPartial || stateComponent()?.status == InstallProgress.Outcome.PARTIAL ||
                         restoreOverallStatus(wakeWordOutcome) != InstallProgress.Outcome.SUCCEEDED ->
                         InstallPresentation("restore-partial")
                     restoredStateRows > 0 -> InstallPresentation(
