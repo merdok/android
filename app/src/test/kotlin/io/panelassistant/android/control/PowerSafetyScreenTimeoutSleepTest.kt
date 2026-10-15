@@ -25,13 +25,13 @@ class PowerSafetyScreenTimeoutSleepTest {
         ScreenOff.SCREEN_TIMEOUT, nap = {}, displacedTimeout = displaced, touchCount = { 0L },
     )
 
-    /** PowerSafetyController.observe needs a real Context; its substitution rule is shared here. */
+    /** PowerSafetyController.observe needs a real Context; its inputs and substitution rule are shared here. */
     private fun observed() = PowerSafetyObservation(
         keepAwakeConfigured = true, wakeLockHeld = true, wifiLockRequired = false, wifiLockHeld = true,
         preventIdleDimConfigured = true,
-        screenOffTimeoutMs = configuredDuringSleep(displaced.displacedMs, screen.isIntendedOff(), power.screenOffTimeoutMs()),
+        screenOffTimeoutMs = configuredDuringSleep(screen.heldSleepRecord()?.displacedMs ?: -1, power.screenOffTimeoutMs()),
         interactive = power.isInteractive(), pluggedMask = 1,
-        stayOnWhilePluggedIn = configuredDuringSleep(displaced.displacedStayOnMask, screen.isIntendedOff(), power.stayOnWhilePluggedInMask()),
+        stayOnWhilePluggedIn = configuredDuringSleep(screen.heldSleepRecord()?.displacedStayOnMask ?: -1, power.stayOnWhilePluggedInMask()),
         deviceIdleMode = false, ignoringBatteryOptimizations = false,
         screenOffMechanism = "screen_timeout",
         screenOffSelected = screen.routeSelection().selected?.name?.lowercase(),

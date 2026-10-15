@@ -17,14 +17,9 @@ class PowerSafetyController(
     /** Durable read of the last actual screen-off; never probes su or the helper daemon on its own. */
     private val screenRouteSelection: () -> RouteSelection,
     private val directRootExpected: Boolean = false,
-    /** The stay-on mask a screen-timeout sleep cleared and will restore on wake; -1 when none. While
-     *  it is held, that value, not the temporary 0, is the panel's configured stay-on. */
-    private val displacedStayOnMask: () -> Int = { -1 },
-    /** The SCREEN_OFF_TIMEOUT a screen-timeout sleep displaced; -1 when none. Same rule as above. */
-    private val displacedScreenTimeoutMs: () -> Int = { -1 },
-    /** Whether the app currently holds the screen asleep. A record left by a failed restore after
-     *  wake is not configured state: the live value is what the panel now runs with. */
-    private val screenAsleep: () -> Boolean = { false },
+    /** The stay-on mask and SCREEN_OFF_TIMEOUT a held screen-timeout sleep displaced, or null. While
+     *  it is held, those values, not the temporary 0 and short timeout, are the panel's configured ones. */
+    private val heldSleep: () -> DisplacedScreenTimeout? = { null },
 ) {
     private val app = context.applicationContext
     private val powerManager = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -46,8 +41,8 @@ class PowerSafetyController(
                 ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 ?.takeIf { it >= 0 }
         }.getOrNull()
-        val asleep = screenAsleep()
-        val stayOn = configuredDuringSleep(displacedStayOnMask(), asleep, runCatching {
+        val held = heldSleep()
+        val stayOn = configuredDuringSleep(held?.displacedStayOnMask ?: -1, runCatching {
             Settings.Global.getInt(app.contentResolver, STAY_ON_WHILE_PLUGGED_IN)
         }.getOrNull())
         return PowerSafetyObservation(
@@ -56,7 +51,7 @@ class PowerSafetyController(
             wifiLockRequired = locks.wifiLockRequired,
             wifiLockHeld = locks.wifiLockHeld,
             preventIdleDimConfigured = preventIdleDimConfigured,
-            screenOffTimeoutMs = configuredDuringSleep(displacedScreenTimeoutMs(), asleep, runCatching {
+            screenOffTimeoutMs = configuredDuringSleep(held?.displacedMs ?: -1, runCatching {
                 Settings.System.getInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
             }.getOrNull()),
             interactive = runCatching { powerManager.isInteractive }.getOrNull(),
@@ -184,6 +179,5 @@ class PowerSafetyController(
     }
 }
 
-/** While the app holds a sleep, its displaced value, not the temporary live one, is configured. */
-internal fun configuredDuringSleep(displaced: Int, asleep: Boolean, live: Int?): Int? =
-    if (asleep && displaced > 0) displaced else live
+/** While a sleep holds a displaced value, that value, not the temporary live one, is configured. */
+internal fun configuredDuringSleep(displaced: Int, live: Int?): Int? = if (displaced > 0) displaced else live

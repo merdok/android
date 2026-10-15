@@ -1386,9 +1386,7 @@ class PaneldService : Service() {
             screenOffMechanism = profile.screenOff.name.lowercase(),
             screenRouteSelection = screen::routeSelection,
             directRootExpected = profile.appCanSu,
-            displacedStayOnMask = { config.displacedStayOnWhilePluggedIn },
-            displacedScreenTimeoutMs = { config.displacedScreenOffTimeout },
-            screenAsleep = screen::isIntendedOff,
+            heldSleep = screen::heldSleepRecord,
         )
 
         autoSleep = AutoSleepController(
