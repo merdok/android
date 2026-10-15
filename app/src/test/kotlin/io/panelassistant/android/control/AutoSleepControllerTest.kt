@@ -36,6 +36,44 @@ import java.util.concurrent.atomic.AtomicLong
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutoSleepControllerTest {
+    @Test fun `restored learning survives a newer panel configuration refresh`() = runTest {
+        val h = virtualHarness(source = "panel")
+        try {
+            h.start()
+            assertTrue(h.controller.noteProximityState(false))
+            h.await { h.status().getBoolean("available") }
+            assertEquals(MIN_AUTO_SLEEP_LEASE_MS, h.status().getLong("learned_lease_ms"))
+            h.learning.restoredLeaseMs = 25L * MINUTE
+
+            repeat(2) {
+                assertTrue(h.controller.adoptRestoredRecord())
+                assertTrue(h.controller.refresh())
+                h.settle()
+                assertEquals(25L * MINUTE, h.status().getLong("learned_lease_ms"))
+            }
+        } finally { h.closeWithVirtualTime(::runCurrent) }
+        assertFalse(h.controller.adoptRestoredRecord())
+    }
+
+    @Test fun `restored learning is used by the refreshed Home Assistant source set`() = runTest {
+        val h = virtualHarness()
+        try {
+            val request = h.start()
+            h.offer(aggregate(request, 0L, HaPresenceValue.OFF))
+            h.await { h.status().getString("phase") == "live" }
+            assertEquals(MIN_AUTO_SLEEP_LEASE_MS, h.status().getLong("learned_lease_ms"))
+            h.learning.restoredLeaseMs = 25L * MINUTE
+
+            assertTrue(h.controller.adoptRestoredRecord())
+            h.settle()
+            assertEquals(2, h.requests.size)
+            val refreshed = h.requests.last()
+            h.offer(aggregate(refreshed, 1L, HaPresenceValue.OFF))
+            h.settle()
+            assertEquals(25L * MINUTE, h.status().getLong("learned_lease_ms"))
+        } finally { h.closeWithVirtualTime(::runCurrent) }
+    }
+
     @Test fun `owner touch delay powers screen fully off without presence or HA`() = runTest {
         val h = virtualHarness(source = "touch")
         try {
@@ -1148,6 +1186,7 @@ class AutoSleepControllerTest {
 
     private class FakeLearning(private val persistCorrections: Boolean = false) : AutoSleepLearning {
         private var savedLeaseMs = MIN_AUTO_SLEEP_LEASE_MS
+        var restoredLeaseMs: Long? = null
         val corrections = CopyOnWriteArrayList<Long>()
         val events = CopyOnWriteArrayList<String>()
         val flushed = AtomicBoolean()
@@ -1160,6 +1199,9 @@ class AutoSleepControllerTest {
             events += "correction"
         }
         override fun flush() { events += "flush"; flushed.set(true) }
+        override fun adoptRestoredRecord() {
+            restoredLeaseMs?.let { savedLeaseMs = it }
+        }
     }
 
     companion object {

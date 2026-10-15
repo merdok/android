@@ -85,6 +85,46 @@ class AutoSleepLearningTest {
         assertEquals(15L * 60_000L, restarted.learnedLease("area-a", 15L * 60_000L).leaseMs)
     }
 
+    @Test fun `restored record replaces pending learning without a later flush overwriting it`() {
+        var writes = 0
+        val preferences = fakePreferences { writes += 1 }
+        val now = 65L * DAY_MS
+        val store = AutoSleepLearningStore(preferences, { now }, Unit)
+        store.learnedLease("area-a", 15L * 60_000L)
+        repeat(4) { store.recordGap("area-a", AutoSleepLocalEvidence.TOUCH, 55L * 60_000L) }
+        val before = store.learnedLease("area-a", 15L * 60_000L)
+        assertEquals(57L * 60_000L, before.leaseMs)
+        assertEquals(4, before.touchEvidenceCount)
+        assertEquals(1, writes)
+
+        val archived = fakePreferences()
+        val saved = AutoSleepLearningStore(archived, { now }, Unit)
+        repeat(3) { saved.recordGap("area-a", AutoSleepLocalEvidence.TOUCH, 16L * 60_000L) }
+        saved.recordCorrection("area-a", 25L * 60_000L)
+        val restoredValues = archived.all
+        preferences.edit().clear().apply {
+            restoredValues.forEach { (key, value) -> putString(key, value as String) }
+        }.apply()
+
+        repeat(2) {
+            store.adoptRestoredRecord()
+            store.flush()
+            assertEquals(restoredValues, preferences.all)
+            val restored = store.learnedLease("area-a", 15L * 60_000L)
+            assertEquals(25L * 60_000L, restored.leaseMs)
+            assertEquals(3, restored.touchEvidenceCount)
+            assertEquals(25L * 60_000L, restored.correctionFloorMs)
+        }
+        assertEquals(2, writes)
+
+        store.recordGap("area-a", AutoSleepLocalEvidence.TOUCH, 16L * 60_000L)
+        store.flush()
+        val restarted = AutoSleepLearningStore(preferences, { now }, Unit)
+            .learnedLease("area-a", 15L * 60_000L)
+        assertEquals(25L * 60_000L, restarted.leaseMs)
+        assertEquals(4, restarted.touchEvidenceCount)
+    }
+
     @Test fun `premature sleep correction bypasses the routine evidence write interval`() {
         var writes = 0
         val preferences = fakePreferences { writes += 1 }

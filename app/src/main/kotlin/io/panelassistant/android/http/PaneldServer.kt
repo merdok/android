@@ -192,6 +192,7 @@ class PaneldServer internal constructor(
     private val onDurableStateRestored: () -> Unit = {},
     /** The saved proximity calibrations a backup carries and a restore writes back. */
     private val proximityCalibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody? = null,
+    private val dashboardIssueCustody: io.panelassistant.android.persistence.DashboardIssueCustody? = null,
     private val profileRestartAllowed: () -> Boolean = { true },
     private val onProfileRestartAbort: (String) -> Boolean = { false },
     // Application-id migration: the release and offer endpoints on the bridge build, and the
@@ -914,13 +915,17 @@ class PaneldServer internal constructor(
             configLiveValues = configLiveValues,
             effectiveValue = { spec, live -> configValues().effectiveValue(spec, live) },
             profileAdmin = profileAdmin,
-            companion = companionBackupOperations(),
+            captureCompanion = companionBackupOperations()::capture,
             wakeWords = wakeWords,
             calibrations = calibrationCustody(),
+            dashboardIssues = issueCustody(),
         ).build(request, passphrase)
 
     private fun calibrationCustody() = proximityCalibrations
         ?: io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(appContext)
+
+    private fun issueCustody() = dashboardIssueCustody
+        ?: io.panelassistant.android.persistence.CatalogDashboardIssueCustody(appContext)
 
     private suspend fun handleRestore(call: ApplicationCall) {
         val executor = AcceptedConfigTransaction.restoreExecutor(
@@ -935,6 +940,7 @@ class PaneldServer internal constructor(
             onDurableStateRestored = { onDurableStateRestored() },
             onWakeWordsChanged = { onWakeWordsChanged() },
             calibrations = calibrationCustody(),
+            dashboardIssues = issueCustody(),
         )
         RestoreRoutes(
             cacheDir = cacheDir,

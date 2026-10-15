@@ -1627,7 +1627,13 @@ class PaneldService : Service() {
             profileReport = passiveProfileProbe::report,
             profileProbe = { passiveProfileProbe.report() },
             onProfileRestart = { profileRestart.request() },
-            onDurableStateRestored = { wifiOutageTracker.adoptRestoredRecord(); sensors.reloadProximityCalibration() },
+            onDurableStateRestored = {
+                wifiOutageTracker.adoptRestoredRecord()
+                sensors.reloadProximityCalibration()
+                check(autoSleep.adoptRestoredRecord()) { "sleep owner is stopping" }
+                core.reapplyStoredLed()
+                core.restoreButtonBacklight()
+            },
             profileRestartAllowed = { !InstallProgress.running },
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,

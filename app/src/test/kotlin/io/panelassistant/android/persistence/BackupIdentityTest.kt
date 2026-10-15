@@ -14,6 +14,16 @@ class BackupIdentityTest {
 
     private fun manifest(fragment: String) = JSONObject("{\"kind\":\"ha-paneld-backup\"$fragment}")
 
+    @Test fun reinstallLinkSurvivesANewInstallationAndNeverFallsBackToAnEditableName() {
+        val written = manifest(BackupIdentity.manifestFragment("a".repeat(64), "pkg", discoveryId))
+        assertTrue(BackupIdentity.sameRestoreDevice(written, discoveryId, false))
+        assertFalse(BackupIdentity.sameRestoreDevice(written, "b".repeat(64), true))
+        assertFalse(BackupIdentity.sameRestoreDevice(written.put("legacy_did", "bad"), discoveryId, true))
+        assertTrue(BackupIdentity.sameRestoreDevice(manifest(""), discoveryId, true))
+        assertFalse(BackupIdentity.sameRestoreDevice(manifest(""), discoveryId, false))
+        assertFalse(written.toString().contains(androidId))
+    }
+
     @Test fun theManifestCarriesThePseudonymAndTheWritingPackage() {
         val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
 

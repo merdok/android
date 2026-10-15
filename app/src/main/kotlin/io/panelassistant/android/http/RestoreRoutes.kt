@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.canonicalHaOrigin
 import io.panelassistant.android.Config
+import io.panelassistant.android.planOwnerChoices
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.haUrl
@@ -388,16 +389,19 @@ internal class RestoreRoutes(
                     HttpStatusCode.BadRequest,
                 )
             } else emptyMap()
-            // Durable state outside the settings registry. `panel_id` is read before any config write, so
-            // it still identifies the physical target: device-local rows return only to their own panel.
-            // A cleared panel that no longer carries its old id is treated as a different one, which
-            // withholds hardware-specific rows rather than guessing.
+            // New archives use the health protocol's reinstall link, sampled before configuration changes.
+            // Older archives retain their historical pre-restore panel-name classification.
             val samePanel = StateBackupPolicy.sameDevice(
                 migrationRestore = migrationRestore,
-                panelIdMatches = obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
+                panelIdMatches = BackupIdentity.sameRestoreDevice(
+                    obj,
+                    config.androidId.takeIf(String::isNotBlank)?.let(::panelAssistantDiscoveryId),
+                    obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
+                ),
                 discoveryIdMatches = sameDeviceByDiscoveryId,
             )
             val restorableCalibrations = ProximityCalibrationBackup.restorable(obj, samePanel)
+            var archivedState = emptyList<ConfigVault.StateRow>()
             val restorableState = if (
                 archiveManifest != null && stateDisposition == StateArchiveSection.Disposition.RESTORABLE
             ) {
@@ -413,6 +417,7 @@ internal class RestoreRoutes(
                     val decoded = ConfigVault.decode(
                         reader.readArchiveText(plainFile, ref, archiveEntries, "app-state-restore-"),
                     ) ?: throw IllegalArgumentException("corrupt app_state payload")
+                    archivedState = decoded.rows
                     StateBackupPolicy.restorableRows(decoded.rows, samePanel) +
                         io.panelassistant.android.migration.migrationNoticeHistoryRows(
                             decoded.rows, migrationRestore, sameDeviceByDiscoveryId,
@@ -426,6 +431,27 @@ internal class RestoreRoutes(
                     HttpStatusCode.UnprocessableEntity,
                 )
             } else emptyList()
+            val ownerProfile = obj.optJSONObject("owner_profile")
+            val profileMatches = config.profile?.let { profile ->
+                ownerProfile?.optString("id") == profile.id && ownerProfile?.optString("revision") == profile.revision
+            } == true
+            val ownerChoices = runCatching { config.planOwnerChoices(archivedState, samePanel, profileMatches) }
+                .getOrNull() ?: return call.respondText(
+                    """{"ok":false,"error":"invalid owner choices"}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.UnprocessableEntity,
+                )
+            val archivedIssues = runCatching {
+                io.panelassistant.android.persistence.DashboardIssueBackup.decode(obj)
+            }.getOrNull() ?: return call.respondText(
+                """{"ok":false,"error":"invalid dashboard ignored findings"}""",
+                ContentType.Application.Json,
+                HttpStatusCode.UnprocessableEntity,
+            )
+            val restorableIssues = io.panelassistant.android.persistence.DashboardIssueBackup.admitted(archivedIssues, entityState)
+            val stateSkipped = ownerChoices.skipped.size + archivedIssues.size - restorableIssues.size +
+                (StateBackupPolicy.restorableRows(archivedState, true).size -
+                    StateBackupPolicy.restorableRows(archivedState, samePanel).size)
             val profilePayload = profilesObj?.let {
                 if (archiveManifest != null && it.has("entry")) {
                     reader.readProfileArchive(it, plainFile, archiveEntries)
@@ -566,6 +592,9 @@ internal class RestoreRoutes(
                     restoreWakeWords, wakeWordCatalog,
                     progress, restoreAttempt,
                     restorableCalibrations = restorableCalibrations,
+                    ownerChoices = ownerChoices,
+                    restorableIssues = restorableIssues,
+                    stateSkipped = stateSkipped,
                 )
             }
             job.invokeOnCompletion {

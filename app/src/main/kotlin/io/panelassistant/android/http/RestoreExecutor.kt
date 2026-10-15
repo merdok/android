@@ -3,6 +3,8 @@ package io.panelassistant.android.http
 import android.content.Context
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.OwnerChoicesPlan
+import io.panelassistant.android.applyOwnerChoices
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.DashboardEntityBackupState
@@ -48,6 +50,9 @@ internal class RestoreExecutor(
     private val onDurableStateRestored: () -> Unit,
     private val onWakeWordsChanged: () -> Unit,
     private val calibrations: ProximityCalibrationCustody = CatalogProximityCalibrationCustody(appContext),
+    private val dashboardIssues: io.panelassistant.android.persistence.DashboardIssueCustody =
+        io.panelassistant.android.persistence.CatalogDashboardIssueCustody(appContext),
+    private val applyState: (List<ConfigVault.StateRow>) -> Int = { AppState.applyRestoredRows(appContext, it) },
 ) {
     suspend fun execute(
         configPlan: RestoreConfigPlan,
@@ -64,6 +69,9 @@ internal class RestoreExecutor(
         progress: InstallProgress.Ticket,
         restoreAttempt: RestoreAttempt,
         restorableCalibrations: List<EntityCatalogStore.ProximityModelRow> = emptyList(),
+        ownerChoices: OwnerChoicesPlan = OwnerChoicesPlan(emptyMap()),
+        restorableIssues: List<io.panelassistant.android.persistence.DashboardIgnoredIssue> = emptyList(),
+        stateSkipped: Int = 0,
     ) {
         val before = currentValues()
         // Preview is not admission: sample current capability again for the actual execution.
@@ -80,6 +88,26 @@ internal class RestoreExecutor(
         var configCommitted = false
         var configItems = 0
         var restoredStateRows = 0
+        val admittedStateCount = restorableState.size + ownerChoices.values.size + restorableIssues.size
+        var ownerChoicesRestored = 0
+        var issuesRestored = 0
+        var stateRefreshFailed = false
+        // A handover receipt requires every admitted value. A policy exclusion was never admitted,
+        // so retrying that same receipt cannot restore it and must not hold the handover forever.
+        val policySkipIsPartial = stateSkipped > 0 && !migrationRestore
+        fun stateComponent(): InstallProgress.ComponentResult? {
+            if (admittedStateCount == 0 && stateSkipped == 0 && !stateUnavailable) return null
+            val restored = restoredStateRows + ownerChoicesRestored + issuesRestored
+            val failed = (admittedStateCount - restored).coerceAtLeast(0)
+            return InstallProgress.ComponentResult(
+                status = if (failed > 0 || stateRefreshFailed) InstallProgress.Outcome.PARTIAL
+                    else if (stateSkipped > 0 || stateUnavailable) InstallProgress.Outcome.SKIPPED
+                    else InstallProgress.Outcome.SUCCEEDED,
+                items = restored,
+                detail = "admitted=$admittedStateCount; skipped=$stateSkipped; failed=$failed" +
+                    if (stateRefreshFailed) "; runtime reload failed" else "",
+            )
+        }
         var companionResult: CompanionApplyResult? = null
         var profileResult: ProfileBackupRestoreResult? = null
         var appliedRevisionHash: String? = null
@@ -128,23 +156,27 @@ internal class RestoreExecutor(
                     }
                     if (restorableState.isNotEmpty()) {
                         restoredStateRows = runCatching {
-                            AppState.applyRestoredRows(appContext, restorableState)
+                            applyState(restorableState)
                         }.getOrDefault(0)
                     }
+                    ownerChoicesRestored = runCatching { config.applyOwnerChoices(ownerChoices) }.getOrDefault(0)
+                    issuesRestored = if (restorableIssues.isEmpty()) 0
+                        else runCatching { dashboardIssues.restore(restorableIssues) }.getOrDefault(0)
                     // A calibration this install already holds under the same key is kept; the
                     // archive's copy only fills a gap. Never fatal, like the state write above.
                     val restoredCalibrations = if (restorableCalibrations.isEmpty()) 0
                         else runCatching { calibrations.restore(restorableCalibrations) }.getOrDefault(0)
-                    if (restoredStateRows > 0 || restoredCalibrations > 0) {
+                    if (restoredStateRows > 0 || restoredCalibrations > 0 || ownerChoicesRestored > 0 || issuesRestored > 0) {
                         // Never fatal, exactly like the writes above: the restore is
                         // already durable, and a live re-read failing must not undo it.
-                        runCatching { onDurableStateRestored() }
+                        stateRefreshFailed = runCatching { onDurableStateRestored() }.isFailure
                     }
                     // An ordinary restore forgives a state write that failed, because its archive
                     // survives it. A migration's receipt is about to become the only copy of a
                     // package that is then removed, so there every carried value must have landed.
                     if (migrationRestore &&
-                        !migrationRestoreComplete(rawPreferencesApplied, restorableState.size, restoredStateRows)
+                        (!migrationRestoreComplete(rawPreferencesApplied, restorableState.size, restoredStateRows) ||
+                            ownerChoicesRestored != ownerChoices.values.size || issuesRestored != restorableIssues.size)
                     ) {
                         throw IllegalStateException("migration restore did not apply every carried value")
                     }
@@ -169,6 +201,8 @@ internal class RestoreExecutor(
                 // An archive that marked itself incomplete restored everything it held, and still
                 // must not report the plain success of one that held the panel's state.
                 message = when {
+                    stateComponent()?.status == InstallProgress.Outcome.PARTIAL || policySkipIsPartial ->
+                        "Restore partially completed; some panel state was not restored"
                     admittedPlan.skipped.isNotEmpty() -> "Restore partially completed; unavailable settings: " +
                         admittedPlan.skipped.joinToString(", ") { requireNotNull(SettingsRegistry.spec(it)).label }
                     restoredStateRows > 0 ->
@@ -177,7 +211,8 @@ internal class RestoreExecutor(
                     else -> "Restore completed"
                 } + wakeWordRestoreNote(wakeWordOutcome),
                 structured = InstallProgress.OperationResult(
-                    status = if (admittedPlan.skipped.isNotEmpty()) InstallProgress.Outcome.PARTIAL
+                    status = if (admittedPlan.skipped.isNotEmpty() || policySkipIsPartial ||
+                        stateComponent()?.status == InstallProgress.Outcome.PARTIAL) InstallProgress.Outcome.PARTIAL
                         else restoreOverallStatus(wakeWordOutcome),
                     config = if (admittedPlan.skipped.isEmpty()) succeededComponent(configItems)
                         else InstallProgress.ComponentResult(
@@ -189,9 +224,11 @@ internal class RestoreExecutor(
                     companion = companionResult?.component
                         ?: skippedComponent("not present"),
                     wakeWords = wakeWordComponent,
+                    state = stateComponent(),
                 ),
                 presentation = when {
                     admittedPlan.skipped.isNotEmpty() ||
+                        policySkipIsPartial || stateComponent()?.status == InstallProgress.Outcome.PARTIAL ||
                         restoreOverallStatus(wakeWordOutcome) != InstallProgress.Outcome.SUCCEEDED ->
                         InstallPresentation("restore-partial")
                     restoredStateRows > 0 -> InstallPresentation(
@@ -239,6 +276,7 @@ internal class RestoreExecutor(
                         else InstallProgress.ComponentResult(InstallProgress.Outcome.FAILED, 0),
                     rollback = rollback,
                     wakeWords = wakeWordComponent,
+                    state = stateComponent(),
                 ),
                 presentation = InstallPresentation(if (partial) "restore-partial" else "restore-failed"),
             )
