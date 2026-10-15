@@ -1,10 +1,8 @@
 package io.panelassistant.android
 
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.hardware.camera2.CameraManager
@@ -17,11 +15,8 @@ import android.os.CancellationSignal
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.OperationCanceledException
 import android.provider.Settings
 import android.util.Log
-import androidx.core.content.pm.PackageInfoCompat
-import androidx.webkit.WebViewCompat
 import io.panelassistant.android.camera.CameraCapabilityReason
 import io.panelassistant.android.camera.cameraCapabilityReason
 import io.panelassistant.android.control.AdbController
@@ -118,52 +113,17 @@ import io.panelassistant.android.sensors.SensorLightPublisher
 import io.panelassistant.android.sensors.submitIlluminanceIfExposed
 import io.panelassistant.android.sensors.HaAmbientLuxSubscriber
 import io.panelassistant.android.sensors.HaAmbientSourcePhase
-import io.panelassistant.android.sensors.DashboardHaApiSessionProvider
-import io.panelassistant.android.sensors.HaExactEntityStreamOwner
-import io.panelassistant.android.sensors.HaLifecycleCoordinator
-import io.panelassistant.android.sensors.HaLifecycleRuntime
-import io.panelassistant.android.sensors.HaLifecycleState
-import io.panelassistant.android.sensors.HaNetworkPath
-import io.panelassistant.android.sensors.PathProbeMonitor
-import io.panelassistant.android.sensors.PathProbeRuntime
-import io.panelassistant.android.sensors.IcmpEchoSource
-import io.panelassistant.android.sensors.HaNetworkPathMonitor
-import io.panelassistant.android.sensors.HaNetworkPathRuntime
 import io.panelassistant.android.sensors.HaPresenceSourceManager
 import io.panelassistant.android.sensors.HaSiteMetadataClient
-import io.panelassistant.android.sensors.KtorHaAmbientTransport
-import io.panelassistant.android.util.AddressFamilyPolicy
-import io.panelassistant.android.panelassistant.KtorPanelAssistantTransportConnector
 import io.panelassistant.android.panelassistant.PanelAssistantApprovalState
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantCommandSink
-import io.panelassistant.android.panelassistant.PanelAssistantHelloIdentity
 import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
-import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
-import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
-import io.panelassistant.android.sensors.KtorHaExactEntityStreamTransport
-import io.panelassistant.android.storage.DisposableFileSweeper
-import io.panelassistant.android.storage.DisposableSweepResult
-import io.panelassistant.android.storage.ProcessStartWallClock
-import io.panelassistant.android.storage.RetentionResult
-import io.panelassistant.android.storage.StorageMaintenancePlan
-import io.panelassistant.android.storage.StorageRemediationLadder
-import io.panelassistant.android.storage.StorageRemediationOperations
-import io.panelassistant.android.storage.VacuumOutcome
-import io.panelassistant.android.storage.VacuumResult
-import io.panelassistant.android.storage.WalCheckpointOutcome
-import io.panelassistant.android.storage.WalCheckpointResult
-import io.panelassistant.android.storage.appOwnedDisposableDirectoryRules
-import io.panelassistant.android.storage.appOwnedDisposableFileRules
-import io.panelassistant.android.storage.storageMaintenancePlan
-import io.panelassistant.android.storage.StorageHealthObservationQueue
-import io.panelassistant.android.storage.StorageHealthRecoveryLifecycle
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
-import io.panelassistant.android.storage.StorageQuickCheck
 import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.util.localIpv4
 import io.panelassistant.android.util.localIpv6
@@ -205,20 +165,13 @@ import io.panelassistant.android.util.CompanionOperationStatus
 import io.panelassistant.android.util.AppInstaller
 import io.panelassistant.android.util.InstallOutcome
 import io.panelassistant.android.util.InstallProgress
-import io.panelassistant.android.util.InstallOperationResult
-import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.HelperLogcatOpenResult
 import io.panelassistant.android.util.GuardDbProcessAdmission
 import io.panelassistant.android.util.GuardDbSentinelLoad
-import io.panelassistant.android.util.guardDbAppStaging
-import io.panelassistant.android.util.validGuardDbAppFile
 import io.panelassistant.android.util.HelperInstallReconciler
 import io.panelassistant.android.util.HelperInstallTransaction
-import io.panelassistant.android.util.SelfUpdater
 import io.panelassistant.android.state.SoftwareComponent
-import io.panelassistant.android.state.SoftwareTarget
-import io.panelassistant.android.state.SoftwareUpdateSources
 import io.panelassistant.android.platform.AndroidScreenPower
 import io.panelassistant.android.platform.AndroidSystemEnv
 import io.panelassistant.android.platform.PanelPermissionRepair
@@ -229,7 +182,6 @@ import java.io.File
 import java.net.SocketTimeoutException
 import java.net.Inet4Address
 import java.net.InetAddress
-import java.util.Locale
 import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -525,7 +477,7 @@ class PaneldService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // One dedicated transition lane owns initial start, config rebuilds, reconnects, and final teardown.
     // Observations capture the generation and its concrete state core, dispatcher and mDNS owners together, so tick/network work cannot read a generation from one runtime and then reach a replacement through a mutable field.
-    private data class NetworkRuntime(
+    internal data class NetworkRuntime(
         val core: PanelStateCore,
         val commands: PanelCommandDispatcher,
         val mdns: MdnsAdvertiser,
@@ -552,25 +504,23 @@ class PaneldService : Service() {
     // Voice-assistant phase authority, driven by the coordinator. Home Assistant sees the phase as its
     // satellite entity's state; on the panel it drives the listening indicator.
     private val voiceStateAuthority = io.panelassistant.android.assist.VoiceStateAuthority()
-    private var storageHealthSubscription: AutoCloseable? = null
-    private val storageHealthLifecycleLock = Any()
-    private var storageHealthRecoveryLifecycle: StorageHealthRecoveryLifecycle? = null
-    private val storageHealthObservationQueue = StorageHealthObservationQueue(
-        create = ::CancellationSignal,
-        cancel = CancellationSignal::cancel,
+    // Daily health checks, maintenance and recovery for the app database and its files.
+    private val storageHealth = ServiceStorageHealth(
+        this, scope, { teardownBoundary.isStopping },
+        object : ServiceStorageHealth.Database {
+            override fun storageHealthObservation(cancellationSignal: CancellationSignal) =
+                entityLearning.storageHealthObservation(cancellationSignal)
+            override fun enforceHistoryRetention() = entityLearning.enforceHistoryRetention()
+            override fun truncateDatabaseWal() = entityLearning.truncateDatabaseWal()
+            override fun writeVerifiedConfigurationBackup() = entityLearning.writeVerifiedConfigurationBackup()
+            override fun vacuumDatabase() = entityLearning.vacuumDatabase()
+        },
+        { ::companionDataOperationState.isInitialized && companionDataOperationState.isPending() },
     )
     private lateinit var companionDataOperationState: CompanionDataOperationState
     private val core: PanelStateCore get() = runtime.current().core
-    // Observer identities for InstallProgress and UpdateChecker, so detach clears only this service's.
-    // Progress only schedules a republish: lane claims include database maintenance, which must not
-    // gain a configuration write from here.
-    private val softwareProgressObserver: () -> Unit = {
-        runCatching { core.publishSoftwareUpdates() }
-    }
-    private val softwareCatalogObserver: () -> Unit = {
-        runCatching { config.setSoftwareUpdateTargets(UpdateChecker.persistableTargets()) }
-        runCatching { core.publishSoftwareUpdates() }
-    }
+    // The Install tab's destructive operations, the update entities' sources and their observers.
+    private val componentOperations = ServiceComponentOperations(this, scope, { config }, { core }, { profile })
     private val mdns: MdnsAdvertiser get() = runtime.current().mdns
     // Default-network callback that nudges reconnects when the network returns (see registerNetworkCallback).
     private var netCallback: ConnectivityManager.NetworkCallback? = null
@@ -600,13 +550,8 @@ class PaneldService : Service() {
     // idempotent and generation-guarded, so a dropped duplicate costs nothing.
     private var proximityWizard: ProximityWizardCoordinator? = null
     private val screenWakeWorker = SingleFlightExecutor("ha-paneld-screen-reconcile")
-    // Guards both receiver fields, so a startup registering on the runtime lane and onDestroy releasing
-    // on the main thread cannot interleave (see releaseServiceReceivers).
-    private val receiverLock = Any()
-    private var screenOnReceiver: BroadcastReceiver? = null
     @Volatile private var vendorServiceStarter: io.panelassistant.android.control.VendorServiceStarter? = null
     private var vendorScreen: io.panelassistant.android.platform.VendorScreen = io.panelassistant.android.platform.NoVendorScreen
-    private var webViewRebindReceiver: BroadcastReceiver? = null
 
     /**
      * Whether this panel could repair its own Android System WebView, computed away from the screen.
@@ -637,8 +582,7 @@ class PaneldService : Service() {
     private lateinit var autoBright: AutoBrightnessController
     private lateinit var autoSleep: AutoSleepController
     private lateinit var haAmbientLux: HaAmbientLuxSubscriber
-    private lateinit var haExactEntityStream: HaExactEntityStreamOwner
-    private lateinit var panelAssistantTransport: PanelAssistantTransportOwner
+    private lateinit var haLinks: ServiceHaLinks
     // The panel's side of its Assist satellite, carried on the Panel Assistant session.
     private lateinit var panelAssistantVoice: io.panelassistant.android.panelassistant.PanelAssistantVoice
     private val wakeWordCatalog by lazy { io.panelassistant.android.assist.wakeword.WakeWordCatalog(this) }
@@ -671,10 +615,6 @@ class PaneldService : Service() {
             LocalApprovalBroker.instance.deny(approvalId)
         }
     }
-    private lateinit var haLifecycle: HaLifecycleCoordinator
-    private lateinit var haNetworkPath: HaNetworkPathMonitor
-    private lateinit var haPathProbe: PathProbeMonitor
-    private val haSocketClock: () -> Long = { android.os.SystemClock.elapsedRealtime() }
     private lateinit var haSiteMetadata: HaSiteMetadataClient
     private var brightnessObserver: ContentObserver? = null
     private var haCandidateIdentity = ""
@@ -765,6 +705,11 @@ class PaneldService : Service() {
     // stood down for as long as the doomed process lives.
     @Volatile private var standingDown = false
     private val teardownBoundary = ServiceTeardownBoundary()
+    // The screen-on and WebView-provider receivers, registered at startup and released in onDestroy.
+    private val receivers = ServiceReceivers(
+        this, teardownBoundary, screenWakeWorker, microphoneMute,
+        { vendorServiceStarter }, { screen }, { core }, { webViewRebindRestart },
+    )
     private val restartAfterInternalBoundary = AtomicBoolean(false)
     private var upgradeShutdownClaim: UpgradeShutdownClaim? = null
     private val screenExitRecoveryOwner = AtomicReference<CompletableFuture<Boolean>?>(null)
@@ -1035,33 +980,6 @@ class PaneldService : Service() {
             onAmbientThemeChanged = ::reconcileAmbientTheme,
         )
         haSiteMetadata = HaSiteMetadataClient(config)
-        val haSessionAuthority = DashboardHaApiSessionProvider(config)
-        val haApi = KtorHaAmbientTransport()
-        // The layer-3 probe is constructed before the transport so the transport can report the
-        // address each route connects on straight to it. It measures the path the dashboard is
-        // actually using; a fresh resolution could name a family the connect race already rejected.
-        haPathProbe = PathProbeMonitor(
-            source = IcmpEchoSource(),
-            // The layer-3 verdict goes straight to the one owner of the prominent warning, so a
-            // measured path fault raises the banner and the panel chip rather than sitting in a
-            // diagnostics line nobody reads until they are already debugging.
-            // Guarded: the probe is constructed first, and a diagnostic must never be the thing
-            // that crashes the service it is diagnosing.
-            onVerdict = { severity, cause ->
-                if (::haNetworkPath.isInitialized) haNetworkPath.onPathProbeVerdict(severity, cause)
-            },
-        )
-        haExactEntityStream = HaExactEntityStreamOwner(
-            scope = scope,
-            auth = haSessionAuthority,
-            transport = KtorHaExactEntityStreamTransport(
-                haApi,
-                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
-                monotonicMillis = haSocketClock,
-                onRouteConnected = { address, otherResolved -> haPathProbe.onRouteConnected(address, otherResolved) },
-            ),
-            monotonicMillis = haSocketClock,
-        )
         panelAssistantVoice = io.panelassistant.android.panelassistant.PanelAssistantVoice(
             scope = scope,
             configuration = ::voiceConfiguration,
@@ -1081,108 +999,16 @@ class PaneldService : Service() {
             log = { message -> Log.i(TAG, message) },
             onColors = { colors -> io.panelassistant.android.assist.VoiceAttention.colors = colors },
         )
-        // The native transport's own long-lived socket, on the same credential authority as the stream
-        // above and the same address-family policy as every other Home Assistant socket.
-        panelAssistantTransport = PanelAssistantTransportOwner(
-            scope = scope,
-            auth = haSessionAuthority,
-            connector = KtorPanelAssistantTransportConnector(
-                socketFamilyPolicy = { AddressFamilyPolicy.fromConfig(config.addressFamily) },
-            ),
-            monotonicMillis = haSocketClock,
-            addresses = {
-                val primary = runCatching {
-                    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                    cm?.getLinkProperties(cm.activeNetwork)?.linkAddresses.orEmpty().map { it.address }
-                }.getOrDefault(emptyList())
-                io.panelassistant.android.util.localPanelAddresses(primary)
-            },
-            reporter = panelAssistantReporter,
-            observeForHello = {
-                val observed = runtime.observe() ?: return@PanelAssistantTransportOwner false
-                observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
-            },
-            commands = panelAssistantCommands,
-            management = io.panelassistant.android.panelassistant.PanelAssistantManagement.of({ server.managementSnapshot() }, { settings, admit -> server.applyManagedSettings(settings, admit) }) { op, args, onPending -> server.managementRequest(op, args, onPending, haSessionAuthority) },
-            onConnected = config::markPanelAssistantConnected,
-            onLifecycleNotice = { notice -> haLifecycle.onNativeNotice(notice) },
-            onLifecycleAuthenticated = { haLifecycle.onNativeAuthenticated() },
-            onLifecycleDisconnected = { haLifecycle.onNativeDisconnected() },
-            onLifecycleRetired = {
-                haLifecycle.onNativeRetired()
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, false)) BuiltinDashboard.onHaLifecycleChanged()
-            },
-            embedKeys = io.panelassistant.android.http.PanelAssistantEmbedKeys.instance,
-            voice = panelAssistantVoice,
-            voiceStream = voiceStream,
-            onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
-            onConnection = { session, accepted ->
-                val route = session.route
-                val bound = route != null && HaConnectionRoutes.isCurrent(config, route) &&
-                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
-                if (bound) {
-                    // Protocol section 20.8: the bound Panel Assistant's grant opens or closes the REST routes.
-                    config.recordPanelAssistantGrant(accepted.capabilities)
-                    // The device link is keyed on the learned entry, so a first or changed entry resolves it now.
-                    runtime.observe()?.value?.core?.maybeResolveHaLink()
-                }
-                bound
-            },
-            checkPreferred = {
-                val route = HaConnectionRoutes.preferredCandidate(config)
-                if (route == null) false else {
-                    val session = DashboardHaApiSessionProvider(config).resolve(false)
-                    val token = session.accessToken
-                    val authenticated = if (token != null && session.route == route) {
-                        try {
-                            val probe = KtorPanelAssistantTransportConnector { AddressFamilyPolicy.fromConfig(config.addressFamily) }.connect(route.owner.url, token)
-                            probe.close()
-                            true
-                        } catch (_: Exception) { false }
-                    } else false
-                    HaConnectionRoutes.preferredResult(config, route, authenticated)
-                }
-            },
-        )
-        AppInstaller.livePanelUpdatePolicy = {
-            if (teardownBoundary.isStopping) null else panelAssistantTransport.status.liveUpdatePolicy()
-        }
-        haLifecycle = HaLifecycleCoordinator(
-            // elapsedRealtime, not wall clock: a Home Assistant restart is exactly when NTP is likely to
-            // step the panel's clock, and the back-online window must not be shortened or extended by it.
-            nowMs = { android.os.SystemClock.elapsedRealtime() },
-            onChanged = {
-                // Read the canonical snapshot rather than trusting a payload, so a diagnostic line
-                // cannot report something the machine no longer holds.
-                Log.i(TAG, "Home Assistant lifecycle: ${HaLifecycleRuntime.snapshot()?.state?.wireValue}")
-                BuiltinDashboard.onHaLifecycleChanged()
-            },
-        )
-        // The network-path monitor rides the same socket, the same clock and the same renderer poke.
-        // Installed BEFORE it is bound, because binding announces the current demand at once and that
-        // first verdict must already be readable by whoever the poke wakes.
-        haNetworkPath = HaNetworkPathMonitor(
-            nowMs = haSocketClock,
-            // Second attribution signal: while Home Assistant has announced a shutdown or a start
-            // over the Panel Assistant session, an unanswered probe is
-            // the server's doing and must not be counted as loss. Read outside the monitor's lock.
-            haRestarting = {
-                when (HaLifecycleRuntime.snapshot()?.state) {
-                    HaLifecycleState.SHUTTING_DOWN, HaLifecycleState.STARTING -> true
-                    else -> false
-                }
-            },
-            onChanged = { BuiltinDashboard.onHaLifecycleChanged() },
-            // Startup is a known high-latency period whose figures describe this panel's own load
-            // rather than the path, so observations inside it are discarded rather than judged. The
-            // process start is read on the same monotonic clock every probe is stamped with.
-            path = HaNetworkPath(processStartElapsedMs = android.os.Process.getStartElapsedRealtime()),
+        // The Home Assistant links and their health, built once in this order on the configuration above.
+        haLinks = ServiceHaLinks(
+            this, scope, config, teardownBoundary, panelAssistantReporter, panelAssistantCommands,
+            panelAssistantVoice, voiceStream, { runtime }, { server },
         )
         haAmbientLux = HaAmbientLuxSubscriber(
             scope = scope,
-            auth = haSessionAuthority,
-            transport = haApi,
-            streamOwner = haExactEntityStream,
+            auth = haLinks.haSessionAuthority,
+            transport = haLinks.haApi,
+            streamOwner = haLinks.haExactEntityStream,
             onSample = { sample -> autoBright.submitHaLux(sample.lux) },
             onStatus = { status ->
                 autoBright.setHaSourceAvailable(status.phase == HaAmbientSourcePhase.LIVE)
@@ -1447,7 +1273,7 @@ class PaneldService : Service() {
                 HaPresenceSourceManager(
                     scope = scope,
                     config = config,
-                    streamOwner = haExactEntityStream,
+                    streamOwner = haLinks.haExactEntityStream,
                     offerAggregate = offerAggregate,
                 )
             },
@@ -1514,8 +1340,8 @@ class PaneldService : Service() {
             scope = scope,
             httpPort = { config.httpPort },
             panelAssistantConnected = {
-                ::panelAssistantTransport.isInitialized &&
-                    panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
+                ::haLinks.isInitialized &&
+                    haLinks.panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
             },
             offerHandoff = { offerSuccessorHandoff() },
             // LAN delivery has installed the successor; never fall back to a release download.
@@ -1567,8 +1393,8 @@ class PaneldService : Service() {
             logApp = logCaptureApp, logSystem = logCaptureSystem, logWebView = logCaptureWebView,
             webViewConsoleEnabled = { webViewConsoleEnabled(config) },
             effectiveBrightness = { brightness.getBrightness() },
-            onRepairCompanionUrl = { repairCompanionUrl() },
-            onInstallComponent = { name, action, version -> installComponent(name, action, version) },
+            onRepairCompanionUrl = { componentOperations.repairCompanionUrl() },
+            onInstallComponent = { name, action, version -> componentOperations.installComponent(name, action, version) },
             powerSafety = { powerSafety.assess(config.keepAwake, config.preventIdleDim) },
             freshPowerSafetyRepairCapability = powerSafety::repairCapabilityFresh,
             onRepairPowerSafety = ::repairPowerSafety,
@@ -1576,7 +1402,7 @@ class PaneldService : Service() {
             radioStatus = { if (profile.zigbeeGatewayDir != null) zigbeeHealth.snapshot() else null },
             camera = camera,
             permissionStatus = { PanelPermissionRepair.observe(this, microphonePresence().offered, cameraReason()) },
-            panelAssistantTransport = panelAssistantTransport,
+            panelAssistantTransport = haLinks.panelAssistantTransport,
             onZigbeeJoinRetry = { runtime.current().commands.requestZigbeeJoin() },
             // LAN ha-paneld peers over mDNS for the header panel switcher. Captures the `mdns` FIELD (not a
             // snapshot) so it follows reconfigure()'s reassignment; browsePeers null-guards the swap window.
@@ -1630,11 +1456,11 @@ class PaneldService : Service() {
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,
             storageHealth = StorageHealthRuntime::snapshot,
-            refreshStorageHealth = ::refreshStorageHealthForStatus,
+            refreshStorageHealth = storageHealth::refreshStorageHealthForStatus,
             manageTable = manageTable,
             door = { runCatching { runtime.current().commands }.getOrNull() },
         )
-        storageHealthSubscription = StorageHealthRuntime.subscribe(::onStorageHealthSnapshot)
+        storageHealth.subscribe(::onStorageHealthSnapshot)
         sensors.setLearnedProximityListener {
             server.invalidateCapabilitySnapshot()
             runtime.observe()?.value?.core?.notifyLearnedProximityChanged()
@@ -1675,7 +1501,7 @@ class PaneldService : Service() {
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
         autoSleepActivity = { autoSleep.activitySnapshot() },
-        softwareUpdateSources = ::softwareUpdateSources,
+        softwareUpdateSources = componentOperations::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
         wifiDiagnostics = wifiDiagnostics::snapshot,
@@ -2074,7 +1900,7 @@ class PaneldService : Service() {
             if (executionDeadline.remainingMs() > 0L) requestNetworkRecovery()
         } finally {
             if (obligationsCompleted && ownerRefresh.panelAssistantTransport) {
-                runCatching { refreshPanelAssistantTransport() }
+                runCatching { haLinks.refreshPanelAssistantTransport() }
             }
             if (!obligationsCompleted) synchronized(reconfigureKeysLock) {
                 pendingReconfigureKeys += changedKeys
@@ -2155,38 +1981,13 @@ class PaneldService : Service() {
         if (ownerRefresh.keepAwake) runCatching { power.apply(config.keepAwake) }
         if (ownerRefresh.autoSleep) runCatching { refreshAutoSleepPresence() }
         if (ownerRefresh.rendererTarget) {
-            haExactEntityStream.replaceHaLink(currentHaLinkIdentity(), config.haRouteEpoch())
+            haLinks.haExactEntityStream.replaceHaLink(currentHaLinkIdentity(), config.haRouteEpoch())
             io.panelassistant.android.http.PerfReader.updateRendererTarget(rendererTargetSnapshot())
         }
         if (ownerRefresh.camera && ::camera.isInitialized) runCatching { camera.onEnabledChanged() }
         // A camera switch moved on the Configure page, by a bundle import or by provisioning must reach
         // Home Assistant too; otherwise its switch keeps a position the panel has already left.
         if (ownerRefresh.camera) runCatching { core.publishCameraState() }
-    }
-
-    private fun currentPanelAssistantTransportDemand(): PanelAssistantTransportDemand? {
-        val auth = config.haAuthSnapshot()
-        return panelAssistantTransportDemand(
-            credential = auth.stableOwner(),
-            accessTokenPresent = auth.accessToken.isNotBlank(),
-            identity = PanelAssistantHelloIdentity(
-                did = panelAssistantDiscoveryId(config.deviceUid),
-                appVersion = BuildConfig.VERSION_NAME,
-                appVersionCode = BuildConfig.VERSION_CODE,
-            ),
-        )?.copy(routeEpoch = config.haRouteEpoch())
-    }
-
-    /** Start, keep or stop native transport only on the successfully started, admitted service owner. */
-    private fun refreshPanelAssistantTransport() {
-        if (!::panelAssistantTransport.isInitialized) return
-        val demand = currentPanelAssistantTransportDemand()
-        runtime.runIfRunning {
-            if (!teardownBoundary.isStopping) {
-                panelAssistantTransport.replaceDemand(demand)
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, demand != null)) BuiltinDashboard.onHaLifecycleChanged()
-            }
-        }
     }
 
     /** Controller reads shared by the dashboard facts, live values and capability projection. */
@@ -2463,59 +2264,6 @@ class PaneldService : Service() {
         }
     }
 
-    /** Run one destructive operation under the same process-wide ticket used by HTTP restore/APK routes. */
-    private suspend fun completeOperation(
-        progress: InstallProgress.Ticket,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-    ): String {
-        var result = "cancelled"
-        var resultPresentation: InstallPresentation? = InstallPresentation("operation-cancelled")
-        try {
-            val completed = try {
-                operation()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "$logLabel failed", e)
-                InstallOperationResult("error: ${e.message}")
-            }
-            result = completed.message
-            resultPresentation = completed.presentation
-            Log.i(TAG, "$logLabel: $result")
-            after(result)
-            // Keep the destructive-operation lane until post-install activation is complete. WebView
-            // activation deliberately waits before requesting a process boundary; releasing the lane
-            // first lets the blocked screen start a second install that the pending restart kills.
-            InstallProgress.finish(progress, result, presentation = resultPresentation)
-            return result
-        } finally {
-            // Covers cancellation, fatal errors, and direct callers; stale tickets cannot clear a successor.
-            InstallProgress.finish(progress, result, presentation = resultPresentation)
-        }
-    }
-
-    /** Start an asynchronous destructive operation only when the shared lane is free. */
-    private fun launchOperation(
-        component: String,
-        owner: String,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-        onStarted: (InstallProgress.Ticket) -> Unit = {},
-    ): Boolean {
-        val progress = InstallProgress.start(
-            component,
-            InstallPresentation("operation-working", mapOf("owner" to owner)),
-        ) ?: return false
-        onStarted(progress)
-        val job = scope.launch { completeOperation(progress, logLabel, operation, after) }
-        // A cancelled job can complete before its body starts, so the body's finally is not sufficient.
-        InstallProgress.finishOnFailure(progress, job)
-        return true
-    }
-
     /**
      * Bridge build only. The bridge no longer installs, starts or hands the panel to the successor:
      * Panel Assistant moves a panel through its Home Assistant Repair, and a successor that has run
@@ -2529,142 +2277,6 @@ class PaneldService : Service() {
     private fun requestInstalledSuccessorHandoff(reason: String) {
         if (!AppIdentity.IS_BRIDGE) return
         Log.i(TAG, "installed successor handover not started: $reason; the panel is moved by Panel Assistant")
-    }
-
-    private suspend fun runOperation(
-        component: String,
-        owner: String,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-    ): String? {
-        val progress = InstallProgress.start(
-            component,
-            InstallPresentation("operation-working", mapOf("owner" to owner)),
-        ) ?: run {
-            Log.i(TAG, "$logLabel skipped: another destructive operation is running")
-            return null
-        }
-        return completeOperation(progress, logLabel, operation, after)
-    }
-
-    /** Companion internal_url repair (Install-tab button): copy each server's external_url into a blank
-     *  internal_url so HA 2026.7 stops rejecting the dashboard with "Missing 'Host' header". Off-thread
-     *  (su force-stops + relaunches the Companion). */
-    private fun repairCompanionUrl(): Boolean {
-        return launchOperation(
-            component = "Companion URL repair",
-            owner = "companion-url-repair",
-            logLabel = "Companion internal_url repair",
-            operation = {
-                val result = io.panelassistant.android.control.CompanionDb.repairInternalUrlResult(
-                    this@PaneldService,
-                    io.panelassistant.android.control.Su,
-                )
-                InstallOperationResult(result.message, result.presentation)
-            },
-        )
-    }
-
-    private fun attachSoftwareUpdateObservers() {
-        // Targets persisted by an earlier process: a restart keeps reporting the last known release.
-        UpdateChecker.restoreTargets(config.softwareUpdateTargets.second)
-        InstallProgress.observer = softwareProgressObserver
-        UpdateChecker.onChecked = softwareCatalogObserver
-    }
-
-    private fun detachSoftwareUpdateObservers() {
-        if (InstallProgress.observer === softwareProgressObserver) InstallProgress.observer = null
-        if (UpdateChecker.onChecked === softwareCatalogObserver) UpdateChecker.onChecked = null
-    }
-
-    /** One coherent read of everything the update channels report. */
-    private fun softwareUpdateSources(): SoftwareUpdateSources {
-        val paneldChannel = "stable"
-        val companionChannel = "stable"
-        val cap = profile.companionMaxVersion
-        val progress = InstallProgress.presentationSnapshot()
-        // Only "not installed" is an answer; any other failure leaves presence unknown rather than absent.
-        var lookupFailed = false
-        fun installed(pkg: String): String? = try {
-            packageManager.getPackageInfo(pkg, 0).versionName ?: ""
-        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-            null
-        } catch (_: Exception) {
-            lookupFailed = true
-            null
-        }
-        val companionMinimal = installed(CompanionInstaller.MINIMAL_PKG)
-        val companionFull = installed(CompanionInstaller.FULL_PKG)
-        return SoftwareUpdateSources(
-            paneldVersion = BuildConfig.VERSION_NAME,
-            paneldChannel = paneldChannel,
-            paneldTarget = null,
-            companionMinimalVersion = companionMinimal,
-            companionFullVersion = companionFull,
-            companionChannel = companionChannel,
-            companionCap = cap,
-            companionTarget = UpdateChecker.companionTarget(companionChannel, cap)?.let {
-                SoftwareTarget(it.version, it.tag, it.releaseUrl, it.capped, it.newestVersion)
-            },
-            runningOperation = progress.component.takeIf { progress.running },
-            companionPresenceUnknown = lookupFailed,
-        )
-    }
-
-    /** Install/update a managed component from the Install tab (POST /api/v1/install/component). Runs
-     *  off-thread; progress is reported via InstallProgress so the web UI can poll. action="reinstall"
-     *  forces even when the installed build is already current. Single-slot (InstallProgress.start gates). */
-    private fun installComponent(
-        name: String,
-        action: String,
-        version: String,
-        onStarted: (InstallProgress.Ticket) -> Unit = {},
-    ): Boolean {
-        val label = when (name) {
-            "paneld" -> "Panel Assistant"; "companion" -> "HA Companion"; else -> name
-        }
-        val force = action == "reinstall"
-        val tag = version.takeIf { it.isNotBlank() }
-        return launchOperation(
-            component = label,
-            owner = when (name) {
-                "paneld" -> "paneld"
-                "companion" -> "companion"
-                else -> "apk"
-            },
-            logLabel = "install $name",
-            operation = {
-                when (name) {
-                    // A specific picked version installs that exact tag; otherwise the channel's newest.
-                    "paneld" -> if (tag != null) SelfUpdater.installVersionResult(this@PaneldService, tag)
-                        else SelfUpdater.checkAndUpdateResult(this@PaneldService, "stable", force = force)
-                    "companion" -> if (tag != null) CompanionInstaller.installVersionResult(
-                        this@PaneldService,
-                        tag,
-                        profile.companionMaxVersion,
-                    )
-                        else CompanionInstaller.installOrUpdateResult(
-                            this@PaneldService,
-                            force = force,
-                            channel = "stable",
-                            maxVersion = profile.companionMaxVersion,
-                        )
-                    else -> InstallOperationResult("unknown component")
-                }
-            },
-            after = {
-                // Refresh the available-update list so the banner + Install tab reflect the new state.
-                runCatching {
-                    UpdateChecker.check(
-                        this@PaneldService,
-                        "stable",
-                        profile.companionMaxVersion,
-                    )
-                }
-            },
-            onStarted = onStarted,
-        )
     }
 
     /** The resolved renderer-target snapshot for perf smoothness attribution (the built-in sentinel, a
@@ -2727,12 +2339,7 @@ class PaneldService : Service() {
             // Everything below can start work, write hardware state, attach a process-global owner, or
             // create an overlay. Keep all of it behind the predecessor fence, not merely HTTP start.
             // Publish each holder before binding can announce its first state to a live renderer.
-            HaNetworkPathRuntime.install(haNetworkPath)
-            haExactEntityStream.bindNetworkPath(haNetworkPath)
-            PathProbeRuntime.install(haPathProbe, haSocketClock)
-            haExactEntityStream.bindPathProbe(haPathProbe)
-            HaLifecycleRuntime.install(haLifecycle)
-            BuiltinDashboard.onHaLifecycleChanged()
+            haLinks.installRuntimeHolders()
             scope.launch { AppInstaller.deleteRetiredWebViewRollback(filesDir) }
             io.panelassistant.android.camera.CameraPermissionPrompt.install(
                 object : io.panelassistant.android.camera.CameraPermissionPrompt.Store {
@@ -2744,7 +2351,7 @@ class PaneldService : Service() {
             config.registerChangeListener(voicePrefsListener)
             voiceForegroundRetry = { voice.retryStart() }
             scope.launch { if (!teardownBoundary.isStopping) voice.start() }
-            startStorageHealthChecks()
+            storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
             registerBrightnessPreferenceObserver()
             refreshAdaptiveBrightnessInputs(restartSource = false)
@@ -2755,7 +2362,7 @@ class PaneldService : Service() {
             }
             brightness.applyPreventIdleDim(config.preventIdleDim, config)
             EntityLearningRuntime.attach(entityLearning)
-            attachSoftwareUpdateObservers()
+            componentOperations.attachSoftwareUpdateObservers()
             // Kiosk is config-owned across boots so every restart retains its deliberate unlocked
             // window. Never let a stale/in-flight HTTP journal bypass that delay or override a newer OFF.
             if (!liveSettingAuthority.discard("kiosk_lock")) {
@@ -2904,13 +2511,13 @@ class PaneldService : Service() {
             // Boot recovery gives a durable interrupted-OFF marker priority over the older persisted
             // ownership bit; only a marker-free ON intent may re-enable TCP. See AdbController.reassert.
             runCatching { adb.reassert() }
-            startScreenOnReconciliation()
+            receivers.startScreenOnReconciliation()
             // After the screen-on receiver exists: a check deferred by a dark boot is retried by it.
             vendorServiceStarter = io.panelassistant.android.control.VendorServiceStarter
                 .forService(this, profile.vendorService, returnSurface = {
                     system.returnAfterVendorStart(config.launcherPackage, config.dashboardPackage, config.builtInRendererReady())
                 }, stopping = { teardownBoundary.isStopping }, onUp = { if (vendorScreen.holdBrightness()) screen.restoreLevelOverVendor() }).also { it.request() }
-            startWebViewRebindWatch()
+            receivers.startWebViewRebindWatch()
             sensors.start(
                 onLux = { lux ->
                     submitIlluminanceIfExposed(
@@ -3031,13 +2638,10 @@ class PaneldService : Service() {
             }
             // Issue #93: read-only button-LED GPIO proof in its own coroutine, not queued behind prewarm().
             scope.launch(Dispatchers.IO) { relay.warmUp() }
-            initialNativeDemand = currentPanelAssistantTransportDemand()
+            initialNativeDemand = haLinks.currentPanelAssistantTransportDemand()
         }, complete = {
             // Demand construction reads configuration before this short, lock-admitted publication.
-            if (!teardownBoundary.isStopping) {
-                panelAssistantTransport.replaceDemand(initialNativeDemand)
-                if (HaLifecycleRuntime.setNativeWatching(haLifecycle, initialNativeDemand != null)) BuiltinDashboard.onHaLifecycleChanged()
-            }
+            haLinks.publishDemand(initialNativeDemand)
         })
         Thread({
             val disposition = awaitServiceStartup(startup, startupActivationGeneration)
@@ -3123,7 +2727,7 @@ class PaneldService : Service() {
                 // authoritative onCapabilitiesChanged, and crediting an episode from it invents or
                 // discards outages on stale information.
                 wifiOutageTracker.onDefaultAvailable(network.hashCode().toLong())
-                if (::panelAssistantTransport.isInitialized) panelAssistantTransport.nudge()
+                if (::haLinks.isInitialized) haLinks.panelAssistantTransport.nudge()
                 observeTransport(network, capabilities)
                 mdnsNetworkChanged(cm.getLinkProperties(network)?.linkAddresses.orEmpty())
             }
@@ -3153,184 +2757,6 @@ class PaneldService : Service() {
             }
         }
         runCatching { cm.registerDefaultNetworkCallback(cb) }.onSuccess { netCallback = cb }
-    }
-
-    private fun startStorageHealthChecks() {
-        val recoveryLifecycle = StorageHealthRecoveryLifecycle(
-            scope = scope,
-            delaysMs = STORAGE_HEALTH_RECOVERY_DELAYS_MS,
-            subscribeFailures = StorageHealthRuntime::subscribeDatabaseFailures,
-            verify = {
-                storageHealthRecoveryAttemptComplete(runQueuedStorageHealthObservation())
-            },
-            onError = { error ->
-                Log.w(TAG, "storage health recovery failed (${error.javaClass.simpleName})")
-            },
-        )
-        val admitted = synchronized(storageHealthLifecycleLock) {
-            if (teardownBoundary.isStopping) {
-                false
-            } else {
-                storageHealthRecoveryLifecycle = recoveryLifecycle
-                true
-            }
-        }
-        if (!admitted) {
-            recoveryLifecycle.close()
-            return
-        }
-        scope.periodic(
-            intervalMs = STORAGE_HEALTH_CHECK_MS,
-            initialDelayMs = 0L,
-            tag = TAG,
-            name = "storage-health",
-            // The shared health authority already retains a controlled failure category. Do not copy
-            // SQLite messages or app-private paths into log shipping/support output.
-            onError = { error -> Log.w(TAG, "storage health check failed (${error.javaClass.simpleName})") },
-        ) {
-            repeat(STORAGE_HEALTH_CHECK_ATTEMPTS) { index ->
-                if (teardownBoundary.isStopping) return@periodic
-                val attempt = index + 1
-                when (runQueuedStorageHealthObservation()) {
-                    StorageHealthObservationAttempt.Complete -> {
-                        runStorageMaintenance()
-                        return@periodic
-                    }
-                    StorageHealthObservationAttempt.Stopped -> return@periodic
-                    StorageHealthObservationAttempt.Retry -> Unit
-                }
-                if (attempt == STORAGE_HEALTH_CHECK_ATTEMPTS) {
-                    Log.w(TAG, "storage health check remained incomplete after $attempt attempts")
-                    return@periodic
-                }
-                Log.w(TAG, "storage health check retrying ($attempt/$STORAGE_HEALTH_CHECK_ATTEMPTS)")
-                kotlinx.coroutines.delay(STORAGE_HEALTH_RETRY_MS)
-            }
-        }
-    }
-
-    /**
-     * Daily storage maintenance after a completed observation, serialized with every observation so
-     * no SQLite work overlaps a health read. A healthy panel converges its existing retention limits;
-     * elevated pressure runs the fail-safe remediation ladder, whose measured result is published on
-     * every storage-health surface. Prompt recovery and HTTP refreshes never start remediation.
-     */
-    private suspend fun runStorageMaintenance() {
-        storageHealthObservationQueue.run { signal ->
-            if (teardownBoundary.isStopping) return@run Unit
-            val snapshot = StorageHealthRuntime.snapshot()
-            when (storageMaintenancePlan(snapshot)) {
-                StorageMaintenancePlan.NONE -> Unit
-                StorageMaintenancePlan.RETENTION -> runCatching { entityLearning.enforceHistoryRetention() }
-                    .onFailure { Log.w(TAG, "history retention failed (${it.javaClass.simpleName})") }
-                StorageMaintenancePlan.REMEDIATE ->
-                    StorageRemediationLadder(storageRemediationOperations(signal)).run(snapshot)?.let { summary ->
-                        StorageHealthRuntime.recordRemediation(summary)
-                        Log.w(
-                            TAG,
-                            "storage remediation ${summary.verdict.name.lowercase(Locale.ROOT)}: " +
-                                "freed ${summary.bytesFreed} bytes (${summary.filesDeleted} files), " +
-                                "retention=${summary.retention.name.lowercase(Locale.ROOT)} " +
-                                "wal=${summary.walCheckpoint.name.lowercase(Locale.ROOT)} " +
-                                "vacuum=${summary.vacuum.result.name.lowercase(Locale.ROOT)}" +
-                                (summary.vacuum.refusal?.let { "/${it.name.lowercase(Locale.ROOT)}" } ?: ""),
-                        )
-                    }
-            }
-            Unit
-        }
-    }
-
-    private fun storageRemediationOperations(signal: CancellationSignal) = object : StorageRemediationOperations {
-        override fun sweepDisposableFiles(): List<DisposableSweepResult> {
-            // Only files written before this process existed can be orphans, judged against its start
-            // in the oldest clock epoch it has run in. With no captured start nothing is provably
-            // orphaned, so nothing is swept.
-            val processStart = ProcessStartWallClock.orphanBoundary(
-                System.currentTimeMillis(),
-                android.os.SystemClock.elapsedRealtime(),
-            ) ?: return emptyList()
-            val sweeper = DisposableFileSweeper(processStart)
-            val pairUnarmable = { guardDbAppStaging(this@PaneldService).unarmable(File(applicationInfo.sourceDir)) }
-            return appOwnedDisposableFileRules(cacheDir, filesDir, pairUnarmable, ::validGuardDbAppFile).map(sweeper::sweep) +
-                appOwnedDisposableDirectoryRules(cacheDir).map(sweeper::sweep)
-        }
-
-        override fun enforceRetention(): RetentionResult = runCatching {
-            if (entityLearning.enforceHistoryRetention()) RetentionResult.PRUNED else RetentionResult.CONVERGED
-        }.getOrElse { RetentionResult.FAILED }
-
-        override fun checkpointWal(): WalCheckpointOutcome = runCatching { entityLearning.truncateDatabaseWal() }
-            .getOrElse { WalCheckpointOutcome(WalCheckpointResult.FAILED, 0L, 0L) }
-
-        override fun writeVerifiedBackup(): Boolean = entityLearning.writeVerifiedConfigurationBackup()
-
-        override fun vacuum(): VacuumOutcome = runCatching { entityLearning.vacuumDatabase() }
-            .getOrElse { VacuumOutcome(VacuumResult.FAILED) }
-
-        // A companion data backup or restore owns the data directory until its marker clears.
-        override fun lifecycleOwned(): Boolean = !teardownBoundary.isStopping && !signal.isCanceled &&
-            !(::companionDataOperationState.isInitialized && companionDataOperationState.isPending())
-
-        override suspend fun observe(): StorageHealthSnapshot? =
-            when (runStorageHealthObservation(signal)) {
-                StorageHealthObservationAttempt.Complete -> StorageHealthRuntime.snapshot()
-                StorageHealthObservationAttempt.Retry,
-                StorageHealthObservationAttempt.Stopped -> null
-            }
-    }
-
-    /** One bounded observation attempt shared by prompt recovery and the independent daily loop. */
-    private suspend fun runQueuedStorageHealthObservation(): StorageHealthObservationAttempt =
-        storageHealthObservationQueue.run(::runStorageHealthObservation)
-            ?: StorageHealthObservationAttempt.Stopped
-
-    /** Same-request HTTP proof joins the daily/recovery queue; it never creates a second SQLite reader
-     * authority. Only a complete clean observation earns a nonce-bound status proof. */
-    private suspend fun refreshStorageHealthForStatus(): StorageHealthSnapshot? =
-        when (runQueuedStorageHealthObservation()) {
-            StorageHealthObservationAttempt.Complete -> StorageHealthRuntime.snapshot().takeIf {
-                it.schemaVersion > 0 && it.quickCheck == StorageQuickCheck.OK && it.checkedAtMillis > 0L
-            }
-            StorageHealthObservationAttempt.Retry,
-            StorageHealthObservationAttempt.Stopped -> null
-        }
-
-    private suspend fun runStorageHealthObservation(
-        cancellationSignal: CancellationSignal,
-    ): StorageHealthObservationAttempt {
-        if (teardownBoundary.isStopping) return StorageHealthObservationAttempt.Stopped
-        return try {
-            // Capture immediately before the read. A database failure recorded while this observation
-            // is in flight must remain newer truth when the result returns.
-            val observationToken = StorageHealthRuntime.beginObservation()
-            val observation = entityLearning.storageHealthObservation(cancellationSignal)
-            if (teardownBoundary.isStopping) {
-                StorageHealthObservationAttempt.Stopped
-            } else {
-                val quality = storageHealthObservationQuality(observation)
-                // Refresh never clears the failure latch. A completed clean observation only arms the
-                // next ordinary durable write; a completed integrity failure remains authoritative.
-                StorageHealthRuntime.refresh(observation, observationToken)
-                if (storageHealthObservationNeedsRetry(observation)) {
-                    Log.w(TAG, "storage health observation ${quality.name.lowercase(Locale.ROOT)}")
-                    StorageHealthObservationAttempt.Retry
-                } else {
-                    StorageHealthObservationAttempt.Complete
-                }
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: OperationCanceledException) {
-            if (teardownBoundary.isStopping) StorageHealthObservationAttempt.Stopped
-            else StorageHealthObservationAttempt.Retry
-        } catch (failure: Exception) {
-            if (!teardownBoundary.isStopping) {
-                Log.w(TAG, "storage health observation failed (${failure.javaClass.simpleName})")
-            }
-            if (teardownBoundary.isStopping) StorageHealthObservationAttempt.Stopped
-            else StorageHealthObservationAttempt.Retry
-        }
     }
 
     private fun onStorageHealthSnapshot(snapshot: StorageHealthSnapshot) {
@@ -3480,20 +2906,14 @@ class PaneldService : Service() {
         // Bind any armed request to this exact lifecycle generation. A finalizer that was already in
         // flight before PREPARE cannot later satisfy or cancel the new request.
         upgradeShutdownClaim = UpgradeShutdownCoordinator.claimShutdown()
-        storageHealthSubscription?.close()
-        storageHealthSubscription = null
-        val recoveryLifecycle = synchronized(storageHealthLifecycleLock) {
-            storageHealthRecoveryLifecycle.also { storageHealthRecoveryLifecycle = null }
-        }
-        recoveryLifecycle?.close()
-        storageHealthObservationQueue.close()
+        storageHealth.close()
         lightPublisher.close()
         adaptiveSiteGeneration.incrementAndGet()
         brightnessObserver?.let { observer ->
             runCatching { contentResolver.unregisterContentObserver(observer) }
             brightnessObserver = null
         }
-        releaseServiceReceivers()
+        receivers.releaseServiceReceivers()
         closeServiceAdmissions()
         // A deliberately dark panel is the only external state that becomes unrecoverable if Android
         // kills this process after onDestroy returns (the touch-wake overlay dies with it). Give its
@@ -3555,7 +2975,7 @@ class PaneldService : Service() {
             // terminal before that runtime is retired. Its receiver is already unregistered, so no new
             // work can be posted; join the worker so a reconciliation already in flight cannot publish
             // through a retired owner. Ordered before the retirement fence below for exactly that reason.
-            closeOwner("update entity observers") { detachSoftwareUpdateObservers() }
+            closeOwner("update entity observers") { componentOperations.detachSoftwareUpdateObservers() }
             closeOwnerResult("screen reconcile worker") {
                 screenWakeWorker.closeAndJoin(
                     minOf(asyncTeardownDeadline.remainingMs(), WAKE_WORKER_JOIN_MS),
@@ -3605,25 +3025,7 @@ class PaneldService : Service() {
                 config.unregisterChangeListener(voicePrefsListener)
                 closeOwnerResult("voice assistant") { voice.shutdown(asyncTeardownDeadline.remainingMs()) }
             }
-            if (::panelAssistantTransport.isInitialized) {
-                closeOwner("Panel Assistant transport") { panelAssistantTransport.close() }
-            }
-            if (::haExactEntityStream.isInitialized) {
-                closeOwner("HA exact entity stream") { haExactEntityStream.close() }
-                // Identity-gated: a successor service may already have installed its own coordinator by
-                // the time this (possibly deadline-late) teardown runs, and erasing it would blank the
-                // successor's live tracking. Only when THIS service's installation was actually cleared
-                // is the renderer poked, so a card rendering the dead state is re-read and hidden.
-                if (HaLifecycleRuntime.uninstall(haLifecycle)) BuiltinDashboard.onHaLifecycleChanged()
-                // Same identity gate for the network-path owner: a successor's installation survives a
-                // late predecessor teardown, and only a real clearing re-pokes the chip to hide.
-                if (::haNetworkPath.isInitialized && HaNetworkPathRuntime.uninstall(haNetworkPath)) {
-                    BuiltinDashboard.onHaLifecycleChanged()
-                }
-                // The echo probe is cleared under the same identity gate, and silently: it drives no
-                // prominent surface, so nothing needs re-poking when it goes.
-                if (::haPathProbe.isInitialized) PathProbeRuntime.uninstall(haPathProbe)
-            }
+            if (::haLinks.isInitialized) haLinks.close(::closeOwner)
             closeOwner("sensors") { sensorPersistenceClosed.set(sensors.stop()) }
             BuiltinDashboard.setForegroundGainedListener(null)
             if (::autoBright.isInitialized) {
@@ -3866,188 +3268,6 @@ class PaneldService : Service() {
         }.start()
     }
 
-    /**
-     * Adopt a wake that ha-paneld did not perform.
-     *
-     * `ACTION_SCREEN_ON` is the platform announcing its own display came back. That matters because the keyevent
-     * screen-off route puts Android itself to sleep, and Android can be woken from its power key or a
-     * wake-capable touchscreen with this process uninvolved — the only route where a wake reaches the
-     * panel without passing through ScreenController. Without it a hand-woken screen stays marked off
-     * with its renderer frozen: lit, stale and un-tappable.
-     *
-     * The receiver only hands off. Reconciliation reads the backlight through root or the daemon on
-     * the bl_power routes, which must not happen on the main thread.
-     */
-    private fun startScreenOnReconciliation() {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action != Intent.ACTION_SCREEN_ON || teardownBoundary.isStopping) return
-                vendorServiceStarter?.request()
-                screenWakeWorker.execute {
-                    if (teardownBoundary.isStopping) return@execute
-                    if (!screen.reconcilePhysicalWake()) return@execute
-                    Log.i(TAG, "adopted a physical wake that did not pass through ha-paneld")
-                    // Best-effort only, and deliberately after the reconciliation: telling Home
-                    // Assistant is the part that is allowed to fail here, not the recovery.
-                    runCatching { core.publishScreenOn() }
-                        .onFailure { Log.d(TAG, "screen-on publish after a physical wake failed", it) }
-                }
-            }
-        }
-        val filter = IntentFilter(Intent.ACTION_SCREEN_ON)
-        // ACTION_SCREEN_ON is a protected system broadcast, so unlike the navbar's @hide volume action
-        // this one is still delivered to a NOT_EXPORTED receiver — the tighter of the two flags.
-        synchronized(receiverLock) {
-            if (screenOnReceiver != null || teardownBoundary.isStopping) return
-            runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    @Suppress("UnspecifiedRegisterReceiverFlag")
-                    registerReceiver(receiver, filter)
-                }
-            }.onSuccess { screenOnReceiver = receiver }
-                .onFailure { Log.w(TAG, "screen-on reconciliation could not be registered", it) }
-        }
-    }
-
-    /**
-     * Unregister every receiver this service registered, on the calling thread. Android sweeps a destroyed
-     * service's receivers as soon as onDestroy returns and reports each one still registered as leaked,
-     * so this cannot wait for the runtime lane, whose queued teardown may overrun the service deadline.
-     * The start functions take the same lock and register nothing once teardown has begun, so a startup
-     * still in flight either registers before this runs or not at all.
-     */
-    private fun releaseServiceReceivers() = synchronized(receiverLock) {
-        for (receiver in listOfNotNull(screenOnReceiver, webViewRebindReceiver)) {
-            runCatching { unregisterReceiver(receiver) }
-        }
-        screenOnReceiver = null
-        webViewRebindReceiver = null
-        microphoneMute.close()
-    }
-
-    /**
-     * The blocking admission verdict the LIVE renderer generation is parked on, when a WebView provider
-     * change could repair it; null in every other case, including a healthy dashboard and a panel blocked
-     * on something a new engine cannot fix.
-     *
-     * [RendererAdmissionRuntime] is the authority rather than anything held here, and that is the whole
-     * answer to stale generations: it is never persisted, it refuses a write from a renderer that no
-     * longer owns the activity, and it re-applies that ownership test on every read — so a destroyed or
-     * replaced activity's verdict stops being visible without a teardown hook to forget.
-     */
-    private fun blockedProviderRepairableAdmission(): AdmissionOutcome? {
-        val record = RendererAdmissionRuntime.current()?.record ?: return null
-        if (record.state != RendererAdmissionState.BLOCKED) return null
-        return record.outcome?.takeIf { providerRepairableAdmission(it) }
-    }
-
-    /** The package that provides this panel's WebView right now, or null when none resolves. */
-    private fun resolveWebViewProviderIdentity(): WebViewProviderIdentity? = runCatching {
-        WebViewCompat.getCurrentWebViewPackage(this)?.let {
-            WebViewProviderIdentity(
-                packageName = it.packageName,
-                versionCode = PackageInfoCompat.getLongVersionCode(it),
-                versionName = it.versionName,
-            )
-        }
-    }.getOrNull()
-
-    /**
-     * Notice a WebView provider being installed, updated or repaired while the built-in renderer is
-     * parked on "Secure dashboard bridge unavailable", and take the one action that can clear it.
-     *
-     * That screen is deliberately terminal on a timer ([admissionRetryClass] gives it
-     * [AdmissionRetryClass.MANUAL_ONLY]) because a missing WebView capability is not time-dependent, and
-     * this does not change that: no cadence, no ladder, no polling, and every other blocked verdict keeps
-     * the network and Home Assistant-version recovery it already had. The trigger is the install event
-     * itself, and the panel asks nothing in between.
-     *
-     * Registration is paired with the service's own lifetime rather than with the screen, so the receiver
-     * cannot outlive an activity or be registered twice by a repaint; the decision is cheap, and it asks
-     * the panel-local questions before it ever queries the provider.
-     */
-    /**
-     * Let a blocked status screen offer the repair this service already knows how to perform.
-     *
-     * The screen is handed three narrow questions rather than a reference to this service: what the panel
-     * can do, how to start it, and what the installer is saying. Nothing here is a second implementation
-     * of the repair — [installComponent] is the same entry point the Install page posts to, so a panel
-     * cannot end up with two ways to install an engine that disagree about what "busy" means.
-     *
-     * The capability is refreshed off the main thread and then cached. It is refreshed again on each
-     * update tick because both of its inputs can change while the panel sits on the blocked screen:
-     * a root helper can finish installing, and a profile can arrive with a build pinned for this model.
-     */
-    private fun startWebViewRebindWatch() {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (teardownBoundary.isStopping) return
-                // Resolved at most once per broadcast, and only if the cheap questions did not already
-                // answer: an app updating in the background on a healthy panel costs nothing here.
-                val provider = lazy { resolveWebViewProviderIdentity() }
-                val blocked = blockedProviderRepairableAdmission()
-                val decision = webViewRebindDecision(
-                    action = intent?.action,
-                    changedPackage = intent?.data?.schemeSpecificPart,
-                    replacingExistingInstall = intent?.getBooleanExtra(Intent.EXTRA_REPLACING, false) == true,
-                    blockedOutcome = blocked,
-                    resolveProvider = provider::value,
-                )
-                when (decision) {
-                    WebViewRebindDecision.REBIND ->
-                        if (webViewRebindRestart.request()) {
-                            Log.i(
-                                TAG,
-                                "WebView provider installed while the dashboard bridge was unavailable " +
-                                    "(${provider.value?.describe() ?: "unresolved"}) — restarting to bind it",
-                            )
-                        } else {
-                            Log.i(TAG, "a WebView provider rebind is already pending in this process")
-                        }
-                    // A panel that is not parked on a bridge screen has nothing to say about an install,
-                    // and a broadcast this rule does not observe is not an event. Everything else is a
-                    // decision taken WHILE the dashboard was unavailable, which is worth naming: it is
-                    // the difference between "the engine was replaced and nothing happened" and "what
-                    // was installed was not the engine".
-                    WebViewRebindDecision.NOT_BLOCKED,
-                    WebViewRebindDecision.UNRELATED_ACTION,
-                    -> Unit
-
-                    else -> if (blocked != null) {
-                        Log.i(
-                            TAG,
-                            "package install ignored while the dashboard bridge was unavailable: " +
-                                decision.name.lowercase(),
-                        )
-                    }
-                }
-            }
-        }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REPLACED)
-            // Package broadcasts carry the subject as a `package:` URI; without the scheme the filter
-            // matches nothing at all rather than matching everything.
-            addDataScheme("package")
-        }
-        // Both are protected system broadcasts, so — as with the screen-on receiver — the tighter
-        // NOT_EXPORTED flag still receives them.
-        synchronized(receiverLock) {
-            if (webViewRebindReceiver != null || teardownBoundary.isStopping) return
-            runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    @Suppress("UnspecifiedRegisterReceiverFlag")
-                    registerReceiver(receiver, filter)
-                }
-            }.onSuccess { webViewRebindReceiver = receiver }
-                .onFailure { Log.w(TAG, "WebView rebind watch could not be registered", it) }
-        }
-    }
-
     private fun runFinalizerStep(deadline: MonotonicDeadline, block: () -> Unit): Boolean {
         val waitMs = deadline.remainingMs()
         if (waitMs <= 0L) return false
@@ -4128,18 +3348,7 @@ class PaneldService : Service() {
     }
 
     private fun announcePanelAssistantRestart(scope: String, reason: String, expectedBackMs: Long) {
-        if (!::panelAssistantTransport.isInitialized) return
-        // One bounded acknowledgement chance before an already accepted restart or reboot tears down
-        // the socket. The notice never decides whether the restart itself may proceed.
-        try {
-            kotlinx.coroutines.runBlocking {
-                kotlinx.coroutines.withTimeoutOrNull(300L) {
-                    panelAssistantTransport.announceRestart(scope, reason, expectedBackMs).await()
-                }
-            }
-        } catch (error: Exception) {
-            Log.w(TAG, "restart notice failed; continuing the accepted restart", error)
-        }
+        if (::haLinks.isInitialized) haLinks.announcePanelAssistantRestart(scope, reason, expectedBackMs)
     }
 
     /**
@@ -4335,14 +3544,8 @@ class PaneldService : Service() {
             voiceForegroundRetry?.invoke()
         }
 
-        private const val TAG = "ha-paneld/svc"
+        internal const val TAG = "ha-paneld/svc"
         private const val CAMERA_STOP_MS = 3_000L
-        // Daily rather than wall-clock scheduled: the service owns one immediate check, then delays
-        // from completion. A bounded short retry absorbs transient StatFs/SQLite observation failures.
-        private const val STORAGE_HEALTH_CHECK_MS = 24L * 3_600L * 1_000L
-        private const val STORAGE_HEALTH_CHECK_ATTEMPTS = 3
-        private const val STORAGE_HEALTH_RETRY_MS = 5_000L
-        private val STORAGE_HEALTH_RECOVERY_DELAYS_MS = longArrayOf(5_000L, 15_000L, 30_000L)
         // Local observation cadence; the one-minute state audit of state-convergence.md.
         private const val STATE_OBSERVATION_MS = 60_000L
         private const val RECOVERY_RESTART_GRACE_MS = 1_000L
