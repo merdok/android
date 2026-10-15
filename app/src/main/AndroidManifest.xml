@@ -204,8 +204,8 @@
         </receiver>
 
         <!-- Device admin with the force-lock policy only: the screen-off fallback uses lockNow() when the
-             screen-timeout route is unavailable. Activated at install by Panel Assistant with
-             `dpm set-active-admin io.panelassistant.android/.platform.PanelDeviceAdminReceiver`. -->
+             screen-timeout route is unavailable. Only an owner activates it, from Android's device admin
+             settings or `dpm set-active-admin <package>/io.panelassistant.android.platform.PanelDeviceAdminReceiver`. -->
         <receiver
             android:name="io.panelassistant.android.platform.PanelDeviceAdminReceiver"
             android:exported="true"
@@ -217,6 +217,14 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <!-- Gives up the device admin above when Panel Assistant is about to uninstall the app, which
+             Android refuses while it is active. Sent from the panel's shell (`am broadcast -n`), which
+             holds DUMP; an ordinary app cannot. -->
+        <receiver
+            android:name="io.panelassistant.android.platform.ReleaseDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
 
         <!-- Receives the one-time release token from the other identity of this app during the
              application-id migration. Only a sender holding the signature permission is delivered. -->

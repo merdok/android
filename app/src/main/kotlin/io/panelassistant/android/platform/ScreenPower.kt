@@ -3,10 +3,13 @@ package io.panelassistant.android.platform
 import android.app.KeyguardManager
 import android.app.admin.DeviceAdminReceiver
 import android.app.admin.DevicePolicyManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 
 /**
  * The platform power and lock facts [io.panelassistant.android.control.ScreenController] needs — a
@@ -57,13 +60,34 @@ interface ScreenPower {
 
     /** `DevicePolicyManager.lockNow()`; false when it could not be issued. */
     fun lockNow(): Boolean = false
+
+    /** Give up [PanelDeviceAdminReceiver] if it is active; false when that could not be asked. */
+    fun releaseDeviceAdmin(): Boolean = false
 }
 
 /**
  * Device admin with the force-lock policy only, so the screen-off can use `lockNow()` without root.
- * Activated by Panel Assistant at install (`dpm set-active-admin`); it does nothing on its own.
+ * Only an owner activates it, from Android's device admin settings or `dpm set-active-admin`; it does
+ * nothing on its own.
  */
 class PanelDeviceAdminReceiver : DeviceAdminReceiver()
+
+/**
+ * Gives up [PanelDeviceAdminReceiver] when Panel Assistant is about to uninstall the app: Android
+ * refuses to uninstall an active device admin, and the shell cannot remove one, so only the app can.
+ * Guarded by DUMP, which the shell holds and an ordinary app cannot.
+ */
+class ReleaseDeviceAdminReceiver(
+    private val power: (Context) -> ScreenPower = ::AndroidScreenPower,
+) : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        if (power(context).releaseDeviceAdmin()) Log.i(TAG, "device admin released for uninstall")
+    }
+
+    private companion object {
+        const val TAG = "ReleaseDeviceAdmin"
+    }
+}
 
 /** Real [ScreenPower] over the Android PowerManager. */
 class AndroidScreenPower(context: Context) : ScreenPower {
@@ -129,6 +153,15 @@ class AndroidScreenPower(context: Context) : ScreenPower {
         val dpm = policy ?: return false
         if (!dpm.isAdminActive(admin)) return false
         dpm.lockNow()
+        true
+    }.getOrDefault(false)
+
+    // Removal finishes once Android has told the receiver it is disabled, so it may still be listed
+    // for a moment after this returns; Panel Assistant retries the uninstall until it is gone.
+    override fun releaseDeviceAdmin(): Boolean = runCatching {
+        val dpm = policy ?: return false
+        if (!dpm.isAdminActive(admin)) return false
+        dpm.removeActiveAdmin(admin)
         true
     }.getOrDefault(false)
 }

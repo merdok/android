@@ -210,6 +210,11 @@ class FakeScreenPower(
         if (lockSleeps) interactive = false
         return true
     }
+    override fun releaseDeviceAdmin(): Boolean {
+        if (!adminActive) return false
+        adminActive = false
+        return true
+    }
 }
 
 /**
