@@ -29,8 +29,7 @@
   --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);
   --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;
   --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;
-  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;
-  --profile-danger-border:#8b342f;
+  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;--profile-danger-border:#8b342f;
   --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);
   --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;
   --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);
