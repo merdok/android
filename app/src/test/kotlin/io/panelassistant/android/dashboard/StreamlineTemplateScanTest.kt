@@ -275,11 +275,17 @@ class StreamlineTemplateScanTest {
         // On the last template path no later request repeats the guard, so only the include's own check can end the sync.
         val last = "/local/community/streamline-card/"
         serving(files.mapKeys { (path, _) -> path.replace(dir, last) }::get) { port, _ ->
+            // The sync's own guard, on a route that moves before the include's request: one rerun, not degraded.
+            val ha = routedConfig()
             var calls = 0
-            assertThrows(IllegalStateException::class.java) {
-                StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { check(++calls < 4) { "route changed" } }
+            val failure = assertThrows(IllegalStateException::class.java) {
+                StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) {
+                    if (++calls == 4) ha.moveRoute()
+                    requireCurrentHaRoute(ha.config, ha.route.url, ha.token, ha.route)
+                }
             }
             assertEquals("the guard stopped the include before its request", 4, calls)
+            assertEquals(ROUTE_CHANGED_RERUN_REASON, entityLearningRerunAfterFailure(failure, "target-change"))
         }
     }
 

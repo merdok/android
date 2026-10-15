@@ -3,6 +3,12 @@ package io.panelassistant.android.dashboard
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import io.panelassistant.android.Config
+import io.panelassistant.android.FakePreferences
+import io.panelassistant.android.HaConnectionRoute
+import io.panelassistant.android.HaConnectionRoutes
+import io.panelassistant.android.fakePreferences
+import io.panelassistant.android.haAuthSnapshot
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -132,6 +138,18 @@ class EntityLearningSyncPolicyTest {
         // Any other failure stands, including one whose text merely mentions a route.
         assertNull(entityLearningRerunAfterFailure(IllegalStateException("Home Assistant route changed"), "manual"))
         assertNull(entityLearningRerunAfterFailure(IllegalStateException("Home Assistant credential changed"), "manual"))
+    }
+
+    // The dashboard read over the WebSocket checks its route through requireCurrentHaRoute, as do the
+    // states fetch and every Streamline request; a route that moved mid-scan reruns once there too.
+    @Test fun aRouteChangeCaughtAtTheDashboardSocketRerunsOnce() = runTest {
+        val ha = routedConfig()
+        ha.moveRoute()
+        val failure = runCatching {
+            withHaSocket(ha.config, ha.route.url, ha.token, ha.route) { error("the socket must not open on a stale route") }
+        }.exceptionOrNull()!!
+        assertEquals(ROUTE_CHANGED_RERUN_REASON, entityLearningRerunAfterFailure(failure, "target-change"))
+        assertNull(entityLearningRerunAfterFailure(failure, ROUTE_CHANGED_RERUN_REASON))
     }
 
     @Test fun concurrentDisableCannotBeOvertakenByAnAlreadyRunningActivation() {
@@ -307,4 +325,18 @@ class EntityLearningSyncPolicyTest {
         }
         assertTrue(timedOut)
     }
+}
+
+/** A signed-in panel's configuration, the route a scan authenticated on, and a way to move that route. */
+internal class RoutedConfig(val prefs: FakePreferences, val config: Config, val route: HaConnectionRoute, val token: String) {
+    fun moveRoute() { prefs.values[HaConnectionRoutes.EPOCH_KEY] = route.epoch + 1 }
+}
+
+internal fun routedConfig(): RoutedConfig {
+    val prefs = fakePreferences(mapOf(
+        "ha_url" to "http://ha.invalid:8123", "ha_token" to "token", "ha_refresh_token" to "refresh",
+        "ha_token_expiry" to Long.MAX_VALUE, "ha_client_id" to "",
+    ))
+    val config = Config(prefs.instance)
+    return RoutedConfig(prefs, config, HaConnectionRoutes.current(config), config.haAuthSnapshot().accessToken)
 }
