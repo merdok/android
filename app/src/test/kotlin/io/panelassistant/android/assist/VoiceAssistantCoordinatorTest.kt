@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import io.panelassistant.android.panelassistant.PanelAssistantTransportConnection
+import io.panelassistant.android.panelassistant.PanelAssistantVoice
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -119,22 +122,30 @@ class VoiceAssistantCoordinatorTest {
     /** Each cue's wake word, with the phase the panel was in when it was cued. */
     private val cues = java.util.Collections.synchronizedList(mutableListOf<Pair<String?, VoiceState>>())
 
+    /** The Voice Notice, cued as [VoiceAttention.cue] cues it; a test that watches it follows the phase too. */
+    private val conversation = VoiceConversation { 0L }
+
     private var source: FakeMicrophoneSource = mic
     private var checkTimeoutMs = 2_000L
 
-    private fun coordinator(retryMs: Long = 60_000, maxTurns: Int = 5, on: CoroutineScope = scope) = VoiceAssistantCoordinator(
+    private fun coordinator(
+        retryMs: Long = 60_000,
+        maxTurns: Int = 5,
+        on: CoroutineScope = scope,
+        runner: () -> AssistRunner = { ScriptedRunner().also(runners::add) },
+    ) = VoiceAssistantCoordinator(
         scope = on,
         settings = { settings },
         microphone = { presence },
         source = { sourceRequests += 1; source },
         engineFactory = engineFactory,
-        runnerFactory = { ScriptedRunner().also(runners::add) },
+        runnerFactory = runner,
         playback = playback,
         foregroundMicrophone = { active -> foregroundCalls += active; foregroundAccepts },
         state = state,
         foregroundRetryMs = retryMs,
         maxConversationTurns = maxTurns,
-        attention = { wakeWordId -> cues += wakeWordId to state.current() },
+        attention = { wakeWordId -> cues += wakeWordId to state.current(); conversation.begin() },
         onMicrophoneStatus = { statusChanges += 1 },
         checkTimeoutMs = checkTimeoutMs,
         muted = { muteReader?.muted ?: muted },
@@ -576,6 +587,155 @@ class VoiceAssistantCoordinatorTest {
         second.release.complete(AssistOutcome(error = AssistError(AssistError.DUPLICATE_WAKE_UP, "dup")))
         awaitRunFinished(c)
         assertEquals("a duplicate wake-up is not a failure the panel reports", VoiceState.IDLE, state.current())
+    }
+
+    @Test
+    fun `the card says a reported failure went unheard, and leaves at once for a silent duplicate`() {
+        // As the service wires it: every phase change reaches the card.
+        state.setChangeListener { conversation.state(state.current()) }
+        val c = coordinator()
+        c.start()
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        awaitRunner(0)
+        assertEquals(VoiceConversation.Phase.LISTENING, conversation.card?.phase)
+        runners[0].release.complete(AssistOutcome(error = AssistError(AssistError.DUPLICATE_WAKE_UP, "dup")))
+        awaitRunFinished(c)
+        assertNull("a duplicate wake word shows nothing", conversation.card)
+
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        awaitRunner(1).release.complete(AssistOutcome(error = AssistError("stt-no-text-recognized", "no text")))
+        awaitRunFinished(c)
+        val card = conversation.card
+        assertEquals(VoiceConversation.Phase.MISSED, card?.phase)
+        assertEquals("a failed exchange has no step under way", null, card?.current)
+        assertEquals(VoiceConversation.LEAVE_MIN_MS, card?.leaveAtMs)
+    }
+
+    /** Panel Assistant's end of the voice link, played from the test thread as the session loop plays it. */
+    private inner class PanelAssistantSide {
+        val voice = PanelAssistantVoice(scope, { null }, {})
+        private val helloId = 1L
+        private var nextId = 2L
+        private val connection = object : PanelAssistantTransportConnection {
+            override suspend fun send(text: String) = Unit
+            override suspend fun receive(timeoutMs: Long): String? = null
+            override suspend fun close() = Unit
+            override suspend fun sendBinary(bytes: ByteArray) = Unit
+        }
+
+        init {
+            voice.open(connection, "session", "https://ha.example")
+        }
+
+        private fun drain(): List<JSONObject> = buildList {
+            while (true) add(JSONObject(voice.next(nextId++) ?: return@buildList))
+        }
+
+        /** Wait for the panel to ask for a turn, give it a handler, and return the turn's id. */
+        fun turn(): Long = runBlocking {
+            withTimeout(2_000) {
+                var id: Long? = null
+                while (id == null) {
+                    id = drain().lastOrNull { it.optString("type") == PanelAssistantVoice.COMMAND_VOICE_RUN }?.getLong("id")
+                    if (id == null) kotlinx.coroutines.delay(5)
+                }
+                voice.onFrame(
+                    JSONObject().put("id", id).put("type", "result").put("success", true)
+                        .put("result", JSONObject().put("handler_id", 5)),
+                    helloId,
+                )
+                id
+            }
+        }
+
+        fun event(id: Long, kind: String, vararg fields: Pair<String, Any>) {
+            val event = JSONObject().put("kind", kind)
+            fields.forEach { (key, value) -> event.put(key, value) }
+            voice.onFrame(JSONObject().put("id", id).put("type", "event").put("event", event), helloId)
+        }
+    }
+
+    /** A coordinator running the service's own turn runner against [side], with the card following it. */
+    private fun shownCoordinator(side: PanelAssistantSide): VoiceAssistantCoordinator {
+        state.setChangeListener { conversation.state(state.current()) }
+        return coordinator(runner = { satelliteTurnRunner(side.voice, {}, conversation) }).also { it.start() }
+    }
+
+    @Test
+    fun `a heard command that then fails says something went wrong, and one never heard says it was not caught`() {
+        val side = PanelAssistantSide()
+        val c = shownCoordinator(side)
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        val heard = side.turn()
+        side.event(heard, "transcript", "text" to "Turn on the lights")
+        side.event(heard, "error", "code" to "intent-failed")
+        side.event(heard, "end")
+        awaitRunFinished(c)
+        assertEquals(VoiceConversation.Phase.FAILED, conversation.card?.phase)
+        assertEquals("Turn on the lights", conversation.card?.heard)
+
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        val unheard = side.turn()
+        side.event(unheard, "error", "code" to "stt-stream-failed")
+        side.event(unheard, "end")
+        awaitRunFinished(c)
+        assertEquals(VoiceConversation.Phase.MISSED, conversation.card?.phase)
+
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        val duplicate = side.turn()
+        side.event(duplicate, "error", "code" to AssistError.DUPLICATE_WAKE_UP)
+        side.event(duplicate, "end")
+        awaitRunFinished(c)
+        assertNull("a duplicate wake word still shows nothing", conversation.card)
+    }
+
+    @Test
+    fun `a follow-up question stays readable while the panel listens for the answer`() {
+        val side = PanelAssistantSide()
+        val c = shownCoordinator(side)
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        val first = side.turn()
+        side.event(first, "transcript", "text" to "Set a timer")
+        side.event(first, "reply", "text" to "For how long?", "final" to true)
+        side.event(first, "play", "url" to "/api/tts_proxy/q.mp3", "continue_conversation" to true)
+        side.event(first, "end")
+        val followUp = side.turn()
+        val listening = conversation.card
+        assertEquals(VoiceConversation.Phase.LISTENING, listening?.phase)
+        assertEquals(listOf("Set a timer", "For how long?", 0), listOf(listening?.heard, listening?.reply, listening?.done))
+        side.event(followUp, "transcript", "text" to "Ten minutes")
+        settleUntil { conversation.card?.heard == "Ten minutes" }
+        assertEquals(listOf<Any?>("Ten minutes", null, 1), conversation.card.let { listOf(it?.heard, it?.reply, it?.done) })
+        side.event(followUp, "end")
+        awaitRunFinished(c)
+    }
+
+    @Test
+    fun `an error outside a conversation, such as a failed microphone check, shows no card`() {
+        state.setChangeListener { conversation.state(state.current()) }
+        presence = MicrophonePresence.UNPROVEN
+        val c = coordinator()
+        c.start()
+        mic.speakForCheck(live = false)
+        settleUntil { state.current() == VoiceState.ERROR }
+        assertEquals(VoiceState.ERROR, state.current())
+        assertNull(conversation.card)
+    }
+
+    @Test
+    fun `the panel's cue opens the card and every phase reaches it, not only the start and end of attention`() {
+        try {
+            VoiceAttention.cue("okay_nabu")
+            VoiceAttention.phase(VoiceState.LISTENING)
+            assertEquals(VoiceConversation.Phase.LISTENING, VoiceAttention.conversation.card?.phase)
+            VoiceAttention.phase(VoiceState.PROCESSING)
+            assertEquals(VoiceConversation.Phase.THINKING, VoiceAttention.conversation.card?.phase)
+            VoiceAttention.phase(VoiceState.RESPONDING)
+            assertEquals(VoiceConversation.Phase.REPLYING, VoiceAttention.conversation.card?.phase)
+        } finally {
+            VoiceAttention.conversation.close()
+            VoiceAttention.phase(VoiceState.IDLE)
+        }
     }
 
     @Test

@@ -8,9 +8,9 @@ import android.util.Log
 import java.io.File
 
 /**
- * How the panel shows it is listening: the Voice Preview Edition's wake sound, and a ripple over the
- * dashboard while ha-paneld's own dashboard is on screen. A panel showing another app's dashboard still
- * sounds the chime.
+ * How the panel shows it is listening: the Voice Preview Edition's wake sound, and a ripple, edge glow and
+ * the [conversation] card over the dashboard while ha-paneld's own dashboard is on screen. A panel showing
+ * another app's dashboard still sounds the chime.
  */
 internal object VoiceAttention {
     private const val TAG = "ha-paneld/voice"
@@ -41,8 +41,12 @@ internal object VoiceAttention {
     var color: Int = DEFAULT_COLOR
         private set
 
-    /** The assistant's phase changed; the dashboard shows whether it is still attending. */
+    /** The exchange on screen: what was heard and answered. */
+    val conversation = VoiceConversation(android.os.SystemClock::uptimeMillis)
+
+    /** The assistant's phase changed; the dashboard shows whether it is still attending, and the step. */
     fun phase(state: VoiceState) {
+        conversation.state(state)
         val now = state.inTurn
         if (now == attending) return
         attending = now
@@ -121,5 +125,6 @@ internal object VoiceAttention {
             chime = start..(start + wakeSoundNs + CHIME_TAIL_NS)
         }
         ripple?.invoke()
+        conversation.begin()
     }
 }
