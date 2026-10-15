@@ -33,42 +33,8 @@ class ManagedSettingsCommitBoundaryTest {
             val config = fixture.config
             config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Managed settings panel")
             val before = config.voiceWakeWords
-            val renderer = RendererPreparationCoordinator(
-                builtinPackage = "builtin",
-                state = { RendererPreparationState("builtin", "") },
-                borrow = { BorrowedRendererSettings("http://ha.test", "", "", 0, "", null) },
-                persist = { true },
-            )
-            val transaction = AcceptedConfigTransaction(
-                config = config,
-                revisions = RevisionStore(fixture.directory),
-                rendererPreparation = renderer,
-                system = SystemController(object : SystemEnv {
-                    override val ownPackage = "io.panelassistant.android"
-                    override fun isInstalled(pkg: String) = false
-                    override fun launchComponent(pkg: String): String? = null
-                    override fun homeActivities(): List<ActivityRef> = emptyList()
-                    override fun defaultHome(): ActivityRef? = null
-                    override fun directStart(component: String) = false
-                }),
-                values = ConfigValueProjection(
-                    config = config,
-                    configLiveValues = { emptyMap() },
-                    renderedLiveValues = { emptyMap() },
-                    pendingLiveSettings = { emptyMap() },
-                    stalledLiveSettings = { emptySet() },
-                    proximityJson = { "{}" },
-                    powerSafetyJson = { "{}" },
-                    haAreaCatalogJson = { "{}" },
-                ),
-                applySetting = { _, _ -> LiveSettingRequestOutcome.APPLIED },
-                onEntityTargetChanged = {},
-                setEntityLearningEnabled = { true },
-                effectiveDashboardIsBuiltin = { false },
-                requestTameReconcileAfterCommit = { true },
-                snapInvalidate = {},
-                onReconfigure = {},
-            )
+            val renderer = renderer()
+            val transaction = transaction(fixture, renderer) { _, _ -> LiveSettingRequestOutcome.APPLIED }
             // Another settings commit holds the store while this write queues behind it.
             val holding = CountDownLatch(1)
             val release = CountDownLatch(1)
@@ -98,4 +64,73 @@ class ManagedSettingsCommitBoundaryTest {
             }
         }
     }
+
+    /** Enabling the Assist entity in Home Assistant writes voice_enabled over the session (maintainer, 2026-10-15). */
+    @Test fun panelAssistantTurnsVoiceOnThroughTheLiveSettingLane() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Managed settings panel")
+            val applied = mutableListOf<Pair<String, String>>()
+            val transaction = transaction(fixture, renderer()) { key, value ->
+                applied += key to value
+                LiveSettingRequestOutcome.APPLIED
+            }
+            val caps = io.panelassistant.android.config.Capabilities(
+                microphone = io.panelassistant.android.audio.MicrophonePresence.PROVEN,
+            )
+            val code = PanelAssistantManagedSettings.apply(
+                mapOf("voice_enabled" to "true"),
+                admit = { true },
+                validate = { values ->
+                    val raw = io.ktor.http.Parameters.build { values.forEach { (key, value) -> append(key, value) } }
+                    (normalizeConfigPostParameters(raw, caps) as? ConfigPostParameters.Ok)
+                        ?.values?.let { ok -> ok.names().associateWith { ok[it].orEmpty() } }
+                },
+                commit = { accepted, admit -> transaction.applyAccepted(accepted, admit = admit) == ApplyAcceptedResult.Applied },
+            )
+            assertNull(code)
+            assertEquals(listOf("voice_enabled" to "true"), applied)
+        }
+    }
+
+    private fun renderer() = RendererPreparationCoordinator(
+        builtinPackage = "builtin",
+        state = { RendererPreparationState("builtin", "") },
+        borrow = { BorrowedRendererSettings("http://ha.test", "", "", 0, "", null) },
+        persist = { true },
+    )
+
+    private fun transaction(
+        fixture: PaneldServerHttpFixture,
+        renderer: RendererPreparationCoordinator,
+        applySetting: (String, String) -> LiveSettingRequestOutcome,
+    ) = AcceptedConfigTransaction(
+        config = fixture.config,
+        revisions = RevisionStore(fixture.directory),
+        rendererPreparation = renderer,
+        system = SystemController(object : SystemEnv {
+            override val ownPackage = "io.panelassistant.android"
+            override fun isInstalled(pkg: String) = false
+            override fun launchComponent(pkg: String): String? = null
+            override fun homeActivities(): List<ActivityRef> = emptyList()
+            override fun defaultHome(): ActivityRef? = null
+            override fun directStart(component: String) = false
+        }),
+        values = ConfigValueProjection(
+            config = fixture.config,
+            configLiveValues = { emptyMap() },
+            renderedLiveValues = { emptyMap() },
+            pendingLiveSettings = { emptyMap() },
+            stalledLiveSettings = { emptySet() },
+            proximityJson = { "{}" },
+            powerSafetyJson = { "{}" },
+            haAreaCatalogJson = { "{}" },
+        ),
+        applySetting = applySetting,
+        onEntityTargetChanged = {},
+        setEntityLearningEnabled = { true },
+        effectiveDashboardIsBuiltin = { false },
+        requestTameReconcileAfterCommit = { true },
+        snapInvalidate = {},
+        onReconfigure = {},
+    )
 }

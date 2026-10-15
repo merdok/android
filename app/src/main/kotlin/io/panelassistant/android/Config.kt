@@ -1226,6 +1226,8 @@ class Config private constructor(
             "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
             "auto_sleep_source" -> declared ?: absentAutoSleepSource
             "network_adb" -> if (hardenedSecurityEnabled) "false" else declared ?: spec.default
+            // A panel whose profile declares a microphone is a voice satellite out of the box.
+            "voice_enabled" -> declared ?: if (profile?.microphoneDeclared == true) "true" else spec.default
             "auto_brightness_minimum_percent", "auto_brightness_maximum_percent" ->
                 profileBrightnessDefault(spec, declared)
             else -> declared ?: spec.default
