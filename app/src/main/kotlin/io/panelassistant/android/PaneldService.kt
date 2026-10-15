@@ -824,7 +824,6 @@ class PaneldService : Service() {
             preparedConfig.migrateLiveStore() // carry persisted settings across a schema bump before anything reads them
             // These migrations and generated identities precede every renderer and network owner.
             preparedConfig.migrateLogShipTcpDefault()
-            preparedConfig.migrateAutoSleepSource()
             preparedConfig.migrateSetupQuestionsForExistingInstall()
             io.panelassistant.android.migration.MigrationState.of(this@PaneldService).deviceUid()?.let { inherited ->
                 check(preparedConfig.adoptMigrationDeviceUid(inherited)) { "migration installation identity was not committed" }
@@ -1388,6 +1387,7 @@ class PaneldService : Service() {
             screenRouteSelection = screen::routeSelection,
             directRootExpected = profile.appCanSu,
             displacedStayOnMask = { config.displacedStayOnWhilePluggedIn },
+            displacedScreenTimeoutMs = { config.displacedScreenOffTimeout },
         )
 
         autoSleep = AutoSleepController(

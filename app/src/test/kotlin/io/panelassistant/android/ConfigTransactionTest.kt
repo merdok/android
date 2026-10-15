@@ -827,11 +827,53 @@ class ConfigTransactionTest {
 
     @Test fun legacyDisabledAutoSleepRetainsHaWhileFreshMigrationChoosesPanel() {
         val old = fakePreferences(initial = mapOf("auto_sleep" to false))
-        assertTrue(Config(old.instance).migrateAutoSleepSource())
         assertEquals("home_assistant", Config(old.instance).autoSleepSource)
         val fresh = fakePreferences()
-        assertTrue(Config(fresh.instance).migrateAutoSleepSource())
         assertEquals("panel", Config(fresh.instance).autoSleepSource)
+    }
+
+    @Test fun startupPreparationLeavesAProfileAutoSleepSourceDefaultUnpersisted() {
+        withProfileRegistry(
+            mapOf("generic.yaml" to ProfileYaml.serialize(
+                testProfileDocument(id = "generic", fallback = true)
+                    .copy(settingDefaults = mapOf("auto_sleep_source" to "touch")),
+            )),
+            DeviceFacts("unmatched", "unmatched", ""),
+        ) { registry ->
+            val profile = registry.resolveForStartup().profile
+            val fresh = fakePreferences()
+            Config(fresh.instance).apply {
+                migrateLiveStore(); migrateLogShipTcpDefault()
+            }
+            assertFalse(fresh.values.containsKey("auto_sleep_source"))
+            assertEquals("touch", Config(fresh.instance).also { it.attachProfile(profile) }.autoSleepSource)
+
+            val legacy = fakePreferences(initial = mapOf("auto_sleep" to false))
+            Config(legacy.instance).apply {
+                migrateLiveStore(); migrateLogShipTcpDefault()
+            }
+            assertEquals("home_assistant", Config(legacy.instance).also { it.attachProfile(profile) }.autoSleepSource)
+        }
+    }
+
+    @Test fun firstLiveAutoSleepWritePinsTheEffectiveSourceRatherThanTheLegacyOne() {
+        withProfileRegistry(
+            mapOf("generic.yaml" to ProfileYaml.serialize(
+                testProfileDocument(id = "generic", fallback = true)
+                    .copy(settingDefaults = mapOf("auto_sleep_source" to "touch")),
+            )),
+            DeviceFacts("unmatched", "unmatched", ""),
+        ) { registry ->
+            val profile = registry.resolveForStartup().profile
+            val spec = SettingsRegistry.spec("auto_sleep")!!
+            val profiled = fakePreferences()
+            assertTrue(commitHttpLiveSetting(Config(profiled.instance).also { it.attachProfile(profile) }, spec, "true") {})
+            assertEquals("touch", Config(profiled.instance).also { it.attachProfile(profile) }.autoSleepSource)
+
+            val bare = fakePreferences()
+            assertTrue(commitHttpLiveSetting(Config(bare.instance), spec, "true") {})
+            assertEquals("panel", Config(bare.instance).autoSleepSource)
+        }
     }
 
     @Test fun explicitPresenceSourceChangeFencesOutstandingAutoSleepWrites() {
@@ -2740,6 +2782,17 @@ class ConfigTransactionTest {
             SettingsRegistry.spec(key)?.let { spec -> config.stage(editor, spec, value) }
         }
         config.stageImportDependencies(editor, accepted)
+    }
+
+    @Test fun anImportedAutoSleepSourceSurvivesTheAutoSleepWriteStagedAfterIt() {
+        val prefs = fakePreferences()
+        val config = Config(prefs.instance)
+        val editor = config.editor()
+
+        stageImport(config, editor, linkedMapOf("auto_sleep_source" to "home_assistant", "auto_sleep" to "true"))
+        assertTrue(config.commit(editor))
+
+        assertEquals("home_assistant", Config(prefs.instance).autoSleepSource)
     }
 
     @Test fun anImportedEmbeddedSinkAddressRewritesAllThreeFieldsInOneTransaction() {

@@ -214,6 +214,7 @@ class NoticeRowsHttpTest {
             catalogueLoader = { testCatalogue },
             radioStatus = { ZigbeeHealthSnapshot(state = ZigbeeHealthState.RUNAWAY, joined = false) },
             dashboardRecoveryState = { recovery },
+            appSizingReady = { true },
         )
     }
 

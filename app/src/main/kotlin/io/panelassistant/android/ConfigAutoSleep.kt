@@ -14,9 +14,6 @@ import org.json.JSONObject
 /** Opt-in activity policy. Physical screen light state and explicit manual screen commands remain
  * separate authorities; this flag only admits the automatic policy runtime. */
 val Config.autoSleep: Boolean get() = boolPref("auto_sleep")
-internal fun Config.migrateAutoSleepSource(): Boolean = synchronized(CONFIG_LOCK) {
-    prefs.contains("auto_sleep_source") || durableCommit { putString("auto_sleep_source", absentAutoSleepSource) }
-}
 val Config.autoSleepSource: String get() = prefs.getString("auto_sleep_source", null)
     ?.takeIf { it in specOf("auto_sleep_source").options }
     ?: effectiveDefault(specOf("auto_sleep_source"))

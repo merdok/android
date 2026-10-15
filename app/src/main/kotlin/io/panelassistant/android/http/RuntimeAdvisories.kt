@@ -18,7 +18,7 @@ internal fun adHocWarnings(
     config: Config,
     catalogueLoader: CatalogueLoader,
     directSuReady: Boolean,
-    densityBase: Int?,
+    densityControllable: Boolean,
     radioStatus: () -> ZigbeeHealthSnapshot?,
     dashboardRecoveryState: () -> PanelStatus.DashboardRecoveryState,
     companion: CompanionDb.ServerObservation?,
@@ -71,10 +71,11 @@ internal fun adHocWarnings(
     }
     // Built-in renderer zoomed off 100% (usually carried over from the Companion's "Page zoom"). App
     // zoom is a compatibility lever; the cleaner way to size the dashboard is the panel display density
-    // — so we only nudge when that's actually available (rooted / helper daemon). No root = app zoom is
-    // the only sizing tool, so stay quiet. densityBase comes from the shared snapshot (no su round-trip).
+    // — so we only nudge when a route can actually set density (root control, or app sizing granted).
+    // Otherwise app zoom is the only sizing tool, so stay quiet. A readable density base is not enough:
+    // the app route always reports one, even when it cannot write.
     val zoom = config.dashboardZoom
-    if ((config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) && zoom != 100 && densityBase != null) {
+    if ((config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) && zoom != 100 && densityControllable) {
         // Reset is a plain form POST (no JS), so it works on the dashboard banner too — not just the
         // Install tab. The message already links to the Display-sizing card.
         append(

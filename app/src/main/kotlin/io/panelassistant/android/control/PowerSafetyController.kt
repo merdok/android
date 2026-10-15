@@ -20,6 +20,8 @@ class PowerSafetyController(
     /** The stay-on mask a screen-timeout sleep cleared and will restore on wake; -1 when none. While
      *  it is held, that value, not the temporary 0, is the panel's configured stay-on. */
     private val displacedStayOnMask: () -> Int = { -1 },
+    /** The SCREEN_OFF_TIMEOUT a screen-timeout sleep displaced; -1 when none. Same rule as above. */
+    private val displacedScreenTimeoutMs: () -> Int = { -1 },
 ) {
     private val app = context.applicationContext
     private val powerManager = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -41,18 +43,18 @@ class PowerSafetyController(
                 ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 ?.takeIf { it >= 0 }
         }.getOrNull()
-        val stayOn = displacedStayOnMask().takeIf { it > 0 } ?: runCatching {
+        val stayOn = configuredDuringSleep(displacedStayOnMask(), runCatching {
             Settings.Global.getInt(app.contentResolver, STAY_ON_WHILE_PLUGGED_IN)
-        }.getOrNull()
+        }.getOrNull())
         return PowerSafetyObservation(
             keepAwakeConfigured = keepAwakeConfigured,
             wakeLockHeld = locks.wakeLockHeld,
             wifiLockRequired = locks.wifiLockRequired,
             wifiLockHeld = locks.wifiLockHeld,
             preventIdleDimConfigured = preventIdleDimConfigured,
-            screenOffTimeoutMs = runCatching {
+            screenOffTimeoutMs = configuredDuringSleep(displacedScreenTimeoutMs(), runCatching {
                 Settings.System.getInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
-            }.getOrNull(),
+            }.getOrNull()),
             interactive = runCatching { powerManager.isInteractive }.getOrNull(),
             pluggedMask = plugged,
             stayOnWhilePluggedIn = stayOn,
@@ -177,3 +179,6 @@ class PowerSafetyController(
         const val STAY_ON_WHILE_PLUGGED_IN = "stay_on_while_plugged_in"
     }
 }
+
+/** While a sleep holds a displaced value, that value, not the temporary live one, is configured. */
+internal fun configuredDuringSleep(displaced: Int, live: Int?): Int? = if (displaced > 0) displaced else live

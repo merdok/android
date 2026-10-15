@@ -82,6 +82,7 @@ internal class PaneldServerHttpFixture(
         { false },
     )
     val sizingCache get() = observations.densityCache
+    val snapCache get() = observations.snapCache
     val clearStorageGate = io.panelassistant.android.util.GenerationSingleFlight()
     val companionCache get() = observations.companionServerCache
     val manageTable = io.panelassistant.android.ManageTable()
