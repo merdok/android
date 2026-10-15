@@ -2013,6 +2013,46 @@
       "state": "machine-cross-checked",
       "text": "请先在上方配置唤醒词。"
     },
+    "configure.voice.download_author": {
+      "text": "作者：{author}",
+      "sourceHash": "c63374c54075c2ecffba6bcf2f66b9b829822e5ef9dd82d4fa9033583317fece",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_button": {
+      "text": "下载",
+      "sourceHash": "d6eafe82359100423c93c5ce53c352c1b51ca1e699215fcec3f5c5dd9bf12d24",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_done": {
+      "text": "已下载{wake_word}。",
+      "sourceHash": "72a644b7802b2f886bd260c40866682780a3e0cc97e1572c000562248c9f5a3a",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_failed": {
+      "text": "下载失败：{reason}",
+      "sourceHash": "a9cba27e078073edbace171f6262b4e66249bd4e1e0936ec33dfd8be9824cd94",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_help": {
+      "text": "由他人训练并发布的模型。下载前请查看其作者和许可证。",
+      "sourceHash": "03db31eb796091dba4fdc509ff632c3440e44a171431312abc903f0966ce0bc7",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_license": {
+      "text": "许可证：{license}",
+      "sourceHash": "c8c093b130e9e68910fca2abed0fd293dcf5be83e653051d2e80e0cac02f2c17",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.download_wake_word": {
+      "text": "下载社区唤醒词",
+      "sourceHash": "ea004f814363c9d3dda271e678c42465cef574f6c505263e5e43547a3ea5d2ba",
+      "state": "machine-cross-checked"
+    },
+    "configure.voice.downloading": {
+      "text": "正在下载{wake_word}…",
+      "sourceHash": "f9ebcae88d5cec9f35c0fd8301af7fc0b7437c757890ef20296297adfc3e0ca9",
+      "state": "machine-cross-checked"
+    },
     "configure.voice.import_button": {
       "text": "导入",
       "sourceHash": "2cff9baabf56ca002610e113bc94deb6ededddfc3c130365b6e88ed5195bf774",

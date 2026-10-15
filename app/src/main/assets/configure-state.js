@@ -43,6 +43,11 @@ window.ConfigurePage = {};
   cfg.voiceWakeWordsCatalog = null;
   cfg.voiceWakeWordsRequest = 0;
   cfg.voiceWakeWordImportStatus = "";
+  // The community models the panel offers for download, from the same response, and the one picked.
+  cfg.voiceWakeWordDownloads = [];
+  cfg.voiceWakeWordDownloadPick = "";
+  cfg.voiceWakeWordDownloadStatus = "";
+  cfg.voiceWakeWordDownloading = false;
   // A per-load, owner-safe seed supplied by the config response. The endpoint is still fetched every
   // render so a failed query, credential change or Home Assistant area edit can recover immediately.
   cfg.haAreaSeed = null;

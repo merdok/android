@@ -1,0 +1,65 @@
+{
+  "note": "Community microWakeWord models a panel can download. Each is pinned to an upstream commit, the SHA-256 of its manifest and model, and the licence of its repository; a model whose source names no licence is never listed.",
+  "models": [
+    {
+      "id": "hey_home_assistant",
+      "wake_word": "Hey Home Assistant",
+      "author": "Michael Hansen",
+      "license": "Apache-2.0",
+      "license_url": "https://github.com/esphome/micro-wake-word-models/blob/40ff33f57f8fc6ad71a75ef085abbf742495b225/LICENSE",
+      "source": "https://github.com/esphome/micro-wake-word-models",
+      "manifest_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/experiments/hey_home_assistant.json",
+      "manifest_sha256": "75102b4661c01fae8a7170c2905745ed1cc2910023fdbdf5198f1d1308873ecb",
+      "model_sha256": "f9a3f5d03f394eef68969460c18cb06cae289268db0dcffde3928ecd87bb64a4",
+      "model_bytes": 62112
+    },
+    {
+      "id": "okay_computer",
+      "wake_word": "Okay Computer",
+      "author": "Michael Hansen",
+      "license": "Apache-2.0",
+      "license_url": "https://github.com/esphome/micro-wake-word-models/blob/40ff33f57f8fc6ad71a75ef085abbf742495b225/LICENSE",
+      "source": "https://github.com/esphome/micro-wake-word-models",
+      "manifest_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/experiments/okay_computer.json",
+      "manifest_sha256": "d80f47445bc2935c6e1869022b09ac68b6afce0a111bc1abd23fe589d9a5e280",
+      "model_sha256": "eb8db0875910d43c908c19b7c76c83198f9c2e9baa7ac05eceea32b98b3595b8",
+      "model_bytes": 62112
+    },
+    {
+      "id": "choo_choo_homie",
+      "wake_word": "Choo Choo Homie",
+      "author": "Michael Hansen",
+      "license": "Apache-2.0",
+      "license_url": "https://github.com/esphome/micro-wake-word-models/blob/40ff33f57f8fc6ad71a75ef085abbf742495b225/LICENSE",
+      "source": "https://github.com/esphome/micro-wake-word-models",
+      "manifest_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/experiments/choo_choo_homie.json",
+      "manifest_sha256": "4080f426e7c531f62d171312d6cabc9888a2d4cb5e06d48109c3004bb691681a",
+      "model_sha256": "02dcdc62eea8293071975c718661b7e36131a77cbfd1eb57b8e01059ae7a302b",
+      "model_bytes": 62112
+    },
+    {
+      "id": "nocturna",
+      "wake_word": "Nocturna",
+      "author": "MorningstarOwl",
+      "license": "Apache-2.0",
+      "license_url": "https://github.com/MorningstarOwl/wake-word-models/blob/590d32b9d10a592af9cf92af8ba09112709c8014/LICENSE",
+      "source": "https://github.com/MorningstarOwl/wake-word-models",
+      "manifest_url": "https://raw.githubusercontent.com/MorningstarOwl/wake-word-models/590d32b9d10a592af9cf92af8ba09112709c8014/models/nocturna/nocturna.json",
+      "manifest_sha256": "11e3506b345543a7d67487dd34e217600b32b8ff5e862d4db473dcbc0c8e7826",
+      "model_sha256": "53f00e570bdecfd615d1801cd75af8f68fd014f16e6bfed8b5b5923f19c9c13d",
+      "model_bytes": 63496
+    },
+    {
+      "id": "hey_donut",
+      "wake_word": "Hey Donut",
+      "author": "nyc-esq",
+      "license": "CC0-1.0",
+      "license_url": "https://github.com/nyc-esq/hey-donut/blob/16b6bb104d5b7ce04b2f882c96dfaad60b292d25/LICENSE",
+      "source": "https://github.com/nyc-esq/hey-donut",
+      "manifest_url": "https://raw.githubusercontent.com/nyc-esq/hey-donut/16b6bb104d5b7ce04b2f882c96dfaad60b292d25/model/hey_donut.json",
+      "manifest_sha256": "2c33b854f7e8e6c6c56a236b56ef28c807bdd94184df2fc18f3a6256c69bbbfc",
+      "model_sha256": "5e0381b9808945ac4c059b385e07a6ddfd3ed38dfeaf114cb78a33fc90d4bef4",
+      "model_bytes": 62304
+    }
+  ]
+}

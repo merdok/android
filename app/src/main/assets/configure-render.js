@@ -318,7 +318,11 @@
           var quiet = cfg.voiceMicrophoneNode();
           if (quiet) card.appendChild(quiet);
         }
-        if (f.picker === "voice_wake_words" && Array.isArray(cfg.voiceWakeWordsCatalog)) card.appendChild(cfg.voiceWakeWordImportRow());
+        if (f.picker === "voice_wake_words" && Array.isArray(cfg.voiceWakeWordsCatalog)) {
+          var download = cfg.voiceWakeWordDownloadRow();
+          if (download) card.appendChild(download);
+          card.appendChild(cfg.voiceWakeWordImportRow());
+        }
         if (f.key === "zigbee_router") {
           var join = cfg.zigbeeJoinRow();
           if (join) card.appendChild(join);
