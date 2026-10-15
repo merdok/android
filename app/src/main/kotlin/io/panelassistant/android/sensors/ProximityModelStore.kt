@@ -1,6 +1,10 @@
 package io.panelassistant.android.sensors
 
 import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.dashboard.clearProximityLearning
+import io.panelassistant.android.dashboard.insertProximityModelIfAbsent
+import io.panelassistant.android.dashboard.readProximityModel
+import io.panelassistant.android.dashboard.writeProximityBatch
 
 internal interface ProximityModelStore : AutoCloseable {
     fun readProximityModel(fingerprint: String): EntityCatalogStore.ProximityModelRow?

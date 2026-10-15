@@ -1,7 +1,7 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.http.HaAreaProtocol.ReconcileAction
-import io.panelassistant.android.dashboard.EntityLearningManager
+import io.panelassistant.android.dashboard.HaAreaCatalog
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -148,7 +148,7 @@ class HaAreaProtocolTest {
         assertTrue(HaAreaProtocol.hasLiteralNullAssignment(badDevice, areas))
 
         fun response(device: HaAreaProtocol.PanelDeviceArea) = JSONObject(haAreaCatalogPresentationJson(
-            EntityLearningManager.HaAreaCatalog(queried = true, admin = true, areas = areas, device = device),
+            HaAreaCatalog(queried = true, admin = true, areas = areas, device = device),
         ))
         val bad = response(badDevice)
         val choices = bad.getJSONArray("areas")

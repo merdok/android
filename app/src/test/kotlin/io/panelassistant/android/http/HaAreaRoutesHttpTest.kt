@@ -84,7 +84,7 @@ class HaAreaRoutesHttpTest {
                 field("scope", scope)
                 val mutationLock = Any()
                 field("directConfigMutationLock", mutationLock)
-                field("haArea", HaAreaRuntime(fixture.config, learning, scope, mutationLock) { false })
+                field("haArea", HaAreaRuntime(fixture.config, scope, mutationLock) { false })
                 block(fixture)
             }
         } finally {

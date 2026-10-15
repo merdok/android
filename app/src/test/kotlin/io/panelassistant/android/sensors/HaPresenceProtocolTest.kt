@@ -238,6 +238,23 @@ class HaPresenceProtocolTest {
         assertTrue(projected.candidates.isEmpty())
     }
 
+    @Test fun `a registry row whose id is not an entity id is never a presence source`() {
+        val devices = response(JSONArray()
+            .put(device("panel-device", "kitchen", "entry-abc"))
+            .put(device("motion-device", "kitchen", "motion-id")))
+        val areas = response(JSONArray().put(JSONObject().put("area_id", "kitchen").put("name", "Kitchen")))
+        val entities = JSONObject().put("result", JSONObject().put("entities", JSONArray()
+            .put(JSONObject().put("ei", "binary_sensor.kitchen_motion").put("di", "motion-device").put("pl", "zha"))
+            .put(JSONObject().put("ei", "binary_sensor.kitchen-motion").put("di", "motion-device").put("pl", "zha"))))
+        val states = JSONArray()
+            .put(state("binary_sensor.kitchen_motion", "on", "motion"))
+            .put(state("binary_sensor.kitchen-motion", "on", "motion"))
+
+        val projected = HaPresenceProtocol.projectArea(devices, areas, entities, states, entry)
+
+        assertEquals(listOf("binary_sensor.kitchen_motion"), projected.candidates.map(HaPresenceCandidate::entityId))
+    }
+
     @Test fun `presence authority follows registry provenance rather than entity wording`() {
         val devices = response(JSONArray()
             .put(device("panel-device", "kitchen", "entry-abc"))

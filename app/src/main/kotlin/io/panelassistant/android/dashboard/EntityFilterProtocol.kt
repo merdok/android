@@ -26,7 +26,9 @@ object EntityFilterProtocol {
     internal const val EMPTY_SUBSCRIPTION_ENTITY_ID =
         "ha_paneld_internal.empty_subscription_5f39d48b7a6c4e2a"
 
-    private val ENTITY_ID = Regex("^[a-z0-9_]+\\.[a-z0-9_]+$")
+    /** The one Home Assistant entity-id rule; the dashboard observer script embeds the same source. */
+    internal const val ENTITY_ID_SOURCE = "^[a-z0-9_]+\\.[a-z0-9_]+$"
+    private val ENTITY_ID = Regex(ENTITY_ID_SOURCE)
     private val FILTER_KEYS = setOf(
         "entity_ids",
         "include", "exclude",
@@ -84,12 +86,15 @@ object EntityFilterProtocol {
         return Update(enabled, ids, mode)
     }
 
+    /** Whether [value] is exactly one entity id. Callers trim, lowercase or cap its length first as their input needs. */
+    internal fun isEntityId(value: String): Boolean = ENTITY_ID.matches(value)
+
     /** Sort, de-duplicate and validate an exact HA entity-id allow-list. */
     fun normalize(entityIds: Iterable<String>): List<String> {
         val normalized = entityIds.asSequence().map(String::trim).filter(String::isNotEmpty)
             .distinct().sorted().toList()
         require(normalized.size <= MAX_ENTITY_IDS) { "too many entity_ids (max $MAX_ENTITY_IDS)" }
-        val invalid = normalized.firstOrNull { it.length > 255 || !ENTITY_ID.matches(it) }
+        val invalid = normalized.firstOrNull { it.length > 255 || !isEntityId(it) }
         require(invalid == null) { "invalid entity_id" }
         return normalized
     }

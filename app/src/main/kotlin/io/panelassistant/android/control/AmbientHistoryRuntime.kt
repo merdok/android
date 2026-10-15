@@ -3,6 +3,10 @@ package io.panelassistant.android.control
 import android.content.Context
 import android.util.Log
 import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.dashboard.ambientHistory
+import io.panelassistant.android.dashboard.recordAmbientHistory
+import io.panelassistant.android.dashboard.resetAmbientHistory
+import io.panelassistant.android.dashboard.seedAmbientHistory
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture

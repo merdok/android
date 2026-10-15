@@ -3,7 +3,10 @@ package io.panelassistant.android.http
 import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.isLiteralNullAreaName
-import io.panelassistant.android.dashboard.EntityLearningManager
+import io.panelassistant.android.dashboard.HaAreaCatalog
+import io.panelassistant.android.dashboard.applyRequestedArea
+import io.panelassistant.android.dashboard.haAreaCatalog
+import io.panelassistant.android.dashboard.haAreaOwnerKey
 import io.panelassistant.android.haRefreshToken
 import io.panelassistant.android.haToken
 import io.panelassistant.android.haUrl
@@ -16,7 +19,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /** Share the area presentation for Configure and Setup while retaining raw rows for repair. */
-internal fun haAreaCatalogPresentationJson(catalog: EntityLearningManager.HaAreaCatalog): String {
+internal fun haAreaCatalogPresentationJson(catalog: HaAreaCatalog): String {
     val areas = catalog.areas.filterNot { isLiteralNullAreaName(it.name) }.joinToString(",") { area ->
         "{\"area_id\":${Json.str(area.areaId)},\"name\":${Json.str(area.name)}," +
             "\"icon\":${Json.str(area.icon)}}"
@@ -30,7 +33,6 @@ internal fun haAreaCatalogPresentationJson(catalog: EntityLearningManager.HaArea
 
 internal class HaAreaRuntime(
     private val config: Config,
-    private val entityLearning: EntityLearningManager,
     private val scope: CoroutineScope,
     private val directConfigMutationLock: Any,
     private val stopping: () -> Boolean,
@@ -88,7 +90,7 @@ internal class HaAreaRuntime(
     )
 
     private fun captureHaAreaSnapshot(): HaAreaSnapshot = HaAreaSnapshot(
-        ownerKey = entityLearning.haAreaOwnerKey(),
+        ownerKey = haAreaOwnerKey(config),
         deviceUid = config.deviceUid,
         panelId = config.panelId,
         localArea = config.haArea,
@@ -107,7 +109,7 @@ internal class HaAreaRuntime(
     private data class HaAreaCatalogCacheEntry(
         val key: String,
         val cachedAtMs: Long,
-        val catalog: EntityLearningManager.HaAreaCatalog,
+        val catalog: HaAreaCatalog,
     )
 
     @Volatile private var haAreaCatalogCache: HaAreaCatalogCacheEntry? = null
@@ -117,7 +119,7 @@ internal class HaAreaRuntime(
 
     private fun cacheHaAreaCatalog(
         snapshot: HaAreaSnapshot,
-        catalog: EntityLearningManager.HaAreaCatalog,
+        catalog: HaAreaCatalog,
         nowMs: Long = System.nanoTime() / 1_000_000L,
     ) {
         synchronized(directConfigMutationLock) {
@@ -130,7 +132,7 @@ internal class HaAreaRuntime(
     private suspend fun haAreaCatalogFor(
         snapshot: HaAreaSnapshot,
         fresh: Boolean = false,
-    ): EntityLearningManager.HaAreaCatalog {
+    ): HaAreaCatalog {
         val key = haAreaCatalogKey(snapshot)
         val now = System.nanoTime() / 1_000_000L
         if (!fresh) {
@@ -138,7 +140,7 @@ internal class HaAreaRuntime(
                 haAreaCacheEntryUsable(entry.key, key, entry.cachedAtMs, now, HA_AREA_CATALOG_TTL_MS)
             }?.catalog?.let { return it }
         }
-        val catalog = entityLearning.haAreaCatalog()
+        val catalog = haAreaCatalog(config)
         cacheHaAreaCatalog(snapshot, catalog, now)
         return catalog
     }
@@ -162,15 +164,15 @@ internal class HaAreaRuntime(
     }
 
     private fun ownsHaAreaSnapshot(snapshot: HaAreaSnapshot): Boolean =
-        snapshot.ownerKey == entityLearning.haAreaOwnerKey() &&
+        snapshot.ownerKey == haAreaOwnerKey(config) &&
             snapshot.deviceUid == config.deviceUid && snapshot.panelId == config.panelId &&
             snapshot.localArea == config.haArea && snapshot.userOverride == config.haAreaUserOverride
 
     private suspend fun applyHaAreaPrecedence(
         snapshot: HaAreaSnapshot,
-        catalog: EntityLearningManager.HaAreaCatalog,
+        catalog: HaAreaCatalog,
         allowWriteBack: Boolean = true,
-    ): EntityLearningManager.HaAreaCatalog {
+    ): HaAreaCatalog {
         if (!catalog.queried || !catalog.device.found || catalog.ownerKey != snapshot.ownerKey ||
             !ownsHaAreaSnapshot(snapshot)
         ) return catalog
@@ -178,10 +180,10 @@ internal class HaAreaRuntime(
             HaAreaProtocol.hasLiteralNullAssignment(catalog.device, catalog.areas) &&
             ownsHaAreaSnapshot(snapshot)
         ) {
-            val cleared = entityLearning.applyRequestedArea("", snapshot.ownerKey)
+            val cleared = applyRequestedArea(config, "", snapshot.ownerKey)
             if (cleared && ownsHaAreaSnapshot(snapshot)) {
                 invalidateHaAreaCatalogCache()
-                val after = entityLearning.haAreaCatalog()
+                val after = haAreaCatalog(config)
                 cacheHaAreaCatalog(snapshot, after)
                 return applyHaAreaPrecedence(snapshot, after, allowWriteBack = false)
             }
@@ -200,10 +202,10 @@ internal class HaAreaRuntime(
                 }
             }
             HaAreaProtocol.ReconcileAction.WRITE_BACK -> if (allowWriteBack && ownsHaAreaSnapshot(snapshot)) {
-                val moved = entityLearning.applyRequestedArea(snapshot.localArea, snapshot.ownerKey)
+                val moved = applyRequestedArea(config, snapshot.localArea, snapshot.ownerKey)
                 if (moved && ownsHaAreaSnapshot(snapshot)) {
                     invalidateHaAreaCatalogCache()
-                    val after = entityLearning.haAreaCatalog()
+                    val after = haAreaCatalog(config)
                     cacheHaAreaCatalog(snapshot, after)
                     return applyHaAreaPrecedence(snapshot, after, allowWriteBack = false)
                 }

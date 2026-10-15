@@ -361,7 +361,7 @@ class PaneldServer internal constructor(
     private val inspectLock = Any()
     private val directConfigMutationLock = Any()
     @Volatile private var stopping = true
-    private val haArea = HaAreaRuntime(config, entityLearning, scope, directConfigMutationLock) { stopping }
+    private val haArea = HaAreaRuntime(config, scope, directConfigMutationLock) { stopping }
     private val tameReconciliation = TameReconcileAuthority(config, tame) { stopping }
     private val remoteControlRoutes = RemoteControlRoutes(
         config = config,

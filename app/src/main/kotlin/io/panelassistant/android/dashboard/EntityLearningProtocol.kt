@@ -68,7 +68,6 @@ object EntityLearningProtocol {
     )
 
     private val ENTITY_ID = Regex("(?<![a-z0-9_])[a-z0-9_]+\\.[a-z0-9_]+(?![a-z0-9_])")
-    private val DIRECT_ENTITY_ID = Regex("^[a-z0-9_]+\\.[a-z0-9_]+$")
     private val TARGET_REGISTRY_ID = Regex("^[A-Za-z0-9_-]+$")
     private val TARGET_KEYS = setOf("entity_id", "device_id", "area_id", "floor_id", "label_id")
     private val EXPANDABLE_TARGET_KEYS = TARGET_KEYS - "entity_id"
@@ -149,7 +148,7 @@ object EntityLearningProtocol {
 
         fun targetValues(key: String, value: Any?): Pair<Any?, Boolean> {
             fun valid(candidate: String): Boolean = when (key) {
-                "entity_id" -> DIRECT_ENTITY_ID.matches(candidate.lowercase())
+                "entity_id" -> EntityFilterProtocol.isEntityId(candidate.lowercase())
                 else -> TARGET_REGISTRY_ID.matches(candidate)
             }
             return when (value) {
@@ -461,7 +460,7 @@ object EntityLearningProtocol {
           ${InjectionScript.TOP_FRAME_GUARD}
           if(window.__haPaneldEntityLearning)return;
           window.__haPaneldEntityLearning=true;
-          const wrapped=new WeakSet(),id=/^[a-z0-9_]+\.[a-z0-9_]+$/;
+          const wrapped=new WeakSet(),id=/${EntityFilterProtocol.ENTITY_ID_SOURCE}/;
           const seen=new Map(),missing=new Set(),metrics=new Map(); let enumerating=false;
           const maxBridgeChars=$MAX_NATIVE_BRIDGE_PAYLOAD_CHARS,maxFrameChars=$MAX_OBSERVER_WS_FRAME_CHARS,
             maxIdChars=$MAX_OBSERVER_ENTITY_ID_CHARS,maxAccessIds=$MAX_OBSERVER_ACCESS_IDS,
@@ -551,16 +550,16 @@ object EntityLearningProtocol {
         val obj = JSONObject(text)
         val accessed = when (val value = obj.opt("accessed")) {
             is JSONObject -> value.keys().asSequence().mapNotNull { id ->
-                id.takeIf(DIRECT_ENTITY_ID::matches)?.let { it to value.optLong(id, 0).coerceIn(1, 1_000_000) }
+                id.takeIf(EntityFilterProtocol::isEntityId)?.let { it to value.optLong(id, 0).coerceIn(1, 1_000_000) }
             }.toMap()
             // Accept the legacy prototype format across an in-place WebView rebuild.
-            is JSONArray -> (0 until value.length()).mapNotNull { value.optString(it).takeIf(DIRECT_ENTITY_ID::matches) }
+            is JSONArray -> (0 until value.length()).mapNotNull { value.optString(it).takeIf(EntityFilterProtocol::isEntityId) }
                 .associateWith { 1L }
             else -> emptyMap()
         }
         val missingArray = obj.optJSONArray("missing") ?: JSONArray()
         val missing = (0 until missingArray.length()).mapNotNull {
-            missingArray.optString(it).takeIf(DIRECT_ENTITY_ID::matches)
+            missingArray.optString(it).takeIf(EntityFilterProtocol::isEntityId)
         }.toSet()
         return accessed to missing
     }
@@ -568,7 +567,7 @@ object EntityLearningProtocol {
     fun parseMetricEnvelope(text: String): MetricEnvelope {
         val obj = JSONObject(text)
         val metrics = obj.keys().asSequence().mapNotNull { id ->
-            if (!DIRECT_ENTITY_ID.matches(id)) return@mapNotNull null
+            if (!EntityFilterProtocol.isEntityId(id)) return@mapNotNull null
             val pair = obj.optJSONArray(id) ?: return@mapNotNull null
             id to (pair.optLong(0).coerceAtLeast(0) to pair.optLong(1).coerceAtLeast(0))
         }.toMap()

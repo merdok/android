@@ -36,7 +36,7 @@ internal fun projectDashboardRegistries(
     for (i in 0 until entityRows.length()) {
         val row = entityRows.optJSONObject(i)
         val id = row?.let { it.optString("ei").ifBlank { it.optString("entity_id") } }?.lowercase()
-        if (row == null || id == null || !id.matches(PROJECTED_ENTITY_ID)) complete = false
+        if (row == null || id == null || !EntityFilterProtocol.isEntityId(id)) complete = false
         else if (metadata.put(id, row.toString()) != null) complete = false
     }
 
@@ -132,14 +132,13 @@ internal fun projectDashboardRegistries(
     val areaRegistryEntities = if (requirements.areas) areaRows.mapValues { (_, area) ->
         setOf("temperature_entity_id", "humidity_entity_id").mapNotNullTo(sortedSetOf()) { key ->
             val raw = area.optString(key).lowercase()
-            if (raw.isNotBlank() && !raw.matches(PROJECTED_ENTITY_ID)) complete = false
-            raw.takeIf { it.matches(PROJECTED_ENTITY_ID) }
+            if (raw.isNotBlank() && !EntityFilterProtocol.isEntityId(raw)) complete = false
+            raw.takeIf(EntityFilterProtocol::isEntityId)
         }
     } else emptyMap()
     return DashboardRegistryProjection(metadata, areaRegistryEntities, complete)
 }
 
-private val PROJECTED_ENTITY_ID = Regex("^[a-z0-9_]+\\.[a-z0-9_]+$")
 
 private val PROJECTED_REGISTRY_ID = Regex("^[a-z0-9_-]+$")
 

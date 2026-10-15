@@ -19,6 +19,17 @@ class EntityFilterProtocolTest {
         assertTrue(runCatching { EntityFilterProtocol.normalize(listOf("Light.upper")) }.isFailure)
     }
 
+    // Source-text reason: openapi.json is the published API contract the panel serves; its entity-id
+    // pattern is a documented copy of the enforced rule and must not drift from it.
+    @Test fun thePublishedApiDescribesTheEntityIdRuleThePanelEnforces() {
+        val api = JSONObject(java.io.File("src/main/assets/openapi.json").readText())
+        val pattern = api.getJSONObject("paths").getJSONObject("/api/v1/dashboard/entity-filter")
+            .getJSONObject("post").getJSONObject("requestBody").getJSONObject("content")
+            .getJSONObject("application/json").getJSONObject("schema").getJSONObject("properties")
+            .getJSONObject("entity_ids").getJSONObject("items").getString("pattern")
+        assertEquals(EntityFilterProtocol.ENTITY_ID_SOURCE, pattern)
+    }
+
     @Test fun updateBodySupportsReplaceAndToggleForms() {
         val replace = EntityFilterProtocol.parseUpdate(
             """{"enabled":true,"entity_ids":["sensor.b","light.a","sensor.b"]}""",

@@ -42,14 +42,6 @@ object EntityLearningRuntime {
         return BootstrapMilestone(2, catalog)
     }
 
-    fun bootstrapMilestone(): String {
-        val milestone = bootstrapMilestoneState() ?: return ""
-        return when (milestone.stage) {
-            1 -> milestone.count?.let { "Step 1 of 3 · Reading your entities — $it so far" }
-                ?: "Step 1 of 3 · Reading your entities…"
-            else -> "Step 2 of 3 · Building the filtered set from ${milestone.count} entities"
-        }
-    }
     /** Await service attachment, then perform a scan-independent authenticated dashboard resolution. */
     suspend fun resolveHomeDashboard(
         homeDashboard: String,

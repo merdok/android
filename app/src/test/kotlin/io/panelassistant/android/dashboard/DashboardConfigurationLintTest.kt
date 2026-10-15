@@ -79,6 +79,18 @@ class DashboardConfigurationLintTest {
         assertTrue(result.issues.isEmpty())
     }
 
+    @Test fun aCatalogueRowWhoseIdIsNotAnEntityIdNeverJoinsTheSafeSet() {
+        val config = """{"views":[{"cards":[{"type":"custom:auto-entities","filter":{"include":[
+          {"entity_id":"light.study_*"}
+        ]}}]}]}"""
+
+        val result = DashboardConfigurationLint.analyze(
+            config, listOf("light.study_main", "light.study_lamp-2"), emptyMap(),
+        )
+
+        assertEquals(setOf("light.study_main"), result.safeEntityIds)
+    }
+
     @Test fun dynamicExcludeDoesNotUnsafelyReduceCandidateSuperset() {
         val config = """{"views":[{"cards":[{"type":"custom:auto-entities","filter":{
           "include":[{"domain":"sensor"}],

@@ -20,7 +20,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import sun.misc.Unsafe
 import java.lang.reflect.Proxy
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
@@ -94,25 +93,19 @@ class EntityLearningAreaWriteTest {
                 config, io.panelassistant.android.HaConnectionRoutes.current(config),
                 io.panelassistant.android.HaConnectionAdvertisement("c".repeat(32), "d".repeat(32), emptyList()), "entry-test",
             ))
-            val unsafe = Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }
-                .get(null) as Unsafe
-            val manager = unsafe.allocateInstance(EntityLearningManager::class.java) as EntityLearningManager
-            EntityLearningManager::class.java.getDeclaredField("config").apply { isAccessible = true }
-                .set(manager, config)
-
-            val stale = manager.haAreaCatalog()
+            val stale = haAreaCatalog(config)
             assertTrue(stale.queried)
             assertTrue(HaAreaProtocol.hasLiteralNullAssignment(stale.device, stale.areas))
             val readsBeforeRepair = commands.count { it == "config/device_registry/list" }
 
             currentArea.set("study") // Another HA owner moves the device after the catalog read.
-            assertFalse(manager.applyRequestedArea("", stale.ownerKey))
+            assertFalse(applyRequestedArea(config, "", stale.ownerKey))
             assertEquals(readsBeforeRepair + 1, commands.count { it == "config/device_registry/list" })
             assertEquals("study", currentArea.get())
             assertTrue(updates.isEmpty())
 
             currentArea.set("bad-area")
-            assertTrue(manager.applyRequestedArea("", stale.ownerKey))
+            assertTrue(applyRequestedArea(config, "", stale.ownerKey))
             assertEquals(readsBeforeRepair + 2, commands.count { it == "config/device_registry/list" })
             assertEquals("", currentArea.get())
             assertEquals(1, updates.size)

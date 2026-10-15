@@ -273,6 +273,26 @@ internal object EntityCatalogStorePreOpen {
         }
     }
 
+    /** Every `app_state` row as the vault and the backup archive store it. */
+    internal fun readAppStateRows(db: SQLiteDatabase): List<ConfigVault.StateRow> = db.rawQuery(
+        "SELECT namespace,state_key,value_type,value_text,updated_at FROM app_state",
+        emptyArray(),
+    ).use { cursor ->
+        buildList {
+            while (cursor.moveToNext()) {
+                add(
+                    ConfigVault.StateRow(
+                        namespace = cursor.getString(0),
+                        key = cursor.getString(1),
+                        type = cursor.getString(2),
+                        valueText = if (cursor.isNull(3)) null else cursor.getString(3),
+                        updatedAt = cursor.getLong(4),
+                    ),
+                )
+            }
+        }
+    }
+
     /**
      * Copies configuration and imported device profiles into the vault before the structure changes.
      *
@@ -288,26 +308,7 @@ internal object EntityCatalogStorePreOpen {
                 database.path,
                 null,
                 SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS,
-            ).use { db ->
-                db.rawQuery(
-                    "SELECT namespace,state_key,value_type,value_text,updated_at FROM app_state",
-                    emptyArray(),
-                ).use { cursor ->
-                    buildList {
-                        while (cursor.moveToNext()) {
-                            add(
-                                ConfigVault.StateRow(
-                                    namespace = cursor.getString(0),
-                                    key = cursor.getString(1),
-                                    type = cursor.getString(2),
-                                    valueText = if (cursor.isNull(3)) null else cursor.getString(3),
-                                    updatedAt = cursor.getLong(4),
-                                ),
-                            )
-                        }
-                    }
-                }
-            }
+            ).use { db -> readAppStateRows(db) }
         }.onFailure { retainDatabaseFailure("database-vault-read", it) }.getOrDefault(emptyList())
 
         val profiles = runCatching { vaultedProfiles(context) }.getOrDefault(emptyMap())

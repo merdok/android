@@ -236,9 +236,9 @@ object DashboardConfigurationLint {
         val root = JSONObject(configJson)
         val dashboardRevision = revision(root)
         val catalogIds = catalog.asSequence().map(String::lowercase)
-            .filter(ENTITY_ID::matches).distinct().sorted().toList()
+            .filter(EntityFilterProtocol::isEntityId).distinct().sorted().toList()
         val registryIds = metadataJson.keys.asSequence().map(String::lowercase)
-            .filter(ENTITY_ID::matches).distinct().sorted().toList()
+            .filter(EntityFilterProtocol::isEntityId).distinct().sorted().toList()
         val knownIds = (catalogIds + registryIds).distinct().sorted()
         val metadata = knownIds.associateWith { id ->
             parseMetadata(metadataJson[id], friendlyNames[id].orEmpty())
@@ -256,7 +256,7 @@ object DashboardConfigurationLint {
             presentationCode: PresentationCode,
         ): Set<String> {
             val normalized = candidates.asSequence().map(String::lowercase)
-                .filter(ENTITY_ID::matches).toSortedSet()
+                .filter(EntityFilterProtocol::isEntityId).toSortedSet()
             if (normalized.size > SELECTOR_ENTITY_LIMIT) {
                 findings += Finding(
                     IssueType.BROAD_SELECTOR, view, source, signature,
@@ -847,7 +847,7 @@ object DashboardConfigurationLint {
     }
 
     private fun explicitEntityIds(value: Any?): Set<String> = when (value) {
-        is String -> setOf(value.lowercase()).filterTo(sortedSetOf(), ENTITY_ID::matches)
+        is String -> setOf(value.lowercase()).filterTo(sortedSetOf(), EntityFilterProtocol::isEntityId)
         is JSONObject -> explicitEntityIds(value.opt("entity")) + explicitEntityIds(value.opt("entity_id"))
         is JSONArray -> (0 until value.length()).flatMapTo(sortedSetOf()) { explicitEntityIds(value.opt(it)) }
         else -> emptySet()
@@ -1098,7 +1098,7 @@ object DashboardConfigurationLint {
 
     private fun isEntityPattern(value: String): Boolean = when {
         value.length > MAX_PATTERN_LENGTH || containsTemplate(value) -> false
-        ENTITY_ID.matches(value) -> true
+        EntityFilterProtocol.isEntityId(value) -> true
         GLOB_ENTITY_ID.matches(value) -> true
         value.length >= 2 && value.startsWith('/') && value.endsWith('/') ->
             value.substring(1, value.length - 1).let { source ->
@@ -1125,7 +1125,6 @@ object DashboardConfigurationLint {
     private fun safeIdentifier(value: String): String? = value.lowercase().takeIf(IDENTIFIER::matches)
     private fun containsTemplate(value: String): Boolean = TEMPLATE_MARKERS.any(value::contains)
 
-    private val ENTITY_ID = Regex("^[a-z0-9_]+\\.[a-z0-9_]+$")
     private val GLOB_ENTITY_ID = Regex("^[a-z0-9_*]+\\.[a-z0-9_*]+$")
     private val DOMAIN = Regex("^[a-z0-9_]+$")
     private val IDENTIFIER = Regex("^[a-z0-9_-]+$")

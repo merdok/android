@@ -2,6 +2,8 @@ package io.panelassistant.android.persistence
 
 import android.content.Context
 import io.panelassistant.android.dashboard.EntityCatalogStore
+import io.panelassistant.android.dashboard.exportProximityModels
+import io.panelassistant.android.dashboard.insertProximityModelIfAbsent
 import io.panelassistant.android.dashboard.readThenClose
 import io.panelassistant.android.sensors.ProximityCalibrationRuntime
 import io.panelassistant.android.util.Json

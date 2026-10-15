@@ -1,6 +1,7 @@
 package io.panelassistant.android.sensors
 
 import io.panelassistant.android.config.isLiteralNullAreaName
+import io.panelassistant.android.dashboard.EntityFilterProtocol
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -401,7 +402,7 @@ internal object HaPresenceProtocol {
 
     private fun String.safeName(): String = trim().take(MAX_NAME_CHARS).filterNot(Char::isISOControl)
     private fun validRegistryId(value: String): Boolean = value.matches(Regex("^[a-z0-9_-]+$"))
-    private fun validEntityId(value: String): Boolean = value.length <= 255 && value.matches(Regex("^[a-z0-9_]+\\.[a-z0-9_]+$"))
+    private fun validEntityId(value: String): Boolean = value.length <= 255 && EntityFilterProtocol.isEntityId(value)
 
     private const val MAX_REGISTRY_ROWS = 100_000
     private const val MAX_ENTITY_ROWS = 100_000

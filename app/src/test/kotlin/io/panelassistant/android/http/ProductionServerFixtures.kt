@@ -156,11 +156,8 @@ internal fun routeServer(
     ).also { check(it.closeAndJoin(1_000)) })
     val mutationLock = Any()
     fixtureSetField(server, "directConfigMutationLock", mutationLock)
-    val learning = fixtureAllocate(io.panelassistant.android.dashboard.EntityLearningManager::class.java)
-    fixtureSetField(learning, "config", config)
     fixtureSetField(server, "haArea", HaAreaRuntime(
         config,
-        learning,
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job().apply { cancel() }),
         mutationLock,
     ) { true })
