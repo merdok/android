@@ -19,7 +19,7 @@
 //    when not empty, is the door's path relative to the page base);
 //  - HTTP over the existing REST routes otherwise (a hardened panel's LAN pages and the fixture harness).
 //    It maps each name back to its route through ROUTES below and polls a subscription at its family's floor.
-// A hidden tab ends every subscription and opens them again on return, here and nowhere else.
+// A hidden tab or a page being left ends every subscription and opens them again on return, here and nowhere else.
 (function () {
   "use strict";
   if (window.PaneldTransport) return;
@@ -140,6 +140,8 @@
   };
 
   var DEADLINE_MS = 10000;
+  // Operations that move or apply a whole file: the most a relayed request may ask the panel for.
+  var LONG_DEADLINE_MS = { backup: 120000, restore: 120000, "config.import": 120000, "install.apk": 120000 };
   var BLOB_LIMIT = 256 * 1024;
 
   function route(op) {
@@ -333,6 +335,11 @@
     this.sequence = 0;
     this.closed = false;
     this.reconnectTimer = null;
+    // The relay's recovery after a closed signal: until every live subscription is open again, subscriptions
+    // are retried from 1 s, doubling to 30 s, and a subscribe answered with anything but applied stays live.
+    this.recovering = false;
+    this.retries = 0;
+    this.retryTimer = null;
   }
   FrameTransport.prototype.nextId = function (prefix) {
     this.sequence += 1;
@@ -393,12 +400,36 @@
         sub.id = null; sub.opening = false;
         if (!sub.stopped) sub.onValue(null, "unavailable");
       });
-      if (self.closed || !self.carrier.reconnects) return;
+      if (self.closed) return;
+      if (!self.carrier.reconnects) {
+        if (self.live.length) { self.recovering = true; self.retries = 0; self.retryLater(); }
+        return;
+      }
       // Full-jitter exponential backoff from 1 s, capped at 30 s.
       var ceiling = Math.min(30000, 1000 * Math.pow(2, self.attempt));
       self.attempt += 1;
       self.reconnectTimer = setTimeout(function () { self.reconnectTimer = null; self.connect(); }, Math.random() * ceiling);
     }
+  };
+  FrameTransport.prototype.retryLater = function () {
+    var self = this;
+    if (self.retryTimer || self.closed) return;
+    var delay = Math.min(30000, 1000 * Math.pow(2, self.retries));
+    self.retries += 1;
+    self.retryTimer = setTimeout(function () { self.retryTimer = null; self.resume(); }, delay);
+  };
+  // Open the link if it is closed (its opening subscribes every live subscription), or else every live
+  // subscription that is not open.
+  FrameTransport.prototype.resume = function () {
+    var self = this;
+    if (!self.socket) { self.connect(); return; }
+    if (self.ready) self.live.forEach(function (sub) { if (!sub.id && !sub.opening) self.open(sub); });
+  };
+  // The sidebar's open signal: the relay works again, so reopen now rather than at the next retry.
+  FrameTransport.prototype.recover = function () {
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
+    this.retries = 0;
+    this.resume();
   };
   FrameTransport.prototype.send = function (message) {
     this.connect();
@@ -426,7 +457,7 @@
   };
   FrameTransport.prototype.request = function (op, args, options) {
     var self = this;
-    var deadline = (options && options.deadline_ms) || DEADLINE_MS;
+    var deadline = (options && options.deadline_ms) || LONG_DEADLINE_MS[op] || DEADLINE_MS;
     return uploadBlobArgs(self, args || {}).then(function (sent) {
       var message = { kind: "manage", command_id: self.nextId("r"), op: op, args: sent, deadline_ms: deadline };
       // The existing `settings` op carries its keys beside args, as Panel Assistant sends them.
@@ -460,9 +491,19 @@
       sub.opening = false;
       var id = reply.outcome === "applied" && reply.result && reply.result.subscription;
       if (id && id !== message.command_id) { delete self.subs[message.command_id]; self.subs[id] = sub; }
-      if (!id) { delete self.subs[message.command_id]; if (!sub.stopped) sub.onValue(null, "unavailable"); return; }
+      if (!id) {
+        delete self.subs[message.command_id];
+        if (sub.stopped) return;
+        sub.onValue(null, "unavailable");
+        if (self.recovering) self.retryLater();
+        return;
+      }
       sub.id = id;
       if (sub.stopped) self.unsubscribe(sub);
+      if (self.recovering && self.live.every(function (live) { return live.id; })) {
+        self.recovering = false; self.retries = 0;
+        if (self.retryTimer) { clearTimeout(self.retryTimer); self.retryTimer = null; }
+      }
     }, function () { sub.opening = false; delete self.subs[message.command_id]; });
   };
   FrameTransport.prototype.unsubscribe = function (sub) {
@@ -487,6 +528,7 @@
   FrameTransport.prototype.close = function () {
     this.closed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.socket) this.socket.close();
   };
 
@@ -510,7 +552,8 @@
 
   // The sidebar relay's carrier: frames posted to Panel Assistant's sidebar, the page's parent, on the page's own
   // origin. Only the parent's messages of this type are read. {closed: true} closes the link as a socket close
-  // does; it opens again on the next frame the page sends, or at once on {open: true}.
+  // does; it opens again on the next frame the page sends, after the transport's retry backoff, or at once on
+  // {open: true}, which the sidebar posts when the relay works again.
   var RELAY_TYPE = "panel-assistant-ui";
   function relayCarrier(onOpenSignal) {
     var current = null;
@@ -518,7 +561,7 @@
       var data = event.data;
       if (event.source !== window.parent || event.origin !== location.origin || !data || data.type !== RELAY_TYPE) return;
       if (data.closed) { var link = current; current = null; if (link) link.handlers.close(); return; }
-      if (data.open) { if (!current) onOpenSignal(); return; }
+      if (data.open) { onOpenSignal(); return; }
       if (current && data.frame) current.handlers.message(data.frame);
     });
     return {
@@ -608,7 +651,7 @@
     var data = body && body.dataset ? body.dataset : {};
     var door = data.uiSocket;
     if (data.uiRelay !== undefined && window.parent && window.parent !== window) {
-      var relay = impl = new FrameTransport(relayCarrier(function () { relay.connect(); }));
+      var relay = impl = new FrameTransport(relayCarrier(function () { relay.recover(); }));
     } else if (door !== undefined && typeof WebSocket !== "undefined") {
       // Base-relative, like every page URL, so the door is found behind a proxy path too.
       var url = new URL(door || "ui", document.baseURI || location.href);
@@ -650,6 +693,16 @@
         if (hidden() && !sub.stopped) transport().stop(sub);
         else if (!hidden() && sub.stopped) transport().start(sub);
       });
+    });
+  }
+  // Leaving the page ends its subscriptions too: in the sidebar the relay outlives the page, and the panel
+  // holds at most eight families per browser connection. A page restored from the back-forward cache reopens them.
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("pagehide", function () {
+      if (impl) subscriptions.forEach(function (sub) { if (!sub.stopped) impl.stop(sub); });
+    });
+    window.addEventListener("pageshow", function (event) {
+      if (event && event.persisted && !hidden()) subscriptions.forEach(function (sub) { if (sub.stopped) transport().start(sub); });
     });
   }
 
