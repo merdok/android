@@ -27,7 +27,7 @@ internal class NativeStartupStateTest : PanelRuntimeRig() {
         val rig = rig(led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.core.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
             rig.start()
@@ -43,7 +43,7 @@ internal class NativeStartupStateTest : PanelRuntimeRig() {
         val rig = rig(led = led, configure = { it.lastLed = "1,128,255,0,0" })
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.core.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
             rig.start()
@@ -60,7 +60,7 @@ internal class NativeStartupStateTest : PanelRuntimeRig() {
         val rig = rig(led = led)
         val states = CopyOnWriteArrayList<String>()
         try {
-            rig.core.addStateSink { channel, observation, _ ->
+            rig.core.addStateSink { channel, observation ->
                 if (channel == "led" && observation is StateConverger.Observation.Known) states += observation.payload
             }
             rig.start()

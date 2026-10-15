@@ -99,7 +99,6 @@ data class Capabilities(
 data class HaEntity(
     val component: String,        // light | switch | number | select | sensor | binary_sensor | text | button | event
     val objectSuffix: String,     // unique_id/object_id suffix; full id = "<panel>_<objectSuffix>"
-    val name: String,             // HA entity name ("Wake on wave")
     val readOnly: Boolean = false,// publish-only (sensors): no /api/v1/config row, value comes from the runtime
     /** Opt this numeric measurement into bounded unchanged-value reports. Home Assistant needs
      *  force_update to turn those reports into graph/recorder points; controls and attributes must not
@@ -135,17 +134,16 @@ data class ChannelFacts(
 fun haEntity(
     component: String,
     objectSuffix: String,
-    name: String,
     channel: String = objectSuffix,
     readOnly: Boolean = false,
     periodicRefresh: Boolean = false,
-    discovery: HaDiscovery.() -> Unit,
+    facts: ChannelFactsBuilder.() -> Unit,
 ): HaEntity {
-    val declared = HaDiscovery().apply(discovery)
-    return HaEntity(component, objectSuffix, name, readOnly, periodicRefresh, channel = channel, facts = declared.facts)
+    val declared = ChannelFactsBuilder().apply(facts)
+    return HaEntity(component, objectSuffix, readOnly, periodicRefresh, channel = channel, facts = declared.facts)
 }
 
-class HaDiscovery internal constructor() {
+class ChannelFactsBuilder internal constructor() {
     internal var facts = ChannelFacts()
         private set
 
@@ -159,15 +157,6 @@ class HaDiscovery internal constructor() {
     }
 
     fun options(options: List<ChannelOption>) {
-        facts = facts.copy(options = options)
-    }
-
-    /** A select whose choices are filtered by capability ([SettingSpec.optionsFor]). */
-    fun capabilityOptions(options: List<ChannelOption>) {
-        facts = facts.copy(options = options)
-    }
-
-    fun sensorOptions(options: List<ChannelOption>) {
         facts = facts.copy(options = options)
     }
 
@@ -214,11 +203,10 @@ data class SettingSpec(
     // invocation fail validation outright instead of importing to the value the user meant.
     val aliases: Map<String, String> = emptyMap(),
     val picker: String? = null,              // dynamic picker for a STRING field ("package" → installed-apps dropdown)
-    val ha: HaEntity? = null,                // discovery descriptor, or null if never an HA entity
+    val ha: HaEntity? = null,                // channel descriptor, or null if never an HA entity
     // Per-panel default for the expose-to-HA pip. Defaults to FALSE: a setting is local-only (HTTP UI)
-    // unless it explicitly opts in with haExposedByDefault=true in SettingsRegistry. Consulted by the
-    // discovery gate for every HA-publishable setting (those with `ha`, plus the discovery-pass entities
-    // like navbar that carry no `ha` block here). A per-panel expose pip can still override it either way.
+    // unless it explicitly opts in with haExposedByDefault=true in SettingsRegistry. Consulted for every
+    // channel the panel reports. A per-panel expose pip can still override it either way.
     val haExposedByDefault: Boolean = false,
     // The setting's desired value is persisted and then routed through the shared command side-effect
     // path. This keeps HTTP config, bundle/restore, and Home Assistant command admission on one
@@ -233,6 +221,8 @@ data class SettingSpec(
     // one of its choices is not. `availableWhen` cannot express this: hiding the whole setting would
     // remove working choices too. A choice with no entry here is always offered.
     val optionRequires: Map<String, (Capabilities) -> Boolean> = emptyMap(),
+    // Some BOOL settings admit safety cleanup even when their ON actuator is unavailable.
+    val valueRequires: (String, Capabilities) -> Boolean = { _, _ -> true },
     // Capability-derived fresh-install default, the sibling of [optionRequires]: where that withholds a
     // choice a panel must not have, this chooses the value a panel should start at when the user has
     // never set one. Null means [default] is the answer everywhere.
@@ -272,10 +262,14 @@ data class SettingSpec(
     /**
      * The ENUM choices this panel may actually select, in declared order. [options] stays the full
      * static set — it is the durable validation vocabulary that config bundles and retired-spelling
-     * aliases resolve against — while this is what the Configure form and HA discovery offer.
+     * aliases resolve against — while this is what the Configure form and the hello descriptor offer.
      */
     fun optionsFor(caps: Capabilities): List<String> =
         options.filter { optionRequires[it]?.invoke(caps) ?: true }
+
+    /** Availability of a validated, normalized value; shared by import and backup restore. */
+    fun canApplyValue(value: String, caps: Capabilities): Boolean =
+        availableWhen(caps) && (optionRequires[value]?.invoke(caps) ?: true) && valueRequires(value, caps)
 
     /**
      * The value this panel should start at when nothing was ever stored for [key]. Falls back to the

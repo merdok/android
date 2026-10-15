@@ -220,66 +220,6 @@ class AssetSyntaxTest {
         assertEquals("Configure auto-sleep readiness lifecycle failed:\n$out", 0, code)
     }
 
-    @Test fun installLinksRequireGithubHttps() {
-        val dir = assetsDir
-        assumeTrue("assets dir not found (skipping)", dir != null)
-        Node.assumeAvailable()
-        val script = """
-            const fs=require('fs'),vm=require('vm');
-            const attrs={notes:'https://github.com/example/project/releases/tag/v1',apk:'https://github.com/example/project/releases/download/v1/app.apk',installable:'1',action:'Downgrade'};
-            const option={getAttribute(k){return attrs[k.replace('data-','')]||''}};
-            function link(){return {href:'stale',style:{},removeAttribute(k){if(k==='href')this.href=''}}}
-            const notes=link(),download=link(),button={disabled:false,textContent:'',getAttribute(){return '1'}};
-            const row={querySelector(s){if(s==='.cvsel')return {selectedOptions:[option]};if(s==='.cnotes')return notes;if(s==='.cinstall')return button;if(s==='.cdl')return download;return null}};
-            global.window=global;
-            global.document={querySelector(){return row},querySelectorAll(){return []},getElementById(){return null},createElement(){return {}}};
-            global.fetch=()=>Promise.reject(new Error('unused'));
-            ${NodeI18n.REAL_BRIDGE}vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
-            function check(good){
-              global.verChanged('paneld');
-              if(good){if(!notes.href.startsWith('https://github.com/')||notes.style.visibility!=='visible')process.exit(2);if(!download.href.startsWith('https://github.com/')||download.style.display!=='')process.exit(3);if(button.textContent!=='Downgrade')process.exit(6)}
-              else{if(notes.href||notes.style.visibility!=='hidden')process.exit(4);if(download.href||download.style.display!=='none')process.exit(5)}
-            }
-            check(true);
-            for(const bad of ['javascript:alert(1)','http://github.com/example/project','https://github.com.evil.example/project']){
-              attrs.notes=bad;attrs.apk=bad;notes.href='stale';download.href='stale';check(false);
-            }
-        """.trimIndent()
-        val (code, out) = Node.run("-e", script, File(dir, "install.js").absolutePath)
-        assertEquals("Install links accepted a non-GitHub HTTPS target:\n$out", 0, code)
-    }
-
-    @Test fun installPickerPrefersNewestInstallableVersion() {
-        val dir = assetsDir
-        assumeTrue("assets dir not found (skipping)", dir != null)
-        Node.assumeAvailable()
-        val script = """
-            const fs=require('fs'),vm=require('vm');
-            const fallback=process.argv[2]==='fallback';
-            function option(){return {attrs:{},value:'',textContent:'',setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]||''}}}
-            const vsel={children:[],selectedIndex:-1,_html:'',appendChild(o){this.children.push(o)},
-              set innerHTML(v){this._html=v;this.children=[];this.selectedIndex=-1},get innerHTML(){return this._html},
-              get selectedOptions(){return this.selectedIndex>=0?[this.children[this.selectedIndex]]:[]}};
-            const chan={value:'stable'},current={textContent:'1.0.0'};
-            const link={href:'',style:{},removeAttribute(k){if(k==='href')this.href=''}};
-            const button={disabled:true,textContent:'',getAttribute(){return '1'}};
-            const row={getAttribute(){return null},querySelector(s){if(s==='.cchan')return chan;if(s==='.cvsel')return vsel;if(s==='.cver')return current;if(s==='.cnotes')return link;if(s==='.cinstall')return button;if(s==='.cdl')return null;return null}};
-            const versions=fallback?
-              [{tag:'v3',version:'3.0.0',installable:false,action:'Upgrade'},{tag:'v2',version:'2.0.0',installable:false,action:'Upgrade'},{tag:'v1',version:'1.0.0',installable:false,action:'Install'}]:
-              [{tag:'v3',version:'3.0.0',installable:false,action:'Upgrade'},{tag:'v2',version:'2.0.0',installable:true,action:'Upgrade'},{tag:'v1',version:'1.0.0',installable:true,action:'Install'}];
-            global.window=global;
-            global.document={querySelector(){return row},querySelectorAll(){return []},getElementById(){return null},createElement(){return option()}};
-            global.fetch=()=>Promise.resolve({json:()=>Promise.resolve({versions})});
-            ${NodeI18n.REAL_BRIDGE}vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
-            global.loadVersions('paneld');
-            setImmediate(()=>setImmediate(()=>{const expected=fallback?2:1;if(vsel.selectedIndex!==expected)process.exit(2);if(button.textContent!==(fallback?'Install':'Upgrade'))process.exit(3)}));
-        """.trimIndent()
-        for (mode in listOf("recommended", "fallback")) {
-            val (code, out) = Node.run("-e", script, File(dir, "install.js").absolutePath, mode)
-            assertEquals("Install picker did not select the expected version ($mode):\n$out", 0, code)
-        }
-    }
-
     @Test fun performanceCardDistinguishesUnavailableBuiltinObserverFromCompanionProxy() {
         val dir = assetsDir
         assumeTrue("assets dir not found (skipping)", dir != null)

@@ -67,6 +67,8 @@ platform:
   app_can_su: false
   # Projected from the X2i: the Stargate firmware ignores the Recents key.
   has_recents: false
+  # Stargate replaces Android's navigation bar on every Shelly Wall Display.
+  has_native_navbar: false
   launcher:
     # Shelly's Stargate registers as Home but offers no route to Android Settings.
     # The Launcher button skips it and opens the admin launcher, which lists it as an app.

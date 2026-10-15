@@ -125,6 +125,21 @@ internal data class EntityLearningPromotionSnapshot(
         state.learningEnabled && state.applied && state.autoRuntime && blockingIssues == 0
 }
 
+internal enum class RuntimePromotionDecision { UNCHANGED, PROMOTE, CAPPED }
+
+/** A promotion that would not change the applied set is never refused, so the window cap marks the
+ * learner degraded only when a wanted promotion is actually held back. */
+internal fun runtimePromotionDecision(
+    desired: Collection<String>,
+    applied: Collection<String>,
+    promotionsInWindow: Int,
+    maxPromotions: Int,
+): RuntimePromotionDecision = when {
+    desired.isEmpty() || desired.toSet() == applied.toSet() -> RuntimePromotionDecision.UNCHANGED
+    promotionsInWindow >= maxPromotions -> RuntimePromotionDecision.CAPPED
+    else -> RuntimePromotionDecision.PROMOTE
+}
+
 internal suspend fun <T> withEntityLearningDeadline(
     timeoutMs: Long,
     block: suspend CoroutineScope.() -> T,

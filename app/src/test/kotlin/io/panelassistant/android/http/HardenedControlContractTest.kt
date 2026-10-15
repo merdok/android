@@ -1,16 +1,22 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.Config.SecurityMode
+import io.panelassistant.android.control.FakeDaemon
+import io.panelassistant.android.control.FakeRootShell
+import io.panelassistant.android.control.FakeSystemEnv
+import io.panelassistant.android.control.SystemController
+import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
+import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
+import io.panelassistant.android.security.LocalApprovalBroker
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.testsupport.TestSources
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class HardenedControlContractTest {
-    // Source-text reason: the remote command handlers need the Android service to construct.
-    private val dispatcher by lazy {
-        TestSources.appFile("src/main/kotlin/io/panelassistant/android/PanelCommandDispatcher.kt").readText()
-    }
-
+/** Remote commands under Hardened mode, through the production command dispatcher. */
+internal class HardenedControlContractTest : PanelRuntimeRig() {
     // Source-text reason: user-visible English labels for the security modes and remote-ADB refusals.
     private val englishStrings by lazy {
         TestSources.appFile("src/main/res/values/strings.xml").readText()
@@ -22,45 +28,62 @@ class HardenedControlContractTest {
         return englishStrings.substringAfter(marker).substringBefore("</string>")
     }
 
-    @Test fun remoteRebootAndReloadRemainApprovalGated() {
-        val dispatch = dispatcher.substring(dispatcher.indexOf("private fun dispatch(channel"), dispatcher.indexOf("private fun handleScreen"))
-        assertTrue(dispatch.contains("\"reboot\" ->"))
-        assertTrue(dispatch.contains("SensitiveOperation.DEVICE_REBOOT"))
+    /** Runs [block] on a Hardened panel, denying every approval it leaves pending. */
+    private fun hardened(systemDaemon: FakeDaemon = FakeDaemon(), block: (Rig, Set<String>) -> Unit) {
+        val broker = LocalApprovalBroker.instance
+        val before = broker.pending().map { it.id }.toSet()
+        val rig = rig(systemDaemon = systemDaemon, configure = { assertTrue(it.setSecurityMode(SecurityMode.HARDENED)) })
+        try {
+            val system = SystemController(FakeSystemEnv(), FakeRootShell(), systemDaemon, isDeviceSecure = { false })
+            rig.commands.javaClass.getDeclaredField("system").apply { isAccessible = true }.set(rig.commands, system)
+            rig.start()
+            block(rig, before)
+        } finally {
+            broker.pending().filter { it.id !in before }.forEach { broker.deny(it.id) }
+            rig.close()
+        }
+    }
 
-        // Hardened mode publishes a closed list of operations it protects, and a dashboard reload is on
-        // it. A remote command arm once shipped ungated while the HTTP route was gated, so a documented protection
-        // was absent on the transport an automation actually uses. Approval must precede the reload.
-        val reloadArm = dispatch.substring(dispatch.indexOf("\"reload\" ->"), dispatch.indexOf("\"reboot\" ->"))
-        assertTrue(reloadArm.contains("SensitiveOperation.DASHBOARD_RELOAD"))
-        assertTrue(reloadArm.indexOf("authorizeRemoteSensitive(") < reloadArm.indexOf("system.reloadDashboard("))
+    @Test fun remoteRebootWaitsForApprovalBeforeItReboots() {
+        val daemon = FakeDaemon(replies = mapOf("REBOOT AWAIT" to "OK"))
+        hardened(daemon) { rig, before ->
+            assertTrue(submitNative(rig, "reboot", "PRESS") is PanelAssistantCommandResult.ApprovalPending)
+            assertFalse("rebooted before approval", "REBOOT AWAIT" in daemon.sent)
+            val approval = LocalApprovalBroker.instance.pending().single { it.id !in before }
+            assertTrue(LocalApprovalBroker.instance.approve(approval.id))
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "reboot", "PRESS"))
+            assertTrue("REBOOT AWAIT" in daemon.sent)
+        }
+    }
 
-        val serviceApply = dispatcher.substring(dispatcher.indexOf("internal fun applySetting"), dispatcher.indexOf("fun stop(deadline: MonotonicDeadline)"))
-        assertTrue(serviceApply.contains("sensitiveApprovalRequired = false"))
-        assertTrue(serviceApply.contains("dispatchLiveSetting("))
-        assertTrue(serviceApply.contains("handlers = this"))
+    // Hardened mode publishes a closed list of operations it protects, and a dashboard reload is on it. A
+    // remote command arm once shipped ungated while the HTTP route was gated.
+    @Test fun remoteReloadWaitsForApproval() {
+        hardened { rig, before ->
+            assertTrue(submitNative(rig, "reload", "PRESS") is PanelAssistantCommandResult.ApprovalPending)
+            val approval = LocalApprovalBroker.instance.pending().single { it.id !in before }
+            assertTrue(LocalApprovalBroker.instance.approve(approval.id))
+            assertFalse(submitNative(rig, "reload", "PRESS") is PanelAssistantCommandResult.ApprovalPending)
+        }
     }
 
     @Test fun networkAdbCannotBeEnabledRemotelyUnderHardenedMode() {
-        val handler = dispatcher.substring(dispatcher.indexOf("override fun handleNetAdb"), dispatcher.indexOf("private fun authorizeRemoteSensitive"))
-        assertTrue(handler.contains("on && config.hardenedSecurityEnabled"))
-        assertFalse(handler.contains("LocalApprovalBroker"))
+        hardened { rig, before ->
+            assertEquals(
+                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_REFUSED_HARDENED),
+                submitNative(rig, "network_adb", "ON"),
+            )
+            assertFalse(rig.config.networkAdbEnabled)
+            assertTrue("no approval can allow it", LocalApprovalBroker.instance.pending().none { it.id !in before })
+        }
     }
 
     @Test fun remotePowerSafetyReductionsCannotBypassApproval() {
-        val handler = dispatcher.substring(
-            dispatcher.indexOf("override fun handlePreventIdleDim"),
-            dispatcher.indexOf("override fun handleTouchSound"),
-        )
-        assertTrue(handler.contains("PowerSafetyMutationPolicy.parseGuardSwitch(payload)"))
-        assertTrue(handler.contains("SensitiveOperation.POWER_CONFIGURATION"))
-        assertTrue(handler.contains("\"prevent_idle_dim\\u0000${'$'}payload\""))
-        assertTrue(handler.indexOf("authorizeRemoteSensitive(") < handler.indexOf("config.setPreventIdleDim(on)"))
-
-        val dispatch = dispatcher.substring(
-            dispatcher.indexOf("internal fun dispatchLiveSetting"),
-            dispatcher.indexOf("internal fun liveSettingApplyResult"),
-        )
-        assertTrue(dispatch.contains("if (sensitiveApprovalRequired) value else onOff"))
+        hardened { rig, _ ->
+            rig.config.setPreventIdleDim(true)
+            assertTrue(submitNative(rig, "prevent_idle_dim", "OFF") is PanelAssistantCommandResult.ApprovalPending)
+            assertTrue("nothing changed before approval", rig.config.preventIdleDim)
+        }
     }
 
     @Test fun securityModeAndRemoteAdbLabelCatalogueContract() {

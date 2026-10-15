@@ -86,6 +86,19 @@ internal abstract class PanelRuntimeRig {
         assertTrue("command worker drained", done.await(20, TimeUnit.SECONDS))
     }
 
+    /** Every channel a panel with every capability registers once those capabilities are observed. */
+    protected fun everyChannel(): Set<String> {
+        val rig = rig(hasCamera = true, hasCht8305 = true)
+        try {
+            rig.core.ensureCapabilityChannels(
+                Capabilities(zigbeePresent = true, cpuGovernors = true, networkAdb = true, relays = 2, buttonLeds = 1),
+            )
+            return rig.core.stateChannelKeys()
+        } finally {
+            rig.close()
+        }
+    }
+
     // ---- rig ----
 
     protected class Rig(
@@ -119,6 +132,7 @@ internal abstract class PanelRuntimeRig {
         hasTemperature: Boolean = true,
         buttonKeys: io.panelassistant.android.device.PanelButtonKeys = io.panelassistant.android.device.PanelButtonKeys.UNKNOWN,
         hasHumidity: Boolean = true,
+        hasCht8305: Boolean = false,
         hasCamera: Boolean = false,
         cameraAvailability: () -> Boolean? = { hasCamera },
         learnedProximityState: () -> Boolean? = { null },
@@ -151,6 +165,12 @@ internal abstract class PanelRuntimeRig {
         rebootSucceeds: Boolean = true,
         /** Touch-sound hardware; null leaves the controller unconstructed, as no touch_sound command is sent. */
         touchSoundHardware: io.panelassistant.android.control.TouchSoundHardware? = null,
+        wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
+        /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
+        systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
+        onZigbeeExplicitRetry: () -> Unit = {},
+        /** Retires a queued HTTP value an external command superseded; a test records the keys. */
+        onExternalSettingApplied: (String) -> Boolean = { true },
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
@@ -180,7 +200,7 @@ internal abstract class PanelRuntimeRig {
         )
         val companion = "io.homeassistant.companion.android.minimal"
         val system = SystemController(
-            FakeSystemEnv(), FakeRootShell(runResult = rebootSucceeds), FakeDaemon(replies = mapOf("RELOAD $companion" to "OK")),
+            FakeSystemEnv(), FakeRootShell(runResult = rebootSucceeds), systemDaemon,
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
         )
@@ -249,7 +269,7 @@ internal abstract class PanelRuntimeRig {
             hasProximity = true,
             hasTemperature = hasTemperature,
             hasHumidity = hasHumidity,
-            hasCht8305 = false,
+            hasCht8305 = hasCht8305,
             hasButtonBacklight = true,
             media = media,
             hasCamera = cameraAvailability,
@@ -258,9 +278,7 @@ internal abstract class PanelRuntimeRig {
             softwareUpdateSources = { updateSources.get() },
             storageHealth = { storageReads.incrementAndGet(); storage.get() },
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
-            panelId = PANEL,
-            friendlyName = "Golden panel",
-            wifiOutages = { WifiOutageCounts(last24h = 3) },
+            wifiOutages = wifiOutages,
             learnedProximityEligibility = { true },
             learnedProximityState = learnedProximityState,
         )
@@ -272,10 +290,10 @@ internal abstract class PanelRuntimeRig {
             navigate = NavigateController(context),
             volume = volume,
             system = system,
-            // Never reached: no navbar command reaches the controller in these tests.
+            // Never usable: a navbar command that reaches the controller throws here.
             navbar = allocate(NavbarController::class.java),
             watchdog = WatchdogController(system, config),
-            // The real controller over fake hardware when a test drives touch_sound; never reached otherwise.
+            // The real controller over fake hardware when a test drives touch_sound; otherwise never usable.
             touchSound = touchSoundHardware?.let { touchSoundController(context, it) }
                 ?: allocate(TouchSoundController::class.java),
             bootChime = bootChime,
@@ -292,6 +310,8 @@ internal abstract class PanelRuntimeRig {
             autoBright = allocate(AutoBrightnessController::class.java),
             onDirectKioskSetting = { true },
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
+            onZigbeeExplicitRetry = onZigbeeExplicitRetry,
+            onExternalSettingApplied = onExternalSettingApplied,
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
             manageTable = manageTable,
             manageFamilies = manageFamilies,

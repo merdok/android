@@ -2544,7 +2544,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.backlight_off_vendor": {
-   "text": "echte uitschakeling van de achtergrondverlichting via de lokale RPC van de fabrikant; anders Android-schermtime-out",
+   "text": "echt uitzetten van de achtergrondverlichting via de lokale RPC van de fabrikant; Android-schermtime-out als de fabrikant niet antwoordt",
    "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
    "state": "machine-cross-checked"
   },
@@ -3756,11 +3756,6 @@
   "dashboard.runtime.camera.stream_url": {
    "text": "stream op {url} (niet voor het eigen dashboard van dit paneel)",
    "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.convergence": {
-   "text": "{channels} kanalen · {dirty} gewijzigd · {inFlight} onderweg · {unknown} onbekend · bevestigd {successes}/{failures} · in behandeling {pending}",
-   "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.database.on_disk": {

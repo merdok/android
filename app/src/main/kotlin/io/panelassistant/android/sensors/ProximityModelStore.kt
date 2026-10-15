@@ -11,6 +11,7 @@ internal interface ProximityModelStore : AutoCloseable {
         now: Long,
     )
     fun clearProximityLearning(fingerprint: String)
+    fun insertProximityModelIfAbsent(model: EntityCatalogStore.ProximityModelRow): Boolean
 }
 
 internal class SqliteProximityModelStore(
@@ -29,6 +30,9 @@ internal class SqliteProximityModelStore(
 
     override fun clearProximityLearning(fingerprint: String) = store.clearProximityLearning(fingerprint)
 
+    override fun insertProximityModelIfAbsent(model: EntityCatalogStore.ProximityModelRow) =
+        store.insertProximityModelIfAbsent(model)
+
     override fun close() = store.close()
 }
 
@@ -45,6 +49,9 @@ private class EntityCatalogProximityModelStore(
     ) = store.writeProximityBatch(model, rollups, episodes, now)
 
     override fun clearProximityLearning(fingerprint: String) = store.clearProximityLearning(fingerprint)
+
+    override fun insertProximityModelIfAbsent(model: EntityCatalogStore.ProximityModelRow) =
+        store.insertProximityModelIfAbsent(model)
 
     override fun close() = store.close()
 }

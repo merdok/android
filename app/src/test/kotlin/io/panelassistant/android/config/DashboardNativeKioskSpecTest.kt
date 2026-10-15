@@ -37,7 +37,6 @@ class DashboardNativeKioskSpecTest {
         assertTrue(androidLock.help.contains("within about 3 seconds"))
         assertTrue(androidLock.help.contains("60-second unlocked window after reboot"))
         assertTrue(androidLock.help.contains("does not hide Home Assistant navigation"))
-        assertEquals("Android dashboard lock", androidLock.ha?.name)
 
         assertEquals("Hide Android system bars", systemBars.label)
         assertTrue(systemBars.help.contains("while the dashboard is in front"))

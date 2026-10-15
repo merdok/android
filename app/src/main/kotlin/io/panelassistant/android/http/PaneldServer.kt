@@ -179,6 +179,8 @@ class PaneldServer internal constructor(
      * they were already holding in memory.
      */
     private val onDurableStateRestored: () -> Unit = {},
+    /** The saved proximity calibrations a backup carries and a restore writes back. */
+    private val proximityCalibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody? = null,
     private val profileRestartAllowed: () -> Boolean = { true },
     private val onProfileRestartAbort: (String) -> Boolean = { false },
     // Application-id migration: the release and offer endpoints on the bridge build, and the
@@ -916,6 +918,7 @@ class PaneldServer internal constructor(
                 authorizeSensitive = ::authorizeSensitive,
                 rejectHardenedNetworkAdb = ::rejectHardenedNetworkAdb,
                 planEntityBackup = ::planEntityBackup,
+                capabilities = { liveCapabilities(managementObservations.snapCache.get().caps) },
             )
         }
     }
@@ -967,7 +970,11 @@ class PaneldServer internal constructor(
             profileAdmin = profileAdmin,
             companion = companionBackupOperations(),
             wakeWords = wakeWords,
+            calibrations = calibrationCustody(),
         ).build(request, passphrase)
+
+    private fun calibrationCustody() = proximityCalibrations
+        ?: io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(appContext)
 
     private suspend fun handleRestore(call: OpCall) {
         val executor = AcceptedConfigTransaction.restoreExecutor(
@@ -981,6 +988,7 @@ class PaneldServer internal constructor(
             onProfileRestartAbort = { onProfileRestartAbort(it) },
             onDurableStateRestored = { onDurableStateRestored() },
             onWakeWordsChanged = { onWakeWordsChanged() },
+            calibrations = calibrationCustody(),
         )
         RestoreRoutes(
             cacheDir = cacheDir,
@@ -989,6 +997,7 @@ class PaneldServer internal constructor(
             reader = BackupArchiveReader(cacheDir) { CompanionInstaller.installedPackages(appContext) },
             profileAdmin = profileAdmin,
             ensureCompanionHelper = managementObservations::ensureCompanionHelper,
+            companionHelperReady = { managementObservations.companionHelperCache.get() },
             authorizeSensitive = ::authorizeSensitive,
             rejectHardenedNetworkAdb = ::rejectHardenedNetworkAdb,
             capabilities = { liveCapabilities(managementObservations.snapCache.get().caps) },

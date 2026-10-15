@@ -41,7 +41,17 @@ internal object PanelPermissionRepair {
 
     fun repair(context: Context, hasMicrophone: Boolean, cameraReason: CameraCapabilityReason) {
         repair(Build.VERSION.SDK_INT, hasMicrophone, cameraRequired(context, cameraReason),
-            { granted(context, it) }, HelperClient, context.packageName, Su).forEach { (grant, outcome) ->
+            { granted(context, it) }, HelperClient, context.packageName, Su,
+            repairAccessibility = {
+                if (context.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
+                    reenableAccessibility(context.packageName,
+                        { Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) },
+                        { Settings.Secure.putString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, it) },
+                        { Thread.sleep(1500L) },
+                    )
+                }
+            },
+        ).forEach { (grant, outcome) ->
             when (outcome) {
                 Outcome.HELD -> Unit
                 Outcome.CLAIMED -> Log.i(TAG, "${grant.name.lowercase()} permission repaired")
@@ -113,6 +123,8 @@ internal object PanelPermissionRepair {
      * proves the repair; an unreadable state or a refused grant leaves the rest of startup running.
      * Camera/microphone access does not enable their features or open either device.
      *
+     * Accessibility first uses the app's commissioned secure-settings grant to retry a crashed bind.
+     * The direct route runs on the existing startup IO lane; no new recovery owner or thread.
      * Accessibility alone falls back to [root] when the helper cannot grant it: a helper installed
      * before the 0.9.10 package move writes only the pre-move class, and the app cannot always replace
      * that helper, while su is held on most panels. The other grants stay helper-only.
@@ -125,13 +137,17 @@ internal object PanelPermissionRepair {
         helper: Daemon,
         packageName: String,
         root: RootShell? = null,
+        repairAccessibility: (() -> Unit)? = null,
     ): Map<Grant, Outcome> = Grant.entries.filter { required(sdkInt, hasMicrophone, hasCamera, it) != false }
         .associateWith { grant ->
             when (observe(grant, required(sdkInt, hasMicrophone, hasCamera, grant), granted)) {
                 State.HELD, State.NOT_REQUIRED -> Outcome.HELD
                 State.UNREADABLE -> Outcome.UNREADABLE
                 State.MISSING -> {
-                    val reply = runCatching { helper.sendLong("GRANT $packageName ${grant.name}", TIMEOUT_MS) }.getOrNull()
+                    if (grant == Grant.ACCESSIBILITY) runCatching { repairAccessibility?.invoke() }
+                    val reply = if (grant != Grant.ACCESSIBILITY || observe(grant, granted) == State.MISSING) {
+                        runCatching { helper.sendLong("GRANT $packageName ${grant.name}", TIMEOUT_MS) }.getOrNull()
+                    } else null
                     // A lost reply may still have granted it. Android's readback remains the authority.
                     if (grant == Grant.ACCESSIBILITY && root != null && observe(grant, granted) == State.MISSING &&
                         root.available()
@@ -146,6 +162,34 @@ internal object PanelPermissionRepair {
                 }
             }
         }
+
+    /** Android clears its crashed-service exclusion when this component leaves the enabled set. */
+    internal fun reenableAccessibility(
+        packageName: String,
+        read: () -> String?,
+        write: (String) -> Boolean,
+        awaitRemoval: () -> Unit,
+    ) {
+        val component = "$packageName/${AppIdentity.CODE_PACKAGE}.input.PanelAccessibilityService"
+        fun entries() = read().orEmpty().split(':').filter { it.isNotBlank() }
+        val before = entries()
+        val absent = before.none { accessibilityHeld(packageName, it, true) }
+        if (absent && !write((before + component).joinToString(":"))) return
+        try {
+            // Force-stop can remove the enabled entry while retaining Android's crashed exclusion.
+            // Let Android observe an addition first, so the following removal is a real transition.
+            if (absent) awaitRemoval()
+            val others = entries().filterNot { accessibilityHeld(packageName, it, true) }
+            if (!write(others.joinToString(":"))) return
+            awaitRemoval()
+        } finally {
+            // Re-read after the gap: another service may have been enabled while ours was removed.
+            val current = entries()
+            if (current.none { accessibilityHeld(packageName, it, true) }) {
+                write((current + component).joinToString(":"))
+            }
+        }
+    }
 
     /**
      * The helper's GRANT ACCESSIBILITY over su: a read-modify-write of the shared list that appends

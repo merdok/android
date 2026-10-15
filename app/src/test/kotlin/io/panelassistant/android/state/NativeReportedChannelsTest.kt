@@ -7,7 +7,7 @@ import io.panelassistant.android.control.ZigbeeHealthSnapshot
 import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.input.ButtonBus
 import io.panelassistant.android.panelassistant.PanelAssistantReportResult
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -69,15 +69,14 @@ internal class NativeReportedChannelsTest : PanelRuntimeRig() {
     }
 
     @Test fun zigbeeGatewayHealthCarriesItsStateAndAttributes() {
-        val native = PanelAssistantShadowReporter(log = {})
-        val sink = native.bind { listOf("zigbee_gateway_health", "zigbee_gateway_health_attributes") }
+        val native = PanelAssistantStateReporter(log = {})
+        val sink = native.bind { listOf("zigbee_gateway_health") }
         val health = ZigbeeHealthSnapshot(
             state = ZigbeeHealthState.DEGRADED_HIGH_CPU,
             gatewayCpu = 87,
             containment = ZigbeeContainmentResult.PARTIAL,
         )
-        sink("zigbee_gateway_health_attributes", StateConverger.Observation.Known(health.attributesJson())) {}
-        sink("zigbee_gateway_health", StateConverger.Observation.Known(health.state.wireValue)) {}
+        sink("zigbee_gateway_health", StateConverger.Observation.Known(health.state.wireValue, health.attributesJson()))
         val descriptor = native.offer().descriptors.single { it.channel == "zigbee_gateway_health" }
         assertEquals("sensor", descriptor.platform)
         assertEquals("zigbee_gateway_health", descriptor.uniqueSuffix)
@@ -91,6 +90,24 @@ internal class NativeReportedChannelsTest : PanelRuntimeRig() {
         assertEquals(87, attributes.getInt("gateway_cpu_percent"))
         assertEquals("partial", attributes.getString("containment_result"))
         assertTrue(attributes.isNull("firmware"))
+    }
+
+    @Test fun aChangeToOnlyTheOutageFloorReReportsTheCountWithItsNewAttribute() {
+        val counts = java.util.concurrent.atomic.AtomicReference(io.panelassistant.android.control.WifiOutageCounts(last24h = 200))
+        val rig = rig(wifiOutages = { counts.get() })
+        try {
+            val native = bound(rig)
+            rig.start()
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
+            val first = observation(fullSync(native), "diag_wifi_outages_24h")
+            assertEquals(false, first.getJSONObject("attributes").getBoolean("is_lower_bound"))
+
+            counts.set(io.panelassistant.android.control.WifiOutageCounts(last24h = 200, saturated = true))
+            rig.core.reconcile("diag_wifi_outages_24h")
+            val delta = JSONObject(requireNotNull(native.next(4, "native-session", 0L)))
+            assertEquals(setOf("diag_wifi_outages_24h"), channels(delta))
+            assertEquals(true, observation(delta, "diag_wifi_outages_24h").getJSONObject("attributes").getBoolean("is_lower_bound"))
+        } finally { rig.close() }
     }
 
     @Test fun startupRestoresTheButtonBacklight() {
@@ -117,13 +134,13 @@ internal class NativeReportedChannelsTest : PanelRuntimeRig() {
         } finally { rig.close() }
     }
 
-    private fun bound(rig: Rig): PanelAssistantShadowReporter = PanelAssistantShadowReporter(log = {}).also { native ->
+    private fun bound(rig: Rig): PanelAssistantStateReporter = PanelAssistantStateReporter(log = {}).also { native ->
         rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
         rig.core.addEventSink(native::event)
     }
 
     /** Runs an accepted session's full sync and returns its `full_begin` report. */
-    private fun fullSync(native: PanelAssistantShadowReporter): JSONObject {
+    private fun fullSync(native: PanelAssistantStateReporter): JSONObject {
         native.open(native.offer().descriptors)
         val begin = JSONObject(requireNotNull(native.next(2, "native-session", 0L)))
         assertEquals("full_begin", begin.getString("sync"))

@@ -59,9 +59,9 @@ internal fun migrationRestoreComplete(rawPreferencesApplied: Boolean, carriedRow
 /** Only structural unavailability may omit a live setting, before it can admit actuator intent.
  * Validation and security admission still see the original archive; failed supported work remains a failure. */
 internal fun unavailableRestoreSettings(values: Map<String, String>, capabilities: Capabilities): List<String> =
-    values.keys.filter { key ->
-        SettingsRegistry.spec(key)?.let { it.liveApply && !it.availableWhen(capabilities) } == true
-    }
+    values.filter { (key, value) ->
+        SettingsRegistry.spec(key)?.let { it.liveApply && !it.canApplyValue(value, capabilities) } == true
+    }.keys.toList()
 
 internal fun RestoreConfigPlan.withAvailableLiveSettings(capabilities: Capabilities): RestoreConfigPlan {
     val unavailable = unavailableRestoreSettings(values, capabilities)

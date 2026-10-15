@@ -13,7 +13,6 @@ import io.panelassistant.android.device.SuForm
 import io.panelassistant.android.device.profile.BundledProfileFixtures
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -120,20 +119,18 @@ class NavbarCapabilityDefaultTest {
         // The firmware claims a navigation bar it does not usably provide, which is exactly why the
         // legacy tiers answered Off and left such a panel with no way out.
         val caps = capsOf(x2i, androidShowsNavbar = true)
-        assertEquals("Always on", navbarModeDefault(caps))
+        assertEquals("Swipe reveal", navbarModeDefault(caps))
         // Through the mechanism that actually ships, not only the rule function: the spec must declare
         // the derivation and SettingSpec must consult it, or the rule is correct and never consulted.
-        assertEquals("Always on", SettingsRegistry.spec("navbar_mode")!!.defaultFor(caps))
+        assertEquals("Swipe reveal", SettingsRegistry.spec("navbar_mode")!!.defaultFor(caps))
         assertTrue(
             "the default must be a bar that is actually drawn",
             navbarModeDefault(caps) in NavbarController.OVERLAY_MODES,
         )
-        // Always on rather than Swipe reveal: a stranded user does not know to swipe.
-        assertNotEquals(NavbarController.MODE_SWIPE, navbarModeDefault(caps))
         // The rule must not depend on the signals it is there to overrule.
-        assertEquals("Always on", navbarModeDefault(capsOf(x2i, androidShowsNavbar = false)))
-        assertEquals("Always on", navbarModeDefault(capsOf(x2i, androidShowsNavbar = null)))
-        assertEquals("Always on", navbarModeDefault(capsOf(x2i, vendorNavbarProperty = "true")))
+        assertEquals("Swipe reveal", navbarModeDefault(capsOf(x2i, androidShowsNavbar = false)))
+        assertEquals("Swipe reveal", navbarModeDefault(capsOf(x2i, androidShowsNavbar = null)))
+        assertEquals("Swipe reveal", navbarModeDefault(capsOf(x2i, vendorNavbarProperty = "true")))
     }
 
     @Test fun `an explicit choice on an x2i shaped panel is respected including off`() {
@@ -143,7 +140,7 @@ class NavbarCapabilityDefaultTest {
         assertEquals("Always on", resolveNavbarMode("Always on", caps))
         // Native is still withheld where the firmware draws no bar, so it alone is coerced — to the
         // derived default, which on this panel is a working bar rather than nothing.
-        assertEquals("Always on", resolveNavbarMode("Native", caps))
+        assertEquals("Swipe reveal", resolveNavbarMode("Native", caps))
     }
 
     @Test fun `an upgrade from a build without the rule changes no stored value`() {
@@ -192,14 +189,20 @@ class NavbarCapabilityDefaultTest {
     @Test fun `a panel resolves its default through the profile it has attached`() {
         assertEquals("a Config with no profile must derive nothing", "Off", emptyConfig().navbarMode)
 
-        val strandedIds = setOf("shelly-wall-display-x2i", "shelly-wall-display-v2")
-        for (id in strandedIds) {
-            val stranded = emptyConfig()
-            stranded.attachProfile(BundledProfileFixtures.profile(id))
-            assertEquals(id, "Always on", stranded.navbarMode)
+        // Stargate replaces Android's navigation bar on every Shelly Wall Display, so the whole family
+        // starts with the bar behind the bottom-edge swipe (maintainer, 2026-10-13).
+        val shellyIds = profiles.map(DeviceProfile::id).filter { it.startsWith("shelly-wall-display") }
+        assertEquals(
+            listOf("shelly-wall-display", "shelly-wall-display-v2", "shelly-wall-display-x2i"),
+            shellyIds,
+        )
+        for (id in shellyIds) {
+            val shelly = emptyConfig()
+            shelly.attachProfile(BundledProfileFixtures.profile(id))
+            assertEquals(id, "Swipe reveal", shelly.navbarMode)
         }
 
-        for (profile in profiles.filterNot { it.id in strandedIds }) {
+        for (profile in profiles.filterNot { it.id in shellyIds }) {
             val config = emptyConfig()
             config.attachProfile(profile)
             assertEquals(profile.id, when (profile.hasNativeNavbar) { true -> "Native"; false -> "Swipe reveal"; null -> "Off" }, config.navbarMode)
@@ -239,11 +242,14 @@ class NavbarCapabilityDefaultTest {
         override val cpuGovernors: Map<String, String>? = null
     }
 
-    /** A stored value wins over the derived default on the real path too, not only in the resolver. */
+    /** A stored value wins over the derived default on the real path too, not only in the resolver;
+     *  an X2i set up while the default was Always on keeps it. */
     @Test fun `a stored value survives the whole path on a stranded panel`() {
-        val config = Config(preferences(mapOf("navbar_mode" to "Off")))
-        config.attachProfile(x2i)
-        assertEquals("Off", config.navbarMode)
+        for (stored in listOf("Off", "Always on")) {
+            val config = Config(preferences(mapOf("navbar_mode" to stored)))
+            config.attachProfile(x2i)
+            assertEquals(stored, config.navbarMode)
+        }
     }
 
     // ---- the mechanism is general, and the sealed default is untouched ------------------------

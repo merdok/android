@@ -76,7 +76,7 @@ class PanelAssistantValueTranslationTest {
 
     @Test fun attributesKeepFlatScalarsAndDropNestedValues() {
         val flat = PanelAssistantValueTranslation.attributes(
-            Observation.Known("""{"is_lower_bound":false,"used_percent":25.5,"failure_operation":null,"quick_check":"ok","nested":{"a":1},"list":[1],"Bad Key":1,"usable_bytes":6000000000}"""),
+            Observation.Known("0", """{"is_lower_bound":false,"used_percent":25.5,"failure_operation":null,"quick_check":"ok","nested":{"a":1},"list":[1],"Bad Key":1,"usable_bytes":6000000000}"""),
         )
         assertNotNull(flat)
         assertEquals(
@@ -84,7 +84,8 @@ class PanelAssistantValueTranslationTest {
             flat!!.keys().asSequence().associateWith { flat.get(it) },
         )
         assertNull(PanelAssistantValueTranslation.attributes(Observation.Unavailable))
-        assertNull(PanelAssistantValueTranslation.attributes(Observation.Known("not json")))
+        assertNull(PanelAssistantValueTranslation.attributes(Observation.Known("0", "not json")))
+        assertNull(PanelAssistantValueTranslation.attributes(Observation.Known("0")))
     }
 
     @Test fun theMediaChannelReportsStateAndMute() {

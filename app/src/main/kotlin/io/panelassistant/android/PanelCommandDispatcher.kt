@@ -10,6 +10,7 @@ import io.panelassistant.android.control.BootChimeController
 import io.panelassistant.android.control.BrightnessController
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.CpuController
+import io.panelassistant.android.control.DeviceCredentialRebootRefusalException
 import io.panelassistant.android.control.LedCommandPolicy
 import io.panelassistant.android.control.NavbarController
 import io.panelassistant.android.control.NavbarModeApplyOutcome
@@ -26,7 +27,6 @@ import io.panelassistant.android.control.ZigbeeController
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome
 import io.panelassistant.android.metrics.FeatureCosts
-import io.panelassistant.android.state.SoftwareComponent
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
@@ -199,11 +199,9 @@ internal class PanelCommandDispatcher(
 
     init {
         // A Zigbee gateway first seen live by a local pass gets the boot reconcile a connect once gave it.
-        core.addListener(object : StateCoreListener {
-            override fun onCapabilitiesObserved(observation: CapabilityObservation) {
-                if (!observation.previousLive.zigbee && observation.live.zigbee) reconcileZigbeeBoot()
-            }
-        })
+        core.onCapabilitiesObserved = { observation ->
+            if (!observation.previousLive.zigbee && observation.live.zigbee) reconcileZigbeeBoot()
+        }
     }
 
     /**
@@ -392,6 +390,7 @@ internal class PanelCommandDispatcher(
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
             }
             "reboot" -> {
+                system.requireRebootAllowed()
                 authorizeRemoteSensitive(
                     SensitiveOperation.DEVICE_REBOOT,
                     payload,
@@ -764,7 +763,7 @@ internal class PanelCommandDispatcher(
         if (!navbarModePermitted(payload.trim().trim('"'), config.hasNativeNavbar)) {
             Log.w(TAG, "navbar: refusing $payload — this panel has no native navigation bar")
             core.reconcile("navbar")
-            return
+            throw LiveSettingUnavailableException("navbar_mode")
         }
         applyAcknowledgedNavbarMode(
             payload = payload,
@@ -802,7 +801,7 @@ internal class PanelCommandDispatcher(
         core.reconcile("home_dashboard")
     }
 
-    /** Discovery embeds suggested_area on its next publish; the server owns HA registry write-back. */
+    /** Nothing to actuate: the server owns HA registry write-back. */
     override fun handleHaAreaPublishOnly() = Unit
 
     private fun handleNavigate(payload: String) {
@@ -1065,12 +1064,12 @@ internal val externalLiveSettingOwners: Map<String, String> = linkedMapOf(
  * newer external one, inverting last-write-wins on the durable setting.
  *
  * Both arguments are required to agree. [committedKey] alone would let a key committed by an earlier
- * dispatch retire a pending value the current command never touched, and [topicKey] alone would retire
+ * dispatch retire a pending value the current command never touched, and [commandKey] alone would retire
  * one for a command that threw before committing anything — an unauthorized or refused command must
  * leave HTTP intent exactly where it was.
  */
-internal fun supersededKeyAfterFailedDispatch(topicKey: String?, committedKey: String?): String? =
-    topicKey?.takeIf { it == committedKey }
+internal fun supersededKeyAfterFailedDispatch(commandKey: String?, committedKey: String?): String? =
+    commandKey?.takeIf { it == committedKey }
 
 /** Resolve a remote command channel to the same registry key used by HTTP live application. */
 internal fun externalLiveSettingKey(channel: String): String? = externalLiveSettingOwners[channel]
@@ -1268,7 +1267,7 @@ internal fun applyAcknowledgedKioskSetting(
  * commitVoiceEnabled], never the fire-and-forget async write) accepts it AND the live runtime generation
  * has a microphone; [reconcile] runs on every path — success, capability refusal, or commit failure —
  * so the voice_enabled channel is never left echoing a value nothing actually took effect for, whether
- * that is a stale retained ON from before a profile switch removed the capability, or an in-memory
+ * that is a stale reported ON from before a profile switch removed the capability, or an in-memory
  * SharedPreferences value that changed even though its commit() reported failure (the same hazard
  * [applyAcknowledgedKioskSetting] guards against). A `false` return means the caller must report the
  * request as failed/refused rather than applied — see handleVoiceEnabled.
@@ -1408,6 +1407,8 @@ internal fun panelAssistantCommandResult(failure: Exception?): PanelAssistantCom
     is SensitiveApprovalPendingException -> PanelAssistantCommandResult.ApprovalPending(failure.approvalId)
     is HardenedModeRefusalException ->
         PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_REFUSED_HARDENED)
+    is DeviceCredentialRebootRefusalException ->
+        PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_NOT_COMMANDABLE)
     is LiveSettingUnavailableException ->
         PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE)
     is IllegalArgumentException -> PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE)

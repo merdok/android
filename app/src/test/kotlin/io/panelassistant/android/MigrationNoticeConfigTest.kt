@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** The notice's lifetime on a panel upgraded from a broker-era install; who gets it is in HealthRoutesHttpTest. */
 class MigrationNoticeConfigTest {
     @Test fun `unmanaged panel keeps its notice across restarts`() {
         val state = Preferences()
@@ -53,7 +54,7 @@ class MigrationNoticeConfigTest {
     }
 
     private class Preferences(private val commitSucceeds: Boolean = true) {
-        private val values = mutableMapOf<String, Any?>()
+        private val values = mutableMapOf<String, Any?>(Config.LEGACY_ORIGIN_PREF to true)
         val preferences = Proxy.newProxyInstance(
             SharedPreferences::class.java.classLoader, arrayOf(SharedPreferences::class.java),
         ) { _, method, args ->

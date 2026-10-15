@@ -11,6 +11,10 @@
       class: "companion-renderer-hint",
       text: cfg.i18nText("configure.renderer.companion_launcher_hint", "Turn on the Companion app's launcher option for it to take Home.")
     }) : null;
+    var secretNote = f.secret ? cfg.el("small", {
+      id: "cfg-" + f.key + "-secret-note",
+      text: cfg.i18nText("configure.secret.blank_keeps_current", "blank keeps current")
+    }) : null;
     var protectedSetting = !!cfg.HARDENED_APPROVAL_SETTING_KEYS[f.key];
     var isAdvanced = cfg.advancedField(f);
     var labelText = cfg.el("span", { lang: f.labelLanguage });
@@ -36,6 +40,7 @@
       labelText,
       summary,
       companionRendererHint,
+      secretNote,
       Object.prototype.hasOwnProperty.call(cfg.applyPending, f.key) ?
         cfg.el("small", { class: "apply-pending-status", text: cfg.applyPendingStatusText(f.key) }) : null,
     ]);
@@ -48,6 +53,7 @@
         valueControl.setAttribute("aria-describedby", "hardened-approval-conditional-description");
         valueControl.setAttribute("title", cfg.i18nText("configure.hardened.setting_approval", "Changing this setting may require physical on-panel approval when Hardened mode is enabled."));
       }
+      if (secretNote) valueControl.setAttribute("aria-describedby", ((valueControl.getAttribute("aria-describedby") || "") + " " + secretNote.id).trim());
     }
     var ctl = cfg.el("div", { class: "fctl" }, f.readOnly ? [cfg.pip(f)] : [cfg.pip(f), valueControl]);
     // Anchor id so dashboard "edit" icons can deep-link straight to this setting.

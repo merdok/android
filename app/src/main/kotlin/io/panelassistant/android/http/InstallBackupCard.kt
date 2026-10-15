@@ -22,7 +22,8 @@ internal fun backupCardHtml(
 <p class="note">${esc(strings.get(descriptionKey))}</p>
 <div style="display:flex;flex-direction:column;gap:8px;max-width:440px">
 $compRow
-<input type="password" id="bk-pw" placeholder="${esc(strings.get("install.backup.passphrase.placeholder"))}">
+<label for="bk-pw">${esc(strings.get("install.backup.passphrase.placeholder"))}</label>
+<input type="password" id="bk-pw">
 <label style="display:flex;flex-direction:row;gap:8px;align-items:flex-start;font-size:.85rem;color:var(--backup-plain-warn)"><input type="checkbox" id="bk-plain"> ${esc(strings.get("install.backup.plaintext_zip"))}</label>
 <button class="pbtn"${hardenedApprovalA11yAttrs(strings = strings)} onclick="doBackup(this)">⭳ ${esc(strings.get("install.backup.download"))}</button>
 </div>

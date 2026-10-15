@@ -827,93 +827,36 @@ class PanelAssistantTransportOwnerTest {
         harness.owner.close()
     }
 
-    @Test fun mediaIsDescribedOnlyToAnIntegrationThatGrantsItAndAnOlderOneNeverSeesIt() = runTest {
+    @Test fun theFirstHelloDescribesMediaOrStatesItUnsupported() = runTest {
         fun channels(message: String) = JSONObject(message).getJSONArray("channels")
             .let { (0 until it.length()).map { i -> it.getJSONObject(i).getString("channel") } }
-        fun offered(message: String) = JSONObject(message).getJSONArray("capabilities")
-            .let { (0 until it.length()).map(it::getString) }
-
-        // An integration predating the media_player platform refuses a whole hello describing it, so a
-        // panel on one keeps a working session without the channel.
-        val older = Shadow(listOf("relay1", "media"))
-        val old = FakeConnection(Ha.accepting(capabilities = listOf("state")))
-        val oldHarness = harness(old, shadow = older.reporter)
-        oldHarness.owner.replaceDemand(DEMAND)
-        runCurrent()
-        older.sink("relay1", "ON")
-        advanceTimeBy(31_000L)
-        runCurrent()
-        assertEquals(listOf("relay1"), channels(old.sent.first()))
-        assertTrue("media" in offered(old.sent.first()))
-        assertFalse("an ungranted media stays out without ending the session", old.closed)
-        oldHarness.owner.close()
-
-        // An integration that grants it gets the channel on the next hello.
-        val shadow = Shadow(listOf("relay1", "media"))
-        val first = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val second = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val harness = harness(first, second, shadow = shadow.reporter)
-        harness.owner.replaceDemand(DEMAND)
-        runCurrent()
-        assertEquals(listOf("relay1"), channels(first.sent.first()))
-        shadow.sink("relay1", "ON")
-        runCurrent()
-        assertTrue(first.closed)
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals(listOf("media", "relay1"), channels(second.sent.first()))
-        harness.owner.close()
-    }
-
-    @Test fun aSpeakerlessPanelStatesMediaUnsupportedOnceGrantedSoAnOldEntityIsRemoved() = runTest {
         fun unsupported(message: String) = JSONObject(message).optJSONArray("unsupported")
             ?.let { (0 until it.length()).map(it::getString) }.orEmpty()
-        val shadow = Shadow(listOf("relay1"))
-        shadow.unsupported += "media"
-        val first = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val second = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val harness = harness(first, second, shadow = shadow.reporter)
-        harness.owner.replaceDemand(DEMAND)
+
+        val speaker = Shadow(listOf("relay1", "media"))
+        val described = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
+        val speakerHarness = harness(described, shadow = speaker.reporter)
+        speakerHarness.owner.replaceDemand(DEMAND)
         runCurrent()
-        assertFalse("an ungranted integration is not told about media", "media" in unsupported(first.sent.first()))
-        shadow.sink("relay1", "ON")
-        runCurrent()
-        assertTrue("the grant changes the hello, so the session ends", first.closed)
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals(listOf("media"), unsupported(second.sent.first()))
+        assertEquals(listOf("media", "relay1"), channels(described.sent.first()))
+        speaker.sink("relay1", "ON")
         advanceTimeBy(31_000L)
         runCurrent()
-        assertFalse("a hello that already states it is stable", second.closed)
-        harness.owner.close()
-    }
+        assertFalse("a hello that already describes media is stable", described.closed)
+        speakerHarness.owner.close()
 
-    @Test fun aPanelMovedToAnIntegrationThatRefusesMediaWithholdsItAndHelloesAgainAtOnce() = runTest {
-        fun channels(message: String) = JSONObject(message).getJSONArray("channels")
-            .let { (0 until it.length()).map { i -> it.getJSONObject(i).getString("channel") } }
-        val shadow = Shadow(listOf("relay1", "media"))
-        val granting = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val describing = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
-        val older = FakeConnection(Ha.refusing("invalid_format"))
-        val after = FakeConnection(Ha.accepting(capabilities = listOf("state")))
-        val harness = harness(granting, describing, older, after, shadow = shadow.reporter)
+        // A speakerless panel states it unsupported, which removes an entity an earlier session created.
+        val speakerless = Shadow(listOf("relay1"))
+        speakerless.unsupported += "media"
+        val stated = FakeConnection(Ha.accepting(capabilities = listOf("state", "media")))
+        val harness = harness(stated, shadow = speakerless.reporter)
         harness.owner.replaceDemand(DEMAND)
         runCurrent()
-        shadow.sink("relay1", "ON")
+        assertEquals(listOf("media"), unsupported(stated.sent.first()))
+        speakerless.sink("relay1", "ON")
+        advanceTimeBy(31_000L)
         runCurrent()
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals(listOf("media", "relay1"), channels(describing.sent.first()))
-        // No session_closed event: Core closes the socket and the next receive fails.
-        describing.inbound.close()
-        runCurrent()
-        advanceTimeBy(1_000L)
-        runCurrent()
-        assertEquals(listOf("media", "relay1"), channels(older.sent.first()))
-        advanceTimeBy(5_000L)
-        runCurrent()
-        assertTrue("the next hello comes on backoff, not the slow schedule", after.sent.isNotEmpty())
-        assertEquals(listOf("relay1"), channels(after.sent.first()))
+        assertFalse("a hello that already states it is stable", stated.closed)
         harness.owner.close()
     }
 
@@ -1573,10 +1516,10 @@ class PanelAssistantTransportOwnerTest {
     private class Shadow(initial: List<String>) {
         val keys = initial.toMutableList()
         val unsupported = mutableListOf<String>()
-        val reporter = PanelAssistantShadowReporter(log = {})
+        val reporter = PanelAssistantStateReporter(log = {})
         private val bound = reporter.bindShape { PanelAssistantChannelShape(keys.toList(), unsupported.toList()) }
 
-        fun sink(channel: String, payload: String) = bound(channel, io.panelassistant.android.state.StateConverger.Observation.Known(payload)) {}
+        fun sink(channel: String, payload: String) = bound(channel, io.panelassistant.android.state.StateConverger.Observation.Known(payload))
     }
 
     private class Harness(val owner: PanelAssistantTransportOwner, val connector: FakeConnector, val forces: List<Boolean>) {
@@ -1588,7 +1531,7 @@ class PanelAssistantTransportOwnerTest {
         vararg script: Any,
         repeating: (() -> FakeConnection)? = null,
         repeatingFailure: (() -> Exception)? = null,
-        shadow: PanelAssistantShadowReporter? = null,
+        shadow: PanelAssistantStateReporter? = null,
         observeForHello: suspend () -> Boolean = { true },
         commands: PanelAssistantCommandSink? = null,
         management: PanelAssistantManagement? = null,
@@ -1619,7 +1562,7 @@ class PanelAssistantTransportOwnerTest {
             monotonicMillis = clock ?: { testScheduler.currentTime },
             jitter = { bound -> bound },
             log = log,
-            shadow = shadow,
+            reporter = shadow,
             observeForHello = observeForHello,
             commands = commands,
             management = management,

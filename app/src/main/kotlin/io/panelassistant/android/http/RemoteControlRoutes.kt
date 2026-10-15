@@ -5,6 +5,7 @@ import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.control.InteractiveController
+import io.panelassistant.android.control.DeviceCredentialRebootRefusalException
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.metrics.FeatureCosts
 import io.panelassistant.android.metrics.FeatureCostOperation
@@ -230,8 +231,22 @@ internal class RemoteControlRoutes(
     suspend fun admitTap(call: OpCall, x: Float, y: Float, capture: Boolean) =
         respondRemoteAdmission(call, RemoteControl.Tap(x, y, capture = capture))
 
-    suspend fun admitAction(call: ApplicationCall, action: String) =
+    suspend fun allowReboot(call: ApplicationCall): Boolean = try {
+        system.requireRebootAllowed()
+        true
+    } catch (refusal: DeviceCredentialRebootRefusalException) {
+        call.respondText(
+            """{"ok":false,"error":"device-credential","message":${Json.str(refusal.message.orEmpty())}}""",
+            ContentType.Application.Json,
+            HttpStatusCode.Conflict,
+        )
+        false
+    }
+
+    suspend fun admitAction(call: ApplicationCall, action: String) {
+        if (action == "reboot" && !allowReboot(call)) return
         respondRemoteAdmission(call.op(), RemoteControl.Action(action))
+    }
 
     fun closeAndJoin(timeoutMs: Long): Boolean = remoteControls.closeAndJoin(timeoutMs)
 
@@ -273,7 +288,10 @@ internal fun Route.remoteControlRoutes(
         handleRemoteAction(
             call,
             RemoteActionRouteDependencies(
-                authorizeSensitive = authorizeSensitive,
+                authorizeSensitive = { request, operation, payload, summary ->
+                    if (operation == SensitiveOperation.DEVICE_REBOOT && !owner().allowReboot(request)) false
+                    else authorizeSensitive(request, operation, payload, summary)
+                },
                 admit = { request, action ->
                     owner().admitAction(request, action)
                 },

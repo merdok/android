@@ -12,7 +12,7 @@ export function payload(url, method) {
   const path = url.pathname;
   if (path === '/api/v1/packages') return { packages: [{ pkg: 'io.example.hostile', label: HOSTILE_ONE }] };
   if (path === '/api/v1/install/versions') return { versions: [
-    { tag: 'v2026.10.0', version: '2026.10.0', installable: false, unavailableReason: 'above_panel_limit', maxVersion: '2026.9.4', action: 'Upgrade' },
+    { tag: 'v2026.10.0', version: '2026.10.0', installable: false, unavailableReason: 'above_panel_limit', maxVersion: '2026.9.4', action: 'Upgrade', presentations: { action: { code: 'version-upgrade', params: {} } } },
     { tag: 'v2026.9.4-long', version: '2026.9.4-expanded-release-candidate', installable: true, action: 'Upgrade', presentations: { action: { code: 'version-upgrade', params: {} } }, notes: 'https://example.invalid/releases', apk: 'https://example.invalid/releases/download/test/app.apk' },
   ] };
   if (path === '/api/v1/install/apk/pending') return { pending: true, package: 'io.example.pending_application_with_a_very_long_identifier', version: '2026.9.4-expanded-release-candidate', discard: 'discard-reference' };
@@ -44,10 +44,10 @@ async function press(page, selector, pointer) {
 export async function exerciseStates(page, { pointer = true } = {}) {
   // The real page asks confirm() before uninstall and restore; Playwright would dismiss it.
   await page.evaluate(() => { window.confirm = () => true; });
-  await page.waitForFunction(() => document.querySelectorAll('.cvsel option').length === 4 && document.querySelector('#apk-preview button'));
+  await page.waitForFunction(() => document.querySelectorAll('.cvsel input').length === 4 && document.querySelector('#apk-preview button'));
   await page.evaluate(() => {
     const row = document.querySelector('.comprow[data-name="paneld"]');
-    if (row.querySelector('.cvsel').value !== 'v2026.9.4-long' || row.querySelector('.cinstall').disabled) throw new Error('Allowed picker choice must remain installable');
+    if (row.querySelector('.cvsel input:checked').value !== 'v2026.9.4-long' || row.querySelector('.cinstall').disabled) throw new Error('Allowed picker choice must remain installable');
   });
   await page.evaluate(() => window.installComp('paneld', 'update', document.querySelector('.cinstall')));
   // End states are recognised by their localized text or control state, never by length: a CJK
@@ -82,9 +82,9 @@ export async function exerciseStates(page, { pointer = true } = {}) {
   });
   await page.evaluate(() => {
     const row = document.querySelector('.comprow[data-name="paneld"]');
-    const picker = row.querySelector('.cvsel'); picker.value = 'v2026.10.0'; window.verChanged('paneld');
+    const picker = row.querySelector('.cvsel'); picker.querySelector('input[value="v2026.10.0"]').checked = true; window.verChanged('paneld');
     const expected = window.HaI18n.t('install.progress.above_panel_limit', '(not supported by this panel; limit {version})', { version: '2026.9.4' });
-    if (picker.selectedOptions[0].textContent !== '2026.10.0 ' + expected || !row.querySelector('.cinstall').disabled) throw new Error('Capped picker choice must explain the panel limit and stay unavailable');
+    if (picker.querySelector('input:checked+span').textContent !== '2026.10.0 ' + expected || !row.querySelector('.cinstall').disabled) throw new Error('Capped picker choice must explain the panel limit and stay unavailable');
   });
   await page.waitForTimeout(180);
 }
@@ -108,7 +108,7 @@ function builders(s, locale) {
 <div class="compname"><b>${label}</b> <span class="muted">${installed(version)}</span></div>
 <div class="comppick">
 <label class="muted">${s.t('install.components.channel')} ${name === 'paneld' ? `<span class="cpa-channel">${s.t('install.components.stable')}</span>` : `<select class="cchan" onchange="loadVersions('${name}')"><option value="stable" selected>${s.t('install.components.stable')}</option><option value="prerelease">${s.t('install.components.prerelease')}</option></select>`}</label>
-<label class="muted">${s.t('install.shared.version')} <select class="cvsel" onchange="verChanged('${name}')"><option>${s.t('install.shared.loading')}</option></select></label>
+<fieldset class="version-choices"><legend>${s.t('install.shared.version')}</legend><div class="cvsel choice-list" onchange="verChanged('${name}')">${s.t('install.shared.loading')}</div></fieldset>
 <a class="gh gh-inline cnotes" target="_blank" rel="noopener" title="${s.t('install.components.release_notes')}" aria-label="${s.t('install.components.release_notes')}" style="visibility:hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${GH_ICON}"/></svg></a>
 <button class="pbtn cinstall"${a11y()} onclick="installSel('${name}',this)" data-root="1" disabled>${s.t('install.components.install')}</button>
 </div></div>`;
@@ -264,7 +264,8 @@ function backupCard(s, b) {
 <p class="note">${s.t('install.backup.description.with_companion')}</p>
 <div style="display:flex;flex-direction:column;gap:8px;max-width:440px">
 <label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:.85rem"><input type="checkbox" id="bk-comp" checked> ${s.t('install.backup.companion.include_login')}</label>
-<input type="password" id="bk-pw" placeholder="${s.t('install.backup.passphrase.placeholder')}">
+<label for="bk-pw">${s.t('install.backup.passphrase.placeholder')}</label>
+<input type="password" id="bk-pw">
 <label style="display:flex;flex-direction:row;gap:8px;align-items:flex-start;font-size:.85rem;color:#c88"><input type="checkbox" id="bk-plain"> ${s.t('install.backup.plaintext_zip')}</label>
 <button class="pbtn"${b.a11y()} onclick="doBackup(this)">⭳ ${s.t('install.backup.download')}</button>
 </div>
@@ -311,7 +312,7 @@ ${backupCard(s, b)}
   },
   api(url, method) { return payload(url, method); },
   async ready(frame) {
-    await frame.waitForFunction(() => document.querySelectorAll('.cvsel option').length === 4
+    await frame.waitForFunction(() => document.querySelectorAll('.cvsel input').length === 4
       && document.querySelector('#uninst-pkg option[value]') && document.querySelector('#apk-preview button')
       && getComputedStyle(document.querySelector('#radiocard')).display !== 'none'
       && document.querySelector('#radio-status').textContent !== '…');

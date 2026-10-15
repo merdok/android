@@ -163,6 +163,7 @@ internal object ConfirmedSelfInstaller {
         context: Context,
         apk: File,
         expectedVersionCode: Long,
+        submit: (() -> Unit) -> InstallOutcome.Failure?,
         onAwaitingConfirmation: () -> Unit,
     ): InstallOutcome {
         val installer = context.packageManager.packageInstaller
@@ -203,8 +204,13 @@ internal object ConfirmedSelfInstaller {
                 val status = PendingIntent.getBroadcast(
                     context, sessionId, Intent(action).setPackage(context.packageName), flags,
                 )
-                session.commit(status.intentSender)
-                committed = true
+                submit {
+                    session.commit(status.intentSender)
+                    committed = true
+                }?.let { refusal ->
+                    runCatching { installer.abandonSession(sessionId) }
+                    return refusal
+                }
             }
             val outcome = follow(
                 reports,

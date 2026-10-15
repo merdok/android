@@ -2544,7 +2544,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.backlight_off_vendor": {
-   "text": "rzeczywiste wyłączenie podświetlenia przez lokalne RPC producenta; w przeciwnym razie wygaszanie ekranu Androida",
+   "text": "rzeczywiste wyłączenie podświetlenia przez lokalne RPC producenta; wygaszanie ekranu systemu Android, gdy producent nie odpowiada",
    "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
    "state": "machine-cross-checked"
   },
@@ -3756,11 +3756,6 @@
   "dashboard.runtime.camera.stream_url": {
    "text": "strumień pod adresem {url} (nie dla pulpitu nawigacyjnego tego panelu)",
    "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
-   "state": "machine-cross-checked"
-  },
-  "dashboard.runtime.convergence": {
-   "text": "kanały: {channels} · brudne: {dirty} · w trakcie: {inFlight} · nieznane: {unknown} · potw. {successes}/{failures} · oczekujące: {pending}",
-   "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.database.on_disk": {

@@ -98,8 +98,8 @@ export default {
     </fieldset>
   </div>
   <div class="entity-search-row">
-    <label class="sr-only" for="entity-search">${s.t('entities.search.label')}</label>
-    <input id="entity-search" type="search" autocomplete="off" placeholder="${s.t('entities.search.placeholder')}" aria-describedby="entity-search-status">
+    <label for="entity-search">${s.t('entities.search.label')}</label>
+    <input id="entity-search" type="search" autocomplete="off" aria-describedby="entity-search-status">
     <div id="entity-search-status" class="entity-search-status muted" role="status" aria-live="polite"></div>
   </div>
   <div class="card entity-issues" id="entity-issues"><h2>${s.t('entities.issues.title')}</h2>

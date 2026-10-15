@@ -670,9 +670,15 @@ class EntityLearningManager(
         } finally {
             dashboardCost.close()
         }
+        // Best effort: without the file, the entities its templates name are learned at runtime.
+        val streamlineTemplates = if (StreamlineTemplates.usedBy(ws.configJson)) runInterruptible(Dispatchers.IO) {
+            StreamlineTemplates.fetch(snapshot.baseUrl, HA_CONFIG_TIMEOUT_MS) {
+                requireCurrentHaRoute(snapshot.baseUrl, snapshot.authToken, checkNotNull(snapshot.route))
+            }
+        } else null
         val scanCost = FeatureCosts.registry.span(FeatureCostOperation.ENTITY_STATIC_SCAN)
         val scan = try {
-            EntityLearningProtocol.scanDashboard(ws.configJson).also {
+            EntityLearningProtocol.scanDashboard(ws.configJson, streamlineTemplates).also {
                 scanCost.work(
                     units = (it.entityIds.size + it.targets.size + it.unresolved.size).toLong(),
                     bytes = ws.configJson.length.toLong(),
@@ -983,13 +989,6 @@ class EntityLearningManager(
                 if (now - promotionWindowStart > PROMOTION_WINDOW_MS) {
                     promotionWindowStart = now; promotionsInWindow = 0
                 }
-                if (promotionsInWindow >= MAX_PROMOTIONS) {
-                    store.markStatus(
-                        snapshot.instanceKey, snapshot.dashboardPath,
-                        "degraded", "runtime dependencies queued; synchronize manually",
-                    )
-                    return@launch
-                }
                 val active = withContext(Dispatchers.IO) {
                     desiredIds(
                         now, snapshot.instanceKey, snapshot.dashboardPath,
@@ -999,12 +998,19 @@ class EntityLearningManager(
                 }
                 synchronized(this@EntityLearningManager) {
                     if (!snapshot.isEligible(effectGeneration.get(), currentEffectState(), bootstrapBlockingIssues)) return@synchronized
-                    if (active != snapshot.filterIds && active.isNotEmpty()) {
-                        check(config.commitDashboardEntitySubscription(true, active, applied = true)) {
-                            "failed to commit runtime entity promotion"
+                    when (runtimePromotionDecision(active, snapshot.filterIds, promotionsInWindow, MAX_PROMOTIONS)) {
+                        RuntimePromotionDecision.UNCHANGED -> Unit
+                        RuntimePromotionDecision.CAPPED -> store.markStatus(
+                            snapshot.instanceKey, snapshot.dashboardPath,
+                            "degraded", "runtime dependencies queued; synchronize manually",
+                        )
+                        RuntimePromotionDecision.PROMOTE -> {
+                            check(config.commitDashboardEntitySubscription(true, active, applied = true)) {
+                                "failed to commit runtime entity promotion"
+                            }
+                            promotionsInWindow++
+                            onFilterChanged()
                         }
-                        promotionsInWindow++
-                        onFilterChanged()
                     }
                 }
             }
@@ -1581,7 +1587,7 @@ class EntityLearningManager(
                 val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                     deviceRegistry,
                     areas,
-                    panelAssistantEntryIds(request, deviceRegistry),
+                    panelAssistantEntryIds(),
                 )
                 // Login shortname, best-effort: only config/auth/list carries it and only admins may
                 // call it (verified against core source — auth/current_user has display name only).
@@ -1604,14 +1610,8 @@ class EntityLearningManager(
         }.getOrDefault(HaAreaCatalog(ownerKey = ownerKey))
     }
 
-    /** The Panel Assistant entries proven to be this panel, read over the same registry socket. */
-    private suspend fun panelAssistantEntryIds(
-        request: suspend (JSONObject) -> JSONObject,
-        deviceRegistry: JSONObject,
-    ): Set<String> = io.panelassistant.android.sensors.HaPanelDeviceMatcher.panelAssistantEntryIds(
-        io.panelassistant.android.sensors.HaPanelDeviceMatcher.readProbe(request, deviceRegistry),
-        io.panelassistant.android.panelAssistantDiscoveryId(config.deviceUid), HaConnectionRoutes.panelAssistantEntryId(config),
-    )
+    /** The Panel Assistant entry the last `hello` named, which is this panel's device. */
+    private fun panelAssistantEntryIds(): Set<String> = setOfNotNull(HaConnectionRoutes.panelAssistantEntryId(config))
 
     /** Non-secret digest identifying the HA endpoint and credential generation used by area operations. */
     fun haAreaOwnerKey(): String = credentialFingerprint()
@@ -1643,7 +1643,7 @@ class EntityLearningManager(
                     val device = io.panelassistant.android.http.HaAreaProtocol.panelDeviceArea(
                         deviceRegistry,
                         areas,
-                        panelAssistantEntryIds(request, deviceRegistry),
+                        panelAssistantEntryIds(),
                     )
                     if (!device.found || device.deviceId.isBlank()) return@withHaSocket
                     if (requested.isBlank()) {

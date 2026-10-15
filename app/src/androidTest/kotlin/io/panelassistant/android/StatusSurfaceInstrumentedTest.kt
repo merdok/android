@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.Locale
 import io.panelassistant.android.sensors.HaLifecycle
 import io.panelassistant.android.sensors.HaLifecycleReason
-import io.panelassistant.android.sensors.HaLifecycleSource
 import io.panelassistant.android.sensors.HaLifecycleState
 
 /**
@@ -535,7 +534,7 @@ class StatusSurfaceInstrumentedTest {
                         val bar = HaLifecycleBar.attach(activity, root)
                         val description = "$locale font=$scale dark=$dark ${case.name}"
                         try {
-                            val snapshot = HaLifecycle.Snapshot(case.state, if (case.state == HaLifecycleState.CONNECTION_LOST) null else HaLifecycleSource.NATIVE,
+                            val snapshot = HaLifecycle.Snapshot(case.state,
                                 false, 1L, if (case.state == HaLifecycleState.BACK_ONLINE) HaLifecycle.DEFAULT_BACK_ONLINE_WINDOW_MS else 0L,
                                 reason = HaLifecycleReason.CORE_UPDATE, elapsedMs = case.elapsed, expectedMs = case.expected)
                             val renderer = RendererAdmissionRuntime.Live(1L, null, case.connected, null)

@@ -225,7 +225,7 @@ class EntityLearningProtocolTest {
               {"type":"custom:mystery-card","value":"[[[ return variables.entity ]]]"}
             ]}]}""",
         )
-        assertEquals(setOf("light.kitchen", "sensor.room_temperature"), scan.entityIds)
+        assertEquals(setOf("light.kitchen", "sensor.room_temperature", "sensor.bubble_card_modules"), scan.entityIds)
         assertTrue(scan.targets.single().contains("area_id"))
         assertTrue(scan.unresolved.any { it.contains("custom:mystery-card") })
         assertTrue(scan.unresolved.any { it.contains("dynamic-template") })
@@ -294,6 +294,7 @@ class EntityLearningProtocolTest {
 
         assertEquals(
             setOf(
+                "sensor.bubble_card_modules",
                 "light.popup_header",
                 "binary_sensor.popup_motion",
                 "binary_sensor.popup_allowed",

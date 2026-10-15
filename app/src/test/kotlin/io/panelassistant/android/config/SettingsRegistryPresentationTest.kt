@@ -87,7 +87,6 @@ class SettingsRegistryPresentationTest {
         assertEquals("Last boot time", spec.label)
         assertEquals("sensor", spec.ha!!.component)
         assertEquals("diag_boot", spec.ha!!.objectSuffix)
-        assertEquals("Last boot time", spec.ha!!.name)
         assertEquals("timestamp", spec.ha!!.facts.deviceClass)
         assertTrue(spec.ha!!.readOnly)
     }

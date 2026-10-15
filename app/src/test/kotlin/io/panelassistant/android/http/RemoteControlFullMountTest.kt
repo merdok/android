@@ -4,6 +4,10 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.control.InteractiveController
 import io.panelassistant.android.control.SystemController
+import io.panelassistant.android.control.FakeDaemon
+import io.panelassistant.android.control.FakeRootShell
+import io.panelassistant.android.control.FakeScreenPower
+import io.panelassistant.android.control.FakeSystemEnv
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
 import io.ktor.client.request.header
@@ -25,6 +29,43 @@ import kotlin.test.assertTrue
 
 class RemoteControlFullMountTest {
     private var stopping = true
+
+    @Test fun `credentialed reboot returns a reason before approval or privileged execution`() {
+        for (hardened in listOf(false, true)) {
+            PaneldServerHttpFixture().use { fixture ->
+                val power = FakeScreenPower(deviceSecure = true)
+                val daemon = FakeDaemon(replies = mapOf("REBOOT AWAIT" to "OK"))
+                val root = FakeRootShell()
+                val notices = mutableListOf<String>()
+                val owner = RemoteControlRoutes(
+                    fixture.config, InteractiveController(canSu = false),
+                    SystemController(FakeSystemEnv(), root, daemon,
+                        beforeReboot = { notices += "reboot" }, isDeviceSecure = power::isDeviceSecure),
+                    stepVolume = {}, stopping = { false }, cacheScreenshot = { null },
+                )
+                field(fixture.server, "remoteControlRoutes", owner)
+                if (hardened) assertTrue(fixture.config.setSecurityMode(Config.SecurityMode.HARDENED))
+                LocalApprovalBroker.instance.clear()
+                try {
+                    testApplication {
+                        application { fixture.mount(this) }
+                        val response = client.submitForm("/api/v1/action", Parameters.build { append("a", "reboot") })
+                        assertEquals(HttpStatusCode.Conflict, response.status)
+                        val body = JSONObject(response.bodyAsText())
+                        assertEquals("device-credential", body.getString("error"))
+                        assertTrue(body.getString("message").contains("screen-lock credential"))
+                        assertTrue(notices.isEmpty())
+                        assertTrue(daemon.sent.isEmpty())
+                        assertTrue(root.ran.isEmpty())
+                        assertTrue(LocalApprovalBroker.instance.pending().isEmpty())
+                    }
+                } finally {
+                    owner.closeAndJoin(1_000)
+                    LocalApprovalBroker.instance.clear()
+                }
+            }
+        }
+    }
     @Test fun `full mount validates remote input and actions behind root guards and bounded readers`() {
         PaneldServerHttpFixture().use { fixture ->
             closedControls(fixture)
@@ -115,7 +156,7 @@ class RemoteControlFullMountTest {
                 override fun homeActivities(): List<ActivityRef> = emptyList()
                 override fun defaultHome(): ActivityRef? = null
                 override fun directStart(component: String) = error("Closed control owner")
-            }),
+            }, isDeviceSecure = { false }),
             stepVolume = { error("Closed control owner") },
             stopping = { stopping },
             cacheScreenshot = { error("Closed control owner") },

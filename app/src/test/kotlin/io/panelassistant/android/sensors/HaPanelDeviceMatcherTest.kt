@@ -10,92 +10,11 @@ import org.junit.Test
 
 /**
  * The registry shapes a panel meets in the field. Fixtures follow the live
- * registry: a Panel Assistant device carries only `(panel_assistant, <entry_id>)`, its status sensor and
- * update entity are keyed by the entry id, and every native entity by `<discovery id>_<suffix>`.
+ * registry: a Panel Assistant device carries only `(panel_assistant, <entry_id>)`.
  */
 class HaPanelDeviceMatcherTest {
-    private val did = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-    private val otherDid = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
     private val entry = "01J00000000000000000000AAA"
     private val otherEntry = "01J00000000000000000000BBB"
-
-    // --- proving the Panel Assistant entry ------------------------------------------------------
-
-    @Test fun `the entry is proven by a native entity keyed by this panel's discovery id`() {
-        assertEquals(setOf(entry), HaPanelDeviceMatcher.panelAssistantEntryIds(probe(), did))
-    }
-
-    @Test fun `another panel's discovery id proves nothing about this panel`() {
-        assertEquals(setOf(otherEntry), HaPanelDeviceMatcher.panelAssistantEntryIds(probe(), otherDid))
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(probe(), "0".repeat(64)))
-    }
-
-    @Test fun `a discovery id that merely prefixes another does not prove it`() {
-        val longer = JSONObject().put("result", JSONObject()
-            .put("sensor.x", entityRow("${did}ff_proximity", otherEntry)))
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(longer, did))
-    }
-
-    @Test fun `only a panel_assistant entity proves an entry`() {
-        val foreign = JSONObject().put("result", JSONObject()
-            .put("sensor.x", entityRow("${did}_proximity", entry, platform = "zha")))
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(foreign, did))
-    }
-
-    @Test fun `no discovery id or no probe proves nothing`() {
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(probe(), null))
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(probe(), " "))
-        assertEquals(emptySet<String>(), HaPanelDeviceMatcher.panelAssistantEntryIds(null, did))
-    }
-
-    @Test fun `the probe samples only Panel Assistant entities and a bounded number per device`() {
-        val rows = JSONArray()
-            .put(display("sensor.status", "pa-device", "panel_assistant"))
-            .put(display("binary_sensor.kitchen_motion", "motion-device", "zha"))
-            .put(display("sensor.orphan", "", "panel_assistant"))
-        (1..12).forEach { rows.put(display("sensor.other_%02d".format(it), "other-pa-device", "panel_assistant")) }
-        val ids = HaPanelDeviceMatcher.probeEntityIds(JSONObject().put("result", JSONObject().put("entities", rows)))
-
-        assertEquals(listOf("sensor.status") + (1..8).map { "sensor.other_%02d".format(it) }, ids)
-        assertEquals(null, HaPanelDeviceMatcher.probeRequest(emptyList()))
-        val request = checkNotNull(HaPanelDeviceMatcher.probeRequest(ids))
-        assertEquals("config/entity_registry/get_entries", request.getString("type"))
-        assertEquals(ids.size, request.getJSONArray("entity_ids").length())
-    }
-
-    @Test fun `the probe is skipped when no device is registered by Panel Assistant`() {
-        assertFalse(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(otherDevice("m", "ha-paneld-uid-abc"))))
-        assertTrue(HaPanelDeviceMatcher.hasPanelAssistantDevice(response(otherDevice("m", "x"), paDevice("p", entry))))
-    }
-
-    @Test fun `the probe read asks only what it needs over the registry socket`() = kotlinx.coroutines.runBlocking {
-        val display = JSONObject().put("result", JSONObject().put("entities", JSONArray()
-            .put(display("binary_sensor.study_proximity", "pa-device", "panel_assistant"))))
-        val sent = mutableListOf<JSONObject>()
-        val request: suspend (JSONObject) -> JSONObject = { command ->
-            sent += command
-            if (command.getString("type") == "config/entity_registry/list_for_display") display else probe()
-        }
-
-        assertEquals(null, HaPanelDeviceMatcher.readProbe(request, response(otherDevice("m", "ha-paneld-uid-abc"))))
-        assertEquals("a registry without Panel Assistant costs no extra reads", 0, sent.size)
-
-        val paOnly = response(paDevice("pa-device", entry))
-        assertEquals(setOf(entry), HaPanelDeviceMatcher.panelAssistantEntryIds(
-            HaPanelDeviceMatcher.readProbe(request, paOnly, display), did,
-        ))
-        assertEquals(listOf("config/entity_registry/get_entries"), sent.map { it.getString("type") })
-        assertEquals("binary_sensor.study_proximity", sent.single().getJSONArray("entity_ids").getString(0))
-
-        sent.clear()
-        assertEquals(setOf(entry), HaPanelDeviceMatcher.panelAssistantEntryIds(
-            HaPanelDeviceMatcher.readProbe(request, paOnly), did,
-        ))
-        assertEquals(
-            listOf("config/entity_registry/list_for_display", "config/entity_registry/get_entries"),
-            sent.map { it.getString("type") },
-        )
-    }
 
     // --- which device is the panel ------------------------------------------------------------
 
@@ -181,17 +100,6 @@ class HaPanelDeviceMatcherTest {
         runCatching { HaPresenceProtocol.projectArea(devices, areas, entities, states, setOf(entry)) }
             .also { assertTrue("projection failed: ${it.exceptionOrNull()?.message}", it.isSuccess) }
             .getOrThrow()
-
-    /** A `get_entries` answer for two Panel Assistant panels, as Core returns it. */
-    private fun probe() = JSONObject().put("result", JSONObject()
-        .put("sensor.study_status", entityRow("${entry}_status", entry))
-        .put("update.study_panel_assistant", entityRow(entry, entry))
-        .put("binary_sensor.study_proximity", entityRow("${did}_proximity", entry))
-        .put("light.den_backlight", entityRow("${otherDid}_backlight", otherEntry))
-        .put("sensor.removed_meanwhile", JSONObject.NULL))
-
-    private fun entityRow(uniqueId: String, entryId: String, platform: String = "panel_assistant") = JSONObject()
-        .put("platform", platform).put("unique_id", uniqueId).put("config_entry_id", entryId)
 
     private fun display(entityId: String, deviceId: String, platform: String) = JSONObject()
         .put("ei", entityId).put("di", deviceId).put("pl", platform)

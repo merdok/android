@@ -19,6 +19,7 @@ import io.panelassistant.android.migration.claimsRestoreAttempt
 import io.panelassistant.android.migration.migrationRestoreAdmission
 import io.panelassistant.android.persistence.BackupIdentity
 import io.panelassistant.android.persistence.RawPreferenceBackup
+import io.panelassistant.android.persistence.ProximityCalibrationBackup
 import io.panelassistant.android.persistence.StateBackupPolicy
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.BoundedStreams
@@ -51,6 +52,7 @@ internal class RestoreRoutes(
     private val executor: RestoreExecutor,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
     private val verifiedRetiredReceipt: (File) -> Boolean,
+    private val companionHelperReady: () -> Boolean = { false },
 ) {
 
     /** Restore endpoint: decrypt + validate; ?dry_run=1 reports contents without writing. A real restore is
@@ -388,14 +390,15 @@ internal class RestoreRoutes(
             // it still identifies the physical target: device-local rows return only to their own panel.
             // A cleared panel that no longer carries its old id is treated as a different one, which
             // withholds hardware-specific rows rather than guessing.
+            val samePanel = StateBackupPolicy.sameDevice(
+                migrationRestore = migrationRestore,
+                panelIdMatches = obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
+                discoveryIdMatches = sameDeviceByDiscoveryId,
+            )
+            val restorableCalibrations = ProximityCalibrationBackup.restorable(obj, samePanel)
             val restorableState = if (
                 archiveManifest != null && stateDisposition == StateArchiveSection.Disposition.RESTORABLE
             ) {
-                val samePanel = StateBackupPolicy.sameDevice(
-                    migrationRestore = migrationRestore,
-                    panelIdMatches = obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
-                    discoveryIdMatches = sameDeviceByDiscoveryId,
-                )
                 runCatching {
                     val ref = archiveTextRef(
                         stateObj,
@@ -501,6 +504,21 @@ internal class RestoreRoutes(
                 ContentType.Application.Json,
                 HttpStatusCode.ServiceUnavailable,
             )
+            // Security admission reads the original intent before capability omission in either mode.
+            if (rejectHardenedNetworkAdb(call, configPlan.values["network_adb"])) return
+            if (companionPlan != null && !withContext(Dispatchers.IO) {
+                    companionHelperReady() || capabilities().networkAdb
+                }
+            ) {
+                return call.respondText(
+                    withInstallPresentation(
+                        """{"ok":false,"error":"Companion restore needs the current Panel Assistant helper"}""",
+                        InstallPresentation("restore-companion-helper-required"),
+                    ),
+                    ContentType.Application.Json,
+                    HttpStatusCode.ServiceUnavailable,
+                )
+            }
             if (dryRun) {
                 val preview = configPlan.withAvailableLiveSettings(capabilities())
                 requestAccepted = true
@@ -510,7 +528,6 @@ internal class RestoreRoutes(
                     ContentType.Application.Json,
                 )
             }
-            if (rejectHardenedNetworkAdb(call, configPlan.values["network_adb"])) return
             val restoreDigest = withContext(Dispatchers.IO) {
                 val digest = MessageDigest.getInstance("SHA-256")
                 receivedFile.inputStream().use { input ->
@@ -546,6 +563,7 @@ internal class RestoreRoutes(
                     rawPreferences, restorableState, stateUnavailable, migrationRestore,
                     restoreWakeWords, wakeWordCatalog,
                     progress, restoreAttempt,
+                    restorableCalibrations = restorableCalibrations,
                 )
             }
             job.invokeOnCompletion {

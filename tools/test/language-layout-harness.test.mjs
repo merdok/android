@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BROWSERS, THEMES, VIEWS, launch, loadCatalogues, measureCell, runPage, selection, startLayoutServer, verdict } from './language-layout/harness.mjs';
 import { PAGES } from './language-layout/pages/index.mjs';
+import { journey } from './language-layout/pages/setup.mjs';
+import { measureLayout } from './language-layout/measure.mjs';
 
 const { catalogues, locales, scales } = await loadCatalogues();
 const configure = PAGES.find((page) => page.name === 'configure');
@@ -13,6 +15,51 @@ const entities = PAGES.find((page) => page.name === 'entities');
 const server = await startLayoutServer(PAGES, catalogues, locales);
 const origin = `http://127.0.0.1:${server.address().port}`;
 test.after(() => new Promise((done) => server.close(done)));
+
+test('layout measurement ignores empty space between heading fragments', async () => {
+  const browser = await launch('chromium');
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<!doctype html><html lang="en"><style>
+      .card{width:400px;height:300px;columns:2;column-gap:20px;column-fill:auto}
+      h2{margin:0;height:50px;font-size:16px}.fill{height:280px}button{height:30px}
+      </style><div class="card"><div class="fill"></div><h2 id="heading">Heading</h2><button id="action">Action</button></div>`);
+    assert.equal(await page.locator('#heading').evaluate((heading) => heading.getClientRects().length), 2, 'the heading must actually span two columns');
+    const result = await page.evaluate(measureLayout);
+    assert.deepEqual(result.overlaps, [], 'the action is below the second heading fragment');
+    await page.locator('#action').evaluate((action) => { action.style.transform = 'translateY(-10px)'; });
+    const overlapping = await page.evaluate(measureLayout);
+    assert.ok(overlapping.overlaps.some((item) => item.key === '#heading <> #action'), 'painted fragments must still detect an action moved onto the heading');
+  } finally { await browser.close(); }
+});
+
+test('Setup dashboard confirmation keeps both actions inside its card', { timeout: 120_000 }, async () => {
+  const setup = PAGES.find((page) => page.name === 'setup');
+  const state = journey();
+  state.next = 'render_proof';
+  state.steps = state.steps.map((step) => ({ ...step, status: step.stage === 'render_proof' ? 'blocked' : 'complete' }));
+  const attestation = {
+    ...setup,
+    api(url, ...args) { return url.pathname === '/api/v1/setup' ? state : setup.api(url, ...args); },
+    async ready(frame) { await frame.waitForSelector('#wiz-step a.wiz-secondary'); },
+  };
+  const fixture = await startLayoutServer([attestation], catalogues, locales);
+  try {
+    for (const engine of BROWSERS) {
+      const browser = await launch(engine);
+      try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await measureCell(page, `http://127.0.0.1:${fixture.address().port}`, attestation, VIEWS.find((view) => view.name === 'direct-desktop'), 'light', 'en');
+        const bounds = await page.locator('#wiz-step a.wiz-secondary').evaluate((action) => {
+          const card = action.closest('.card').getBoundingClientRect();
+          const box = action.getBoundingClientRect();
+          return { left: box.left - card.left, right: card.right - box.right };
+        });
+        assert.ok(bounds.left >= 0 && bounds.right >= 0, `${engine}: the complete recovery action must fit inside its card: ${JSON.stringify(bounds)}`);
+      } finally { await browser.close(); }
+    }
+  } finally { await new Promise((done) => fixture.close(done)); }
+});
 
 function breakLayout() {
   const card = document.querySelector('#cfg-groups .card');
@@ -136,4 +183,29 @@ test('a known-issue entry that no longer occurs fails as stale', { timeout: 120_
   const sel = { views: ['sidebar-desktop'], themes: THEMES, locales: ['en', 'de'] };
   const outcome = await runPage({ pageDef: configure, browserName: 'chromium', origin, sel, scales, known });
   assert.ok(outcome.failures.some((line) => line.includes('stale known-issue entry') && line.includes('#no-such-element')), outcome.failures.join('\n'));
+});
+
+test('Consequential field instructions stay visible while entering secrets', { timeout: 120_000 }, async () => {
+  const install = PAGES.find(page => page.name === 'install');
+  const view = { ...VIEWS.find(view => view.name === 'direct-desktop'), width:390, height:844 };
+  for (const engine of BROWSERS) {
+    const browser = await launch(engine);
+    try {
+      const page = await browser.newPage({ viewport: { width:view.width, height:view.height } });
+      await measureCell(page, origin, configure, view, 'light', 'uk');
+      const input = page.locator('#cfg-ha_token input');
+      const instruction = await page.evaluate(() => HaI18n.t('configure.secret.blank_keeps_current', 'blank keeps current'));
+      const note = page.getByText(instruction, { exact:true });
+      assert.equal(await note.isVisible(), true, `${engine}: full retention instruction visible`);
+      assert.ok(await input.evaluate(input => (input.getAttribute('aria-describedby') || '').split(' ').some(id => document.getElementById(id)?.textContent === window.HaI18n.t('configure.secret.blank_keeps_current', 'blank keeps current'))));
+      assert.equal(await note.evaluate(node => node.scrollWidth <= node.clientWidth), true);
+      await input.fill('example');
+      assert.equal(await note.isVisible(), true);
+      await measureCell(page, origin, install, view, 'light', 'fr');
+      const required = await page.evaluate(() => HaI18n.t('install.backup.passphrase.placeholder', 'Passphrase (required for encrypted backup)'));
+      await page.getByLabel(required, { exact:true }).fill('example');
+      assert.equal(await page.getByText(required, { exact:true }).isVisible(), true, `${engine}: full backup requirement visible while typing`);
+      assert.equal(await page.getByText(required, { exact:true }).evaluate(node => node.scrollWidth <= node.clientWidth), true);
+    } finally { await browser.close(); }
+  }
 });

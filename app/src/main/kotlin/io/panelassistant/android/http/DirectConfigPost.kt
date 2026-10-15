@@ -479,8 +479,7 @@ internal class DirectConfigPost(
                 if (!durableHaArea.isNullOrBlank()) {
                     // Requested-area write-back, post-commit and in the background: admin sessions move
                     // the device now; non-admin attempts fail closed inside and the request simply stands
-                    // (it seeds discovery's suggested_area and retries when an admin next reads the
-                    // ha-area endpoint). Afterwards adopt whatever HA actually reports — for a value HA
+                    // (it retries when an admin next reads the ha-area endpoint). Afterwards adopt whatever HA actually reports — for a value HA
                     // agrees with the override bit retires; a deliberate divergence is KEPT.
                     onHaAreaCommitted()
                 }

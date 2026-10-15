@@ -80,7 +80,7 @@ class HaLifecycleTest {
         ha.notice(HaLifecyclePhase.STARTING, 2_000)
         assertEquals(HaLifecycleState.STARTING, ha.state(2_000))
         // Still an outage: the frontend cannot render yet, so the notice must not clear.
-        assertNotNull(HaLifecycleMessage.text(ha.state(2_000), HaLifecycleSource.NATIVE))
+        assertNotNull(HaLifecycleMessage.text(ha.state(2_000)))
     }
 
     @Test fun startingNeverDecaysOnItsOwn() {
@@ -133,7 +133,7 @@ class HaLifecycleTest {
         assertEquals(HaLifecycleState.CONNECTION_LOST, ha.state(1_000))
         assertNull(
             "a generic loss must not borrow Home Assistant shutdown wording",
-            HaLifecycleMessage.text(ha.state(1_000), null),
+            HaLifecycleMessage.text(ha.state(1_000)),
         )
     }
 
@@ -171,14 +171,14 @@ class HaLifecycleTest {
     }
 
     @Test fun messagesNameHomeAssistantAsTheActorAndCarryNoPanelDetail() {
-        val shutdown = HaLifecycleMessage.text(HaLifecycleState.SHUTTING_DOWN, HaLifecycleSource.NATIVE).orEmpty()
+        val shutdown = HaLifecycleMessage.text(HaLifecycleState.SHUTTING_DOWN).orEmpty()
         assertTrue(shutdown.startsWith("Home Assistant"))
         listOf(
             HaLifecycleState.SHUTTING_DOWN,
             HaLifecycleState.STARTING,
             HaLifecycleState.BACK_ONLINE,
         ).forEach { state ->
-            val text = HaLifecycleMessage.text(state, HaLifecycleSource.NATIVE).orEmpty()
+            val text = HaLifecycleMessage.text(state).orEmpty()
             assertTrue("$state must name Home Assistant", text.contains("Home Assistant"))
             assertFalse("$state must not blame ha-paneld", text.contains("ha-paneld"))
         }
@@ -191,25 +191,15 @@ class HaLifecycleTest {
         }
     }
 
-    @Test fun aNullSourceRendersTheWeakerOfflineClaimNeverTheDeliberateOne() {
-        assertEquals(
-            "Home Assistant has gone offline — controls may be temporarily unavailable.",
-            HaLifecycleMessage.text(HaLifecycleState.SHUTTING_DOWN, null),
-        )
-    }
 
-    @Test fun aConnectionLossDuringARecoveryNoticeDropsTheNoticesSource() {
+    @Test fun aConnectionLossDuringARecoveryNoticeIsAConnectionLoss() {
         val ha = lifecycle()
         ha.notice(HaLifecyclePhase.SHUTTING_DOWN, 0L)
         ha.notice(HaLifecyclePhase.READY, 1_000)
-        assertEquals(HaLifecycleSource.NATIVE, ha.snapshot(1_000).source)
+        assertEquals(HaLifecycleState.BACK_ONLINE, ha.snapshot(1_000).state)
 
         ha.onDisconnected(2_000)
         val snap = ha.snapshot(2_000)
         assertEquals(HaLifecycleState.CONNECTION_LOST, snap.state)
-        assertNull(
-            "nobody observed the loss, so the recovery notice's source must not be inherited",
-            snap.source,
-        )
     }
 }

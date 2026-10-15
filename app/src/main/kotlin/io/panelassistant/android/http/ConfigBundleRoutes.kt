@@ -3,6 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.canonicalHaOrigin
 import io.panelassistant.android.Config
 import io.panelassistant.android.DashboardEntityBackupState
+import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.ConfigBundle
 import io.panelassistant.android.config.Migrations
 import io.panelassistant.android.config.Scope
@@ -33,6 +34,7 @@ internal class ConfigBundleRoutes(
     private val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
     private val rejectHardenedNetworkAdb: suspend (OpCall, String?) -> Boolean,
     private val planEntityBackup: (org.json.JSONObject) -> DashboardEntityBackupState,
+    private val capabilities: () -> Capabilities,
 ) {
     /** Export a versioned config bundle. Secrets are excluded unless `?include_secrets=1`. */
     suspend fun handleConfigExport(call: OpCall) {
@@ -159,6 +161,12 @@ internal class ConfigBundleRoutes(
             call.respondText(importJson("rejected", emptyList(), skipped, warn, errors + reason), ContentType.Application.Json, HttpStatusCode.UnprocessableEntity)
             return
         }
+        // Security policy sees requested intent even if this hardware cannot apply the value.
+        if (rejectHardenedNetworkAdb(call, accepted["network_adb"])) return
+        val unavailable = unavailableRestoreSettings(accepted, capabilities())
+        unavailable.forEach { accepted.remove(it) }
+        skipped += unavailable
+        warn += unavailable.map { "$it: unavailable on this panel" }
         if (dryRun) {
             val current = values.currentValues()
             call.respondText(
@@ -172,7 +180,6 @@ internal class ConfigBundleRoutes(
             )
             return
         }
-        if (rejectHardenedNetworkAdb(call, accepted["network_adb"])) return
         if (accepted.isEmpty()) {
             call.respondText(importJson("no-op", emptyList(), skipped, warn, errors), ContentType.Application.Json)
             return
@@ -185,7 +192,22 @@ internal class ConfigBundleRoutes(
                 "Import ${accepted.size} panel setting${if (accepted.size == 1) "" else "s"}",
             )
         ) return
-        when (val applyResult = transaction.applyAccepted(accepted, expectedConfig.ifEmpty { null })) {
+        val applyResult = try {
+            transaction.applyAccepted(accepted, expectedConfig.ifEmpty { null })
+        } catch (refused: ConfigLiveApplyRefused) {
+            // External effects do not share the preference transaction. Report the durable ordinary
+            // phase and prior acknowledged live values; do not claim they were rolled back.
+            call.respondText(
+                importJson(
+                    if (refused.appliedKeys.isEmpty()) "error" else "partial",
+                    refused.appliedKeys, skipped, warn, errors + requireNotNull(refused.message),
+                ),
+                ContentType.Application.Json,
+                if (refused.appliedKeys.isEmpty()) HttpStatusCode.InternalServerError else HttpStatusCode.OK,
+            )
+            return
+        }
+        when (applyResult) {
             ApplyAcceptedResult.Stale -> {
                 val actual = configConcurrencyHash(values.currentValues())
                 call.respondText(
@@ -213,7 +235,7 @@ internal class ConfigBundleRoutes(
             }
             ApplyAcceptedResult.Applied -> Unit
         }
-        val status = if (errors.isEmpty()) "applied" else "partial"
+        val status = if (errors.isEmpty() && unavailable.isEmpty()) "applied" else "partial"
         call.respondText(importJson(status, accepted.keys.toList(), skipped, warn, errors), ContentType.Application.Json)
     }
 
