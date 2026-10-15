@@ -828,6 +828,12 @@ object SettingsRegistry {
             help = "Amplifies the audio sent to Home Assistant for transcription.\n\nThese panels expose no platform noise suppression or automatic gain control, so a panel heard from across the room may wake reliably and still transcribe poorly: wake-word detection adapts to a quiet signal on its own and speech-to-text does not.\n\n**Raise this** if commands are missed or mistranscribed while the wake word works. Wake-word detection is deliberately left on the unamplified signal.",
             availableWhen = { it.microphone.offered },
         ),
+        SettingSpec(
+            key = "voice_stop_word", type = SettingType.BOOL, group = "Voice",
+            tier = Tier.ADVANCED, summary = "Say \"stop\" to end a reply, an announcement or a ringing timer.",
+            label = "Stop word", default = "true", scope = Scope.DEVICE,
+            availableWhen = { it.microphone.offered },
+        ),
         // ---- Logging -----------------------------------------------------------------------------
         SettingSpec(
             key = "log_ship_enabled", type = SettingType.BOOL, group = "Logging",

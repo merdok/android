@@ -82,6 +82,7 @@ class VoiceAssistantCoordinatorTest {
             request: VoiceTurnRequest,
             attachAudio: (PcmConsumer) -> AutoCloseable,
             playback: AssistPlayback,
+            onReply: (String) -> Unit,
         ): AssistOutcome {
             requests += request
             attachment = attachAudio(object : PcmConsumer { override fun onFrame(frame: PcmFrame) {} })

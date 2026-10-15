@@ -1,0 +1,8 @@
+The stop-word model in this directory (stop.tflite plus its stop.json manifest) is an unmodified copy of
+the assets of release "stop" ("Stop" model beta 20241017.5) of https://github.com/kahrendt/microWakeWord
+(stop.tflite SHA-256 b5a18c4ad681a89950dfade31011e1631bdcb333e93c84519a1a63ff4f071146, stop.json SHA-256
+bd13aeb1b83852649dc4fb6135cb160ff68716d14612b06f6a405342c57447aa), licensed under the Apache License 2.0
+reproduced in the adjacent LICENSE.txt. Its manifest names the model's author.
+
+It runs on the same native engine as the wake words, documented in app/src/main/cpp/microwakeword/THIRD_PARTY.md.
+tools/wakeword/vendor-upstream.sh does not fetch it; re-vendor it by hand from that release and check both digests.
