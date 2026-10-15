@@ -43,7 +43,9 @@ internal fun requestLiveSetting(
 
 /**
  * The on-panel escape gesture: the same OFF as the :8888 toggle. When the store refuses even to record the
- * request, [unlock] clears the lock directly, so the network-independent escape never depends on storage.
+ * request, the OFF is still stored ahead (so an older ON still locking yields), [unlock] clears the lock at
+ * once, and the OFF is queued without the journal so it replaces an older queued ON: the network-independent
+ * escape never depends on the journal.
  */
 internal fun requestKioskEscape(
     authority: LiveSettingAuthority,
@@ -53,7 +55,10 @@ internal fun requestKioskEscape(
     refreshAutoSleep: () -> Unit,
 ): LiveSettingRequestOutcome =
     requestLiveSetting(authority, config, commands, "kiosk_lock", "false", refreshAutoSleep).also { outcome ->
-        if (outcome == LiveSettingRequestOutcome.REJECTED) unlock()
+        if (outcome != LiveSettingRequestOutcome.REJECTED) return@also
+        config.storeKioskOffAhead()
+        unlock()
+        runCatching { commands().applySettingObserved("kiosk_lock", "false") }
     }
 
 internal fun applyLiveSetting(

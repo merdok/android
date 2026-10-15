@@ -181,20 +181,71 @@ internal class KioskLaneTest : PanelRuntimeRig() {
         }
     }
 
-    @Test fun theEscapeUnlocksWhenTheStoreRefusesTheRequest() {
-        val rig = kioskRig()
-        val unlocked = CopyOnWriteArrayList<Boolean>()
+    private fun refusingAuthority(): LiveSettingAuthority {
         val refusingJournal = object : LiveSettingAuthority.Journal {
             override fun load() = emptyMap<String, LiveSettingAuthority.Pending>()
             override fun put(key: String, value: LiveSettingAuthority.Pending) = false
             override fun remove(key: String) = true
         }
-        val authority = LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, refusingJournal, bootIdentity = { "boot" })
+        return LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, refusingJournal, bootIdentity = { "boot" })
+    }
+
+    @Test fun anEscapeTheJournalRefusesStillReplacesAQueuedOnAndStaysStored() {
+        val rig = kioskRig()
+        val unlocked = CopyOnWriteArrayList<Boolean>()
         try {
-            val outcome = requestKioskEscape(authority, rig.config, { rig.commands }, { unlocked += true; true }) {}
+            assertTrue(rig.config.commitKioskLock(true))
+            val held = holdWorker(rig)
+            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
+            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+
+            val outcome = requestKioskEscape(refusingAuthority(), rig.config, { rig.commands }, { unlocked += true; true }) {}
             assertEquals(LiveSettingRequestOutcome.REJECTED, outcome)
             assertEquals(listOf(true), unlocked.toList())
+            assertFalse("stored before the worker runs anything, so a restart comes back unlocked", rig.config.kioskLock)
+
+            release(rig, held)
+            assertEquals(PanelAssistantCommandResult.Superseded, on.poll(10, TimeUnit.SECONDS))
+            waitUntil { applied.isNotEmpty() }
+            assertEquals("the queued ON never ran; the OFF did", listOf(false), applied.toList())
+            assertFalse(rig.config.kioskLock)
         } finally {
+            rig.close()
+        }
+    }
+
+    @Test fun anEscapeTheJournalRefusesWinsOverAnOnStillLockingAcrossARestart() {
+        val locking = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val unlocked = CopyOnWriteArrayList<Boolean>()
+        val rig = rig(kioskApply = { on ->
+            if (on) {
+                locking.countDown()
+                while (true) try { release.await(); break } catch (_: InterruptedException) {}
+            }
+            applied += on
+            true
+        })
+        try {
+            assertTrue(rig.config.commitKioskLock(true))
+            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
+            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+            assertTrue("the ON is locking", locking.await(10, TimeUnit.SECONDS))
+
+            val outcome = requestKioskEscape(refusingAuthority(), rig.config, { rig.commands }, { unlocked += true; true }) {}
+            assertEquals(LiveSettingRequestOutcome.REJECTED, outcome)
+            assertEquals(listOf(true), unlocked.toList())
+            assertFalse(rig.config.kioskLock)
+
+            // The process ends before the queued OFF runs; the ON then finishes.
+            val stopping = thread { rig.commands.stop(MonotonicDeadline(20_000)) }
+            waitUntil { stopping.state == Thread.State.WAITING || stopping.state == Thread.State.TIMED_WAITING || !stopping.isAlive }
+            release.countDown()
+            stopping.join(20_000)
+            assertTrue("the older ON yields", on.poll(10, TimeUnit.SECONDS) is PanelAssistantCommandResult.Failed)
+            assertFalse("a restart reads the escape's OFF", rig.config.kioskLock)
+        } finally {
+            release.countDown()
             rig.close()
         }
     }
