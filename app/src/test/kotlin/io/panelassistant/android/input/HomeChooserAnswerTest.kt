@@ -20,6 +20,8 @@ class HomeChooserAnswerTest {
         var front = dashboardWindow
         /** The start-up's dashboard launches arriving while a tap is on its way, one per tap. */
         var coveringStarts = 0
+        /** The start-up's dashboard launches arriving before a chooser just shown is answered. */
+        var coveredShows = 0
         var homePresses = 0
         val log = mutableListOf<String>()
         private var due: Long? = null
@@ -28,7 +30,12 @@ class HomeChooserAnswerTest {
             appName = "Panel Assistant",
             defaultHome = { home },
             activeWindow = { front },
-            showChooser = { homePresses++; if (home == resolver) front = chooser; true },
+            showChooser = {
+                homePresses++
+                if (home == resolver) front = chooser
+                if (coveredShows > 0) { coveredShows--; front = dashboardWindow }
+                true
+            },
             dismiss = { front = dashboardWindow; true },
             tap = { x, y ->
                 if (coveringStarts > 0) { coveringStarts--; front = dashboardWindow }
@@ -69,12 +76,39 @@ class HomeChooserAnswerTest {
         assertEquals(2, portal.homePresses)
     }
 
-    @Test fun aChooserWhoseAlwaysNeverTakesIsShownAtMostTwice() {
+    @Test fun aChooserTheStartUpCoveredBeforeItWasAnsweredIsShownAgain() {
+        // A Meta Portal, 2026-10-15: the dashboard came up 190 ms after HOME was pressed, before the answer.
+        val portal = Portal().apply { coveredShows = 1 }
+        portal.answer.connected()
+        portal.settle()
+        assertEquals(dashboard, portal.home)
+        assertEquals(2, portal.homePresses)
+    }
+
+    @Test fun bothCoversInOneUpdateAreAnswered() {
+        val portal = Portal().apply { coveredShows = 1; coveringStarts = 1 }
+        portal.answer.connected()
+        portal.settle()
+        assertEquals(dashboard, portal.home)
+        assertEquals(3, portal.homePresses)
+    }
+
+    @Test fun aChooserWhoseAlwaysNeverTakesIsShownAtMostThreeTimes() {
         val portal = Portal().apply { coveringStarts = Int.MAX_VALUE }
         portal.answer.connected()
         portal.settle()
         assertEquals(resolver, portal.home)
-        assertEquals(2, portal.homePresses)
+        assertEquals(3, portal.homePresses)
+    }
+
+    @Test fun aChooserOfferingAnotherAppThatThisServiceShowedIsDismissed() {
+        val portal = Portal().apply { front = dashboardWindow }
+        portal.answer.connected()
+        portal.answer.answer()
+        portal.front = chooser.copy(title = "Use Portal Launcher as Home")
+        portal.answer.answer()
+        assertEquals(dashboardWindow, portal.front)
+        assertEquals(resolver, portal.home)
     }
 
     @Test fun anOwnedHomeIsLeftAlone() {
