@@ -34,7 +34,6 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -62,10 +61,6 @@ import io.panelassistant.android.dashboard.HomeDashboardLaunchCache
 import io.panelassistant.android.dashboard.EntityBootstrapProblem
 import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.util.HaTransportEvidence
-import io.panelassistant.android.util.LocalAdminEndpoint
-import io.panelassistant.android.util.localIpv4
-import io.panelassistant.android.util.localIpv6
-import io.panelassistant.android.util.scannableHost
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,9 +69,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.net.NetworkInterface
-import java.util.Collections
 
 internal fun shouldRouteDashboardHomeToAdmin(
     configuredLauncherPackage: String,
@@ -310,7 +302,7 @@ class DashboardActivity : AppCompatActivity() {
         if (key == "dashboard_theme_dark" || key == "dark_mode" || key == "dashboard_theme" ||
             key == "dashboard_theme_ambient_dark" || key == "auto_brightness"
         ) {
-            runOnUiThread { if (!destroyed) convergeStatusTheme() }
+            runOnUiThread { if (!destroyed) statusScreens.convergeStatusTheme() }
         }
         // Camera trial: the runtime permission is requested only once the setting is on,
         // and only as a direct result of that switch turning on — never before, never as a side effect.
@@ -320,19 +312,6 @@ class DashboardActivity : AppCompatActivity() {
         // Asking on the raw preference change raced that publication and could see nothing to ask.
     }
 
-    /** Redraw every ha-paneld status surface that is currently rendered, native or WebView-drawn. */
-    private fun convergeStatusTheme() {
-        statusSurface = null
-        val redraw = statusRerender
-        if (redraw != null) {
-            root = null
-            redraw()
-            return
-        }
-        // No native status screen is installed, so the only ha-paneld-owned surfaces that can be on
-        // screen are the two pages drawn into the dashboard WebView. Re-issue whichever is showing.
-        if (authLatched) renderAuthLatchPage() else if (interstitialShown) reissueReconnecting()
-    }
     // Stored so onDestroy can clear it by identity — an old instance destroyed after a new one's onCreate
     // must not wipe the new instance's registration (see BuiltinDashboard.clearScreenListener).
     private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { onScreenChanged(awake) } }
@@ -399,30 +378,36 @@ class DashboardActivity : AppCompatActivity() {
     // from it is the user moving, and outranks a pending cache correction.
     private var appNavigatedDashboardRoute: String? = null
     private val homeDashboardAttempts = HomeDashboardResolutionAttemptGate()
-    // One automatic-recovery owner for EVERY blocked admission screen. A wall panel has nobody
-    // standing at it, so a blocked screen without a timer stays blocked after its cause clears —
-    // recoverable only by a physical tap or an app restart. The timer and the manual Retry button run
-    // the same sequence; the button also resets the back-off because a present human should not wait
-    // out a timer.
     private val admissionRetryPolicy = AdmissionRetryPolicy()
-    // The retry deadline and the visible countdown are owned separately on purpose: the countdown may
-    // legitimately stop while the retry must not. Uptime is the Handler's own clock, so a deep sleep
-    // freezes the displayed figure and the pending callback together.
-    private val admissionCountdown = AdmissionCountdownOwner { SystemClock.uptimeMillis() }
-    private var admissionCountdownView: TextView? = null
-    private val admissionRetry = Runnable {
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || authLatched) return@Runnable
-        Log.i(TAG, "renderer admission auto-retry firing")
-        // A provisional cached dashboard is already rendering: retry the live resolution behind it
-        // without invalidating what the user is watching. Everything else keeps the original
-        // clear-and-rebuild retry.
-        if (homeDashboardResolution?.confirmed == false) {
-            buildAndLoad(Config(this))
-        } else {
-            retryAdmission(resetBackoff = false)
+    private val statusScreens = DashboardStatusScreens(this, main, activityScope, admissionRetryPolicy, object : DashboardStatusScreens.Host {
+        override val activityOwner get() = this@DashboardActivity.activityOwner
+        override val destroyed get() = this@DashboardActivity.destroyed
+        override val hasWeb get() = web != null
+        override fun teardownWeb() = this@DashboardActivity.teardownWeb()
+        override var root: FrameLayout?
+            get() = this@DashboardActivity.root
+            set(value) { this@DashboardActivity.root = value }
+        override fun detachLifecycleBar() = this@DashboardActivity.detachLifecycleBar()
+        override fun activeNetworkPresent() = conn?.activeNetwork != null
+        override fun retryAdmission(resetBackoff: Boolean) = this@DashboardActivity.retryAdmission(resetBackoff)
+        override fun onAdmissionRetryDue() {
+            if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || authLatched) return
+            Log.i(TAG, "renderer admission auto-retry firing")
+            // A provisional cached dashboard is already rendering: retry the live resolution behind it
+            // without invalidating what the user is watching. Everything else keeps the original
+            // clear-and-rebuild retry.
+            if (homeDashboardResolution?.confirmed == false) {
+                buildAndLoad(Config(this@DashboardActivity))
+            } else {
+                retryAdmission(resetBackoff = false)
+            }
         }
-    }
-    private val admissionCountdownTick = Runnable { onAdmissionCountdownTick() }
+        // No native status screen is installed, so the only ha-paneld-owned surfaces that can be on
+        // screen are the two pages drawn into the dashboard WebView. Re-issue whichever is showing.
+        override fun redrawCoverPage() {
+            if (authLatched) renderAuthLatchPage() else if (interstitialShown) reissueReconnecting()
+        }
+    })
 
     /** Endpoint the on-panel Home Assistant sign-in is currently showing, so a relaunch does not restart it. */
     private var signInShownForUrl: String? = null
@@ -431,39 +416,6 @@ class DashboardActivity : AppCompatActivity() {
      *  by the panel's own HTTP server, which restarts briefly during config reconfigures. */
     private var signInLoadRetries = 0
 
-    /**
-     * Every DELIBERATE dashboard restart announces itself on the panel, so an
-     * on-purpose reset can never be mistaken for a crash — otherwise the built-in renderer earns a
-     * reputation for unreliability one report at a time. Native (no WebView dependency), transient,
-     * never blocks the reload, names ha-paneld as the actor, and never shown for genuine crashes:
-     * the distinction is the point. A full-rebuild overlay was tried and rejected on
-     * hardware — it vanished with the container the moment the rebuild swapped views and its
-     * full-bleed layout read no better than the toast.
-     *
-     * First entity-filter learning is a burst of restarts, not one, and a toast per rebuild read on
-     * hardware as a crashing dashboard. [BuiltinDashboard.restartAnnouncements] says the burst once (the
-     * native bootstrap hold, or the first learning toast) and keeps the rest quiet; see
-     * [io.panelassistant.android.control.DeliberateRestartAnnouncements].
-     */
-    private fun announceDeliberateRestart(
-        reason: String,
-        learning: Boolean = reason == BuiltinDashboard.LEARNING_RELOAD_REASON,
-    ) {
-        if (!BuiltinDashboard.restartAnnouncements.shouldAnnounce(
-                learning = learning,
-                dashboardShown = web != null,
-                nowMs = SystemClock.elapsedRealtime(),
-            )
-        ) {
-            Log.i(TAG, "learning restart not announced again (${if (web == null) "no dashboard shown" else "learning window open"})")
-            return
-        }
-        reloadNotice = showReloadCard(this, reloadNotice, reloadNoticeReason(reason)?.let(::getString) ?: reason)
-    }
-
-    /** The compact notice announcing a deliberate reload, while it is up. */
-    private var reloadNotice: View? = null
-    private fun clearReloadNotice() { reloadNotice?.let { (it.parent as? ViewGroup)?.removeView(it) }; reloadNotice = null }
     private val compatibilityAttempts = DashboardV2AttemptGate()
     // Auth-failure latch. A terminal login-settings rejection (refresh token/client id, repeated
     // auth-invalid from the frontend) must not become an infinite reload loop on an unattended panel —
@@ -494,20 +446,9 @@ class DashboardActivity : AppCompatActivity() {
     private fun syncWebCover() { if (!authLatched && !interstitialShown) webCover.hide() }
     private fun showWebCover(fill: (StatusSurface) -> Unit) =
         webCover.show(swipe?.parent as? ViewGroup, StatusSurface.darkFor(this, Config(this)), fill)
-    private val signInPageCheck by lazy { SignInPageCheck(activityScope) }
-    /** The panel's own sign-in setting at [path], when it answers there; see [SignInPageCheck]. */
-    private fun provenSignInUrl(path: String, redraw: () -> Unit): String? = signInPageCheck.proven(
-        scannableHost(localIpv4(), localIpv6())?.let { LocalAdminEndpoint.url(it, Config(this).httpPort, path) }, redraw,
-    )
     // The main-frame document the dashboard WebView is actually showing (onPageCommitVisible), or null
     // before its first. A retry decides reload() versus a fresh load from this; see retryNeedsFreshLoad.
     private val shownPage = ShownPageTracker()
-    private var waitingStatus: TextView? = null
-    private var waitingStage: TextView? = null
-    private var waitingTrack: NoticeTrack? = null
-    private var waitingHero: TextView? = null
-    private var waitingEstimateMs = 0L
-    private var waitingEstimateLearned = false
     private var entityBootstrapBlockedCount = -1
     private var entityBootstrapMilestoneView: TextView? = null
     private var entityLearningLine: TextView? = null
@@ -524,26 +465,6 @@ class DashboardActivity : AppCompatActivity() {
     private var entityBootstrapDecisionLogged = false
     private var entityBootstrapProblem: EntityBootstrapProblem? = null
     private var entityBootstrapReadEpoch = 0L
-    private var waitingStartedAt = 0L
-    private val waitingTick = object : Runnable {
-        override fun run() {
-            if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || waitingStatus == null) return
-            val elapsed = SystemClock.elapsedRealtime() - waitingStartedAt
-            val expected = (waitingEstimateMs + 500L) / 1_000L
-            waitingStatus?.text = if (waitingEstimateLearned) {
-                getString(R.string.elapsed_usually, elapsed / 1_000L, expected)
-            } else {
-                getString(R.string.elapsed_learning, elapsed / 1_000L)
-            }
-            val snapshot = startupNetworkSnapshot()
-            val notice = networkWaitNotice(snapshot, elapsed, waitingEstimateMs, waitingEstimateLearned)
-            waitingHero?.text = haLifecycleClock(notice.heroMs)
-            waitingTrack?.show(notice.step, notice.fills)
-            statusSurface?.notice?.setPill(getString(NETWORK_STEPS[notice.step]))
-            waitingStage?.text = localizedStartupNetworkStage(snapshot)
-            main.postDelayed(this, 1_000L)
-        }
-    }
     // A fresh automatic learner has no safe document-start allow-list yet. Keep a native screen in
     // front instead of ever loading HA unfiltered; this poll is a backstop for a missed/blocked service
     // relaunch when synchronization commits the first set.
@@ -805,7 +726,7 @@ class DashboardActivity : AppCompatActivity() {
         main.postDelayed(periodicCheck, PERIODIC_CHECK_MS)
         lastTouchAt = SystemClock.elapsedRealtime()
         main.postDelayed(idleCheck, IDLE_CHECK_MS)
-        if (networkAvailable) buildAndLoad(config) else showWaitingForNetwork()
+        if (networkAvailable) buildAndLoad(config) else statusScreens.showWaitingForNetwork()
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
             resumeOwnsAdmissionVisibility(android.os.Build.VERSION.SDK_INT)) {
             onAdmissionVisibilityChanged(true)
@@ -885,7 +806,7 @@ class DashboardActivity : AppCompatActivity() {
         true
     } catch (error: ExternalV2BridgeUnavailable) {
         Log.e(TAG, "secure V2 listener attachment failed", error)
-        showBlockedAdmissionScreen(
+        statusScreens.showBlockedAdmissionScreen(
             getString(R.string.home_assistant_stopped_loading),
             getString(R.string.home_assistant_stopped_loading_detail),
             AdmissionOutcome.BRIDGE_ATTACH_FAILED,
@@ -1182,7 +1103,7 @@ class DashboardActivity : AppCompatActivity() {
     /** Hand off to ha-paneld's admin launcher and finish — the never-strand fallback for a missing
      *  WebView or a crash-looping renderer. */
     private fun fallbackToLauncher() {
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         runCatching {
             startActivity(Intent(this, AdminLauncherActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.onFailure { Log.e(TAG, "admin-launcher fallback failed: ${it.message}") }
@@ -1193,7 +1114,7 @@ class DashboardActivity : AppCompatActivity() {
      *  surface for a fresh install or cleared configuration; the admin launcher is only for explicit
      *  panel-admin entry and crash/recovery administration. */
     private fun fallbackToFirstRunSurface() {
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         runCatching {
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.onFailure { Log.e(TAG, "first-run surface fallback failed: ${it.message}") }
@@ -1313,7 +1234,7 @@ class DashboardActivity : AppCompatActivity() {
             Log.i(TAG, "entity instrumentation changed — rebuilding dashboard WebView")
             // The learner's reload lands here with its reason pending. Only it is a learning restart;
             // a hand edit of the filter or a settings change announces as a lone restart.
-            announceDeliberateRestart(
+            statusScreens.announceDeliberateRestart(
                 getString(R.string.optimizing_entities_restart),
                 learning = BuiltinDashboard.consumeSupersededReload() == BuiltinDashboard.LEARNING_RELOAD_REASON,
             )
@@ -1333,7 +1254,7 @@ class DashboardActivity : AppCompatActivity() {
         if (nextThemeSignature != dashboardThemeSignature) {
             Log.i(TAG, "dashboard theme policy changed — rebuilding dashboard WebView")
             BuiltinDashboard.consumeSupersededReload()
-            announceDeliberateRestart(getString(R.string.applying_dashboard_theme))
+            statusScreens.announceDeliberateRestart(getString(R.string.applying_dashboard_theme))
             unlatchAuth("theme policy change")
             retryPolicy.reset()
             interstitialShown = false
@@ -1345,7 +1266,7 @@ class DashboardActivity : AppCompatActivity() {
         val nav = BuiltinDashboard.consumeNavPath()
         val reload = BuiltinDashboard.consumeReloadRequest()
         val reloadReason = BuiltinDashboard.consumeReloadReason()
-        if (reload) announceDeliberateRestart(reloadReason)
+        if (reload) statusScreens.announceDeliberateRestart(reloadReason)
         val w = web
         val healthy = w != null && frontendConnected && !authLatched && !interstitialShown
         if (healthy && !reload) bridge.updateKioskPreference(config.dashboardNativeKiosk)
@@ -1430,7 +1351,7 @@ class DashboardActivity : AppCompatActivity() {
         val step = retryPolicy.onWatchdogFired(screenAwake)
         if (step == HandshakeRecoveryStep.NONE) return
         if (bridge.handshakeTimedOut()) {
-            showBlockedAdmissionScreen(
+            statusScreens.showBlockedAdmissionScreen(
                 getString(R.string.home_assistant_unresponsive),
                 getString(R.string.home_assistant_unresponsive_detail),
                 AdmissionOutcome.BRIDGE_HANDSHAKE_MISSED,
@@ -1524,7 +1445,7 @@ class DashboardActivity : AppCompatActivity() {
                 activityConfig.setupEverCompleted = true
             }
             interstitialShown = false // real page demonstrably loaded
-            clearReloadNotice()
+            statusScreens.clearReloadNotice()
             unlatchAuth("frontend connected") // auth demonstrably works — clear any stale latch + counters
             main.removeCallbacks(watchdog)
             retryPolicy.escalatedTo?.let { reached ->
@@ -1634,7 +1555,7 @@ class DashboardActivity : AppCompatActivity() {
         // stop retrying — is entirely the panel's.
         blankWebDocument()
         val phoneUrl = configureQrPath(AdmissionOutcome.CREDENTIAL_REFUSED)?.let { path ->
-            provenSignInUrl(path) { if (authLatched) renderAuthLatchPage() }
+            statusScreens.provenSignInUrl(path) { if (authLatched) renderAuthLatchPage() }
         }
         showWebCover { cover ->
             val notice = cover.notice
@@ -1682,15 +1603,8 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         if (web == null) {
-            val waitMs = (SystemClock.elapsedRealtime() - waitingStartedAt).coerceAtLeast(0L)
-            if (waitingStartedAt > 0L) Config(this).setLastNetworkWaitMs(waitMs)
-            waitingStartedAt = 0L
+            val waitMs = statusScreens.endNetworkWait()
             Log.i(TAG, "network became available during startup after ${waitMs}ms — creating dashboard WebView")
-            waitingStatus = null
-            waitingStage = null
-            waitingTrack = null
-            waitingHero = null
-            main.removeCallbacks(waitingTick)
             retryPolicy.reset()
             if (homeDashboardCheckingOwner != null) {
                 invalidateHomeDashboardResolution(resetRetry = false)
@@ -1834,74 +1748,6 @@ class DashboardActivity : AppCompatActivity() {
         return initiallyAvailable || !registered
     }
 
-    /** One quiet startup state while Android brings networking up. This is native rather than cached
-     *  WebView content, so neither Chromium's error UI nor HA's 60-second reconnect page can appear. */
-    private fun showWaitingForNetwork() {
-        detachLifecycleBar()
-        val config = Config(this)
-        waitingEstimateLearned = config.lastNetworkWaitMs > 0L
-        waitingEstimateMs = config.lastNetworkWaitMs.takeIf { it > 0L } ?: DEFAULT_NETWORK_WAIT_MS
-        val surface = statusSurface(config)
-        surface.setBrandCaption(getString(R.string.service_running_caption))
-        val notice = surface.notice
-        val hero = notice.hero("")
-        val stage = notice.line(localizedStartupNetworkStage(startupNetworkSnapshot()))
-        val track = notice.track(NETWORK_STEPS.map(::getString), 1_000)
-        val status = notice.footer("")
-        surface.setBody(getString(NETWORK_STEPS[0]), hero, stage, track.view, status)
-        showStatusSurface(surface) { showWaitingForNetwork() }
-        waitingStatus = status
-        waitingStage = stage
-        waitingTrack = track
-        waitingHero = hero
-        // Redrawing after a rotation must not restart the clock — the panel has been waiting exactly
-        // as long as it was a moment ago, and the learned estimate is measured from this.
-        if (waitingStartedAt == 0L) waitingStartedAt = SystemClock.elapsedRealtime()
-        // Cancel before starting: a redraw used to leave the previous once-per-second chain running,
-        // so every configuration change added a permanent timer until the network recovered.
-        main.removeCallbacks(waitingTick)
-        waitingTick.run()
-        Log.i(TAG, "no default network at startup — waiting before creating WebView")
-    }
-
-    /** Best-effort portable view of pre-default-network progress. Ethernet carrier comes from sysfs
-     * when readable; interface/address state uses java.net and works without privileged APIs. */
-    private fun startupNetworkSnapshot(): StartupNetworkSnapshot {
-        val interfaces = runCatching {
-            Collections.list(NetworkInterface.getNetworkInterfaces()).filterNot { it.isLoopback }
-        }.getOrDefault(emptyList())
-        val candidates = interfaces.filter {
-            it.name.startsWith("eth") || it.name.startsWith("en") || it.name.startsWith("wlan")
-        }
-        val linkUp = candidates.any { iface ->
-            val carrier = if (iface.name.startsWith("eth") || iface.name.startsWith("en")) {
-                runCatching { File("/sys/class/net/${iface.name}/carrier").readText().trim() == "1" }.getOrNull()
-            } else null
-            carrier ?: runCatching { iface.isUp }.getOrDefault(false)
-        }
-        val addressAssigned = candidates.any { iface ->
-            Collections.list(iface.inetAddresses).any { address ->
-                !address.isAnyLocalAddress && !address.isLoopbackAddress && !address.isLinkLocalAddress
-            }
-        }
-        return StartupNetworkSnapshot(
-            interfacePresent = candidates.isNotEmpty(),
-            linkUp = linkUp,
-            addressAssigned = addressAssigned,
-            defaultNetwork = conn?.activeNetwork != null,
-        )
-    }
-
-    private fun localizedStartupNetworkStage(snapshot: StartupNetworkSnapshot): String = getString(
-        when {
-            !snapshot.interfacePresent -> R.string.network_starting_android
-            !snapshot.linkUp -> R.string.network_waiting_link
-            !snapshot.addressAssigned -> R.string.network_waiting_address
-            !snapshot.defaultNetwork -> R.string.network_preparing_connection
-            else -> R.string.network_opening_ha
-        },
-    )
-
     /** Re-load the dashboard: a plain reload normally, but a fresh loadUrl of the real dashboard when
      *  the WebView is currently showing the "Reconnecting…" interstitial (reloading THAT would just
      *  re-show the interstitial forever). */
@@ -1961,7 +1807,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun showReconnecting(detail: String) {
         if (destroyed || authLatched || interstitialShown) return
         interstitialShown = true
-        clearReloadNotice() // the reconnecting screen says it better
+        statusScreens.clearReloadNotice() // the reconnecting screen says it better
         lastInterstitialDetail = detail
         Log.w(TAG, "main-frame load error ($detail) — showing reconnecting page; watchdog retries continue")
         web?.let(bridge::suspend)
@@ -2149,194 +1995,11 @@ class DashboardActivity : AppCompatActivity() {
         if (maintenanceFence.stop(this)) return
         if (android.os.Build.VERSION.SDK_INT in 29..32) web?.let { applyForceDark(it) }
         if (!::activityConfig.isInitialized) return
-        // This activity handles orientation, screen size and night mode itself rather than being
-        // recreated, so a status screen that is up stays as drawn unless it is redrawn here — but only
-        // when something it depends on actually moved. It also receives locale, keyboard and font-scale
-        // events, and rebuilding a live surface for those is churn a user can see.
-        val geometry = StatusSurface.geometryFor(this)
-        val dark = StatusSurface.darkFor(this, Config(this))
-        val current = statusSurface
-        if (current == null || !statusSurfaceReusable(current.geometry, current.dark, geometry, dark)) {
-            convergeStatusTheme()
-        }
+        statusScreens.onConfigurationChanged()
     }
 
-    /**
-     * The one branded frame every status screen in this activity is drawn on, kept across phases.
-     *
-     * Reusing the instance is what makes the mark stationary: a phase change replaces the body and
-     * leaves the header view untouched, so it cannot move, reflow or blink between, say, "Checking
-     * Home Assistant compatibility" and the verdict that follows it a second later.
-     */
-    private var statusSurface: StatusSurface? = null
-
-    /**
-     * How to draw the status screen that is currently up, so a configuration change can redraw it.
-     *
-     * Rebuilding on next use is enough for a screen that is about to change anyway, and wrong for one
-     * that is not: the compatibility verdicts and the entity holds are static, so a rotation or a
-     * day/night switch left them showing the previous shape's geometry, palette and artwork until
-     * something else happened to move them on — which, on a hold, may be never.
-     */
-    private var statusRerender: (() -> Unit)? = null
     /** The detail last shown on the reconnect page, so a theme change can redraw it unchanged. */
     private var lastInterstitialDetail: String = ""
-
-
-    private fun statusSurface(config: Config = Config(this)): StatusSurface {
-        val dark = StatusSurface.darkFor(this, config)
-        val geometry = StatusSurface.geometryFor(this)
-        statusSurface?.let { if (statusSurfaceReusable(it.geometry, it.dark, geometry, dark)) return it }
-        return StatusSurface(this, dark).also { statusSurface = it }
-    }
-
-    /**
-     * Install the frame only when it is not already installed.
-     *
-     * Caching the instance is not enough on its own: `setContentView` clears the content parent
-     * before adding, so handing it the same root again detaches and reattaches the header the frame
-     * exists to hold still. This activity declares `orientation|screenSize|uiMode` in its
-     * `configChanges`, so it also survives rotations that would otherwise have recreated it.
-     */
-    private fun showStatusSurface(surface: StatusSurface, rerender: () -> Unit) {
-        // Every native status screen is installed here, so this is also the one place that has to
-        // disarm the admission auto-retry: a screen that has been replaced must not keep a timer
-        // running against the view tree it left behind. A caller that means to keep its pending retry
-        // reads the remaining time first and re-arms it afterwards.
-        cancelAdmissionAutoRetry()
-        clearReloadNotice() // a status screen replaced the dashboard the card was about
-        statusRerender = rerender
-        if (statusSurfaceAlreadyInstalled(root, surface.root)) return
-        root = surface.root
-        setContentView(surface.root)
-    }
-
-    /** A blocked admission screen. [outcome] is not defaulted: every blocked screen must say what the
-     *  panel learned, and [admissionRetryClass] — not this call site — decides whether that recovers on
-     *  its own. Progress screens use [showAdmissionProgressScreen] instead.
-     *
-     *  This is also the single site that publishes a blocked verdict to [RendererAdmissionRuntime], so
-     *  a screen cannot reach the panel without the diagnostic surfaces learning about it. [evidence] is
-     *  the classified transport failure where one was observed; the raw [detail] stays on the panel and
-     *  never enters the runtime, because it can embed the configured Home Assistant host. */
-    private fun showBlockedAdmissionScreen(
-        title: String,
-        detail: String,
-        outcome: AdmissionOutcome,
-        evidence: HaTransportEvidence = HaTransportEvidence.NONE,
-        /** The hero of a screen that neither retries on its own nor offers a QR: a number or a word. */
-        heroWord: String? = null,
-    ) {
-        RendererAdmissionRuntime.record(
-            owner = activityOwner,
-            state = RendererAdmissionState.BLOCKED,
-            nowElapsedMs = android.os.SystemClock.elapsedRealtime(),
-            outcome = outcome,
-            evidence = evidence,
-        )
-        showV2CompatibilityScreen(title, detail, getString(R.string.retry), admissionRetryClass(outcome), outcome, heroWord, title)
-    }
-
-    /** A screen that reports work in flight; it is replaced by that work's outcome, so it never arms. Its
-     *  title is shown split, as a hero word and the line under it. */
-    private fun showAdmissionProgressScreen(@StringRes title: Int, @StringRes hero: Int, @StringRes line: Int, @StringRes detail: Int) {
-        RendererAdmissionRuntime.record(
-            owner = activityOwner,
-            state = RendererAdmissionState.CHECKING,
-            nowElapsedMs = android.os.SystemClock.elapsedRealtime(),
-        )
-        showV2CompatibilityScreen(getString(title), getString(detail), null, AdmissionRetryClass.MANUAL_ONLY, null, getString(hero), getString(line))
-    }
-
-    private fun showV2CompatibilityScreen(
-        title: String,
-        detail: String,
-        retryLabel: String?,
-        autoRetry: AdmissionRetryClass,
-        outcome: AdmissionOutcome?,
-        heroWord: String?,
-        line: String,
-    ) = paintV2CompatibilityScreen(title, detail, retryLabel, autoRetry, outcome, heroWord, line, rearm = true)
-
-    /**
-     * [rearm] is false only when the screen already on display is being redrawn for a panel-theme or
-     * system configuration change. The retry deadline and the back-off ladder belong to the admission
-     * failure, not to the drawing of it: re-arming on every repaint would advance the ladder and push
-     * the deadline further out each time, so a panel being rotated could postpone its own recovery
-     * indefinitely. The pending deadline is therefore carried across the redraw unchanged, while the
-     * countdown itself is rebuilt because the previous one belongs to a discarded view tree.
-     */
-    private fun paintV2CompatibilityScreen(
-        title: String,
-        detail: String,
-        retryLabel: String?,
-        autoRetry: AdmissionRetryClass,
-        outcome: AdmissionOutcome?,
-        heroWord: String?,
-        line: String,
-        rearm: Boolean,
-    ) {
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
-        // Read before the shared installer disarms, and read as an INSTANT: everything between here
-        // and the re-arm below — building the views, laying them out, installing them — is time that a
-        // carried duration would add to the deadline on every single repaint.
-        val carriedDeadlineMs = if (rearm) null else admissionCountdown.deadlineAtMs
-        if (web != null) teardownWeb()
-        val surface = statusSurface()
-        val notice = surface.notice
-        // Credential failures can offer sign-in on a phone instead of opening the local browser.
-        val phoneUrl = configureQrPath(outcome)?.let { path -> provenSignInUrl(path) { statusRerender?.invoke() } }
-        val qrSlots = admissionQrSlots(outcome)
-        val qr = if (phoneUrl != null && qrSlots != null) {
-            notice.qr(phoneUrl, getString(R.string.config_qr_description, phoneUrl), getString(qrSlots.prompt))
-        } else null
-        val buttons = buildList {
-            retryLabel?.let { label ->
-                add(notice.action(label, primary = true) {
-                    retryAdmission(resetBackoff = true)
-                })
-            }
-            // The code replaces Configure rather than joining it: both open the same page, and the
-            // whole reason the code is here is that this page is the one worth doing on a phone.
-            if (qr == null) {
-                add(notice.action(getString(R.string.configure)) {
-                    startActivity(Intent(this@DashboardActivity, ConfigActivity::class.java).putExtra("path", "/configure"))
-                })
-            }
-        }
-        // The retry countdown is the hero: a real number, not a spinner. The jittered delay is computed
-        // once, here, and the hero counts down to that exact figure. A redraw computes nothing: it already
-        // has a deadline, and only the view needs rebuilding.
-        val autoRetryDelayMs = if (carriedDeadlineMs != null) null
-            else if (retryLabel == null) null else admissionRetryPolicy.nextDelayMs(autoRetry)
-        val countdown = if (carriedDeadlineMs != null || autoRetryDelayMs != null) notice.hero("") else null
-        // A sign-in keeps its pill whether or not the code can be offered: the page behind it may simply not
-        // answer from the network.
-        val pill = admissionNoticePill(progress = retryLabel == null, signIn = qrSlots != null, retries = countdown != null)
-        surface.setBody(
-            getString(pill),
-            qr ?: countdown ?: heroWord?.let { notice.hero(it, word = true) },
-            notice.line(if (qr != null && qrSlots != null) getString(qrSlots.line) else line),
-            if (buttons.isEmpty()) null else notice.actions(*buttons.toTypedArray()),
-            // The address under a code is the route when the code cannot be scanned.
-            notice.footer(if (qr != null) phoneUrl!! else detail),
-        )
-        // Preserve the outcome so a rotation or theme change keeps the same sign-in guidance.
-        showStatusSurface(surface) {
-            paintV2CompatibilityScreen(title, detail, retryLabel, autoRetry, outcome, heroWord, line, rearm = false)
-        }
-        admissionCountdownView = countdown
-        if (carriedDeadlineMs != null) resumeAdmissionAutoRetry(carriedDeadlineMs, title)
-        else if (autoRetryDelayMs != null) armAdmissionAutoRetry(autoRetryDelayMs, title)
-        Log.w(TAG, "$title: $detail")
-    }
-
-    private fun localizedHaUnavailableDetail(blocked: DashboardV2ProbeResult.Unavailable): String =
-        getString(
-            R.string.cannot_reach_ha_detail,
-            localizedHaTransportFault(blocked.evidence.fault),
-            blocked.detail,
-        )
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun buildAndLoad(config: Config) {
@@ -2374,7 +2037,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         val owner = DashboardV2CompatibilityOwner(url, config.haAuthSnapshot().stableOwner(), config.haRouteEpoch())
         if (secureBridgeAdmission() == AdmissionOutcome.BRIDGE_UNAVAILABLE) {
-            showBlockedAdmissionScreen(
+            statusScreens.showBlockedAdmissionScreen(
                 getString(R.string.web_viewer_too_old_title),
                 getString(R.string.web_viewer_too_old_detail),
                 AdmissionOutcome.BRIDGE_UNAVAILABLE,
@@ -2390,7 +2053,7 @@ class DashboardActivity : AppCompatActivity() {
         compatibilityJob?.cancel()
         val compatibilityTicket = compatibilityAttempts.start(owner)
         compatibilityCheckingOwner = owner
-        showAdmissionProgressScreen(
+        statusScreens.showAdmissionProgressScreen(
             R.string.checking_ha_compatibility,
             R.string.notice_hero_version_check,
             R.string.notice_line_ha_compatibility,
@@ -2437,7 +2100,7 @@ class DashboardActivity : AppCompatActivity() {
                 is DashboardV2Admission.Blocked -> when (val blocked = admission.result) {
                     is DashboardV2ProbeResult.UnsupportedHa -> {
                         config.setHaServerVersionIfOwned(config.haUrl, blocked.version)
-                        showBlockedAdmissionScreen(
+                        statusScreens.showBlockedAdmissionScreen(
                             getString(R.string.ha_upgrade_required),
                             getString(R.string.ha_upgrade_required_detail, blocked.version),
                             AdmissionOutcome.UNSUPPORTED_HA,
@@ -2446,7 +2109,7 @@ class DashboardActivity : AppCompatActivity() {
                     }
                     // A degraded proxy or captive-portal response lands here too, so probe again at
                     // the ceiling cadence rather than never.
-                    is DashboardV2ProbeResult.Unverifiable -> showBlockedAdmissionScreen(
+                    is DashboardV2ProbeResult.Unverifiable -> statusScreens.showBlockedAdmissionScreen(
                         getString(R.string.ha_version_unverifiable),
                         getString(R.string.ha_version_unverifiable_detail, blocked.version?.let { " (“$it”)" }.orEmpty()),
                         AdmissionOutcome.VERSION_UNVERIFIABLE,
@@ -2470,7 +2133,7 @@ class DashboardActivity : AppCompatActivity() {
                             "HA admission refused authentication (neverSignedIn=$neverSignedIn) — " +
                                 "no token was accepted for the compatibility check",
                         )
-                        showBlockedAdmissionScreen(
+                        statusScreens.showBlockedAdmissionScreen(
                             if (neverSignedIn) {
                                 getString(R.string.ha_sign_in_needed)
                             } else {
@@ -2488,9 +2151,9 @@ class DashboardActivity : AppCompatActivity() {
                             },
                         )
                     }
-                    is DashboardV2ProbeResult.Unavailable -> showBlockedAdmissionScreen(
+                    is DashboardV2ProbeResult.Unavailable -> statusScreens.showBlockedAdmissionScreen(
                         getString(R.string.cannot_reach_ha),
-                        localizedHaUnavailableDetail(blocked),
+                        statusScreens.localizedHaUnavailableDetail(blocked),
                         AdmissionOutcome.TRANSPORT_FAILED,
                         blocked.evidence,
                     )
@@ -2503,7 +2166,7 @@ class DashboardActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun showPhysicalHaSignIn(haUrl: String) {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         // Already showing sign-in for this exact URL: keep the live WebView. Every config save relaunches
         // this activity, and the browser form posts on each save, so rebuilding here would discard a
         // part-typed Home Assistant password whenever anything else was saved from another device.
@@ -2565,7 +2228,7 @@ class DashboardActivity : AppCompatActivity() {
                         }, SIGN_IN_LOAD_RETRY_MS)
                         return
                     }
-                    showBlockedAdmissionScreen(
+                    statusScreens.showBlockedAdmissionScreen(
                         getString(R.string.ha_sign_in_page_failed),
                         getString(R.string.ha_sign_in_page_failed_detail),
                         AdmissionOutcome.SIGN_IN_PAGE_UNREACHABLE,
@@ -2584,7 +2247,7 @@ class DashboardActivity : AppCompatActivity() {
         // The status frame's redraw belongs to the status frame. Left armed here, a later
         // configuration change replaced this live sign-in WebView with an obsolete status screen and
         // could strand the panel, because the transition that produced that screen will not repeat.
-        statusRerender = null
+        statusScreens.clearRerender()
         root = content
         setContentView(content)
         view.loadUrl(panelHaOAuthStartUrl(haUrl))
@@ -2625,56 +2288,11 @@ class DashboardActivity : AppCompatActivity() {
         buildAndLoad(Config(this))
     }
 
-    /** Disarm the admission auto-retry and its countdown. Every function that replaces the activity's
-     *  content view MUST call this first: the timer belongs to the blocked screen that armed it, and a
-     *  survivor firing under a healthy dashboard would tear that dashboard down to re-probe. */
-    private fun cancelAdmissionAutoRetry() {
-        admissionCountdown.disarm()
-        admissionCountdownView = null
-        main.removeCallbacks(admissionRetry)
-        main.removeCallbacks(admissionCountdownTick)
-    }
-
-    private fun armAdmissionAutoRetry(delayMs: Long, title: String) {
-        main.postDelayed(admissionRetry, delayMs)
-        applyAdmissionPaint(admissionCountdown.arm(delayMs))
-        Log.i(TAG, "admission auto-retry armed in ${delayMs}ms ($title)")
-    }
-
-    /**
-     * Put back a deadline the shared installer disarmed, at the instant it already held.
-     *
-     * The delay is derived here rather than passed in, from the same uptime clock the countdown owner
-     * and the Handler both use, so however long the redraw took is subtracted rather than added. A
-     * deadline that expired mid-redraw posts at zero and fires immediately, which is what the panel
-     * would have done had nothing redrawn it.
-     */
-    private fun resumeAdmissionAutoRetry(deadlineMs: Long, title: String) {
-        val delayMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(0L)
-        main.postDelayed(admissionRetry, delayMs)
-        applyAdmissionPaint(admissionCountdown.rearmAt(deadlineMs))
-        Log.i(TAG, "admission auto-retry resumed with ${delayMs}ms left ($title)")
-    }
-
-    /** The owner decides whether to repaint and whether to run again; this only carries out the verdict.
-     *  A detached view is treated as not visible, so a replaced screen cannot keep a stale row alive. */
-    private fun applyAdmissionPaint(paint: AdmissionCountdownOwner.Paint) {
-        main.removeCallbacks(admissionCountdownTick)
-        val view = admissionCountdownView?.takeIf { it.isAttachedToWindow } ?: return
-        paint.remainingMs?.let { remaining -> view.text = haLifecycleClock(remaining) }
-        paint.scheduleNextTickMs?.let { main.postDelayed(admissionCountdownTick, it) }
-    }
-
-    private fun onAdmissionCountdownTick() {
-        if (destroyed) return
-        applyAdmissionPaint(admissionCountdown.onTick())
-    }
-
     /** Top-visibility, not merely resumed: a translucent Overview can take top-resumed status without
      *  calling onPause, and repainting behind it is invisible work. The retry stays armed throughout. */
     private fun onAdmissionVisibilityChanged(visible: Boolean) {
         if (destroyed) return
-        applyAdmissionPaint(admissionCountdown.onVisibilityChanged(visible))
+        statusScreens.onAdmissionVisibilityChanged(visible)
         // Coming forward is what makes a microphone foreground service startable again on Android 14,
         // so a claim the platform refused while the panel was in the background is retried here.
         if (visible) PaneldService.notifyActivityForeground()
@@ -2687,7 +2305,7 @@ class DashboardActivity : AppCompatActivity() {
         if (owned != null && owned.confirmed) {
             val path = owned.resolution.path
             if (path == null) {
-                showBlockedAdmissionScreen(
+                statusScreens.showBlockedAdmissionScreen(
                     getString(R.string.no_dashboard_title),
                     getString(R.string.no_dashboard_detail),
                     AdmissionOutcome.NO_LEGAL_DASHBOARD,
@@ -2762,7 +2380,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         // Not a renderer CHECKING: compatibility already admitted this renderer, and recording CHECKING here
         // outlived the dashboard it loaded (status `checking` while rendered, after every launch-cache miss).
-        if (provisionalPath == null) showV2CompatibilityScreen(
+        if (provisionalPath == null) statusScreens.showV2CompatibilityScreen(
             getString(R.string.selecting_ha_dashboard), getString(R.string.selecting_ha_dashboard_detail), null,
             AdmissionRetryClass.MANUAL_ONLY, null, getString(R.string.notice_hero_finding_dashboards), getString(R.string.notice_line_ha_dashboard),
         )
@@ -2794,16 +2412,16 @@ class DashboardActivity : AppCompatActivity() {
                 // A transient failure neither erases the persisted cache nor tears down the page it
                 // admitted: with the provisional dashboard rendering, retry quietly behind it.
                 if (shownPath == null || web == null) {
-                    showBlockedAdmissionScreen(
+                    statusScreens.showBlockedAdmissionScreen(
                         getString(R.string.dashboard_list_unavailable),
                         getString(R.string.dashboard_list_unavailable_detail),
                         AdmissionOutcome.DASHBOARD_LIST_UNREADABLE,
                     )
                 } else {
-                    cancelAdmissionAutoRetry()
+                    statusScreens.cancelAdmissionAutoRetry()
                     admissionRetryPolicy.nextDelayMs(
                         admissionRetryClass(AdmissionOutcome.DASHBOARD_LIST_UNREADABLE),
-                    )?.let { armAdmissionAutoRetry(it, getString(R.string.dashboard_list_unavailable)) }
+                    )?.let { statusScreens.armAdmissionAutoRetry(it, getString(R.string.dashboard_list_unavailable)) }
                 }
                 return@launch
             }
@@ -2823,14 +2441,14 @@ class DashboardActivity : AppCompatActivity() {
                     // would claim a convergence that did not happen; keep the retry armed instead so
                     // the invalidation is attempted again.
                     Log.e(TAG, "home dashboard cache invalidation did not commit — retrying before settling")
-                    showBlockedAdmissionScreen(
+                    statusScreens.showBlockedAdmissionScreen(
                         getString(R.string.no_dashboard_title),
                         getString(R.string.no_dashboard_cache_clear_detail),
                         AdmissionOutcome.DASHBOARD_LIST_UNREADABLE,
                     )
                     return@launch
                 }
-                showBlockedAdmissionScreen(
+                statusScreens.showBlockedAdmissionScreen(
                     getString(R.string.no_dashboard_title),
                     getString(R.string.no_dashboard_detail),
                     AdmissionOutcome.NO_LEGAL_DASHBOARD,
@@ -2923,7 +2541,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         // Admission succeeded: a surviving blocked-screen timer firing under the live dashboard would
         // tear it down to re-probe, so it dies here, and the back-off starts fresh next time.
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         admissionRetryPolicy.reset()
         main.removeCallbacks(entityBootstrapCheck)
         entityBootstrapBlockedCount = -1
@@ -2951,7 +2569,7 @@ class DashboardActivity : AppCompatActivity() {
                 return
             }
             if (e is ExternalV2BridgeUnavailable) {
-                showBlockedAdmissionScreen(
+                statusScreens.showBlockedAdmissionScreen(
                     getString(R.string.home_assistant_could_not_open),
                     getString(R.string.home_assistant_could_not_open_detail),
                     AdmissionOutcome.BRIDGE_ATTACH_FAILED,
@@ -2995,7 +2613,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         root = container
         setContentView(container)
-        statusRerender = null
+        statusScreens.clearRerender()
         noteDeliberateDashboardNavigation()
         // Attached to the same frame the fullscreen-video view uses, so the dashboard keeps rendering
         // underneath. Seeded from the CURRENT state because a renderer rebuilt mid-outage must not come
@@ -3050,12 +2668,12 @@ class DashboardActivity : AppCompatActivity() {
      * network, nothing to churn — it exists only so the first dashboard the user sees is the filtered one.
      */
     private fun showWaitingForEntityFilterAnswer() {
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         main.removeCallbacks(entityBootstrapCheck)
         main.removeCallbacks(entityFilterAnswerCheck)
         teardownWeb()
         val config = Config(this)
-        val surface = statusSurface(config)
+        val surface = statusScreens.statusSurface(config)
         val notice = surface.notice
         surface.setBody(
             getString(R.string.notice_pill_setup),
@@ -3067,7 +2685,7 @@ class DashboardActivity : AppCompatActivity() {
             notice.actions(notice.action(getString(R.string.skip_load_dashboard)) { skipEntityFilterQuestion() }),
             notice.footer(getString(R.string.skip_entity_filter_detail)),
         )
-        showStatusSurface(surface) { showWaitingForEntityFilterAnswer() }
+        statusScreens.showStatusSurface(surface) { showWaitingForEntityFilterAnswer() }
         main.postDelayed(entityFilterAnswerCheck, ENTITY_FILTER_ANSWER_CHECK_MS)
     }
 
@@ -3127,7 +2745,7 @@ class DashboardActivity : AppCompatActivity() {
         canIgnoreBlockingIssues: Boolean,
         milestone: EntityLearningRuntime.BootstrapMilestone?,
     ) {
-        cancelAdmissionAutoRetry()
+        statusScreens.cancelAdmissionAutoRetry()
         main.removeCallbacks(entityBootstrapCheck)
         teardownWeb()
         val filterHold = entityFilterNativeHold
@@ -3137,7 +2755,7 @@ class DashboardActivity : AppCompatActivity() {
             ?: if (entityBootstrapWatchdog.gaveUp) EntityBootstrapProblem.SYNCHRONIZATION else null
         entityBootstrapBlockedCount = blockingIssues
         entityBootstrapProblem = bootstrapProblem
-        val surface = statusSurface()
+        val surface = statusScreens.statusSurface()
         val notice = surface.notice
         val kind = entityHoldKind(blockingIssues, filterHold != null, bootstrapProblem, canIgnoreBlockingIssues)
         entityBootstrapMilestoneView = null
@@ -3162,7 +2780,7 @@ class DashboardActivity : AppCompatActivity() {
             }, BOOTSTRAP_HOLD_HONESTY_MS)
         }
         surface.setBody(getString(kind.pill), *rows.toTypedArray())
-        showStatusSurface(surface) { showWaitingForEntityBootstrap() }
+        statusScreens.showStatusSurface(surface) { showWaitingForEntityBootstrap() }
         if (filterHold != null) scheduleEntityFilterRetry()
         else main.postDelayed(entityBootstrapCheck, ENTITY_BOOTSTRAP_CHECK_MS)
         Log.i(TAG, if (filterHold != null) {
@@ -3411,7 +3029,7 @@ class DashboardActivity : AppCompatActivity() {
                     .onSuccess { onLoadStarted() }
                     .onFailure {
                         Log.e(TAG, "secure V2 document rotation failed", it)
-                        showBlockedAdmissionScreen(
+                        statusScreens.showBlockedAdmissionScreen(
                             getString(R.string.home_assistant_stopped_loading),
                             getString(R.string.home_assistant_stopped_loading_detail),
                             AdmissionOutcome.BRIDGE_ATTACH_FAILED,
@@ -3578,7 +3196,6 @@ class DashboardActivity : AppCompatActivity() {
         private const val IDLE_CHECK_MS = 60_000L               // idle return-to-home tick
         private const val AUTH_INVALID_LATCH = 3                // consecutive auth-invalid events → latch
         private const val REFRESH_REJECT_LATCH = 2              // consecutive definitive refresh rejections → latch
-        private const val DEFAULT_NETWORK_WAIT_MS = 60_000L     // calm first-boot progress until learned
         private const val ENTITY_BOOTSTRAP_CHECK_MS = 1_000L    // missed-relaunch backstop; no network work
         // Backstop only: answering normally relaunches the renderer from the server. This catches the case
         // where that relaunch is missed, so the panel still proceeds on its own. Local pref read, no network.
