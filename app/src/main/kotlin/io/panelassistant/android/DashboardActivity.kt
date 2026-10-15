@@ -2230,7 +2230,7 @@ class DashboardActivity : AppCompatActivity() {
         // buildAndLoad is reached from service-triggered singleTask intents and renderer recovery as
         // well as initial startup. Own dark settling here so no caller can leave a replacement WebView
         // running indefinitely behind a sleeping display while it waits for a connection callback.
-        if (deferReadyEntityBootstrapUntilWake(screenAwake)) scheduleDarkSettle()
+        if (!screenAwake) scheduleDarkSettle()
     }
 
     @SuppressLint("SetJavaScriptEnabled")

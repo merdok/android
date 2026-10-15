@@ -53,11 +53,6 @@ class DashboardEntityFilterFallbackTest {
         )
     }
 
-    @Test fun `ready bootstrap defers renderer creation until screen wake`() {
-        assertEquals(true, deferReadyEntityBootstrapUntilWake(screenAwake = false))
-        assertEquals(false, deferReadyEntityBootstrapUntilWake(screenAwake = true))
-    }
-
     @Test fun `automatic retries are bounded and back off`() {
         val policy = EntityFilterRetryPolicy(longArrayOf(30L, 120L, 600L))
 
