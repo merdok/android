@@ -46,7 +46,7 @@ import org.junit.Test
  * with a browser's `origin`, parsed by the session's own parser and answered by the session's management requests,
  * against a stand-in for Panel Assistant's blob view on a real loopback socket.
  */
-class SidebarRelayTest {
+internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRuntimeRig() {
     private lateinit var homeAssistant: HttpServer
     private val received = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
     private val served = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
@@ -133,6 +133,10 @@ class SidebarRelayTest {
             scope.cancel()
         }
     }
+
+    private fun command(id: String, channel: String, value: String = "PRESS") =
+        JSONObject().put("kind", "command").put("command_id", id).put("channel", channel).put("value", value)
+            .put("origin", JSONObject().put("user", USER).put("connection", "relay-1"))
 
     private fun manage(id: String, op: String, args: JSONObject = JSONObject(), relayed: Boolean = true) =
         JSONObject().put("kind", "manage").put("command_id", id).put("op", op).put("args", args)
@@ -222,6 +226,24 @@ class SidebarRelayTest {
             assertEquals(listOf(SensitiveOperation.BACKUP_EXPORT, "user:$USER"), listOf(pending.operation, pending.peer))
             assertTrue(LocalApprovalBroker.instance.approve(pending.id))
             assertEquals("applied", session.answer("g1").getString("outcome"))
+        }
+    }
+
+    @Test fun inHardenedModeARelayedReloadCommandRunsAndARelayedRebootAnswersInterimPendingApprovalBoundToItsUser() {
+        val rig = rig(deviceSecure = false, configure = { assertTrue(it.setSecurityMode(io.panelassistant.android.Config.SecurityMode.HARDENED)) })
+        try {
+            Session({ rig.commands }).use { session ->
+                session.deliver(command("c1", "reload"))
+                assertEquals("applied", session.answer("c1").getString("outcome"))
+
+                session.deliver(command("c2", "reboot"))
+                val interim = session.await("interim answer") { it.optString("command_id") == "c2" }
+                assertEquals(listOf("pending_approval", "true"), listOf(interim.getString("outcome"), interim.get("interim").toString()))
+                val pending = LocalApprovalBroker.instance.pending().single()
+                assertEquals(listOf(SensitiveOperation.DEVICE_REBOOT, "user:$USER"), listOf(pending.operation, pending.peer))
+            }
+        } finally {
+            rig.close()
         }
     }
 

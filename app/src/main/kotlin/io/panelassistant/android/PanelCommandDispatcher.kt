@@ -742,6 +742,8 @@ internal class PanelCommandDispatcher(
         val origin = checkNotNull(currentOrigin.get()) { "sensitive ${operation.name} dispatched without an origin" }
         // Protocol section 20.2: a loopback peer (the stub in hardened mode) is exempt, as it is over HTTP.
         if (!always && origin.peerAddress?.let { io.panelassistant.android.util.isLoopbackPeer(it) } == true) return
+        // A relayed Home Assistant administrator is exempt for the same operations as on the manage path.
+        if (!always && io.panelassistant.android.http.relayedAdministratorExempt(origin, operation)) return
         val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, origin.approvalKey, payload, summary)
         if (decision != ApprovalBroker.Decision.APPROVED) {
             throw SensitiveApprovalPendingException(

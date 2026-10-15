@@ -83,6 +83,14 @@ internal val RELAYED_ADMINISTRATOR_EXEMPT: Set<SensitiveOperation> = setOf(
     SensitiveOperation.DASHBOARD_RELOAD,
 )
 
+/** Whether [origin] is a Home Assistant administrator relayed by Panel Assistant and [operation] is exempt for them,
+ * on the manage path and the channel-command path alike; an exemption is logged. */
+internal fun relayedAdministratorExempt(origin: io.panelassistant.android.CommandOrigin, operation: SensitiveOperation): Boolean {
+    if (!origin.isUser || operation !in RELAYED_ADMINISTRATOR_EXEMPT) return false
+    Log.i("ha-paneld/http", "approved by Home Assistant administrator ${origin.approvalKey.removePrefix("user:")} via Panel Assistant: ${operation.name}")
+    return true
+}
+
 /** The approval peer for requests Panel Assistant makes over its own session (protocol section 20.2 origin key). */
 internal const val PANEL_ASSISTANT_APPROVAL_PEER = "panel_assistant"
 
@@ -186,10 +194,7 @@ internal suspend fun authorizeSensitiveRequest(
     }
     val origin = call.origin
     if (!hardened || origin.peerAddress?.let(::isLoopbackPeer) == true) return true
-    if (origin.isUser && operation in RELAYED_ADMINISTRATOR_EXEMPT) {
-        Log.i("ha-paneld/http", "approved by Home Assistant administrator ${origin.approvalKey.removePrefix("user:")} via Panel Assistant: ${operation.name}")
-        return true
-    }
+    if (relayedAdministratorExempt(origin, operation)) return true
     val (decision, id) = broker.request(operation, origin.approvalKey, payload, summary)
     if (decision == ApprovalBroker.Decision.APPROVED) return true
     if (origin.isPanelAssistant || origin.isUser) throw io.panelassistant.android.ManageApprovalPending(id)
