@@ -371,10 +371,16 @@ internal fun completeNetworkAdbDisableTransition(
 ): Boolean {
     if (!owned() && !disablePending()) return true // externally-active adb — don't kill it
     if (!rootAvailable()) {
-        // The app cannot have opened a port it has no root to open, so the intent is all OFF can clear;
-        // a listener there belongs to whatever started it (Panel Assistant's own ADB session, say). A
-        // pending marker from a rooted past stays armed for the next reassert with root.
+        // Without root OFF cannot tear anything down, but it can still stop the app persisting the port.
+        // A port proven closed owes nothing, so intent and any old marker both go. A live listener may
+        // be one the app opened before it lost root, so the durable OFF marker stays armed and the next
+        // reassert with root finishes the teardown; ownership is cleared either way so the switch reads
+        // OFF, and the caller's success means the intent is off, not that the port is closed.
+        val closed = inactiveReadback()
+        if (!closed && !armDisable()) return false
         if (!clearOwnership() || owned()) return false
+        if (!closed) return true
+        if (disablePending() && !clearDisable()) return false
         return !disablePending()
     }
     if (!armDisable()) return false
