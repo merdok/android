@@ -8,7 +8,6 @@ import android.webkit.WebView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import io.panelassistant.android.control.BuiltinDashboard
-import io.panelassistant.android.dashboard.AutoScopeVerification
 import io.panelassistant.android.dashboard.EntityBootstrapProblem
 import io.panelassistant.android.dashboard.EntityFilterProtocol
 import io.panelassistant.android.dashboard.EntityFilterTelemetry
@@ -164,7 +163,7 @@ internal class DashboardEntityGate(
             scope.launch {
             val config = readActivityStateOffMain { Config(activity) }
             if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return@launch
-            if (holdForEntityBootstrap(config)) {
+            if (shouldHoldRendererForEntityBootstrap(config)) {
                 // The hold is structurally forbidden from being terminal. The enable-time sync has died
                 // silently on hardware more than once, each time leaving a happy spinner over a dead
                 // process until a human intervened. Two deadlines: at 30 seconds fire the same recovery
@@ -301,13 +300,6 @@ internal class DashboardEntityGate(
             origins = if (enabled) dashboardDocumentStartOrigins(haUrl, allowHttpsUpgrade = !HaConnectionRoutes.hasLearned(config)) else emptySet(),
         )
     })
-
-    private fun holdForEntityBootstrap(config: Config): Boolean =
-        shouldHoldRendererForEntityBootstrap(
-            learningEnabled = config.dashboardEntityLearningEnabled,
-            filterEnabled = config.dashboardEntityFilterEnabled,
-            autoScopeUnverified = AutoScopeVerification.unverified(config.homeDashboard),
-        )
 
     /** Prepare the exact allow-list for document-start interception. Automatic filtering fails closed:
      *  an unavailable interceptor holds the native diagnostic screen rather than opening HA unfiltered. */
@@ -574,7 +566,7 @@ internal class DashboardEntityGate(
     }
 
     /** The renderer must stay behind a native hold screen rather than open Home Assistant. */
-    fun holdsRenderer(config: Config): Boolean = holdForEntityBootstrap(config) || entityFilterNativeHold != null
+    fun holdsRenderer(config: Config): Boolean = shouldHoldRendererForEntityBootstrap(config) || entityFilterNativeHold != null
 
     /** Admission let a dashboard WebView be built: the bootstrap poll has nothing left to wait for. */
     fun onRendererAdmitted() {

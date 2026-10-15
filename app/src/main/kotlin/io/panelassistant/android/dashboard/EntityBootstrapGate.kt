@@ -1,5 +1,9 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.Config
+import io.panelassistant.android.dashboardEntityFilterEnabled
+import io.panelassistant.android.dashboardEntityLearningEnabled
+
 /**
  * True while automatic learning has no allow-list that can safely be installed at document start.
  *
@@ -18,8 +22,15 @@ package io.panelassistant.android.dashboard
 internal fun shouldHoldRendererForEntityBootstrap(
     learningEnabled: Boolean,
     filterEnabled: Boolean,
-    autoScopeUnverified: Boolean = false,
+    autoScopeUnverified: Boolean,
 ): Boolean = learningEnabled && (!filterEnabled || autoScopeUnverified)
+
+/** The one hold decision: the renderer applies it, and status, the entity query and the Configure notice report it. */
+internal fun shouldHoldRendererForEntityBootstrap(config: Config): Boolean = shouldHoldRendererForEntityBootstrap(
+    learningEnabled = config.dashboardEntityLearningEnabled,
+    filterEnabled = config.dashboardEntityFilterEnabled,
+    autoScopeUnverified = AutoScopeVerification.unverified(config.homeDashboard),
+)
 
 /** A learner may continue synchronizing while another renderer is selected, but its completion must not
  * launch the built-in activity unless that activity is still the effective renderer. The caller resolves

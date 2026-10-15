@@ -1156,7 +1156,7 @@ class EntityLearningManager(
             )
             val visibleIssueJson = visibleIssues.toString()
             val visibleIssueCounts = EntityCatalogIssuePersistence.counts(visibleIssueJson)
-            val held = shouldHoldRendererForEntityBootstrap(learningEnabled, filtered)
+            val held = shouldHoldRendererForEntityBootstrap(config)
             val holdReason = entityBootstrapHoldReason(
                 held = held,
                 blockingIssues = s.blockingIssueCount,
@@ -1218,7 +1218,7 @@ class EntityLearningManager(
     fun strategySelectorAllowed(): Boolean {
         ensureInitialized()
         val filtered = config.dashboardEntityFilterEnabled
-        val held = shouldHoldRendererForEntityBootstrap(config.dashboardEntityLearningEnabled, filtered)
+        val held = shouldHoldRendererForEntityBootstrap(config)
         return strategySelectorAllowed(
             entityStreamMode(held, filtered),
             visibleDashboardIssues(store.issuesJson(instance(), dashboardPath()), showAdvisories = false),
@@ -1296,10 +1296,7 @@ class EntityLearningManager(
         val subscribed = filter == "subscribed"
         val review = filter == "review"
         val filtered = config.dashboardEntityFilterEnabled
-        val held = shouldHoldRendererForEntityBootstrap(
-            config.dashboardEntityLearningEnabled,
-            config.dashboardEntityFilterEnabled,
-        )
+        val held = shouldHoldRendererForEntityBootstrap(config)
         val effectiveFilter = when {
             filter == "candidate" && query.isBlank() -> "candidate"
             filter == "candidate" -> "unpinned"
@@ -1323,7 +1320,7 @@ class EntityLearningManager(
         ))
         if (subscribed) {
             val catalogCount = store.snapshot(instance(), dashboardPath()).catalogCount
-            json.put("stream_mode", when { held -> "held"; filtered -> "filtered"; else -> "unfiltered" })
+            json.put("stream_mode", entityStreamMode(held, filtered))
                 .put("configured_count", if (filtered) config.dashboardEntityFilterIds.size else 0)
                 .put("catalog_present_count", when { held -> 0; filtered -> json.optInt("total"); else -> catalogCount })
         }

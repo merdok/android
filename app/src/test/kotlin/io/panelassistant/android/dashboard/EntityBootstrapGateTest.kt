@@ -9,6 +9,7 @@ class EntityBootstrapGateTest {
         assertTrue(shouldHoldRendererForEntityBootstrap(
             learningEnabled = true,
             filterEnabled = false,
+            autoScopeUnverified = false,
         ))
     }
 
@@ -16,6 +17,7 @@ class EntityBootstrapGateTest {
         assertFalse(shouldHoldRendererForEntityBootstrap(
             learningEnabled = true,
             filterEnabled = true,
+            autoScopeUnverified = false,
         ))
     }
 
@@ -23,6 +25,7 @@ class EntityBootstrapGateTest {
         assertFalse(shouldHoldRendererForEntityBootstrap(
             learningEnabled = true,
             filterEnabled = true,
+            autoScopeUnverified = false,
         ))
     }
 
@@ -30,6 +33,7 @@ class EntityBootstrapGateTest {
         assertFalse(shouldHoldRendererForEntityBootstrap(
             learningEnabled = false,
             filterEnabled = false,
+            autoScopeUnverified = false,
         ))
     }
 
