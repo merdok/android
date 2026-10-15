@@ -1010,9 +1010,7 @@ class EntityLearningManager(
                             }
                             promotionsInWindow++
                             // Clear only the cap's own degraded status; a failed sync's error stays.
-                            if (store.snapshot(snapshot.instanceKey, snapshot.dashboardPath).error == PROMOTION_CAP_ERROR) {
-                                store.markStatus(snapshot.instanceKey, snapshot.dashboardPath, "active")
-                            }
+                            store.recoverStatus(snapshot.instanceKey, snapshot.dashboardPath, PROMOTION_CAP_ERROR)
                             onFilterChanged()
                         }
                     }
