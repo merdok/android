@@ -111,6 +111,51 @@ internal class KioskLaneTest : PanelRuntimeRig() {
         }
     }
 
+    @Test fun anOffAcceptedWhileAnOlderOnIsLockingStaysStoredWhenTheProcessEndsFirst() {
+        val locking = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val offSettled = java.util.concurrent.CountDownLatch(1)
+        val authority = LiveSettingAuthority(
+            PanelCommandDispatcher.APPLY_SETTING_KEYS, onLatePending = { offSettled.countDown() }, bootIdentity = { "boot" },
+        )
+        val rig = rig(
+            kioskApply = { on ->
+                if (on) {
+                    locking.countDown()
+                    // A root shell does not stop for the worker's interrupt.
+                    while (true) try { release.await(); break } catch (_: InterruptedException) {}
+                }
+                applied += on
+                true
+            },
+            onExternalSettingApplied = authority::discard,
+        )
+        try {
+            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
+            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+            assertTrue("the ON is locking", locking.await(10, TimeUnit.SECONDS))
+
+            // The escape is accepted and stored while the ON still locks; its command queues behind it.
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, request(rig, authority, "false"))
+            assertFalse(rig.config.kioskLock)
+
+            // The process ends before the queued OFF runs: the worker stops, cancelling it, and the ON then finishes.
+            val stopping = thread { rig.commands.stop(MonotonicDeadline(20_000)) }
+            assertTrue("the queued OFF was cancelled", offSettled.await(10, TimeUnit.SECONDS))
+            release.countDown()
+            stopping.join(20_000)
+
+            assertTrue("the older ON yields", on.poll(10, TimeUnit.SECONDS) is PanelAssistantCommandResult.Failed)
+            assertFalse("the newer OFF stays the stored truth", rig.config.kioskLock)
+            assertEquals("locked, then rolled back; the OFF never ran", listOf(true, false), applied.toList())
+            assertEquals("the older ON does not discard the newer request", mapOf("kiosk_lock" to "false"),
+                authority.pendingSnapshot())
+        } finally {
+            release.countDown()
+            rig.close()
+        }
+    }
+
     @Test fun anOnThePanelCannotEnableStoresNothing() {
         val rig = kioskRig(canEnable = false)
         val authority = authority()

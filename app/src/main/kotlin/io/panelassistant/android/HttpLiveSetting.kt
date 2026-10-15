@@ -74,16 +74,36 @@ internal fun applyLiveSetting(
     // this generic path runs before dispatchSetting, so pre-persisting ON here would durably record
     // the setting even when the bridge refuses to act on it for lack of a microphone. handleVoiceEnabled
     // owns persistence itself (mirrors network_adb, whose actuator is also the sole writer).
-    // Kiosk ON is durable only once the lock engaged, so its handler persists it; an OFF is fail-safe and
-    // durable before it queues, so an unlock asked for while the dispatcher drains survives a restart. An OFF
-    // the store refuses still queues: its handler clears the lock whether or not the write lands.
+    // Kiosk ON is durable only once the lock engaged, so its handler persists it. An OFF is fail-safe and
+    // stored before it queues, so an unlock asked for while the worker is busy survives a restart, and an ON
+    // still locking cannot store over it. An OFF the store refuses still queues: its handler clears the lock
+    // whether or not the write lands.
     val kioskOff = key == "kiosk_lock" && SettingValue.parseBool(value) == false
-    val actuationOwnsPersistence =
-        key == "navbar_mode" || key == "network_adb" || key == "voice_enabled" || key == "kiosk_lock" && !kioskOff
-    if (!spec.transient && !actuationOwnsPersistence &&
-        !commitHttpLiveSetting(config, spec, value, refreshAutoSleep) && !kioskOff
+    val actuationOwnsPersistence = key == "navbar_mode" || key == "network_adb" || key == "voice_enabled" ||
+        key == "kiosk_lock"
+    if (kioskOff) {
+        config.storeKioskOffAhead()
+    } else if (!spec.transient && !actuationOwnsPersistence &&
+        !commitHttpLiveSetting(config, spec, value, refreshAutoSleep)
     ) {
         return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
     }
     return commands.applySettingObserved(key, value, previous.takeUnless { spec.transient })
+}
+
+/** Kiosk OFFs stored ahead of their queued command in this process, under [Config.CONFIG_LOCK]. */
+private var kioskOffsStoredAhead = 0L
+
+/** Store a kiosk OFF before its command queues, counted so an older ON still locking cannot store over it. */
+internal fun Config.storeKioskOffAhead(): Boolean = synchronized(Config.CONFIG_LOCK) {
+    kioskOffsStoredAhead++
+    commitKioskLock(false)
+}
+
+/** The count a kiosk ON reads before it starts locking. */
+internal fun Config.kioskOffsStoredAhead(): Long = synchronized(Config.CONFIG_LOCK) { kioskOffsStoredAhead }
+
+/** Store a kiosk ON only if no OFF was stored ahead since [count]: the newer OFF stays the stored truth. */
+internal fun Config.commitKioskOnUnlessOffStoredSince(count: Long): Boolean = synchronized(Config.CONFIG_LOCK) {
+    kioskOffsStoredAhead == count && commitKioskLock(true)
 }

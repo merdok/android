@@ -524,7 +524,12 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleKiosk(on: Boolean) {
-        check(applyAcknowledgedKioskSetting(on, kioskApply, config::commitKioskLock) { core.reconcile("kiosk_lock") }) {
+        // An ON stores itself only if no OFF was stored ahead of its command while it locked; else it rolls back.
+        val offs = config.kioskOffsStoredAhead()
+        val persist = { value: Boolean ->
+            if (value) config.commitKioskOnUnlessOffStoredSince(offs) else config.commitKioskLock(false)
+        }
+        check(applyAcknowledgedKioskSetting(on, kioskApply, persist) { core.reconcile("kiosk_lock") }) {
             "kiosk setting was not durably acknowledged"
         }
     }
@@ -930,18 +935,16 @@ internal class PanelCommandDispatcher(
     internal fun recoverKiosk(enable: Boolean): Boolean? {
         if (!lifecycle.isOpen()) return null
         val outcome = java.util.concurrent.CompletableFuture<Boolean?>()
+        // A recovery that ended without completing its own outcome failed, or did not run.
+        val notRun = { execution: CommandQueue.Execution -> if (execution == CommandQueue.Execution.FAILED) false else null }
         val result = queue.runLatestResult(key = "kiosk_lock:recover", onAdmission = ::recordCommandAdmission) {
             outcome.complete(if (enable) config.kioskLock && kioskApply(true) else kioskRecover(config.kioskLock))
         }
-        if (!result.observeLateCompletion { terminal -> outcome.complete(recoveryNotRun(terminal)) }) {
-            outcome.complete(recoveryNotRun(result.execution))
+        if (!result.observeLateCompletion { terminal -> outcome.complete(notRun(terminal)) }) {
+            outcome.complete(notRun(result.execution))
         }
         return outcome.get()
     }
-
-    /** What a recovery that ended without completing its own outcome comes to: a failure, or not run. */
-    private fun recoveryNotRun(execution: CommandQueue.Execution): Boolean? =
-        if (execution == CommandQueue.Execution.FAILED) false else null
 
     /** Close admission, cancel queued commands, then drain the running handler and Zigbee worker. */
     fun stop(deadline: MonotonicDeadline): Boolean {
