@@ -157,10 +157,7 @@ class ConfigImportCapabilitiesTest {
         (0 until array.length()).map(array::getString)
     }
 
-    private fun withRealConfigFixture(block: (Config, PaneldServerHttpFixture) -> Unit) {
-        ConfigPostProductionRouteTest::class.java.getDeclaredMethod("withFullReadServer", kotlin.jvm.functions.Function2::class.java)
-            .apply { isAccessible = true }.invoke(ConfigPostProductionRouteTest(), block)
-    }
+    private fun withRealConfigFixture(block: (Config, PaneldServerHttpFixture) -> Unit) = withFullReadServer(block)
     private fun field(target: Any, name: String, value: Any?) {
         target.javaClass.getDeclaredField(name).apply { isAccessible = true }.set(target, value)
     }
