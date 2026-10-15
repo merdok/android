@@ -257,6 +257,28 @@ for (const engine of engines) {
     await until('the panel on the last step', () => h.state.settings.camera_fps === 19, 3000);
   });
 
+  // A step begun while a value was in flight, then overtaken by typed text the page refuses, leaves no hold
+  // behind: the row follows a change made elsewhere afterwards.
+  engineTest(`${engine.name}: after a refused typed value the row follows changes made elsewhere`, async (t) => {
+    let release;
+    const h = await open(engine, t, {
+      onPost: async (form, { apply }) => { await new Promise((resolve) => { release = resolve; }); return apply(form); },
+    });
+    const fps = h.p.locator('#cfg-camera_fps input');
+    await fps.fill('16'); await fps.press('Tab');
+    await until('the first value in flight', () => h.posts.length === 1);
+    await fps.focus();
+    await h.p.keyboard.press('ArrowUp');
+    release();
+    await until('the first value applied', () => h.state.settings.camera_fps === 16);
+    await h.p.waitForTimeout(100);
+    await fps.fill('99'); await fps.press('Tab');
+    await until('the range named on the row', async () => (await h.p.locator('#cfg-camera_fps .cfg-row-message').count()) === 1);
+    assert.deepEqual(h.posts, [{ camera_fps: '16' }], 'the step was overtaken and the refused value never sent');
+    h.state.settings.camera_fps = 22;
+    await until('the change made elsewhere on the row', async () => await fps.inputValue() === '22', 3000);
+  });
+
   engineTest(`${engine.name}: a sent secret is not shown back`, async (t) => {
     const h = await open(engine, t, { onPost: async (form, { state }) => ({ status: 200, body: { ok: true, status: 'saved', applied: [...form.keys()], pending: [], rejected: [] } }) });
     const token = h.p.locator('#cfg-ha_token input');

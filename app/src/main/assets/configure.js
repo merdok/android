@@ -278,7 +278,9 @@
     var invalid = invalidMessage(key);
     var field = fieldOf(key);
     if (invalid) {
-      if (hold && !hold.call) delete holds[key];
+      // Nothing goes for this gesture, so the hold ends unless a send is still in flight (its answer ends it);
+      // a hold left behind would ignore every later change made elsewhere.
+      if (hold && !hold.flight) delete holds[key];
       showRowMessage(key, invalid);
       restore(key, false);
     } else if (!hold && (cfg.values[key] === cfg.panel[key] || (field && field.secret && !cfg.values[key]))) {
