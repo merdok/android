@@ -13,6 +13,74 @@ import io.panelassistant.android.platform.ActivityRef
  * translated, so this matches in any language), and dismiss a chooser it showed itself that offers
  * another app. A chooser that appeared on its own and offers another app is left alone.
  */
+/** The active window as the chooser answer reads it; [alwaysCentre] is null without an Always button. */
+internal data class ChooserWindow(
+    val packageName: CharSequence?,
+    val title: CharSequence?,
+    val alwaysEnabled: Boolean?,
+    val alwaysCentre: Pair<Int, Int>?,
+)
+
+/**
+ * One accessibility connection's answers to the HOME chooser, by [HomeChooserPolicy.next].
+ *
+ * A tap that Android accepted can still miss: the app's own start-up can bring the dashboard over the
+ * chooser while the tap is on its way, and the tap then lands on the dashboard (a Meta Portal,
+ * 2026-10-15). So [VERIFY_MS] after a tap it looks again, and while HOME is still unowned it shows the
+ * chooser once more. Once per connection, so a chooser whose Always never takes is not pressed forever.
+ */
+internal class HomeChooserAnswer(
+    private val appName: String,
+    private val defaultHome: () -> ActivityRef?,
+    private val activeWindow: () -> ChooserWindow?,
+    private val showChooser: () -> Boolean,
+    private val dismiss: () -> Boolean,
+    private val tap: (Int, Int) -> Boolean,
+    private val answerAgainIn: (Long) -> Unit,
+    private val log: (String) -> Unit,
+) {
+    private var shown = false
+    private var tapped = false
+    private var retried = false
+
+    fun connected() {
+        shown = false
+        tapped = false
+        retried = false
+    }
+
+    fun answer() {
+        val home = defaultHome()
+        if (tapped && !retried && home?.pkg == "android") {
+            retried = true
+            shown = false
+        }
+        tapped = false
+        val window = activeWindow()
+        val step = HomeChooserPolicy.next(
+            home, window?.packageName, window?.title, window?.alwaysEnabled, appName, shown,
+        )
+        when (step) {
+            HomeChooserPolicy.Step.NONE -> Unit
+            HomeChooserPolicy.Step.SHOW_CHOOSER -> {
+                shown = true
+                log("HOME is unowned; showing the chooser=${showChooser()}")
+            }
+            HomeChooserPolicy.Step.TAP_ALWAYS -> {
+                val centre = window?.alwaysCentre
+                tapped = centre != null && tap(centre.first, centre.second)
+                log("HOME chooser offers this app; tapped Always=$tapped")
+                if (tapped && !retried) answerAgainIn(VERIFY_MS)
+            }
+            HomeChooserPolicy.Step.DISMISS -> log("HOME chooser offers another app; dismissed=${dismiss()}")
+        }
+    }
+
+    companion object {
+        const val VERIFY_MS = 2000L
+    }
+}
+
 internal object HomeChooserPolicy {
     const val ALWAYS_ID = "android:id/button_always"
     const val TITLE_ID = "android:id/title"
