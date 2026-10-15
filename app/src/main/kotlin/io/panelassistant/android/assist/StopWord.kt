@@ -36,10 +36,10 @@ internal class StopWordListener(
     private val log: (String) -> Unit = {},
 ) : PcmConsumer, AutoCloseable {
 
+    // A word that starts with the stop word: "stop", and "stopped", "stopping" or "Stopp", which the
+    // panel's own voice can say as readily and the model hears much alike.
     private val word = Regex(
-        "(?<![\\p{L}\\p{N}])" +
-            model.config.wakeWord.trim().split(Regex("\\s+")).joinToString("\\s+") { Regex.escape(it) } +
-            "(?![\\p{L}\\p{N}])",
+        "(?<![\\p{L}\\p{N}])" + model.config.wakeWord.trim().split(Regex("\\s+")).joinToString("\\s+") { Regex.escape(it) },
         RegexOption.IGNORE_CASE,
     )
 
@@ -54,6 +54,7 @@ internal class StopWordListener(
     // The delivering thread's own state.
     private var open = false
     private var fired = false
+    private var lastHeld: String? = null
     private var guardUntilNs = Long.MIN_VALUE
     private var protectedUntilNs = Long.MIN_VALUE
     private var replyHeldUntilNs = Long.MIN_VALUE
@@ -87,7 +88,9 @@ internal class StopWordListener(
         }
         val score = "%.2f".format(hit.probability)
         if (held != null) {
-            log("stop word heard at $score $held; ignored")
+            // Once per reason: the panel's own voice inside a hold can match every few inferences.
+            if (held != lastHeld) log("stop word heard at $score $held; ignored")
+            lastHeld = held
             return
         }
         fired = true

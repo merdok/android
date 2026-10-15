@@ -56,6 +56,8 @@ internal class SatelliteTurnRunner(
         }
         var continueConversation = false
         var error: AssistError? = null
+        // Whether Home Assistant has heard that the panel is done speaking for this turn.
+        var reported = false
         try {
             withTimeout(maxTurnMs) {
                 var listenDeadline: Long? = nanoTime() + maxListenMs * 1_000_000L
@@ -93,6 +95,7 @@ internal class SatelliteTurnRunner(
                                 // Home Assistant holds the satellite in "responding" until it hears this, a
                                 // reply cut short by the stop word included.
                                 voice.played(null)
+                                reported = true
                             }
                         }
                         is VoiceTurnEvent.Failed -> error = error ?: AssistError(event.code, "The pipeline failed")
@@ -105,6 +108,9 @@ internal class SatelliteTurnRunner(
         } catch (_: TimeoutCancellationException) {
             error = AssistError(CODE_TIMEOUT, "The voice turn took too long")
         } catch (cancelled: CancellationException) {
+            // Stopped once the command was heard: Home Assistant may already have begun the reply, and
+            // holds the satellite in "responding" until it hears the panel will not play it.
+            if (attachment == null && !reported) voice.played(null)
             throw cancelled
         } finally {
             attachment?.close()

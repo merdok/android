@@ -440,9 +440,10 @@ class VoiceAssistantCoordinator internal constructor(
             wakeLease?.pause()
             runJob = scope.launch {
                 var failed = false
-                val stop = if (hearsStop && mic != null) stopWord(mic, coroutineContext.job) else null
-                val speaker = stop?.let { heardBy(it.listener) } ?: playback
+                var stop: StopWord? = null
                 try {
+                    stop = if (hearsStop && mic != null) stopWord(mic, coroutineContext.job) else null
+                    val speaker = stop?.let { heardBy(it.listener) } ?: playback
                     if (announcement != null) {
                         state.set(VoiceState.RESPONDING)
                         val played = runCatching {
@@ -523,9 +524,13 @@ class VoiceAssistantCoordinator internal constructor(
      * Assistant, tells it the reply is over, and gives back the microphone and the panel's media.
      */
     private fun stopHeard(run: Job) {
-        synchronized(lock) { if (runJob !== run) return }
-        run.cancel()
-        playback.silence()
+        // Under the lock, so no later run can have been admitted and started a sound of its own. Silenced
+        // first: the run notices the silence only at its next poll, by when it is already cancelled.
+        synchronized(lock) {
+            if (runJob !== run) return
+            playback.silence()
+            run.cancel()
+        }
     }
 
     /** Returns false when the exchange ended in a reportable error. */

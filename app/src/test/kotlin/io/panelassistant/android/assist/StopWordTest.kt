@@ -223,6 +223,7 @@ class StopWordTest {
 
     @Test fun `the words of the command never stop the panel`() {
         listening()
+        assertEquals("the stop word hears the command too", 1, mic.activeLeases.count { it.purpose == MicPurpose.WAKE_WORD })
         hear(2_000, saying = false)
         hear(500, saying = true)
         assertTrue(coordinator.running)
@@ -231,7 +232,7 @@ class StopWordTest {
     }
 
     @Test fun `stop is held while the panel's own reply says it, and heard after`() {
-        val reply = "Okay, I'll stop the music in the kitchen."
+        val reply = "Okay, stopping the music in the kitchen."
         replying(reply)
         hear(2_000, saying = false)
         hear(100, saying = true)
@@ -266,7 +267,11 @@ class StopWordTest {
         assertEquals(VoiceState.IDLE, state.current())
         pump()
         assertEquals(runId, sentOf("unsubscribe_events").single().getLong("subscription"))
-        assertTrue("nothing was played, so nothing is reported played", sentOf(PanelAssistantVoice.COMMAND_VOICE_PLAYED).isEmpty())
+        assertEquals(
+            "Home Assistant may already be answering, so it hears the panel will not play it",
+            1,
+            sentOf(PanelAssistantVoice.COMMAND_VOICE_PLAYED).count { !it.has("announce_id") },
+        )
     }
 
     @Test fun `stop silences a ringing timer, reports it played and listens for nothing after it`() {
