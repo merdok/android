@@ -142,6 +142,8 @@ internal data class VoiceAnnouncement(
      * [preannounceUrl] and [url] as before.
      */
     val stream: String? = null,
+    /** The announcement's text, when Panel Assistant sends it. */
+    val text: String? = null,
     /** Called once the announcement has played, or could not be. */
     val done: () -> Unit,
 )
@@ -445,6 +447,7 @@ class VoiceAssistantCoordinator internal constructor(
                     stop = if (hearsStop && mic != null) stopWord(mic, coroutineContext.job) else null
                     val speaker = stop?.let { heardBy(it.listener) } ?: playback
                     if (announcement != null) {
+                        announcement.text?.let { stop?.listener?.reply(it) }
                         state.set(VoiceState.RESPONDING)
                         val played = runCatching {
                             val stream = announcement.stream

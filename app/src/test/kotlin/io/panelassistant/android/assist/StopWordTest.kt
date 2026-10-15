@@ -286,6 +286,20 @@ class StopWordTest {
         assertTrue("no turn follows", sentOf(PanelAssistantVoice.COMMAND_VOICE_RUN).isEmpty())
     }
 
+    @Test fun `an announcement that says stop does not stop itself`() {
+        eventually("the wake word is armed") { wake != null }
+        val text = "Stop what you are doing, dinner is ready."
+        coordinator.announce(VoiceAnnouncement(TIMER, null, listenAfter = false, text = text, done = {}))
+        eventually("the announcement plays") { started.contains(TIMER) }
+        hear(2_000, saying = false)
+        hear(100, saying = true)
+        assertNotStopped(TIMER)
+        assertTrue(logs.any { it.endsWith("while the reply says it; ignored") })
+        hear(StopWordListener.textHoldMs(text) - 2_100, saying = false)
+        hear(100, saying = true)
+        assertStopped(TIMER)
+    }
+
     @Test fun `with the stop word off nothing listens for it`() {
         stopWord = false
         replying("It is five o'clock.")

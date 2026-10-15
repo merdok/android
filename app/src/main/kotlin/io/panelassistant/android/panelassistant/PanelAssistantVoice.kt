@@ -60,6 +60,8 @@ internal data class PanelAssistantAnnouncement(
      * streamed announcement plays the voice stream, not [url].
      */
     val stream: String? = null,
+    /** What it says, as written: the stop word must not take the panel's own voice saying "stop" for the owner. */
+    val message: String? = null,
 )
 
 /** What Home Assistant says during one conversation turn. */
@@ -287,6 +289,7 @@ internal class PanelAssistantVoice(
             preannounceUrl = (event.opt("preannounce_url") as? String)?.takeIf { it.isNotBlank() }?.let(::resolve),
             listenAfter = event.opt("listen_after") == true,
             stream = streamedId(event),
+            message = (event.opt("message") as? String)?.takeIf { it.isNotBlank() },
         )
     }
 
