@@ -552,9 +552,12 @@
       }
       dashboardSelect.addEventListener("change", function () {
         syncCustom();
-        // Choosing Custom starts a gesture that the path field finishes; nothing is sent until then.
-        if (dashboardSelect.value === cfg.CUSTOM_DASHBOARD) { customInput.focus(); return; }
-        cfg.values[f.key] = dashboardSelect.value;
+        // Choosing Custom sends a path still in its field when it is not the panel's own; otherwise the path
+        // field finishes the gesture.
+        var custom = dashboardSelect.value === cfg.CUSTOM_DASHBOARD;
+        var path = custom ? customInput.value.trim() : dashboardSelect.value;
+        if (custom && (!path || path === cfg.panel[f.key])) { customInput.focus(); return; }
+        cfg.values[f.key] = path;
         cfg.localChange(f.key);
       });
       customInput.addEventListener("input", function () {

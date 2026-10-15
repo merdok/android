@@ -192,6 +192,8 @@
     // the hold and moved off the old value already carries the panel's newer (or normalised) value.
     var latest = expose ? cfg.panelExpose[key] : cfg.panel[key];
     var value = hold.pushed && latest !== hold.before ? latest : expose ? cfg.expose[key] : cfg.values[key];
+    var field = fieldOf(key);
+    if (!expose && field && field.secret) value = "";   // a secret is never shown back; blank keeps it
     if (expose) { cfg.expose[key] = value; cfg.panelExpose[key] = value; }
     else {
       cfg.panel[key] = value;
