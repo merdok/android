@@ -146,7 +146,7 @@ for (const engine of engines) {
     assert.equal(await p.locator('#cfg-desc').isChecked(), false, 'view preference persists');
     assert.equal(await p.locator('#tier-adv').isChecked(), true);
   });
-  test(`${engine.name}: a typed password survives toggling Descriptions and is sent once, when its field is left`, async t => {
+  test(`${engine.name}: a typed password is sent once, exactly as typed, when its field is left, then reads blank`, async t => {
     assert.equal(engine.available, true, `${engine.name} must run`);
     const h = await harness();
     const browser = await engine.type.launch(engine.launch);
@@ -163,12 +163,13 @@ for (const engine of engines) {
     // Reaching for the Descriptions switch leaves the field, which commits it.
     await p.locator('.cfg-desc-switch').click();
     await p.waitForFunction(() => !document.getElementById('cfg-desc').checked);
-    assert.equal(await secret.inputValue(), draft, 'switching Descriptions keeps the typed password in its field');
+    await p.waitForFunction(() => document.querySelector('#cfg-test_secret input')?.value === '');
+    assert.deepEqual(h.posts, [{ test_secret: draft }], 'the committed password is sent once, exactly as typed');
     await p.locator('.cfg-desc-switch').click();
     await p.waitForFunction(() => document.getElementById('cfg-desc').checked);
-    assert.equal(await secret.inputValue(), draft);
+    assert.equal(await secret.inputValue(), '', 'a sent password is not shown back');
     await p.waitForTimeout(700);
-    assert.deepEqual(h.posts, [{ test_secret: draft }], 'the committed password is sent once, exactly as typed');
+    assert.deepEqual(h.posts, [{ test_secret: draft }], 'and is not sent again');
   });
 
 }
