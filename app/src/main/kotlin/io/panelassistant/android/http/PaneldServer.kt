@@ -914,7 +914,7 @@ class PaneldServer internal constructor(
             configLiveValues = configLiveValues,
             effectiveValue = { spec, live -> configValues().effectiveValue(spec, live) },
             profileAdmin = profileAdmin,
-            companion = companionBackupOperations(),
+            captureCompanion = companionBackupOperations()::capture,
             wakeWords = wakeWords,
             calibrations = calibrationCustody(),
             dashboardIssues = issueCustody(),
