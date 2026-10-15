@@ -773,6 +773,11 @@
       "state": "machine-cross-checked",
       "text": "未找到 Home Assistant 照度传感器；仍可输入精确的传感器实体标识符。"
     },
+    "configure.brightness.sources_none_reporting": {
+      "sourceHash": "ef7a30455afe0ca16ee0fd6f66799b842a1b278923a104092e4f80e8434df6f4",
+      "state": "machine-cross-checked",
+      "text": "已找到照度传感器，但没有一个在报告光照水平；仍可输入精确的传感器实体标识符。"
+    },
     "configure.brightness.sources_unavailable": {
       "sourceHash": "cb57d539905851c5c9c7144ab04547cfb584b02d55edbf16424b168726eded68",
       "state": "machine-cross-checked",

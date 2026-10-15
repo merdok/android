@@ -773,6 +773,11 @@
       "state": "machine-cross-checked",
       "text": "Nessun sensore di illuminamento di Home Assistant trovato; puoi comunque inserire l'ID esatto di un'entità sensore."
     },
+    "configure.brightness.sources_none_reporting": {
+      "sourceHash": "ef7a30455afe0ca16ee0fd6f66799b842a1b278923a104092e4f80e8434df6f4",
+      "state": "machine-cross-checked",
+      "text": "Sono stati trovati sensori di illuminamento, ma nessuno riporta un livello di luce; puoi comunque inserire l'ID esatto di un'entità sensore."
+    },
     "configure.brightness.sources_unavailable": {
       "sourceHash": "cb57d539905851c5c9c7144ab04547cfb584b02d55edbf16424b168726eded68",
       "state": "machine-cross-checked",

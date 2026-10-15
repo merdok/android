@@ -154,7 +154,7 @@
               note.textContent = options.messages.loading;
               setTimeout(function () { if (request === sourceRequest) loadSources(query); }, 500);
             } else {
-              note.textContent = options.messages.none;
+              note.textContent = sourceItems.length ? options.messages.noneReporting : options.messages.none;
             }
           }
         })
@@ -690,6 +690,7 @@
           available: function (count) { return cfg.i18nText("configure.brightness.sources_available", "{count} illuminance source(s) available. Blank uses the panel sensor.", { count: count }); },
           unavailable: cfg.i18nText("configure.brightness.sources_unavailable", "Home Assistant sources are unavailable; an exact sensor entity id can still be entered."),
           none: cfg.i18nText("configure.brightness.sources_none", "No Home Assistant illuminance sensors found; an exact sensor entity id can still be entered."),
+          noneReporting: cfg.i18nText("configure.brightness.sources_none_reporting", "Illuminance sensors were found, but none is reporting a light level; an exact sensor entity id can still be entered."),
           failed: cfg.i18nText("configure.brightness.sources_load_failed", "Could not load Home Assistant sources; an exact sensor entity id can still be entered.")
         },
         onItems: function (items) { cfg.haSourceItems = items; },

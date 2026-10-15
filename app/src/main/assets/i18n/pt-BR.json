@@ -788,6 +788,11 @@
       "sourceHash": "103cb4ab6f82d68cc76a805062c18b458c5a899a95e94355cf3fb1b14ef2b39f",
       "state": "machine-cross-checked"
     },
+    "configure.brightness.sources_none_reporting": {
+      "text": "Foram encontrados sensores de iluminância, mas nenhum está informando um nível de luz; ainda é possível inserir o ID exato da entidade do sensor.",
+      "sourceHash": "ef7a30455afe0ca16ee0fd6f66799b842a1b278923a104092e4f80e8434df6f4",
+      "state": "machine-cross-checked"
+    },
     "configure.brightness.sources_unavailable": {
       "text": "As fontes do Home Assistant estão indisponíveis; ainda é possível inserir o ID exato da entidade do sensor.",
       "sourceHash": "cb57d539905851c5c9c7144ab04547cfb584b02d55edbf16424b168726eded68",
