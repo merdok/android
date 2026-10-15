@@ -177,11 +177,13 @@ internal class StubBlobs(
         @Volatile var size: Long = -1
         @Volatile var sha256: String = ""
 
-        fun discard() { file?.delete() }
+        @Synchronized fun discard() { file?.delete() }
     }
 
     private val slots = ConcurrentHashMap<String, Slot>()
     private val random = SecureRandom()
+    /** Uploads whose bodies are arriving now, an evicted one included until it ends; never more than the slots. */
+    private val filling = java.util.concurrent.atomic.AtomicInteger()
 
     init {
         // Uploads a previous process left behind are never readable again.
@@ -224,8 +226,13 @@ internal class StubBlobs(
         slots[token]?.takeIf { it.upload && it.file == null && it.expiresAt > nowMs() }?.limit
 
     override fun take(ref: JSONObject): java.io.InputStream? {
+        purge()
         val token = ref.optString("url").substringAfterLast('/')
-        val slot = slots.remove(token)?.takeIf { it.upload && it.expiresAt > nowMs() } ?: return null
+        val slot = slots.remove(token) ?: return null
+        if (!slot.upload || slot.expiresAt <= nowMs()) {
+            slot.discard()
+            return null
+        }
         val file = slot.file ?: return null
         if (ref.optLong("size", -1) != slot.size || !ref.optString("sha256").equals(slot.sha256, ignoreCase = true)) {
             slot.discard()
@@ -240,16 +247,31 @@ internal class StubBlobs(
 
     /** The download [token] names, spent by this read; null when there is none. */
     fun download(token: String): Pair<ByteArray, String>? {
+        purge()
         val slot = slots.remove(token)?.takeIf { !it.upload && it.expiresAt > nowMs() } ?: return null
         return (slot.bytes ?: return null) to slot.type
     }
 
     /**
      * Fill the upload [token] once from [body], at most [limit] bytes, into a file; answers the reference, or null
-     * when there is no such open upload. Throws [ByteLimitExceeded] past the limit, leaving nothing behind.
+     * when there is no such open upload. Throws [ByteLimitExceeded] past the limit, leaving nothing behind, and
+     * [Busy] when as many uploads are already arriving as there are slots.
      */
     fun fill(token: String, limit: Long, body: java.io.InputStream): JSONObject? {
+        purge()
         val slot = slots[token]?.takeIf { it.upload && it.file == null && it.expiresAt > nowMs() } ?: return null
+        if (filling.incrementAndGet() > MAX_SLOTS) {
+            filling.decrementAndGet()
+            throw Busy()
+        }
+        try {
+            return fillSlot(token, slot, limit, body)
+        } finally {
+            filling.decrementAndGet()
+        }
+    }
+
+    private fun fillSlot(token: String, slot: Slot, limit: Long, body: java.io.InputStream): JSONObject? {
         dir?.mkdirs()
         val file = java.io.File.createTempFile("blob", ".part", dir)
         val digest = java.security.MessageDigest.getInstance("SHA-256")
@@ -271,6 +293,9 @@ internal class StubBlobs(
         }
         return reference(token, size, sha, "application/octet-stream")
     }
+
+    /** As many uploads are arriving as there are slots; another is refused until one ends. */
+    class Busy : IllegalStateException("too many uploads in progress")
 
     companion object {
         /** The largest body an HTTP route accepts (an APK); each route still bounds its own body when it reads it. */
@@ -324,6 +349,9 @@ internal fun Route.stubRoutes(
             call.receiveChannel().toInputStream().use { blobs.fill(token, limit, it) }
         } catch (_: ByteLimitExceeded) {
             return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
+        } catch (_: StubBlobs.Busy) {
+            call.response.headers.append(HttpHeaders.RetryAfter, "5")
+            return@put call.respondText("too many uploads in progress\n", status = HttpStatusCode.ServiceUnavailable)
         } ?: return@put call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
         call.respondText(reference.toString(), ContentType.Application.Json)
     }
