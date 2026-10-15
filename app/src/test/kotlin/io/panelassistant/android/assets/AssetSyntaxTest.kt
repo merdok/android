@@ -182,7 +182,7 @@ class AssetSyntaxTest {
               if(!cfg.autoSleepHistoryError.includes('refused_hardened')||timers.some(timer=>!timer.cancelled))process.exit(12);
               // A stable status client error is also terminal.
               timers.splice(0);statuses=[{httpStatus:403}];cfg.invalidateAutoSleepData();cfg.loadAutoSleepData();await flush();
-              if(!cfg.autoSleepHistoryError.includes('refused_hardened')||timers.some(timer=>!timer.cancelled))process.exit(13);
+              if(!cfg.autoSleepHistoryError.includes('HTTP 403')||timers.some(timer=>!timer.cancelled))process.exit(13);
               // A stable failure must be truthful and terminal, not silently polled forever.
               timers.splice(0);statuses=[{available:false,enabled:true,phase:'no_credible_sources',reason:'no_credible_sources',source_count:0}];
               cfg.invalidateAutoSleepData();
