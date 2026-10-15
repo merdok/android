@@ -336,8 +336,9 @@ internal fun Route.stubRoutes(
 
 /**
  * A page through the dispatcher. Its `args` are the locale signals of the query (`lang`, and `ha_lang`, which the
- * Setup redirect carries), the presentation the embed header asks for, and `Accept-Language`: the query never
- * switches presentation, so `?embed=1` alone renders the ordinary page.
+ * Setup redirect carries) and the presentation the embed header asks for; its origin carries the request's
+ * `Host` and `Accept-Language` as headers. The query never switches presentation, so `?embed=1` alone renders the
+ * ordinary page.
  */
 private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: String) {
     val dispatcher = door() ?: return respondText("starting\n", status = HttpStatusCode.ServiceUnavailable)
@@ -349,9 +350,9 @@ private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: Stri
         embed.theme?.let { args.put("theme", it) }
         if (embed.hiddenTabs.isNotEmpty()) args.put("hide", JSONArray(embed.hiddenTabs.sorted()))
     }
-    request.headers[HttpHeaders.AcceptLanguage]?.let { args.put(ACCEPT_LANGUAGE_ARG, it) }
+    val origin = CommandOrigin.peer(request.origin.remoteAddress).withHeaders(doorHeaders(request.headers))
     val reply = suspendCancellableCoroutine { waiting ->
-        dispatcher.manage(UUID.randomUUID().toString(), op, args, CommandOrigin.peer(request.origin.remoteAddress)) {
+        dispatcher.manage(UUID.randomUUID().toString(), op, args, origin) {
             if (waiting.isActive) waiting.resume(it)
         }
     }
@@ -363,11 +364,14 @@ private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: Stri
 /** The query parameters a page reads: its locale signals. */
 private val PAGE_QUERY_ARGS = listOf("lang", "ha_lang")
 
-/** The `args` key a page request carries the browser's `Accept-Language` in. */
-internal const val ACCEPT_LANGUAGE_ARG = "accept_language"
-
-/** The `args` key the socket door carries its upgrade request's `Host` in; a requester's value is replaced. */
-internal const val HOST_ARG = "request_host"
+/**
+ * The headers of a door's own HTTP request that every operation it carries reads as its own: the validated `Host`
+ * (OAuth binds the panel's origin to it) and the browser's `Accept-Language`.
+ */
+private fun doorHeaders(headers: io.ktor.http.Headers): Map<String, String> = buildMap {
+    headers[HttpHeaders.Host]?.let { put(HttpHeaders.Host, it) }
+    headers[HttpHeaders.AcceptLanguage]?.let { put(HttpHeaders.AcceptLanguage, it) }
+}
 
 /**
  * `GET /ui`: the stub's door (protocol section 20.2). One text frame per request object; the origin is the
@@ -390,10 +394,10 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
             launch { close(CloseReason(CloseReason.Codes.GOING_AWAY, "panel runtime restarted")) }
         }
         val peerAddress = call.request.origin.remoteAddress
-        val upgradeHost = call.request.headers[HttpHeaders.Host]
-        val upgradeLanguage = call.request.headers[HttpHeaders.AcceptLanguage]
-        // Approvals bind to the peer; subscriptions belong to this socket alone.
+        // Approvals bind to the peer; subscriptions belong to this socket alone; every operation reads the upgrade
+        // request's headers as its own.
         val origin = CommandOrigin.peer(peerAddress).withConnection(UUID.randomUUID().toString())
+            .withHeaders(doorHeaders(call.request.headers))
         // Hardened mode keeps the door to loopback: a LAN socket open when it turns on is closed at once.
         if (!isLoopbackPeer(peerAddress)) launch {
             while (isActive) {
@@ -444,11 +448,6 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                     continue
                 }
                 val args = request.optJSONObject("args") ?: JSONObject()
-                // Every operation from this socket reads the headers its page's own HTTP request would carry: the
-                // validated Host (OAuth binds the panel's origin to it) and, unless a request names its own, the
-                // browser's language.
-                if (upgradeHost != null) args.put(HOST_ARG, upgradeHost) else args.remove(HOST_ARG)
-                if (!args.has(ACCEPT_LANGUAGE_ARG)) upgradeLanguage?.let { args.put(ACCEPT_LANGUAGE_ARG, it) }
                 when (request.optString("kind")) {
                     "command" -> {
                         val deadlineMs = request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)

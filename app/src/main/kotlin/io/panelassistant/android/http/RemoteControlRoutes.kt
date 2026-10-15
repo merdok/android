@@ -301,8 +301,9 @@ internal fun Route.remoteControlRoutes(
     } }
     // Section 20.6 names the Controls card's Dashboard button `action.dashboard`: `action` with `a=dashboard`.
     manageTable()?.let { table ->
-        table.register("action.dashboard", io.panelassistant.android.ManageKind.COMMAND) { request ->
-            val action = table["action"] ?: return@register io.panelassistant.android.ManageReply.refused("unknown_command")
+        val action = table["action"] ?: return@let
+        val route = action.route?.copy(fixedArgs = mapOf("a" to "dashboard"))
+        table.register("action.dashboard", io.panelassistant.android.ManageKind.COMMAND, route) { request ->
             action.handler.handle(io.panelassistant.android.ManageRequest(
                 "action", JSONObject(request.args.toString()).put("a", "dashboard"), request.origin, request.blobs,
             ))

@@ -120,14 +120,17 @@ internal interface ManageLogSource {
  * Registering a name again replaces it, so remounting the routes cannot leave two definitions.
  */
 internal class ManageTable {
-    data class Entry(val name: String, val kind: ManageKind, val handler: ManageHandler)
+    /** The HTTP route that serves the same operation: its method, path, and the arguments it fixes. */
+    data class Route(val method: String, val path: String, val fixedArgs: Map<String, String> = emptyMap())
+
+    data class Entry(val name: String, val kind: ManageKind, val handler: ManageHandler, val route: Route? = null)
 
     private val entries = ConcurrentHashMap<String, Entry>()
     @Volatile var logSources: ManageLogSources? = null
 
-    fun register(name: String, kind: ManageKind, handler: ManageHandler) {
+    fun register(name: String, kind: ManageKind, route: Route? = null, handler: ManageHandler) {
         require(NAME.matches(name)) { "operation name $name" }
-        entries[name] = Entry(name, kind, handler)
+        entries[name] = Entry(name, kind, handler, route)
     }
 
     operator fun get(name: String): Entry? = entries[name]

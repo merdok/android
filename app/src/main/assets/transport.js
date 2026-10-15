@@ -67,7 +67,7 @@
     "dashboard.entities.reset": ["POST dashboard/entities/reset", { b: "json" }],
     "dashboard.entities.sync.set": ["POST dashboard/entities/sync", { b: "json" }],
     "dashboard.entities.export": "GET dashboard/entities/export",
-    "dashboard.entity_filter": "GET dashboard/entity-filter", "dashboard.entity_filter.set": "POST dashboard/entity-filter",
+    "dashboard.entity_filter": "GET dashboard/entity-filter", "dashboard.entity_filter.set": ["POST dashboard/entity-filter", { b: "json" }],
     "display": "GET display", "display.density": ["POST display/density", { H: JSON_ANSWER }],
     "guard_db.clock": "GET guard-db/clock", "guard_db.status": "GET guard-db/status", "guard_db.evidence": "GET guard-db/evidence",
     "guard_db.arm": "POST guard-db/arm", "guard_db.stage": "POST guard-db/stage", "guard_db.discard": "POST guard-db/discard",

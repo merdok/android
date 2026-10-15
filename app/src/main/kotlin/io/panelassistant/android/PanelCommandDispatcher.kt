@@ -56,6 +56,11 @@ internal data class CommandOrigin private constructor(
     val peerAddress: String? = null,
     /** The connection that carries this origin's requests, when a door has one per socket. */
     val connection: String? = null,
+    /**
+     * Request headers the door read from its own connection (the socket's `Host` and `Accept-Language`), which an
+     * operation sees as its request's headers: never `args`, so no handler reads them as a body or parameters.
+     */
+    val headers: Map<String, String> = emptyMap(),
 ) {
     val isPanelAssistant: Boolean get() = approvalKey == PANEL_ASSISTANT
     val isUser: Boolean get() = approvalKey.startsWith(USER_PREFIX)
@@ -69,6 +74,8 @@ internal data class CommandOrigin private constructor(
     fun withRequestId(requestId: String?): CommandOrigin = copy(requestId = requestId)
 
     fun withConnection(connection: String): CommandOrigin = copy(connection = connection)
+
+    fun withHeaders(headers: Map<String, String>): CommandOrigin = copy(headers = headers)
 
     companion object {
         const val PANEL_ASSISTANT = "panel_assistant"

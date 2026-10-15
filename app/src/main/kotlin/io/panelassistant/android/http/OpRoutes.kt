@@ -141,7 +141,7 @@ internal class ManageOpCall(
     // An embedded request's `lang` is the Home Assistant user's language (the embed switch's), which stands in
     // for Automatic and never overrides a chosen language, so it is not an explicit `?lang`.
     override val parameters: Parameters = managed.args.asParameters(
-        setOfNotNull(ACCEPT_LANGUAGE_ARG, HOST_ARG, RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
+        setOfNotNull(RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
     )
 
     /**
@@ -157,10 +157,8 @@ internal class ManageOpCall(
             append(io.ktor.http.HttpHeaders.ContentType, rawBodyType ?: ContentType.Application.Json.toString())
             // A managed caller reads every answer as data, so a route that offers JSON or an HTML page answers JSON.
             append(io.ktor.http.HttpHeaders.Accept, ContentType.Application.Json.toString())
-            managed.args.optString(ACCEPT_LANGUAGE_ARG).takeIf(String::isNotBlank)?.let {
-                append(io.ktor.http.HttpHeaders.AcceptLanguage, it)
-            }
-            managed.args.optString(HOST_ARG).takeIf(String::isNotBlank)?.let { append(io.ktor.http.HttpHeaders.Host, it) }
+            // The headers the door read from its own connection: the page's Host and language.
+            managed.origin.headers.forEach { (name, value) -> append(name, value) }
         },
         OpCallOrigin(managed.origin.peerAddress.orEmpty(), method),
         method,
@@ -330,7 +328,7 @@ internal class OpRoutes(private val route: Route) {
         val table = table ?: return
         val full = fullPath(path)
         val resolved = name ?: operationName(full) ?: error("no operation name for ${method.value} $full")
-        table.register(resolved, kind) { request ->
+        table.register(resolved, kind, ManageTable.Route(method.value, full)) { request ->
             val managed = ManageOpCall(request, method, full)
             OpContext(managed).body()
             managed.reply()
