@@ -68,6 +68,7 @@
     <string name="choose_dashboard_app">Оберіть застосунок для інформаційної панелі.</string>
     <string name="continue_setup_browser">Продовжуйте на сторінці налаштування в браузері.</string>
     <string name="connected_next_ha_address">Підключено. Далі: адреса Home Assistant.</string>
+    <string name="choose_home_dashboard">Оберіть головну інформаційну панель цієї панелі.</string>
     <string name="almost_there_sign_in">Майже готово — залишилося лише ввійти в систему.</string>
     <string name="continue_or_sign_in_here">Продовжуйте в браузері або натисніть кнопку нижче, щоб увійти на цьому екрані.</string>
     <string name="one_important_question_left">Залишилося одне важливе питання.</string>

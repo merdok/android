@@ -71,6 +71,7 @@
     <string name="choose_dashboard_app">Wähle eine Dashboard-App.</string>
     <string name="continue_setup_browser">Fahre auf der Einrichtungsseite in einem Browser fort.</string>
     <string name="connected_next_ha_address">Verbunden. Als Nächstes: die Home Assistant-Adresse.</string>
+    <string name="choose_home_dashboard">Wähle das Start-Dashboard dieses Panels.</string>
     <string name="almost_there_sign_in">Fast geschafft – nur noch eine Anmeldung.</string>
     <string name="continue_or_sign_in_here">Fahre im Browser fort oder tippe auf die Schaltfläche unten, um dich auf diesem Bildschirm anzumelden.</string>
     <string name="one_important_question_left">Noch eine wichtige Frage.</string>

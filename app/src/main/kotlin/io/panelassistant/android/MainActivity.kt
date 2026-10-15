@@ -121,24 +121,10 @@ class MainActivity : AppCompatActivity() {
         lastJourney = journey
         if (key == lastStageKey) return
         lastStageKey = key
-        val stage: Pair<String, String>? = when {
-            complete -> null // the launcher's own auto-return takes over; show the pre-wizard screen
-            next == "identity" -> getString(R.string.panel_not_set_up) to
-                getString(R.string.panel_not_set_up_hint, configButtonLabel(configButtonCompact, complete = false))
-            // A too-old engine is the one renderer problem a passer-by cannot act on here, so name it as the
-            // panel's own fault rather than asking for a choice that would not help.
-            next == "renderer" && rendererDetail.startsWith("webview_too_old") ->
-                getString(R.string.browser_engine_too_old) to getString(R.string.browser_engine_too_old_hint)
-            next == "renderer" -> getString(R.string.choose_dashboard_app) to getString(R.string.continue_setup_browser)
-            next == "ha_url" -> getString(R.string.connected_next_ha_address) to getString(R.string.continue_setup_browser)
-            next == "ha_credentials" -> getString(R.string.almost_there_sign_in) to getString(R.string.continue_or_sign_in_here)
-            // The panel is deliberately holding its first load here, so it must say that rather than look
-            // stalled — and say the wait ends in a browser, since nothing on this screen can end it.
-            next == "entity_filter" -> getString(R.string.one_important_question_left) to getString(R.string.finish_browser_optimize)
-            next == "render_proof" -> getString(R.string.loading_dashboard) to getString(R.string.nothing_to_do_here)
-            else -> null
-        }
         val identity = !complete && next == "identity"
+        val stage = setupStageLine(complete, next, rendererDetail)?.let { line ->
+            getString(line.line) to if (identity) getString(line.hint, configButtonLabel(configButtonCompact, complete = false)) else getString(line.hint)
+        }
         statusSurface?.notice?.setPill(standingNoticePill(stage != null, identity, needsUser, config.setupEverCompleted)?.let(::getString).orEmpty())
         // Not set up: the pill says so, and the hint is the one line. A later stage: the stage is the line
         // and its hint the footer. No stage: the panel's description.

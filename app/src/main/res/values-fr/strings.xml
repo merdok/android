@@ -71,6 +71,7 @@
     <string name="choose_dashboard_app">Choisissez une application de tableau de bord.</string>
     <string name="continue_setup_browser">Continuez sur la page de configuration dans un navigateur.</string>
     <string name="connected_next_ha_address">Connexion établie. Étape suivante : l’adresse de Home Assistant.</string>
+    <string name="choose_home_dashboard">Choisissez le tableau de bord d’accueil de ce panneau.</string>
     <string name="almost_there_sign_in">Vous y êtes presque — il ne reste qu’une connexion.</string>
     <string name="continue_or_sign_in_here">Continuez dans le navigateur ou touchez le bouton ci-dessous pour vous connecter sur cet écran.</string>
     <string name="one_important_question_left">Il reste une question importante.</string>

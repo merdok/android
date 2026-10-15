@@ -103,6 +103,31 @@ internal fun entityLearningNotice(stage: Int?, count: Int?): EntityLearningNotic
     if (stage == null || stage <= 1) EntityLearningNotice(count, R.string.notice_line_reading_entities, 0)
     else EntityLearningNotice(count, R.string.notice_line_building_filter, 1)
 
+/** The standing screen's bold line and its hint for one setup stage. The identity hint takes the config button's label. */
+internal data class SetupStageLine(@androidx.annotation.StringRes val line: Int, @androidx.annotation.StringRes val hint: Int)
+
+/**
+ * The standing screen's line for the setup journey's `next` stage: a passer-by always learns what stage the
+ * panel is at and whether they need to act. Null when setup is complete or the stage has no line.
+ */
+internal fun setupStageLine(complete: Boolean, next: String, rendererDetail: String): SetupStageLine? = when {
+    complete -> null // the launcher's own auto-return takes over; show the pre-wizard screen
+    next == "identity" -> SetupStageLine(R.string.panel_not_set_up, R.string.panel_not_set_up_hint)
+    // A too-old engine is the one renderer problem a passer-by cannot act on here, so name it as the
+    // panel's own fault rather than asking for a choice that would not help.
+    next == "renderer" && rendererDetail.startsWith("webview_too_old") ->
+        SetupStageLine(R.string.browser_engine_too_old, R.string.browser_engine_too_old_hint)
+    next == "renderer" -> SetupStageLine(R.string.choose_dashboard_app, R.string.continue_setup_browser)
+    next == "ha_url" -> SetupStageLine(R.string.connected_next_ha_address, R.string.continue_setup_browser)
+    next == "ha_credentials" -> SetupStageLine(R.string.almost_there_sign_in, R.string.continue_or_sign_in_here)
+    next == "home_dashboard" -> SetupStageLine(R.string.choose_home_dashboard, R.string.continue_setup_browser)
+    // The panel is deliberately holding its first load here, so it must say that rather than look
+    // stalled — and say the wait ends in a browser, since nothing on this screen can end it.
+    next == "entity_filter" -> SetupStageLine(R.string.one_important_question_left, R.string.finish_browser_optimize)
+    next == "render_proof" -> SetupStageLine(R.string.loading_dashboard, R.string.nothing_to_do_here)
+    else -> null
+}
+
 /**
  * The standing screen's pill: "Setup" while a later setup stage is running, "Not set up" on a panel that
  * has never completed setup, and none on a panel that has. A panel that has completed once shows "Setup"
