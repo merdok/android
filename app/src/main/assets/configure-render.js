@@ -180,7 +180,8 @@
 
   // Every caller renders through here: asynchronous loads and pushed values alike. A rebuild waits while a
   // field holds typed text that has not been sent (the field's commit runs it), and focus returns to the
-  // same control of the same row afterwards, so a periodic update cannot pull a person out of a control.
+  // same control of the same row afterwards, with its caret or selection, so a periodic update cannot pull
+  // a person out of a control or make the next keystroke land somewhere else in the text.
   function focusables(row) {
     return row ? row.querySelectorAll("input,select,textarea,button,[tabindex]") : [];
   }
@@ -190,10 +191,20 @@
     var active = document.activeElement;
     var row = active && active.closest ? active.closest(".frow") : null;
     var index = Array.prototype.indexOf.call(focusables(row), active);
+    var caret = null;
+    try {
+      if (active && typeof active.selectionStart === "number") {
+        caret = { value: active.value, start: active.selectionStart, end: active.selectionEnd, direction: active.selectionDirection };
+      }
+    } catch (_) { caret = null; }
     renderNow();
     if (index < 0 || document.activeElement !== document.body) return;
     var again = focusables(document.getElementById(row.id))[index];
-    if (again) { try { again.focus({ preventScroll: true }); } catch (_) { again.focus(); } }
+    if (!again) return;
+    try { again.focus({ preventScroll: true }); } catch (_) { again.focus(); }
+    if (caret && again.value === caret.value) {
+      try { again.setSelectionRange(caret.start, caret.end, caret.direction || "none"); } catch (_) {}
+    }
   }
 
   function renderNow() {

@@ -182,6 +182,19 @@ for (const engine of engines) {
     assert.deepEqual(h.posts[1], { panel_id: 'office_panel_xy' });
   });
 
+  // Selecting a field's text and then typing replaces it, even when a re-render lands between the two.
+  engineTest(`${engine.name}: a re-render keeps a field's selected text selected`, async (t) => {
+    const h = await open(engine, t);
+    const id = h.p.locator('#cfg-panel_id input');
+    await id.click();
+    await id.evaluate((el) => el.select());
+    await h.p.evaluate(() => window.ConfigurePage.render());
+    await h.p.keyboard.type('kitchen_panel');
+    await h.p.keyboard.press('Tab');
+    await until('the typed value after leaving the field', () => h.posts.length === 1);
+    assert.deepEqual(h.posts, [{ panel_id: 'kitchen_panel' }]);
+  });
+
   engineTest(`${engine.name}: a discovered address nobody sent goes with the token`, async (t) => {
     const h = await open(engine, t, { discovery: { ha_url: 'http://ha.local:8123' } });
     const address = h.p.locator('#cfg-ha_url input');
