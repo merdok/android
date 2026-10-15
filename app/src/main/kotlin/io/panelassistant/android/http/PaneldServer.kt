@@ -224,7 +224,7 @@ class PaneldServer internal constructor(
     /** The current runtime generation's dispatcher, which the stub's pages and `/ui` door enter (section 20.7). */
     private val door: () -> io.panelassistant.android.ManageDoor? = { null },
     /** The bundle Panel Assistant keeps for the sidebar (protocol section 20.5): the APK's assets. */
-    private val bundleAssets: UiBundleAssets = UiBundleAssets.of { appContext.assets },
+    private val bundleAssets: UiBundleAssets = UiBundleAssets.ofApk { appContext.applicationInfo.sourceDir },
 ) {
     /** The dispatcher the sidebar relay enters, as the stub's door does (protocol section 20.2). */
     internal fun manageDoor(): io.panelassistant.android.ManageDoor? = door()

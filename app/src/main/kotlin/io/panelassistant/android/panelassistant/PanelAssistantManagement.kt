@@ -196,11 +196,20 @@ internal class PanelAssistantManagementRequests(
         }
         val door = management.door()
             ?: return enqueue(Answer(commandId, PanelAssistantTransportProtocol.OUTCOME_FAILED, PanelAssistantCommandProcessor.CODE_FAILED, null))
+        val key = "$user\u0000$connection"
+        var created = false
         val relay = synchronized(lock) {
             if (closed) return
-            relays.getOrPut("$user\u0000$connection") {
+            relays.getOrPut(key) {
+                created = true
                 Relay(io.panelassistant.android.CommandOrigin.user(user).withConnection(connection), door)
             }
+        }
+        // The connection belongs to this dispatcher generation, as a stub socket does: when a runtime replacement
+        // stops it, the connection ends and its next request opens one on the live dispatcher.
+        if (created) relay.stopped = door.onStopped {
+            synchronized(lock) { if (relays[key] === relay) relays.remove(key) }
+            relay.frames.close()
         }
         relay.handle(request())
     }
@@ -209,6 +218,7 @@ internal class PanelAssistantManagementRequests(
     private inner class Relay(origin: io.panelassistant.android.CommandOrigin, door: io.panelassistant.android.ManageDoor) {
         private val carriers = java.util.concurrent.ConcurrentHashMap<String, PanelAssistantRelayBlobs>()
         val frames = io.panelassistant.android.http.UiFrames(door, origin, scope) { frame, after -> leave(frame, after) }
+        @Volatile var stopped: AutoCloseable? = null
 
         fun handle(request: JSONObject) {
             val args = request.optJSONObject("args")
@@ -297,7 +307,10 @@ internal class PanelAssistantManagementRequests(
             relays.values.toList().also { relays.clear() }
         }
         // Every relayed connection ends with the session: its subscriptions stop and its commands fail.
-        ending.forEach { it.frames.close() }
+        ending.forEach { relay ->
+            relay.stopped?.close()
+            relay.frames.close()
+        }
         job.cancel()
     }
 

@@ -24,8 +24,8 @@ internal fun tableDoor(
     table: ManageTable,
     families: Map<String, io.panelassistant.android.ManageFamily> = io.panelassistant.android.ManageFamilies.DEFAULT,
     approvalPollMs: Long = 1_000,
+    operations: ManageOperations = ManageOperations(table, { LocalApprovalBroker.instance }, families, approvalPollMs = approvalPollMs),
 ): ManageDoor {
-    val operations = ManageOperations(table, { LocalApprovalBroker.instance }, families, approvalPollMs = approvalPollMs)
     return object : ManageDoor {
         override fun manage(
             commandId: String, op: String, args: JSONObject, origin: CommandOrigin,

@@ -8,7 +8,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../../app/src/main/assets/transport.js', import.meta.url), 'utf8');
 const ORIGIN = 'http://ha.test:8123';
 
-function load() {
+function load(fetch = () => { throw new Error('the relay never fetches a REST route'); }) {
   const posted = [];
   const listeners = [];
   const parent = { postMessage(message, target) { posted.push({ message: JSON.parse(JSON.stringify(message)), target }); } };
@@ -19,7 +19,7 @@ function load() {
     location: { href: ORIGIN + '/api/panel_assistant/embed/t/configure', origin: ORIGIN },
     setTimeout() { return 0; },
     clearTimeout() {},
-    fetch() { throw new Error('the relay never fetches a REST route'); },
+    fetch, Blob,
     WebSocket: class { constructor() { throw new Error('the relay never opens the stub socket'); } },
   });
   const deliver = (data, from = parent, origin = ORIGIN) => listeners.forEach((fn) => fn({ source: from, origin, data }));
@@ -103,4 +103,24 @@ test('after a close the next request reopens the relay and its subscriptions', a
   await settle();
   const after = frames(posted.slice(before));
   assert.deepEqual(after.map((frame) => frame.op).sort(), ['status', 'subscribe']);
+});
+
+test('a result too large for a frame reads from its blob as it would have inline', async () => {
+  const fetched = [];
+  const bodies = { 'blob/json1': '{"entities":[1,2]}', 'blob/file1': '{"export":true}' };
+  const { transport, posted, deliver } = load((url) => {
+    fetched.push(url);
+    const text = bodies[url];
+    return Promise.resolve({ ok: true, text: () => Promise.resolve(text), blob: () => Promise.resolve(new Blob([text])) });
+  });
+  const read = transport.request('dashboard.entities', {});
+  const download = transport.request('config.export', {});
+  await settle();
+  const [first, second] = frames(posted);
+  const blob = (url, type) => ({ blob: { url, size: 1, sha256: '0'.repeat(64), type } });
+  deliver({ type: 'panel-assistant-ui', frame: { command_id: first.command_id, outcome: 'applied', result: blob('blob/json1', 'application/json') } });
+  deliver({ type: 'panel-assistant-ui', frame: { command_id: second.command_id, outcome: 'applied', result: blob('blob/file1', 'application/json'), headers: { 'content-disposition': 'attachment; filename="c.json"' } } });
+  assert.equal(JSON.stringify((await read).result.entities), '[1,2]');
+  assert.ok((await download).result instanceof Blob, 'a download keeps its bytes');
+  assert.deepEqual(fetched, ['blob/json1', 'blob/file1'], 'blob URLs resolve against the page base');
 });

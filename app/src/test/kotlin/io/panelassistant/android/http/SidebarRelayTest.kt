@@ -170,6 +170,29 @@ class SidebarRelayTest {
         }
     }
 
+    @Test fun aRelayConnectionEndsWithItsDispatcherGenerationAndItsNextRequestReachesTheLiveOne() {
+        val generations = mutableListOf<String>()
+        val table = ManageTable()
+        fun generation(name: String) = io.panelassistant.android.ManageOperations(table, { LocalApprovalBroker.instance }).also {
+            generations += name
+        }
+        table.register("probe.read", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("generation", generations.last())) }
+        val first = generation("first")
+        var door = tableDoor(table, operations = first)
+        Session({ door }).use { session ->
+            session.deliver(manage("r1", "probe.read"))
+            assertEquals("first", session.answer("r1").getJSONObject("result").getString("generation"))
+
+            // A runtime replacement stops the first dispatcher and starts another.
+            first.stop()
+            door = tableDoor(table, operations = generation("second"))
+            session.deliver(manage("r2", "probe.read"))
+            val answer = session.answer("r2")
+            assertEquals("applied", answer.getString("outcome"))
+            assertEquals("second", answer.getJSONObject("result").getString("generation"))
+        }
+    }
+
     @Test fun inHardenedModeARelayedExemptOperationRunsAndANonExemptOneAnswersInterimPendingApproval() = testApplication {
         val table = ManageTable()
         application {
@@ -312,6 +335,21 @@ class SidebarRelayTest {
                 }
             }
         }
+    }
+
+    @Test fun theBundleOfAnInstalledApkIsExactlyItsAssetEntries() {
+        val apk = java.io.File.createTempFile("panel", ".apk").apply { deleteOnExit() }
+        java.util.zip.ZipOutputStream(apk.outputStream()).use { zip ->
+            for ((name, text) in listOf("classes.dex" to "dex", "res/raw/a.txt" to "res", "assets/" to "", "assets/info.js" to "js", "assets/i18n/en.json" to "{}")) {
+                zip.putNextEntry(java.util.zip.ZipEntry(name))
+                zip.write(text.toByteArray())
+                zip.closeEntry()
+            }
+        }
+        val assets = UiBundleAssets.ofApk { apk.path }
+        assertEquals(listOf("i18n/en.json", "info.js"), assets.names().sorted())
+        assertEquals("{}", String(assets.bytes("i18n/en.json")))
+        assertTrue(runCatching { assets.bytes("classes.dex") }.isFailure)
     }
 
     private companion object {

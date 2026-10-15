@@ -51,21 +51,22 @@ internal interface UiBundleAssets {
     fun bytes(name: String): ByteArray
 
     companion object {
-        /** The APK's own assets, listed directory by directory. */
-        fun of(assets: () -> android.content.res.AssetManager): UiBundleAssets = object : UiBundleAssets {
-            override fun names(): List<String> {
-                val manager = assets()
-                fun walk(dir: String): List<String> = manager.list(dir).orEmpty().flatMap { name ->
-                    val path = if (dir.isEmpty()) name else "$dir/$name"
-                    // A directory lists its children; a file lists none.
-                    val children = manager.list(path).orEmpty()
-                    if (children.isEmpty()) listOf(path) else walk(path)
-                }
-                return walk("")
+        /**
+         * The `assets/` entries of the installed APK at [apk], read from the APK itself: the asset manager's root
+         * listing also names the framework's own asset directories, which the panel never serves.
+         */
+        fun ofApk(apk: () -> String): UiBundleAssets = object : UiBundleAssets {
+            override fun names(): List<String> = java.util.zip.ZipFile(apk()).use { zip ->
+                zip.entries().asSequence().filter { !it.isDirectory && it.name.startsWith(PREFIX) }.map { it.name.removePrefix(PREFIX) }.toList()
             }
 
-            override fun bytes(name: String): ByteArray = assets().open(name).use { it.readBytes() }
+            override fun bytes(name: String): ByteArray = java.util.zip.ZipFile(apk()).use { zip ->
+                val entry = zip.getEntry(PREFIX + name) ?: throw java.io.FileNotFoundException(name)
+                zip.getInputStream(entry).use { it.readBytes() }
+            }
         }
+
+        private const val PREFIX = "assets/"
     }
 }
 

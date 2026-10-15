@@ -224,6 +224,16 @@
     return out;
   }
 
+  // A body as the page reads it, by its (lower-case) type: JSON parsed, text as a string, anything else a Blob.
+  function readBody(response, type) {
+    return type.indexOf("json") >= 0 || type === ""
+      ? response.text().then(function (text) {
+        if (!text) return {};
+        try { return JSON.parse(text); } catch (_) { return type ? { message: text } : text; }
+      })
+      : type.indexOf("text/") === 0 ? response.text() : response.blob();
+  }
+
   // ---- HTTP implementation ----------------------------------------------------------------------
   function HttpTransport() {}
   HttpTransport.prototype.request = function (op, args) {
@@ -231,13 +241,7 @@
     if (!http) return Promise.resolve({ outcome: "refused", code: "unknown_command", result: null });
     return fetch(http.url, http.init).then(function (response) {
       var type = (response.headers && response.headers.get && response.headers.get("Content-Type") || "").toLowerCase();
-      var read = type.indexOf("json") >= 0 || type === ""
-        ? response.text().then(function (text) {
-          if (!text) return {};
-          try { return JSON.parse(text); } catch (_) { return type ? { message: text } : text; }
-        })
-        : type.indexOf("text/") === 0 ? response.text() : response.blob();
-      return read.then(function (body) {
+      return readBody(response, type).then(function (body) {
         var reply = outcomeFor(response.status, body);
         reply.result = body;
         if (response.status < 200 || response.status > 299) reply.status = response.status;
@@ -431,10 +435,13 @@
     }).then(function (reply) {
       var blob = reply.result && reply.result.blob;
       if (!blob || typeof blob.url !== "string") return reply;
+      // A body too large for a frame reads as it would have inline; binary and a download stay bytes.
+      var attachment = /^attachment/i.test((reply.headers && reply.headers["content-disposition"]) || "");
+      var type = String(blob.type || "").toLowerCase();
       return fetch(blob.url, { cache: "no-store" }).then(function (response) {
         if (!response.ok) throw new Error("blob download failed");
-        return response.blob();
-      }).then(function (bytes) { reply.result = bytes; return reply; });
+        return attachment || !type ? response.blob() : readBody(response, type);
+      }).then(function (body) { reply.result = body; return reply; });
     });
   };
   FrameTransport.prototype.command = function (channel, value) {
