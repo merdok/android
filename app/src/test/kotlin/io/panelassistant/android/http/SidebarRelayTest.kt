@@ -265,6 +265,7 @@ class SidebarRelayTest {
                     ops {
                         get("/probe/large") { call.respondText(JSONObject().put("text", large).toString(), ContentType.Application.Json) }
                         get("/probe/small") { call.respondText("""{"small":true}""", ContentType.Application.Json) }
+                        get("/probe/text") { call.respondText(large, ContentType.Text.Plain) }
                         post("/probe/echo") {
                             val body = call.receiveStream().use { it.readBytes() }
                             call.respondText(JSONObject().put("size", body.size).put("text", String(body)).toString(), ContentType.Application.Json)
@@ -284,6 +285,10 @@ class SidebarRelayTest {
             assertEquals(listOf(PanelAssistantBlobs.PATH + "relay-token-000001", uploaded.size.toLong(), sha256(uploaded)), listOf(blob.getString("url"), blob.getLong("size"), blob.getString("sha256")))
             assertTrue("a small answer rides the frame", session.answer("l2").getJSONObject("result").getBoolean("small"))
             assertFalse("an unused token is left for Panel Assistant to discard", received.containsKey("relay-token-000002"))
+            // A large text answer is typed as Panel Assistant serves it, a bare media type, so the page reads it as text.
+            session.deliver(manage("t1", "probe.text", JSONObject().put("blob_token", "relay-token-000003")))
+            assertEquals("text/plain", session.answer("t1").getJSONObject("result").getJSONObject("blob").getString("type"))
+            assertEquals(large, String(requireNotNull(received["relay-token-000003"])))
 
             val body = "uploaded by the reader".toByteArray()
             fun reference(sha: String) = JSONObject().put("url", PanelAssistantBlobs.PATH + "reader-token-00001").put("size", body.size)

@@ -245,7 +245,8 @@ internal class PanelAssistantManagementRequests(
             // A result over the frame limit moves as a blob through the request's own token (section 20.5).
             if (!interim && text != null && carrier?.canUpload == true && text.toByteArray(Charsets.UTF_8).size > INLINE_RESULT_BYTES) {
                 scope.launch {
-                    val type = if (result is String) "text/plain; charset=utf-8" else "application/json"
+                    // No parameters: Panel Assistant serves only a bare media type, so a charset would turn the text into bytes.
+                    val type = if (result is String) "text/plain" else "application/json"
                     val reference = runCatching { carrier.put(text.toByteArray(Charsets.UTF_8), type) }.getOrNull()
                     if (reference != null) {
                         frame.put("result", JSONObject().put("blob", reference))
