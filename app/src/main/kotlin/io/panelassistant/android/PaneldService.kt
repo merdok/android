@@ -1388,6 +1388,7 @@ class PaneldService : Service() {
             directRootExpected = profile.appCanSu,
             displacedStayOnMask = { config.displacedStayOnWhilePluggedIn },
             displacedScreenTimeoutMs = { config.displacedScreenOffTimeout },
+            screenAsleep = screen::isIntendedOff,
         )
 
         autoSleep = AutoSleepController(

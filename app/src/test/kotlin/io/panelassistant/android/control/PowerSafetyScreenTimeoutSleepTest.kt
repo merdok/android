@@ -3,6 +3,8 @@ package io.panelassistant.android.control
 import io.panelassistant.android.device.ScreenOff
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -27,9 +29,9 @@ class PowerSafetyScreenTimeoutSleepTest {
     private fun observed() = PowerSafetyObservation(
         keepAwakeConfigured = true, wakeLockHeld = true, wifiLockRequired = false, wifiLockHeld = true,
         preventIdleDimConfigured = true,
-        screenOffTimeoutMs = configuredDuringSleep(displaced.displacedMs, power.screenOffTimeoutMs()),
+        screenOffTimeoutMs = configuredDuringSleep(displaced.displacedMs, screen.isIntendedOff(), power.screenOffTimeoutMs()),
         interactive = power.isInteractive(), pluggedMask = 1,
-        stayOnWhilePluggedIn = configuredDuringSleep(displaced.displacedStayOnMask, power.stayOnWhilePluggedInMask()),
+        stayOnWhilePluggedIn = configuredDuringSleep(displaced.displacedStayOnMask, screen.isIntendedOff(), power.stayOnWhilePluggedInMask()),
         deviceIdleMode = false, ignoringBatteryOptimizations = false,
         screenOffMechanism = "screen_timeout",
         screenOffSelected = screen.routeSelection().selected?.name?.lowercase(),
@@ -53,5 +55,20 @@ class PowerSafetyScreenTimeoutSleepTest {
         screen.wake()
         power.interactive = true
         assertSafe("awake")
+    }
+
+    @Test fun aWakeWhoseRestoreFailedReportsTheShortTimeoutItLeftBehind() {
+        screen.sleep()
+        assertEquals("precondition: the SCREEN_TIMEOUT route displaced the timeout", Int.MAX_VALUE, displaced.displacedMs)
+        power.canWrite = false
+        power.canWriteSecure = false
+
+        screen.wake()
+        power.interactive = true
+
+        assertEquals("precondition: the failed restore kept its record", Int.MAX_VALUE, displaced.displacedMs)
+        val assessment = PowerSafetyPolicy.assess(observed())
+        assertNotEquals(PowerRiskLevel.SAFE, assessment.level)
+        assertTrue(assessment.reasonCodes.toString(), "native_screen_timeout_finite" in assessment.reasonCodes)
     }
 }

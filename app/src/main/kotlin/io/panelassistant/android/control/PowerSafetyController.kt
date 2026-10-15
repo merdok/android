@@ -22,6 +22,9 @@ class PowerSafetyController(
     private val displacedStayOnMask: () -> Int = { -1 },
     /** The SCREEN_OFF_TIMEOUT a screen-timeout sleep displaced; -1 when none. Same rule as above. */
     private val displacedScreenTimeoutMs: () -> Int = { -1 },
+    /** Whether the app currently holds the screen asleep. A record left by a failed restore after
+     *  wake is not configured state: the live value is what the panel now runs with. */
+    private val screenAsleep: () -> Boolean = { false },
 ) {
     private val app = context.applicationContext
     private val powerManager = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -43,7 +46,8 @@ class PowerSafetyController(
                 ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                 ?.takeIf { it >= 0 }
         }.getOrNull()
-        val stayOn = configuredDuringSleep(displacedStayOnMask(), runCatching {
+        val asleep = screenAsleep()
+        val stayOn = configuredDuringSleep(displacedStayOnMask(), asleep, runCatching {
             Settings.Global.getInt(app.contentResolver, STAY_ON_WHILE_PLUGGED_IN)
         }.getOrNull())
         return PowerSafetyObservation(
@@ -52,7 +56,7 @@ class PowerSafetyController(
             wifiLockRequired = locks.wifiLockRequired,
             wifiLockHeld = locks.wifiLockHeld,
             preventIdleDimConfigured = preventIdleDimConfigured,
-            screenOffTimeoutMs = configuredDuringSleep(displacedScreenTimeoutMs(), runCatching {
+            screenOffTimeoutMs = configuredDuringSleep(displacedScreenTimeoutMs(), asleep, runCatching {
                 Settings.System.getInt(app.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
             }.getOrNull()),
             interactive = runCatching { powerManager.isInteractive }.getOrNull(),
@@ -180,5 +184,6 @@ class PowerSafetyController(
     }
 }
 
-/** While a sleep holds a displaced value, that value, not the temporary live one, is configured. */
-internal fun configuredDuringSleep(displaced: Int, live: Int?): Int? = if (displaced > 0) displaced else live
+/** While the app holds a sleep, its displaced value, not the temporary live one, is configured. */
+internal fun configuredDuringSleep(displaced: Int, asleep: Boolean, live: Int?): Int? =
+    if (asleep && displaced > 0) displaced else live
