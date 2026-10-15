@@ -823,35 +823,10 @@ class PaneldServer internal constructor(
             val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
             return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
         }
-        if (op == PanelAssistantTransportProtocol.MANAGE_BUNDLE) return uploadBundle(args, PanelAssistantBlobs(auth))
+        if (op == PanelAssistantTransportProtocol.MANAGE_BUNDLE) return uploadUiBundle(args, PanelAssistantBlobs(auth), bundleAssets, buildToken(), cacheDir)
         return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
             authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
         } ?: manageThroughDispatcher(op, args, onPending)
-    }
-
-    /**
-     * `bundle` (protocol section 20.5): one zip of the files the stub's bundle routes serve, uploaded through
-     * `args.blob_token`, answered with its reference and the build token the health line reports, which keys it.
-     */
-    private suspend fun uploadBundle(args: JSONObject, blobs: PanelAssistantBlobs): PanelAssistantManageReply {
-        val token = PanelAssistantBlobs.validToken(args.opt("blob_token")) ?: return PanelAssistantManageReply(
-            PanelAssistantTransportProtocol.OUTCOME_REFUSED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_INVALID_VALUE, null,
-        )
-        val build = buildToken()
-        val file = withContext(Dispatchers.IO) {
-            File.createTempFile("bundle", ".zip", cacheDir).also { zip -> zip.outputStream().use { writeUiBundle(bundleAssets, it) } }
-        }
-        val reference = try {
-            blobs.upload(token, file, "application/zip")
-        } finally {
-            file.delete()
-        } ?: return PanelAssistantManageReply(
-            PanelAssistantTransportProtocol.OUTCOME_FAILED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_FAILED,
-            JSONObject().put("error", "blob-unavailable"),
-        )
-        return PanelAssistantManageReply(
-            PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject().put("blob", reference.json()).put("build", build),
-        )
     }
 
     /**

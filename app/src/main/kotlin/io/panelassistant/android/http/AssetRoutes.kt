@@ -89,3 +89,35 @@ internal fun writeUiBundle(assets: UiBundleAssets, out: java.io.OutputStream) {
         assets.names().sorted().forEach { name -> entry("assets/$name", assets.bytes(name)) }
     }
 }
+
+/**
+ * `bundle` (protocol section 20.5): one zip of the files the stub's bundle routes serve, uploaded through
+ * `args.blob_token`, answered with its reference and the [build] token the health line reports, which keys it.
+ */
+internal suspend fun uploadUiBundle(
+    args: org.json.JSONObject,
+    blobs: io.panelassistant.android.panelassistant.PanelAssistantBlobs,
+    assets: UiBundleAssets,
+    build: String,
+    dir: java.io.File,
+): io.panelassistant.android.panelassistant.PanelAssistantManageReply {
+    val protocol = io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
+    val token = io.panelassistant.android.panelassistant.PanelAssistantBlobs.validToken(args.opt("blob_token"))
+        ?: return io.panelassistant.android.panelassistant.PanelAssistantManageReply(
+            protocol.OUTCOME_REFUSED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_INVALID_VALUE, null,
+        )
+    val file = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        java.io.File.createTempFile("bundle", ".zip", dir).also { zip -> zip.outputStream().use { writeUiBundle(assets, it) } }
+    }
+    val reference = try {
+        blobs.upload(token, file, "application/zip")
+    } finally {
+        file.delete()
+    } ?: return io.panelassistant.android.panelassistant.PanelAssistantManageReply(
+        protocol.OUTCOME_FAILED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_FAILED,
+        org.json.JSONObject().put("error", "blob-unavailable"),
+    )
+    return io.panelassistant.android.panelassistant.PanelAssistantManageReply(
+        protocol.OUTCOME_APPLIED, null, org.json.JSONObject().put("blob", reference.json()).put("build", build),
+    )
+}
