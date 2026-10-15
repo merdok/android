@@ -3,6 +3,7 @@ package io.panelassistant.android.util
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,6 +20,19 @@ class LocalAdminEndpointTest {
             "http://[2001:db8::8]:9123/",
             LocalAdminEndpoint.externalUrl(null, "2001:db8::8", 9123),
         )
+    }
+
+    @Test fun `a panel with no address offers no scannable setup URL`() {
+        // MainActivity's standing-screen QR is the only production caller of externalUrl, and it
+        // hands over localIpv4()/localIpv6() unfiltered. Before Wi-Fi associates both are null, and the QR
+        // then encodes 127.0.0.1, which on the scanning phone is the phone itself, never the panel.
+        assertNull(LocalAdminEndpoint.externalUrl(null, null, 8888, "/setup"))
+        assertNull(LocalAdminEndpoint.externalUrl("", "", 8888, "/setup"))
+    }
+
+    @Test fun `a link-local IPv4 address yields to a reachable IPv6 one or to no URL`() {
+        assertEquals("http://[2001:db8::8]:8888/setup", LocalAdminEndpoint.externalUrl("169.254.7.9", "2001:db8::8", 8888, "/setup"))
+        assertNull(LocalAdminEndpoint.externalUrl("169.254.7.9", null, 8888, "/setup"))
     }
 
     @Test fun loopbackUrlNormalizesPath() {

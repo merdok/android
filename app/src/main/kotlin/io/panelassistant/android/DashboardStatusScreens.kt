@@ -15,7 +15,6 @@ import io.panelassistant.android.util.HaTransportEvidence
 import io.panelassistant.android.util.LocalAdminEndpoint
 import io.panelassistant.android.util.localIpv4
 import io.panelassistant.android.util.localIpv6
-import io.panelassistant.android.util.scannableHost
 import kotlinx.coroutines.CoroutineScope
 import java.io.File
 import java.net.NetworkInterface
@@ -152,7 +151,7 @@ internal class DashboardStatusScreens(
 
     /** The panel's own sign-in setting at [path], when it answers there; see [SignInPageCheck]. */
     fun provenSignInUrl(path: String, redraw: () -> Unit): String? = signInPageCheck.proven(
-        scannableHost(localIpv4(), localIpv6())?.let { LocalAdminEndpoint.url(it, Config(activity).httpPort, path) }, redraw,
+        LocalAdminEndpoint.externalUrl(localIpv4(), localIpv6(), Config(activity).httpPort, path), redraw,
     )
 
     /** Redraw every ha-paneld status surface that is currently rendered, native or WebView-drawn. */
