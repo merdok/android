@@ -135,8 +135,8 @@ class DashboardActivity : AppCompatActivity() {
     // The colour-scheme policy baked into the live WebView's document-start script. Document-start
     // scripts cannot be replaced in an existing WebView, so a policy change rebuilds it (below).
     private var dashboardThemeSignature = DashboardTheme.DEFAULT
-    // The credential the last dashboard WebView was built with. Kept across a teardown: a refused login
-    // belongs to it, and changing it is the consent that lets the renderer ask Home Assistant again.
+    // The credential the renderer last built or re-admitted a dashboard with. Kept across a teardown: a
+    // refused login belongs to it, and changing it is the consent that lets the renderer ask again.
     private var builtAuthOwner: HaAuthOwner? = null
     private var customView: View? = null                        // active onShowCustomView (fullscreen) view
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
@@ -865,7 +865,14 @@ class DashboardActivity : AppCompatActivity() {
             rebuildFor(causes, config, prepared)
             return
         }
-        if (!dashboardBuilt && prepared.signature != entityGate.preparedSignature) entityGate.configureEntityFilter(config, prepared)
+        if (!dashboardBuilt && prepared.signature != entityGate.preparedSignature) {
+            // Configuring releases a native filter hold; the build it was holding back then starts here, or
+            // nothing would, since the hold's own retry stops with it. That build also serves a pending
+            // navigate or reload (it loads the navigate target, and its load start satisfies the reload).
+            val held = entityGate.holdsRenderer(config)
+            entityGate.configureEntityFilter(config, prepared)
+            if (held && !entityGate.holdsRenderer(config)) { buildAndLoad(config); return }
+        }
         // Nothing to rebuild: the dashboard WebView already embodies what this reconcile checks. The entity
         // filter's settings are not among them: the learner rebuilds for those once it has re-learned.
         if (web != null && phase != RendererPhase.SIGN_IN) {
@@ -964,6 +971,10 @@ class DashboardActivity : AppCompatActivity() {
         }
         if (causes.any { it.resolveHome }) invalidateHomeDashboardResolution()
         if (causes.any { it.consent }) consentToRetry(causes.first().name.lowercase())
+        // The credential this rebuild re-admits with is the one the renderer now answers for, built or not:
+        // a refused re-admission otherwise re-fired the change on every later trigger, replaying the
+        // refused credential to Home Assistant over the status screen.
+        if (RendererRebuildCause.CREDENTIAL in causes) builtAuthOwner = config.haAuthSnapshot().stableOwner()
         teardownWeb()
         entityGate.configureEntityFilter(config, prepared)
         buildAndLoad(config)
