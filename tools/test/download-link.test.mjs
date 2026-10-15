@@ -10,7 +10,7 @@ const script = shell.match(/<script>(\/\* Over the stub's socket a download link
 
 function load(reply, door = 'data-ui-socket') {
   let onClick;
-  const calls = [], saved = [];
+  const calls = [], saved = [], opened = [];
   const window = {
     open(url, target) { calls.push(['open', url, target]); return { opener: 'x', location: {}, close() { calls.push(['close']); } }; },
     alert(text) { calls.push(['alert', text]); },
@@ -22,7 +22,7 @@ function load(reply, door = 'data-ui-socket') {
   };
   window.PaneldTransport = { request(op) { calls.push(['request', op]); return Promise.resolve(reply); } };
   vm.runInNewContext(script, {
-    window, document, PaneldTransport: window.PaneldTransport, Blob, URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+    window, document, PaneldTransport: window.PaneldTransport, Blob, URL: { createObjectURL: (blob) => { opened.push(blob); return 'blob:x'; }, revokeObjectURL() {} },
     setTimeout() {},
   });
   const click = async (link, modifiers = {}) => {
@@ -32,7 +32,7 @@ function load(reply, door = 'data-ui-socket') {
     for (let i = 0; i < 10; i++) await Promise.resolve();
     return { event, synchronous };
   };
-  return { click, calls, saved };
+  return { click, calls, saved, opened };
 }
 
 const link = (target) => ({ target, getAttribute: (name) => ({ 'data-op': 'config.export', 'data-file': 'config.json' })[name] });
@@ -73,4 +73,14 @@ test('a page on plain HTTP leaves the link to the browser', async () => {
   const { event } = await rig.click(link(''));
   assert.equal(event.defaultPrevented, false);
   assert.deepEqual(rig.calls, []);
+});
+
+test('in the sidebar the Diagnostics link fetches diag through the transport and opens it as text', async () => {
+  const rig = load({ outcome: 'applied', result: 'ha-paneld diagnostics\n' }, 'data-ui-relay');
+  const diag = { target: '_blank', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
+  const { event } = await rig.click(diag);
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(rig.calls.slice(0, 2), [['open', '', '_blank'], ['request', 'diag']]);
+  assert.equal(rig.opened[0].type, 'text/plain');
+  assert.equal(await rig.opened[0].text(), 'ha-paneld diagnostics\n');
 });

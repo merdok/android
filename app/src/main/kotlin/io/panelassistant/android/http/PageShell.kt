@@ -130,7 +130,7 @@ document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&
 if(!a||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!(document.body.hasAttribute('data-ui-socket')||document.body.hasAttribute('data-ui-relay'))||!window.PaneldTransport)return;e.preventDefault();
 var w=a.target==='_blank'?window.open('','_blank'):null;if(w)w.opener=null;
 PaneldTransport.request(a.getAttribute('data-op'),{}).then(function(r){if(r.outcome!=='applied')throw new Error(r.code||r.outcome);
-var b=typeof Blob!=='undefined'&&r.result instanceof Blob?r.result:new Blob([typeof r.result==='string'?r.result:JSON.stringify(r.result,null,2)],{type:'application/json'});
+var b=typeof Blob!=='undefined'&&r.result instanceof Blob?r.result:new Blob([typeof r.result==='string'?r.result:JSON.stringify(r.result,null,2)],{type:typeof r.result==='string'?'text/plain':'application/json'});
 var named=((r.headers&&r.headers['content-disposition'])||'').match(/filename="?([^";]+)"?/);
 var u=URL.createObjectURL(b);if(w){w.location.href=u;}else{var l=document.createElement('a');l.href=u;l.download=named?named[1]:(a.getAttribute('data-file')||'');document.body.appendChild(l);l.click();l.remove();}
 setTimeout(function(){URL.revokeObjectURL(u);},60000);}).catch(function(err){if(w)w.close();window.alert(String(err&&err.message||err));});});</script></head><body $bodyAttrs$embedAttr><div class="wrap">
