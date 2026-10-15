@@ -4,11 +4,11 @@ import android.content.Context
 import android.os.CancellationSignal
 import android.os.OperationCanceledException
 import android.util.Log
-import io.panelassistant.android.dashboard.EntityLearningManager
 import io.panelassistant.android.storage.DisposableFileSweeper
 import io.panelassistant.android.storage.DisposableSweepResult
 import io.panelassistant.android.storage.ProcessStartWallClock
 import io.panelassistant.android.storage.RetentionResult
+import io.panelassistant.android.storage.StorageHealthObservation
 import io.panelassistant.android.storage.StorageHealthObservationQueue
 import io.panelassistant.android.storage.StorageHealthRecoveryLifecycle
 import io.panelassistant.android.storage.StorageHealthRuntime
@@ -38,16 +38,25 @@ import kotlinx.coroutines.CoroutineScope
  * status refresh, and the subscription that forwards each new snapshot. Every SQLite read and
  * maintenance step goes through the one observation queue, so none of them overlaps another.
  *
- * [isStopping], [entityLearning] and [companionPending] are read when used, never captured: the
- * service creates this unit before the learner exists.
+ * [isStopping], [companionPending] and every [Database] call are read when used, never captured:
+ * the service creates this unit before the learner that owns the database exists.
  */
 internal class ServiceStorageHealth(
     private val context: Context,
     private val scope: CoroutineScope,
     private val isStopping: () -> Boolean,
-    private val entityLearning: () -> EntityLearningManager,
+    private val database: Database,
     private val companionPending: () -> Boolean,
 ) {
+    /** The app database operations this owner observes and maintains through. */
+    interface Database {
+        fun storageHealthObservation(cancellationSignal: CancellationSignal): StorageHealthObservation
+        fun enforceHistoryRetention(): Boolean
+        fun truncateDatabaseWal(): WalCheckpointOutcome
+        fun writeVerifiedConfigurationBackup(): Boolean
+        fun vacuumDatabase(): VacuumOutcome
+    }
+
     private var storageHealthSubscription: AutoCloseable? = null
     private val storageHealthLifecycleLock = Any()
     private var storageHealthRecoveryLifecycle: StorageHealthRecoveryLifecycle? = null
@@ -136,7 +145,7 @@ internal class ServiceStorageHealth(
             val snapshot = StorageHealthRuntime.snapshot()
             when (storageMaintenancePlan(snapshot)) {
                 StorageMaintenancePlan.NONE -> Unit
-                StorageMaintenancePlan.RETENTION -> runCatching { entityLearning().enforceHistoryRetention() }
+                StorageMaintenancePlan.RETENTION -> runCatching { database.enforceHistoryRetention() }
                     .onFailure { Log.w(TAG, "history retention failed (${it.javaClass.simpleName})") }
                 StorageMaintenancePlan.REMEDIATE ->
                     StorageRemediationLadder(storageRemediationOperations(signal)).run(snapshot)?.let { summary ->
@@ -172,15 +181,15 @@ internal class ServiceStorageHealth(
         }
 
         override fun enforceRetention(): RetentionResult = runCatching {
-            if (entityLearning().enforceHistoryRetention()) RetentionResult.PRUNED else RetentionResult.CONVERGED
+            if (database.enforceHistoryRetention()) RetentionResult.PRUNED else RetentionResult.CONVERGED
         }.getOrElse { RetentionResult.FAILED }
 
-        override fun checkpointWal(): WalCheckpointOutcome = runCatching { entityLearning().truncateDatabaseWal() }
+        override fun checkpointWal(): WalCheckpointOutcome = runCatching { database.truncateDatabaseWal() }
             .getOrElse { WalCheckpointOutcome(WalCheckpointResult.FAILED, 0L, 0L) }
 
-        override fun writeVerifiedBackup(): Boolean = entityLearning().writeVerifiedConfigurationBackup()
+        override fun writeVerifiedBackup(): Boolean = database.writeVerifiedConfigurationBackup()
 
-        override fun vacuum(): VacuumOutcome = runCatching { entityLearning().vacuumDatabase() }
+        override fun vacuum(): VacuumOutcome = runCatching { database.vacuumDatabase() }
             .getOrElse { VacuumOutcome(VacuumResult.FAILED) }
 
         // A companion data backup or restore owns the data directory until its marker clears.
@@ -219,7 +228,7 @@ internal class ServiceStorageHealth(
             // Capture immediately before the read. A database failure recorded while this observation
             // is in flight must remain newer truth when the result returns.
             val observationToken = StorageHealthRuntime.beginObservation()
-            val observation = entityLearning().storageHealthObservation(cancellationSignal)
+            val observation = database.storageHealthObservation(cancellationSignal)
             if (isStopping()) {
                 StorageHealthObservationAttempt.Stopped
             } else {

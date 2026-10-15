@@ -11,6 +11,7 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -505,7 +506,15 @@ class PaneldService : Service() {
     private val voiceStateAuthority = io.panelassistant.android.assist.VoiceStateAuthority()
     // Daily health checks, maintenance and recovery for the app database and its files.
     private val storageHealth = ServiceStorageHealth(
-        this, scope, { teardownBoundary.isStopping }, { entityLearning },
+        this, scope, { teardownBoundary.isStopping },
+        object : ServiceStorageHealth.Database {
+            override fun storageHealthObservation(cancellationSignal: CancellationSignal) =
+                entityLearning.storageHealthObservation(cancellationSignal)
+            override fun enforceHistoryRetention() = entityLearning.enforceHistoryRetention()
+            override fun truncateDatabaseWal() = entityLearning.truncateDatabaseWal()
+            override fun writeVerifiedConfigurationBackup() = entityLearning.writeVerifiedConfigurationBackup()
+            override fun vacuumDatabase() = entityLearning.vacuumDatabase()
+        },
         { ::companionDataOperationState.isInitialized && companionDataOperationState.isPending() },
     )
     private lateinit var companionDataOperationState: CompanionDataOperationState
