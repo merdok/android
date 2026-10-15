@@ -250,7 +250,7 @@ class VoiceProductionHttpTest {
         assertEquals(0, changed)
     }
 
-    private val donutManifest = manifest("Hey Donut", "hey_donut.tflite").toByteArray()
+    private val donutManifest = manifest("Hey Donut", "hey_donut.tflite", author = "nyc-esq").toByteArray()
     private val donutModel = byteArrayOf(1, 2, 3)
     private val served = mutableMapOf(MANIFEST_URL to donutManifest, MODEL_URL to donutModel)
 
@@ -294,8 +294,8 @@ class VoiceProductionHttpTest {
         const val LICENSE_URL = "https://github.com/nyc-esq/hey-donut/blob/16b6bb104d5b7ce04b2f882c96dfaad60b292d25/LICENSE"
     }
 
-    private fun manifest(phrase: String, model: String) = """
-        {"type":"micro","wake_word":"$phrase","author":"me","model":"$model","trained_languages":["en"],"version":2,
+    private fun manifest(phrase: String, model: String, author: String = "me") = """
+        {"type":"micro","wake_word":"$phrase","author":"$author","model":"$model","trained_languages":["en"],"version":2,
          "micro":{"probability_cutoff":0.97,"feature_step_size":10,"sliding_window_size":5,"tensor_arena_size":26080}}
     """.trimIndent()
 }

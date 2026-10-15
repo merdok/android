@@ -23,6 +23,8 @@ class WakeWordDownloadTest {
     private val served = mutableMapOf("$base/nocturna.json" to manifest, "$base/nocturna.tflite" to model)
     private val fetched = mutableListOf<String>()
     private var list = listOf(entry("nocturna"))
+    /** Runs while the model is being fetched, to act from another thread mid-download. */
+    private var duringModelFetch: () -> Unit = {}
 
     private fun catalog() = WakeWordCatalog(
         bundled = object : WakeWordCatalog.BundledModels {
@@ -35,6 +37,7 @@ class WakeWordDownloadTest {
         accepts = { _, _ -> true },
         fetch = { url, dest, maxBytes ->
             fetched += url
+            if (url.endsWith(".tflite")) { dest.writeBytes(byteArrayOf(0)); duringModelFetch() }
             val bytes = served[url]
             if (bytes == null || bytes.size > maxBytes) false else { dest.writeBytes(bytes); true }
         },
@@ -113,6 +116,39 @@ class WakeWordDownloadTest {
         assertEquals("My Nocturna", catalog().available().single { it.id == "nocturna" }.wakeWord)
     }
 
+    @Test fun `a list entry whose author is not its manifest's is refused`() {
+        list = listOf(entry("nocturna").put("author", "Someone famous"))
+
+        val result = catalog().download("nocturna")
+
+        assertEquals("the downloaded manifest does not match the list entry", (result as WakeWordCatalog.ImportResult.Refused).reason)
+        assertEquals(listOf("okay_nabu"), catalog().available().map { it.id })
+    }
+
+    @Test fun `a newer pin replaces the copy an earlier download left`() {
+        catalog().download("nocturna")
+        val newer = byteArrayOf(1, 1, 2, 3, 5)
+        served["$base/nocturna.tflite"] = newer
+        list = listOf(entry("nocturna").put("model_sha256", WakeWordCatalog.sha256(newer)).put("model_bytes", newer.size))
+
+        val result = catalog().download("nocturna")
+
+        assertTrue(result is WakeWordCatalog.ImportResult.Imported)
+        assertArrayEquals(newer, File(folder.root, "nocturna/nocturna.tflite").readBytes())
+    }
+
+    @Test fun `the catalogue used from another thread mid-download leaves the download's files alone`() {
+        val catalog = catalog()
+        duringModelFetch = {
+            val other = Thread { catalog.available() }
+            other.start()
+            other.join()
+            assertTrue(File(folder.root, ".download-nocturna.tflite").exists())
+        }
+
+        assertTrue(catalog.download("nocturna") is WakeWordCatalog.ImportResult.Imported)
+    }
+
     @Test fun `files a killed download left are cleared at next use while no download runs`() {
         File(folder.root, ".download-nocturna.tflite").writeBytes(byteArrayOf(1))
 
@@ -143,7 +179,7 @@ class WakeWordDownloadTest {
     private fun entry(id: String) = JSONObject()
         .put("id", id)
         .put("wake_word", "Nocturna")
-        .put("author", "MorningstarOwl")
+        .put("author", "me")
         .put("license", "Apache-2.0")
         .put("license_url", "https://github.com/someone/models/blob/0123456789abcdef0123456789abcdef01234567/LICENSE")
         .put("source", "https://github.com/someone/models")

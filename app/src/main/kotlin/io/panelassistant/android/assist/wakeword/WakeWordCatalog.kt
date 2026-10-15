@@ -165,19 +165,26 @@ class WakeWordCatalog(
         sha256(File(File(importDir, entry.id), config.modelFile).readBytes()) == entry.modelSha256
     }.getOrDefault(false)
 
+    /** Whether the owner imported a model of their own under [entry]'s id, not an earlier copy of it. */
+    private fun ownImport(entry: DownloadableWakeWord): Boolean = runCatching {
+        val held = synchronized(this) { recover(); importedConfig(entry.id) }
+        held.wakeWord != entry.wakeWord || held.author != entry.author
+    }.getOrDefault(false)
+
     private val downloadLock = ReentrantLock()
 
     /**
      * Download the model [id] names in [downloadable] and import it. The manifest and model are fetched
      * into this catalogue's own directory and must match the SHA-256 the list pins; a mismatch is refused
      * outright, never retried, and leaves any model already held under that id untouched. A model the
-     * owner imported under the same id is never replaced. The network is never awaited while the catalogue
+     * owner imported under the same id is never replaced; one with the entry's own wake word and author
+     * is this download's earlier copy, which a newer pin may replace. The network is never awaited while the catalogue
      * is locked; downloads run one at a time, and each first clears what an interrupted one left.
      */
     fun download(id: String): ImportResult {
         val entry = downloadable().firstOrNull { it.id == id }
             ?: return ImportResult.Refused("\"$id\" is not a wake word this panel can download")
-        if (File(importDir, id).isDirectory && !holds(entry)) {
+        if (ownImport(entry)) {
             return ImportResult.Refused("a wake word you imported is already named \"$id\"")
         }
         downloadLock.withLock {
@@ -192,6 +199,11 @@ class WakeWordCatalog(
                     MicroWakeWordModelConfig.parse(id, manifest.toString(Charsets.UTF_8))
                 } catch (invalid: IllegalArgumentException) {
                     return ImportResult.Refused(invalid.message ?: "the downloaded manifest is not a microWakeWord manifest")
+                }
+                // What Configure showed before the download is what the manifest says, so the owner saw the
+                // real author, and a later download can tell its own earlier copy from an owner's import.
+                if (config.wakeWord != entry.wakeWord || config.author != entry.author) {
+                    return ImportResult.Refused("the downloaded manifest does not match the list entry")
                 }
                 val modelUrl = runCatching { URL(URL(entry.manifestUrl), config.modelFile).toString() }.getOrNull()
                     ?: return ImportResult.Refused("the manifest names a model that cannot be downloaded")
