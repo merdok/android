@@ -204,8 +204,8 @@
         </receiver>
 
         <!-- Device admin with the force-lock policy only: the screen-off fallback uses lockNow() when the
-             screen-timeout route is unavailable. Only an owner activates it, from Android's device admin
-             settings or `dpm set-active-admin <package>/io.panelassistant.android.platform.PanelDeviceAdminReceiver`. -->
+             screen-timeout route is unavailable. Panel Assistant activates it at install and after each update
+             (`dpm set-active-admin <package>/io.panelassistant.android.platform.PanelDeviceAdminReceiver`). -->
         <receiver
             android:name="io.panelassistant.android.platform.PanelDeviceAdminReceiver"
             android:exported="true"

@@ -67,7 +67,7 @@ interface ScreenPower {
 
 /**
  * Device admin with the force-lock policy only, so the screen-off can use `lockNow()` without root.
- * Only an owner activates it, from Android's device admin settings or `dpm set-active-admin`; it does
+ * Panel Assistant activates it at install and after each update (`dpm set-active-admin`); it does
  * nothing on its own.
  */
 class PanelDeviceAdminReceiver : DeviceAdminReceiver()
