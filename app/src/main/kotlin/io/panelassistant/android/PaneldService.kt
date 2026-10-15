@@ -205,8 +205,6 @@ import io.panelassistant.android.util.CompanionOperationStatus
 import io.panelassistant.android.util.AppInstaller
 import io.panelassistant.android.util.InstallOutcome
 import io.panelassistant.android.util.InstallProgress
-import io.panelassistant.android.util.InstallOperationResult
-import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.HelperLogcatOpenResult
 import io.panelassistant.android.util.GuardDbProcessAdmission
@@ -215,10 +213,7 @@ import io.panelassistant.android.util.guardDbAppStaging
 import io.panelassistant.android.util.validGuardDbAppFile
 import io.panelassistant.android.util.HelperInstallReconciler
 import io.panelassistant.android.util.HelperInstallTransaction
-import io.panelassistant.android.util.SelfUpdater
 import io.panelassistant.android.state.SoftwareComponent
-import io.panelassistant.android.state.SoftwareTarget
-import io.panelassistant.android.state.SoftwareUpdateSources
 import io.panelassistant.android.platform.AndroidScreenPower
 import io.panelassistant.android.platform.AndroidSystemEnv
 import io.panelassistant.android.platform.PanelPermissionRepair
@@ -561,16 +556,8 @@ class PaneldService : Service() {
     )
     private lateinit var companionDataOperationState: CompanionDataOperationState
     private val core: PanelStateCore get() = runtime.current().core
-    // Observer identities for InstallProgress and UpdateChecker, so detach clears only this service's.
-    // Progress only schedules a republish: lane claims include database maintenance, which must not
-    // gain a configuration write from here.
-    private val softwareProgressObserver: () -> Unit = {
-        runCatching { core.publishSoftwareUpdates() }
-    }
-    private val softwareCatalogObserver: () -> Unit = {
-        runCatching { config.setSoftwareUpdateTargets(UpdateChecker.persistableTargets()) }
-        runCatching { core.publishSoftwareUpdates() }
-    }
+    // The Install tab's destructive operations, the update entities' sources and their observers.
+    private val componentOperations = ServiceComponentOperations(this, scope, { config }, { core }, { profile })
     private val mdns: MdnsAdvertiser get() = runtime.current().mdns
     // Default-network callback that nudges reconnects when the network returns (see registerNetworkCallback).
     private var netCallback: ConnectivityManager.NetworkCallback? = null
@@ -1567,8 +1554,8 @@ class PaneldService : Service() {
             logApp = logCaptureApp, logSystem = logCaptureSystem, logWebView = logCaptureWebView,
             webViewConsoleEnabled = { webViewConsoleEnabled(config) },
             effectiveBrightness = { brightness.getBrightness() },
-            onRepairCompanionUrl = { repairCompanionUrl() },
-            onInstallComponent = { name, action, version -> installComponent(name, action, version) },
+            onRepairCompanionUrl = { componentOperations.repairCompanionUrl() },
+            onInstallComponent = { name, action, version -> componentOperations.installComponent(name, action, version) },
             powerSafety = { powerSafety.assess(config.keepAwake, config.preventIdleDim) },
             freshPowerSafetyRepairCapability = powerSafety::repairCapabilityFresh,
             onRepairPowerSafety = ::repairPowerSafety,
@@ -1675,7 +1662,7 @@ class PaneldService : Service() {
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
         autoSleepActivity = { autoSleep.activitySnapshot() },
-        softwareUpdateSources = ::softwareUpdateSources,
+        softwareUpdateSources = componentOperations::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
         wifiDiagnostics = wifiDiagnostics::snapshot,
@@ -2463,59 +2450,6 @@ class PaneldService : Service() {
         }
     }
 
-    /** Run one destructive operation under the same process-wide ticket used by HTTP restore/APK routes. */
-    private suspend fun completeOperation(
-        progress: InstallProgress.Ticket,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-    ): String {
-        var result = "cancelled"
-        var resultPresentation: InstallPresentation? = InstallPresentation("operation-cancelled")
-        try {
-            val completed = try {
-                operation()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "$logLabel failed", e)
-                InstallOperationResult("error: ${e.message}")
-            }
-            result = completed.message
-            resultPresentation = completed.presentation
-            Log.i(TAG, "$logLabel: $result")
-            after(result)
-            // Keep the destructive-operation lane until post-install activation is complete. WebView
-            // activation deliberately waits before requesting a process boundary; releasing the lane
-            // first lets the blocked screen start a second install that the pending restart kills.
-            InstallProgress.finish(progress, result, presentation = resultPresentation)
-            return result
-        } finally {
-            // Covers cancellation, fatal errors, and direct callers; stale tickets cannot clear a successor.
-            InstallProgress.finish(progress, result, presentation = resultPresentation)
-        }
-    }
-
-    /** Start an asynchronous destructive operation only when the shared lane is free. */
-    private fun launchOperation(
-        component: String,
-        owner: String,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-        onStarted: (InstallProgress.Ticket) -> Unit = {},
-    ): Boolean {
-        val progress = InstallProgress.start(
-            component,
-            InstallPresentation("operation-working", mapOf("owner" to owner)),
-        ) ?: return false
-        onStarted(progress)
-        val job = scope.launch { completeOperation(progress, logLabel, operation, after) }
-        // A cancelled job can complete before its body starts, so the body's finally is not sufficient.
-        InstallProgress.finishOnFailure(progress, job)
-        return true
-    }
-
     /**
      * Bridge build only. The bridge no longer installs, starts or hands the panel to the successor:
      * Panel Assistant moves a panel through its Home Assistant Repair, and a successor that has run
@@ -2529,142 +2463,6 @@ class PaneldService : Service() {
     private fun requestInstalledSuccessorHandoff(reason: String) {
         if (!AppIdentity.IS_BRIDGE) return
         Log.i(TAG, "installed successor handover not started: $reason; the panel is moved by Panel Assistant")
-    }
-
-    private suspend fun runOperation(
-        component: String,
-        owner: String,
-        logLabel: String,
-        operation: suspend () -> InstallOperationResult,
-        after: suspend (String) -> Unit = {},
-    ): String? {
-        val progress = InstallProgress.start(
-            component,
-            InstallPresentation("operation-working", mapOf("owner" to owner)),
-        ) ?: run {
-            Log.i(TAG, "$logLabel skipped: another destructive operation is running")
-            return null
-        }
-        return completeOperation(progress, logLabel, operation, after)
-    }
-
-    /** Companion internal_url repair (Install-tab button): copy each server's external_url into a blank
-     *  internal_url so HA 2026.7 stops rejecting the dashboard with "Missing 'Host' header". Off-thread
-     *  (su force-stops + relaunches the Companion). */
-    private fun repairCompanionUrl(): Boolean {
-        return launchOperation(
-            component = "Companion URL repair",
-            owner = "companion-url-repair",
-            logLabel = "Companion internal_url repair",
-            operation = {
-                val result = io.panelassistant.android.control.CompanionDb.repairInternalUrlResult(
-                    this@PaneldService,
-                    io.panelassistant.android.control.Su,
-                )
-                InstallOperationResult(result.message, result.presentation)
-            },
-        )
-    }
-
-    private fun attachSoftwareUpdateObservers() {
-        // Targets persisted by an earlier process: a restart keeps reporting the last known release.
-        UpdateChecker.restoreTargets(config.softwareUpdateTargets.second)
-        InstallProgress.observer = softwareProgressObserver
-        UpdateChecker.onChecked = softwareCatalogObserver
-    }
-
-    private fun detachSoftwareUpdateObservers() {
-        if (InstallProgress.observer === softwareProgressObserver) InstallProgress.observer = null
-        if (UpdateChecker.onChecked === softwareCatalogObserver) UpdateChecker.onChecked = null
-    }
-
-    /** One coherent read of everything the update channels report. */
-    private fun softwareUpdateSources(): SoftwareUpdateSources {
-        val paneldChannel = "stable"
-        val companionChannel = "stable"
-        val cap = profile.companionMaxVersion
-        val progress = InstallProgress.presentationSnapshot()
-        // Only "not installed" is an answer; any other failure leaves presence unknown rather than absent.
-        var lookupFailed = false
-        fun installed(pkg: String): String? = try {
-            packageManager.getPackageInfo(pkg, 0).versionName ?: ""
-        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-            null
-        } catch (_: Exception) {
-            lookupFailed = true
-            null
-        }
-        val companionMinimal = installed(CompanionInstaller.MINIMAL_PKG)
-        val companionFull = installed(CompanionInstaller.FULL_PKG)
-        return SoftwareUpdateSources(
-            paneldVersion = BuildConfig.VERSION_NAME,
-            paneldChannel = paneldChannel,
-            paneldTarget = null,
-            companionMinimalVersion = companionMinimal,
-            companionFullVersion = companionFull,
-            companionChannel = companionChannel,
-            companionCap = cap,
-            companionTarget = UpdateChecker.companionTarget(companionChannel, cap)?.let {
-                SoftwareTarget(it.version, it.tag, it.releaseUrl, it.capped, it.newestVersion)
-            },
-            runningOperation = progress.component.takeIf { progress.running },
-            companionPresenceUnknown = lookupFailed,
-        )
-    }
-
-    /** Install/update a managed component from the Install tab (POST /api/v1/install/component). Runs
-     *  off-thread; progress is reported via InstallProgress so the web UI can poll. action="reinstall"
-     *  forces even when the installed build is already current. Single-slot (InstallProgress.start gates). */
-    private fun installComponent(
-        name: String,
-        action: String,
-        version: String,
-        onStarted: (InstallProgress.Ticket) -> Unit = {},
-    ): Boolean {
-        val label = when (name) {
-            "paneld" -> "Panel Assistant"; "companion" -> "HA Companion"; else -> name
-        }
-        val force = action == "reinstall"
-        val tag = version.takeIf { it.isNotBlank() }
-        return launchOperation(
-            component = label,
-            owner = when (name) {
-                "paneld" -> "paneld"
-                "companion" -> "companion"
-                else -> "apk"
-            },
-            logLabel = "install $name",
-            operation = {
-                when (name) {
-                    // A specific picked version installs that exact tag; otherwise the channel's newest.
-                    "paneld" -> if (tag != null) SelfUpdater.installVersionResult(this@PaneldService, tag)
-                        else SelfUpdater.checkAndUpdateResult(this@PaneldService, "stable", force = force)
-                    "companion" -> if (tag != null) CompanionInstaller.installVersionResult(
-                        this@PaneldService,
-                        tag,
-                        profile.companionMaxVersion,
-                    )
-                        else CompanionInstaller.installOrUpdateResult(
-                            this@PaneldService,
-                            force = force,
-                            channel = "stable",
-                            maxVersion = profile.companionMaxVersion,
-                        )
-                    else -> InstallOperationResult("unknown component")
-                }
-            },
-            after = {
-                // Refresh the available-update list so the banner + Install tab reflect the new state.
-                runCatching {
-                    UpdateChecker.check(
-                        this@PaneldService,
-                        "stable",
-                        profile.companionMaxVersion,
-                    )
-                }
-            },
-            onStarted = onStarted,
-        )
     }
 
     /** The resolved renderer-target snapshot for perf smoothness attribution (the built-in sentinel, a
@@ -2755,7 +2553,7 @@ class PaneldService : Service() {
             }
             brightness.applyPreventIdleDim(config.preventIdleDim, config)
             EntityLearningRuntime.attach(entityLearning)
-            attachSoftwareUpdateObservers()
+            componentOperations.attachSoftwareUpdateObservers()
             // Kiosk is config-owned across boots so every restart retains its deliberate unlocked
             // window. Never let a stale/in-flight HTTP journal bypass that delay or override a newer OFF.
             if (!liveSettingAuthority.discard("kiosk_lock")) {
@@ -3555,7 +3353,7 @@ class PaneldService : Service() {
             // terminal before that runtime is retired. Its receiver is already unregistered, so no new
             // work can be posted; join the worker so a reconciliation already in flight cannot publish
             // through a retired owner. Ordered before the retirement fence below for exactly that reason.
-            closeOwner("update entity observers") { detachSoftwareUpdateObservers() }
+            closeOwner("update entity observers") { componentOperations.detachSoftwareUpdateObservers() }
             closeOwnerResult("screen reconcile worker") {
                 screenWakeWorker.closeAndJoin(
                     minOf(asyncTeardownDeadline.remainingMs(), WAKE_WORKER_JOIN_MS),
@@ -3973,7 +3771,7 @@ class PaneldService : Service() {
      *
      * The screen is handed three narrow questions rather than a reference to this service: what the panel
      * can do, how to start it, and what the installer is saying. Nothing here is a second implementation
-     * of the repair — [installComponent] is the same entry point the Install page posts to, so a panel
+     * of the repair — [ServiceComponentOperations.installComponent] is the same entry point the Install page posts to, so a panel
      * cannot end up with two ways to install an engine that disagree about what "busy" means.
      *
      * The capability is refreshed off the main thread and then cached. It is refreshed again on each
@@ -4335,7 +4133,7 @@ class PaneldService : Service() {
             voiceForegroundRetry?.invoke()
         }
 
-        private const val TAG = "ha-paneld/svc"
+        internal const val TAG = "ha-paneld/svc"
         private const val CAMERA_STOP_MS = 3_000L
         // Daily rather than wall-clock scheduled: the service owns one immediate check, then delays
         // from completion. A bounded short retry absorbs transient StatFs/SQLite observation failures.
