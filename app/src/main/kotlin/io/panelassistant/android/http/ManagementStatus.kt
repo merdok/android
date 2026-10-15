@@ -10,6 +10,7 @@ import io.panelassistant.android.platform.PanelPermissionRepair
 import android.os.Build
 import io.panelassistant.android.control.CompanionDb
 import io.panelassistant.android.control.HardwareSerial
+import io.panelassistant.android.control.NetworkMacs
 import io.panelassistant.android.control.PowerSafetyAdvisory
 import io.panelassistant.android.control.ZigbeeHealthSnapshot
 import io.panelassistant.android.util.UpdateChecker
@@ -165,6 +166,7 @@ internal fun managementStatusJson(
                 Build.VERSION.RELEASE,
                 HardwareSerial.shared.read(management.privilege.directSuReady),
                 config.androidId,
+                NetworkMacs.shared.read(),
             )
         }," +
         "\"zigbee_gateway\":$zigbee,\"storage_health\":${storage.statusJson()}," +

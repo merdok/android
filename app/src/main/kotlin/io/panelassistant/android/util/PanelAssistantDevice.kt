@@ -74,18 +74,24 @@ object PanelAssistantDevice {
      *
      * The firmware is the vendor's own number (`Build.DISPLAY`), sent verbatim so it can be matched
      * against the vendor's release history. The serial is the hardware serial where this panel can read
-     * it, else the Android id, which panels cloned from one factory image can share.
+     * it, else the Android id, which panels cloned from one factory image can share. The network MACs
+     * are the hardware addresses another integration's device for this panel also carries, so Home
+     * Assistant can list it as a linked device; none is sent when the panel cannot read one.
      */
     fun hardwareJson(
         firmware: String?,
         androidRelease: String?,
         hardwareSerial: String?,
         androidId: String?,
+        networkMacs: List<String> = emptyList(),
     ): String {
         val entries = buildList {
             field(firmware)?.let { add("\"firmware\":${JSONObject.quote(it)}") }
             field(androidRelease)?.let { add("\"android_release\":${JSONObject.quote(it)}") }
             (field(hardwareSerial) ?: field(androidId))?.let { add("\"serial_number\":${JSONObject.quote(it)}") }
+            if (networkMacs.isNotEmpty()) {
+                add("\"network_macs\":[${networkMacs.joinToString(",") { JSONObject.quote(it) }}]")
+            }
         }
         return "{${entries.joinToString(",")}}"
     }
