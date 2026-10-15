@@ -65,7 +65,8 @@ internal class InstallPageHandler(
             strings = strings,
         ) +
             adHocWarnings(
-                config, catalogueLoader(), management.privilege.directSuReady, management.densityBase,
+                config, catalogueLoader(), management.privilege.directSuReady,
+                management.privilege.rootControlReady || appSizingReady(),
                 radioStatus, dashboardRecoveryState,
                 companion, inlineRepair = true, strings = strings,
             )

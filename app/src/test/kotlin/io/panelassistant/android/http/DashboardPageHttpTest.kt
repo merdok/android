@@ -12,7 +12,14 @@ import org.junit.Test
 
 class DashboardPageHttpTest {
     @Test fun `warm dashboard renders escaped facts private values and live diagnostic rows`() {
-        PaneldServerHttpFixture().use { fixture ->
+        // A density route that can set density, so the off-100 zoom banner is due.
+        val density = io.panelassistant.android.control.DensityController(
+            false,
+            io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+            io.panelassistant.android.control.FakeDaemon(available = false),
+            io.panelassistant.android.control.FakeAppSizing(),
+        )
+        PaneldServerHttpFixture(density = density).use { fixture ->
             fixture.enablePages()
             fixture.enableWarmDashboard()
             fixture.config.setDashboardZoom(125)

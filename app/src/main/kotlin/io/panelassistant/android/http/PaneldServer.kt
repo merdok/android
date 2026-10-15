@@ -724,6 +724,7 @@ class PaneldServer internal constructor(
         catalogueLoader = { catalogueLoader },
         radioStatus = radioStatus,
         dashboardRecoveryState = pageHealth::dashboardRecoveryState,
+        appSizingReady = density::appSizingReady,
     )
 
     private fun dashboardPageHandler() = DashboardPageHandler(

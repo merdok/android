@@ -23,7 +23,14 @@ class NoticeRowsHttpTest {
     private val retiredGlyphs = listOf("⛔", "⚠", "ℹ", "⬆", "⟳", "🔒", "🏠", "👋")
 
     @Test fun `dashboard advisories render as notice rows in the established order`() {
-        PaneldServerHttpFixture().use { fixture ->
+        // A density route that can set density, so the off-100 zoom row is due.
+        val density = io.panelassistant.android.control.DensityController(
+            false,
+            io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+            io.panelassistant.android.control.FakeDaemon(available = false),
+            io.panelassistant.android.control.FakeAppSizing(),
+        )
+        PaneldServerHttpFixture(density = density).use { fixture ->
             fixture.enablePages()
             fixture.enableWarmDashboard()
             fixture.config.setDashboardZoom(125)
@@ -214,6 +221,7 @@ class NoticeRowsHttpTest {
             catalogueLoader = { testCatalogue },
             radioStatus = { ZigbeeHealthSnapshot(state = ZigbeeHealthState.RUNAWAY, joined = false) },
             dashboardRecoveryState = { recovery },
+            appSizingReady = { true },
         )
     }
 

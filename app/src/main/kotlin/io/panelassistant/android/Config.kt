@@ -106,10 +106,6 @@ class Config private constructor(
 ) {
     enum class SecurityMode { RELAXED, HARDENED }
 
-    // Preserve the previous HA policy for an upgraded enabled configuration. Materialise this
-    // choice with the next Auto-sleep write so disabling/restarting never changes its source.
-    internal val absentAutoSleepSource =
-        if (prefs.contains("auto_sleep")) "home_assistant" else specOf("auto_sleep_source").default
     private val wakeOnWaveEpoch = AtomicLong()
     internal val haOAuthAttemptEpoch = AtomicLong()
     @Volatile private var logShipAbsentProtocolFallback: String? = null
@@ -330,6 +326,11 @@ class Config private constructor(
             editor.putInt("log_ship_port", fields.getValue("log_ship_port").toInt())
             editor.putString("log_ship_protocol", fields.getValue("log_ship_protocol"))
         }
+
+        // stage pins the effective source when it stores auto_sleep; an imported source must still win,
+        // whichever order the bundle staged the two keys in.
+        accepted["auto_sleep_source"]?.takeIf { it in specOf("auto_sleep_source").options }
+            ?.let { editor.putString("auto_sleep_source", it) }
 
         accepted["dashboard_package"]?.let { next ->
             if (next != dashboardPackage) editor.putBoolean("renderer_launch_pending", true)
@@ -1224,7 +1225,9 @@ class Config private constructor(
         return when (spec.key) {
             "navbar_mode" -> resolveNavbarMode(declared, caps ?: navbarCapabilities())
             "log_ship_protocol" -> declared ?: logShipAbsentProtocolFallback ?: spec.default
-            "auto_sleep_source" -> declared ?: absentAutoSleepSource
+            // A store that predates the source setting keeps the HA policy it had; every later
+            // auto_sleep write materialises the effective source (see [stage]).
+            "auto_sleep_source" -> if (prefs.contains("auto_sleep")) "home_assistant" else declared ?: spec.default
             "network_adb" -> if (hardenedSecurityEnabled) "false" else declared ?: spec.default
             "auto_brightness_minimum_percent", "auto_brightness_maximum_percent" ->
                 profileBrightnessDefault(spec, declared)
@@ -1309,6 +1312,10 @@ class Config private constructor(
         }
         if (spec.key == "auto_sleep_source" && normalized != autoSleepSource)
             editor.putLong(AUTO_SLEEP_GENERATION_PREF, nextAutoSleepGenerationLocked())
+        // Storing auto_sleep would turn an absent source into the legacy "home_assistant", so the
+        // first write pins the source the panel was effectively using.
+        if (spec.key == "auto_sleep" && !prefs.contains("auto_sleep_source"))
+            editor.putString("auto_sleep_source", autoSleepSource)
         when (spec.type) {
             SettingType.BOOL -> editor.putBoolean(spec.key, normalized.toBoolean())
             SettingType.INT -> editor.putInt(spec.key, normalized.toIntOrNull() ?: 0)

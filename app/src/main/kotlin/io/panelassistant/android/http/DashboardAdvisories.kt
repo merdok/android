@@ -27,6 +27,7 @@ internal class DashboardAdvisories(
     private val catalogueLoader: () -> CatalogueLoader,
     private val radioStatus: () -> ZigbeeHealthSnapshot?,
     private val dashboardRecoveryState: () -> PanelStatus.DashboardRecoveryState,
+    private val appSizingReady: () -> Boolean,
 ) {
     /** The setup / health / update banners — everything above the cards. Needs the facts map, so on a
      *  cold start it hydrates with the rest. */
@@ -64,7 +65,8 @@ internal class DashboardAdvisories(
             strings = strings,
         ) +
             adHocWarnings(
-                config, catalogueLoader(), s.privilege.directSuReady, s.densityBase,
+                config, catalogueLoader(), s.privilege.directSuReady,
+                s.privilege.rootControlReady || appSizingReady(),
                 radioStatus, dashboardRecoveryState,
                 managementObservations.companionServersForRender(), inlineRepair = false, strings = strings,
             ) +

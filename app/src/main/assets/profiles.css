@@ -19,6 +19,7 @@
 .profile-action-group{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .profile-action-group+.profile-action-group{padding-left:12px;border-left:1px solid var(--divider)}
 .profile-actions button[hidden],.profile-actions label[hidden]{display:none}
+.profile-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-height:24px;margin:10px 2px}
 .profile-links{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:-3px 2px 9px}
 .profile-links[hidden]{display:none}.profile-link{font-size:.78rem;color:var(--accent);overflow-wrap:anywhere}
 .profile-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
