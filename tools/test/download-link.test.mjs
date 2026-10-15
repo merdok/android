@@ -35,7 +35,7 @@ function load(reply, door = 'data-ui-socket') {
   return { click, calls, saved, opened };
 }
 
-const link = (target) => ({ target, getAttribute: (name) => ({ 'data-op': 'config.export', 'data-file': 'config.json' })[name] });
+const link = (target) => ({ target, hasAttribute: () => false, getAttribute: (name) => ({ 'data-op': 'config.export', 'data-file': 'config.json' })[name] });
 
 test('a modified click is left to the plain link', async () => {
   const rig = load({ outcome: 'applied', result: new Blob(['{}']) });
@@ -77,10 +77,18 @@ test('a page on plain HTTP leaves the link to the browser', async () => {
 
 test('in the sidebar the Diagnostics link fetches diag through the transport and opens it as text', async () => {
   const rig = load({ outcome: 'applied', result: 'ha-paneld diagnostics\n' }, 'data-ui-relay');
-  const diag = { target: '_blank', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
+  const diag = { target: '_blank', hasAttribute: (name) => name === 'data-relay-only', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
   const { event } = await rig.click(diag);
   assert.equal(event.defaultPrevented, true);
   assert.deepEqual(rig.calls.slice(0, 2), [['open', '', '_blank'], ['request', 'diag']]);
   assert.equal(rig.opened[0].type, 'text/plain');
   assert.equal(await rig.opened[0].text(), 'ha-paneld diagnostics\n');
+});
+
+test('on the LAN socket page a relay-only link (Diagnostics) is left to its plain link', async () => {
+  const rig = load({ outcome: 'applied', result: 'x' });
+  const diag = { target: '_blank', hasAttribute: (name) => name === 'data-relay-only', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
+  const { event } = await rig.click(diag);
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(rig.calls, []);
 });

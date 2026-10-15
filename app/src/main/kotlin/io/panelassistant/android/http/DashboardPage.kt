@@ -76,7 +76,7 @@ internal fun dashboardBody(
         rows.isBlank() -> ""
         else -> """<div class="card" data-layout-key="$id"><h2>${esc(title)}</h2>$pre<table id="$id">$rows</table>$post</div>"""
     }
-    val capNote = """<p class="note"><a href="api/v1/diag" data-op="diag" data-file="diag.txt" target="_blank" style="color:var(--link)">⭳ ${esc(strings.get("dashboard.diagnostics_dump.link"))}</a> — ${esc(strings.get("dashboard.diagnostics_dump.explanation"))}</p>"""
+    val capNote = """<p class="note"><a href="api/v1/diag" data-op="diag" data-relay-only data-file="diag.txt" target="_blank" style="color:var(--link)">⭳ ${esc(strings.get("dashboard.diagnostics_dump.link"))}</a> — ${esc(strings.get("dashboard.diagnostics_dump.explanation"))}</p>"""
     return """<div id="bannerzone">${banners}</div>
 <div class="cards" id="dashboard-cards" data-card-size-page="dashboard" data-card-size-epoch="1" data-card-size-restore="1">
 <div class="card" data-layout-key="controls"><h2>${esc(strings.get("dashboard.card.controls"))} <small>· ${esc(strings.get("dashboard.card.software_nav_bar"))}</small></h2>
@@ -116,7 +116,7 @@ ${tcard("behavtbl", strings.get("dashboard.card.behaviour"), rowHtml("behavtbl")
 ${tcard("disptbl", strings.get("dashboard.card.display_tuning"), rowHtml("disptbl"))}
 </div>
 <p class="note" style="text-align:center;margin-top:18px"><a href="${localizedHref("api", strings)}" style="color:var(--link)">${esc(strings.get("dashboard.footer.api_explorer"))}</a>
- · <a href="api/v1/diag" data-op="diag" data-file="diag.txt" target="_blank" style="color:var(--link)">${esc(strings.get("dashboard.footer.diagnostics"))}</a> · <a href="$REPO_URL" target="_blank" rel="noopener" style="color:var(--link)">GitHub</a></p>"""
+ · <a href="api/v1/diag" data-op="diag" data-relay-only data-file="diag.txt" target="_blank" style="color:var(--link)">${esc(strings.get("dashboard.footer.diagnostics"))}</a> · <a href="$REPO_URL" target="_blank" rel="noopener" style="color:var(--link)">GitHub</a></p>"""
 }
 
 private const val DEVICE_PROFILES_DOC = "https://panel-assistant.io/go/docs?page=architecture/device-profiles"

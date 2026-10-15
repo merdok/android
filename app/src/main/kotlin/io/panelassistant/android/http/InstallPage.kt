@@ -26,7 +26,7 @@ $uninstall
 <p class="note">${esc(strings.get("install.audit.description"))}</p>
 <button class="pbtn" onclick="healthAudit(this)">${esc(strings.get("install.audit.run"))}</button>
 <div id="audit-out" style="margin-top:10px"></div>
-<p class="note"><a href="api/v1/diag" data-op="diag" data-file="diag.txt" target="_blank" style="color:var(--link)">⭳ ${esc(strings.get("install.audit.diagnostics"))}</a> — ${esc(strings.get("install.audit.diagnostics_help"))}</p></div>
+<p class="note"><a href="api/v1/diag" data-op="diag" data-relay-only data-file="diag.txt" target="_blank" style="color:var(--link)">⭳ ${esc(strings.get("install.audit.diagnostics"))}</a> — ${esc(strings.get("install.audit.diagnostics_help"))}</p></div>
 $vendor
 $display
 $backup
