@@ -80,8 +80,6 @@ internal fun invalidEntityFilterFailureDisposition(
         EntityFilterFailureDisposition.ALLOW_DIRECT
     }
 
-internal fun deferReadyEntityBootstrapUntilWake(screenAwake: Boolean): Boolean = !screenAwake
-
 internal data class EntityFilterNativeHold(val error: String, val detail: String)
 
 internal class EntityFilterInterceptorUnavailable(cause: Throwable) : RuntimeException(cause)
@@ -115,6 +113,8 @@ internal class DashboardEntityGate(
     private val scope: CoroutineScope,
     private val statusScreens: DashboardStatusScreens,
     private val host: Host,
+    /** How the gate reads settings; JVM tests pass one over in-memory preferences. */
+    private val readConfig: () -> Config = { Config(activity) },
 ) {
     interface Host {
         val activityOwner: Long
@@ -158,102 +158,102 @@ internal class DashboardEntityGate(
     private val entityBootstrapCheck = object : Runnable {
         override fun run() {
             if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner)) return
-            val check = this
             val readEpoch = ++entityBootstrapReadEpoch
-            scope.launch {
-            val config = readActivityStateOffMain { Config(activity) }
-            if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return@launch
-            if (shouldHoldRendererForEntityBootstrap(config)) {
-                // The hold is structurally forbidden from being terminal. The enable-time sync has died
-                // silently on hardware more than once, each time leaving a happy spinner over a dead
-                // process until a human intervened. Two deadlines: at 30 seconds fire the same recovery
-                // the manual sync endpoint provides; at 90 seconds stop impersonating progress and show
-                // the problem screen, whose retry/disable buttons already exist.
-                //
-                // Firing the recovery once was not enough. The commonest reason the scan cannot answer is
-                // that Home Assistant is not up yet — a power cut brings the panel back first — and a
-                // one-shot retry means the panel is still holding, or already on the problem screen, long
-                // after HA returned. Nothing else re-drives it: the periodic sync skips a freshly-synced
-                // catalogue and skips again while the screen is awake, and no HA-reconnect trigger exists.
-                // So keep retrying on a widening interval, capped, for as long as the hold lasts.
-                //
-                // Unless the scan HAS answered and a flagged rule is waiting on a person. A resync cannot
-                // supply that decision, and one panel performed 794 of them over 2.75 days waiting for
-                // somebody to walk up to it. There the watchdog asks Home Assistant, on a much wider
-                // cadence, whether the dashboard itself changed, and otherwise stays quiet. The state
-                // machine owns every clock; see EntityBootstrapWatchdog.
-                val now = SystemClock.elapsedRealtime()
-                val blocking = EntityLearningRuntime.blockingIssueCount()
-                val problem = readActivityStateOffMain { EntityLearningRuntime.bootstrapProblem() }
-                if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return@launch
-                val action = entityBootstrapWatchdog.tick(
-                    nowMs = now,
-                    blockingIssues = blocking,
-                    problem = problem,
-                    syncRunning = EntityLearningRuntime.syncRunning(),
-                )
-                if (entityBootstrapWatchdog.heldOnDecision && !entityBootstrapDecisionLogged) {
-                    entityBootstrapDecisionLogged = true
-                    Log.i(
-                        TAG,
-                        "entity bootstrap held on a decision about $blocking flagged rule(s); catalogue resync " +
-                            "suspended until the dashboard changes or the rule is answered",
-                    )
-                } else if (!entityBootstrapWatchdog.heldOnDecision) {
-                    entityBootstrapDecisionLogged = false
-                }
-                when (action) {
-                    EntityBootstrapWatchdogAction.RESYNC -> {
-                        Log.w(
-                            TAG,
-                            "entity bootstrap held — watchdog resync ${entityBootstrapWatchdog.resyncs}",
-                        )
-                        scope.launch(Dispatchers.IO) { EntityLearningRuntime.retryBootstrap() }
-                    }
-                    EntityBootstrapWatchdogAction.PROBE -> {
-                        Log.i(TAG, "entity bootstrap held on a decision — dashboard change probe ${entityBootstrapWatchdog.probes}")
-                        scope.launch(Dispatchers.IO) { EntityLearningRuntime.probeDashboardChange() }
-                    }
-                    EntityBootstrapWatchdogAction.PRESENT_PROBLEM -> {
-                        showWaitingForEntityBootstrap()
-                        return@launch
-                    }
-                    EntityBootstrapWatchdogAction.IDLE -> Unit
-                }
-                if (blocking != entityBootstrapBlockedCount || problem != entityBootstrapProblem) {
-                    showWaitingForEntityBootstrap()
-                    return@launch
-                }
-                // Live milestone tick — the count climbing is the trust signal a spinner never was.
-                entityBootstrapMilestoneView?.takeIf { it.isAttachedToWindow }?.let {
-                    // Still on screen: the learning notice counts from when it was last seen, not first.
-                    BuiltinDashboard.restartAnnouncements.learningNoticeShown(now)
-                    val milestone = readActivityStateOffMain { EntityLearningRuntime.bootstrapMilestoneState() }
-                    if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return@launch
-                    paintEntityLearning(milestone)
-                }
-                main.postDelayed(check, ENTITY_BOOTSTRAP_CHECK_MS)
-                return@launch
-            }
-            entityBootstrapWatchdog.reset()
-            entityBootstrapDecisionLogged = false
-            // A sync may finish after the panel went dark. Do not create a WebView whose timers have no
-            // connection callback or dark-settle owner; the next poll after a real wake will build it.
-            if (deferReadyEntityBootstrapUntilWake(host.screenAwake)) {
-                main.postDelayed(check, ENTITY_BOOTSTRAP_CHECK_MS)
-                return@launch
-            }
-            entityFilterLease?.let(EntityFilterTelemetry::stop)
-            entityFilterLease = null
-            val filterEpoch = ++filterPreparationEpoch
-            val prepared = prepareEntityFilter(config)
-            if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) ||
-                readEpoch != entityBootstrapReadEpoch || filterEpoch != filterPreparationEpoch) return@launch
-            configureEntityFilter(config, prepared)
-            host.buildAndLoad(config)
-            }
+            scope.launch { pollEntityBootstrap(readEpoch) }
         }
     }
+
+    /** One bootstrap poll: keep holding (and re-post [entityBootstrapCheck]), or build the renderer. */
+    internal suspend fun pollEntityBootstrap(readEpoch: Long = ++entityBootstrapReadEpoch) {
+        val config = readActivityStateOffMain { readConfig() }
+        if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return
+        if (shouldHoldRendererForEntityBootstrap(config)) {
+            // The hold is structurally forbidden from being terminal. The enable-time sync has died
+            // silently on hardware more than once, each time leaving a happy spinner over a dead
+            // process until a human intervened. Two deadlines: at 30 seconds fire the same recovery
+            // the manual sync endpoint provides; at 90 seconds stop impersonating progress and show
+            // the problem screen, whose retry/disable buttons already exist.
+            //
+            // Firing the recovery once was not enough. The commonest reason the scan cannot answer is
+            // that Home Assistant is not up yet — a power cut brings the panel back first — and a
+            // one-shot retry means the panel is still holding, or already on the problem screen, long
+            // after HA returned. Nothing else re-drives it: the periodic sync skips a freshly-synced
+            // catalogue and skips again while the screen is awake, and no HA-reconnect trigger exists.
+            // So keep retrying on a widening interval, capped, for as long as the hold lasts.
+            //
+            // Unless the scan HAS answered and a flagged rule is waiting on a person. A resync cannot
+            // supply that decision, and one panel performed 794 of them over 2.75 days waiting for
+            // somebody to walk up to it. There the watchdog asks Home Assistant, on a much wider
+            // cadence, whether the dashboard itself changed, and otherwise stays quiet. The state
+            // machine owns every clock; see EntityBootstrapWatchdog.
+            val now = SystemClock.elapsedRealtime()
+            val blocking = EntityLearningRuntime.blockingIssueCount()
+            val problem = readActivityStateOffMain { EntityLearningRuntime.bootstrapProblem() }
+            if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return
+            val action = entityBootstrapWatchdog.tick(
+                nowMs = now,
+                blockingIssues = blocking,
+                problem = problem,
+                syncRunning = EntityLearningRuntime.syncRunning(),
+            )
+            if (entityBootstrapWatchdog.heldOnDecision && !entityBootstrapDecisionLogged) {
+                entityBootstrapDecisionLogged = true
+                Log.i(
+                    TAG,
+                    "entity bootstrap held on a decision about $blocking flagged rule(s); catalogue resync " +
+                        "suspended until the dashboard changes or the rule is answered",
+                )
+            } else if (!entityBootstrapWatchdog.heldOnDecision) {
+                entityBootstrapDecisionLogged = false
+            }
+            when (action) {
+                EntityBootstrapWatchdogAction.RESYNC -> {
+                    Log.w(
+                        TAG,
+                        "entity bootstrap held — watchdog resync ${entityBootstrapWatchdog.resyncs}",
+                    )
+                    scope.launch(Dispatchers.IO) { EntityLearningRuntime.retryBootstrap() }
+                }
+                EntityBootstrapWatchdogAction.PROBE -> {
+                    Log.i(TAG, "entity bootstrap held on a decision — dashboard change probe ${entityBootstrapWatchdog.probes}")
+                    scope.launch(Dispatchers.IO) { EntityLearningRuntime.probeDashboardChange() }
+                }
+                EntityBootstrapWatchdogAction.PRESENT_PROBLEM -> {
+                    showWaitingForEntityBootstrap()
+                    return
+                }
+                EntityBootstrapWatchdogAction.IDLE -> Unit
+            }
+            if (blocking != entityBootstrapBlockedCount || problem != entityBootstrapProblem) {
+                showWaitingForEntityBootstrap()
+                return
+            }
+            // Live milestone tick — the count climbing is the trust signal a spinner never was.
+            entityBootstrapMilestoneView?.takeIf { it.isAttachedToWindow }?.let {
+                // Still on screen: the learning notice counts from when it was last seen, not first.
+                BuiltinDashboard.restartAnnouncements.learningNoticeShown(now)
+                val milestone = readActivityStateOffMain { EntityLearningRuntime.bootstrapMilestoneState() }
+                if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || readEpoch != entityBootstrapReadEpoch) return
+                paintEntityLearning(milestone)
+            }
+            main.postDelayed(entityBootstrapCheck, ENTITY_BOOTSTRAP_CHECK_MS)
+            return
+        }
+        entityBootstrapWatchdog.reset()
+        entityBootstrapDecisionLogged = false
+        // Build even while the panel is dark: buildAndLoad owns dark settling (the load runs live for a
+        // window, then freezes), as on any cold start. Waiting for a wake here left a dark panel on the
+        // hold screen, with no dashboard, until someone walked past it.
+        entityFilterLease?.let(EntityFilterTelemetry::stop)
+        entityFilterLease = null
+        val filterEpoch = ++filterPreparationEpoch
+        val prepared = prepareEntityFilter(config)
+        if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) ||
+            readEpoch != entityBootstrapReadEpoch || filterEpoch != filterPreparationEpoch) return
+        configureEntityFilter(config, prepared)
+        host.buildAndLoad(config)
+    }
+
     /**
      * Waits for the setup wizard's entity-filter answer, then builds the renderer.
      *
@@ -265,7 +265,7 @@ internal class DashboardEntityGate(
     private val entityFilterAnswerCheck = object : Runnable {
         override fun run() {
             if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner)) return
-            val config = Config(activity)
+            val config = readConfig()
             if (entityFilterQuestionPending(
                     builtinRenderer = true,
                     haUrl = config.haUrl,
@@ -286,7 +286,7 @@ internal class DashboardEntityGate(
         if (host.destroyed || !BuiltinDashboard.ownsActivity(host.activityOwner) || !host.screenAwake || entityFilterNativeHold == null) return@Runnable
         entityFilterRetryDueAtMs = 0L
         entityFilterRetryPolicy.recordAttempt()
-        retryEntityFilter(Config(activity))
+        retryEntityFilter(readConfig())
     }
 
     suspend fun prepareEntityFilter(config: Config): PreparedEntityFilter = prepareEntityFilterOffMain(read = {
@@ -421,7 +421,7 @@ internal class DashboardEntityGate(
      * would keep the Set up tab and its banner nagging a panel whose user just declined the wizard.
      */
     private fun skipEntityFilterQuestion() {
-        val config = Config(activity)
+        val config = readConfig()
         config.setupEntityFilterAnswered = true
         config.setupHomeDashboardChosen = true
         main.removeCallbacks(entityFilterAnswerCheck)
@@ -440,7 +440,7 @@ internal class DashboardEntityGate(
         main.removeCallbacks(entityBootstrapCheck)
         main.removeCallbacks(entityFilterAnswerCheck)
         host.teardownWeb()
-        val config = Config(activity)
+        val config = readConfig()
         val surface = statusScreens.statusSurface(config)
         val notice = surface.notice
         surface.setBody(
@@ -463,7 +463,7 @@ internal class DashboardEntityGate(
         }
         override fun ignoreFlagged() = EntityLearningRuntime.ignoreBlockingIssues()
         override fun disableFilter() = EntityLearningRuntime.disableAutomaticFilter()
-        override fun retryFilter() = retryEntityFilter(Config(activity))
+        override fun retryFilter() = retryEntityFilter(readConfig())
         override fun retryScan() {
             // A user-driven retry restores hope: the watchdog clock restarts and the screen returns to the
             // progress presentation until the new deadline.
