@@ -119,8 +119,9 @@
     if (sessionId) body.sessionId = sessionId;
     var timeout = null;
     try {
-      var sent = window.PaneldTransport.request("proximity.calibration", body);
-      // A heartbeat that has not answered in 5 s is given up, so the next one is not held behind it.
+      // A heartbeat that has not answered in 5 s is given up, so the next one is not held behind it; its deadline
+      // lets the panel drop it too.
+      var sent = window.PaneldTransport.request("proximity.calibration", body, action === "heartbeat" ? { deadline_ms: 5000 } : undefined);
       var reply = await (action === "heartbeat" ? Promise.race([sent, new Promise(function (_, reject) {
         timeout = setTimeout(function () { reject(new Error("timeout")); }, 5000);
       })]) : sent);

@@ -36,7 +36,7 @@ class RemoteDashboardActionContractTest {
         application {
             routing {
                 post("/action") {
-                    handleRemoteAction(call, RemoteActionRouteDependencies(
+                    handleRemoteAction(call.op(), RemoteActionRouteDependencies(
                         authorizeSensitive = { _, _, _, _ -> true },
                         admit = { call, action ->
                             assertTrue(executeRemoteDashboardAction(
@@ -75,7 +75,7 @@ class RemoteDashboardActionContractTest {
         application {
             routing {
                 post("/action") {
-                    handleRemoteAction(call, RemoteActionRouteDependencies(
+                    handleRemoteAction(call.op(), RemoteActionRouteDependencies(
                         authorizeSensitive = { _, _, _, _ -> true },
                         admit = { call, action ->
                             assertTrue(executeRemoteDashboardAction(
@@ -110,9 +110,9 @@ class RemoteDashboardActionContractTest {
         application {
             routing {
                 post("/action") {
-                    handleRemoteAction(call, RemoteActionRouteDependencies(
+                    handleRemoteAction(call.op(), RemoteActionRouteDependencies(
                         authorizeSensitive = { call, operation, payload, summary ->
-                            authorizeSensitiveRequest(call, true, peer, operation, payload, summary, broker)
+                            authorizeSensitiveRequest(call.http!!, true, peer, operation, payload, summary, broker)
                         },
                         admit = { call, action ->
                             admitted += action

@@ -225,7 +225,7 @@ class PaneldServer internal constructor(
 ) {
     /** The stub's 410 answers, printed in `/diag` (protocol section 20.7). */
     private val goneCounts = GoneCounts()
-    private val stubBlobs = StubBlobs()
+    private val stubBlobs = StubBlobs(java.io.File(cacheDir, "ui-blobs"))
 
     /** The diag text, with the stub's 410 counts; `/diag`, `/api/v1/diag` and the `diag` read all answer it. */
     private fun diagText(): String = managementObservations.diagStaleOk().trimEnd('\n') + "\n" + goneCounts.text()

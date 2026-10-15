@@ -9,7 +9,10 @@ const asset = process.argv[2] || new URL('../../app/src/main/assets/logs.js', im
 function element(id) {
   return {
     id,
-    textContent: '',
+    text: '',
+    get textContent() { return this.text; },
+    // Setting the text of an element replaces its children, as in a browser.
+    set textContent(value) { this.text = value; this.childNodes = []; },
     value: id === 'lg-level' ? 'V' : '',
     checked: id === 'lg-follow',
     childNodes: [],
@@ -137,4 +140,24 @@ test('logs keeps raw SSE evidence verbatim and falls back to English when untran
   assert.equal(rig.nodes['lg-pause'].textContent, '▶ Resume');
   rig.window.lgPause();
   assert.equal(rig.nodes['lg-pause'].textContent, '⏸ Pause');
+});
+
+test('a reopened log stream says live and its backlog replaces the lines shown, not doubles them', async () => {
+  const rig = await loadLogs({}, false);
+  const line = '09-03 12:34:56.789  123  456 I Tag: one';
+  rig.streams[0].onopen();
+  rig.streams[0].onmessage({ data: line });
+  assert.equal(rig.nodes['lg-out'].childNodes.length, 1);
+
+  const visibility = () => rig.events.filter(({ name }) => name === 'visibilitychange').forEach(({ callback }) => callback());
+  rig.document.hidden = true;
+  visibility();
+  assert.equal(rig.nodes['lg-state'].textContent, '· paused (tab hidden)');
+  rig.document.hidden = false;
+  visibility();
+  // The reopened stream sends the same backlog again.
+  rig.streams[1].onopen();
+  rig.streams[1].onmessage({ data: line });
+  assert.equal(rig.nodes['lg-state'].textContent, '· app · live');
+  assert.equal(rig.nodes['lg-out'].childNodes.length, 1);
 });

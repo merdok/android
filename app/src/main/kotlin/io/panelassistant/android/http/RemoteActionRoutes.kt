@@ -2,18 +2,16 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.security.SensitiveOperation
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respondText
 
 internal data class RemoteActionRouteDependencies(
-    val authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
-    val admit: suspend (ApplicationCall, String) -> Unit,
+    val authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
+    val admit: suspend (OpCall, String) -> Unit,
 )
 
 /** HTTP handler for the software-navbar actions. Dashboard foregrounding remains routine; Reload
  * deliberately restarts a renderer and therefore shares the exact-request physical-approval policy
  * used by the other sensitive process and power operations. */
-internal suspend fun handleRemoteAction(call: ApplicationCall, dependencies: RemoteActionRouteDependencies) {
+internal suspend fun handleRemoteAction(call: OpCall, dependencies: RemoteActionRouteDependencies) {
     val parameters = receiveBoundedFormParameters(call) ?: return
     val action = parameters["a"]
     if (action !in REMOTE_ACTIONS) {

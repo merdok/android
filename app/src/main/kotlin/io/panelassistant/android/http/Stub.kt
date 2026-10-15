@@ -154,66 +154,88 @@ internal class GoneCounts(private val limit: Int = 64) {
  * One-use blob transfers on the stub (protocol section 20.5): a token lives ten minutes and is spent by its
  * first use. [put] holds a reply's bytes for one `GET /blob/<token>`; [mintUpload] answers `blob.upload` with a
  * token one `PUT /blob/<token>` fills; [take] hands those bytes to the request whose `args.blob` names them,
- * only when the reference's size and SHA-256 match.
+ * only when the reference's size and SHA-256 match. An upload is written to a file in [dir] as it arrives, never
+ * held in memory, and the file is deleted once read, refused or expired.
  */
 internal class StubBlobs(
-    private val maxBytes: Int = MAX_BYTES,
+    private val dir: java.io.File? = null,
+    private val maxBytes: Long = MAX_BYTES,
     private val ttlMs: Long = 10 * 60_000L,
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : ManageBlobs {
     private class Slot(
         val upload: Boolean,
         val expiresAt: Long,
-        @Volatile var bytes: ByteArray?,
+        /** A reply's bytes, for a download. */
+        val bytes: ByteArray?,
         val type: String,
         /** For an upload: the most bytes its PUT may carry (the size `blob.upload` declared, within the cap). */
         val limit: Long = 0,
-    )
+    ) {
+        /** For an upload, once its PUT completed: the file holding the body, its size and SHA-256. */
+        @Volatile var file: java.io.File? = null
+        @Volatile var size: Long = -1
+        @Volatile var sha256: String = ""
+
+        fun discard() { file?.delete() }
+    }
 
     private val slots = ConcurrentHashMap<String, Slot>()
     private val random = SecureRandom()
+
+    init {
+        // Uploads a previous process left behind are never readable again.
+        dir?.listFiles()?.forEach { it.delete() }
+    }
 
     private fun mint(slot: Slot): String {
         purge()
         val token = ByteArray(16).also(random::nextBytes).joinToString("") { "%02x".format(it) }
         slots[token] = slot
         // Bound what a stream of unread transfers can hold: the oldest is dropped first.
-        while (slots.size > MAX_SLOTS) slots.entries.minByOrNull { it.value.expiresAt }?.let { slots.remove(it.key) }
+        while (slots.size > MAX_SLOTS) slots.entries.minByOrNull { it.value.expiresAt }?.let { slots.remove(it.key)?.discard() }
         return token
     }
 
     private fun purge() {
         val now = nowMs()
-        slots.entries.removeIf { it.value.expiresAt <= now }
+        slots.entries.filter { it.value.expiresAt <= now }.forEach { slots.remove(it.key)?.discard() }
     }
 
     override fun put(bytes: ByteArray, type: String): JSONObject {
         val token = mint(Slot(upload = false, expiresAt = nowMs() + ttlMs, bytes = bytes, type = type))
-        return reference(token, bytes, type)
+        return reference(token, bytes.size.toLong(), sha256Hex(bytes), type)
     }
 
     /**
      * Answer `blob.upload`: where the reader PUTs the bytes it then names in `args.blob`. A declared [size] bounds
-     * that PUT; without one the cap does.
+     * that PUT; without one the cap does. Null when the declared size is over the cap: the upload is refused, never
+     * quietly lowered.
      */
-    fun mintUpload(type: String, size: Long? = null): JSONObject {
-        val limit = size?.takeIf { it in 0..maxBytes.toLong() } ?: maxBytes.toLong()
+    fun mintUpload(type: String, size: Long? = null): JSONObject? {
+        if (size != null && size > maxBytes) return null
+        val limit = size ?: maxBytes
         val token = mint(Slot(upload = true, expiresAt = nowMs() + ttlMs, bytes = null, type = type, limit = limit))
         return JSONObject().put("url", "/blob/$token").put("max_size", limit)
     }
 
     /** The most bytes a PUT to [token] may carry, or null when [token] names no open upload. */
     fun uploadLimit(token: String): Long? =
-        slots[token]?.takeIf { it.upload && it.bytes == null && it.expiresAt > nowMs() }?.limit
+        slots[token]?.takeIf { it.upload && it.file == null && it.expiresAt > nowMs() }?.limit
 
-    override fun take(ref: JSONObject): ByteArray? {
+    override fun take(ref: JSONObject): java.io.InputStream? {
         val token = ref.optString("url").substringAfterLast('/')
         val slot = slots.remove(token)?.takeIf { it.upload && it.expiresAt > nowMs() } ?: return null
-        val bytes = slot.bytes ?: return null
-        if (ref.optLong("size", -1) != bytes.size.toLong() || !ref.optString("sha256").equals(sha256Hex(bytes), ignoreCase = true)) {
+        val file = slot.file ?: return null
+        if (ref.optLong("size", -1) != slot.size || !ref.optString("sha256").equals(slot.sha256, ignoreCase = true)) {
+            slot.discard()
             return null
         }
-        return bytes
+        return object : java.io.FilterInputStream(java.io.FileInputStream(file)) {
+            override fun close() {
+                try { super.close() } finally { file.delete() }
+            }
+        }
     }
 
     /** The download [token] names, spent by this read; null when there is none. */
@@ -222,20 +244,41 @@ internal class StubBlobs(
         return (slot.bytes ?: return null) to slot.type
     }
 
-    /** Fill the upload [token] once; false when there is no such open upload. */
-    fun fill(token: String, bytes: ByteArray): Boolean {
-        val slot = slots[token]?.takeIf { it.upload && it.bytes == null && it.expiresAt > nowMs() } ?: return false
-        slot.bytes = bytes
-        return true
+    /**
+     * Fill the upload [token] once from [body], at most [limit] bytes, into a file; answers the reference, or null
+     * when there is no such open upload. Throws [ByteLimitExceeded] past the limit, leaving nothing behind.
+     */
+    fun fill(token: String, limit: Long, body: java.io.InputStream): JSONObject? {
+        val slot = slots[token]?.takeIf { it.upload && it.file == null && it.expiresAt > nowMs() } ?: return null
+        dir?.mkdirs()
+        val file = java.io.File.createTempFile("blob", ".part", dir)
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val size = try {
+            java.security.DigestOutputStream(java.io.FileOutputStream(file), digest).use { BoundedStreams.copy(body, it, limit) }
+        } catch (error: Throwable) {
+            file.delete()
+            throw error
+        }
+        val sha = digest.digest().joinToString("") { "%02x".format(it) }
+        synchronized(slot) {
+            if (slot.file != null || slots[token] !== slot) {
+                file.delete()
+                return null
+            }
+            slot.size = size
+            slot.sha256 = sha
+            slot.file = file
+        }
+        return reference(token, size, sha, "application/octet-stream")
     }
 
     companion object {
-        /** Backups reach 64 MiB (section 20.1). */
-        const val MAX_BYTES = 64 * 1024 * 1024
+        /** The largest body an HTTP route accepts (an APK); each route still bounds its own body when it reads it. */
+        const val MAX_BYTES = PaneldServer.MAX_APK_UPLOAD_BYTES
         private const val MAX_SLOTS = 4
 
-        fun reference(token: String, bytes: ByteArray, type: String): JSONObject = JSONObject()
-            .put("url", "/blob/$token").put("size", bytes.size).put("sha256", sha256Hex(bytes)).put("type", type)
+        fun reference(token: String, size: Long, sha256: String, type: String): JSONObject = JSONObject()
+            .put("url", "/blob/$token").put("size", size).put("sha256", sha256).put("type", type)
     }
 }
 
@@ -277,17 +320,12 @@ internal fun Route.stubRoutes(
             ?: return@put call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
         val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
         if (declared != null && declared > limit) return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
-        val bytes = try {
-            java.io.ByteArrayOutputStream().also { out ->
-                call.receiveChannel().toInputStream().use { BoundedStreams.copy(it, out, limit) }
-            }.toByteArray()
+        val reference = try {
+            call.receiveChannel().toInputStream().use { blobs.fill(token, limit, it) }
         } catch (_: ByteLimitExceeded) {
             return@put call.respondText("too large\n", status = HttpStatusCode.PayloadTooLarge)
-        }
-        when {
-            !blobs.fill(token, bytes) -> call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
-            else -> call.respondText(StubBlobs.reference(token, bytes, "application/octet-stream").toString(), ContentType.Application.Json)
-        }
+        } ?: return@put call.respondText("no such upload\n", status = HttpStatusCode.NotFound)
+        call.respondText(reference.toString(), ContentType.Application.Json)
     }
     }
     route(StubEndpoints.UI, HttpMethod.Get) {
@@ -328,6 +366,9 @@ private val PAGE_QUERY_ARGS = listOf("lang", "ha_lang")
 /** The `args` key a page request carries the browser's `Accept-Language` in. */
 internal const val ACCEPT_LANGUAGE_ARG = "accept_language"
 
+/** The `args` key the socket door carries its upgrade request's `Host` in; a requester's value is replaced. */
+internal const val HOST_ARG = "request_host"
+
 /**
  * `GET /ui`: the stub's door (protocol section 20.2). One text frame per request object; the origin is the
  * peer's address whatever the frame says; replies, interim `pending_approval` answers (marked `interim`) and
@@ -349,6 +390,8 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
             launch { close(CloseReason(CloseReason.Codes.GOING_AWAY, "panel runtime restarted")) }
         }
         val peerAddress = call.request.origin.remoteAddress
+        val upgradeHost = call.request.headers[HttpHeaders.Host]
+        val upgradeLanguage = call.request.headers[HttpHeaders.AcceptLanguage]
         // Approvals bind to the peer; subscriptions belong to this socket alone.
         val origin = CommandOrigin.peer(peerAddress).withConnection(UUID.randomUUID().toString())
         // Hardened mode keeps the door to loopback: a LAN socket open when it turns on is closed at once.
@@ -380,6 +423,8 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
         fun answer(commandId: String, reply: ManageReply) = send(
             JSONObject().put("command_id", commandId).put("outcome", reply.outcome)
                 .apply { reply.code?.let { put("code", it) } }
+                // The route's own status, when it did not succeed, as the HTTP transport reports it.
+                .apply { if (reply.status !in 200..299) put("status", reply.status) }
                 .apply { if (reply.result != null) put("result", reply.result) }
                 .apply { replyHeaders(reply)?.let { put("headers", it) } },
         )
@@ -399,6 +444,11 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                     continue
                 }
                 val args = request.optJSONObject("args") ?: JSONObject()
+                // Every operation from this socket reads the headers its page's own HTTP request would carry: the
+                // validated Host (OAuth binds the panel's origin to it) and, unless a request names its own, the
+                // browser's language.
+                if (upgradeHost != null) args.put(HOST_ARG, upgradeHost) else args.remove(HOST_ARG)
+                if (!args.has(ACCEPT_LANGUAGE_ARG)) upgradeLanguage?.let { args.put(ACCEPT_LANGUAGE_ARG, it) }
                 when (request.optString("kind")) {
                     "command" -> {
                         val deadlineMs = request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)
@@ -467,7 +517,8 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                                             .put("value", if (known) value ?: JSONObject.NULL else JSONObject.NULL),
                                     ),
                                 )
-                                launch { answered.await(); send(update, after = delivered) }
+                                // An update racing this subscription's unsubscribe is dropped, never sent after its answer.
+                                launch { answered.await(); if (subscriptions.containsKey(commandId)) send(update, after = delivered) else delivered() }
                             }, args = familyArgs)
                             if (subscription == null) {
                                 answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
@@ -482,13 +533,16 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                             answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED)
                         }
                         // Section 20.5: the door answers this itself, without reaching the panel's operations.
-                        "blob.upload" -> answer(
-                            commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED,
-                            result = blobs.mintUpload(
-                                args.optString("type").ifEmpty { ContentType.Application.OctetStream.toString() },
-                                args.optLong("size", -1).takeIf { it >= 0 },
-                            ),
-                        )
+                        "blob.upload" -> when (val minted = blobs.mintUpload(
+                            args.optString("type").ifEmpty { ContentType.Application.OctetStream.toString() },
+                            args.optLong("size", -1).takeIf { it >= 0 },
+                        )) {
+                            null -> answer(
+                                commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE,
+                                JSONObject().put("error", "too-large").put("max_size", StubBlobs.MAX_BYTES),
+                            )
+                            else -> answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED, result = minted)
+                        }
                         else -> dispatcher.manage(
                             commandId, op, args, origin, blobs,
                             onPending = { interim(commandId) },
@@ -507,13 +561,14 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
 }
 
 /**
- * The `x-*` headers a route set (screenshot id, input route, profile presentation), lower-cased as the page
- * transport reads them over HTTP; null when there are none.
+ * The `x-*` headers a route set (screenshot id, input route, profile presentation) and a download's
+ * `content-disposition` (its file name), lower-cased as the page transport reads them over HTTP; null when there
+ * are none.
  */
 private fun replyHeaders(reply: ManageReply): JSONObject? {
     val named = reply.headers.filter { (name, _) ->
         val lower = name.lowercase()
-        lower.startsWith("x-") && lower != "x-frame-options" && lower != "x-content-type-options"
+        (lower.startsWith("x-") && lower != "x-frame-options" && lower != "x-content-type-options") || lower == "content-disposition"
     }
     if (named.isEmpty()) return null
     return JSONObject().apply { named.forEach { (name, value) -> put(name.lowercase(), value) } }

@@ -141,7 +141,7 @@ internal class ManageOpCall(
     // An embedded request's `lang` is the Home Assistant user's language (the embed switch's), which stands in
     // for Automatic and never overrides a chosen language, so it is not an explicit `?lang`.
     override val parameters: Parameters = managed.args.asParameters(
-        setOfNotNull(ACCEPT_LANGUAGE_ARG, RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
+        setOfNotNull(ACCEPT_LANGUAGE_ARG, HOST_ARG, RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
     )
 
     /**
@@ -155,9 +155,12 @@ internal class ManageOpCall(
         parameters,
         Headers.build {
             append(io.ktor.http.HttpHeaders.ContentType, rawBodyType ?: ContentType.Application.Json.toString())
+            // A managed caller reads every answer as data, so a route that offers JSON or an HTML page answers JSON.
+            append(io.ktor.http.HttpHeaders.Accept, ContentType.Application.Json.toString())
             managed.args.optString(ACCEPT_LANGUAGE_ARG).takeIf(String::isNotBlank)?.let {
                 append(io.ktor.http.HttpHeaders.AcceptLanguage, it)
             }
+            managed.args.optString(HOST_ARG).takeIf(String::isNotBlank)?.let { append(io.ktor.http.HttpHeaders.Host, it) }
         },
         OpCallOrigin(managed.origin.peerAddress.orEmpty(), method),
         method,
@@ -179,6 +182,11 @@ internal class ManageOpCall(
 
     override suspend fun respondText(text: String, contentType: ContentType?, status: HttpStatusCode?) {
         val type = contentType ?: ContentType.Text.Plain
+        // A download (an attachment) keeps its exact bytes, as the file HTTP would have saved.
+        if (managed.blobs != null && extraHeaders.any { (name, value) ->
+                name.equals(io.ktor.http.HttpHeaders.ContentDisposition, ignoreCase = true) && value.startsWith("attachment", ignoreCase = true)
+            }
+        ) return respondBytes(text.toByteArray(Charsets.UTF_8), type, status)
         val json = type.match(ContentType.Application.Json)
         val body: Any = if (json) parseJsonBody(text) else text
         answer(status ?: HttpStatusCode.OK, body, type)
@@ -217,8 +225,7 @@ internal class ManageOpCall(
     override suspend fun receiveStream(): InputStream {
         val ref = managed.args.optJSONObject("blob")
         if (ref != null) {
-            val bytes = managed.blobs?.take(ref) ?: throw java.io.IOException("blob unavailable")
-            return ByteArrayInputStream(bytes)
+            return managed.blobs?.take(ref) ?: throw java.io.IOException("blob unavailable")
         }
         (managed.args.opt(RAW_BODY_ARG) as? String)?.let { return ByteArrayInputStream(it.toByteArray(Charsets.UTF_8)) }
         return ByteArrayInputStream(managed.args.toString().toByteArray(Charsets.UTF_8))

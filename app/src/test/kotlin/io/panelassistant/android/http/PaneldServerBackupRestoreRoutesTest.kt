@@ -315,9 +315,8 @@ class PaneldServerBackupRestoreRoutesTest {
                 val bytes = NAMED_BACKUP.toByteArray()
                 val blobs = StubBlobs()
                 fun restore(id: String, peer: String): ManageReply {
-                    val token = blobs.mintUpload("application/octet-stream").getString("url").substringAfterLast('/')
-                    assertTrue(blobs.fill(token, bytes))
-                    val args = JSONObject().put("blob", StubBlobs.reference(token, bytes, "application/octet-stream"))
+                    val token = blobs.mintUpload("application/octet-stream")!!.getString("url").substringAfterLast('/')
+                    val args = JSONObject().put("blob", blobs.fill(token, bytes.size.toLong(), bytes.inputStream())!!)
                     val answer = LinkedBlockingQueue<ManageReply>()
                     fixture.door.manage(id, "restore", args, CommandOrigin.peer(peer), blobs, {}) { answer.put(it) }
                     val reply = answer.poll(20, TimeUnit.SECONDS)

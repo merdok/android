@@ -82,9 +82,14 @@
     buf = [];
     out.textContent = "";
     state(i18nText("logs.state.connecting", "connecting…"));
-    es = window.PaneldTransport.subscribe("logs", function (lines, known) {
+    es = window.PaneldTransport.subscribe("logs", function (lines, known, first) {
       if (known !== "known") { state(i18nText("logs.state.reconnecting", "reconnecting…")); return; }   // the transport reconnects
-      if (!lines.length) { state(STATE_TEXT[source].live()); return; }
+      if (first) {
+        // A (re)opened stream starts with its backlog, which replaces the lines shown so far.
+        buf = [];
+        out.textContent = "";
+        state(paused ? STATE_TEXT[source].paused() : STATE_TEXT[source].live());
+      }
       lines.forEach(function (line) { append({ raw: line, lvl: levelOf(line) }); });
     }, { source: source });
   }

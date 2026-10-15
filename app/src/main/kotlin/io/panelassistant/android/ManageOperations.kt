@@ -50,7 +50,8 @@ internal data class ManageReply(
  */
 internal interface ManageBlobs {
     fun put(bytes: ByteArray, type: String): JSONObject
-    fun take(ref: JSONObject): ByteArray?
+    /** The uploaded body [ref] names, read once; closing it releases the bytes. */
+    fun take(ref: JSONObject): java.io.InputStream?
 }
 
 /** One named request as its handler sees it. */
@@ -309,7 +310,7 @@ internal class ManageOperations(
      * Follow [family] for [origin]. The first update carries the current value; later ones follow changes,
      * never more often than the family's floor, with at most one update outstanding (a newer value replaces
      * an unsent one). One owner ([CommandOrigin.subscriptionOwner]: the socket, or the origin) subscribing twice
-     * to a family shares one subscription, whose updates go to the newest sink. Null when the family is unknown
+     * to a family shares one subscription, whose updates go to every subscriber. Null when the family is unknown
      * or the owner already holds the most it may. [args] are passed to every read of the family; a shared
      * subscription reads with the newest.
      */
@@ -390,7 +391,11 @@ internal class ManageOperations(
             handles += handle
             replaceSink(newSink, newArgs)
             // A new log viewer gets its own source's backlog first, as a new stream does.
-            if (definition.append && worker != null) { worker?.cancel(); start() }
+            if (definition.append && worker != null) {
+                worker?.cancel()
+                synchronized(slot) { unsent = null }
+                start()
+            }
             return handle
         }
 
@@ -483,14 +488,19 @@ internal class ManageOperations(
             if (send) deliver(update)
         }
 
+        /** Sends [update] to every live subscriber; the slot frees once each has sent it. */
         private fun deliver(update: Update) {
-            val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
-            sink.update(update.value, update.known) {
-                if (!delivered.compareAndSet(false, true)) return@update
-                val next = synchronized(slot) {
-                    unsent.also { if (it == null) outstanding = false else unsent = null }
+            val sinks = synchronized(lock) { handles.map { it.handleSink } }.ifEmpty { listOf(sink) }
+            val remaining = java.util.concurrent.atomic.AtomicInteger(sinks.size)
+            sinks.forEach { target ->
+                val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
+                target.update(update.value, update.known) {
+                    if (!delivered.compareAndSet(false, true) || remaining.decrementAndGet() > 0) return@update
+                    val next = synchronized(slot) {
+                        unsent.also { if (it == null) outstanding = false else unsent = null }
+                    }
+                    if (next != null && worker?.isActive == true) deliver(next)
                 }
-                if (next != null && worker?.isActive == true) deliver(next)
             }
         }
 

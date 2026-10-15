@@ -736,7 +736,7 @@
     var request = ++cfg.autoSleepRequest;
     window.PaneldTransport.request("auto_sleep")
       .then(function (reply) {
-        if (reply.outcome !== "applied") { var statusError = new Error("status"); statusError.status = reply.code || reply.outcome; statusError.outcome = reply.outcome; throw statusError; }
+        if (reply.outcome !== "applied") { var statusError = new Error("status"); statusError.status = reply.status || reply.code || reply.outcome; statusError.outcome = reply.outcome; throw statusError; }
         return reply.result;
       })
       .then(function (body) {

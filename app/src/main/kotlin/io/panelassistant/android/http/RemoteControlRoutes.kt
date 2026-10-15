@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicLong
+import org.json.JSONObject
 
 /** One lifecycle-owned dispatcher for navigation, tap admission and bounded tap/capture work. */
 internal class RemoteControlRoutes(
@@ -231,7 +232,7 @@ internal class RemoteControlRoutes(
     suspend fun admitTap(call: OpCall, x: Float, y: Float, capture: Boolean) =
         respondRemoteAdmission(call, RemoteControl.Tap(x, y, capture = capture))
 
-    suspend fun allowReboot(call: ApplicationCall): Boolean = try {
+    suspend fun allowReboot(call: OpCall): Boolean = try {
         system.requireRebootAllowed()
         true
     } catch (refusal: DeviceCredentialRebootRefusalException) {
@@ -243,9 +244,9 @@ internal class RemoteControlRoutes(
         false
     }
 
-    suspend fun admitAction(call: ApplicationCall, action: String) {
+    suspend fun admitAction(call: OpCall, action: String) {
         if (action == "reboot" && !allowReboot(call)) return
-        respondRemoteAdmission(call.op(), RemoteControl.Action(action))
+        respondRemoteAdmission(call, RemoteControl.Action(action))
     }
 
     fun closeAndJoin(timeoutMs: Long): Boolean = remoteControls.closeAndJoin(timeoutMs)
@@ -264,7 +265,7 @@ internal class RemoteControlRoutes(
 
 internal fun Route.remoteControlRoutes(
     owner: () -> RemoteControlRoutes,
-    authorizeSensitive: suspend (ApplicationCall, SensitiveOperation, String, String) -> Boolean,
+    authorizeSensitive: suspend (OpCall, SensitiveOperation, String, String) -> Boolean,
 ) {
     // Inject a tap at device pixel (x,y). capture=1 is the Dashboard overlay PoC's
     // combined one-tap/settled-screenshot operation; omission preserves legacy 202 admission.
@@ -282,7 +283,7 @@ internal fun Route.remoteControlRoutes(
         } else {
             owner().admitTap(call, x, y, capture)
         }
-    } }
+    }
     // On-screen Controls card (software navbar) for panels with no physical nav bar.
     post("/action") {
         handleRemoteAction(
@@ -297,5 +298,14 @@ internal fun Route.remoteControlRoutes(
                 },
             ),
         )
+    } }
+    // Section 20.6 names the Controls card's Dashboard button `action.dashboard`: `action` with `a=dashboard`.
+    manageTable()?.let { table ->
+        table.register("action.dashboard", io.panelassistant.android.ManageKind.COMMAND) { request ->
+            val action = table["action"] ?: return@register io.panelassistant.android.ManageReply.refused("unknown_command")
+            action.handler.handle(io.panelassistant.android.ManageRequest(
+                "action", JSONObject(request.args.toString()).put("a", "dashboard"), request.origin, request.blobs,
+            ))
+        }
     }
 }

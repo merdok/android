@@ -1,7 +1,7 @@
 // The page's one transport (native transport protocol section 20). Every page module reads, commands and
 // subscribes through window.PaneldTransport and never names an HTTP path:
 //
-//   request(op, args[, options]) -> Promise<{outcome, code, result, headers?}>   a 20.2 `manage` request
+//   request(op, args[, options]) -> Promise<{outcome, code, result, headers?, status?}>  a 20.2 `manage` request
 //   command(channel, value)      -> Promise<{outcome, code}>                     a 20.2 channel command
 //   subscribe(family, onValue[, args]) -> handle with close()                    a 20.4 subscription
 //   close()                                                                      ends every subscription
@@ -9,7 +9,8 @@
 // `outcome` is applied, superseded, pending_approval, refused or failed; a non-applied answer carries a
 // section 11 `code`, and `result` always carries the body the route returns today (an error body too).
 // A request that never reached the panel (network down, socket closed) rejects instead of resolving.
-// `onValue(value, state)` receives the family's body with state "known", or null with "unavailable".
+// `onValue(value, state, first)` receives the family's body with state "known", or null with "unavailable";
+// `first` marks the first known value after the subscription was (re)opened.
 //
 // Two implementations behind it:
 //  - WebSocket to the stub door `ws(s)://<page host>/ui` when <body data-ui-socket> is present (its
@@ -25,7 +26,10 @@
   // ---- The one name -> route table (20.6). Paths are under api/v1/ unless they start with "/".
   // "METHOD path" or ["METHOD path", options]. Options: b = POST body ("form" default, "json", "raw":
   // args.blob or args.body is the body and the other args go to the query), q = args sent in the query of
-  // a POST, h = {arg: request header}, H = fixed request headers, f = fixed args, t = raw body type.
+  // a POST, h = {arg: request header}, H = fixed request headers, f = fixed args, t = raw body type,
+  // c = let the browser cache the answer as the route's headers allow.
+  // A route that answers an HTML form page unless asked for JSON; the socket door always asks for JSON.
+  var JSON_ANSWER = { Accept: "application/json" };
   var ROUTES = {
     "page.info": "GET /", "page.configure": "GET /configure", "page.setup": "GET /setup", "page.profiles": "GET /profiles",
     "page.install": "GET /install", "page.logs": "GET /logs", "page.entities": "GET /entities",
@@ -46,8 +50,7 @@
     "camera.status": "GET camera/status",
     "companion.repair_url": "POST companion/repair-url",
     "config": "GET config",
-    // The route answers its HTML form page unless asked for JSON, as the Configure page always has.
-    "settings": ["POST config", { H: { Accept: "application/json" } }],
+    "settings": ["POST config", { H: JSON_ANSWER }],
     "config.schema": "GET config/schema", "config.discovery": "GET config/discovery", "config.ha_area": "GET config/ha-area",
     "config.home_dashboards": "GET config/home-dashboards",
     "config.export": "GET config/export",
@@ -65,7 +68,7 @@
     "dashboard.entities.sync.set": ["POST dashboard/entities/sync", { b: "json" }],
     "dashboard.entities.export": "GET dashboard/entities/export",
     "dashboard.entity_filter": "GET dashboard/entity-filter", "dashboard.entity_filter.set": "POST dashboard/entity-filter",
-    "display": "GET display", "display.density": "POST display/density",
+    "display": "GET display", "display.density": ["POST display/density", { H: JSON_ANSWER }],
     "guard_db.clock": "GET guard-db/clock", "guard_db.status": "GET guard-db/status", "guard_db.evidence": "GET guard-db/evidence",
     "guard_db.arm": "POST guard-db/arm", "guard_db.stage": "POST guard-db/stage", "guard_db.discard": "POST guard-db/discard",
     "guard_db.evidence.retire": "POST guard-db/evidence/retire",
@@ -85,8 +88,8 @@
     "migration_notice.dismiss": "POST migration-notice/dismiss",
     "peers": "GET peers",
     "perf": "GET perf", "perf.binding": "GET perf/binding",
-    "power_safety": "GET power-safety", "power_safety.acknowledge": "POST power-safety/acknowledge",
-    "power_safety.repair": "POST power-safety/repair",
+    "power_safety": "GET power-safety", "power_safety.acknowledge": ["POST power-safety/acknowledge", { H: JSON_ANSWER }],
+    "power_safety.repair": ["POST power-safety/repair", { H: JSON_ANSWER }],
     "profiles": "GET profiles", "profiles.revision": ["GET profiles/{id}/revisions/{revision}", { H: { Accept: "application/yaml, text/yaml, text/plain" } }],
     "profiles.device_draft": ["GET profiles/device-draft", { H: { Accept: "application/yaml, text/yaml, text/plain" } }], "profiles.drivers": "GET profiles/drivers",
     "profiles.report": "GET profiles/report", "profiles.schema": "GET profiles/schema", "profiles.template": ["GET profiles/template", { H: { Accept: "application/yaml, text/yaml, text/plain" } }],
@@ -100,13 +103,14 @@
     "proximity": "GET proximity",
     "proximity.calibration": ["POST proximity/calibration", { H: { "X-Proximity-UI": "1" } }],
     "radio": "GET radio", "radio.join": "POST radio/join",
-    "screenshot": "GET screenshot.png",
+    // The route marks a cached capture immutable, so the browser keeps it for the page's placeholder.
+    "screenshot": ["GET screenshot.png", { c: 1 }],
     "sensors": "GET sensors",
     "setup": ["GET setup", { h: { presence: "X-ha-paneld-setup-presence" } }],
     "setup.attest": "POST setup/attest", "setup.entity_filter": "POST setup/entity-filter",
     "setup.home_dashboard": "POST setup/home-dashboard", "setup.identity": "POST setup/identity",
     "status": "GET status",
-    "tame": "POST tame", "tame.record": "POST tame/record", "tame.suggest": "GET tame/suggest",
+    "tame": ["POST tame", { H: JSON_ANSWER }], "tame.record": "POST tame/record", "tame.suggest": "GET tame/suggest",
     "uninstall": "POST uninstall", "updates.ignore": "POST updates/ignore",
     "voice.microphone": "GET voice/microphone", "voice.pipelines": "GET voice/pipelines",
     "voice.wake_words": "GET voice/wake-words", "voice.wake_words.set": ["POST voice/wake-words", { b: "json" }],
@@ -160,7 +164,7 @@
   function httpRequestFor(op, args) {
     var r = route(op);
     if (!r) return null;
-    var rest = {}, headers = {}, init = { method: r.method, cache: "no-store", headers: headers };
+    var rest = {}, headers = {}, init = { method: r.method, cache: r.options.c ? "default" : "no-store", headers: headers };
     var options = r.options;
     Object.keys(args || {}).forEach(function (key) { rest[key] = args[key]; });
     Object.keys(options.f || {}).forEach(function (key) { rest[key] = options.f[key]; });
@@ -235,6 +239,7 @@
       return read.then(function (body) {
         var reply = outcomeFor(response.status, body);
         reply.result = body;
+        if (response.status < 200 || response.status > 299) reply.status = response.status;
         var headers = responseHeaders(response);
         if (headers) reply.headers = headers;
         return reply;
@@ -258,8 +263,11 @@
   HttpTransport.prototype.start = function (sub) {
     var self = this, family = FAMILIES[sub.family];
     if (family.append) return startEventStream(sub);
+    // Each start owns its loop: a poll still in flight from before a stop ends with it.
+    var generation = sub.generation = (sub.generation || 0) + 1;
     var last = null;
     function poll() {
+      if (sub.generation !== generation) return;
       // The subscription's args reach every read of the family, as the panel passes them (a wizard's presence).
       var reads = family.reads, single = reads.length === 1;
       Promise.all(reads.map(function (op) {
@@ -271,15 +279,15 @@
         var value = bodies[0];
         if (!single) { value = {}; reads.forEach(function (op, i) { value[op] = bodies[i]; }); }
         var text = typeof value === "string" ? value : JSON.stringify(value);
-        if (sub.stopped || text === last) return;
+        if (sub.stopped || sub.generation !== generation || text === last) return;
         last = text;
         sub.onValue(value, "known");
       }, function () {
-        if (sub.stopped || last === "") return;
+        if (sub.stopped || sub.generation !== generation || last === "") return;
         last = "";
         sub.onValue(null, "unavailable");
       }).then(function () {
-        if (!sub.stopped) sub.timer = setTimeout(poll, family.floor);
+        if (!sub.stopped && sub.generation === generation) sub.timer = setTimeout(poll, family.floor);
       });
     }
     sub.stopped = false;
@@ -295,6 +303,7 @@
   // The logs family keeps the existing Server-Sent Events stream in this implementation.
   function startEventStream(sub) {
     sub.stopped = false;
+    sub.fresh = true;
     var url = httpRequestFor("logs.stream", sub.args).url;
     var source = sub.source = new EventSource(url);
     source.onopen = function () { if (!sub.stopped) sub.onValue([], "known"); };
@@ -429,6 +438,7 @@
   SocketTransport.prototype.open = function (sub) {
     var self = this;
     sub.opening = true;
+    sub.fresh = true;
     var args = { family: sub.family };
     Object.keys(sub.args || {}).forEach(function (key) { args[key] = sub.args[key]; });
     var message = { kind: "manage", command_id: self.nextId("s"), op: "subscribe", args: args, deadline_ms: DEADLINE_MS };
@@ -554,7 +564,14 @@
 
   function subscribe(family, onValue, args) {
     if (!Object.prototype.hasOwnProperty.call(FAMILIES, family)) throw new Error("unknown family " + family);
-    var sub = { family: family, onValue: onValue, args: args || {}, stopped: true, closed: false };
+    var sub = { family: family, args: args || {}, stopped: true, closed: false, fresh: false };
+    // The first known value after the panel (re)opened the subscription is flagged: an append family's first
+    // update is its backlog, which replaces what an earlier opening delivered.
+    sub.onValue = function (value, state) {
+      var first = sub.fresh && state === "known";
+      if (first) sub.fresh = false;
+      onValue(value, state, first);
+    };
     subscriptions.push(sub);
     if (!hidden()) transport().start(sub);
     return {

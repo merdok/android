@@ -371,6 +371,32 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(listOf("""known {"v":1}""", "unavailable null", """known {"v":1}"""), observations)
     }
 
+    @Test fun twoSubscriptionsOfOneFamilyOnOneSocketBothReceiveUpdates() = testApplication {
+        val table = ManageTable()
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        table.register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", reads.incrementAndGet())) }
+        val rig = managedRig(table, families = mapOf("probe" to ManageFamily("probe", 100, listOf("probe"))))
+        stub { rig.commands }
+
+        val seen = socket {
+            fun subscribe(id: String) = JSONObject().put("kind", "manage").put("command_id", id).put("op", "subscribe").put("args", JSONObject().put("family", "probe"))
+            assertEquals("applied", exchange(subscribe("a")).getString("outcome"))
+            assertEquals("applied", exchange(subscribe("b")).getString("outcome"))
+            val seen = mutableSetOf<String>()
+            withTimeout(5_000) {
+                while (seen.size < 2) {
+                    val frame = JSONObject((incoming.receive() as Frame.Text).readText())
+                    if (frame.has("subscription") && frame.getJSONArray("observations").getJSONObject(0).getJSONObject("value").getInt("v") > 1) {
+                        seen += frame.getString("subscription")
+                    }
+                }
+            }
+            seen
+        }
+
+        assertEquals(setOf("a", "b"), seen)
+    }
+
     @Test fun aLateUnsubscribeOfAnOlderIdLeavesTheNewerSubscriptionRunning() = testApplication {
         val table = ManageTable()
         val reads = java.util.concurrent.atomic.AtomicInteger()
@@ -432,7 +458,7 @@ internal class StubTest : PanelRuntimeRig() {
     @Test fun anUploadedBlobIsTakenOnceAndOnlyWithItsOwnHash() = testApplication {
         val table = ManageTable()
         table.register("probe.upload", ManageKind.COMMAND) { request ->
-            val bytes = request.blobs?.take(request.args.getJSONObject("blob"))
+            val bytes = request.blobs?.take(request.args.getJSONObject("blob"))?.use { it.readBytes() }
             if (bytes == null) ManageReply.refused("invalid_value") else ManageReply("applied", null, JSONObject().put("size", bytes.size))
         }
         val rig = managedRig(table)
@@ -485,6 +511,45 @@ internal class StubTest : PanelRuntimeRig() {
         assertEquals(HttpStatusCode.OK, fits)
     }
 
+    @Test fun anUploadUpToTheHttpLimitIsWrittenToAFileAndAnOversizeDeclarationIsRefused() = testApplication {
+        val table = ManageTable()
+        val dir = java.nio.file.Files.createTempDirectory("ui-blobs").toFile()
+        val seen = java.util.concurrent.atomic.AtomicReference<List<String>>()
+        table.register("probe.upload", ManageKind.COMMAND) { request ->
+            seen.set(dir.list().orEmpty().toList())
+            val bytes = request.blobs?.take(request.args.getJSONObject("blob"))?.use { it.readBytes() }
+            if (bytes == null) ManageReply.refused("invalid_value") else ManageReply("applied", null, JSONObject().put("size", bytes.size))
+        }
+        val rig = managedRig(table)
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                stubRoutes({ rig.commands }, StubBlobs(dir), health = { "health\n" }, diag = { "diag\n" })
+            }
+        }
+        val payload = ByteArray(1_000) { (it % 251).toByte() }
+        val apkSized = PaneldServer.MAX_APK_UPLOAD_BYTES
+
+        val (large, oversize, used) = socket {
+            fun upload(id: String, size: Long) = JSONObject().put("kind", "manage").put("command_id", id).put("op", "blob.upload")
+                .put("args", JSONObject().put("size", size))
+            val large = exchange(upload("u1", apkSized))
+            val oversize = exchange(upload("u2", apkSized + 1))
+            val url = exchange(upload("u3", payload.size.toLong())).getJSONObject("result").getString("url")
+            val reference = JSONObject(client.put(url) { setBody(payload) }.bodyAsText())
+            val used = exchange(JSONObject().put("kind", "manage").put("command_id", "c1").put("op", "probe.upload").put("args", JSONObject().put("blob", reference)))
+            Triple(large, oversize, used)
+        }
+
+        assertEquals("an APK-sized upload is admitted at its size", apkSized, large.getJSONObject("result").getLong("max_size"))
+        assertEquals("refused", oversize.getString("outcome"))
+        assertEquals("invalid_value", oversize.getString("code"))
+        assertEquals("applied", used.getString("outcome"))
+        assertEquals(payload.size, used.getJSONObject("result").getInt("size"))
+        assertEquals("the body waited in a file", 1, seen.get().size)
+        assertEquals("the file is gone once read", 0, dir.list().orEmpty().size)
+        dir.deleteRecursively()
+    }
+
     @Test fun aBlobAReplyCarriesIsReadOnce() = testApplication {
         val table = ManageTable()
         val bytes = ByteArray(1024) { it.toByte() }
@@ -516,7 +581,9 @@ internal class StubTest : PanelRuntimeRig() {
 
         val reply = socket { exchange(JSONObject().put("kind", "manage").put("command_id", "x1").put("op", "probe.headers")) }
 
-        assertEquals("""{"x-ha-paneld-screenshot-id":"abc"}""", reply.getJSONObject("headers").toString())
+        assertEquals("abc", reply.getJSONObject("headers").getString("x-ha-paneld-screenshot-id"))
+        assertEquals("attachment", reply.getJSONObject("headers").getString("content-disposition"))
+        assertFalse(reply.getJSONObject("headers").has("x-frame-options"))
     }
 
     @Test fun aRouteStatusReadsAsTheOutcomeThePageTransportGivesItOverHttp() = testApplication {

@@ -280,7 +280,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
             "dashboard.entities.issues.set", "dashboard.entities.activate", "dashboard.entities.policy",
             "dashboard.entities.override", "dashboard.entities.overrides", "dashboard.entities.reset",
             "dashboard.entities.export", "power_safety", "power_safety.repair", "power_safety.acknowledge",
-            "perf", "sensors", "proximity", "proximity.calibration", "camera.status", "screenshot", "input",
+            "perf", "sensors", "proximity", "proximity.calibration", "camera.status", "screenshot", "input", "action", "action.dashboard",
             "inspect", "inspect.start", "inspect.stop",
             "auto_brightness", "auto_brightness.history", "auto_brightness.sources", "auto_brightness.source",
             "auto_brightness.reset", "auto_brightness.resume",
