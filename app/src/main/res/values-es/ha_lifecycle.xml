@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Iniciando</string>
     <string name="ha_step_reloading">Recargando</string>
     <string name="ha_step_offline">Sin conexión</string>
+    <string name="ha_step_retrying">Reintentando</string>
+    <string name="ha_unreachable_retrying">No se puede conectar con Home Assistant</string>
     <string name="ha_until_back">hasta que vuelva Home Assistant</string>
     <string name="ha_past_usual">Más de lo habitual</string>
     <string name="ha_reloading_detail">Tu panel se está recargando</string>

@@ -96,7 +96,7 @@ internal class HaLifecycle(
 
     fun snapshot(nowMs: Long): Snapshot = synchronized(lock) {
         Snapshot(stateLocked(nowMs), false, revision, remainingLocked(nowMs),
-            if (current == HaLifecycleState.CONNECTION_LOST) (10_000L - (nowMs - lostSinceMs).coerceAtLeast(0L)).coerceAtLeast(0L) else 0L,
+            if (current == HaLifecycleState.CONNECTION_LOST) (OFFLINE_GRACE_MS - (nowMs - lostSinceMs).coerceAtLeast(0L)).coerceAtLeast(0L) else 0L,
             notice?.reason ?: HaLifecycleReason.UNKNOWN,
             notice?.elapsedMs?.let { elapsed ->
                 val advance = (nowMs - noticeReceivedMs).coerceAtLeast(0L)
@@ -164,7 +164,7 @@ internal class HaLifecycle(
         val observed = stateLocked(nowMs)
         if (next.phase == HaLifecyclePhase.READY) {
             if (observed == HaLifecycleState.SHUTTING_DOWN || observed == HaLifecycleState.STARTING ||
-                (observed == HaLifecycleState.CONNECTION_LOST && nowMs - lostSinceMs >= 10_000L)) {
+                (observed == HaLifecycleState.CONNECTION_LOST && nowMs - lostSinceMs >= OFFLINE_GRACE_MS)) {
                 enterBackOnlineLocked(nowMs)
             } else if (observed == HaLifecycleState.CONNECTION_LOST) {
                 current = HaLifecycleState.NORMAL
@@ -233,6 +233,9 @@ internal class HaLifecycle(
          * from a hello, because refused hellos are normal throughout a restart.
          */
         const val NOTICE_LIMIT_MS = 600_000L
+
+        /** How long a connection may stay down before the panel calls it an outage: long enough for an ordinary reconnect. */
+        const val OFFLINE_GRACE_MS = 10_000L
     }
 }
 

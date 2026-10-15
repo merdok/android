@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Starten</string>
     <string name="ha_step_reloading">Herladen</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Opnieuw proberen</string>
+    <string name="ha_unreachable_retrying">Home Assistant is niet bereikbaar</string>
     <string name="ha_until_back">tot Home Assistant terug is</string>
     <string name="ha_past_usual">Langer dan gebruikelijk</string>
     <string name="ha_reloading_detail">Je dashboard wordt herladen</string>

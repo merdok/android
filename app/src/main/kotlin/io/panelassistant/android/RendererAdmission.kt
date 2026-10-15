@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import android.os.SystemClock
 import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.control.AmbientThemeReason
 import io.panelassistant.android.control.BuiltinDashboard
@@ -104,6 +105,11 @@ internal object RendererAdmissionRuntime {
          * with the connection: a page that is not connected is not rendering anything current.
          */
         val effectiveDark: Boolean? = null,
+        /**
+         * When a connected frontend last dropped (`elapsedRealtime`), or null while it is connected or has
+         * not connected yet in this generation. A first load that has not connected is not an outage.
+         */
+        val frontendLostAtMs: Long? = null,
     )
 
     private val lock = Any()
@@ -134,7 +140,7 @@ internal object RendererAdmissionRuntime {
         val next = Record(state, outcome, admittedOnCachedVersion, evidence, nowElapsedMs)
         synchronized(lock) {
             val previous = live?.takeIf { it.owner == owner }
-            live = Live(owner, next, previous?.frontendConnected ?: false, previous?.effectiveDark)
+            live = Live(owner, next, previous?.frontendConnected ?: false, previous?.effectiveDark, previous?.frontendLostAtMs)
         }
         return true
     }
@@ -144,13 +150,18 @@ internal object RendererAdmissionRuntime {
      * `frontendConnected` setter, so every assignment reaches here and none can be forgotten — the
      * list of sites is DERIVED from the property rather than hand-maintained beside it.
      */
-    fun setFrontendConnected(owner: Long, connected: Boolean): Boolean {
+    fun setFrontendConnected(owner: Long, connected: Boolean, nowElapsedMs: Long = SystemClock.elapsedRealtime()): Boolean {
         if (!BuiltinDashboard.ownsActivity(owner)) return false
         synchronized(lock) {
             val previous = live?.takeIf { it.owner == owner }
+            val lostAt = when {
+                connected -> null
+                previous?.frontendConnected == true -> nowElapsedMs
+                else -> previous?.frontendLostAtMs
+            }
             // A disconnected page renders nothing current, so its last observed scheme goes with it
             // rather than being reported as though it were still on screen.
-            live = Live(owner, previous?.record, connected, if (connected) previous?.effectiveDark else null)
+            live = Live(owner, previous?.record, connected, if (connected) previous?.effectiveDark else null, lostAt)
         }
         return true
     }
@@ -164,7 +175,7 @@ internal object RendererAdmissionRuntime {
         if (!BuiltinDashboard.ownsActivity(owner)) return false
         synchronized(lock) {
             val previous = live?.takeIf { it.owner == owner }
-            live = Live(owner, previous?.record, previous?.frontendConnected ?: false, effectiveDark)
+            live = Live(owner, previous?.record, previous?.frontendConnected ?: false, effectiveDark, previous?.frontendLostAtMs)
         }
         return true
     }

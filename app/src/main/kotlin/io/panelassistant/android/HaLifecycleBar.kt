@@ -2,6 +2,7 @@ package io.panelassistant.android
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -14,10 +15,21 @@ import io.panelassistant.android.sensors.HaLifecycleReason
 import io.panelassistant.android.sensors.HaLifecycleRuntime
 import io.panelassistant.android.sensors.HaLifecycleState
 
-/** Select the notice shown over the dashboard from the current owners' observations. */
+/** How long this panel's dashboard has been disconnected from Home Assistant, or null while it is not. */
+internal fun haDashboardLostMs(renderer: RendererAdmissionRuntime.Live?, nowMs: Long): Long? =
+    renderer?.takeIf { !it.frontendConnected }?.frontendLostAtMs?.let { (nowMs - it).coerceAtLeast(0L) }
+
+/**
+ * Select the notice shown over the dashboard from the current owners' observations.
+ *
+ * Panel Assistant's lifecycle notices come first. A panel without a live Panel Assistant session gets
+ * none, so its own dashboard dropping is the last rule: past the offline grace it says it cannot reach
+ * Home Assistant, and a notice arriving later replaces that with the restart card.
+ */
 internal fun haLifecycleNoticeState(
     snap: HaLifecycle.Snapshot?,
     renderer: RendererAdmissionRuntime.Live?,
+    nowMs: Long = SystemClock.elapsedRealtime(),
 ): HaLifecycleState? = when {
     snap?.state == HaLifecycleState.SHUTTING_DOWN || snap?.state == HaLifecycleState.STARTING -> snap.state
     snap?.state == HaLifecycleState.CONNECTION_LOST && snap.offlineGraceRemainingMs > 0L -> null
@@ -27,6 +39,7 @@ internal fun haLifecycleNoticeState(
     // The last step lasts while the dashboard reloads and ends the moment it reconnects: a connected
     // dashboard is usable, and a card still covering it would be Panel Assistant getting in the way.
     snap?.state == HaLifecycleState.BACK_ONLINE && renderer?.frontendConnected != true -> snap.state
+    (haDashboardLostMs(renderer, nowMs) ?: 0L) >= HaLifecycle.OFFLINE_GRACE_MS -> HaLifecycleState.CONNECTION_LOST
     else -> null
 }
 
@@ -46,6 +59,7 @@ internal enum class HaRestartStep { STOPPING, STARTING, RELOADING }
  * @property usualMs the measured usual time
  * @property restartedInMs once Home Assistant is ready and the dashboard is still catching up, how long
  *   this restart took
+ * @property offlineMs for an outage nothing explained, how long the dashboard has been disconnected, when known
  */
 internal data class HaLifecycleCard(
     val step: HaRestartStep?,
@@ -54,6 +68,7 @@ internal data class HaLifecycleCard(
     val overdueMs: Long?,
     val usualMs: Long?,
     val restartedInMs: Long?,
+    val offlineMs: Long? = null,
 )
 
 internal const val HA_LIFECYCLE_PROGRESS_MAX = 10_000
@@ -77,12 +92,14 @@ internal const val HA_LIFECYCLE_PROGRESS_MAX = 10_000
  * is no timeline: no countdown, and the track only marks the steps already behind it.
  *
  * @param dashboardConnected whether this panel's dashboard is connected to Home Assistant right now
+ * @param dashboardLostMs how long this panel's dashboard has been disconnected, or null
  */
 internal fun haLifecycleCard(
     state: HaLifecycleState,
     snap: HaLifecycle.Snapshot?,
     dashboardConnected: Boolean = false,
     backOnlineWindowMs: Long = HaLifecycle.DEFAULT_BACK_ONLINE_WINDOW_MS,
+    dashboardLostMs: Long? = null,
 ): HaLifecycleCard {
     val step = when (state) {
         HaLifecycleState.SHUTTING_DOWN -> HaRestartStep.STOPPING
@@ -116,6 +133,7 @@ internal fun haLifecycleCard(
         overdueMs = if (overdue) elapsed!! - expected!! else null,
         usualMs = expected,
         restartedInMs = restartedIn,
+        offlineMs = dashboardLostMs.takeIf { step == null },
     )
 }
 
@@ -126,7 +144,7 @@ internal fun haLifecycleCard(
  */
 @StringRes
 internal fun haLifecycleDetail(card: HaLifecycleCard): Int = when {
-    card.step == null -> R.string.ha_offline
+    card.step == null -> if (card.offlineMs != null) R.string.ha_unreachable_retrying else R.string.ha_offline
     card.overdueMs != null -> R.string.ha_past_usual
     card.step == HaRestartStep.RELOADING -> R.string.ha_reloading_detail
     card.remainingMs != null -> R.string.ha_until_back
@@ -201,16 +219,20 @@ internal class HaLifecycleBar private constructor(
     /** Render current lifecycle intent and this dashboard's connection evidence. */
     fun update(snap: HaLifecycle.Snapshot?, renderer: RendererAdmissionRuntime.Live?) {
         view.removeCallbacks(hide)
-        val state = haLifecycleNoticeState(snap, renderer)
+        val now = SystemClock.elapsedRealtime()
+        val state = haLifecycleNoticeState(snap, renderer, now)
+        val dashboardLost = haDashboardLostMs(renderer, now)
         if (state == null || state == HaLifecycleState.NORMAL) {
             segmentAnimator?.cancel()
             shownStep = null
             visibility(false)
-            if ((snap?.offlineGraceRemainingMs ?: 0L) > 0L) view.postDelayed(hide, snap!!.offlineGraceRemainingMs)
+            // Wake when a grace runs out, since nothing else pushes then.
+            listOfNotNull(snap?.offlineGraceRemainingMs, dashboardLost?.let { HaLifecycle.OFFLINE_GRACE_MS - it })
+                .filter { it > 0L }.minOrNull()?.let { view.postDelayed(hide, it) }
             return
         }
         dashboardConnected = renderer?.frontendConnected == true
-        val card = haLifecycleCard(state, snap, dashboardConnected)
+        val card = haLifecycleCard(state, snap, dashboardConnected, dashboardLostMs = dashboardLost)
         render(card, state, snap)
         visibility(true)
         view.postDelayed(hide, TICK_MS)
@@ -222,10 +244,11 @@ internal class HaLifecycleBar private constructor(
             HaRestartStep.STOPPING -> context.getString(R.string.ha_step_stopping)
             HaRestartStep.STARTING -> context.getString(R.string.ha_step_starting)
             HaRestartStep.RELOADING -> context.getString(R.string.ha_step_reloading)
-            null -> context.getString(R.string.ha_step_offline)
+            null -> context.getString(if (card.offlineMs != null) R.string.ha_step_retrying else R.string.ha_step_offline)
         }
         notice.setPill(if (card.overdueMs != null) context.getString(R.string.ha_taking_longer) else stepWord)
         val clock = card.remainingMs?.let(::haLifecycleClock) ?: card.overdueMs?.let { "+" + haLifecycleClock(it) }
+            ?: card.offlineMs?.let(::haLifecycleClock)
         notice.setHero(hero, clock ?: stepWord, word = clock == null)
         sub.text = context.getString(haLifecycleDetail(card))
         val reason = context.getString(when (snap?.reason ?: HaLifecycleReason.UNKNOWN) {

@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Uruchamianie</string>
     <string name="ha_step_reloading">Przeładowywanie</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Ponawianie</string>
+    <string name="ha_unreachable_retrying">Nie można połączyć się z Home Assistant</string>
     <string name="ha_until_back">do powrotu Home Assistant</string>
     <string name="ha_past_usual">Dłużej niż zwykle</string>
     <string name="ha_reloading_detail">Pulpit jest przeładowywany</string>

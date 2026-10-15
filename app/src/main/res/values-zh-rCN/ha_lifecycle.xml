@@ -10,6 +10,8 @@
     <string name="ha_step_starting">正在启动</string>
     <string name="ha_step_reloading">正在重新加载</string>
     <string name="ha_step_offline">离线</string>
+    <string name="ha_step_retrying">正在重试</string>
+    <string name="ha_unreachable_retrying">无法连接 Home Assistant</string>
     <string name="ha_until_back">后 Home Assistant 恢复</string>
     <string name="ha_past_usual">已超过通常时间</string>
     <string name="ha_reloading_detail">你的仪表板正在重新加载</string>

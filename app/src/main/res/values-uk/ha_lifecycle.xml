@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Запуск</string>
     <string name="ha_step_reloading">Перезавантаження</string>
     <string name="ha_step_offline">Офлайн</string>
+    <string name="ha_step_retrying">Повторна спроба</string>
+    <string name="ha_unreachable_retrying">Не вдається з’єднатися з Home Assistant</string>
     <string name="ha_until_back">до повернення Home Assistant</string>
     <string name="ha_past_usual">Довше, ніж зазвичай</string>
     <string name="ha_reloading_detail">Ваша інформаційна панель перезавантажується</string>

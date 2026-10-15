@@ -10,6 +10,8 @@
     <string name="ha_step_starting">Avvio</string>
     <string name="ha_step_reloading">Ricaricamento</string>
     <string name="ha_step_offline">Offline</string>
+    <string name="ha_step_retrying">Nuovo tentativo</string>
+    <string name="ha_unreachable_retrying">Impossibile raggiungere Home Assistant</string>
     <string name="ha_until_back">al ritorno di Home Assistant</string>
     <string name="ha_past_usual">Oltre il tempo abituale</string>
     <string name="ha_reloading_detail">La tua dashboard si sta ricaricando</string>
