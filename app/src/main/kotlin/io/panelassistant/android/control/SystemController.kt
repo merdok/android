@@ -225,6 +225,13 @@ class SystemController(
         launchComponent(ri.component, "launcher")
     }
 
+    /** Open Android's Settings app through the same foreground start as the launcher; false when the
+     *  panel has no launchable Settings activity or the start failed. */
+    fun launchAndroidSettings(): Boolean {
+        val component = env.launchComponent(ANDROID_SETTINGS_PACKAGE) ?: return false
+        return launchComponent(component, "android settings")
+    }
+
     /** The launcher package [launchLauncher] would land on for [configuredPkg] (query-only) — lets
      *  the config UI show what a blank ("auto") launcher_package actually resolved to. */
     fun resolvedLauncher(configuredPkg: String): String? = pickLauncher(configuredPkg)?.pkg
@@ -535,6 +542,7 @@ class SystemController(
 
     companion object {
         private const val TAG = "ha-paneld/system"
+        private const val ANDROID_SETTINGS_PACKAGE = "com.android.settings"
 
         /** Must exceed the helper's whole bounded escalation, or a still-escalating daemon would be
          *  mistaken for one that already went down. */

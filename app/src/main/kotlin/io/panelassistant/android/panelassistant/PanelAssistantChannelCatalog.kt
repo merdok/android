@@ -214,6 +214,15 @@ internal object PanelAssistantChannelCatalog {
             channel = "reload", platform = "button", translationKey = "reload",
             uniqueSuffix = "reload", kind = PanelAssistantValueKind.BUTTON,
         ),
+        // Voice commands open these over the panel's own dashboard; the buttons stay off by default.
+        PanelAssistantChannelDescriptor(
+            channel = "android_settings", platform = "button", translationKey = "android_settings",
+            uniqueSuffix = "android_settings", kind = PanelAssistantValueKind.BUTTON, enabledDefault = false,
+        ),
+        PanelAssistantChannelDescriptor(
+            channel = "launcher", platform = "button", translationKey = "launcher",
+            uniqueSuffix = "launcher", kind = PanelAssistantValueKind.BUTTON, enabledDefault = false,
+        ),
         PanelAssistantChannelDescriptor(
             channel = "reboot", platform = "button", translationKey = "reboot",
             uniqueSuffix = "reboot", kind = PanelAssistantValueKind.BUTTON, deviceClass = "restart",
