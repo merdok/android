@@ -35,7 +35,9 @@ class StubBlobsTest {
     private fun token(minted: JSONObject?) = requireNotNull(minted).getString("url").substringAfterLast('/')
 
     @Test fun anUploadPastTheSlotCountIsRefusedAndAnEvictedUploadLeavesNoFile() {
-        val blobs = StubBlobs(dir)
+        // A clock that moves on every reading, so the first upload is unambiguously the oldest.
+        val clock = java.util.concurrent.atomic.AtomicLong()
+        val blobs = StubBlobs(dir, nowMs = { clock.incrementAndGet() })
         val release = CountDownLatch(1)
         val tokens = (1..4).map { token(blobs.mintUpload("application/octet-stream")) }
         val started = CountDownLatch(4)
