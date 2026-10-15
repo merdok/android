@@ -71,6 +71,24 @@ class DashboardRendererPhaseTest {
         )
     }
 
+    /**
+     * The settings pages read which settings the dashboard does not show yet. A value the connected load
+     * carried leaves the report; one the WebView was never built with stays in it.
+     */
+    @Test fun aConnectedLoadTakesWhatItCarriedOutOfThePendingReport() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.LOADING
+        rig.call("onLoadStarted", 25_000L)
+        val session = rig.bridge.beginDocument(page, rig.config, rig.get("rendererGeneration") as Long)
+
+        rig.call("onConnectionStatus", ExternalBusProtocol.ConnectionEvent.CONNECTED, rig.get("rendererGeneration"), session)
+
+        val pending = requireNotNull(BuiltinDashboard.pendingRendererSettings()) { "the renderer publishes a report" }
+        assertTrue("the zoom the load carried is on screen: $pending", "dashboard_zoom" !in pending)
+        assertTrue("the theme this WebView was not built with is not: $pending", "dashboard_theme" in pending)
+    }
+
     /** A refused login belongs to the credential, not to the WebView: a rebuild keeps it until consent. */
     @Test fun aTeardownKeepsARefusedLogin() {
         rig.show(RecordingWebView("data:text/html,"))

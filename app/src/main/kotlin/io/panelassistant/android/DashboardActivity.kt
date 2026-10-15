@@ -43,6 +43,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import io.panelassistant.android.config.RendererApply
+import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.platform.AndroidSystemEnv
@@ -185,6 +187,7 @@ class DashboardActivity : AppCompatActivity() {
         // and every setting the renderer bakes in or was admitted with go to the one reconcile.
         if (key == HaConnectionRoutes.EPOCH_KEY) runOnUiThread { routeChangePending = true; reconcileConfiguration() }
         if (key != null && rendererReconcilesOnChange(key, android.os.Build.VERSION.SDK_INT)) runOnUiThread { reconcileConfiguration() }
+        if (key in SettingsRegistry.rendererDeferredKeys(android.os.Build.VERSION.SDK_INT)) runOnUiThread { publishPendingSettings() }
         if (key == "dashboard_network_warning") runOnUiThread { if (!destroyed) redrawLifecycleBar() }
         if (key == "prevent_idle_dim") {
             runOnUiThread {
@@ -356,6 +359,19 @@ class DashboardActivity : AppCompatActivity() {
     // The main-frame document the dashboard WebView is actually showing (onPageCommitVisible), or null
     // before its first. A retry decides reload() versus a fresh load from this; see retryNeedsFreshLoad.
     private val shownPage = ShownPageTracker()
+    // Which renderer settings the dashboard on screen shows, published as BuiltinDashboard.pendingRendererSettings.
+    private val embodiment = RendererEmbodiment()
+
+    private fun rendererValues(include: (RendererApply) -> Boolean): Map<String, String> {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        return SettingsRegistry.rendererDeferredKeys(sdk).filter { include(SettingsRegistry.rendererApply(it, sdk)) }
+            .associateWith { rendererShownValue(activityConfig, it) }
+    }
+
+    private fun publishPendingSettings() {
+        if (destroyed || !::activityConfig.isInitialized) return
+        BuiltinDashboard.setPendingRendererSettings(activityOwner, embodiment.pending(rendererValues { true }))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -437,6 +453,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         activityConfig = config
         activityConfig.registerChangeListener(rendererPowerListener)
+        publishPendingSettings()
         // A resume during the suspended preparation returned early: catch up foreground (else ~300 s of dashboard_background) and the voice overlays.
         BuiltinDashboard.setActivityForeground(activityOwner, dashboardIsTopResumed)
         if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) io.panelassistant.android.assist.VoiceOverlays.show(this)
@@ -835,6 +852,17 @@ class DashboardActivity : AppCompatActivity() {
             rebuildFor(causes, config, prepared)
             return
         }
+        // Nothing to rebuild: the dashboard WebView already embodies what this reconcile checks. The entity
+        // filter's settings are not among them: the learner rebuilds for those once it has re-learned.
+        if (web != null && phase != RendererPhase.SIGN_IN) {
+            val sdk = android.os.Build.VERSION.SDK_INT
+            embodiment.reconciled(
+                rendererValues { it == RendererApply.REBUILD || it == RendererApply.READMIT }
+                    .filterKeys { rendererReconcilesOnChange(it, sdk) },
+                connected = phase == RendererPhase.CONNECTED,
+            )
+            publishPendingSettings()
+        }
         if (intent == null) return
         val nav = BuiltinDashboard.consumeNavPath()
         val reload = BuiltinDashboard.consumeReloadRequest()
@@ -929,6 +957,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun onLoadStarted(handshakeMs: Long = INITIAL_HANDSHAKE_MS) {
         wakeMediaRecovery.invalidate()
         on(RendererEvent.LOAD_STARTED)
+        embodiment.loadStarted(rendererValues { it == RendererApply.RELOAD })
         clearedThisLoad = false
         lastFullLoadAt = SystemClock.elapsedRealtime()
         BuiltinDashboard.recordLoadStart(lastFullLoadAt) // TTI origin (first call since process start = cold)
@@ -1037,6 +1066,8 @@ class DashboardActivity : AppCompatActivity() {
         if (!bridge.current(generation, session)) return
         if (event == ExternalBusProtocol.ConnectionEvent.CONNECTED) {
             on(RendererEvent.CONNECTED)
+            embodiment.connected()
+            publishPendingSettings()
             BuiltinDashboard.recordConnected(SystemClock.elapsedRealtime()) // TTI: load-start → interactive
             // First-ever proven render: from here on, an unfinished setup journey is a REPAIR of a panel
             // that once worked, and the wizard words it that way instead of reading like a factory reset.
@@ -2155,6 +2186,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         web = w
         shownPage.forget()
+        embodiment.built(rendererValues { true })
         // Wrap in a pull-to-refresh layout: a drag that starts at the very top edge of the screen and
         // pulls down does a light reload of the current page (no app relaunch). The gesture is gated on
         // its ORIGIN (see EdgePullRefreshLayout) — a downward drag that begins inside the dashboard

@@ -107,3 +107,43 @@ internal fun rendererReconcilesOnChange(key: String, sdkInt: Int): Boolean =
         io.panelassistant.android.config.RendererApply.REBUILD -> !key.startsWith("dashboard_entity_")
         else -> false
     }
+
+/**
+ * Which renderer settings the dashboard on screen shows: the bookkeeping behind
+ * [io.panelassistant.android.control.BuiltinDashboard.pendingRendererSettings]. A value is on screen once
+ * a load carrying it has connected (the moment the restart card drops), lit or dark; a load that fails
+ * leaves it pending. Values are the ones [rendererShownValue] reads.
+ */
+internal class RendererEmbodiment {
+    private var loading = emptyMap<String, String>()
+    private var shown = emptyMap<String, String>()
+
+    /** A dashboard WebView was built: it carries every value it was built and admitted with. */
+    fun built(values: Map<String, String>) { loading = values }
+
+    /** A load started in the current WebView: it also carries the values a page load picks up. */
+    fun loadStarted(values: Map<String, String>) { loading = loading + values }
+
+    /** The load connected: what it carries is on screen. */
+    fun connected() { shown = loading }
+
+    /** The renderer found nothing to rebuild for [values]: the WebView already embodies them. */
+    fun reconciled(values: Map<String, String>, connected: Boolean) {
+        loading = loading + values
+        if (connected) shown = shown + values
+    }
+
+    /** The keys of [current] whose value is not on screen yet. */
+    fun pending(current: Map<String, String>): Set<String> = current.filter { (key, value) -> shown[key] != value }.keys
+}
+
+/**
+ * [key]'s value as the dashboard on screen embodies it: the address without a trailing slash, a token only
+ * where it is the static credential (an access token that a refresh token rotates is not something a page
+ * shows), every other setting as stored.
+ */
+internal fun rendererShownValue(config: Config, key: String): String = when (key) {
+    "ha_url" -> config.haUrl.trim().trimEnd('/')
+    "ha_token" -> if (config.haRefreshToken.isBlank()) config.haToken else ""
+    else -> io.panelassistant.android.config.SettingsRegistry.spec(key)?.let(config::getRaw).orEmpty()
+}

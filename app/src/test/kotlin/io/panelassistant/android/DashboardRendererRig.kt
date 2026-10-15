@@ -30,7 +30,7 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
     private val gate = RendererGenerationGate()
     val owner = BuiltinDashboard.acquireActivityOwner()
     val cover = DashboardWebCover(activity, main)
-    private val bridge = DashboardFrontendBridge(main, CoroutineScope(Job()), proxy(DashboardFrontendBridge.Host::class.java))
+    val bridge = DashboardFrontendBridge(main, CoroutineScope(Job()), proxy(DashboardFrontendBridge.Host::class.java))
     val config = Config(fakePreferences(prefs).instance)
     private val entityGate = DashboardEntityGate(
         activity = allocate(AppCompatActivity::class.java),
@@ -51,6 +51,7 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         set("main", main)
         set("rendererGate", gate)
         set("rendererGeneration", gate.open())
+        set("embodiment", RendererEmbodiment())
         set("bridge", bridge)
         set("shownPage", ShownPageTracker())
         set("webCover\$delegate", lazyOf(cover))
@@ -105,8 +106,9 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         get() = get("phase") as RendererPhase
         set(value) = set("phase", value)
 
-    fun call(name: String) {
-        DashboardActivity::class.java.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+    fun call(name: String, vararg args: Any?) {
+        DashboardActivity::class.java.declaredMethods.single { it.name == name && it.parameterCount == args.size }
+            .apply { isAccessible = true }.invoke(activity, *args)
     }
 
     fun set(name: String, value: Any?) {
@@ -130,9 +132,10 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         }
 
         @Suppress("UNCHECKED_CAST")
+        // The renderer and its route are current; the other host members answer nothing.
         private fun <T> proxy(type: Class<T>): T = Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, _ ->
             when (method.returnType) {
-                java.lang.Boolean.TYPE -> false
+                java.lang.Boolean.TYPE -> true
                 else -> null
             }
         } as T
