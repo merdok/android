@@ -505,6 +505,7 @@ class DashboardActivity : AppCompatActivity() {
         compatibilityAttempts.invalidate()
         homeDashboardAttempts.invalidate()
         activityScope.cancel()
+        statusScreens.stopSignInAddressWatch()
         if (::activityConfig.isInitialized) activityConfig.unregisterChangeListener(rendererPowerListener)
         io.panelassistant.android.camera.CameraPermissionPrompt.setListener(null)
         wakeMediaRecovery.close()
@@ -1217,6 +1218,7 @@ class DashboardActivity : AppCompatActivity() {
         authInvalids = 0; refreshRejects = 0
         if (!authLatched) return
         authLatched = false
+        statusScreens.stopSignInAddressWatch()
         // A latched page runs no automatic retry, so reaching here is a deliberate reload or change:
         // that consent also lets the shared credential authority ask Home Assistant once more.
         HaCredentialManager.forgetRefusal()
