@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.persistence.CleanDatabaseProof
 import java.io.File
 import java.io.FileOutputStream
@@ -50,7 +52,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `dangling prepared arm is corrupt and cannot be cleared`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-dangling-").toFile()
+            val directory = scratchDirectory("guard-prepared-dangling-").toFile()
             try {
                 val record = directory.resolve("guard-db-prepared-arm.v1").toPath()
                 Files.createSymbolicLink(record, directory.resolve("missing-prepared-arm").toPath())
@@ -72,7 +74,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `prepared arm publication is idempotent but never replaces another proof`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-idempotent-").toFile()
+            val directory = scratchDirectory("guard-prepared-idempotent-").toFile()
             try {
                 val store = GuardDbPreparedArmStore(
                     directory,
@@ -92,7 +94,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `restart resumes an exact fsynced initial prepared publication`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-restart-").toFile()
+            val directory = scratchDirectory("guard-prepared-restart-").toFile()
             try {
                 val expected = prepared(manifest)
                 val pending = directory.resolve(".guard-db-prepared-arm.v1.pending")
@@ -113,7 +115,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `pending prepared overwrite is fail closed and preserved`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-pending-mismatch-").toFile()
+            val directory = scratchDirectory("guard-prepared-pending-mismatch-").toFile()
             try {
                 val store = GuardDbPreparedArmStore(
                     directory,
@@ -137,7 +139,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `malformed pending prepared proof is fail closed and preserved`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-pending-malformed-").toFile()
+            val directory = scratchDirectory("guard-prepared-pending-malformed-").toFile()
             try {
                 val pending = directory.resolve(".guard-db-prepared-arm.v1.pending")
                 writeFsynced(pending, "malformed\n".toByteArray())
@@ -158,7 +160,7 @@ class GuardDbPreparedArmTest {
 
     @Test fun `foreign prepared pending entry is never deleted or followed`() {
         withManifest { manifest ->
-            val directory = Files.createTempDirectory("guard-prepared-pending-").toFile()
+            val directory = scratchDirectory("guard-prepared-pending-").toFile()
             try {
                 val pending = directory.resolve(".guard-db-prepared-arm.v1.pending").toPath()
                 Files.createSymbolicLink(pending, directory.resolve("missing-pending-prepared").toPath())

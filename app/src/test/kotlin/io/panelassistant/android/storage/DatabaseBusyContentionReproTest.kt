@@ -1,5 +1,7 @@
 package io.panelassistant.android.storage
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.nio.file.Files
 import java.sql.Connection
 import java.sql.DriverManager
@@ -31,7 +33,7 @@ class DatabaseBusyContentionReproTest {
 
     @Before
     fun openTwoConnectionsOnOneWalDatabase() {
-        val directory = Files.createTempDirectory("busy-repro").toFile().apply { deleteOnExit() }
+        val directory = scratchDirectory("busy-repro").toFile().apply { deleteOnExit() }
         databasePath = "${directory.absolutePath}/ha-paneld-repro.db"
         writer = connect()
         writer.createStatement().use { statement ->

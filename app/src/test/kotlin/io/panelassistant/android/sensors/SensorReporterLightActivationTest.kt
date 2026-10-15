@@ -1,5 +1,7 @@
 package io.panelassistant.android.sensors
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.ContentResolver
 import android.content.Context
 import android.content.ContextWrapper
@@ -48,7 +50,7 @@ class SensorReporterLightActivationTest {
         profileId: String = "generic",
     ): Pair<SensorReporter, FakeSensorManager> {
         val sensors = FakeSensorManager(activates, hasProximity)
-        val files = Files.createTempDirectory("sensor-reporter").toFile().also { it.deleteOnExit() }
+        val files = scratchDirectory("sensor-reporter").toFile().also { it.deleteOnExit() }
         val context = FakeContext(files, prefs, sensors)
         return SensorReporter(context, newConfig(prefs, context.contentResolver), fakeProfile(id = profileId)) to sensors
     }

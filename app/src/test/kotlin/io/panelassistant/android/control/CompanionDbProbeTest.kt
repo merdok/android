@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.util.CompanionInstaller
 import org.junit.After
@@ -18,7 +20,7 @@ import java.nio.file.Files
  */
 class CompanionDbProbeTest {
     private val pkg = CompanionInstaller.MINIMAL_PKG
-    private val bin: File = Files.createTempDirectory("companion-probe").toFile()
+    private val bin: File = scratchDirectory("companion-probe").toFile()
 
     @After fun cleanUp() {
         bin.deleteRecursively()

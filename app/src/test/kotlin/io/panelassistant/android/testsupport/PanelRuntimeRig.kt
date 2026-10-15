@@ -1,5 +1,7 @@
 package io.panelassistant.android.testsupport
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.ContentResolver
 import android.content.Context
 import android.content.ContextWrapper
@@ -175,7 +177,7 @@ internal abstract class PanelRuntimeRig {
         onExternalSettingApplied: (String) -> Boolean = { true },
         configure: (Config) -> Unit = {},
     ): Rig {
-        val tmp = Files.createTempDirectory("panel-runtime-rig").toFile()
+        val tmp = scratchDirectory("panel-runtime-rig").toFile()
         val prefs = MemoryPreferences()
         val context = FakeContext(tmp, prefs)
         val config = newConfig(prefs, context.contentResolver)

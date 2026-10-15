@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.util.DurableRecoveryMarker
 import java.nio.file.Files
@@ -20,7 +22,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun enableArmsImmersiveBeforeMutationAndDisableClearsOnlyAfterPositiveRecovery() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val statusFile = directory.resolve("status.pending")
             val immersiveFile = directory.resolve("immersive.pending")
@@ -57,7 +59,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun absentOwnershipNeedsNoRootCommand() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val root = RecordingRoot(result = { false })
             val recovery = KioskPolicyRecovery(
@@ -75,7 +77,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun failedRecoveryRetainsItsMarkerForRetry() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val statusFile = directory.resolve("status.pending")
             val statusMarker = DurableRecoveryMarker(statusFile)
@@ -97,7 +99,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun legacyKioskConfigPublishesBothObligationsBeforeOneTimeRecovery() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val statusFile = directory.resolve("status.pending")
             val immersiveFile = directory.resolve("immersive.pending")
@@ -128,7 +130,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun freshInstallCompletesMigrationWithoutTouchingUnownedPlatformState() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val migrationFile = directory.resolve("migration.complete")
             val root = RecordingRoot(result = { false })
@@ -148,7 +150,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun unsupportedPersistentPolicyIgnoresRawLegacyConfigWithoutPublishingOwnership() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val statusFile = directory.resolve("status.pending")
             val immersiveFile = directory.resolve("immersive.pending")
@@ -175,7 +177,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun unsupportedPersistentPolicyStillHonorsAlreadyArmedRecoveryEvidence() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val immersiveFile = directory.resolve("immersive.pending")
             val immersiveMarker = DurableRecoveryMarker(immersiveFile)
@@ -198,7 +200,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun optimisticProfileWithoutLiveRootDoesNotPublishLegacyOrEnableOwnership() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val statusFile = directory.resolve("status.pending")
             val immersiveFile = directory.resolve("immersive.pending")
@@ -224,7 +226,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun migrationCompletionWaitsForVerifiedRecoveryAndLaterRetry() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val migrationFile = directory.resolve("migration.complete")
             var policy = "immersive.full=*"
@@ -253,7 +255,7 @@ class KioskPolicyRecoveryTest {
     }
 
     @Test fun successfulImmersiveOffCommandWithoutAffirmativeReadbackRetainsRecoveryEvidence() {
-        val directory = Files.createTempDirectory("kiosk-policy-test").toFile()
+        val directory = scratchDirectory("kiosk-policy-test").toFile()
         try {
             val immersiveFile = directory.resolve("immersive.pending")
             val immersiveMarker = DurableRecoveryMarker(immersiveFile)

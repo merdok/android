@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
@@ -23,7 +25,7 @@ import org.junit.Test
  */
 class NavbarOverlayPermissionTest {
     private val settingsOpened = AtomicInteger()
-    private val tempDir: File = Files.createTempDirectory("navbar-overlay-permission").toFile()
+    private val tempDir: File = scratchDirectory("navbar-overlay-permission").toFile()
     @Volatile private var overlayHeld = false
 
     @Before @After fun reset() {

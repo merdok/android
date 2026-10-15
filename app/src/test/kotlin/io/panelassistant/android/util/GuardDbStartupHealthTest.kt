@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import android.database.sqlite.SQLiteDatabase
 import io.panelassistant.android.dashboard.DatabaseCompatibility
 import io.panelassistant.android.dashboard.DatabaseCompatibilityBoundary
@@ -76,7 +78,7 @@ class GuardDbStartupHealthTest {
     }
 
     @Test fun `selected 60 MB recovery and primary inspection run off startup caller`() = runBlocking {
-        val directory = kotlin.io.path.createTempDirectory("guard-db-large-recovery").toFile()
+        val directory = scratchDirectory("guard-db-large-recovery").toFile()
         try {
             val target = File(directory, "ha-paneld.db").apply { writeText("primary") }
             val recovery = File(directory, "ha-paneld.db.v14.premigrate")

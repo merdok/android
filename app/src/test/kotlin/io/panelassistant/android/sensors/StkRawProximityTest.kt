@@ -1,5 +1,7 @@
 package io.panelassistant.android.sensors
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -128,7 +130,7 @@ class StkRawProximityTest {
     }
 
     @Test fun readerRequiresBoundContractAndNeverWritesValue() {
-        val root = java.nio.file.Files.createTempDirectory("raw-proximity-contract").toFile()
+        val root = scratchDirectory("raw-proximity-contract").toFile()
         try {
             val value = File(root, "st_psensor/psensor_value")
             value.parentFile!!.mkdirs()
@@ -166,7 +168,7 @@ class StkRawProximityTest {
     }
 
     private fun withRoot(block: (File) -> Unit) {
-        val root = java.nio.file.Files.createTempDirectory("raw-proximity").toFile()
+        val root = scratchDirectory("raw-proximity").toFile()
         try { block(root) } finally { root.deleteRecursively() }
     }
 

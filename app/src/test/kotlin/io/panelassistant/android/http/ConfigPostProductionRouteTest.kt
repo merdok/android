@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.PanelCommandDispatcher
 import io.panelassistant.android.PanelStateCore
 import io.panelassistant.android.Config
@@ -784,7 +786,7 @@ class ConfigPostProductionRouteTest {
         }
 
     @Test fun `production config POST normalizes persists reads back and dispatches a live setting`() {
-        val directory = Files.createTempDirectory("config-post-route").toFile()
+        val directory = scratchDirectory("config-post-route").toFile()
         val database = File(directory, "ha-paneld.db")
         val writer = Executors.newSingleThreadExecutor()
         val reopenedWriter = Executors.newSingleThreadExecutor()
@@ -863,7 +865,7 @@ class ConfigPostProductionRouteTest {
     }
 
     @Test fun `automatic bounds POST validates effective pair and persists accepted range`() {
-        val directory = Files.createTempDirectory("config-post-auto-bounds").toFile()
+        val directory = scratchDirectory("config-post-auto-bounds").toFile()
         val database = File(directory, "ha-paneld.db")
         val writer = Executors.newSingleThreadExecutor()
         val reopenedWriter = Executors.newSingleThreadExecutor()
@@ -925,7 +927,7 @@ class ConfigPostProductionRouteTest {
      * them to SQLite, report them applied only from read-back, and hand them to a reopened owner.
      */
     @Test fun `production config POST persists registry-only settings through SQLite`() {
-        val directory = Files.createTempDirectory("config-post-registry-only").toFile()
+        val directory = scratchDirectory("config-post-registry-only").toFile()
         val database = File(directory, "ha-paneld.db")
         val writer = Executors.newSingleThreadExecutor()
         val reopenedWriter = Executors.newSingleThreadExecutor()
@@ -996,7 +998,7 @@ class ConfigPostProductionRouteTest {
     }
 
     @Test fun `a Configure save writes only the settings it changes`() {
-        val directory = Files.createTempDirectory("config-post-write-set").toFile()
+        val directory = scratchDirectory("config-post-write-set").toFile()
         val database = File(directory, "ha-paneld.db")
         val writer = Executors.newSingleThreadExecutor()
         try {

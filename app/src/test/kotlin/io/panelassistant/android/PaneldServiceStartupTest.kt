@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.control.CompanionDataOperationGate
 import io.panelassistant.android.control.CompanionDataOperationState
 import io.panelassistant.android.control.NavbarModeApplyOutcome
@@ -398,7 +400,7 @@ class PaneldServiceStartupTest {
     @Test fun processRestartReconstructsCompanionGateUntilStatusIsAffirmativelySafe() {
         val pkg = "io.homeassistant.companion.android.minimal"
         for (status in CompanionOperationStatus.entries) {
-            val dir = Files.createTempDirectory("companion-startup-test").toFile()
+            val dir = scratchDirectory("companion-startup-test").toFile()
             val operationState = CompanionDataOperationState.forTest(
                 DurableRecoveryMarker(dir.resolve("pending")),
             )
@@ -429,7 +431,7 @@ class PaneldServiceStartupTest {
 
     @Test fun ordinaryNoMarkerNoHelperStartupDoesNotAcquireCompanionGate() {
         val pkg = "io.homeassistant.companion.android"
-        val dir = Files.createTempDirectory("companion-startup-test").toFile()
+        val dir = scratchDirectory("companion-startup-test").toFile()
         val operationState = CompanionDataOperationState.forTest(
             DurableRecoveryMarker(dir.resolve("pending")),
         )

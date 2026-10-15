@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.restoreCompanionLaunchSuppression
 import io.panelassistant.android.control.CompanionDataOperationGate
 import io.panelassistant.android.control.CompanionDataOperationState
@@ -160,7 +162,7 @@ class CompanionLeaseRetentionTest {
     }
 
     private fun armedOperationState(): Pair<CompanionDataOperationState, java.io.File> {
-        val directory = Files.createTempDirectory("companion-operation-test").toFile()
+        val directory = scratchDirectory("companion-operation-test").toFile()
         val state = CompanionDataOperationState.forTest(
             DurableRecoveryMarker(directory.resolve("pending")),
         )

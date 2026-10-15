@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.InputStream
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
@@ -15,7 +17,7 @@ import org.junit.Test
 
 /** The stub's uploads stay within a bounded footprint on disk: in flight, evicted and expired. */
 class StubBlobsTest {
-    private val dir = Files.createTempDirectory("ui-blobs-test").toFile()
+    private val dir = scratchDirectory("ui-blobs-test").toFile()
     private val pool = Executors.newCachedThreadPool()
 
     /** A body that arrives only once [release] opens. */

@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.Config
 import io.panelassistant.android.LiveSettingRequestOutcome
 import io.panelassistant.android.config.Capabilities
@@ -72,7 +74,7 @@ internal fun withFullReadServer(block: (Config, PaneldServerHttpFixture) -> Unit
 
 
 internal fun withRouteConfig(block: (Config, JdbcStatePersistence, PaneldServer, MutableList<String>) -> Unit) {
-    val directory = Files.createTempDirectory("config-post-admission").toFile()
+    val directory = scratchDirectory("config-post-admission").toFile()
     val writer = Executors.newSingleThreadExecutor()
     try {
         val persistence = JdbcStatePersistence(File(directory, "ha-paneld.db"))
@@ -161,7 +163,7 @@ internal fun routeServer(
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job().apply { cancel() }),
         mutationLock,
     ) { true })
-    fixtureSetField(server, "revisions", RevisionStore(Files.createTempDirectory("config-route-revisions").toFile()))
+    fixtureSetField(server, "revisions", RevisionStore(scratchDirectory("config-route-revisions").toFile()))
     fixtureSetField(server, "powerSafety", { safePowerAssessment() })
     fixtureSetField(server, "stopping", true)
     return server

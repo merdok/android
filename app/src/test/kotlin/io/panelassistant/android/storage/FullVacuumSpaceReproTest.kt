@@ -1,5 +1,7 @@
 package io.panelassistant.android.storage
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import java.sql.Connection
@@ -54,7 +56,7 @@ class FullVacuumSpaceReproTest {
 
     @Before
     fun createDatabase() {
-        directory = Files.createTempDirectory("vacuum-space-repro").toFile().apply { deleteOnExit() }
+        directory = scratchDirectory("vacuum-space-repro").toFile().apply { deleteOnExit() }
         databaseFile = File(directory, "ha-paneld-repro.db")
         walFile = File(directory, "ha-paneld-repro.db-wal")
         owner = open()

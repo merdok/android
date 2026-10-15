@@ -1,5 +1,7 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.device.DeviceProfile
 import io.panelassistant.android.device.LedMechanism
 import io.panelassistant.android.device.ProvisioningIntent
@@ -25,7 +27,7 @@ class RuntimeProfileRegistryTest {
     private val facts = DeviceFacts("test-panel", "test-device", "fw-1")
 
     @Before fun setUp() {
-        directory = Files.createTempDirectory("profile-registry-test").toFile()
+        directory = scratchDirectory("profile-registry-test").toFile()
         preferences = MemoryProfilePreferences()
     }
 

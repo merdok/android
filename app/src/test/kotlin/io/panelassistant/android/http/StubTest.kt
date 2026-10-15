@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
 import io.ktor.client.plugins.websocket.webSocket
@@ -513,7 +515,7 @@ internal class StubTest : PanelRuntimeRig() {
 
     @Test fun anUploadUpToTheHttpLimitIsWrittenToAFileAndAnOversizeDeclarationIsRefused() = testApplication {
         val table = ManageTable()
-        val dir = java.nio.file.Files.createTempDirectory("ui-blobs").toFile()
+        val dir = scratchDirectory("ui-blobs").toFile()
         val seen = java.util.concurrent.atomic.AtomicReference<List<String>>()
         table.register("probe.upload", ManageKind.COMMAND) { request ->
             seen.set(dir.list().orEmpty().toList())

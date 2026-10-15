@@ -1,5 +1,7 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.config.SettingsRegistry
 import android.content.ContextWrapper
 import android.content.SharedPreferences
@@ -44,7 +46,7 @@ internal class PaneldServerHttpFixture(
     webViewConsoleEnabled: () -> Boolean = { false },
     systemLogAvailable: () -> Boolean = { false },
 ) : java.io.Closeable {
-    val directory = Files.createTempDirectory("paneld-http-baseline").toFile()
+    val directory = scratchDirectory("paneld-http-baseline").toFile()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val context = object : ContextWrapper(null) {
         override fun getFilesDir(): File = directory

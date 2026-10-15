@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import io.panelassistant.android.util.DurableRecoveryMarker
 import io.panelassistant.android.util.RecoveryMarkerPersistence
 import java.io.File
@@ -111,7 +113,7 @@ class CompanionDataLeaseTest {
     }
 
     private fun operationState(): Pair<CompanionDataOperationState, File> {
-        val directory = Files.createTempDirectory("companion-data-lease-test").toFile()
+        val directory = scratchDirectory("companion-data-lease-test").toFile()
         val state = CompanionDataOperationState.forTest(
             DurableRecoveryMarker(directory.resolve("pending")),
         )

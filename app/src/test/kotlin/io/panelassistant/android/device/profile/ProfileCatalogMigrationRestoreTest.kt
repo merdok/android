@@ -1,5 +1,7 @@
 package io.panelassistant.android.device.profile
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.json.JSONObject
@@ -42,8 +44,8 @@ class ProfileCatalogMigrationRestoreTest {
     private val newRef = ProfileRef(vendorId, ProfileYaml.sha256(newVendorYaml))
 
     @Before fun setUp() {
-        sourceDirectory = Files.createTempDirectory("profile-restore-source").toFile()
-        destinationDirectory = Files.createTempDirectory("profile-restore-destination").toFile()
+        sourceDirectory = scratchDirectory("profile-restore-source").toFile()
+        destinationDirectory = scratchDirectory("profile-restore-destination").toFile()
     }
 
     @After fun tearDown() {

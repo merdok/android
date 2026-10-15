@@ -1,5 +1,7 @@
 package io.panelassistant.android.storage
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import java.sql.Connection
@@ -47,7 +49,7 @@ class DatabaseReclamationReproTest {
 
     @Before
     fun createWalDatabase() {
-        val directory = Files.createTempDirectory("reclaim-repro").toFile().apply { deleteOnExit() }
+        val directory = scratchDirectory("reclaim-repro").toFile().apply { deleteOnExit() }
         databaseFile = File(directory, "ha-paneld-repro.db")
         owner = open()
     }

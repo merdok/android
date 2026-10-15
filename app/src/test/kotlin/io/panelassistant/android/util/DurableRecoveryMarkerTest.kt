@@ -1,5 +1,7 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
@@ -9,7 +11,7 @@ import org.junit.Test
 
 class DurableRecoveryMarkerTest {
     @Test fun failedRecoveryKeepsMarkerForTheNextProcess() {
-        val dir = Files.createTempDirectory("navbar-recovery-test").toFile()
+        val dir = scratchDirectory("navbar-recovery-test").toFile()
         try {
             val marker = DurableRecoveryMarker(dir.resolve("pending"))
             assertTrue(marker.arm())
@@ -23,7 +25,7 @@ class DurableRecoveryMarkerTest {
     }
 
     @Test fun successfulRecoveryClearsMarkerDurably() {
-        val dir = Files.createTempDirectory("navbar-recovery-test").toFile()
+        val dir = scratchDirectory("navbar-recovery-test").toFile()
         try {
             val file = dir.resolve("pending")
             val marker = DurableRecoveryMarker(file)

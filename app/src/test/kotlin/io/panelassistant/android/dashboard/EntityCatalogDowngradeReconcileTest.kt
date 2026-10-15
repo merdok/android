@@ -1,5 +1,7 @@
 package io.panelassistant.android.dashboard
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.io.File
 import java.nio.file.Files
 import org.junit.After
@@ -17,7 +19,7 @@ import org.junit.Test
  * downgrade either restores a valid compatible snapshot or preserves the newer database aside.
  */
 class EntityCatalogDowngradeReconcileTest {
-    private val dir: File = Files.createTempDirectory("dbnet").toFile()
+    private val dir: File = scratchDirectory("dbnet").toFile()
     private val target = File(dir, "ha-paneld.db")
 
     @After fun cleanup() {

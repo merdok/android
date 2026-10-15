@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.testsupport.scratchDirectory
+
 import java.nio.file.Files
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -457,7 +459,7 @@ class AdbControllerPolicyTest {
     }
 
     @Test fun `corrupt marker remains a fail closed disable instruction`() {
-        val directory = Files.createTempDirectory("network-adb-disable-marker").toFile()
+        val directory = scratchDirectory("network-adb-disable-marker").toFile()
         try {
             val file = directory.resolve("network-adb-disable.v1")
             val marker = NetworkAdbDisableTransitionMarker(file)
@@ -501,6 +503,26 @@ class AdbControllerPolicyTest {
 
         assertTrue(owned)
         assertTrue(marker)
+    }
+
+    @Test fun `OFF without root clears the intent and leaves a listener it never opened`() {
+        var owned = true
+        var marker = false
+        var tornDown = false
+        assertTrue(completeNetworkAdbDisableTransition(
+            owned = { owned },
+            rootAvailable = { false },
+            disablePending = { marker },
+            armDisable = { marker = true; true },
+            teardown = { tornDown = true; false },
+            // Panel Assistant's own ADB session keeps 5555 listening on a rootless panel.
+            inactiveReadback = { false },
+            clearOwnership = { owned = false; true },
+            clearDisable = { marker = false; true },
+        ))
+        assertFalse(owned)
+        assertFalse(marker)
+        assertFalse(tornDown)
     }
 
     @Test fun `Hardened commits only after settled disable ownership and marker cleanup`() {
