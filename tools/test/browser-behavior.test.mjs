@@ -3823,6 +3823,8 @@ browserTest('Returning to Custom sends the path still in its field', async (t) =
   const { page, select, input, state } = await openDashboardPicker(t, { current: '/dashboard-test/alpha' });
 
   await sentOnce(page, () => select.selectOption('/lovelace'));
+  // The response reaches the test before the page has handled it; the form is rebuilt once it has.
+  await page.waitForFunction(() => document.querySelector('#cfg-home_dashboard input.hd-custom-input').value === '/lovelace');
   await input.evaluate((el) => { el.value = '/dashboard-test/alpha'; });
   await sentOnce(page, () => select.selectOption('__custom__'));
   assert.deepEqual(state.posts, ['/lovelace', '/dashboard-test/alpha'], 'the path shown is the path sent');
