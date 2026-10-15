@@ -351,7 +351,7 @@ internal fun restoreCompanionLaunchSuppression(
     return status
 }
 
-/** Values whose change requires replacing the network runtime (state core, dispatcher, mDNS). */
+/** Values whose change replaces the network runtime's mDNS advertiser; a running state core and dispatcher are kept. */
 internal data class NetworkRuntimeIdentity(
     internal val panelId: String,
     internal val friendlyName: String,
@@ -1844,13 +1844,16 @@ class PaneldService : Service() {
                 obligationsCompleted = true
                 return
             }
+            // Only mDNS carries the panel's name, id and port. A running runtime keeps its state core and
+            // dispatcher and replaces the advertiser alone; a failed one is rebuilt whole.
+            val advertiserOnly = mutation.isRunning
             val completed = mutation.replace(
                 retire = { previous ->
                     // Start both retirement fences before awaiting either result. They share one monotonic
                     // budget; no locally reset phase timeout can accumulate beyond it.
                     val mdnsRetirement = previous.mdns.retire(executionDeadline)
-                    val stateDrained = previous.commands.stop(executionDeadline) and
-                        previous.core.stop(executionDeadline)
+                    val stateDrained = advertiserOnly || (previous.commands.stop(executionDeadline) and
+                        previous.core.stop(executionDeadline))
                     val mdnsStopped = mdnsRetirement.awaitTrue(executionDeadline)
                     val withinDeadline = executionDeadline.remainingMs() > 0L
                     check(stateDrained && mdnsStopped && withinDeadline) {
@@ -1858,11 +1861,14 @@ class PaneldService : Service() {
                             "(state=$stateDrained mdns=$mdnsStopped withinDeadline=$withinDeadline)"
                     }
                 },
-                build = { buildNetworkRuntime(desired.runtime) },
+                build = { previous ->
+                    if (advertiserOnly) previous.copy(mdns = buildMdns(desired.runtime))
+                    else buildNetworkRuntime(desired.runtime)
+                },
                 start = { replacement ->
                     replacement.mdns.start()
                     replacement.core.maybeResolveHaLink()
-                    replacement.core.start()
+                    if (!advertiserOnly) replacement.core.start()
                 },
                 complete = { replacement ->
                     liveSettingAuthority.replayKeysObserved(PanelCommandDispatcher.APPLY_SETTING_KEYS) { key, value, previous, fence ->
