@@ -1153,9 +1153,7 @@ class PaneldService : Service() {
         kiosk.onUnlockRequested = {
             Thread {
                 if (teardownBoundary.isStopping) return@Thread
-                requestKioskEscape(liveSettingAuthority, config, { runtime.current().commands }, { kiosk.apply(false) }) {
-                    refreshAutoSleepPresence()
-                }
+                requestKioskSetting(config, { runtime.current().commands }, "false") { kiosk.apply(false) }
             }.apply { isDaemon = true; name = "kiosk-unlock" }.start()
         }
         // When taming disables a vendor home launcher (e.g. eWeLink), immediately re-assert the dashboard
@@ -1347,7 +1345,7 @@ class PaneldService : Service() {
             // The dispatcher is replaceable. If its command admission is already draining, retain the
             // persisted setting and replay it against the replacement before reconfigure completes.
             { k, v ->
-                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, k, v) {
+                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, k, v, { kiosk.apply(false) }) {
                     refreshAutoSleepPresence()
                 }
             },

@@ -113,7 +113,7 @@ class RestoreKioskCapabilitiesTest {
                     applySetting = { key, value ->
                         if (key == "kiosk_lock") {
                             if (kiosk(value.toBooleanStrict())) io.panelassistant.android.LiveSettingRequestOutcome.APPLIED
-                            else io.panelassistant.android.LiveSettingRequestOutcome.FAILED_PENDING
+                            else io.panelassistant.android.LiveSettingRequestOutcome.REJECTED
                         } else {
                             SettingsRegistry.spec(key)?.let { config.setRaw(it, value) }
                             io.panelassistant.android.LiveSettingRequestOutcome.APPLIED

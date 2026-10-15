@@ -19,7 +19,7 @@ import org.junit.Test
 /**
  * Kiosk lock has one lane: the :8888 toggle, import and restore, the on-panel escape gesture, Panel
  * Assistant's switch and the start-up re-lock all run on the command worker, in the order they were asked
- * for, through the same entry the panel's own doors use for every live setting.
+ * for. A lock is never journalled for replay; an unlock is stored before it queues.
  */
 internal class KioskLaneTest : PanelRuntimeRig() {
     private val applied = CopyOnWriteArrayList<Boolean>()
@@ -31,8 +31,14 @@ internal class KioskLaneTest : PanelRuntimeRig() {
 
     private fun authority() = LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, bootIdentity = { "boot" })
 
+    /** What the gesture's or :8888's fallback unlock was asked to do. */
+    private val unlocked = CopyOnWriteArrayList<Boolean>()
+
     private fun request(rig: Rig, authority: LiveSettingAuthority, value: String): LiveSettingRequestOutcome =
-        requestLiveSetting(authority, rig.config, { rig.commands }, "kiosk_lock", value) {}
+        requestLiveSetting(authority, rig.config, { rig.commands }, "kiosk_lock", value, { unlocked += true; true }) {}
+
+    private fun escape(rig: Rig): LiveSettingRequestOutcome =
+        requestKioskSetting(rig.config, { rig.commands }, "false") { unlocked += true; true }
 
     /** Holds the ordered worker on a relay write until [release]. */
     private fun holdWorker(rig: Rig): Thread {
@@ -67,16 +73,15 @@ internal class KioskLaneTest : PanelRuntimeRig() {
         try {
             val held = holdWorker(rig)
 
-            // The request answers once its bounded wait ends: still queued, kept for replay, nothing locked.
+            // The request answers once its bounded wait ends: still queued, nothing locked, nothing journalled.
             assertEquals(LiveSettingRequestOutcome.DEFERRED, request(rig, authority, "true"))
             assertEquals(emptyList<Boolean>(), applied.toList())
             assertFalse(rig.config.kioskLock)
-            assertEquals(setOf("kiosk_lock"), authority.pendingSnapshot().keys)
+            assertEquals(emptyMap<String, String>(), authority.pendingSnapshot())
 
             release(rig, held)
-            waitUntil { authority.pendingSnapshot().isEmpty() }
+            waitUntil { rig.config.kioskLock }
             assertEquals(listOf(true), applied.toList())
-            assertTrue(rig.config.kioskLock)
         } finally {
             rig.close()
         }
@@ -89,21 +94,17 @@ internal class KioskLaneTest : PanelRuntimeRig() {
             assertTrue(rig.config.commitKioskLock(true))
             val held = holdWorker(rig)
             val on = AtomicReference<LiveSettingRequestOutcome>()
-            val onRequest = thread { on.set(request(rig, authority, "true")) }
-            onRequest.join(10_000)
+            thread { on.set(request(rig, authority, "true")) }.join(10_000)
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, on.get())
 
             // The gesture's OFF: stored before the worker reaches it, so a restart now comes back unlocked.
-            val unlocked = CopyOnWriteArrayList<Boolean>()
-            assertEquals(
-                LiveSettingRequestOutcome.DEFERRED,
-                requestKioskEscape(authority, rig.config, { rig.commands }, { unlocked += true; true }) {},
-            )
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, escape(rig))
             assertEquals("the worker unlocks, not the fallback", emptyList<Boolean>(), unlocked.toList())
             assertFalse(rig.config.kioskLock)
             assertEquals(emptyList<Boolean>(), applied.toList())
 
             release(rig, held)
-            waitUntil { authority.pendingSnapshot().isEmpty() }
+            waitUntil { applied.isNotEmpty() }
             assertEquals("the queued ON never ran", listOf(false), applied.toList())
             assertFalse(rig.config.kioskLock)
         } finally {
@@ -111,60 +112,88 @@ internal class KioskLaneTest : PanelRuntimeRig() {
         }
     }
 
-    @Test fun anOffAcceptedWhileAnOlderOnIsLockingStaysStoredWhenTheProcessEndsFirst() {
+    /** A rig whose kiosk lock blocks inside its actuator until [release], ignoring the worker's interrupt as a root shell does. */
+    private fun lockingRig(locking: java.util.concurrent.CountDownLatch, release: java.util.concurrent.CountDownLatch) = rig(
+        kioskApply = { on ->
+            if (on) {
+                locking.countDown()
+                while (true) try { release.await(); break } catch (_: InterruptedException) {}
+            }
+            applied += on
+            true
+        },
+    )
+
+    @Test fun anOffAcceptedWhileAnOlderHttpOnIsLockingStaysOffAndNothingReplaysTheOn() {
         val locking = java.util.concurrent.CountDownLatch(1)
         val release = java.util.concurrent.CountDownLatch(1)
-        val offSettled = java.util.concurrent.CountDownLatch(1)
-        val authority = LiveSettingAuthority(
-            PanelCommandDispatcher.APPLY_SETTING_KEYS, onLatePending = { offSettled.countDown() }, bootIdentity = { "boot" },
-        )
-        val rig = rig(
-            kioskApply = { on ->
-                if (on) {
-                    locking.countDown()
-                    // A root shell does not stop for the worker's interrupt.
-                    while (true) try { release.await(); break } catch (_: InterruptedException) {}
-                }
-                applied += on
-                true
-            },
-            onExternalSettingApplied = authority::discard,
-        )
+        val rig = lockingRig(locking, release)
+        // A journal that refuses every write: kiosk never depends on it in either direction.
+        val authority = LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, object : LiveSettingAuthority.Journal {
+            override fun load() = emptyMap<String, LiveSettingAuthority.Pending>()
+            override fun put(key: String, value: LiveSettingAuthority.Pending) = false
+            override fun remove(key: String) = true
+        }, bootIdentity = { "boot" })
         try {
-            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
-            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+            assertTrue(rig.config.commitKioskLock(false))
+            val on = AtomicReference<LiveSettingRequestOutcome>()
+            val onRequest = thread { on.set(request(rig, authority, "true")) }
             assertTrue("the ON is locking", locking.await(10, TimeUnit.SECONDS))
+            onRequest.join(10_000)
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, on.get())
 
             // The escape is accepted and stored while the ON still locks; its command queues behind it.
-            assertEquals(LiveSettingRequestOutcome.DEFERRED, request(rig, authority, "false"))
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, escape(rig))
             assertFalse(rig.config.kioskLock)
 
-            // The process ends before the queued OFF runs: the worker stops, cancelling it, and the ON then finishes.
+            // The worker stops before the queued OFF runs, as a process end would; the ON then finishes.
             val stopping = thread { rig.commands.stop(MonotonicDeadline(20_000)) }
-            assertTrue("the queued OFF was cancelled", offSettled.await(10, TimeUnit.SECONDS))
+            waitUntil { stopping.state == Thread.State.WAITING || stopping.state == Thread.State.TIMED_WAITING || !stopping.isAlive }
             release.countDown()
             stopping.join(20_000)
 
-            assertTrue("the older ON yields", on.poll(10, TimeUnit.SECONDS) is PanelAssistantCommandResult.Failed)
             assertFalse("the newer OFF stays the stored truth", rig.config.kioskLock)
             assertEquals("locked, then rolled back; the OFF never ran", listOf(true, false), applied.toList())
-            assertEquals("the older ON does not discard the newer request", mapOf("kiosk_lock" to "false"),
-                authority.pendingSnapshot())
+            var replayed = 0
+            authority.replay { _, _ -> replayed++; LiveSettingApplyResult.APPLIED }
+            assertEquals("no kiosk value is left to replay", 0, replayed)
         } finally {
             release.countDown()
             rig.close()
         }
     }
 
-    @Test fun anOnThePanelCannotEnableStoresNothing() {
+    @Test fun anOffAcceptedWhileAnOlderPanelAssistantOnIsLockingStaysStored() {
+        val locking = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val rig = lockingRig(locking, release)
+        try {
+            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
+            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+            assertTrue("the ON is locking", locking.await(10, TimeUnit.SECONDS))
+            assertEquals(LiveSettingRequestOutcome.DEFERRED, escape(rig))
+
+            val stopping = thread { rig.commands.stop(MonotonicDeadline(20_000)) }
+            waitUntil { stopping.state == Thread.State.WAITING || stopping.state == Thread.State.TIMED_WAITING || !stopping.isAlive }
+            release.countDown()
+            stopping.join(20_000)
+
+            assertTrue("the older ON yields", on.poll(10, TimeUnit.SECONDS) is PanelAssistantCommandResult.Failed)
+            assertFalse("the newer OFF stays the stored truth", rig.config.kioskLock)
+        } finally {
+            release.countDown()
+            rig.close()
+        }
+    }
+
+    @Test fun anOnThePanelCannotEnableIsRefusedAndNotKept() {
         val rig = kioskRig(canEnable = false)
         val authority = authority()
         try {
-            assertEquals(LiveSettingRequestOutcome.FAILED_PENDING, request(rig, authority, "true"))
+            assertEquals(LiveSettingRequestOutcome.REJECTED, request(rig, authority, "true"))
             assertEquals(listOf(true), applied.toList())
             assertFalse(rig.config.kioskLock)
-            // Shown as waiting to apply and retried like every live setting; the boot discard ends it.
-            assertEquals(setOf("kiosk_lock"), authority.pendingSnapshot().keys)
+            assertEquals(emptyMap<String, String>(), authority.pendingSnapshot())
         } finally {
             rig.close()
         }
@@ -174,78 +203,25 @@ internal class KioskLaneTest : PanelRuntimeRig() {
         val rig = kioskRig()
         val refusing = Config(fakePreferences(commitSucceeds = false).instance)
         try {
-            requestLiveSetting(authority(), refusing, { rig.commands }, "kiosk_lock", "false") {}
+            requestKioskSetting(refusing, { rig.commands }, "false") { unlocked += true; true }
             assertEquals(listOf(false), applied.toList())
         } finally {
             rig.close()
         }
     }
 
-    private fun refusingAuthority(): LiveSettingAuthority {
-        val refusingJournal = object : LiveSettingAuthority.Journal {
-            override fun load() = emptyMap<String, LiveSettingAuthority.Pending>()
-            override fun put(key: String, value: LiveSettingAuthority.Pending) = false
-            override fun remove(key: String) = true
-        }
-        return LiveSettingAuthority(PanelCommandDispatcher.APPLY_SETTING_KEYS, refusingJournal, bootIdentity = { "boot" })
-    }
-
-    @Test fun anEscapeTheJournalRefusesStillReplacesAQueuedOnAndStaysStored() {
+    @Test fun anUnlockNoWorkerTakesClearsTheLockHereAndStaysStored() {
         val rig = kioskRig()
-        val unlocked = CopyOnWriteArrayList<Boolean>()
         try {
             assertTrue(rig.config.commitKioskLock(true))
-            val held = holdWorker(rig)
-            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
-            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
+            assertTrue(rig.commands.stop(MonotonicDeadline(5_000)))
 
-            val outcome = requestKioskEscape(refusingAuthority(), rig.config, { rig.commands }, { unlocked += true; true }) {}
-            assertEquals(LiveSettingRequestOutcome.REJECTED, outcome)
-            assertEquals(listOf(true), unlocked.toList())
-            assertFalse("stored before the worker runs anything, so a restart comes back unlocked", rig.config.kioskLock)
-
-            release(rig, held)
-            assertEquals(PanelAssistantCommandResult.Superseded, on.poll(10, TimeUnit.SECONDS))
-            waitUntil { applied.isNotEmpty() }
-            assertEquals("the queued ON never ran; the OFF did", listOf(false), applied.toList())
-            assertFalse(rig.config.kioskLock)
-        } finally {
-            rig.close()
-        }
-    }
-
-    @Test fun anEscapeTheJournalRefusesWinsOverAnOnStillLockingAcrossARestart() {
-        val locking = java.util.concurrent.CountDownLatch(1)
-        val release = java.util.concurrent.CountDownLatch(1)
-        val unlocked = CopyOnWriteArrayList<Boolean>()
-        val rig = rig(kioskApply = { on ->
-            if (on) {
-                locking.countDown()
-                while (true) try { release.await(); break } catch (_: InterruptedException) {}
-            }
-            applied += on
-            true
-        })
-        try {
-            assertTrue(rig.config.commitKioskLock(true))
-            val on = LinkedBlockingQueue<PanelAssistantCommandResult>()
-            rig.commands.submit(PanelAssistantCommand("kiosk_lock", CommandValue.Switch(true), admit = { null }), CommandOrigin.panelAssistant()) { on.put(it) }
-            assertTrue("the ON is locking", locking.await(10, TimeUnit.SECONDS))
-
-            val outcome = requestKioskEscape(refusingAuthority(), rig.config, { rig.commands }, { unlocked += true; true }) {}
-            assertEquals(LiveSettingRequestOutcome.REJECTED, outcome)
+            assertEquals(LiveSettingRequestOutcome.APPLIED, escape(rig))
             assertEquals(listOf(true), unlocked.toList())
             assertFalse(rig.config.kioskLock)
-
-            // The process ends before the queued OFF runs; the ON then finishes.
-            val stopping = thread { rig.commands.stop(MonotonicDeadline(20_000)) }
-            waitUntil { stopping.state == Thread.State.WAITING || stopping.state == Thread.State.TIMED_WAITING || !stopping.isAlive }
-            release.countDown()
-            stopping.join(20_000)
-            assertTrue("the older ON yields", on.poll(10, TimeUnit.SECONDS) is PanelAssistantCommandResult.Failed)
-            assertFalse("a restart reads the escape's OFF", rig.config.kioskLock)
+            assertEquals(LiveSettingRequestOutcome.REJECTED, request(rig, authority(), "true"))
+            assertFalse("a lock no worker takes is refused, not stored", rig.config.kioskLock)
         } finally {
-            release.countDown()
             rig.close()
         }
     }

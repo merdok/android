@@ -24,7 +24,8 @@ internal fun commitHttpLiveSetting(
  * One live-setting value from the panel's own doors (the HTTP config API, the :8888 form, import and
  * restore, the kiosk escape gesture). [authority] journals it, so a value the draining dispatcher does not
  * admit is replayed against its replacement; [applyLiveSetting] then runs it through the dispatcher's
- * settings entry, in the one order Panel Assistant's commands share.
+ * settings entry, in the one order Panel Assistant's commands share. Kiosk lock never enters the journal:
+ * see [requestKioskSetting].
  */
 internal fun requestLiveSetting(
     authority: LiveSettingAuthority,
@@ -32,34 +33,45 @@ internal fun requestLiveSetting(
     commands: () -> PanelCommandDispatcher,
     key: String,
     value: String,
+    unlockKiosk: () -> Boolean,
     refreshAutoSleep: () -> Unit,
-): LiveSettingRequestOutcome = authority.applyOrQueueOutcomeObserved(
-    key = key,
-    value = value,
-    previousValue = SettingsRegistry.spec(key)?.let(config::getRaw),
-) { appliedKey, appliedValue, previous ->
-    applyLiveSetting(config, commands(), appliedKey, appliedValue, previous, refreshAutoSleep)
+): LiveSettingRequestOutcome {
+    if (key == "kiosk_lock") return requestKioskSetting(config, commands, value, unlockKiosk)
+    return authority.applyOrQueueOutcomeObserved(
+        key = key,
+        value = value,
+        previousValue = SettingsRegistry.spec(key)?.let(config::getRaw),
+    ) { appliedKey, appliedValue, previous ->
+        applyLiveSetting(config, commands(), appliedKey, appliedValue, previous, refreshAutoSleep)
+    }
 }
 
 /**
- * The on-panel escape gesture: the same OFF as the :8888 toggle. When the store refuses even to record the
- * request, the OFF is still stored ahead (so an older ON still locking yields), [unlock] clears the lock at
- * once, and the OFF is queued without the journal so it replaces an older queued ON: the network-independent
- * escape never depends on the journal.
+ * Kiosk lock from the panel's own doors, including the escape gesture, through the dispatcher's settings
+ * entry but never the replay journal: a lock that cannot run now is refused rather than replayed later, so
+ * no stale lock can come back. An unlock is stored before it queues (an older lock still engaging then
+ * yields); when no worker takes it, [unlock] clears the lock here.
  */
-internal fun requestKioskEscape(
-    authority: LiveSettingAuthority,
+internal fun requestKioskSetting(
     config: Config,
     commands: () -> PanelCommandDispatcher,
+    value: String,
     unlock: () -> Boolean,
-    refreshAutoSleep: () -> Unit,
-): LiveSettingRequestOutcome =
-    requestLiveSetting(authority, config, commands, "kiosk_lock", "false", refreshAutoSleep).also { outcome ->
-        if (outcome != LiveSettingRequestOutcome.REJECTED) return@also
-        config.storeKioskOffAhead()
-        unlock()
-        runCatching { commands().applySettingObserved("kiosk_lock", "false") }
+): LiveSettingRequestOutcome {
+    val on = SettingValue.parseBool(value) ?: return LiveSettingRequestOutcome.REJECTED
+    val application = runCatching { applyLiveSetting(config, commands(), "kiosk_lock", value, null) {} }.getOrNull()
+    return when {
+        application?.initial == LiveSettingApplyResult.APPLIED -> LiveSettingRequestOutcome.APPLIED
+        // Queued behind a running command: it runs in order, and an unlock is already stored.
+        application?.initial == LiveSettingApplyResult.DEFERRED && application.hasLateCompletion ->
+            LiveSettingRequestOutcome.DEFERRED
+        on -> LiveSettingRequestOutcome.REJECTED
+        else -> {
+            runCatching(unlock)
+            if (config.kioskLock) LiveSettingRequestOutcome.REJECTED else LiveSettingRequestOutcome.APPLIED
+        }
     }
+}
 
 internal fun applyLiveSetting(
     config: Config,
