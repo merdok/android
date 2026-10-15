@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -462,7 +463,11 @@ class VoiceAssistantCoordinator internal constructor(
                         announcement.done()
                         played.exceptionOrNull()?.let { if (it is CancellationException) throw it }
                     }
-                    if (listens && mic != null) failed = !converse(mic, activation, current, speaker, stop?.listener)
+                    if (listens && mic != null) {
+                        // An announcement stopped as it ended must not go on to listen.
+                        coroutineContext.ensureActive()
+                        failed = !converse(mic, activation, current, speaker, stop?.listener)
+                    }
                 } finally {
                     stop?.close()
                     synchronized(lock) {
@@ -527,12 +532,12 @@ class VoiceAssistantCoordinator internal constructor(
      * Assistant, tells it the reply is over, and gives back the microphone and the panel's media.
      */
     private fun stopHeard(run: Job) {
-        // Under the lock, so no later run can have been admitted and started a sound of its own. Silenced
-        // first: the run notices the silence only at its next poll, by when it is already cancelled.
+        // Under the lock, so no later run can have been admitted and started a sound of its own. Cancelled
+        // first, so a run that sees its sound end already knows it was stopped, not finished.
         synchronized(lock) {
             if (runJob !== run) return
-            playback.silence()
             run.cancel()
+            playback.silence()
         }
     }
 
