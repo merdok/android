@@ -296,7 +296,7 @@ class DashboardActivity : AppCompatActivity() {
             // without invalidating what the user is watching. Everything else keeps the original
             // clear-and-rebuild retry.
             if (homeDashboardResolution?.confirmed == false) {
-                buildAndLoad(Config(this@DashboardActivity))
+                buildAndLoad(activityConfig)
             } else {
                 retryAdmission(resetBackoff = false)
             }
@@ -351,7 +351,7 @@ class DashboardActivity : AppCompatActivity() {
     private val webCover by lazy { DashboardWebCover(this, main) }
     private fun syncWebCover() { if (!authLatched && !interstitialShown) webCover.hide() }
     private fun showWebCover(fill: (StatusSurface) -> Unit) =
-        webCover.show(swipe?.parent as? ViewGroup, StatusSurface.darkFor(this, Config(this)), fill)
+        webCover.show(swipe?.parent as? ViewGroup, StatusSurface.darkFor(this, activityConfig), fill)
     // The main-frame document the dashboard WebView is actually showing (onPageCommitVisible), or null
     // before its first. A retry decides reload() versus a fresh load from this; see retryNeedsFreshLoad.
     private val shownPage = ShownPageTracker()
@@ -935,7 +935,7 @@ class DashboardActivity : AppCompatActivity() {
             // The theme write must COMPLETE before the navigation — evaluateJavascript is async (queued
             // to the JS thread), and a loadUrl issued right after can tear the page down first, losing
             // the write. The result callback runs after evaluation, on the UI thread.
-            w.evaluateJavascript(ExternalAuthProtocol.selectedThemeJs(Config(this).darkMode, onlyIfAbsent = false)) {
+            w.evaluateJavascript(ExternalAuthProtocol.selectedThemeJs(activityConfig.darkMode, onlyIfAbsent = false)) {
                 if (rendererCurrent(generation, w)) {
                     if (!rotateBusDocument(w, config, generation)) return@evaluateJavascript
                     bridge.expectPageStart(url)
@@ -1026,7 +1026,7 @@ class DashboardActivity : AppCompatActivity() {
                     "and load, then WebView recreation, with backoff",
             )
         }
-        val config = Config(this)
+        val config = activityConfig
         // The resolution the page is showing, if it still belongs to the current credential and path. It
         // goes back to provisional, so the resolution below refreshes it live instead of reusing it.
         val resolved = homeDashboardResolution
@@ -1143,12 +1143,12 @@ class DashboardActivity : AppCompatActivity() {
             ) return@evaluateJavascript
             val observed = ExternalAuthProtocol.parseThemeObservation(result)
             when (observed.storedDark) {
-                true -> Config(this).setDashboardThemeDark(true)
-                false -> Config(this).setDashboardThemeDark(false)
+                true -> activityConfig.setDashboardThemeDark(true)
+                false -> activityConfig.setDashboardThemeDark(false)
                 // An explicit absence is an observation too. Recording only true/false made the key
                 // write-only, so a stored theme that later went away (or a forced one this panel just
                 // handed back) kept outranking the system setting on every native screen.
-                null -> if (observed.valid) Config(this).clearDashboardThemeDark()
+                null -> if (observed.valid) activityConfig.clearDashboardThemeDark()
             }
             RendererAdmissionRuntime.setEffectiveTheme(activityOwner, observed.effectiveDark)
         }
@@ -1209,7 +1209,7 @@ class DashboardActivity : AppCompatActivity() {
      * stale dashboard nor Android's grey error page sits behind the cover or shows through a rebuild.
      */
     private fun blankWebDocument() {
-        val background = statusPalette(StatusSurface.darkFor(this, Config(this))).background
+        val background = statusPalette(StatusSurface.darkFor(this, activityConfig)).background
         web?.loadDataWithBaseURL(null, "<!doctype html><html><body style=\"background:$background;margin:0\"></body></html>", "text/html", "utf-8", null)
     }
 
@@ -1243,7 +1243,7 @@ class DashboardActivity : AppCompatActivity() {
             if (homeDashboardCheckingOwner != null) {
                 invalidateHomeDashboardResolution(resetRetry = false)
             }
-            buildAndLoad(Config(this))
+            buildAndLoad(activityConfig)
             if (!screenAwake) scheduleDarkSettle()
             return
         }
@@ -1272,7 +1272,7 @@ class DashboardActivity : AppCompatActivity() {
         lastLightRefreshAt = now
         val path = runCatching { android.net.Uri.parse(w.url).path }.getOrNull().orEmpty()
             .ifBlank {
-                resolvedHomeDashboard(Config(this)) ?: run {
+                resolvedHomeDashboard(activityConfig) ?: run {
                     Log.i(TAG, "pull-to-refresh ignored — no page route and the home dashboard is not resolved yet")
                     swipe?.isRefreshing = false
                     return
@@ -1334,7 +1334,7 @@ class DashboardActivity : AppCompatActivity() {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         main.postDelayed(idleCheck, IDLE_CHECK_MS)
         if (!screenAwake || !frontendConnected || authLatched) return
-        val config = Config(this)
+        val config = activityConfig
         val minutes = config.dashboardIdleReturnMin
         val tick = DashboardIdleReturnPolicy.tick(
             minutes = minutes,
@@ -1387,7 +1387,7 @@ class DashboardActivity : AppCompatActivity() {
      *  re-show the interstitial forever). */
     private fun reloadTarget(): Boolean {
         val w = web ?: return false
-        val config = Config(this)
+        val config = activityConfig
         val fresh = shownPage.needsFreshLoad(config.haEffectiveUrl, interstitialShown, dashboardRenderer = signInShownForUrl == null)
         // Only a fresh load needs the home dashboard; unresolved, admission loads it instead.
         val home = if (fresh) {
@@ -1481,7 +1481,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun readmitForHomeDashboard(why: String) {
         Log.i(TAG, "$why before the home dashboard resolved — re-entering admission")
         teardownWeb()
-        buildAndLoad(Config(this))
+        buildAndLoad(activityConfig)
     }
 
     // Publish foreground state so SystemController.dashboardState can drive the watchdog + kiosk
@@ -1546,7 +1546,7 @@ class DashboardActivity : AppCompatActivity() {
     /** Page zoom (%). Re-read + applied on resume so a live `dashboard_zoom` change lands; the POST
      *  path also reloads the page, since a fresh load is where the initial scale reliably takes effect. */
     private fun applyZoom() {
-        web?.setInitialScale((resources.displayMetrics.density * Config(this).dashboardZoom).toInt())
+        web?.setInitialScale((resources.displayMetrics.density * activityConfig.dashboardZoom).toInt())
     }
 
     /**
@@ -1559,7 +1559,7 @@ class DashboardActivity : AppCompatActivity() {
      */
     private fun applyFullscreen() {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
-        if (Config(this).dashboardFullscreen) {
+        if (activityConfig.dashboardFullscreen) {
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller.hide(WindowInsetsCompat.Type.systemBars())
         } else {
@@ -1669,7 +1669,7 @@ class DashboardActivity : AppCompatActivity() {
                         compatibilityAttempts.owns(compatibilityTicket, compatibilityOwner(config))
                 },
             ).check()
-            val currentConfig = Config(this@DashboardActivity)
+            val currentConfig = activityConfig
             val currentOwner = compatibilityOwner(currentConfig)
             if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) ||
                 !compatibilityAttempts.owns(compatibilityTicket, currentOwner)
@@ -1806,7 +1806,7 @@ class DashboardActivity : AppCompatActivity() {
                                     compatibilityReadyUrl = null
                                     compatibilityCheckingOwner = null
                                     compatibilityAttempts.invalidate()
-                                    buildAndLoad(Config(this@DashboardActivity))
+                                    buildAndLoad(activityConfig)
                                 }
                             }, 750L)
                         }
@@ -1887,7 +1887,7 @@ class DashboardActivity : AppCompatActivity() {
         compatibilityReadyUrl = null
         compatibilityAttempts.invalidate()
         bridge.resetHandshake()
-        buildAndLoad(Config(this))
+        buildAndLoad(activityConfig)
     }
 
     /** Top-visibility, not merely resumed: a translucent Overview can take top-resumed status without
@@ -2000,7 +2000,7 @@ class DashboardActivity : AppCompatActivity() {
                     owner.configuredPath,
                     stillCurrent = {
                         !destroyed && BuiltinDashboard.ownsActivity(activityOwner) &&
-                            homeDashboardAttempts.owns(ticket, homeDashboardOwner(Config(this@DashboardActivity)))
+                            homeDashboardAttempts.owns(ticket, homeDashboardOwner(activityConfig))
                     },
                     // Refreshing behind a rendered provisional page PROMISES a live answer, so the
                     // process-local authority must not answer for it: a warm relaunch would
@@ -2009,7 +2009,7 @@ class DashboardActivity : AppCompatActivity() {
                     forceLive = provisionalPath != null,
                 )
             }
-            val currentConfig = Config(this@DashboardActivity)
+            val currentConfig = activityConfig
             val currentOwner = homeDashboardOwner(currentConfig)
             if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) ||
                 !homeDashboardAttempts.owns(ticket, currentOwner)
@@ -2128,7 +2128,7 @@ class DashboardActivity : AppCompatActivity() {
      *  navigation uses, reading the corrected target through [currentUrl]. */
     private fun loadCorrectedHomeDashboard() {
         val w = web ?: return
-        val config = Config(this)
+        val config = activityConfig
         // Unresolved here means the owner moved after the correction; its rebuild loads the new home.
         val home = resolvedHomeDashboard(config) ?: return
         if (!rotateBusDocument(w, config, rendererGeneration)) return
@@ -2281,7 +2281,7 @@ class DashboardActivity : AppCompatActivity() {
                     runOnUiThread {
                         if (allowRebuild()) {
                             BuiltinDashboard.recordRendererReload(SystemClock.elapsedRealtime()) // involuntary crash rebuild
-                            buildAndLoad(Config(this@DashboardActivity))
+                            buildAndLoad(activityConfig)
                         } else { Log.e(TAG, "renderer crash-looping — falling back to admin launcher"); fallbackToLauncher() }
                     }
                 }
