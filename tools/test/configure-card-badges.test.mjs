@@ -16,9 +16,9 @@ function page(projection) {
     <link rel="stylesheet" href="/info.css">${i18nBridge(projection)}</head><body><div class="wrap">
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <div id="cfg-tools" class="cfg-tools" data-app-version="9.9.9-rc1"><input id="cfg-filter" class="cfg-filter" type="search"><div class="seg" role="radiogroup"><label><input type="radio" name="cfg-tier" id="tier-basic" value="basic" checked>Basic</label><label><input type="radio" name="cfg-tier" id="tier-adv" value="advanced">Advanced</label></div><label class="cfg-desc-switch"><input type="checkbox" id="cfg-desc" checked><span class="toggle"></span>Descriptions</label><span id="cfg-count" class="muted cfg-count"></span></div>
-    <p id="cfg-msg"></p><p id="cfg-status"></p>
+    <div id="cfg-status" class="muted"></div>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" class="savebar" hidden><button id="savebtn"></button></div>
+    <div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="cfg-help" class="cfg-help" popover="manual" role="dialog"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" class="cfg-help-close" type="button">x</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more">More on the website</a></div></div>
     </div>
     <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
@@ -40,7 +40,7 @@ async function harness(locale) {
     if (['/i18n.js', '/configure-state.js', '/configure-view.js', '/configure-help.js', '/configure-controls.js', '/configure-brightness.js', '/configure-auto-sleep.js', '/configure-cards.js', '/configure-render.js', '/configure.js', '/card-size-memory.js'].includes(path)) return send(await readFile(join(root, path.slice(1)), 'utf8'), 'application/javascript');
     if (path === '/info.css') return send(await readFile(join(root, 'info.css'), 'utf8'), 'text/css');
     if (path === '/api/v1/config/schema') return send(JSON.stringify(SCHEMA));
-    if (path === '/api/v1/config') return send(JSON.stringify({ settings: Object.fromEntries(SCHEMA.map((f) => [f.key, 'false'])), ha_expose: {}, ha_auth: { configured: false } }));
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return send(JSON.stringify({ settings: Object.fromEntries(SCHEMA.map((f) => [f.key, 'false'])), ha_expose: {}, ha_auth: { configured: false } }));
     if (path === '/api/v1/apps') return send(JSON.stringify({ apps: [] }));
     if (['/api/v1/radio', '/api/v1/proximity'].includes(path)) return send(JSON.stringify({ present: false }));
     if (path === '/api/v1/config/discovery' || path === '/api/v1/config/home-dashboards') return send('{}');

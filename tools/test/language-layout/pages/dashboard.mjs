@@ -306,7 +306,7 @@ export default {
     const haLink = `<a class="pbtn" href="https://example.invalid/home-assistant" target="_blank" rel="noopener" title="${s.t('dashboard.open_in_ha.title')}">${s.t('shell.open_in_ha')}</a>`;
     return shellHtml({
       ...context, active: 'dashboard', sectionTitle: null, prefixes: ['shell.', 'dashboard.', 'runtime.'],
-      bodyAttrs: 'data-ver="0.9.8" data-build="layout-gate" data-cfg="layout-gate" data-hydrate="cold" data-hardened="1"',
+      bodyAttrs: 'data-ver="0.9.8" data-build="layout-gate" data-hydrate="cold" data-hardened="1"',
       rightControls: `${haLink}${revealBtn} ${ghLink(s)}`,
       body: body(s),
       extraScripts: '<script src="assets/card-size-memory.js"></script>\n<script src="assets/card-column-alignment.js"></script>\n<script src="info.js"></script>\n',

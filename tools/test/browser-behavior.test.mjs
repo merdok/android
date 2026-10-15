@@ -17,23 +17,28 @@ function fixture(translations = {}, locale = 'en') {
   return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/info.css">${i18nBridge({ locale, strings: translations })}</head><body>
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <button id="tab-basic"></button><button id="tab-adv"></button>
-    <p id="cfg-msg"></p><p id="cfg-status"></p><div id="cfg-groups"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" hidden><button id="savebtn" onclick="cfgSave()"></button></div>${HELP_POPOVER}
+    <div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div><p id="cfg-status"></p><div id="cfg-groups"></div>
+    <div id="proximity-learning-mount"></div>${HELP_POPOVER}
     <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
     ${ADVANCED_VIEW}<script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script><script src="/proximity-learning.js"></script>
   </body></html>`;
 }
 
-const startHarness = (routes, pageFixture = fixture, assetDelayMs = 0) => startHarnessWith(routes, pageFixture, assetDelayMs);
+// The page follows the panel through the `config` family (GET /api/v1/config/values). A fixture that does
+// not answer that read itself answers it with its GET /api/v1/config body, which carries the same fields.
+const startHarness = (routes, pageFixture = fixture, assetDelayMs = 0) => startHarnessWith(async (path, request) => {
+  if (path !== '/api/v1/config/values') return routes(path, request);
+  return (await routes(path, request)) ?? routes('/api/v1/config', request);
+}, pageFixture, assetDelayMs);
 
 function configureVisualFixture() {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <link rel="stylesheet" href="/info.css">${i18nBridge()}</head><body>
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <button id="tab-basic"></button><button id="tab-adv"></button>
-    <p id="cfg-msg"></p><p id="cfg-status"></p>
+    <div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div><p id="cfg-status"></p>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" hidden><button id="savebtn" onclick="cfgSave()"></button></div>${HELP_POPOVER}
+    <div id="proximity-learning-mount"></div>${HELP_POPOVER}
     <script src="/assets/card-size-memory.js"></script><script src="/assets/card-column-alignment.js"></script>
     ${ADVANCED_VIEW}<script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script><script src="/proximity-learning.js"></script>
   </body></html>`;
@@ -117,9 +122,9 @@ browserTest('Configure shows each enum option by its served label while preservi
   assert.deepEqual(await navbar.locator('option').evaluateAll((options) => options.map((option) => option.value)), ['Off', 'Always on', 'Swipe reveal', 'Native', 'Future wire']);
   assert.deepEqual(await page.locator('#cfg-cpu_governor option').allTextContents(), ['性能', '节能', '自动']);
 
+  const sent = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
   await navbar.selectOption('Swipe reveal');
-  await page.locator('#savebtn').click();
-  await page.waitForFunction(() => document.getElementById('savebtn').disabled);
+  await sent;
   assert.equal(posts.length, 1);
   assert.equal(new URLSearchParams(posts[0]).get('navbar_mode'), 'Swipe reveal');
   assert.ok(!posts[0].includes(encodeURIComponent('滑动显示')));
@@ -179,37 +184,6 @@ browserTest('Configure enum labels fit a 1361px viewport at large text in every 
       await new Promise((resolve) => harness.server.close(resolve));
     }
   }
-});
-
-browserTest('Configure consumes a locale reload message exactly once when initial loading fails', async (t) => {
-  const storageKey = 'ha-paneld-config-locale-reload-message';
-  const harness = await startHarness((path) => {
-    if (path === '/api/v1/config/schema') return json({ error: 'schema-unavailable' }, 503);
-    if (path === '/api/v1/config') return json({ settings: {}, ha_expose: {}, ha_auth: { configured: false } });
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-  }, () => fixture());
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(2_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.addInitScript((key) => {
-    sessionStorage.setItem(key, 'Language saved; another setting was rejected.');
-    window.localeReloadMessageRemovals = 0;
-    const removeItem = Storage.prototype.removeItem;
-    Storage.prototype.removeItem = function (candidate) {
-      if (this === sessionStorage && candidate === key) window.localeReloadMessageRemovals++;
-      return removeItem.call(this, candidate);
-    };
-  }, storageKey);
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.locator('main.pickles').waitFor();
-  assert.equal(await page.locator('#cfg-msg').textContent(), 'Language saved; another setting was rejected.');
-
-  assert.deepEqual(await page.evaluate((key) => ({
-    stored: sessionStorage.getItem(key), removals: window.localeReloadMessageRemovals,
-  }), storageKey), { stored: null, removals: 1 });
 });
 
 // The row's supporting line is the summary; each string carries its own language, as the server resolves
@@ -321,11 +295,11 @@ for (const scenario of [
     });
     await page.goto(harness.url + (scenario.queryOverride ? '?lang=fr' : ''), { waitUntil: 'domcontentloaded', timeout: 5_000 });
     if (scenario.optionLabel) assert.equal(await page.locator(`#cfg-ui_language option[value="${scenario.saved}"]`).textContent(), scenario.optionLabel);
+    // Choosing the language sends it at once; its success recreates the document under the new precedence.
+    // (A same-document URL change also counts as a navigation, so wait for the new document itself.)
+    await page.evaluate(() => { window.beforeLanguageSend = true; });
     await page.locator('#cfg-ui_language select').selectOption(scenario.saved);
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-      page.locator('#savebtn').click(),
-    ]);
+    await page.waitForFunction(() => !window.beforeLanguageSend && document.getElementById('cfg-ui_language'));
     await page.getByText(scenario.finalLabel, { exact: true }).waitFor();
 
     assert.deepEqual(state.posts, [scenario.saved]);
@@ -339,260 +313,7 @@ for (const scenario of [
   });
 }
 
-browserTest('A locale save waits for newer edits before its one document recreation', async (t) => {
-  const firstSave = deferred();
-  const firstSaveSeen = deferred();
-  const state = { uiLanguage: 'auto', friendlyName: 'Panel', documents: 0, posts: [] };
-  const schema = [
-    localizedField('friendly_name', 'Friendly name', 'en', '', null),
-    { key: 'ui_language', label: 'Interface language', labelLanguage: 'en', help: '', helpLanguage: null,
-      group: 'System', type: 'ENUM', available: true, options: ['auto', 'en', 'de', 'fr', 'it', 'es', 'zh-Hans'] },
-  ];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') {
-      if (request.method === 'POST') {
-        const body = new URLSearchParams(await requestBody(request));
-        state.posts.push(Object.fromEntries(body));
-        if (body.has('ui_language')) {
-          state.uiLanguage = body.get('ui_language');
-          firstSaveSeen.resolve();
-          return firstSave.promise;
-        }
-        state.friendlyName = body.get('friendly_name');
-        return json({ ok: true, message: 'Saved.' });
-      }
-      return json({
-        settings: { friendly_name: state.friendlyName, ui_language: state.uiLanguage },
-        ha_expose: {}, ha_auth: { configured: false },
-      });
-    }
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=locale-concurrent' };
-  }, () => { state.documents++; return fixture(); });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(3_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem('locale-concurrent-seeded')) return;
-    sessionStorage.setItem('locale-concurrent-seeded', '1');
-    localStorage.setItem('selectedLanguage', JSON.stringify('fr'));
-  });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  await page.locator('#cfg-ui_language select').selectOption('de');
-  await page.locator('#savebtn').click();
-  await firstSaveSeen.promise;
-  await page.locator('#cfg-friendly_name input').fill('Newer panel name');
-  firstSave.resolve(json({ ok: true, message: 'Saved.' }));
-  await page.getByText('Saved; newer changes still need saving.', { exact: true }).waitFor();
-  assert.equal(state.documents, 1);
-  assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), null);
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Newer panel name');
-
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-    page.locator('#savebtn').click(),
-  ]);
-  await page.locator('#cfg-friendly_name input').waitFor();
-  assert.equal(state.documents, 2);
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Newer panel name');
-  assert.deepEqual(state.posts, [
-    { ui_language: 'de' },
-    { friendly_name: 'Newer panel name' },
-  ]);
-});
-
-browserTest('Reverting a newer edit before locale save completion reloads without an unsaved dialog', async (t) => {
-  const localeSave = deferred();
-  const localeSaveSeen = deferred();
-  const state = { uiLanguage: 'auto', documents: 0, dialogs: 0 };
-  const schema = [
-    localizedField('friendly_name', 'Friendly name', 'en', '', null),
-    { key: 'ui_language', label: 'Interface language', labelLanguage: 'en', help: '', helpLanguage: null,
-      group: 'System', type: 'ENUM', available: true, options: ['auto', 'en', 'de', 'fr', 'it', 'es', 'zh-Hans'] },
-  ];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') {
-      if (request.method === 'POST') {
-        const body = new URLSearchParams(await requestBody(request));
-        state.uiLanguage = body.get('ui_language');
-        localeSaveSeen.resolve();
-        return localeSave.promise;
-      }
-      return json({
-        settings: { friendly_name: 'Panel', ui_language: state.uiLanguage },
-        ha_expose: {}, ha_auth: { configured: false },
-      });
-    }
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=locale-pre-response-revert' };
-  }, () => { state.documents++; return fixture(); });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(3_000);
-  page.on('dialog', async (dialog) => { state.dialogs++; await dialog.accept(); });
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem('locale-pre-response-revert-seeded')) return;
-    sessionStorage.setItem('locale-pre-response-revert-seeded', '1');
-    localStorage.setItem('selectedLanguage', JSON.stringify('fr'));
-  });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  await page.locator('#cfg-ui_language select').selectOption('de');
-  await page.locator('#savebtn').click();
-  await localeSaveSeen.promise;
-  await page.locator('#cfg-friendly_name input').fill('Temporary newer name');
-  await page.locator('#cfg-friendly_name input').fill('Panel');
-  const navigation = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-  localeSave.resolve(json({ ok: true, message: 'Saved.' }));
-  await navigation;
-
-  assert.equal(state.dialogs, 0);
-  assert.equal(state.documents, 2);
-  assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), null);
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Panel');
-});
-
-browserTest('Reverting the newer edit releases a deferred locale document recreation', async (t) => {
-  const localeSave = deferred();
-  const localeSaveSeen = deferred();
-  const state = { uiLanguage: 'auto', documents: 0, posts: [] };
-  const schema = [
-    localizedField('friendly_name', 'Friendly name', 'en', '', null),
-    { key: 'ui_language', label: 'Interface language', labelLanguage: 'en', help: '', helpLanguage: null,
-      group: 'System', type: 'ENUM', available: true, options: ['auto', 'en', 'de', 'fr', 'it', 'es', 'zh-Hans'] },
-  ];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') {
-      if (request.method === 'POST') {
-        const body = new URLSearchParams(await requestBody(request));
-        state.posts.push(Object.fromEntries(body));
-        state.uiLanguage = body.get('ui_language');
-        localeSaveSeen.resolve();
-        return localeSave.promise;
-      }
-      return json({
-        settings: { friendly_name: 'Panel', ui_language: state.uiLanguage },
-        ha_expose: {}, ha_auth: { configured: false },
-      });
-    }
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=locale-revert' };
-  }, () => { state.documents++; return fixture(); });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(3_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem('locale-revert-seeded')) return;
-    sessionStorage.setItem('locale-revert-seeded', '1');
-    localStorage.setItem('selectedLanguage', JSON.stringify('fr'));
-  });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  await page.locator('#cfg-ui_language select').selectOption('de');
-  await page.locator('#savebtn').click();
-  await localeSaveSeen.promise;
-  await page.locator('#cfg-friendly_name input').fill('Temporary newer name');
-  localeSave.resolve(json({ ok: true, message: 'Saved.' }));
-  await page.getByText('Saved; newer changes still need saving.', { exact: true }).waitFor();
-
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-    page.locator('#cfg-friendly_name input').fill('Panel'),
-  ]);
-  await page.locator('#cfg-friendly_name input').waitFor();
-  assert.equal(state.documents, 2);
-  assert.deepEqual(state.posts, [{ ui_language: 'de' }]);
-  assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), null);
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Panel');
-});
-
-browserTest('A partially applied locale save releases overrides and preserves its failure message', async (t) => {
-  const partialSave = deferred();
-  const partialSaveSeen = deferred();
-  const state = { uiLanguage: 'auto', documents: 0, posts: [], dialogs: 0, haStatusGets: 0 };
-  const schemaFor = (language) => [
-    localizedField('friendly_name', language === 'de' ? 'Anzeigename' : 'Friendly name', language, '', null),
-    { key: 'ui_language', label: 'Interface language', labelLanguage: 'en', help: '', helpLanguage: null,
-      group: 'System', type: 'ENUM', available: true, options: ['auto', 'en', 'de', 'fr', 'it', 'es', 'zh-Hans'] },
-    { key: 'touch_sound', label: 'Touch sound', labelLanguage: 'en', help: '', helpLanguage: null,
-      group: 'Behaviour', type: 'BOOL', available: true },
-  ];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') {
-      const url = new URL(request.url, 'http://panel.test');
-      const language = url.searchParams.get('lang') === 'fr' ? 'fr' : state.uiLanguage === 'de' ? 'de' : 'en';
-      return json(schemaFor(language));
-    }
-    if (path === '/api/v1/config') {
-      if (request.method === 'POST') {
-        const body = new URLSearchParams(await requestBody(request));
-        state.posts.push(Object.fromEntries(body));
-        state.uiLanguage = body.get('ui_language');
-        partialSaveSeen.resolve();
-        return partialSave.promise;
-      }
-      return json({
-        settings: { friendly_name: 'Panel', ui_language: state.uiLanguage, touch_sound: false },
-        ha_expose: {}, ha_auth: { configured: true },
-      });
-    }
-    if (path === '/api/v1/ha/oauth/status') {
-      state.haStatusGets++;
-      return json({ phase: 'connected', display_name: 'Owner', language: 'en' });
-    }
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=locale-partial' };
-  }, () => { state.documents++; return fixture({ 'configure.save.refused': '未保存：{reason}' }); });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(3_000);
-  page.on('dialog', async (dialog) => { state.dialogs++; await dialog.accept(); });
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem('locale-partial-seeded')) return;
-    sessionStorage.setItem('locale-partial-seeded', '1');
-    localStorage.setItem('selectedLanguage', JSON.stringify('fr'));
-  });
-  await page.goto(harness.url + '?lang=fr', { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  await page.locator('#cfg-ui_language select').selectOption('de');
-  await page.locator('#cfg-touch_sound [role=switch]').click();
-  await page.locator('#savebtn').click();
-  await partialSaveSeen.promise;
-  await page.locator('#cfg-touch_sound [role=switch]').click();
-  const navigation = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-  partialSave.resolve(json({
-    ok: false, status: 'saved-partial', applied: ['ui_language'], pending: [], rejected: ['touch_sound'],
-    message: 'Language was saved, but touch sound was rejected.',
-  }, 500));
-  await navigation;
-  await page.getByText('未保存：Language was saved, but touch sound was rejected.', { exact: true }).waitFor();
-  await page.getByText('Anzeigename', { exact: true }).waitFor();
-  assert.equal(state.dialogs, 0);
-  assert.equal(state.haStatusGets, 2);
-  assert.equal(state.documents, 2);
-  assert.deepEqual(state.posts, [{ ui_language: 'de', touch_sound: 'true' }]);
-  assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), null);
-  assert.equal(new URL(page.url()).searchParams.has('lang'), false);
-  assert.equal(await page.locator('#cfg-touch_sound [role=switch]').getAttribute('aria-checked'), 'false');
-});
-
-browserTest('Unrelated and failed saves preserve the supported browser language override', async (t) => {
+browserTest('Unrelated and refused sends preserve the supported browser language override', async (t) => {
   const state = { friendlyName: 'Panel', documents: 0, posts: [] };
   const schema = [
     localizedField('friendly_name', 'Friendly name', 'en', '', null),
@@ -618,10 +339,7 @@ browserTest('Unrelated and failed saves preserve the supported browser language 
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
     if (path === '/health') return { body: 'ok cfg=locale-negative' };
-  }, () => { state.documents++; return fixture({
-    'configure.save.saved': '已保存。',
-    'configure.save.refused': '未保存：{reason}',
-  }); });
+  }, () => { state.documents++; return fixture({ 'configure.save.refused': '未保存：{reason}' }); });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   page.setDefaultTimeout(3_000);
@@ -629,15 +347,21 @@ browserTest('Unrelated and failed saves preserve the supported browser language 
   await page.addInitScript(() => localStorage.setItem('selectedLanguage', JSON.stringify('fr')));
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
 
+  const renamed = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
   await page.locator('#cfg-friendly_name input').fill('Renamed panel');
-  await page.locator('#savebtn').click();
-  await page.getByText('已保存。', { exact: true }).waitFor();
+  await page.locator('#cfg-friendly_name input').press('Tab');
+  await renamed;
+  await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), '"fr"');
   assert.equal(state.documents, 1);
+  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Renamed panel');
 
   await page.locator('#cfg-ui_language select').selectOption('en');
-  await page.locator('#savebtn').click();
-  await page.getByText('未保存：Locale save refused.', { exact: true }).waitFor();
+  const refusal = page.locator('#cfg-ui_language .cfg-row-message');
+  await refusal.getByText('未保存：Locale save refused.', { exact: true }).waitFor();
+  assert.equal(await page.locator('#cfg-msg').textContent(), '未保存：Locale save refused.');
+  assert.equal(await page.locator('#cfg-ui_language select').inputValue(), 'auto', 'the refused language goes back to the panel value');
+  await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => localStorage.getItem('selectedLanguage')), '"fr"');
   assert.equal(state.documents, 1);
   assert.deepEqual(state.posts, [
@@ -778,9 +502,8 @@ function cardMemoryFixture(cold) {
 function configureCardMemoryFixture(compact) {
   return `<!doctype html><html><head><style>#cfg-groups{width:820px}.card{box-sizing:border-box;width:400px;min-height:80px;padding:10px}
     [data-config-group="Display"]{height:${compact ? '100' : '220'}px}</style>${i18nBridge()}</head><body>
-    <button id="tab-basic"></button><button id="tab-adv"></button><p id="cfg-msg"></p><p id="cfg-status"></p>
+    <button id="tab-basic"></button><button id="tab-adv"></button><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div><p id="cfg-status"></p>
     <div id="cfg-groups" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1" data-card-size-proximity="0"></div>
-    <div id="savebar" hidden><button id="savebtn"></button></div>
     <script src="/assets/card-size-memory.js"></script><script>window.__alignmentCalls=0;window.CardColumnAlignment={attach:()=>()=>window.__alignmentCalls++};</script>
     ${ADVANCED_VIEW}<script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script></body></html>`;
 }
@@ -1260,7 +983,7 @@ browserTest('Configure exposure-linked native selects stay inside a 1361px viewp
   }
 });
 
-browserTest('Configure rejects an invalid brightness floor before a save request', async (t) => {
+browserTest('Configure refuses an invalid brightness floor without sending it and shows the panel value again', async (t) => {
   let configPosts = 0;
   const schema = [
     { key: 'auto_brightness', label: 'Adaptive brightness', group: 'Display', type: 'BOOL', available: true },
@@ -1284,14 +1007,18 @@ browserTest('Configure rejects an invalid brightness floor before a save request
   page.setDefaultTimeout(1_500);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.locator('#cfg-auto_brightness_minimum_percent input').fill('2');
-  await page.locator('#savebtn').click();
+  const floor = page.locator('#cfg-auto_brightness_minimum_percent input');
+  await floor.fill('2');
+  await floor.press('Tab');
+  const rule = 'Minimum brightness must be a whole number between 4 and 99.';
+  await page.locator('#cfg-auto_brightness_minimum_percent .cfg-row-message').getByText(rule, { exact: true }).waitFor();
+  assert.equal(await page.locator('#cfg-msg').textContent(), rule);
+  assert.equal(await floor.inputValue(), '12', 'the panel value comes back');
   await assert.rejects(page.waitForRequest((request) => request.url().endsWith('/api/v1/config') && request.method() === 'POST', { timeout: 200 }), /Timeout/);
   assert.equal(configPosts, 0);
-  await assert.doesNotReject(page.locator('#cfg-msg').getByText('Minimum brightness must be a whole number between 4 and 99.').waitFor());
 });
 
-browserTest('Configure renderer picker reflects the installed Companion catalogue across save and reload', async (t) => {
+browserTest('Configure renderer picker reflects the installed Companion catalogue across a send and reload', async (t) => {
   const full = { pkg: 'io.homeassistant.companion.android', label: 'Home Assistant Companion (full)' };
   const minimal = { pkg: 'io.homeassistant.companion.android.minimal', label: 'Home Assistant Companion (minimal)' };
   const arbitrary = { pkg: 'com.example.launchable', label: 'Unrelated launcher' };
@@ -1347,25 +1074,22 @@ browserTest('Configure renderer picker reflects the installed Companion catalogu
   assert.equal(await page.locator(`option[value="${arbitrary.pkg}"]`).count(), 0,
     'an arbitrary launchable app must not become a renderer');
 
+  const companionSaved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
   await page.locator('#cfg-dashboard_package select').selectOption(minimal.pkg);
   await page.locator('.companion-renderer-hint').getByText("Turn on the Companion app's launcher option for it to take Home.").waitFor();
   assert.equal(await page.locator('.companion-renderer-hint').count(), 1, 'the selected Companion shows one hint');
-  const companionSaved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
-  await page.locator('#savebtn').click();
   await companionSaved;
-  await page.locator('#cfg-msg').getByText('Saved.').waitFor();
-  assert.deepEqual(posts.at(-1), { dashboard_package: minimal.pkg });
+  assert.deepEqual(posts, [{ dashboard_package: minimal.pkg }], 'choosing the renderer sends it once');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 5_000 });
   assert.equal(await page.locator('#cfg-dashboard_package select').inputValue(), minimal.pkg,
     'saved Companion survives a page reload');
 
+  const builtinSaved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
   await page.locator('#cfg-dashboard_package select').selectOption('builtin');
   assert.equal(await page.locator('.companion-renderer-hint').count(), 0, 'Built-in has no Companion-only hint');
-  const builtinSaved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
-  await page.locator('#savebtn').click();
   await builtinSaved;
-  await page.locator('#cfg-msg').getByText('Saved.').waitFor();
   assert.deepEqual(posts.at(-1), { dashboard_package: 'builtin' });
+  assert.equal(posts.length, 2);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 5_000 });
   assert.equal(await page.locator('#cfg-dashboard_package select').inputValue(), 'builtin',
     'switching back to Built-in survives a page reload');
@@ -1418,15 +1142,16 @@ browserTest('Configure retains an explicit renderer when the app catalogue fails
     'a configured third-party renderer remains selected');
   await page.locator('#cfg-friendly_name input').fill('Example device');
   const saved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
-  await page.locator('#savebtn').click();
+  await page.locator('#cfg-friendly_name input').press('Tab');
   await saved;
-  await page.locator('#cfg-msg').getByText('Saved.').waitFor();
-  assert.deepEqual(posts.at(-1), { friendly_name: 'Example device' },
-    'an unrelated save must not erase the renderer hidden by a failed catalogue');
+  await page.waitForTimeout(300);
+  assert.deepEqual(posts, [{ friendly_name: 'Example device' }],
+    'an unrelated send must not erase the renderer hidden by a failed catalogue');
+  assert.equal(await page.locator('#cfg-dashboard_package select').inputValue(), thirdParty);
   assert.equal(dashboardPackage, thirdParty);
 });
 
-browserTest('Sensitivity preview survives transient HA source loss during save', async (t) => {
+browserTest('Sensitivity preview survives transient HA source loss after its send', async (t) => {
   const source = 'sensor.office_illuminance';
   const revision = 'ambient-source-revision';
   const nowMinute = Math.floor(Date.now() / 60000);
@@ -1479,19 +1204,20 @@ browserTest('Sensitivity preview survives transient HA source loss during save',
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
   await page.locator('#auto-brightness-learning').waitFor();
 
+  // Typing previews the curve; Enter commits the field and sends it.
+  const sent = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
   await page.locator('#cfg-auto_brightness_response_percent input').fill('10');
-  await page.waitForFunction(() => document.querySelector('#auto-brightness-learning')?.textContent.includes('Sensitivity 10%'));
+  await page.locator('#cfg-auto_brightness_response_percent input').press('Enter');
+  await sent;
+  for (let attempt = 0; attempt < 40 && !sensitivityQueries.includes(10); attempt++) await page.waitForTimeout(25);
   assert.ok(sensitivityQueries.includes(10), `missing live sensitivity preview: ${sensitivityQueries}`);
-
-  await page.locator('#savebtn').click();
-  await page.locator('#cfg-msg').getByText('Saved.').waitFor();
   await page.locator('#auto-brightness-learning').waitFor();
   await page.locator('#auto-brightness-learning').getByText(`Waiting for ambient light… · Source: ${source}`).waitFor();
   assert.equal(await page.locator('#auto-brightness-learning').count(), 1);
   assert.equal(await page.locator('[data-config-group="Display"]').count(), 1);
   assert.equal(sensitivity, '10');
 });
-browserTest('Configure keeps a localized approval challenge visible instead of treating it as a save', async (t) => {
+browserTest('Configure shows a localized approval challenge on the row and puts the panel value back', async (t) => {
   const schema = [{ key: 'ha_url', label: 'Home Assistant URL', group: 'Dashboard', type: 'STRING', available: true }];
   const harness = await startHarness((path, request) => {
     if (path === '/api/v1/config/schema') return json(schema);
@@ -1508,10 +1234,13 @@ browserTest('Configure keeps a localized approval challenge visible instead of t
   page.setDefaultTimeout(1_500);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.locator('#cfg-ha_url input').fill('http://new-ha.local:8123');
-  await page.locator('#savebtn').click();
-  await assert.doesNotReject(page.locator('#cfg-msg').getByText('请在面板上批准此请求，然后重试。').waitFor());
-  await assert.doesNotReject(page.locator('#savebtn').isEnabled());
+  const address = page.locator('#cfg-ha_url input');
+  await address.fill('http://new-ha.local:8123');
+  await address.press('Tab');
+  const challenge = '请在面板上批准此请求，然后重试。';
+  await page.locator('#cfg-ha_url .cfg-row-message').getByText(challenge, { exact: true }).waitFor();
+  assert.equal(await page.locator('#cfg-msg').textContent(), challenge);
+  assert.equal(await address.inputValue(), 'http://ha.local:8123', 'an unapproved change is not shown as the panel value');
 });
 
 browserTest('Configure preserves the selected locale in its Display Sizing deep link', async (t) => {
@@ -1556,7 +1285,7 @@ browserTest('Configure localizes unavailable adaptive brightness without display
   assert.equal((await page.locator('body').textContent()).includes(rawDetail), false);
 });
 
-browserTest('Unrelated Configure saves preserve the connected HA identity without probing again', async (t) => {
+browserTest('Unrelated Configure sends preserve the connected HA identity without probing again', async (t) => {
   let statusGets = 0;
   const schema = [
     { key: 'ha_url', label: 'Home Assistant URL', group: 'Dashboard', type: 'STRING', available: true },
@@ -1591,7 +1320,7 @@ browserTest('Unrelated Configure saves preserve the connected HA identity withou
 
   await page.locator('#cfg-friendly_name input').fill('Example panel');
   const saved = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
-  await page.locator('#savebtn').click();
+  await page.locator('#cfg-friendly_name input').press('Tab');
   await saved;
   await page.locator('#cfg-ha-oauth').getByText('Connected as Panel User').waitFor();
   await page.waitForTimeout(100);
@@ -2032,31 +1761,29 @@ browserTest('Duplicate overlay clicks stay single-flight while the combined resp
   assert.equal(calls.filter((call) => call.path === '/api/v1/input').length, 1);
 });
 
-browserTest('Configure accepts durable pending apply without retrying or losing reconciliation', async (t) => {
-  let pending = {}, posts = 0, posted = '', configGetsAfterPost = 0;
+browserTest('Configure shows a durable pending apply on its row until a push says it applied, without resending', async (t) => {
+  // The panel keeps the desired value and retries the hardware itself; the page must neither resend nor
+  // drop the row back to the observed value meanwhile, and the note goes once a `config` push shows it applied.
+  const state = { settings: { touch_sound: false }, apply_pending: {}, ha_expose: {}, ha_auth: { configured: false } };
+  const posted = [];
+  let valuesUnavailable = false;
   const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true }];
   const harness = await startHarness(async (path, request) => {
     if (path === '/api/v1/config/schema') return json(schema);
     if (path === '/api/v1/config' && request.method === 'POST') {
-      posts++; posted = await requestBody(request); pending = { touch_sound: 'true' };
+      posted.push(Object.fromEntries(new URLSearchParams(await requestBody(request))));
+      state.apply_pending = { touch_sound: 'true' };
       return json({
         ok: true, status: 'saved-apply-pending', applied: [], pending: ['touch_sound'], rejected: [],
         message: 'Settings were saved; retrying hardware apply: touch_sound. If they remain pending, restart the service.',
-        settings: { touch_sound: false }, apply_pending: pending, ha_expose: {}, ha_auth: { configured: false },
+        ...state,
       }, 202);
     }
-    if (path === '/api/v1/config') {
-      if (posts && ++configGetsAfterPost > 1) pending = {};
-      if (configGetsAfterPost === 3) return { status: 503, headers: { 'content-type': 'application/json' }, body: 'not json' };
-      return json({
-        settings: { touch_sound: configGetsAfterPost > 1 }, apply_pending: pending,
-        ha_expose: {}, ha_auth: { configured: false },
-      });
-    }
+    if (path === '/api/v1/config/values' && valuesUnavailable) return { status: 503, headers: { 'content-type': 'application/json' }, body: 'not json' };
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return json(state);
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/health') return { body: 'ok cfg=pending' };
   }, () => fixture({
     'configure.save.hardware_pending': '已保存所需值；硬件应用仍在等待。',
   }, 'zh-Hans'));
@@ -2066,101 +1793,32 @@ browserTest('Configure accepts durable pending apply without retrying or losing 
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
 
-  await page.locator('#cfg-touch_sound [role=switch]').click();
-  await page.locator('#savebtn').click();
-  await page.locator('#cfg-msg').getByText('已保存所需值；硬件应用仍在等待。').waitFor();
-  assert.equal(new URLSearchParams(posted).get('touch_sound'), 'true');
-  assert.equal(Array.from(new URLSearchParams(posted).keys()).length, 1);
-  assert.equal(posts, 1);
-  assert.equal(await page.locator('#savebtn').isDisabled(), true);
-  assert.equal(await page.locator('#cfg-touch_sound [role=switch]').getAttribute('aria-checked'), 'true');
-  await page.evaluate(() => window.cfgSave());
-  await page.waitForTimeout(50);
-  assert.equal(posts, 1);
-  await page.getByText('Saved settings are now applied.').waitFor({ timeout: 9_000 });
-  assert.ok(configGetsAfterPost >= 5);
-  assert.equal(await page.locator('#cfg-touch_sound [role=switch]').getAttribute('aria-checked'), 'true');
-});
+  const toggle = page.locator('#cfg-touch_sound [role=switch]');
+  const note = page.locator('#cfg-touch_sound .apply-pending-status');
+  await toggle.click();
+  await note.getByText('已保存所需值；硬件应用仍在等待。', { exact: true }).waitFor();
+  assert.deepEqual(posted, [{ touch_sound: 'true' }]);
+  assert.equal(await toggle.getAttribute('aria-checked'), 'true');
+  assert.equal(await page.locator('#cfg-touch_sound .cfg-row-message').count(), 0, 'a pending apply is not a failure');
 
-browserTest('Configure restores its shared save affordance after a control replaces its node', async (t) => {
-  const schema = [{ key: 'friendly_name', label: 'Friendly name', group: 'Identity', type: 'STRING', available: true }];
-  const harness = await startHarness((path) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') return json({
-      settings: { friendly_name: 'Example Panel' }, ha_expose: {}, ha_auth: { configured: false },
-    });
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/leave') return { body: 'left' };
-  });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(2_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+  // A failed read of the family changes nothing on the row.
+  valuesUnavailable = true;
+  await page.waitForTimeout(1_200);
+  valuesUnavailable = false;
+  assert.equal(await note.count(), 1);
+  assert.equal(await toggle.getAttribute('aria-checked'), 'true');
 
-  const input = page.locator('#cfg-friendly_name input');
-  await input.evaluate((node) => node.addEventListener('input', () => {
-    node.replaceWith(node.cloneNode(true));
-    document.getElementById('savebar').hidden = true;
-    document.getElementById('savebtn').disabled = true;
-  }, { once: true }));
-  await input.fill('Example Panel changed');
-  await page.waitForFunction(() => !document.getElementById('savebar').hidden);
-  assert.equal(await page.locator('#savebar').isVisible(), true);
-  assert.equal(await page.locator('#savebtn').isDisabled(), false);
-});
-
-browserTest('Configure guards link navigation only while settings are dirty', async (t) => {
-  const schema = [{ key: 'friendly_name', label: 'Friendly name', group: 'Identity', type: 'STRING', available: true }];
-  const harness = await startHarness((path) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') return json({
-      settings: { friendly_name: 'Example Panel' }, ha_expose: {}, ha_auth: { configured: false },
-    });
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-    if (path === '/leave') return { body: 'left' };
-  });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(2_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-  await page.evaluate(() => {
-    const link = document.createElement('a');
-    link.id = 'leave-configure'; link.href = '/leave'; link.textContent = 'Dashboard';
-    document.body.prepend(link);
-  });
-
-  const input = page.locator('#cfg-friendly_name input');
-  await input.fill('Example Panel changed');
-  assert.equal(await page.locator('#savebar').isVisible(), true);
-  assert.equal(await page.locator('#savebtn').isDisabled(), false);
-
-  const dialogPromise = page.waitForEvent('dialog', { timeout: 2_000 });
-  const navigation = page.locator('#leave-configure').click().catch(() => null);
-  const dialog = await dialogPromise;
-  assert.equal(dialog.type(), 'beforeunload');
-  await dialog.dismiss();
-  await navigation;
-  assert.equal(new URL(page.url()).pathname, '/');
-
-  await input.fill('Example Panel');
-  await page.waitForFunction(() => document.getElementById('savebar').hidden);
-  assert.equal(await page.locator('#savebtn').isDisabled(), true);
-  let cleanDialogs = 0;
-  page.on('dialog', async (unexpected) => { cleanDialogs++; await unexpected.dismiss(); });
-  await page.locator('#leave-configure').click();
-  await page.waitForURL(`${harness.url}/leave`);
-  assert.equal(new URL(page.url()).pathname, '/leave');
-  assert.equal(cleanDialogs, 0);
+  // The hardware catches up: the next push carries the observed value and no pending entry.
+  state.settings.touch_sound = true;
+  state.apply_pending = {};
+  await note.waitFor({ state: 'detached', timeout: 3_000 });
+  assert.equal(await toggle.getAttribute('aria-checked'), 'true');
+  assert.equal(posted.length, 1, 'the page never retries a durable pending apply');
 });
 
 browserTest('Persistent pending apply does not rebuild auto-sleep or reset the HA identity', async (t) => {
   let configGets = 0;
+  let valuesGets = 0;
   let historyGets = 0;
   let autoSleepStatusGets = 0;
   let prerequisiteGets = 0;
@@ -2173,8 +1831,8 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
   ];
   const harness = await startHarness((path) => {
     if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') {
-      configGets++;
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') {
+      if (path === '/api/v1/config') configGets++; else valuesGets++;
       return json({
         settings: { auto_sleep: true, touch_sound: false, ha_url: 'https://ha.example' },
         apply_pending: { touch_sound: pendingDesired }, ha_expose: {}, ha_auth: { configured: true, oauth: true },
@@ -2199,7 +1857,9 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
 
   await page.waitForTimeout(3_300);
 
-  assert.equal(configGets, 2);
+  // The page follows the panel through the values read alone; nothing else is fetched again.
+  assert.equal(configGets, 1);
+  assert.ok(valuesGets >= 4, `the config family polls its values read (${valuesGets})`);
   assert.equal(statusGets, 1);
   assert.equal(prerequisiteGets, 1);
   assert.equal(autoSleepStatusGets, 1);
@@ -2211,7 +1871,7 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
   pendingDesired = 'false';
   await page.waitForFunction(() => document.querySelector('#cfg-touch_sound [role=switch]').getAttribute('aria-checked') === 'false', null, { timeout: 5_000 });
   await page.waitForTimeout(300);
-  assert.ok(configGets >= 4);
+  assert.equal(configGets, 1);
   assert.equal(statusGets, 1);
   assert.equal(prerequisiteGets, 1);
   assert.equal(autoSleepStatusGets, 1);
@@ -2219,85 +1879,6 @@ browserTest('Persistent pending apply does not rebuild auto-sleep or reset the H
   assert.equal(await page.locator('#cfg-touch_sound .apply-pending-status').count(), 1);
   assert.equal(await page.locator('#cfg-ha-oauth .ha-oauth-status').textContent(), 'Connected as Panel User');
   assert.equal(await page.locator('#auto-sleep-prerequisite-status').textContent(), 'Home Assistant Area: Office');
-});
-
-browserTest('Configure keeps newer edits while a pending save later converges', async (t) => {
-  let pending = {}, posts = 0, getsAfterPost = 0, releasePost;
-  const postGate = new Promise((resolve) => { releasePost = resolve; });
-  const schema = [{ key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true }];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config' && request.method === 'POST') {
-      posts++; pending = { touch_sound: 'true' }; await postGate;
-      return json({
-        ok: true, status: 'saved-apply-pending', applied: [], pending: ['touch_sound'], rejected: [],
-        message: 'Settings were saved; retrying hardware apply: touch_sound. If they remain pending, restart the service.',
-      }, 202);
-    }
-    if (path === '/api/v1/config') {
-      if (posts && ++getsAfterPost > 0) pending = {};
-      return json({
-        settings: { touch_sound: getsAfterPost > 0 }, apply_pending: pending,
-        ha_expose: {}, ha_auth: { configured: false },
-      });
-    }
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-  });
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  const toggle = page.locator('#cfg-touch_sound [role=switch]');
-  await toggle.click();
-  await page.locator('#savebtn').click();
-  await toggle.click();
-  releasePost();
-  await page.getByText(/Newer changes still need saving/).waitFor();
-  await page.getByText('Saved settings are now applied; newer changes still need saving.').waitFor({ timeout: 5_000 });
-  assert.equal(await toggle.getAttribute('aria-checked'), 'false');
-  assert.equal(await page.locator('#savebtn').isDisabled(), false);
-  assert.equal(posts, 1);
-});
-
-browserTest('Configure reconciles structured partial failure instead of blindly retrying', async (t) => {
-  let posts = 0, friendly = 'Panel';
-  const schema = [
-    { key: 'friendly_name', label: 'Panel name', group: 'System', type: 'STRING', available: true },
-    { key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true },
-  ];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config' && request.method === 'POST') {
-      posts++; const body = new URLSearchParams(await requestBody(request)); friendly = body.get('friendly_name');
-      return json({
-        ok: false, status: 'saved-partial', applied: ['friendly_name'], pending: [], rejected: ['touch_sound'],
-        message: 'Panel name was saved, but touch_sound could not be durably accepted.',
-      }, 500);
-    }
-    if (path === '/api/v1/config') return json({
-      settings: { friendly_name: friendly, touch_sound: false }, apply_pending: {}, ha_expose: {}, ha_auth: { configured: false },
-    });
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/radio') return json({ present: false });
-    if (path === '/api/v1/proximity') return json({ present: false });
-  }, () => fixture({ 'configure.save.refused': '未保存：{reason}' }, 'zh-Hans'));
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(2_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
-
-  await page.locator('#cfg-friendly_name input').fill('Alpha');
-  await page.locator('#cfg-touch_sound [role=switch]').click();
-  await page.locator('#savebtn').click();
-  await page.getByText('未保存：Panel name was saved, but touch_sound could not be durably accepted.').waitFor();
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Alpha');
-  assert.equal(await page.locator('#cfg-touch_sound [role=switch]').getAttribute('aria-checked'), 'false');
-  assert.equal(await page.locator('#savebtn').isDisabled(), true);
-  assert.equal(posts, 1);
 });
 
 browserTest('An older background capture cannot overwrite the post-tap screenshot', async (t) => {
@@ -2378,7 +1959,7 @@ browserTest('Auto-sleep requires an assigned Area before OFF can be switched ON'
   assert.ok(prerequisiteCalls >= 2);
 });
 
-browserTest('Touch inactivity can enable Auto-sleep without an Area and saves a fixed seconds delay', async (t) => {
+browserTest('Touch inactivity can enable Auto-sleep without an Area and sends a fixed seconds delay', async (t) => {
   const calls = [];
   const posts = [];
   const settings = { auto_sleep_source: 'panel', auto_sleep_touch_delay_seconds: '30', auto_sleep: 'false' };
@@ -2422,11 +2003,18 @@ browserTest('Touch inactivity can enable Auto-sleep without an Area and saves a 
   assert.equal(await toggle.getAttribute('aria-checked'), 'true');
   const delay = page.locator('#cfg-auto_sleep_touch_delay_seconds input');
   await delay.fill('45');
-  await page.locator('#savebtn').click();
-  await page.waitForFunction(() => document.querySelector('#cfg-msg')?.textContent === 'Saved.');
-  assert.match(await page.locator('#auto-sleep-summary-announcement').textContent(), /45 seconds without touch/);
+  await delay.press('Tab');
+  for (let attempt = 0; attempt < 40 && posts.length < 3; attempt++) await page.waitForTimeout(25);
   assert.equal(await page.locator('#auto-sleep-chart').count(), 0);
-  assert.deepEqual(posts, [{ auto_sleep_source: 'touch', auto_sleep_touch_delay_seconds: '45', auto_sleep: 'true' }]);
+  // Each finished gesture sends its own setting, in the order the person made them.
+  assert.deepEqual(posts, [{ auto_sleep_source: 'touch' }, { auto_sleep: 'true' }, { auto_sleep_touch_delay_seconds: '45' }]);
+  assert.equal(await toggle.getAttribute('aria-checked'), 'true');
+  // The card describes the new delay at once, without a reload: the touch source has no status to wait for.
+  await page.waitForFunction(() => document.querySelector('#auto-sleep-summary-announcement')?.textContent.includes('45 seconds without touch'));
+  // What the panel now holds is what the card describes.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#auto-sleep-summary-announcement')?.textContent.includes('45 seconds without touch'));
+  assert.equal(await page.locator('#cfg-auto_sleep [role=switch]').getAttribute('aria-checked'), 'true');
   assert.equal(calls.includes('/api/v1/auto-sleep/prerequisite'), false);
   assert.equal(calls.includes('/api/v1/auto-sleep'), false);
   assert.equal(calls.includes('/api/v1/auto-sleep/history'), false);
@@ -3386,7 +2974,6 @@ browserTest('Auto-sleep restores its cached chart synchronously when disabled an
   await page.locator('.auto-sleep-lane.source').waitFor();
 
   await page.locator('#cfg-auto_sleep [role=switch]').click();
-  await page.locator('#savebtn').click();
   await page.locator('#auto-sleep-status').waitFor({ state: 'detached' });
   await page.getByText('Home Assistant Area: Office').waitFor();
 
@@ -3403,7 +2990,6 @@ browserTest('Auto-sleep restores its cached chart synchronously when disabled an
     }).observe(document.querySelector('#cfg-groups'), { childList: true, subtree: true });
   });
   await page.locator('#cfg-auto_sleep [role=switch]').click();
-  await page.locator('#savebtn').click();
   const chart = page.locator('#auto-sleep-chart');
   await chart.waitFor();
   await chart.locator('.auto-sleep-lane.source').waitFor();
@@ -3671,7 +3257,7 @@ browserTest('Auto-sleep Area refresh retains A until B is complete and converges
     return { height: chart.height, legendY: legend.y, systemY: system.y };
   }), beforeAreaChange);
 
-  await page.locator('#cfg-friendly_name input').fill('Unsaved panel name');
+  await page.locator('#cfg-friendly_name input').fill('Uncommitted panel name');
   areaName = null;
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.getByText('Assign this panel to a Home Assistant Area before enabling Auto sleep.').waitFor();
@@ -3680,8 +3266,8 @@ browserTest('Auto-sleep Area refresh retains A until B is complete and converges
   assert.equal(await toggle.getAttribute('aria-disabled'), 'true');
   assert.equal(await toggle.getAttribute('tabindex'), '0');
   assert.equal(await page.locator('#auto-sleep-status').count(), 0);
-  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Unsaved panel name');
-  assert.equal(await page.locator('#savebtn').isEnabled(), true);
+  assert.equal(await page.locator('#cfg-friendly_name input').inputValue(), 'Uncommitted panel name', 'the typed text stays in its field');
+  assert.equal(await page.locator('#cfg-friendly_name input').evaluate((node) => node === document.activeElement), true);
 });
 
 browserTest('Logging Configure card omits sink actions and Dashboard-owned live state', async (t) => {
@@ -4169,6 +3755,7 @@ function dashboardHarness(options = {}) {
       if (request.method === 'POST') {
         const body = new URLSearchParams(await requestBody(request));
         state.posts.push(body.get('home_dashboard'));
+        state.current = body.get('home_dashboard');
         return json({});
       }
       // configure.js only fetches the dashboard catalogue for a configured Home Assistant, so the
@@ -4190,7 +3777,7 @@ async function openDashboardPicker(t, options = {}) {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage(options.viewport ? { viewport: options.viewport } : {});
   // Roomier than this file's usual 1.5s: these walks make several round trips (catalogue fetch, then a
-  // save per transition), and one run timed out at 2s while a Gradle gate was saturating the machine.
+  // send per transition), and one run timed out at 2s while a Gradle gate was saturating the machine.
   // It bounds a wait, so it cannot mask a wrong value — only a slow one.
   page.setDefaultTimeout(10_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
@@ -4207,40 +3794,38 @@ async function openDashboardPicker(t, options = {}) {
   return { page, row, select, input: row.locator('input.hd-custom-input'), state };
 }
 
-// Arm the request wait BEFORE the action that causes it: the POST can complete faster than a listener
-// registered afterwards can attach, which reads as "never saved" rather than as a race.
-async function savedOnce(page, act) {
-  // Both waits are armed BEFORE the click: a wait armed afterwards can miss a response that has
-  // already arrived, which is its own source of phantom timeouts.
-  const posted = page.waitForRequest((r) => r.url().endsWith('/api/v1/config') && r.method() === 'POST');
-  const reloaded = page.waitForResponse(
-    (r) => r.url().endsWith('/api/v1/config') && r.request().method() === 'GET',
-  );
+// Arm the response wait BEFORE the gesture that sends: the POST can complete faster than a listener
+// registered afterwards can attach, which reads as "never sent" rather than as a race.
+async function sentOnce(page, act) {
+  const sent = page.waitForResponse((r) => r.url().endsWith('/api/v1/config') && r.request().method() === 'POST');
   await act();
-  await posted;
-  // Wait for the save to SETTLE, not merely to be sent. cfgSave() returns early while a save is in
-  // flight, so a second click landing before the first completes is silently dropped and its POST never
-  // happens — which surfaces as a timeout on the next wait rather than as a visible failure.
-  await page.waitForFunction(() => {
-    const button = document.getElementById('savebtn');
-    return !!button && button.disabled;
-  });
-  // Settling is not the end of the save. cfgSave() clears dirty (which disables the button) and THEN
-  // reloads the form from the server, and that render pass rebuilds every control from the value just
-  // stored. A caller that interacts between those two points has its selection overwritten mid-step —
-  // which is why choosing Custom straight after a save timed out on a permanently disabled input.
-  await reloaded;
+  await sent;
 }
+const noSend = (page, timeout = 300) => assert.rejects(
+  page.waitForRequest((r) => r.url().endsWith('/api/v1/config') && r.method() === 'POST', { timeout }), /Timeout/);
 
-browserTest('A custom dashboard view is posted exactly as typed', async (t) => {
+browserTest('A custom dashboard view is posted once, exactly as typed, when its field is committed', async (t) => {
   const { page, select, input, state } = await openDashboardPicker(t);
 
+  // Choosing Custom starts the gesture; the path field finishes it.
   await select.selectOption('__custom__');
+  await noSend(page);
   await input.fill('/dashboard-test/alpha');
-  await savedOnce(page, () => page.locator('#savebtn').click());
+  await noSend(page, 1_200);
+  await sentOnce(page, () => input.press('Tab'));
+  await page.waitForTimeout(300);
 
-  // The sentinel must never be what gets saved, and the view must survive intact.
+  // The sentinel must never be what gets sent, and the view must survive intact.
   assert.deepEqual(state.posts, ['/dashboard-test/alpha']);
+});
+
+browserTest('Returning to Custom sends the path still in its field', async (t) => {
+  const { page, select, input, state } = await openDashboardPicker(t, { current: '/dashboard-test/alpha' });
+
+  await sentOnce(page, () => select.selectOption('/lovelace'));
+  await input.evaluate((el) => { el.value = '/dashboard-test/alpha'; });
+  await sentOnce(page, () => select.selectOption('__custom__'));
+  assert.deepEqual(state.posts, ['/lovelace', '/dashboard-test/alpha'], 'the path shown is the path sent');
 });
 
 browserTest('An empty custom dashboard path never reaches the server as Auto', async (t) => {
@@ -4250,14 +3835,13 @@ browserTest('An empty custom dashboard path never reaches the server as Auto', a
   // act — and still must not be saved as a blank, which the server would read as Auto.
   await select.selectOption('__custom__');
   await input.fill('');
-  await page.locator('#savebtn').click();
+  await input.press('Tab');
 
-  await assert.rejects(
-    page.waitForRequest((r) => r.url().endsWith('/api/v1/config') && r.method() === 'POST', { timeout: 300 }),
-    /Timeout/,
-  );
+  await page.locator('#cfg-home_dashboard .cfg-row-message').getByText('Home dashboard has an invalid value.', { exact: true }).waitFor();
+  assert.equal(await page.locator('#cfg-msg').textContent(), 'Home dashboard has an invalid value.');
+  await noSend(page);
   assert.deepEqual(state.posts, []);
-  await assert.doesNotReject(page.locator('#cfg-msg').getByText('Home dashboard has an invalid value.').waitFor());
+  assert.equal(await page.locator('#cfg-home_dashboard select').inputValue(), '/alpha', 'the panel value comes back');
 });
 
 browserTest('A configured view path opens in Custom mode and stays editable', async (t) => {
@@ -4272,34 +3856,15 @@ browserTest('A configured view path opens in Custom mode and stays editable', as
 browserTest('Switching Custom to Auto and to a listed dashboard posts each choice', async (t) => {
   const { page, select, input, state } = await openDashboardPicker(t, { current: '/dashboard-test/alpha' });
 
-  await select.selectOption('');
+  await sentOnce(page, () => select.selectOption(''));
   assert.equal(await input.isVisible(), false, 'the path input must be hidden once Auto is chosen');
-  await savedOnce(page, () => page.locator('#savebtn').click());
   assert.deepEqual(state.posts, [''], 'Auto must post a blank, not the abandoned custom path');
 
-  await select.selectOption('/lovelace');
-  await savedOnce(page, () => page.locator('#savebtn').click());
+  await sentOnce(page, () => select.selectOption('/lovelace'));
   assert.deepEqual(state.posts, ['', '/lovelace']);
 });
 
-browserTest('Returning to Custom without retyping still posts the retained path', async (t) => {
-  const { page, select, input, state } = await openDashboardPicker(t, { current: '/alpha' });
-
-  // Leaving Custom and coming back exercises the select handler against an input that already holds a
-  // value — the one route where the sentinel could become the saved value with no later input event to
-  // repair it. The trip has to END somewhere other than the stored value, or the form is legitimately
-  // clean and there is nothing to save.
-  await select.selectOption('__custom__');
-  await input.fill('/dashboard-test/alpha');
-  await select.selectOption('/lovelace');
-  await select.selectOption('__custom__');
-  assert.equal(await input.inputValue(), '/dashboard-test/alpha');
-
-  await savedOnce(page, () => page.locator('#savebtn').click());
-  assert.deepEqual(state.posts, ['/dashboard-test/alpha']);
-});
-
-browserTest('A view under an unknown dashboard warns but is still saveable', async (t) => {
+browserTest('A view under an unknown dashboard warns but is still sent', async (t) => {
   const { page, row, select, input, state } = await openDashboardPicker(t);
 
   await select.selectOption('__custom__');
@@ -4311,9 +3876,9 @@ browserTest('A view under an unknown dashboard warns but is still saveable', asy
   await input.fill('/alpha/upper-floor');
   await assert.doesNotReject(row.locator('.hd-custom-note:not(.warn)').waitFor());
 
-  // …and an unknown root must never block the save: the dashboard may not exist yet.
+  // …and an unknown root must never block the send: the dashboard may not exist yet.
   await input.fill('/dashboard-test/alpha');
-  await savedOnce(page, () => page.locator('#savebtn').click());
+  await sentOnce(page, () => input.press('Tab'));
   assert.deepEqual(state.posts, ['/dashboard-test/alpha']);
 });
 
@@ -4344,7 +3909,7 @@ browserTest('Custom is reachable when the account can see no dashboards at all',
   assert.equal(await select.isDisabled(), false, 'the picker must stay usable with an empty catalogue');
   await select.selectOption('__custom__');
   await input.fill('/alpha/beta');
-  await savedOnce(page, () => page.locator('#savebtn').click());
+  await sentOnce(page, () => input.press('Tab'));
 
   assert.deepEqual(state.posts, ['/alpha/beta']);
 });
@@ -4358,16 +3923,15 @@ browserTest('A malformed Custom path left behind never blocks a later Auto or li
 
   await select.selectOption('__custom__');
   await input.fill('http://elsewhere.example/x');   // rejected by the client pattern
-  await select.selectOption('');                    // Auto: the bad value is now hidden, not cleared
-
-  await savedOnce(page, () => page.locator('#savebtn').click());
-  assert.deepEqual(state.posts, [''], 'Auto must save even after an abandoned malformed Custom path');
+  // Auto: the bad value is now hidden, not cleared
+  await sentOnce(page, () => select.selectOption(''));
+  assert.deepEqual(state.posts, [''], 'Auto must be sent even after an abandoned malformed Custom path');
 
   await select.selectOption('__custom__');
   await input.fill('..//bad');
-  await select.selectOption('/lovelace');           // a listed dashboard, same trap
-  await savedOnce(page, () => page.locator('#savebtn').click());
+  await sentOnce(page, () => select.selectOption('/lovelace'));   // a listed dashboard, same trap
   assert.deepEqual(state.posts, ['', '/lovelace']);
+  assert.equal(await page.locator('#cfg-home_dashboard .cfg-row-message').count(), 0);
 });
 
 browserTest('The client never refuses a dashboard route the server would accept', async (t) => {
@@ -4596,56 +4160,49 @@ browserTest('The search status line reserves its height, so feedback shifts noth
 });
 
 browserTest('Configure stops promising a value is about to apply once the panel cannot apply it', async (t) => {
-  // The defect this closes: "Saved settings waiting to apply: silence_boot_chime" stands forever on a
-  // panel whose root path is absent, over a setting the user never touched. The desired value is still
-  // saved and still retried, so the row keeps showing it — only the promise changes.
+  // The defect this closes: "waiting to apply" stands forever on a panel whose root path is absent, over a
+  // setting the user never touched. The desired value is still saved and still retried, so the row keeps
+  // showing it — only the promise changes, and it changes on the open page as the panel reports it.
   let stalled = [];
+  let documents = 0;
   const schema = [
     { key: 'silence_boot_chime', label: 'Silence boot chime', group: 'Behaviour', type: 'BOOL', available: true },
     { key: 'touch_sound', label: 'Touch sound', group: 'Behaviour', type: 'BOOL', available: true },
   ];
   const harness = await startHarness((path) => {
     if (path === '/api/v1/config/schema') return json(schema);
-    if (path === '/api/v1/config') {
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') {
       return json({
         settings: { silence_boot_chime: false, touch_sound: false },
         apply_pending: { silence_boot_chime: 'true', touch_sound: 'true' },
-        apply_stalled: stalled,
+        apply_stalled: stalled, renderer_pending: [],
         ha_expose: {}, ha_auth: { configured: false },
       });
     }
     if (path === '/api/v1/apps') return json({ apps: [] });
     if (path === '/api/v1/radio') return json({ present: false });
     if (path === '/api/v1/proximity') return json({ present: false });
-  });
+  }, () => { documents++; return fixture(); });
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage();
   page.setDefaultTimeout(2_000);
   t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
   await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
 
-  await page.locator('#cfg-silence_boot_chime .apply-pending-status').waitFor();
-  assert.match(await page.locator('#cfg-msg').textContent(),
-    /Saved settings waiting to apply: silence_boot_chime, touch_sound\./,
-    'while the panel may still apply them, waiting is the truthful thing to say');
-  assert.match(await page.locator('#cfg-silence_boot_chime .apply-pending-status').textContent(),
-    /hardware application is pending/);
+  const chime = page.locator('#cfg-silence_boot_chime .apply-pending-status');
+  const touch = page.locator('#cfg-touch_sound .apply-pending-status');
+  await chime.waitFor();
+  assert.match(await chime.textContent(), /hardware application is pending/,
+    'while the panel may still apply it, waiting is the truthful thing to say');
+  assert.match(await touch.textContent(), /hardware application is pending/);
 
   // Two independent boots have now found no apply path for the boot chime. Touch sound has not stalled.
   stalled = ['silence_boot_chime'];
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('#cfg-silence_boot_chime .apply-pending-status').waitFor();
-
-  const banner = await page.locator('#cfg-msg').textContent();
-  assert.match(banner, /Saved settings waiting to apply: touch_sound\./,
-    'a key that has not stalled keeps the ordinary message');
-  assert.match(banner, /Saved, but this panel has no way to apply them yet: silence_boot_chime\./);
-  assert.doesNotMatch(banner, /waiting to apply: silence_boot_chime/,
-    'the stalled key must not still be promised');
-  assert.match(await page.locator('#cfg-silence_boot_chime .apply-pending-status').textContent(),
-    /no way to apply it yet/);
-  assert.match(await page.locator('#cfg-touch_sound .apply-pending-status').textContent(),
-    /hardware application is pending/);
+  await chime.getByText(/no way to apply it yet/).waitFor();
+  assert.doesNotMatch(await chime.textContent(), /pending/, 'the stalled key must not still be promised');
+  assert.match(await touch.textContent(), /hardware application is pending/,
+    'a key that has not stalled keeps the ordinary note');
+  assert.equal(documents, 1, 'the open page follows the panel without reloading');
 
   // The desired value is unchanged durable state: the row still shows what was saved, not the hardware.
   assert.equal(
@@ -4713,10 +4270,17 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (path === '/api/v1/config') {
         if (request.method === 'POST') {
           const values = Object.fromEntries(new URLSearchParams(await requestBody(request)));
-          posts.push(values); settings = { ...settings, ...values }; return json({});
+          posts.push(values);
+          // The panel checks each bound against the stored other one (SettingsRegistry).
+          const next = { ...settings, ...values };
+          if (Number(next.auto_brightness_maximum_percent) <= Number(next.auto_brightness_minimum_percent)) {
+            return json({ error: 'invalid-value', message: 'auto_brightness_maximum_percent: must be above the minimum level' }, 400);
+          }
+          settings = next; return json({ settings, ha_expose: {}, ha_auth: {} });
         }
         return json({ settings, ha_expose: {}, ha_auth: {} });
       }
+      if (path === '/api/v1/config/values') return json({ settings, ha_expose: {}, ha_auth: {}, apply_pending: {}, apply_stalled: [], renderer_pending: [] });
       if (path === '/api/v1/auto-brightness') return json({ available: true, sourceAvailable: true, latestLux: 42 });
       if (path === '/api/v1/auto-brightness/history') return json({ points: [], bucket_minutes: 5 });
       if (path === '/api/v1/apps') return json({ apps: [] });
@@ -4732,8 +4296,11 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     const maximum = page.locator('#cfg-auto_brightness_maximum_percent input');
     await page.waitForFunction(() => document.querySelector('#cfg-auto_brightness_maximum_percent input')?.disabled === false);
     const preview = page.waitForRequest((request) => new URL(request.url()).searchParams.get('maximum_percent') === '70');
-    await maximum.fill('70');
+    const committed = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
+    await maximum.fill('70'); await maximum.press('Enter');
     assert.equal(new URL((await preview).url()).searchParams.get('minimum_percent'), '12');
+    await committed;
+    assert.deepEqual(posts, [{ auto_brightness_maximum_percent: '70' }]);
     for (const width of [320, 768, 1200]) {
       await page.setViewportSize({ width, height: 600 });
       const bounds = await (await page.waitForFunction(() => {
@@ -4744,22 +4311,43 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       })).jsonValue();
       assert.ok(bounds.width > 0 && bounds.scrollWidth <= bounds.width + 1, `${engine} row overflows at ${width}: ${JSON.stringify(bounds)}`);
     }
-    await maximum.fill('12'); await page.locator('#savebtn').focus(); await page.locator('#savebtn').press('Enter');
-    await page.waitForFunction(() => document.querySelector('#cfg-msg')?.textContent === 'Maximum level has an invalid value.');
-    assert.equal(posts.length, 0);
-    await maximum.fill('70'); await page.locator('#savebtn').focus(); await page.locator('#savebtn').press('Enter');
-    await page.waitForFunction(() => document.querySelector('#cfg-msg')?.textContent === 'Saved.');
-    assert.equal(posts[0].auto_brightness_maximum_percent, '70');
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    // A maximum at the minimum is refused by the panel: the row says why and shows the stored maximum again.
+    await maximum.fill('12'); await maximum.press('Enter');
+    const refusal = 'Not saved: auto_brightness_maximum_percent: must be above the minimum level';
+    await page.locator('#cfg-auto_brightness_maximum_percent .cfg-row-message').getByText(refusal, { exact: true }).waitFor();
+    assert.equal(await page.locator('#cfg-msg').textContent(), refusal);
     assert.equal(await maximum.inputValue(), '70');
+    assert.deepEqual(posts, [{ auto_brightness_maximum_percent: '70' }, { auto_brightness_maximum_percent: '12' }]);
+    // An out-of-range maximum is never sent: the row names the rule and the stored maximum comes back.
+    await maximum.fill('101'); await maximum.press('Enter');
+    const rule = 'Maximum level must be a whole number between 5 and 100.';
+    await page.locator('#cfg-auto_brightness_maximum_percent .cfg-row-message').getByText(rule, { exact: true }).waitFor();
+    assert.equal(await page.locator('#cfg-msg').textContent(), rule);
+    assert.equal(await maximum.inputValue(), '70');
+    assert.equal(posts.length, 2);
+    const sent = page.waitForResponse((response) => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
+    await maximum.fill('60'); await maximum.press('Enter');
+    await sent;
+    assert.deepEqual(posts.at(-1), { auto_brightness_maximum_percent: '60' });
+    await page.waitForFunction(() => !document.querySelector('#cfg-auto_brightness_maximum_percent .cfg-row-message'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    assert.equal(await maximum.inputValue(), '60');
   });
 }
 
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   browserTest(`Auto-sleep choices wrap and retain native arrow-key focus in ${engine}`, async (t) => {
-    const harness = await startHarness(path => {
+    const settings = { auto_sleep_source: 'panel' };
+    const posts = [];
+    const harness = await startHarness(async (path, request) => {
       if (path === '/api/v1/config/schema') return json([{ key: 'auto_sleep_source', label: 'Activity source', group: 'Behaviour', type: 'ENUM', available: true, options: ['panel', 'home_assistant', 'touch'] }]);
-      if (path === '/api/v1/config') return json({ settings: { auto_sleep_source: 'panel' }, ha_expose: {} });
+      if (path === '/api/v1/config') {
+        if (request.method === 'POST') {
+          const values = Object.fromEntries(new URLSearchParams(await requestBody(request)));
+          posts.push(values); Object.assign(settings, values); return json({});
+        }
+        return json({ settings, ha_expose: {} });
+      }
       if (path === '/api/v1/apps') return json({ apps: [] });
       if (path === '/api/v1/auto-sleep/prerequisite') return json({ eligible: false, phase: 'unassigned' });
       if (path === '/api/v1/radio' || path === '/api/v1/proximity') return json({ present: false });
@@ -4770,14 +4358,21 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     await page.goto(harness.url);
     const selected = page.locator('#cfg-auto_sleep_source input:checked');
     await selected.focus();
+    // The send's settle re-renders the row; focus returns to the chosen radio.
+    const focusSettled = () => page.waitForFunction(() => document.activeElement === document.querySelector('#cfg-auto_sleep_source input:checked'), null, { timeout: 1_000 });
     await page.keyboard.press('ArrowDown');
     assert.equal(await selected.inputValue(), 'home_assistant');
-    assert.equal(await selected.evaluate(input => input === document.activeElement), true);
+    await focusSettled();
     await page.keyboard.press('ArrowDown');
     assert.equal(await selected.inputValue(), 'touch');
-    assert.equal(await selected.evaluate(input => input === document.activeElement), true);
+    await focusSettled();
     assert.equal(await selected.count(), 1);
-    assert.equal(await page.locator('#savebar').isVisible(), true);
+    // Each arrow key is a finished choice, sent at once; focus stays on the chosen radio across the sends.
+    for (let attempt = 0; attempt < 40 && posts.length < 2; attempt++) await page.waitForTimeout(25);
+    assert.deepEqual(posts, [{ auto_sleep_source: 'home_assistant' }, { auto_sleep_source: 'touch' }]);
+    await page.waitForTimeout(300);
+    assert.equal(await selected.inputValue(), 'touch');
+    assert.equal(await selected.evaluate(input => input === document.activeElement), true);
     assert.deepEqual(await page.locator('#cfg-auto_sleep_source .choice-list span').evaluateAll(nodes => nodes.map(node => node.scrollWidth <= node.clientWidth)), [true, true, true]);
   });
 }

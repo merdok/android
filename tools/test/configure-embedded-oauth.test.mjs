@@ -18,7 +18,7 @@ browserTest('embedded Configure gives a copyable panel-owned authorization URL a
     const path = new URL(request.url, 'http://panel.test').pathname;
     if (path === '/') {
       response.setHeader('content-type', 'text/html');
-      response.end(`<!doctype html><html><head>${i18nBridge()}</head><body data-embedded><button id="tab-basic"></button><button id="tab-adv"></button><p id="cfg-msg"></p><p id="cfg-status"></p><div id="cfg-groups"></div><div id="proximity-learning-mount"></div><div id="savebar" hidden><button id="savebtn"></button></div><script>window.CardColumnAlignment={attach:()=>()=>{}};</script><script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script></body></html>`);
+      response.end(`<!doctype html><html><head>${i18nBridge()}</head><body data-embedded><button id="tab-basic"></button><button id="tab-adv"></button><div id="cfg-status" class="muted"></div><div id="cfg-groups"></div><div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div><script>window.CardColumnAlignment={attach:()=>()=>{}};</script><script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script></body></html>`);
       return;
     }
     if (['/configure-state.js', '/configure-view.js', '/configure-help.js', '/configure-controls.js', '/configure-brightness.js', '/configure-auto-sleep.js', '/configure-cards.js', '/configure-render.js', '/configure.js'].includes(path)) {
@@ -31,7 +31,7 @@ browserTest('embedded Configure gives a copyable panel-owned authorization URL a
       response.end(JSON.stringify([{ key: 'ha_url', label: 'Home Assistant URL', group: 'Home Assistant connection', type: 'STRING', tier: 'BASIC', available: true, help: '' }]));
       return;
     }
-    if (path === '/api/v1/config') {
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') {
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ settings: { ha_url: 'http://ha.local:8123' }, ha_expose: {}, ha_auth: { configured: true, oauth: true } }));
       return;

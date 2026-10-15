@@ -56,7 +56,7 @@ function english(key, values) {
 async function loadBuildwatch({ translations = {}, locale = 'en', helper = true, dirty = false, pathname = '/' } = {}) {
   const source = await readFile(asset, 'utf8');
   const ids = Object.fromEntries(['verbar', 'halifebar', 'halifecell', 'hanetbar', 'hanetcell'].map((id) => [id, node(id)]));
-  const bodyAttributes = { 'data-build': 'build-a', 'data-cfg': 'cfg-a' };
+  const bodyAttributes = { 'data-build': 'build-a' };
   const calls = [];
   const created = [];
   const ticks = [];
@@ -272,10 +272,9 @@ test('layer-3 latency uses the closed localized matrix without borrowing WebSock
   }
 });
 
-test('version and settings banners create a safe localized reload link and preserve English when untranslated', async () => {
+test('the version banner creates a safe localized reload link and preserves English when untranslated', async () => {
   const translations = {
     'shell.new_version.installed': '已安装新版本',
-    'shell.settings_changed.externally': '设置已在其他位置更改',
     'shell.action.reload': '重新加载',
   };
   const version = await loadBuildwatch({ translations, locale: 'zh-Hans', dirty: true });
@@ -289,11 +288,15 @@ test('version and settings banners create a safe localized reload link and prese
   await version.poll('build=build-b cfg=cfg-a');
   assert.deepEqual(notice(version.ids.verbar), { severity: 'update', pill: 'Update', text: '已安装新版本', action: '重新加载' });
 
-  const settings = await loadBuildwatch({ translations, locale: 'zh-Hans', dirty: true, pathname: '/configure' });
-  await settings.poll('build=build-a cfg=cfg-b');
-  assert.equal(noticeText(settings.ids.verbar), '设置已在其他位置更改');
-  await settings.poll('build=build-a cfg=cfg-b');
-  assert.deepEqual(notice(settings.ids.verbar), { severity: 'update', pill: 'Update', text: '设置已在其他位置更改', action: '重新加载' });
+  // Configure follows setting changes through its own live updates: a new settings fingerprint on the
+  // health line neither reloads the page nor raises a banner, whether or not a field is being edited.
+  for (const dirty of [false, true]) {
+    const settings = await loadBuildwatch({ translations, locale: 'zh-Hans', dirty, pathname: '/configure' });
+    await settings.poll('build=build-a cfg=cfg-b');
+    await settings.poll('build=build-a cfg=cfg-c');
+    assert.equal(settings.location.reloads, 0, `a settings change does not reload Configure (editing: ${dirty})`);
+    assert.equal(noticeText(settings.ids.verbar), '', `a settings change raises no banner (editing: ${dirty})`);
+  }
 
   const english = await loadBuildwatch({ helper: false, dirty: true });
   await english.poll('build=build-b cfg=cfg-a');

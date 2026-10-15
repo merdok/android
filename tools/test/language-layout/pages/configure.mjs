@@ -100,7 +100,7 @@ function api(url) {
   const path = url.pathname;
   const s = this;
   if (path === '/api/v1/config/schema') return schema(s);
-  if (path === '/api/v1/config') return { settings: settings(), ha_expose: {}, ha_auth: { configured: true } };
+  if (path === '/api/v1/config' || path === '/api/v1/config/values') return { settings: settings(), ha_expose: {}, ha_auth: { configured: true } };
   if (path === '/api/v1/ha/oauth/status') return { phase: 'connected', display_name: 'Owner', language: 'en' };
   if (path === '/api/v1/apps') return { apps: [{ pkg: 'io.homeassistant.companion.android', label: 'Home Assistant' }, { pkg: 'com.example.browser', label: 'Example browser' }] };
   if (path === '/api/v1/radio') return { present: true, status: 'Zigbee router firmware 7.4.4', state: 'joined' };
@@ -135,7 +135,7 @@ export default {
 <div id="cfg-all-cards">
 <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1" data-card-size-proximity="0"></div>
 </div>
-<div id="savebar" class="savebar" role="region" aria-label="${s.t('configure.unsaved.label')}" hidden><button id="savebtn" type="button" disabled onclick="cfgSave()">${s.t('configure.action.save')}</button><span id="cfg-msg" class="muted" role="status" aria-live="polite" aria-atomic="true"></span></div>
+<div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="cfg-help" class="cfg-help" popover="manual" role="dialog" aria-labelledby="cfg-help-title"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" class="cfg-help-close" type="button" aria-label="${s.t('configure.help.close')}">×</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more" target="_blank" rel="noopener">${s.t('configure.help.more')}</a></div></div>
 <script src="assets/card-size-memory.js"></script>
 <script src="assets/card-column-alignment.js"></script>

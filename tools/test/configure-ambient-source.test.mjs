@@ -1,5 +1,5 @@
 // The Configure ambient light source picker: free-form entry, keyboard selection and viewport containment,
-// and only sources that report a light level are offered, so the one picked is one the save accepts.
+// and only sources that report a light level are offered, so the one picked is one the panel accepts.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -26,9 +26,9 @@ function configureVisualFixture() {
     <link rel="stylesheet" href="/info.css">${i18nBridge()}</head><body>
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <button id="tab-basic"></button><button id="tab-adv"></button>
-    <p id="cfg-msg"></p><p id="cfg-status"></p>
+    <div id="cfg-status" class="muted"></div>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" hidden><button id="savebtn" onclick="cfgSave()"></button></div>${HELP_POPOVER}
+    <div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>${HELP_POPOVER}
     <script src="/assets/card-size-memory.js"></script><script src="/assets/card-column-alignment.js"></script>
     ${ADVANCED_VIEW}<script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script><script src="/proximity-learning.js"></script>
   </body></html>`;
@@ -81,12 +81,14 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     let sourceReads = 0;
     const staleSource = deferred();
     const brightnessStatus = deferred();
-    const harness = await startHarness((path) => {
+    const settings = { auto_brightness_ha_entity: '' };
+    const harness = await startHarness(async (path, request) => {
       if (path === '/api/v1/config/schema') return json([{
         key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
         type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
       }]);
-      if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
+      if (path === '/api/v1/config' && request.method === 'POST') Object.assign(settings, Object.fromEntries(new URLSearchParams(await requestBody(request))));
+      if (path === '/api/v1/config' || path === '/api/v1/config/values') return json({ settings, ha_expose: {}, ha_auth: {} });
       if (path === '/api/v1/auto-brightness/sources') {
         sourceReads++;
         if (sourceReads === 2) return staleSource.promise;
@@ -119,11 +121,12 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     assert.equal(await input.getAttribute('aria-activedescendant'), 'ha-illuminance-listbox-option-0');
     await input.press('Enter');
     assert.equal(await input.inputValue(), 'sensor.office_lux');
-    await page.locator('#savebar').waitFor({ state: 'visible' });
     const staleRequest = page.waitForRequest((request) => request.url().includes('/auto-brightness/sources?q=sensor.custom_lux'));
     await input.fill('sensor.custom_lux');
     assert.equal(await input.inputValue(), 'sensor.custom_lux');
     await staleRequest;
+    // Leaving the field commits the typed text; the view change that follows rebuilds the form.
+    await input.press('Tab');
     await page.evaluate(() => window.cfgTab(false));
     const staleResponse = page.waitForResponse((response) => response.url().includes('/auto-brightness/sources?q=sensor.custom_lux'));
     staleSource.resolve(json({ items: [{ entity_id: 'sensor.stale' }], available: true }));
@@ -132,46 +135,52 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   });
 }
 
-browserTest('Configure offers only ambient sources that report a light level, so the picked one is what saves', async (t) => {
-  const posts = [];
-  const harness = await startHarness(async (path, request) => {
-    if (path === '/api/v1/config/schema') return json([{
-      key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
-      type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
-    }]);
-    if (path === '/api/v1/config') {
-      if (request.method === 'POST') {
-        posts.push(await requestBody(request));
-        return json({ status: 'saved' });
+for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
+  browserTest(`Configure offers only ambient sources that report a light level, and sends the picked one at once, in ${engine}`, async (t) => {
+    const posts = [];
+    const settings = { auto_brightness_ha_entity: '' };
+    const harness = await startHarness(async (path, request) => {
+      if (path === '/api/v1/config/schema') return json([{
+        key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
+        type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
+      }]);
+      if (path === '/api/v1/config' || path === '/api/v1/config/values') {
+        if (request.method === 'POST') {
+          const form = new URLSearchParams(await requestBody(request));
+          posts.push(Object.fromEntries(form));
+          Object.assign(settings, Object.fromEntries(form));
+          return json({ status: 'saved', settings, ha_expose: {}, ha_auth: {} });
+        }
+        return json({ settings, ha_expose: {}, ha_auth: {} });
       }
-      return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
-    }
-    // As served: a dead sensor sorts first by name and carries no reading.
-    if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items: [
-      { entityId: 'sensor.study_presence_old', friendlyName: 'Study Presence Light Sensor', unit: 'lx', currentLux: null, available: false },
-      { entityId: 'sensor.study_window_illuminance', friendlyName: 'Study Window illuminance', unit: 'lx', currentLux: 0, available: true },
-    ] });
-    if (path === '/api/v1/apps') return json({ apps: [] });
-    if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });
-    return json({});
-  }, configureVisualFixture);
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage({ viewport: { width: 480, height: 800 } });
-  page.setDefaultTimeout(5_000);
-  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
-  await page.goto(harness.url, { waitUntil: 'domcontentloaded' });
-  const input = page.locator('.ha-entity-input');
-  await input.waitFor();
-  await input.focus();
-  await page.locator('.ha-entity-option').first().waitFor();
-  await input.press('ArrowDown');
-  await input.press('Enter');
-  await page.locator('#savebtn').click();
-  await page.waitForFunction(() => document.getElementById('savebtn').disabled);
-  assert.equal(posts.length, 1);
-  assert.equal(new URLSearchParams(posts[0]).get('auto_brightness_ha_entity'), 'sensor.study_window_illuminance');
-  assert.equal(await page.locator('.ha-entity-option').count(), 1, 'a source with no reading is not offered');
-});
+      // As served: a dead sensor sorts first by name and carries no reading.
+      if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items: [
+        { entityId: 'sensor.study_presence_old', friendlyName: 'Study Presence Light Sensor', unit: 'lx', currentLux: null, available: false },
+        { entityId: 'sensor.study_window_illuminance', friendlyName: 'Study Window illuminance', unit: 'lx', currentLux: 0, available: true },
+      ] });
+      if (path === '/api/v1/apps') return json({ apps: [] });
+      if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });
+      return json({});
+    }, configureVisualFixture);
+    const browser = await launcher.launch(engine === 'Chromium'
+      ? { executablePath: chrome, headless: true } : { headless: true });
+    const page = await browser.newPage({ viewport: { width: 480, height: 800 } });
+    page.setDefaultTimeout(5_000);
+    t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+    await page.goto(harness.url, { waitUntil: 'domcontentloaded' });
+    const input = page.locator('.ha-entity-input');
+    await input.waitFor();
+    await input.focus();
+    await page.locator('.ha-entity-option').first().waitFor();
+    await input.press('ArrowDown');
+    await input.press('Enter');
+    // Picking a suggestion finishes the gesture: one write carrying only that setting, with no Save step.
+    for (let i = 0; i < 40 && posts.length === 0; i++) await page.waitForTimeout(25);
+    await page.waitForTimeout(300);
+    assert.deepEqual(posts, [{ auto_brightness_ha_entity: 'sensor.study_window_illuminance' }]);
+    assert.equal(await page.locator('.ha-entity-option').count(), 1, 'a source with no reading is not offered');
+  });
+}
 
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   browserTest(`Configure says sensors exist but none reports, rather than none found, in ${engine}`, async (t) => {
@@ -184,7 +193,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
         key: 'auto_brightness_ha_entity', label: 'Ambient source', group: 'Display',
         type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
       }]);
-      if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
+      if (path === '/api/v1/config' || path === '/api/v1/config/values') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
       if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items });
       if (path === '/api/v1/apps') return json({ apps: [] });
       if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });

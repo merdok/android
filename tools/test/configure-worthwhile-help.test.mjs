@@ -15,9 +15,9 @@ function page() {
     <link rel="stylesheet" href="/info.css">${i18nBridge()}</head><body><div class="wrap">
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <div id="cfg-tools" class="cfg-tools" data-app-version="9.9.9-rc1"><input id="cfg-filter" class="cfg-filter" type="search"><div class="seg" role="radiogroup"><label><input type="radio" name="cfg-tier" id="tier-basic" value="basic" checked>Basic</label><label><input type="radio" name="cfg-tier" id="tier-adv" value="advanced">Advanced</label></div><label class="cfg-desc-switch"><input type="checkbox" id="cfg-desc" checked><span class="toggle"></span>Descriptions</label><span id="cfg-count" class="muted cfg-count"></span></div>
-    <p id="cfg-msg"></p><p id="cfg-status"></p>
+    <div id="cfg-status" class="muted"></div>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" class="savebar" hidden><button id="savebtn"></button></div>
+    <div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="cfg-help" class="cfg-help" popover="manual" role="dialog"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" class="cfg-help-close" type="button">x</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more">More on the website</a></div></div>
     </div>
     <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
@@ -59,7 +59,7 @@ async function harness() {
       for (const [key, value] of Object.entries(values)) if (key !== 'test_secret') settings[key] = value;
       return send(JSON.stringify({ status: 'saved', pending: [] }));
     }
-    if (path === '/api/v1/config') return send(JSON.stringify({ settings, ha_expose: {}, ha_auth: { configured: false } }));
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return send(JSON.stringify({ settings, ha_expose: {}, ha_auth: { configured: false } }));
     if (path === '/api/v1/apps') return send(JSON.stringify({ apps: [] }));
     if (['/api/v1/radio', '/api/v1/proximity'].includes(path)) return send(JSON.stringify({ present: false }));
     if (path === '/api/v1/config/discovery' || path === '/api/v1/config/home-dashboards') return send('{}');
@@ -117,14 +117,15 @@ for (const engine of engines) {
     await p.locator('.cfg-desc-switch').click();
     assert.equal(await p.locator('#cfg-help').isVisible(), false, 'live toggle closes old content');
     assert.equal(await icon('watchdog_enabled').count(), 0, 'live toggle rebuilds icons');
-    assert.equal(await p.locator('#savebar').isHidden(), true, 'view does not dirty settings');
+    assert.deepEqual(h.posts, [], 'view changes send nothing');
     await p.locator('#cfg-touch_sound [role="switch"]').click();
+    await p.waitForFunction(() => document.querySelector('#cfg-touch_sound [role="switch"]').getAttribute('aria-checked') === 'true');
     await p.locator('.cfg-more').click();
     await p.locator('#cfg-advanced').waitFor();
     await p.locator('.cfg-desc-switch').click();
     assert.equal(await p.locator('#cfg-advanced').count(), 1, 'card reveal survives');
     assert.equal(await p.locator('#cfg-touch_sound [role="switch"]').getAttribute('aria-checked'), 'true');
-    assert.equal(await p.locator('#savebar').isVisible(), true);
+    assert.deepEqual(h.posts, [{ touch_sound: 'true' }], 'the toggle is sent once; the reveal and descriptions send nothing');
     await p.locator('#cfg-filter').fill('watchdog');
     await p.waitForFunction(() => document.querySelectorAll('#cfg-groups .frow').length === 1);
     await p.locator('.cfg-desc-switch').click();
@@ -139,12 +140,13 @@ for (const engine of engines) {
     assert.equal(await p.locator('#tier-adv').isChecked(), true);
     assert.equal(await p.locator('#cfg-groups .frow').count(), SCHEMA.length);
     assert.equal(await p.locator('#cfg-touch_sound [role="switch"]').getAttribute('aria-checked'), 'true');
+    assert.deepEqual(h.posts, [{ touch_sound: 'true' }], 'filter, tier and descriptions send nothing');
     await p.reload();
     await p.locator('#cfg-touch_sound').waitFor();
     assert.equal(await p.locator('#cfg-desc').isChecked(), false, 'view preference persists');
     assert.equal(await p.locator('#tier-adv').isChecked(), true);
   });
-  test(`${engine.name}: descriptions preserve an unsaved password and save its visible draft`, async t => {
+  test(`${engine.name}: a typed password survives toggling Descriptions and is sent once, when its field is left`, async t => {
     assert.equal(engine.available, true, `${engine.name} must run`);
     const h = await harness();
     const browser = await engine.type.launch(engine.launch);
@@ -153,22 +155,20 @@ for (const engine of engines) {
     await p.goto(h.url);
     const secret = p.locator('#cfg-test_secret input');
     await secret.waitFor();
-    assert.equal(await secret.inputValue(), '', 'initial saved secrets stay masked');
-    await secret.fill('new owner draft & symbols=kept');
+    assert.equal(await secret.inputValue(), '', 'a stored secret reads blank');
+    const draft = 'new owner draft & symbols=kept';
+    await secret.fill(draft);
+    await p.waitForTimeout(700);
+    assert.deepEqual(h.posts, [], 'nothing is sent while the password is being typed');
+    // Reaching for the Descriptions switch leaves the field, which commits it.
     await p.locator('.cfg-desc-switch').click();
-    assert.equal(await secret.inputValue(), 'new owner draft & symbols=kept', 'description toggle retains the visible unsaved password');
+    await p.waitForFunction(() => !document.getElementById('cfg-desc').checked);
+    assert.equal(await secret.inputValue(), draft, 'switching Descriptions keeps the typed password in its field');
     await p.locator('.cfg-desc-switch').click();
-    assert.equal(await secret.inputValue(), 'new owner draft & symbols=kept');
-    const submitted = p.waitForResponse(response => response.url().endsWith('/api/v1/config') && response.request().method() === 'POST');
-    await p.evaluate(() => window.cfgSave());
-    await submitted;
-    assert.equal(h.posts.length, 1);
-    assert.equal(h.posts[0].test_secret, 'new owner draft & symbols=kept', 'production save posts the actual visible draft');
-    await p.waitForFunction(() => document.getElementById('cfg-msg').textContent === 'Saved.');
-    assert.equal(await secret.inputValue(), '', 'acknowledged secret is masked after server reload');
-    assert.equal(await p.locator('#savebar').isHidden(), true);
-    await p.locator('.cfg-desc-switch').click();
-    assert.equal(await secret.inputValue(), '', 'clean render does not redisplay an acknowledged secret');
+    await p.waitForFunction(() => document.getElementById('cfg-desc').checked);
+    assert.equal(await secret.inputValue(), draft);
+    await p.waitForTimeout(700);
+    assert.deepEqual(h.posts, [{ test_secret: draft }], 'the committed password is sent once, exactly as typed');
   });
 
 }
