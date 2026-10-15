@@ -193,9 +193,11 @@ class ScreenController(
     /** Whether the last screen state ha-paneld set was a deliberate off (vs. never-asked / woken). */
     fun isIntendedOff(): Boolean = intendedOff
 
-    /** What a sleep this controller holds displaced, or null while it holds none. A record left by a
-     *  failed restore after wake is not configured state: the live values are what the panel runs. */
-    fun heldSleepRecord(): DisplacedScreenTimeout? = displacedTimeout.takeIf { intendedOff }
+    /** What the screen-timeout sleep this controller currently holds displaced, or null while it holds
+     *  none. A record left by a failed restore is not configured state, whether the panel is awake or
+     *  a later off fell back to another route: the live values are then what the panel runs. */
+    fun heldSleepRecord(): DisplacedScreenTimeout? =
+        displacedTimeout.takeIf { intendedOff && appliedOffRoute == ScreenOff.SCREEN_TIMEOUT }
 
     /**
      * Declared route (the profile's preference) versus what the last actual off applied, and why they

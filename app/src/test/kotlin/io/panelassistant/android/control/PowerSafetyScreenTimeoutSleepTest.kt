@@ -67,8 +67,34 @@ class PowerSafetyScreenTimeoutSleepTest {
         power.interactive = true
 
         assertEquals("precondition: the failed restore kept its record", Int.MAX_VALUE, displaced.displacedMs)
+        assertReportsTheShortTimeout("awake")
+
+        // A retried off is refused by the same missing grants and falls back to a dim: the panel still
+        // runs the short timeout, and the kept record is still not its configured state.
+        screen.sleep()
+        assertTrue("precondition: the retried off is held", screen.isIntendedOff())
+        assertEquals("precondition: the record is still kept", Int.MAX_VALUE, displaced.displacedMs)
+        assertReportsTheShortTimeout("refused retry")
+    }
+
+    @Test fun aDeviceAdminFallbackAfterAFailedRestoreReportsTheShortTimeout() {
+        screen.sleep()
+        power.canWrite = false
+        power.canWriteSecure = false
+        screen.wake()
+        power.interactive = true
+        power.adminActive = true
+
+        screen.sleep()
+
+        assertFalse("precondition: the device-admin lock slept Android", power.isInteractive())
+        assertEquals("precondition: the record is still kept", Int.MAX_VALUE, displaced.displacedMs)
+        assertReportsTheShortTimeout("device-admin fallback")
+    }
+
+    private fun assertReportsTheShortTimeout(phase: String) {
         val assessment = PowerSafetyPolicy.assess(observed())
-        assertNotEquals(PowerRiskLevel.SAFE, assessment.level)
-        assertTrue(assessment.reasonCodes.toString(), "native_screen_timeout_finite" in assessment.reasonCodes)
+        assertNotEquals("$phase: level", PowerRiskLevel.SAFE, assessment.level)
+        assertTrue("$phase: reasons ${assessment.reasonCodes}", "native_screen_timeout_finite" in assessment.reasonCodes)
     }
 }
