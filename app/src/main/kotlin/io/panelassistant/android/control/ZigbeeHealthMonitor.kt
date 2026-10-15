@@ -137,7 +137,9 @@ internal fun zigbeeHealthPresentation(
     snapshot.state == ZigbeeHealthState.CONTAINMENT_FAILED ->
         InstallPresentation("status-zigbee-containment-incomplete")
     snapshot.state == ZigbeeHealthState.RUNAWAY -> InstallPresentation("status-zigbee-runaway")
-    snapshot.state == ZigbeeHealthState.DEGRADED_HIGH_CPU -> InstallPresentation("status-zigbee-high-cpu")
+    // A gateway ha-paneld was not asked to run (vendor or NSPanel Pro Tools) is not its to warn about.
+    snapshot.state == ZigbeeHealthState.DEGRADED_HIGH_CPU && configuredOn ->
+        InstallPresentation("status-zigbee-high-cpu")
     snapshot.state == ZigbeeHealthState.DEGRADED_UNJOINED && configuredOn ->
         InstallPresentation("status-zigbee-not-joined")
     snapshot.recursiveWatchdogAssignment -> InstallPresentation("status-zigbee-legacy-watchdog")
