@@ -1,7 +1,16 @@
 package io.panelassistant.android.util
 
+import io.ktor.server.application.install
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,7 +30,7 @@ class HaLinkPolicyTest {
         val v6only = listOf(java.net.InetAddress.getByName("2001:db8::1"))
         try {
             HaLink.deviceIdViaWs(
-                "ws://ha.test:9", "token", listOf("panel"),
+                "ws://ha.test:9", "token", "entry",
                 preferIpv4 = true, ipv4Only = true, resolver = { v6only },
             )
             org.junit.Assert.fail("expected the Force IPv4 policy verdict")
@@ -42,104 +51,57 @@ class HaLinkPolicyTest {
         }
     }
 
-    @Test fun `resolution target retains the exact native base path and normalizes identity`() {
+    @Test fun `resolution target retains the exact native base path and the entry`() {
         assertEquals(
-            "v1:25:https://native.example/ha:wall_panel",
-            HaLink.resolutionTarget("  https://native.example/ha/ ", "Wall Panel"),
+            "v1:25:https://native.example/ha:01J00000000000000000000AAA",
+            HaLink.resolutionTarget("  https://native.example/ha/ ", "01J00000000000000000000AAA"),
         )
     }
 
     @Test fun `resolution target is safe for SharedPreferences XML`() {
-        val target = HaLink.resolutionTarget("https://native.example/ha", "Wall Panel")
+        val target = HaLink.resolutionTarget("https://native.example/ha", "01J00000000000000000000AAA")
 
         assertEquals(-1, target.indexOf('\u0000'))
     }
 
-    @Test fun `stable panel identity wins over an earlier friendly name match`() {
-        val response = """
-            {"result":{"entities":[
-              {"ei":"text.alpha_display_home_dashboard","di":"friendly-device"},
-              {"ei":"light.alpha_display_screen","di":"friendly-device"},
-              {"ei":"text.wall_panel_home_dashboard","di":"stable-device"},
-              {"ei":"light.wall_panel_screen","di":"stable-device"}
-            ]}}
-        """.trimIndent()
-
-        assertEquals(
-            "stable-device",
-            HaLink.matchDeviceId(response, listOf("wall_panel", "alpha_display")),
-        )
-    }
-
-    @Test fun `candidate prefix cannot select an unrelated device before the panel entities`() {
-        val response = """
-            {"result":{"entities":[
-              {"ei":"sensor.alpha_temperature","di":"temperature-device"},
-              {"ei":"binary_sensor.alpha_motion","di":"motion-device"},
-              {"ei":"text.alpha_home_dashboard","di":"panel-device"},
-              {"ei":"light.alpha_screen","di":"panel-device"}
-            ]}}
-        """.trimIndent()
-
-        assertEquals("panel-device", HaLink.matchDeviceId(response, listOf("alpha")))
-    }
-
-    @Test fun `numeric HA collision suffix combines with an exact panel marker`() {
-        val response = """
-            {"result":[
-              {"ei":"light.alpha_screen","di":"unrelated-screen"},
-              {"ei":"text.alpha_home_dashboard","di":"panel-device"},
-              {"ei":"light.alpha_screen_2","di":"panel-device"}
-            ]}
-        """.trimIndent()
-
-        assertEquals("panel-device", HaLink.matchDeviceId(response, listOf("alpha")))
-    }
-
-    @Test fun `qualified exact collision owner cannot outrank the suffixed panel device`() {
-        val response = """
-            {"result":[
-              {"ei":"text.alpha_home_dashboard","di":"collision-owner"},
-              {"ei":"light.alpha_screen","di":"collision-owner"},
-              {"ei":"text.alpha_home_dashboard_2","di":"panel-device"},
-              {"ei":"light.alpha_screen_2","di":"panel-device"}
-            ]}
-        """.trimIndent()
-
-        assertNull(HaLink.matchDeviceId(response, listOf("alpha")))
-    }
-
-    @Test fun `historical friendly name remains a fallback when stable identity has no candidate`() {
-        val response = """
-            {"result":{"entities":[
-              {"ei":"light.wall_panel_screen","di":"incomplete-stable-device"},
-              {"ei":"text.alpha_display_home_dashboard","di":"legacy-device"},
-              {"ei":"light.alpha_display_screen","di":"legacy-device"}
-            ]}}
-        """.trimIndent()
-
-        assertEquals(
-            "legacy-device",
-            HaLink.matchDeviceId(response, listOf("wall_panel", "alpha_display")),
-        )
-    }
-
-    @Test fun `one same-prefix known-looking entity is insufficient evidence`() {
-        val response = """
-            {"result":[
-              {"ei":"light.alpha_screen","di":"unrelated-screen"},
-              {"ei":"sensor.alpha_temperature","di":"temperature-device"}
-            ]}
-        """.trimIndent()
-
-        assertNull(HaLink.matchDeviceId(response, listOf("alpha")))
-    }
-
-    @Test fun `registry response without a matching panel entity has no device destination`() {
-        val response = """
-            {"result":[{"ei":"sensor.unrelated_panel_status","di":"other-device"}]}
-        """.trimIndent()
-
-        assertNull(HaLink.matchDeviceId(response, listOf("wall_panel")))
+    /** Entity ids are localized and renamed freely; only the entry's device identifier names the panel. */
+    @Test fun `the device Panel Assistant registered for the entry is the link whatever its entities are called`() {
+        val commands = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
+            install(WebSockets)
+            routing {
+                webSocket("/api/websocket") {
+                    send(Frame.Text("""{"type":"auth_required"}"""))
+                    incoming.receive()
+                    send(Frame.Text("""{"type":"auth_ok"}"""))
+                    for (frame in incoming) {
+                        val command = JSONObject((frame as Frame.Text).readText())
+                        commands += command.getString("type")
+                        check(command.getString("type") == "config/device_registry/list") { "unexpected HA command" }
+                        val devices = JSONArray()
+                            .put(JSONObject().put("id", "kuchyne-device")
+                                .put("identifiers", JSONArray().put(JSONArray().put("zha").put("kuchyne_panel"))))
+                            .put(JSONObject().put("id", "panel-device")
+                                .put("identifiers", JSONArray().put(JSONArray().put("panel_assistant").put("entry-test"))))
+                        send(Frame.Text(JSONObject().put("id", command.getInt("id")).put("type", "result")
+                            .put("success", true).put("result", devices).toString()))
+                    }
+                }
+            }
+        }.start(wait = false)
+        try {
+            val base = "http://127.0.0.1:${kotlinx.coroutines.runBlocking { server.engine.resolvedConnectors() }.single().port}"
+            assertEquals(
+                "$base/config/devices/device/panel-device",
+                HaLink.resolveWithAccessToken(base, "token", "entry-test", preferIpv4 = false, ipv4Only = false),
+            )
+            assertNull(
+                "an entry no device carries has no device destination",
+                HaLink.resolveWithAccessToken(base, "token", "entry-other", preferIpv4 = false, ipv4Only = false),
+            )
+            assertEquals(listOf("config/device_registry/list", "config/device_registry/list"), commands.toList())
+        } finally {
+            server.stop(0, 0)
+        }
     }
 }

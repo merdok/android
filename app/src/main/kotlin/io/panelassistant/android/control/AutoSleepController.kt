@@ -8,7 +8,6 @@ import io.panelassistant.android.autoSleep
 import io.panelassistant.android.autoSleepSource
 import io.panelassistant.android.autoSleepTouchDelaySeconds
 import io.panelassistant.android.haUrl
-import io.panelassistant.android.panelAssistantDiscoveryId
 import io.panelassistant.android.AutoSleepActivitySnapshot
 import io.panelassistant.android.sensors.HaPresenceAggregate
 import io.panelassistant.android.sensors.HaPanelAreaPrerequisite
@@ -51,7 +50,7 @@ internal data class AutoSleepManagerHandle(
     val setSourceIncluded: (String, String, Boolean) -> HaPresenceSourceUpdate = { _, _, _ ->
         HaPresenceSourceUpdate.UNAVAILABLE
     },
-    val prerequisite: suspend (String, String?) -> HaPanelAreaPrerequisite = { _, _ ->
+    val prerequisite: suspend (String) -> HaPanelAreaPrerequisite = { _ ->
         HaPanelAreaPrerequisite(
             HaPanelAreaPrerequisitePhase.UNAVAILABLE,
             detail = "Auto-sleep Area discovery is unavailable",
@@ -66,8 +65,6 @@ internal data class AutoSleepRuntimeConfig(
     val haArea: String = "",
     val source: String = "home_assistant",
     val touchDelaySeconds: Int = 30,
-    /** Panel Assistant discovery id; it proves which `panel_assistant` device is this panel. */
-    val discoveryId: String? = null,
 )
 
 internal interface AutoSleepLearning {
@@ -133,7 +130,7 @@ internal class AutoSleepController private constructor(
         configuration = {
             AutoSleepRuntimeConfig(
                 config.autoSleep, config.haUrl, config.haArea, config.autoSleepSource,
-                config.autoSleepTouchDelaySeconds, panelAssistantDiscoveryId(config.deviceUid),
+                config.autoSleepTouchDelaySeconds,
             )
         },
         learning = StoredAutoSleepLearning(context),
@@ -249,7 +246,7 @@ internal class AutoSleepController private constructor(
 
     suspend fun prerequisite(): HaPanelAreaPrerequisite {
         val current = configuration()
-        return manager.prerequisite(current.haArea, current.discoveryId)
+        return manager.prerequisite(current.haArea)
     }
 
     /** Counterfactual history using today's policy/lease and HA Area-source history only. */
@@ -642,7 +639,6 @@ internal class AutoSleepController private constructor(
             enabled = next.value.enabled && next.value.source == "home_assistant",
             controllerEpoch = next.epoch,
             preferredAreaName = next.value.haArea,
-            discoveryId = next.value.discoveryId,
         ))
         if (next.value.enabled && usesTouchInactivity) {
             partition = "touch_inactivity"

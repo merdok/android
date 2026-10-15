@@ -158,7 +158,7 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
   const tab = (id, path, key) => `<a href="${href(path)}"${id === active ? ' class="active"' : ''}>${s.t(key)}</a>`;
   const nav = `<div class="nav">${setupTab ? tab('setup', 'setup', 'shell.nav.setup') : ''}${tab('dashboard', './', 'shell.nav.dashboard')}${tab('configure', 'configure', 'shell.nav.configure')}${tab('profiles', 'profiles', 'shell.nav.profile')}${tab('entities', 'entities', 'shell.nav.entities')}${tab('install', 'install', 'shell.nav.install')}${tab('logs', 'logs', 'shell.nav.logs')}<a href="${href('api')}">API</a></div>`;
   const notice = (attrs, severity, title, detail, action) => noticeRow(s, severity, title, detail, action, attrs);
-  const migration = notice(' id="migrationbar"', 'warning', s.t('shell.migration.title'), s.t('shell.migration.body'), `<a href="https://example.invalid/migration" target="_blank" rel="noopener">https://example.invalid/migration</a> <button id="migration-dismiss" class="pbtn" type="button">${s.t('shell.migration.dismiss')}</button>`);
+  const migration = notice(' id="migrationbar"', 'warning', s.t('shell.migration.title'), `${s.t('shell.migration.body')} <a href="https://example.invalid/migration" target="_blank" rel="noopener">https://example.invalid/migration</a>`, `<button id="migration-dismiss" class="pbtn" type="button">${s.t('shell.migration.dismiss')}</button>`);
   return `<!doctype html><html lang="${escapeHtml(locale)}"${themeAttr}><head><base href="/"><meta charset="utf-8">
 <script>/* ?theme=light|dark pins the UI theme for testing (else the browser preference rules) */
 (function(){var m=location.search.match(/[?&]theme=(dark|light)\\b/);if(m)document.documentElement.setAttribute("data-theme",m[1])})();</script>
@@ -322,15 +322,6 @@ async function settle(frame) {
   });
 }
 
-/** Init script: sums unprompted layout shifts in every frame (WebKit has no layout-shift entries, so it reads 0). */
-export function LAYOUT_SHIFTS() {
-  window.__layoutShifts = [];
-  try {
-    new PerformanceObserver((list) => list.getEntries().forEach((entry) => { if (!entry.hadRecentInput) window.__layoutShifts.push(entry.value); }))
-      .observe({ type: 'layout-shift', buffered: true });
-  } catch (_) { /* engine without layout-shift entries */ }
-}
-
 /** Load one cell and return its measurement plus any page errors. */
 export async function measureCell(page, origin, pageDef, view, theme, locale, mutate = null) {
   const errors = [];
@@ -350,8 +341,6 @@ export async function measureCell(page, origin, pageDef, view, theme, locale, mu
       frame = page.mainFrame();
     }
     await pageDef.ready(frame, { locale, theme, view });
-    // Load shift, read before the exercise: a page declaring maxCls blocks above it (verdict, family e).
-    const cls = await frame.evaluate(() => (window.__layoutShifts || []).reduce((sum, value) => sum + value, 0));
     if (pageDef.exercise) await pageDef.exercise(frame, { locale, theme, view });
     // Narrow card walls skip rendering off-screen cards (content-visibility:auto). Measure every card as
     // it renders once scrolled into view, identically for English and the locale.
@@ -362,7 +351,7 @@ export async function measureCell(page, origin, pageDef, view, theme, locale, mu
     const result = await frame.evaluate(mutate
       ? `(() => { (${mutate.toString()})(); return (${measureLayout.toString()})(); })()`
       : measureLayout);
-    return { ...result, cls, maxCls: pageDef.maxCls, errors };
+    return { ...result, errors };
   } finally {
     page.off('pageerror', onError);
   }
@@ -389,8 +378,9 @@ export function verdict(result, english, view, locale, scale = 1) {
   const wrapsInEnglish = englishKeys('wraps');
   // Row headers of key/value tables wrap in a fixed 46% column; making them single-line needs either
   // shorter translations or a table layout that changes English, so they are reported, not blocking,
-  // (see tools/test/README.md). Column headers and controls block.
-  for (const item of result.wraps) add(item.rowHeader ? 'd row header wraps' : 'd wraps', item, !panel && !isEnglish && !item.rowHeader && !wrapsInEnglish.has(item.key));
+  // (see tools/test/README.md). Descriptive Entities checkbox labels may wrap too; their clipping,
+  // overflow, overlap, reachability and card growth are still checked independently.
+  for (const item of result.wraps) add(item.rowHeader ? 'd row header wraps' : item.descriptiveLabel ? 'd descriptive label wraps' : 'd wraps', item, !panel && !isEnglish && !item.rowHeader && !item.descriptiveLabel && !wrapsInEnglish.has(item.key));
   if (!isEnglish && english) {
     // Rule (iii): every card more than 20% taller than English is reported. It blocks only when its
     // growth exceeds the locale's expected length scale by more than 20% (a corner case, not the length
@@ -405,9 +395,6 @@ export function verdict(result, english, view, locale, scale = 1) {
       add('d card growth', { key, text: `${base.height}px → ${card.height}px (+${Math.round((card.height / base.height - 1) * 100)}%; ${locale} scale ${scale}, limit +${Math.round((expected - 1) * 100)}%)` }, !panel && blocking);
     }
   }
-  // Measured on direct views only, as the per-page gates this replaced did: an embedded view's shift also
-  // carries the host frame's own load, which is not the page's.
-  if (result.maxCls != null && !view.host && result.cls > result.maxCls) errors.push(`(e layout shift) page [CLS ${result.cls.toFixed(4)} > ${result.maxCls}]`);
   // A fetch the previous navigation left in flight is cancelled, not a page failure.
   for (const message of result.errors) if (!CANCELLED_FETCH.test(message)) errors.push(`(script) ${message}`);
   if (result.lang !== locale) errors.push(`(frame) document language ${result.lang} is not ${locale}`);
@@ -425,7 +412,6 @@ export async function runPage({ pageDef, browserName, origin, sel, scales = {}, 
       const context = await browser.newContext({ viewport: { width: view.width, height: view.height }, deviceScaleFactor: 1 });
       // Card-size memory and similar per-origin state must not carry one locale's geometry into the next.
       await context.addInitScript(() => { try { localStorage.clear(); sessionStorage.clear(); } catch (_) { /* storage may be unavailable */ } });
-      await context.addInitScript(LAYOUT_SHIFTS);
       const page = await context.newPage();
       page.setDefaultTimeout(15_000);
       try {

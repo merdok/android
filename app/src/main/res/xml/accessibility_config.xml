@@ -3,7 +3,8 @@
      inject control-surface taps and, on Android 11 or later, capture the screen for the panel page
      where no root route exists, and reads window content only to press Always on Android's HOME
      chooser when it offers this app (HomeChooserPolicy) and to press Install on Android's
-     confirmation of this app's own update (InstallConfirmation). -->
+     confirmation of this app's own update (InstallConfirmation), and to return from Meta's denied
+     overlay request once during startup. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"

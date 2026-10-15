@@ -2,6 +2,7 @@ package io.panelassistant.android.sensors
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import io.panelassistant.android.dashboard.EntityCatalogStore
 import io.panelassistant.android.device.profile.ProfileProximityCalibration
 import java.security.MessageDigest
@@ -13,17 +14,23 @@ import org.json.JSONObject
 /** Fixed calibration, an explicit local wizard, and one atomic durable save. No ambient model writes. */
 internal class ProximityCalibrationRuntime(
     sourceIdentity: String,
-    profileIdentity: String,
+    profileId: String,
     private val baseline: ProximityCalibrationEngine.Calibration?,
     private val store: ProximityModelStore,
     private val elapsed: () -> Long = SystemClock::elapsedRealtime,
     private val wall: () -> Long = System::currentTimeMillis,
     requestedWavePattern: ProximityCalibrationEngine.WavePattern = ProximityCalibrationEngine.WavePattern.SINGLE,
     private val observedSourceMode: ProximityCalibrationEngine.Mode? = null,
+    profileRevision: String? = null,
 ) : AutoCloseable {
     data class Decision(val reportMask: Int, val near: Boolean?, val normalizedLevel: Int?, val deliberateGesture: Boolean, val presenceApproach: Boolean = false)
 
-    private val fingerprint = fingerprint("$profileIdentity|$sourceIdentity")
+    // Keyed by what the readings mean: the profile and the route, sensor and firmware in sourceIdentity.
+    // Not the profile's revision: an edit to its brightness or buttons, or a release that revises the
+    // bundled file, leaves every reading as it was and must not hide the saved calibration.
+    private val fingerprint = calibrationKey(profileId, sourceIdentity)
+    // The key before that change, which also hashed the revision. Read once, when the new key misses.
+    private val legacyFingerprint = profileRevision?.let { fingerprint("$profileId|$it|$sourceIdentity") }
     private val reportGate = ProximityReportGate(densePresenceStabilityMs = 0)
     private var userOverride = false
     private var readFailed = false
@@ -52,11 +59,12 @@ internal class ProximityCalibrationRuntime(
     private var completedGestureToken = 0L
     private var processedAt = 0L
 
-    constructor(context: Context, sourceIdentity: String, profileIdentity: String, profile: ProfileProximityCalibration?, observedSourceMode: ProximityCalibrationEngine.Mode? = null) : this(
-        sourceIdentity, profileIdentity, profile?.let(::fromProfile),
+    constructor(context: Context, sourceIdentity: String, profileId: String, profileRevision: String, profile: ProfileProximityCalibration?, observedSourceMode: ProximityCalibrationEngine.Mode? = null) : this(
+        sourceIdentity, profileId, profile?.let(::fromProfile),
         SqliteProximityModelStore(EntityCatalogStore(context.applicationContext)),
         requestedWavePattern = profileWavePattern(profile),
         observedSourceMode = observedSourceMode,
+        profileRevision = profileRevision,
     )
 
     @Synchronized
@@ -176,7 +184,11 @@ internal class ProximityCalibrationRuntime(
     @Synchronized
     fun resetToProfile(): Boolean {
         if (closed || view.active || saving || baseline == null) return false
-        if (runCatching { store.clearProximityLearning(fingerprint) }.isFailure) return false
+        // The old key too: a calibration carried from it would otherwise be carried back at the next start.
+        if (runCatching {
+                store.clearProximityLearning(fingerprint)
+                legacyFingerprint?.let(store::clearProximityLearning)
+            }.isFailure) return false
         userOverride = false
         readFailed = false
         sessionId = ""
@@ -186,9 +198,27 @@ internal class ProximityCalibrationRuntime(
         return true
     }
 
+    /**
+     * Takes up a calibration a restore has just written to the store. Only a stored calibration that differs
+     * from the one running is adopted: a read that fails or finds nothing leaves the panel exactly as it was,
+     * and so does a setup in progress.
+     */
+    @Synchronized
+    fun reloadStored(): Boolean {
+        if (closed || view.active || saving) return false
+        val restored = runCatching { stored(fingerprint) }.getOrNull()?.second ?: return false
+        if (restored == view.calibration) return false
+        userOverride = true
+        readFailed = false
+        view = engine.reset(restored, processingTime(elapsed()))
+        reportGate.reset()
+        return true
+    }
+
     fun summary(): String = when {
         closed || !sourceProven || !view.available -> "Proximity source unavailable"
         view.active -> "Follow proximity setup on the panel"
+        view.calibration == null && readFailed -> STORAGE_UNREADABLE_MESSAGE
         view.calibration == null -> "Proximity setup is available on the panel"
         else -> "Calibrated proximity · ${view.mode?.name?.lowercase(Locale.ROOT)}"
     }
@@ -196,6 +226,9 @@ internal class ProximityCalibrationRuntime(
     private fun phase(state: ProximityCalibrationEngine.Result): String = when {
         state.active -> "calibrating"
         !sourceProven || !state.available -> "source_unavailable"
+        // Unreadable storage is not a missing calibration: asking the owner to set it up again would be
+        // wrong, and would replace one that may still be there.
+        state.calibration == null && readFailed -> "source_unavailable"
         state.calibration == null -> "calibration_required"
         else -> "ready"
     }
@@ -290,13 +323,27 @@ internal class ProximityCalibrationRuntime(
     }
 
     private fun readCalibration(): ProximityCalibrationEngine.Calibration? {
-        val row = runCatching { store.readProximityModel(fingerprint) }.getOrElse { readFailed = true; return baseline }
-            ?: return baseline
-        if (row.algorithmVersion !in setOf(LEGACY_STORAGE_VERSION, STORAGE_VERSION) || row.fingerprint != fingerprint || !row.ready) return baseline
-        val value = decode(row.snapshotJson) ?: return baseline
-        if (row.algorithmVersion == LEGACY_STORAGE_VERSION && value.version != 1) return baseline
+        val value = runCatching {
+            stored(fingerprint) ?: legacyFingerprint?.let(::stored)?.also { (row, _) ->
+                // Carry it to the current key once, so a later revision cannot hide it again. Failing that
+                // write costs nothing: the old row stays and is read the same way next start.
+                runCatching { store.insertProximityModelIfAbsent(row.copy(fingerprint = fingerprint)) }
+            }
+        }.getOrElse { failure ->
+            Log.w(TAG, "saved proximity calibration could not be read", failure)
+            readFailed = true
+            return baseline
+        }?.second ?: return baseline
         userOverride = true
         return value
+    }
+
+    private fun stored(key: String): Pair<EntityCatalogStore.ProximityModelRow, ProximityCalibrationEngine.Calibration>? {
+        val row = store.readProximityModel(key) ?: return null
+        if (row.algorithmVersion !in setOf(LEGACY_STORAGE_VERSION, STORAGE_VERSION) || row.fingerprint != key || !row.ready) return null
+        val value = decode(row.snapshotJson) ?: return null
+        if (row.algorithmVersion == LEGACY_STORAGE_VERSION && value.version != 1) return null
+        return row to value
     }
 
     @Synchronized
@@ -323,8 +370,17 @@ internal class ProximityCalibrationRuntime(
             "such as tape, film or a case over the edge of the screen, then start setup again. " +
             "If it still shows no reading, restart the panel. Your previous calibration is unchanged."
 
-        fun fingerprint(identity: String): String = MessageDigest.getInstance("SHA-256")
-            .digest("explicit-proximity-v1|$identity".toByteArray(Charsets.UTF_8))
+        private const val TAG = "ha-paneld/proximity"
+        const val STORAGE_UNREADABLE_MESSAGE = "The saved proximity calibration could not be read. It has not been changed."
+
+        fun fingerprint(identity: String): String = digest("explicit-proximity-v1|$identity")
+
+        /** The store key for a calibration: [profileId] and [sourceIdentity], never the profile's revision. */
+        fun calibrationKey(profileId: String, sourceIdentity: String): String =
+            digest("explicit-proximity-v2|$profileId|$sourceIdentity")
+
+        private fun digest(text: String): String = MessageDigest.getInstance("SHA-256")
+            .digest(text.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(Locale.ROOT, it.toInt() and 255) }
 
         fun profileWavePattern(profile: ProfileProximityCalibration?): ProximityCalibrationEngine.WavePattern =

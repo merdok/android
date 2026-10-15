@@ -1,6 +1,5 @@
 package io.panelassistant.android.panelassistant
 
-import io.panelassistant.android.state.SoftwareUpdates
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingSpec
 import io.panelassistant.android.config.SettingsRegistry
@@ -67,10 +66,6 @@ internal data class PanelAssistantChannelDescriptor(
  * [SettingsRegistry] channel id and typed facts, and the remaining entities from the typed descriptors
  * below. `unique_suffix` is the entity's historical unique id after `<panel>_`, so existing entities keep
  * their identity.
- *
- * The attribute channels are converger plumbing rather than channels on the wire: their payloads are
- * folded into the parent channel's observation (protocol section 16). The update channels are renamed to
- * their wire ids.
  */
 internal object PanelAssistantChannelCatalog {
     /** The button events every panel reports; a profile adds its own ([buttonDescriptor]). */
@@ -85,21 +80,6 @@ internal object PanelAssistantChannelCatalog {
         "camera_snapshot", "self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update",
     )
 
-    /** Attribute channel → the channel whose observation carries its attributes. */
-    val FOLDED: Map<String, String> = mapOf(
-        "storage_health_attributes" to "storage_health",
-        "diag_wifi_outages_attributes" to "diag_wifi_outages_24h",
-        "zigbee_gateway_health_attributes" to "zigbee_gateway_health",
-        "auto_sleep_activity_attributes" to "auto_sleep_activity",
-    )
-
-    private val RENAMED: Map<String, String> = SoftwareComponent.entries.associate {
-        SoftwareUpdates.stateChannelKey(it) to "update_${it.wire}"
-    }
-
-    /** The wire channel a converger channel reports on; null for a folded attribute channel. */
-    fun wireChannel(converger: String): String? =
-        if (converger in FOLDED) null else RENAMED[converger] ?: converger
 
     private val FAMILY = Regex("^(relay|button_led)([1-9][0-9]*)$")
 
@@ -177,7 +157,7 @@ internal object PanelAssistantChannelCatalog {
             channel = channel,
             platform = platform,
             translationKey = channel,
-            // The retired discovery tombstone's id, so a later entity attaches to the same suffix.
+            // The id earlier entities were created under, so a later entity attaches to the same suffix.
             uniqueSuffix = channel,
             kind = if (choices == null) PanelAssistantValueKind.BOOLEAN else PanelAssistantValueKind.OPTION,
             entityCategory = "config",
@@ -203,6 +183,10 @@ internal object PanelAssistantChannelCatalog {
     private fun sameAsCode(codes: List<String>) = codes.map { ChannelOption(it, it) }
 
     private val HAND_WRITTEN: Map<String, PanelAssistantChannelDescriptor> = listOf(
+        PanelAssistantChannelDescriptor(
+            channel = "diag_usb_debugging", platform = "binary_sensor", translationKey = "usb_debugging",
+            uniqueSuffix = "usb_debugging", kind = PanelAssistantValueKind.BOOLEAN, entityCategory = "diagnostic",
+        ),
         PanelAssistantChannelDescriptor(
             channel = "camera_enabled", platform = "camera", translationKey = "camera",
             uniqueSuffix = "camera", kind = PanelAssistantValueKind.BOOLEAN,

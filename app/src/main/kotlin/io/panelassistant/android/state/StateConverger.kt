@@ -5,11 +5,10 @@ import io.panelassistant.android.util.RetirableMutationGate
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * One destination for converged observations, addressed by transport-neutral channel id. [done] reports
- * true only when this destination acknowledged the exact observation on the connection that sent it.
+ * One destination for converged observations, addressed by transport-neutral channel id.
  * A sink must return promptly: it runs on the convergence pump.
  */
-typealias StateSink = (channel: String, observation: StateConverger.Observation.Reportable, done: (Boolean) -> Unit) -> Unit
+typealias StateSink = (channel: String, observation: StateConverger.Observation.Reportable) -> Unit
 
 /**
  * Registry-driven state observation. Every state-bearing entity supplies one authoritative observation
@@ -21,7 +20,8 @@ class StateConverger {
     sealed interface Observation {
         /** What a sink may receive. Unknown publishes nothing, so it is never reported. */
         sealed interface Reportable : Observation
-        data class Known(val payload: String) : Reportable
+        /** [attributes] is the JSON object of attributes reported with the value, when the channel has any. */
+        data class Known(val payload: String, val attributes: String? = null) : Reportable
         data object Unknown : Observation
         data object Unavailable : Reportable
     }
@@ -71,7 +71,7 @@ class StateConverger {
             if (observation is Observation.Reportable) {
                 for (sink in sinks) {
                     try {
-                        sink(key, observation) {}
+                        sink(key, observation)
                     } catch (_: Exception) {
                         // A sink never changes another sink's admission.
                     }

@@ -143,7 +143,8 @@ export function measureLayout() {
       // A row header (a th beside td cells in a key/value table) sits in a fixed share of a narrow card;
       // its wrapping is reported separately from column headers and controls.
       const rowHeader = node.tagName === 'TH' && !!node.parentElement && [...node.parentElement.children].some((cell) => cell.tagName === 'TD');
-      if (tops.length > 1) wraps.push({ key: keyOf(node), text: textOf(node), lines: tops.length, ...(rowHeader ? { rowHeader: true } : {}) });
+      const descriptiveLabel = node.matches('.entity-policy label') && !!node.querySelector('input[type="checkbox"]');
+      if (tops.length > 1) wraps.push({ key: keyOf(node), text: textOf(node), lines: tops.length, ...(rowHeader ? { rowHeader: true } : {}), ...(descriptiveLabel ? { descriptiveLabel: true } : {}) });
     }
   }
 
@@ -170,14 +171,15 @@ export function measureLayout() {
       }
     }
     const atoms = inside.filter((node) => node.matches(ATOM) && !insideScroller(node, card));
+    // A heading split across columns has a bounding box spanning the empty space between its fragments.
+    const atomRects = atoms.map((node) => [...node.getClientRects()]);
     for (let i = 0; i < atoms.length; i += 1) {
-      const a = atoms[i].getBoundingClientRect();
       for (let j = i + 1; j < atoms.length; j += 1) {
         if (atoms[i].contains(atoms[j]) || atoms[j].contains(atoms[i])) continue;
-        const b = atoms[j].getBoundingClientRect();
-        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        if (x > 2 && y > 2) overlaps.push({ key: `${keyOf(atoms[i])} <> ${keyOf(atoms[j])}`, text: `${textOf(atoms[i])} <> ${textOf(atoms[j])}` });
+        const overlap = atomRects[i].some((a) => atomRects[j].some((b) =>
+          Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 &&
+          Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2));
+        if (overlap) overlaps.push({ key: `${keyOf(atoms[i])} <> ${keyOf(atoms[j])}`, text: `${textOf(atoms[i])} <> ${textOf(atoms[j])}` });
       }
     }
   }

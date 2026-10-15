@@ -15,6 +15,14 @@ class DashboardRuntimeValueLocalizationTest {
     private val loader = CatalogueLoader { path -> File("src/main/assets", path).readText() }
     private val zh = loader.strings("zh-Hans")
     private val en = loader.strings("en")
+    @Test fun usbDebuggingFactsRenderObservedStatesWithoutASettingsControl() {
+        for ((raw, key) in listOf("on" to "dashboard.value.on", "off" to "dashboard.value.off", "unknown" to "dashboard.value.unknown")) {
+            val row = factRowsHtml(mapOf("USB debugging" to raw), listOf("USB debugging"), false, zh) { it }
+            assertTrue(row, row.contains("<th>${zh.get("dashboard.fact.usb_debugging")}</th>"))
+            assertTrue(row, row.contains("<td>${zh.get(key)}</td>"))
+            assertFalse(row, row.contains("href="))
+        }
+    }
     @Test fun everyOrdinaryBuiltInRendererStateUsesTheSelectedCatalogue() {
         data class Case(val source: String, val key: String, val age: String? = null, val theme: Boolean = false)
         val cases = listOf(

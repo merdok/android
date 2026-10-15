@@ -287,7 +287,7 @@ internal object PowerSafetyRepairPolicy {
     }
 }
 
-/** Admission decisions shared by HTTP configuration and broker-originated live settings. */
+/** Admission decisions shared by HTTP configuration and Panel Assistant commands. */
 internal object PowerSafetyMutationPolicy {
     fun requestsSafetyReduction(
         keepAwake: Boolean,
@@ -298,7 +298,7 @@ internal object PowerSafetyMutationPolicy {
         (keepAwake && requestedKeepAwake == false) ||
             (preventIdleDim && requestedPreventIdleDim == false)
 
-    /** Malformed broker payloads must never collapse into a safety-reducing OFF transition. */
+    /** Malformed command payloads must never collapse into a safety-reducing OFF transition. */
     fun parseGuardSwitch(payload: String): Boolean? = when {
         payload.trim().equals("ON", ignoreCase = true) -> true
         payload.trim().equals("OFF", ignoreCase = true) -> false

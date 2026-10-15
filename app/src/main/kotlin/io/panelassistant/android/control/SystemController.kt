@@ -50,6 +50,8 @@ class SystemController(
     // are not app drawers (eWeLink on Sonoff, Stargate on Shelly), so the Launcher button skips them.
     private val vendorHomePackages: Set<String> = emptySet(),
     private val adminForeground: () -> Boolean = { io.panelassistant.android.AdminLauncherActivity.isForeground() },
+    // The service supplies ScreenPower.isDeviceSecure; missing observation must never permit a reboot.
+    private val isDeviceSecure: () -> Boolean = { true },
 ) {
 
     // Native descriptor checks run on every live transport wake. Reuse one bounded observation of the
@@ -492,6 +494,11 @@ class SystemController(
         }
     }
 
+    /** Refuse a reboot that would strand the app until someone enters a credential at the panel. */
+    fun requireRebootAllowed() {
+        if (isDeviceSecure()) throw DeviceCredentialRebootRefusalException()
+    }
+
     /**
      * Reboot the panel.
      *
@@ -506,6 +513,7 @@ class SystemController(
      * before rather than losing its reboot.
      */
     fun reboot(): Boolean {
+        requireRebootAllowed()
         beforeReboot()
         val route = ShortOperationRouter.effect(
             EffectAttempt(PrivilegeRoute.DAEMON) {
@@ -552,3 +560,7 @@ class SystemController(
             AppIdentity.LEGACY
     }
 }
+
+internal class DeviceCredentialRebootRefusalException : IllegalStateException(
+    "Reboot refused: a screen-lock credential is set, so this panel would need to be unlocked physically after restarting.",
+)

@@ -94,8 +94,8 @@ class ProximityCalibrationRuntimeTest {
         assertEquals(0, fixture.backing.clears)
     }
 
-    @Test fun profileRevisionAndSourceIdentityChangesExcludePreviousOverride() {
-        for ((source, profile) in listOf(SOURCE to "profile-r2", "new-source" to PROFILE)) {
+    @Test fun anotherProfileOrSensorIdentityExcludesPreviousOverride() {
+        for ((source, profile) in listOf(SOURCE to "other-profile", "new-source" to PROFILE)) {
             val previous = row(binaryLegacy())
             val fixture = Fixture(Backing(previous), source = source, profile = profile)
             assertEquals("profile", fixture.status().getString("calibrationSource"))
@@ -103,6 +103,108 @@ class ProximityCalibrationRuntimeTest {
             assertEquals(previous, fixture.backing.row)
             assertEquals(0, fixture.backing.writes)
         }
+    }
+
+    /** An edit to the profile's brightness or buttons, or a release revising the bundled file, changes its
+     *  revision and nothing the sensor reports: the saved calibration and its ready state stay. */
+    @Test fun aNewProfileRevisionKeepsTheSavedCalibration() {
+        val backing = Backing()
+        val first = Fixture(backing, pattern = WavePattern.DOUBLE, revision = "rev-1")
+        first.toReview(100f, 50f, 50f)
+        first.advance(1)
+        assertTrue(first.runtime.localAction("save"))
+        first.runtime.close()
+        for (revision in listOf("rev-1", "rev-2", null)) {
+            val updated = Fixture(backing, revision = revision)
+            assertEquals("user", updated.status().getString("calibrationSource"))
+            updated.sample(100f)
+            updated.advance(200, 100f)
+            assertEquals("ready", JSONObject(updated.runtime.statusJson()).getString("state"))
+            updated.runtime.close()
+        }
+        assertEquals(1, backing.writes)
+    }
+
+    /** A calibration saved before the key stopped hashing the revision is found under that old key, carried to
+     *  the current one, and then survives the next revision too. */
+    @Test fun aCalibrationSavedUnderTheRevisionKeyIsCarriedForward() {
+        val old = row(presenceOnly()).copy(fingerprint = ProximityCalibrationRuntime.fingerprint("$PROFILE|rev-1|$SOURCE"))
+        val backing = Backing(old)
+        val migrated = Fixture(backing, revision = "rev-1")
+        assertEquals("user", migrated.status().getString("calibrationSource"))
+        assertEquals(old.copy(fingerprint = key()), backing.inserted[key()])
+        assertEquals(old, backing.row)
+        assertEquals(0, backing.writes)
+        migrated.runtime.close()
+        backing.row = null
+        assertEquals("user", Fixture(backing, revision = "rev-2").status().getString("calibrationSource"))
+        // The old key under another revision proves nothing about this one, so it is not taken up.
+        val other = Backing(old)
+        assertEquals("profile", Fixture(other, revision = "rev-2").status().getString("calibrationSource"))
+        assertTrue(other.inserted.isEmpty())
+    }
+
+    /** A reset after the carry clears the old key too, so the next start does not carry the calibration back. */
+    @Test fun aResetAfterTheCarryStaysReset() {
+        val old = row(presenceOnly()).copy(fingerprint = ProximityCalibrationRuntime.fingerprint("$PROFILE|rev-1|$SOURCE"))
+        val backing = Backing(old)
+        val carried = Fixture(backing, revision = "rev-1")
+        assertEquals("user", carried.status().getString("calibrationSource"))
+        assertTrue(carried.runtime.resetToProfile())
+        carried.runtime.close()
+        assertNull(backing.row)
+        assertTrue(backing.inserted.isEmpty())
+        assertEquals("profile", Fixture(backing, revision = "rev-1").status().getString("calibrationSource"))
+    }
+
+    /** Unreadable storage is not a missing calibration: Panel Assistant must not be told to raise its setup
+     *  Repair, the panel must not invite setup, and nothing stored is touched. */
+    @Test fun anUnreadableStoreIsNotReportedAsCalibrationRequired() {
+        val backing = Backing(row(presenceOnly())).apply { failRead = true }
+        var now = 1_000L
+        val runtime = ProximityCalibrationRuntime(SOURCE, PROFILE, null, Store(backing),
+            elapsed = { now }, wall = { 1_800_000_000_000L + now }, profileRevision = "rev-1")
+        runtime.observe(100f, now, true)
+        assertEquals("source_unavailable", JSONObject(runtime.statusJson()).getString("state"))
+        val status = JSONObject(runtime.json())
+        assertTrue(status.getBoolean("calibrationReadFailed"))
+        assertEquals(ProximityCalibrationRuntime.STORAGE_UNREADABLE_MESSAGE, status.getString("message"))
+        assertEquals(0, backing.writes)
+        assertEquals(0, backing.clears)
+        assertTrue(backing.inserted.isEmpty())
+        val empty = ProximityCalibrationRuntime(SOURCE, PROFILE, null, Store(Backing()),
+            elapsed = { now }, wall = { 1_800_000_000_000L + now })
+        empty.observe(100f, now, true)
+        assertEquals("calibration_required", JSONObject(empty.statusJson()).getString("state"))
+    }
+
+    /** A restore writes the calibration to the store while the runtime runs; the reload takes it up at once,
+     *  except during a setup, which keeps the panel. */
+    @Test fun reloadTakesUpARestoredCalibrationButNeverInterruptsSetup() {
+        var now = 1_000L
+        val backing = Backing()
+        val runtime = ProximityCalibrationRuntime(SOURCE, PROFILE, null, Store(backing),
+            elapsed = { now }, wall = { 1_800_000_000_000L + now })
+        runtime.observe(100f, now, true)
+        assertEquals("calibration_required", JSONObject(runtime.statusJson()).getString("state"))
+        backing.inserted[key()] = row(presenceOnly())
+        assertTrue(runtime.reloadStored())
+        runtime.observe(100f, now, true)
+        assertEquals("ready", JSONObject(runtime.statusJson()).getString("state"))
+        assertEquals("user", JSONObject(runtime.json()).getString("calibrationSource"))
+        val busy = Fixture()
+        busy.begin(100f)
+        // A different calibration is waiting in the store, so only the setup itself can hold it off.
+        busy.backing.inserted[key()] = row(presenceOnly())
+        assertFalse(busy.runtime.reloadStored())
+        assertEquals("calibrating", JSONObject(busy.runtime.statusJson()).getString("state"))
+        // A restore that brought nothing new, or a store that cannot be read now, leaves the working calibration.
+        assertFalse(runtime.reloadStored())
+        backing.failRead = true
+        assertFalse(runtime.reloadStored())
+        runtime.observe(100f, now, true)
+        assertEquals("ready", JSONObject(runtime.statusJson()).getString("state"))
+        assertEquals("user", JSONObject(runtime.json()).getString("calibrationSource"))
     }
 
     /** The status endpoint's `proximity` component, from which Panel Assistant raises its calibration Repair. */
@@ -578,11 +680,12 @@ class ProximityCalibrationRuntimeTest {
 
     private class Fixture(
         val backing: Backing = Backing(), source: String = SOURCE, profile: String = PROFILE,
-        private val pattern: WavePattern = WavePattern.SINGLE,
+        private val pattern: WavePattern = WavePattern.SINGLE, revision: String? = null,
     ) {
         var now = 1_000L
         val runtime = ProximityCalibrationRuntime(source, profile, legacy(), Store(backing),
-            elapsed = { now }, wall = { 1_800_000_000_000L + now }, requestedWavePattern = pattern)
+            elapsed = { now }, wall = { 1_800_000_000_000L + now }, requestedWavePattern = pattern,
+            profileRevision = revision)
         var session = ""
         fun status() = JSONObject(runtime.json())
         fun stage() = status().getString("stage")
@@ -651,11 +754,16 @@ class ProximityCalibrationRuntimeTest {
 
     private class Backing(var row: EntityCatalogStore.ProximityModelRow? = null) {
         var writes = 0; var clears = 0; var closes = 0; var failWrite = false; var failRead = false
+        /** Rows added by insert-if-absent, keyed as the real table is. */
+        val inserted = mutableMapOf<String, EntityCatalogStore.ProximityModelRow>()
     }
     private class Store(private val backing: Backing) : ProximityModelStore {
         // Deliberately return mismatched rows too: the runtime must validate their fingerprint.
         override fun readProximityModel(fingerprint: String) =
-            if (backing.failRead) throw IllegalStateException("database locked") else backing.row
+            if (backing.failRead) throw IllegalStateException("database locked")
+            else backing.inserted[fingerprint] ?: backing.row
+        override fun insertProximityModelIfAbsent(model: EntityCatalogStore.ProximityModelRow): Boolean =
+            backing.inserted.putIfAbsent(model.fingerprint, model) == null
         override fun writeProximityBatch(model: EntityCatalogStore.ProximityModelRow,
             rollups: List<EntityCatalogStore.ProximityRollupRow>, episodes: List<EntityCatalogStore.ProximityEpisodeRow>, now: Long) {
             backing.writes++
@@ -663,17 +771,22 @@ class ProximityCalibrationRuntimeTest {
             if (backing.failWrite) throw IllegalStateException("atomic transaction failed")
             backing.row = model
         }
-        override fun clearProximityLearning(fingerprint: String) { backing.clears++; backing.row = null }
+        override fun clearProximityLearning(fingerprint: String) {
+            backing.clears++
+            backing.inserted.remove(fingerprint)
+            if (backing.row?.fingerprint == fingerprint) backing.row = null
+        }
         override fun close() { backing.closes++ }
     }
     companion object {
         private const val SOURCE = "android-hal|same-misleading-range-metadata"
         private const val PROFILE = "profile-r1"
+        private fun key(source: String = SOURCE) = ProximityCalibrationRuntime.calibrationKey(PROFILE, source)
         private fun legacy() = Calibration(version = 1, mode = Mode.RANGED, clearRaw = 100f, nearRaw = 50f)
         private fun binaryLegacy() = Calibration(version = 1, mode = Mode.BINARY, clearRaw = 0f, nearRaw = 1f)
         private fun presenceOnly() = Calibration(mode = Mode.RANGED, clearRaw = 100f, nearRaw = 50f)
         private fun row(value: Calibration, algorithm: Int = ProximityCalibrationRuntime.STORAGE_VERSION) = EntityCatalogStore.ProximityModelRow(
-            ProximityCalibrationRuntime.fingerprint("$PROFILE|$SOURCE"), algorithm,
+            key(), algorithm,
             "explicit-calibration-v${value.version}", ProximityCalibrationRuntime.encode(value), true, 1_800_000_000_000L)
         private fun assertRow(backing: Backing): EntityCatalogStore.ProximityModelRow {
             assertNotNull(backing.row)

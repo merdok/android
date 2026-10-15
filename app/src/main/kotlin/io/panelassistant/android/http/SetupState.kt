@@ -354,6 +354,7 @@ internal class SetupState(
             "\"url\":${jsonStr(config.haUrlHandover)}," +
             "\"reason\":${jsonStr(config.haUrlHandoverReason)}}"
         return "{\"complete\":${journey.complete}," +
+            "\"needs_user\":${journey.needsUser}," +
             "\"handover\":$handover," +
             "\"repair\":${config.setupEverCompleted && !journey.complete}," +
             "\"entity_filter\":$entityFilter," +

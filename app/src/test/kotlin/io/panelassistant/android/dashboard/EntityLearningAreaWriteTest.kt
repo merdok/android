@@ -6,6 +6,8 @@ import io.panelassistant.android.http.HaAreaProtocol
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
@@ -29,10 +31,11 @@ class EntityLearningAreaWriteTest {
         val updates = ConcurrentLinkedQueue<JSONObject>()
         val commands = ConcurrentLinkedQueue<String>()
         val deviceUid = "a".repeat(32)
-        val discoveryId = requireNotNull(io.panelassistant.android.panelAssistantDiscoveryId(deviceUid))
         val server = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
             install(WebSockets)
             routing {
+                // The learned connection proves its instance before a token leaves.
+                get("/api/panel_assistant/instance") { call.respondText("""{"instance_id":"${"c".repeat(32)}"}""") }
                 webSocket("/api/websocket") {
                     send(Frame.Text("""{"type":"auth_required"}"""))
                     assertEquals("auth", JSONObject((incoming.receive() as Frame.Text).readText()).getString("type"))
@@ -51,13 +54,6 @@ class EntityLearningAreaWriteTest {
                                     .put("identifiers", JSONArray().put(JSONArray().put("panel_assistant").put("entry-test")))
                                     .put("area_id", currentArea.get()),
                             )
-                            "config/entity_registry/list_for_display" -> JSONObject().put("entities", JSONArray().put(
-                                JSONObject().put("ei", "sensor.panel_status").put("di", "panel-device").put("pl", "panel_assistant"),
-                            ))
-                            "config/entity_registry/get_entries" -> JSONObject().put("sensor.panel_status", JSONObject()
-                                .put("platform", "panel_assistant")
-                                .put("unique_id", "${discoveryId}_status")
-                                .put("config_entry_id", "entry-test"))
                             "config/device_registry/update" -> {
                                 updates.add(command)
                                 currentArea.set(if (command.isNull("area_id")) "" else command.getString("area_id"))
@@ -73,14 +69,17 @@ class EntityLearningAreaWriteTest {
         }.start(wait = false)
         try {
             val port = server.engine.resolvedConnectors().single().port
+            // Only the learned connection record is written: it carries the entry the hello named.
+            val stored = java.util.concurrent.ConcurrentHashMap<String, Any>()
             val prefs = Proxy.newProxyInstance(
                 SharedPreferences::class.java.classLoader,
                 arrayOf(SharedPreferences::class.java),
             ) { _, method, args ->
                 when (method.name) {
-                    "contains" -> false
-                    "getLong" -> args!![1]
-                    "getString" -> when (args?.get(0)) {
+                    "contains" -> stored.containsKey(args!![0])
+                    "getLong" -> stored[args!![0]] ?: args[1]
+                    "edit" -> editor(stored)
+                    "getString" -> stored[args!![0]] ?: when (args[0]) {
                         "ha_url" -> "http://127.0.0.1:$port"
                         "ha_token" -> "test-token"
                         Config.DEVICE_UID_PREF -> deviceUid
@@ -91,6 +90,10 @@ class EntityLearningAreaWriteTest {
                 }
             } as SharedPreferences
             val config = Config(prefs)
+            assertTrue(io.panelassistant.android.HaConnectionRoutes.learn(
+                config, io.panelassistant.android.HaConnectionRoutes.current(config),
+                io.panelassistant.android.HaConnectionAdvertisement("c".repeat(32), "d".repeat(32), emptyList()), "entry-test",
+            ))
             val unsafe = Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }
                 .get(null) as Unsafe
             val manager = unsafe.allocateInstance(EntityLearningManager::class.java) as EntityLearningManager
@@ -117,5 +120,21 @@ class EntityLearningAreaWriteTest {
         } finally {
             server.stop(100, 1_000)
         }
+    }
+
+    private fun editor(stored: MutableMap<String, Any>): SharedPreferences.Editor {
+        val pending = mutableMapOf<String, Any>()
+        lateinit var editor: SharedPreferences.Editor
+        editor = Proxy.newProxyInstance(
+            SharedPreferences.Editor::class.java.classLoader,
+            arrayOf(SharedPreferences.Editor::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "putString", "putLong" -> editor.also { pending[args!![0] as String] = args[1] as Any }
+                "commit" -> { stored.putAll(pending); true }
+                else -> error("unexpected preference write: ${method.name}")
+            }
+        } as SharedPreferences.Editor
+        return editor
     }
 }

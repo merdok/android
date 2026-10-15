@@ -12,7 +12,7 @@ internal class HaLifecycleCoordinator(
     private val onChanged: () -> Unit = {},
 ) {
     private val lock = Any()
-    private var published = HaLifecycle.Snapshot(HaLifecycleState.NORMAL, null, false, 0L, 0L)
+    private var published = HaLifecycle.Snapshot(HaLifecycleState.NORMAL, false, 0L, 0L)
 
     fun onNativeNotice(notice: HaLifecycleNotice) {
         val now = nowMs()
@@ -78,6 +78,5 @@ internal fun lifecyclePublishDecision(
     published: HaLifecycle.Snapshot,
 ): Boolean = candidate.revision > published.revision &&
     (candidate.state != published.state ||
-        candidate.source != published.source ||
         candidate.reason != published.reason || candidate.expectedMs != published.expectedMs ||
         candidate.elapsedMs != published.elapsedMs)

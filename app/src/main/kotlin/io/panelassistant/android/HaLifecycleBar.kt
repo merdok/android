@@ -12,7 +12,6 @@ import androidx.annotation.StringRes
 import io.panelassistant.android.sensors.HaLifecycle
 import io.panelassistant.android.sensors.HaLifecycleReason
 import io.panelassistant.android.sensors.HaLifecycleRuntime
-import io.panelassistant.android.sensors.HaLifecycleSource
 import io.panelassistant.android.sensors.HaLifecycleState
 
 /** Select the notice shown over the dashboard from the current owners' observations. */
@@ -86,8 +85,7 @@ internal fun haLifecycleCard(
     backOnlineWindowMs: Long = HaLifecycle.DEFAULT_BACK_ONLINE_WINDOW_MS,
 ): HaLifecycleCard {
     val step = when (state) {
-        HaLifecycleState.SHUTTING_DOWN ->
-            if (snap?.source == HaLifecycleSource.NATIVE) HaRestartStep.STOPPING else null
+        HaLifecycleState.SHUTTING_DOWN -> HaRestartStep.STOPPING
         HaLifecycleState.STARTING -> if (dashboardConnected) HaRestartStep.RELOADING else HaRestartStep.STARTING
         HaLifecycleState.BACK_ONLINE -> HaRestartStep.RELOADING
         HaLifecycleState.CONNECTION_LOST, HaLifecycleState.NORMAL -> null

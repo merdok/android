@@ -143,19 +143,21 @@ class PaneldServerBackupRestoreRoutesTest {
         }
     }
 
-    @Test fun `rootless real restore still refuses requested network adb in hardened mode`() {
+    @Test fun `rootless preview and real restore refuse requested network adb in hardened mode`() {
         PaneldServerHttpFixture().use { fixture ->
             assertTrue(fixture.config.setSecurityMode(Config.SecurityMode.HARDENED))
             testApplication {
                 application { fixture.mount(this) }
-                val response = client.post("/api/v1/restore") {
-                    setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"network_adb":"true","friendly_name":"Must not apply"}}""")
+                for (suffix in listOf("?dry_run=1", "")) {
+                    val response = client.post("/api/v1/restore$suffix") {
+                        setBody("""{"kind":"ha-paneld-backup","schema":15,"config":{"network_adb":"true","friendly_name":"Must not apply"}}""")
+                    }
+                    val text = response.bodyAsText()
+                    assertEquals(text, HttpStatusCode.Conflict, response.status)
+                    assertEquals("network-adb-incompatible-with-hardened-mode", JSONObject(text).getString("error"))
+                    assertEquals("contract-panel", fixture.config.panelId)
+                    assertEquals(false, InstallProgress.running)
                 }
-                val text = response.bodyAsText()
-                assertEquals(text, HttpStatusCode.Conflict, response.status)
-                assertEquals("network-adb-incompatible-with-hardened-mode", JSONObject(text).getString("error"))
-                assertEquals("contract-panel", fixture.config.panelId)
-                assertEquals(false, InstallProgress.running)
             }
         }
     }

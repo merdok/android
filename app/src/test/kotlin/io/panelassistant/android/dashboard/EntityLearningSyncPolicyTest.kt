@@ -276,6 +276,18 @@ class EntityLearningSyncPolicyTest {
         assertFalse(queued.isEligible(11, original, blockingIssues = 1))
     }
 
+    @Test fun aPromotionThatChangesNothingIsNeverReportedAsHeldBack() {
+        val applied = listOf("light.a", "light.b")
+        assertEquals(RuntimePromotionDecision.UNCHANGED,
+            runtimePromotionDecision(listOf("light.b", "light.a"), applied, promotionsInWindow = 2, maxPromotions = 2))
+        assertEquals(RuntimePromotionDecision.UNCHANGED,
+            runtimePromotionDecision(emptyList(), applied, promotionsInWindow = 0, maxPromotions = 2))
+        assertEquals(RuntimePromotionDecision.CAPPED,
+            runtimePromotionDecision(applied + "light.c", applied, promotionsInWindow = 2, maxPromotions = 2))
+        assertEquals(RuntimePromotionDecision.PROMOTE,
+            runtimePromotionDecision(applied + "light.c", applied, promotionsInWindow = 1, maxPromotions = 2))
+    }
+
     @Test fun quietSuspendingOperationCannotOutliveWallClockDeadline() = runTest {
         var timedOut = false
         try {

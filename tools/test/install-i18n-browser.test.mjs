@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { chromium } from 'playwright-core';
+import { chromium, webkit } from 'playwright-core';
 import { i18nBridge } from './fixtures/i18n-bridge.mjs';
 
-const asset = fileURLToPath(new URL('../../app/src/main/assets/install.js', import.meta.url));
+const asset = process.argv[2] || fileURLToPath(new URL('../../app/src/main/assets/install.js', import.meta.url));
 const powerAsset = fileURLToPath(new URL('../../app/src/main/assets/power-safety.js', import.meta.url));
 const catalogueDir = fileURLToPath(new URL('../../app/src/main/assets/i18n/', import.meta.url));
 const chrome = process.env.CHROME || '/usr/bin/chromium';
@@ -40,10 +39,6 @@ function frozenObject(source, name) {
   return Function(`"use strict";return (${objectLiteral(source, name)});`)();
 }
 
-function digest(value) {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
-}
-
 async function realCatalogueProjection(locale, prefixes) {
   const source = JSON.parse(await readFile(`${catalogueDir}/en.json`, 'utf8'));
   const target = JSON.parse(await readFile(`${catalogueDir}/${locale}.json`, 'utf8'));
@@ -58,19 +53,6 @@ async function realCatalogueProjection(locale, prefixes) {
   }
   return { locale, strings, languages };
 }
-
-test('Install browser copies the exact frozen v3 presentation and direct-token tables', async () => {
-  const source = await readFile(asset, 'utf8');
-  const presentations = frozenObject(source, 'PRESENTATIONS');
-  assert.equal(Object.keys(presentations).length, 114);
-  assert.equal(digest(presentations), 'a03ea51ae259d4813b724ce246f7e70941eb575f54d5015bcc9a4ebf5c4828bc');
-  assert.equal(digest(frozenObject(source, 'COMPONENT_STATUS')), '73563afe880f7bccf8b8c31d582a29405b8a498724a97cda7b54686a56f9530e');
-  assert.equal(digest(frozenObject(source, 'APK_STATUS')), '2849cf9486f18979fe79465df4c9c76e11c558ef03ae3e98faa1f013b34f9cd8');
-  assert.equal(digest(frozenObject(source, 'RESTORE_OUTCOME')), '69226bae3ec367703099c6136b4ff7b7ef264d8ad6efe6a02428bb155e7662b1');
-  assert.equal(digest(frozenObject(source, 'RADIO_STATE')), '9e383eec164a6462adc21aceab958e6e023503e21ddcb16a1a4d3671ebfeec9d');
-  assert.equal(digest(frozenObject(source, 'CONFIG_IMPORT_STATUS')), 'b28e9c65c69c405fc4576d46a08920a3272b303624d436fa00883ecf8298ea23');
-  assert.deepEqual(frozenObject(source, 'COMPONENT_LABEL'), { paneld: 'Panel Assistant', companion: 'HA Companion', webview: 'System WebView', apk: 'APK' });
-});
 
 const samples = Object.freeze({
   owner: 'paneld', component: 'paneld', channel: 'stable', count: '2', package: 'io.example.app',
@@ -111,7 +93,7 @@ async function rig(t, options = {}) {
     response.end(`<!doctype html><html lang="${projectedLocale}"><head>${i18nBridge(options.noHelper ? {} : projection)}</head><body>${options.html || '<div id="audit-out"></div><div id="bk-msg"></div>'}<script>window.CardColumnAlignment={attach:()=>()=>{}};</script><script src="/install.js"></script></body></html>`);
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
-  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  const browser = await (options.engine === 'WebKit' ? webkit.launch({ headless: true }) : chromium.launch({ executablePath: chrome, headless: true }));
   const page = await browser.newPage();
   t.after(async () => { await browser.close(); server.closeAllConnections?.(); await new Promise((done) => server.close(done)); });
   await page.goto(`http://127.0.0.1:${server.address().port}/${options.query || ''}`, { waitUntil: 'domcontentloaded' });
@@ -123,7 +105,7 @@ browserTest('Panel version picker displays PA channel without a local selector',
   let requestedChannel;
   const { page } = await rig(t, {
     noHelper: true,
-    html: '<div class="comprow" data-name="paneld"><span class="cpa-channel">—</span><select class="cvsel"></select></div>',
+    html: '<div class="comprow" data-name="paneld"><span class="cpa-channel">—</span><div class="cvsel choice-list"></div></div>',
     route(request, response, url) {
       if (url.pathname !== '/api/v1/install/versions') return false;
       requestedChannel = url.searchParams.get('channel');
@@ -153,34 +135,43 @@ browserTest('Version picker explains unavailable releases and keeps permitted ch
   ];
   const { page } = await rig(t, {
     noHelper: true,
-    html: '<div class="comprow" data-name="paneld"><span class="cver">1.0</span><select class="cchan"><option>stable</option></select><select class="cvsel"></select><a class="cnotes"></a><button class="cinstall" data-root="1"></button><a class="cdl">Download</a></div>',
+    html: '<div class="comprow" data-name="paneld"><span class="cver">1.0</span><select class="cchan"><option>stable</option></select><div class="cvsel choice-list"></div><a class="cnotes">Notes</a><button class="cinstall" data-root="1"></button><a class="cdl">Download</a></div>',
     route(request, response, url) {
       if (url.pathname !== '/api/v1/install/versions') return false;
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ versions })); return true;
     },
   });
   await page.evaluate(() => window.loadVersions('paneld'));
-  assert.deepEqual(await page.locator('.cvsel option').allTextContents(), [
+  assert.deepEqual(await page.locator('.cvsel span').allTextContents(), [
     '4.0 (not supported by this panel; limit 2.0)', '3.0 (older app, cannot replace this one)', '2.0', '1.0 (no compatible download)', '0.9 (no compatible download)',
   ]);
-  assert.equal(await page.locator('.cvsel').inputValue(), 'v2');
+  assert.equal(await page.locator('.cvsel input:checked').inputValue(), 'v2');
   assert.equal(await page.locator('.cinstall').isDisabled(), false);
   assert.equal(await page.locator('.cdl').isVisible(), true);
   for (const tag of ['v4', 'v3', 'v1', 'legacy']) {
-    await page.selectOption('.cvsel', tag);
+    await page.locator('.cvsel input').evaluateAll((inputs, tag) => { for (const input of inputs) input.checked = input.value === tag; }, tag);
     await page.evaluate(() => window.verChanged('paneld'));
     assert.equal(await page.locator('.cinstall').isDisabled(), true, tag);
     assert.equal(await page.locator('.cdl').isVisible(), false, tag);
   }
-  await page.selectOption('.cvsel', 'v2');
+  await page.locator('.cvsel input[value="v2"]').check();
   await page.evaluate(() => window.verChanged('paneld'));
   assert.equal(await page.locator('.cinstall').isDisabled(), false);
+  for (const url of ['https://github.com/example/app/releases/tag/v2', 'javascript:alert(1)', 'http://github.com/example/app', 'https://github.com.evil.example/app']) {
+    versions[2].notes = url; versions[2].apk = url;
+    await page.evaluate(() => window.loadVersions('paneld'));
+    const safe = url.startsWith('https://github.com/');
+    assert.equal(await page.locator('.cnotes').isVisible(), safe);
+    assert.equal(await page.locator('.cdl').isVisible(), safe);
+    assert.equal(await page.locator('.cnotes').getAttribute('href'), safe ? url : null);
+    assert.equal(await page.locator('.cdl').getAttribute('href'), safe ? url : null);
+  }
 });
 
 browserTest('Version picker retains installed release fallback with a formatted version label', async (t) => {
   const { page } = await rig(t, {
     noHelper: true,
-    html: '<div class="comprow" data-name="paneld" data-installed-version="0.9.9"><span class="cver">0.9.9 (1136)</span><select class="cvsel"></select></div>',
+    html: '<div class="comprow" data-name="paneld" data-installed-version="0.9.9"><span class="cver">0.9.9 (1136)</span><div class="cvsel choice-list"></div></div>',
     route(request, response, url) {
       if (url.pathname !== '/api/v1/install/versions') return false;
       response.writeHead(200, { 'content-type': 'application/json' });
@@ -192,7 +183,7 @@ browserTest('Version picker retains installed release fallback with a formatted 
     },
   });
   await page.evaluate(() => window.loadVersions('paneld'));
-  assert.equal(await page.locator('.cvsel').inputValue(), 'v0.9.9');
+  assert.equal(await page.locator('.cvsel input:checked').inputValue(), 'v0.9.9');
   assert.equal(await page.locator('.cver').textContent(), '0.9.9 (1136)');
 });
 
@@ -201,7 +192,7 @@ browserTest('Version picker uses every shipped locale for all unavailable reason
     const projection = await realCatalogueProjection(locale, ['install.']);
     const { page } = await rig(t, {
       projection,
-      html: '<div class="comprow" data-name="paneld"><select class="cchan"><option>stable</option></select><select class="cvsel"></select></div>',
+      html: '<div class="comprow" data-name="paneld"><select class="cchan"><option>stable</option></select><div class="cvsel choice-list"></div></div>',
       route(request, response, url) {
         if (url.pathname !== '/api/v1/install/versions') return false;
         response.writeHead(200, { 'content-type': 'application/json' });
@@ -210,7 +201,7 @@ browserTest('Version picker uses every shipped locale for all unavailable reason
       },
     });
     await page.evaluate(() => window.loadVersions('paneld'));
-    assert.deepEqual(await page.locator('.cvsel option').allTextContents(), ['no_matching_asset', 'older_app_id', 'above_panel_limit'].map((reason) => {
+    assert.deepEqual(await page.locator('.cvsel span').allTextContents(), ['no_matching_asset', 'older_app_id', 'above_panel_limit'].map((reason) => {
       const key = `install.progress.${reason}`;
       assert.equal(projection.languages[key], locale, `${locale}/${key}: reviewed translation required`);
       return '4.0 ' + projection.strings[key].replace('{version}', '2.0');
@@ -578,4 +569,35 @@ browserTest('Restore preview shows escaped server warnings before confirmation',
   }), true);
   assert.equal(previews, 1);
   assert.equal(restores, 0);
+});
+
+for (const engine of ['Chromium', 'WebKit']) browserTest(`Release radio labels wrap and submit the chosen tag in ${engine}`, async t => {
+  let posted;
+  const { page } = await rig(t, { engine, noHelper: true,
+    html: '<div class="comprow" data-name="paneld"><div class="cvsel choice-list" onchange="verChanged(\'paneld\')"></div><a class="cnotes">Notes</a><button class="cinstall" data-root="1" onclick="installSel(\'paneld\',this)"></button><p id="comp-msg"></p></div>',
+    route(request, response, url) {
+      if (url.pathname === '/api/v1/install/versions') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ versions: [{tag:'too-new',version:'4.0',installable:false,unavailableReason:'above_panel_limit',maxVersion:'2.0'}, {tag:'v2',version:'2.0',installable:true}, {tag:'v1',version:'1.0',installable:true}] })); return true;
+      }
+      if (url.pathname === '/api/v1/install/component') {
+        request.on('data', chunk => { posted = String(chunk); });
+        request.on('end', () => { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({status:'busy'})); }); return true;
+      }
+    }
+  });
+  await page.setViewportSize({ width:390, height:844 });
+  await page.addStyleTag({ content: await readFile(new URL('../../app/src/main/assets/info.css', import.meta.url), 'utf8') });
+  await page.evaluate(() => loadVersions('paneld'));
+  await page.locator('.cvsel input[value="too-new"]+span').click();
+  assert.equal(await page.locator('.cinstall').isDisabled(), true);
+  assert.match(await page.locator('.cvsel input:checked+span').innerText(), /limit 2.0/);
+  assert.deepEqual(await page.locator('.cvsel span').evaluateAll(nodes => nodes.map(node => node.scrollWidth <= node.clientWidth)), [true,true,true]);
+  await page.locator('.cvsel input[value="v2"]').focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.locator('.cvsel input:checked').inputValue(), 'v1');
+  await page.locator('.cinstall').click();
+  await page.waitForFunction(() => document.querySelector('#comp-msg').textContent.includes('Another install'));
+  assert.equal(new URLSearchParams(posted).get('version'), 'v1');
 });

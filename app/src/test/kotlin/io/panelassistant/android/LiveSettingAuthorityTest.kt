@@ -141,7 +141,7 @@ class LiveSettingAuthorityTest {
         val published = mutableListOf<String>()
         var actual = false
         val converger = StateConverger()
-        converger.addSink { _, observation, _ -> published += (observation as StateConverger.Observation.Known).payload }
+        converger.addSink { _, observation -> published += (observation as StateConverger.Observation.Known).payload }
         converger.register(StateConverger.Channel(
             "touch_sound",
             observe = { StateConverger.Observation.Known(if (actual) "ON" else "OFF") },

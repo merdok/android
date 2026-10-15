@@ -1,12 +1,12 @@
 package io.panelassistant.android.util
 
+import io.panelassistant.android.sensors.HaPanelDeviceMatcher
 import android.util.Log
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -43,27 +43,26 @@ object HaLink {
     fun resolveWithAccessToken(
         base: String,
         token: String,
-        deviceNames: Collection<String>,
+        entryId: String,
         preferIpv4: Boolean,
         ipv4Only: Boolean,
     ): String? {
         if (base.isBlank() || token.isBlank()) return null
         return runCatching {
             val normalized = base.trim().trimEnd('/')
-            val slugs = deviceNames.map(::slug).filter(String::isNotBlank).distinct()
-            val devId = deviceIdViaWs(normalized, token, slugs, preferIpv4, ipv4Only)
-                ?: run { Log.i(TAG, "no HA entity matching ${slugs.joinToString()}"); return null }
+            val devId = deviceIdViaWs(normalized, token, entryId, preferIpv4, ipv4Only)
+                ?: run { Log.i(TAG, "no single HA device for the Panel Assistant entry"); return null }
             "$normalized/config/devices/device/$devId".also { Log.i(TAG, "native HA device link resolved") }
         }.onFailure { Log.i(TAG, "native resolve failed: ${it.message}") }.getOrNull()
     }
 
-    /** Cache owner for a resolution. It includes panel identity because the HA device can change without
-     * the renderer endpoint changing (for example after reprovisioning with another panel id). */
-    internal fun resolutionTarget(base: String, panelId: String): String {
+    /** Cache owner for a resolution. It includes the Panel Assistant entry because the HA device can change
+     * without the renderer endpoint changing (for example after the integration re-adds the panel). */
+    internal fun resolutionTarget(base: String, entryId: String): String {
         val normalizedBase = base.trim().trimEnd('/')
         // Keep this persisted value text-safe for migration/export compatibility and
         // unambiguous without relying on a delimiter which could occur in a URL.
-        return "v1:${normalizedBase.length}:$normalizedBase:${slug(panelId)}"
+        return "v1:${normalizedBase.length}:$normalizedBase:$entryId"
     }
 
     /** An access token plus its remaining lifetime in seconds (as HA's /auth/token reports `expires_in`). */
@@ -199,14 +198,13 @@ object HaLink {
     }
 
     /**
-     * Read `config/entity_registry/list_for_display` over the WebSocket API (non-admin-accessible) and return
-     * the device id of the first entity whose entity_id object-part starts with a requested slug. Each entry is
-     * compact: `ei` = entity_id, `di` = device id.
+     * Read `config/device_registry/list` over the WebSocket API and return the id of the one device row
+     * Panel Assistant registered for [entryId] ([HaPanelDeviceMatcher.preferred]).
      */
     internal fun deviceIdViaWs(
         base: String,
         token: String,
-        deviceSlugs: Collection<String>,
+        entryId: String,
         preferIpv4: Boolean,
         ipv4Only: Boolean,
         resolver: ((String) -> List<java.net.InetAddress>)? = null,
@@ -222,14 +220,14 @@ object HaLink {
                         (incoming.receive() as? Frame.Text)?.readText() // auth_required
                         send(Frame.Text(JSONObject().put("type", "auth").put("access_token", token).toString()))
                         if ((incoming.receive() as? Frame.Text)?.readText().orEmpty().contains("auth_ok")) {
-                            send(Frame.Text("""{"id":1,"type":"config/entity_registry/list_for_display"}"""))
+                            send(Frame.Text("""{"id":1,"type":"config/device_registry/list"}"""))
                             // Read frames until the id:1 result (skip any interleaved events/pongs). The whole
                             // connect/auth/query exchange has one deadline, so a silent endpoint cannot strand
                             // the service's resolver thread indefinitely.
                             run frames@{
                                 repeat(8) {
                                     val msg = (incoming.receive() as? Frame.Text)?.readText() ?: return@repeat
-                                    if (msg.contains("\"id\":1")) { devId = matchDeviceId(msg, deviceSlugs); return@frames }
+                                    if (msg.contains("\"id\":1")) { devId = deviceId(msg, entryId); return@frames }
                                 }
                             }
                         }
@@ -244,79 +242,12 @@ object HaLink {
         }
     }
 
-    private data class DeviceEntityMarker(
-        val domain: String,
-        val suffix: String,
-        /** Marker names which are specific to ha-paneld rather than plausible generic room entities. */
-        val signature: Boolean = false,
-    )
-
-    private val DEVICE_ENTITY_MARKERS = listOf(
-        DeviceEntityMarker("text", "home_dashboard", signature = true),
-        DeviceEntityMarker("text", "navigate", signature = true),
-        DeviceEntityMarker("button", "reload", signature = true),
-        DeviceEntityMarker("light", "screen"),
-        DeviceEntityMarker("number", "volume"),
-    )
-
-    /**
-     * Find the device id using exact entity ids which ha-paneld itself publishes. A broad `<slug>_…`
-     * prefix is unsafe because default panel ids are often room names: `sensor.kitchen_temperature`
-     * must never make the wall panel link to a temperature-sensor device.
-     *
-     * HA appends `_2`, `_3`, … when a default entity id collides. Those forms are accepted alongside
-     * exact ids, but a device must match at least two known markers including one ha-paneld-specific
-     * marker. Multiple qualifying devices fail closed to the HA root page: an unsuffixed id belongs to
-     * the collision owner and is not stronger evidence that the owner is this panel.
-     * Candidate order remains meaningful: stable panel id first, historical friendly-name fallback next.
-     */
-    internal fun matchDeviceId(resp: String, deviceSlugs: Collection<String>): String? {
-        val result = JSONObject(resp).opt("result")
-        val arr: JSONArray = when (result) {
-            is JSONArray -> result
-            is JSONObject -> result.optJSONArray("entities") ?: return null
-            else -> return null
-        }
-        val entities = buildList {
-            for (i in 0 until arr.length()) {
-                val e = arr.optJSONObject(i) ?: continue
-                val di = e.optString("di").takeIf { it.isNotBlank() } ?: continue
-                val entityId = e.optString("ei")
-                val domain = entityId.substringBefore('.', "")
-                val obj = entityId.substringAfter('.', "")
-                if (domain.isNotBlank() && obj.isNotBlank()) add(Triple(domain, obj, di))
-            }
-        }
-        for (slug in deviceSlugs) {
-            // device id -> distinct marker indexes. Exact and numeric-collision forms are intentionally
-            // equivalent: preferring the exact form would select the entity which forced HA to suffix
-            // this panel's new entity id.
-            val evidence = linkedMapOf<String, MutableSet<Int>>()
-            entities.forEach { (domain, obj, deviceId) ->
-                DEVICE_ENTITY_MARKERS.forEachIndexed { markerIndex, marker ->
-                    if (domain != marker.domain) return@forEachIndexed
-                    val base = "${slug}_${marker.suffix}"
-                    val matches = when {
-                        obj == base -> true
-                        obj.startsWith("${base}_") &&
-                            obj.removePrefix("${base}_").toIntOrNull()?.let { it >= 2 } == true -> true
-                        else -> false
-                    }
-                    if (matches) evidence.getOrPut(deviceId) { linkedSetOf() }.add(markerIndex)
-                }
-            }
-            val candidates = evidence.mapNotNull { (deviceId, markers) ->
-                val hasSignature = markers.any { DEVICE_ENTITY_MARKERS[it].signature }
-                deviceId.takeIf { markers.size >= 2 && hasSignature }
-            }
-            if (candidates.size > 1) return null
-            candidates.singleOrNull()?.let { return it }
-        }
-        return null
+    private fun deviceId(response: String, entryId: String): String? {
+        val rows = JSONObject(response).optJSONArray("result") ?: return null
+        val devices = (0 until rows.length()).mapNotNull(rows::optJSONObject)
+        val match = HaPanelDeviceMatcher.preferred(devices, setOf(entryId)) as? HaPanelDeviceMatcher.Match.Found
+        return match?.device?.optString("id")?.takeIf(String::isNotBlank)
     }
-
-    /** Slugify a device name the way HA derives entity_ids (lowercase, non-alphanumerics → underscore). */
-    private fun slug(s: String) = s.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     private fun post(

@@ -7,6 +7,7 @@ import io.panelassistant.android.i18n.Strings as AppStrings
 private fun runtimeValue(value: String, strings: AppStrings): String = when (value) {
     "on" -> strings.get("dashboard.value.on")
     "off" -> strings.get("dashboard.value.off")
+    "unknown" -> strings.get("dashboard.value.unknown")
     "none" -> strings.get("dashboard.value.none")
     "unavailable" -> strings.get("dashboard.common.unavailable")
     "Relaxed" -> strings.get("dashboard.runtime.security_relaxed")
@@ -179,24 +180,6 @@ private fun runtimeValueFamily(value: String, strings: AppStrings): String {
             return formattedString(strings, key, "evidence" to value.removePrefix(prefix))
         }
     }
-    Regex("^(\\d+) channels · (\\d+) dirty · (\\d+) in-flight · (\\d+) unknown · ack (\\d+)/(\\d+) · pending (.+)$")
-        .matchEntire(value)
-        ?.let { match ->
-            val pending = match.groupValues[7].let {
-                if (it == "none") strings.get("dashboard.value.none") else it
-            }
-            return formattedString(
-                strings,
-                "dashboard.runtime.convergence",
-                "channels" to match.groupValues[1],
-                "dirty" to match.groupValues[2],
-                "inFlight" to match.groupValues[3],
-                "unknown" to match.groupValues[4],
-                "successes" to match.groupValues[5],
-                "failures" to match.groupValues[6],
-                "pending" to pending,
-            )
-        }
     return value
 }
 

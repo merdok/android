@@ -6,7 +6,7 @@ import io.panelassistant.android.util.Json
 import io.panelassistant.android.util.UpdateChecker
 
 internal enum class SoftwareComponent(
-    /** The component name used by the Install API and the button command topic (`update_<wire>`). */
+    /** The component name used by the Install API and the update channel (`update_<wire>`). */
     val wire: String,
     val objectSuffix: String,
     /** The [io.panelassistant.android.util.InstallProgress] component label while this app installs. */
@@ -101,7 +101,7 @@ internal object SoftwareUpdates {
     private const val UNSUPPORTED_PREFIX = "unsupported "
     private const val MAX_SUMMARY_CHARS = 255
 
-    fun stateChannelKey(component: SoftwareComponent) = "software_update_${component.wire}"
+    fun stateChannelKey(component: SoftwareComponent) = "update_${component.wire}"
 
     internal fun normalized(component: SoftwareComponent, version: String): String =
         if (component == SoftwareComponent.COMPANION) UpdateChecker.stripVariant(version) else version.trim()
@@ -173,7 +173,7 @@ internal object SoftwareUpdates {
         return parts.joinToString(" ").take(MAX_SUMMARY_CHARS)
     }
 
-    /** Retained JSON for the state topic. Omitted keys keep Home Assistant's previous value. */
+    /** The update observation JSON. Omitted keys keep Home Assistant's previous value. */
     fun stateJson(inputs: SoftwareUpdateInputs): String = buildString {
         append("{\"installed_version\":").append(Json.str(installedPresentation(inputs)))
         latestVersion(inputs)?.let { append(",\"latest_version\":").append(Json.str(it)) }

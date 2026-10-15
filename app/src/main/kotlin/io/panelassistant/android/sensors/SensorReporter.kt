@@ -331,7 +331,7 @@ class SensorReporter(
         if (proximityPrepared) return
         proximityPrepared = true
         proximityRuntime = ProximityCalibrationRuntime(
-            appContext, proximitySourceIdentity(), "${profile.id}|${profile.revision}",
+            appContext, proximitySourceIdentity(), profileId = profile.id, profileRevision = profile.revision,
             profile.proximityCalibration.takeUnless { proximityAcquisition == ProximityAcquisition.STK_RAW },
             observedSourceMode = if (proximityAcquisition == ProximityAcquisition.STK_RAW) ProximityCalibrationEngine.Mode.RANGED else null,
         )
@@ -377,6 +377,13 @@ class SensorReporter(
 
     /** The status endpoint's `proximity` component; null when the panel has no proximity source. */
     fun proximityStatusJson(): String? = proximityRuntime?.statusJson()
+
+    /** After a restore wrote a calibration to the store: use it now rather than at the next start. */
+    fun reloadProximityCalibration() {
+        if (proximityRuntime?.reloadStored() != true) return
+        updateLearnedEligibility()
+        activeRun?.proximity(null, null)
+    }
 
     fun proximityPresenceReady(): Boolean = proximityRuntime?.isPresenceReady() == true
 

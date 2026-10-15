@@ -38,9 +38,8 @@ internal class NativeMediaChannelTest : PanelRuntimeRig() {
         val media = player()
         val rig = rig(media = media)
         val observed = CopyOnWriteArrayList<String>()
-        rig.core.addStateSink { channel, observation, done ->
+        rig.core.addStateSink { channel, observation ->
             if (channel == "media") observed += (observation as StateConverger.Observation.Known).payload
-            done(true)
         }
         media.setChangeListener(rig.core::mediaChanged)
         try {

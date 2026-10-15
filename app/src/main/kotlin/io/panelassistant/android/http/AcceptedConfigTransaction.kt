@@ -34,6 +34,12 @@ internal sealed interface ApplyAcceptedResult {
 }
 
 
+/** The ordinary phase is durable; only these live values acknowledged completion before refusal. */
+internal class ConfigLiveApplyRefused(
+    val failedKey: String,
+    val appliedKeys: List<String>,
+) : IllegalStateException("$failedKey live apply refused")
+
 /** Ordered accepted-config commit and renderer effects shared by import, OAuth and restore. */
 internal class AcceptedConfigTransaction(
     private val config: Config,
@@ -200,6 +206,9 @@ internal class AcceptedConfigTransaction(
             val phase = requireNotNull(committed)
             revisions.snapshot(phase.previous)
             var rendererFailure: Throwable? = null
+            val appliedKeys = accepted.keys.filterTo(ArrayList()) {
+                it !in liveKeys && it != "dashboard_entity_learning"
+            }
             runCatching {
                 // The base transaction deliberately excludes live keys. Publish every actually durable
                 // generation to rollback ownership, then converge all live values before any external
@@ -207,14 +216,16 @@ internal class AcceptedConfigTransaction(
                 onDurableRevision(io.panelassistant.android.config.ConfigHash.of(values.revisionValues()))
                 val previousHome = phase.previous.values["home_dashboard"].orEmpty()
                 phase.live.firstOrNull { it.first == "home_dashboard" }?.let { (_, value) ->
-                    val applied = applySetting("home_dashboard", value).legacyAcknowledged
+                    val applied = applySetting("home_dashboard", value)
                     onDurableRevision(io.panelassistant.android.config.ConfigHash.of(values.revisionValues()))
-                    check(applied) { "home_dashboard live apply refused" }
+                    if (!applied.legacyAcknowledged) throw ConfigLiveApplyRefused("home_dashboard", appliedKeys.toList())
+                    if (applied == LiveSettingRequestOutcome.APPLIED) appliedKeys += "home_dashboard"
                 }
                 for ((k, v) in phase.live) if (k != "home_dashboard") {
-                    val applied = applySetting(k, v).legacyAcknowledged
+                    val applied = applySetting(k, v)
                     onDurableRevision(io.panelassistant.android.config.ConfigHash.of(values.revisionValues()))
-                    check(applied) { "$k live apply refused" }
+                    if (!applied.legacyAcknowledged) throw ConfigLiveApplyRefused(k, appliedKeys.toList())
+                    if (applied == LiveSettingRequestOutcome.APPLIED) appliedKeys += k
                 }
                 val homeChanged = normalizeDashboardEntityPath(config.homeDashboard) !=
                     normalizeDashboardEntityPath(previousHome)
@@ -324,6 +335,8 @@ internal class AcceptedConfigTransaction(
             onProfileRestartAbort: (String) -> Boolean,
             onDurableStateRestored: () -> Unit,
             onWakeWordsChanged: () -> Unit,
+            calibrations: io.panelassistant.android.persistence.ProximityCalibrationCustody =
+                io.panelassistant.android.persistence.CatalogProximityCalibrationCustody(appContext),
         ): RestoreExecutor = RestoreExecutor(
             appContext = appContext,
             config = config,
@@ -365,6 +378,7 @@ internal class AcceptedConfigTransaction(
             onProfileRestartAbort = onProfileRestartAbort,
             onDurableStateRestored = onDurableStateRestored,
             onWakeWordsChanged = onWakeWordsChanged,
+            calibrations = calibrations,
         )
     }
 }

@@ -9843,6 +9843,20 @@
       "softMaxChars": 24,
       "hardMaxChars": 48
     },
+    "dashboard.fact.usb_debugging": {
+      "text": "USB debugging",
+      "sourceHash": "b717e583d6326d6b22ebe7350400ad7894456fc01a7a98710d34967300728636",
+      "surface": "dashboard",
+      "context": "Observed USB debugging status row label",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "USB"
+      ],
+      "softMaxChars": 24,
+      "hardMaxChars": 48
+    },
     "dashboard.fact.webview_reporting": {
       "text": "System WebView reporting",
       "sourceHash": "8a803bb805676261f2d7d35ad7880bec48082293ee16ed448bf0deceb816bec4",
@@ -11488,26 +11502,6 @@
       "softMaxChars": 64,
       "hardMaxChars": 104
     },
-    "dashboard.runtime.convergence": {
-      "text": "{channels} channels · {dirty} dirty · {inFlight} in-flight · {unknown} unknown · ack {successes}/{failures} · pending {pending}",
-      "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
-      "surface": "dashboard",
-      "context": "Runtime diagnostics closed-state value or structured evidence summary; preserve status severity and runtime placeholders and render as text, not HTML.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{channels}",
-        "{dirty}",
-        "{inFlight}",
-        "{unknown}",
-        "{successes}",
-        "{failures}",
-        "{pending}"
-      ],
-      "frozen": [],
-      "softMaxChars": 178,
-      "hardMaxChars": 254
-    },
     "dashboard.runtime.database.on_disk": {
       "text": "{bytes} on disk",
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",
@@ -13079,6 +13073,18 @@
       "frozen": [],
       "softMaxChars": 8,
       "hardMaxChars": 16
+    },
+    "dashboard.value.unknown": {
+      "text": "unknown",
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
+      "surface": "dashboard",
+      "context": "A runtime value Android does not let the panel observe",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 20,
+      "hardMaxChars": 40
     },
     "entities.age.days": {
       "context": "entities.js.age: visible Entities page copy.",

@@ -232,8 +232,7 @@ internal class HaAreaRuntime(
      * "Home Assistant is canonical" was implemented only at read time, and every reader was a UI control —
      * the Configure area picker and the wizard's dashboard step. A panel nobody had opened that dropdown on
      * therefore never adopted anything: affected panels held a blank `ha_area` while their HA
-     * devices sat in real areas, so every surface honestly reported "No area" and discovery published no
-     * `suggested_area`. One unprompted
+     * devices sat in real areas, so every surface honestly reported "No area". One unprompted
      * pass after start, then a slow repeat, is enough: the area of a wall panel changes about never, and the
      * read is one authenticated WebSocket round trip.
      */

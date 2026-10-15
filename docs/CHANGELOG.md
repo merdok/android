@@ -8,6 +8,7 @@
 
 ### Changed
 
+- **Shelly Wall Display navigation bar starts hidden.** A newly set up Shelly Wall Display starts with the navigation bar on Swipe reveal: swipe up from the bottom edge to show it. A panel already set up keeps its setting.
 - **Camera snapshots use the Home Assistant camera entity.** The separate image entity and panel JPEG endpoint are retired. Snapshots now come from the camera stream, which uses Home Assistant's normal timeout after a request.
 
 ## v0.9.10 - 2026-10-07

@@ -51,11 +51,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import org.json.JSONObject
 
-/** Notified when a local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
-internal fun interface StateCoreListener {
-    fun onCapabilitiesObserved(observation: CapabilityObservation)
-}
-
 /**
  * The panel's one state owner for a network runtime generation: every state channel's authoritative
  * observation, the local observation pass, and what the panel can describe. Output leaves only through
@@ -106,19 +101,17 @@ internal class PanelStateCore(
     private val storageHealth: () -> StorageHealthSnapshot = StorageHealthRuntime::snapshot,
     // The root helper's command line, for the button backlight.
     private val helperSend: (String) -> String? = HelperClient::send,
-    // Immutable identity of this runtime generation; Config stays live for everything else.
-    private val panelId: String = config.panelId,
-    private val friendlyName: String = config.friendlyName,
     private val wifiDiagnostics: (WifiDiagnosticDemand) -> WifiDiagnosticSnapshot = { WifiDiagnosticSnapshot() },
     private val wifiOutages: () -> WifiOutageCounts? = { null },
     private val learnedProximityEligibility: () -> Boolean = { false },
     // Learned proximity once it is settled; null while the calibration is still loading or has closed, so a
     // transient false is never stated to Home Assistant as a panel without the sensor.
     private val learnedProximityState: () -> Boolean? = { null },
+    private val usbDebugging: () -> Observation.Reportable = { Observation.Unavailable },
 ) {
     private val lifecycle = RetirableMutationGate()
-    private val listeners = java.util.concurrent.CopyOnWriteArrayList<StateCoreListener>()
-    private val sinks = java.util.concurrent.CopyOnWriteArrayList<StateSink>()
+    /** Notified when a local pass observed the capability probes; [CapabilityObservation.grew] means new channels. */
+    @Volatile var onCapabilitiesObserved: ((CapabilityObservation) -> Unit)? = null
     @Volatile private var nativeEventSink: ((channel: String, event: String) -> Unit)? = null
     private val haLinkResolutionThread = AtomicReference<Thread?>()
     private var buttonSubscription: ButtonBus.Subscription? = null
@@ -171,11 +164,13 @@ internal class PanelStateCore(
         val known = { payload: String -> Observation.Known(payload) }
         val unknown = Observation.Unknown
         val c = StateConverger()
-        c.addSink { channel, observation, done -> sinks.forEach { it(channel, observation, done) } }
         fun channel(key: String, observe: () -> Observation) = c.register(StateConverger.Channel(key, observe))
 
+        channel("diag_usb_debugging", usbDebugging)
+
         channel("storage_health") {
-            known(storageHealth().severity.name.lowercase(Locale.ROOT))
+            val health = storageHealth()
+            Observation.Known(health.severity.name.lowercase(Locale.ROOT), storageHealthAttributes(health))
         }
         // An update channel withheld (ha-paneld's under a Panel Assistant lease, or the Companion's while no
         // Companion is installed) is unavailable rather than leaving a stale version behind.
@@ -186,9 +181,6 @@ internal class PanelStateCore(
                     else known(SoftwareUpdates.stateJson(inputs))
                 } ?: unknown
             }
-        }
-        channel("storage_health_attributes") {
-            known(storageHealthAttributes(storageHealth()))
         }
         channel("screen") {
             if (!config.haExposed("screen", true)) return@channel unknown
@@ -239,12 +231,7 @@ internal class PanelStateCore(
             if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
             val snapshot = autoSleepActivity()
             if (!config.autoSleep || !snapshot.policyHealthy) Observation.Unavailable
-            else known(if (snapshot.holdingAwake) "ON" else "OFF")
-        }
-        // Folded into auto_sleep_activity: its attributes.
-        channel("auto_sleep_activity_attributes") {
-            if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
-            known(autoSleepActivityProjection(autoSleepActivity()).attributes)
+            else Observation.Known(if (snapshot.holdingAwake) "ON" else "OFF", autoSleepActivityProjection(snapshot).attributes)
         }
         channel("navbar") { known(config.navbarMode) }
 
@@ -272,32 +259,24 @@ internal class PanelStateCore(
             else unknown
         }
 
-        // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
-        // attribute; without it Home Assistant records a capped 200 as an exact measurement.
-        channel("diag_wifi_outages_attributes") {
-            // The attributes ride with the count and share its opt-in.
-            val exposed = config.haExposed(
-                "diag_wifi_outages_24h",
-                requireNotNull(SettingsRegistry.spec("diag_wifi_outages_24h")).haExposedByDefault,
-            )
-            wifiOutageAttributeObservation(exposed, wifiOutages())
-        }
-
         for (key in diagKeys()) channel(key) {
             // Transport-dependent Wi-Fi diagnostics are unavailable rather than a literal "unknown".
             val exposedByDefault = requireNotNull(SettingsRegistry.spec(key)).haExposedByDefault
-            diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
+            val observation = diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
+            // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
+            // attribute; without it Home Assistant records a capped 200 as an exact measurement.
+            if (key == "diag_wifi_outages_24h" && observation is Observation.Known) {
+                wifiOutages()?.let { observation.copy(attributes = wifiOutageAttributes(it)) } ?: observation
+            } else observation
         }
         return c
     }
 
     /** Every admitted observation reaches [sink], independently of any transport's delivery capacity. */
-    fun addStateSink(sink: StateSink) { sinks += sink }
+    fun addStateSink(sink: StateSink) = converger.addSink(sink)
 
     /** Hand transient events (button presses) to the native transport; it never blocks the caller. */
     fun addEventSink(sink: (channel: String, event: String) -> Unit) { nativeEventSink = sink }
-
-    fun addListener(listener: StateCoreListener) { listeners += listener }
 
 
     fun reconcile(key: String, admit: () -> Boolean = { true }) = converger.reconcile(key, admit)
@@ -382,10 +361,7 @@ internal class PanelStateCore(
             }
             if (observation.possible.zigbee) register("zigbee_gateway_health") {
                 if (!capabilityShape.current().live.zigbee) Observation.Unavailable
-                else known(zigbeeHealth().state.wireValue)
-            }
-            if (observation.possible.zigbee) register("zigbee_gateway_health_attributes") {
-                known(zigbeeHealth().attributesJson())
+                else zigbeeHealth().let { Observation.Known(it.state.wireValue, it.attributesJson()) }
             }
             if (observation.possible.cpu) register("cpu_governor") {
                 if (!capabilityShape.current().live.cpu) known("unknown")
@@ -479,18 +455,20 @@ internal class PanelStateCore(
                 try {
                     val nativeBase = config.haUrl.trim().trimEnd('/')
                     if (nativeBase.isBlank()) return@Thread
-                    val target = HaLink.resolutionTarget(nativeBase, panelId)
+                    // The Panel Assistant entry names this panel's device; without one there is nothing to link.
+                    val entryId = HaConnectionRoutes.panelAssistantEntryId(config) ?: return@Thread
+                    val target = HaLink.resolutionTarget(nativeBase, entryId)
                     if (config.haDeviceLinkIsFresh(target, System.currentTimeMillis(), HA_LINK_TTL_MS)) return@Thread
                     val stillCurrent = {
-                        lifecycle.isOpen() &&
-                            config.haUrl.trim().trimEnd('/') == nativeBase && config.panelId == panelId
+                        lifecycle.isOpen() && config.haUrl.trim().trimEnd('/') == nativeBase &&
+                            HaConnectionRoutes.panelAssistantEntryId(config) == entryId
                     }
                     val auth = HaCredentialManager.resolve(config, stillCurrent = stillCurrent)
                     val token = auth.session?.accessToken ?: return@Thread
                     val route = auth.route ?: return@Thread
                     val familyPolicy = io.panelassistant.android.util.AddressFamilyPolicy.fromConfig(config.addressFamily)
                     val link = HaLink.resolveWithAccessToken(
-                        route.url, token, listOf(panelId, friendlyName),
+                        route.url, token, entryId,
                         preferIpv4 = familyPolicy.initialPreferIpv4,
                         ipv4Only = familyPolicy.ipv4Only,
                     ) ?: return@Thread
@@ -518,7 +496,8 @@ internal class PanelStateCore(
 
     private fun publishButton(event: String) {
         lifecycle.runIfOpen(Unit) {
-            runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event) }
+            // The event type's wire code is its key name in lower case.
+            runCatching { nativeEventSink?.invoke(BUTTON_EVENT_CHANNEL, event.lowercase(Locale.ROOT)) }
         }
     }
 
@@ -566,8 +545,6 @@ internal class PanelStateCore(
 
     fun publishZigbeeHealth() {
         lifecycle.runIfOpen(Unit) {
-            // The attributes first, so the native report carries them with the state.
-            reconcile("zigbee_gateway_health_attributes")
             reconcile("zigbee_gateway_health")
         }
     }
@@ -576,7 +553,6 @@ internal class PanelStateCore(
     fun publishStorageHealth() {
         lifecycle.runIfOpen(Unit) {
             reconcile("storage_health")
-            reconcile("storage_health_attributes")
         }
     }
 
@@ -673,12 +649,6 @@ internal class PanelStateCore(
     }
 
     fun publishAutoSleepActivityNow() {
-        val exposed = config.haExposed("auto_sleep_activity", true)
-        val snapshot = if (!exposed) AutoSleepActivitySnapshot() else runCatching(autoSleepActivity)
-            .onFailure { Log.w(TAG, "auto-sleep policy snapshot failed; reporting unavailable", it) }
-            .getOrDefault(AutoSleepActivitySnapshot())
-        // The attributes first, so the native report carries them with the state.
-        reconcile("auto_sleep_activity_attributes")
         reconcile("auto_sleep_activity")
     }
 
@@ -771,7 +741,7 @@ internal class PanelStateCore(
             capabilityObservation.changedKeys().forEach {
                 reconcile(it)
             }
-            listeners.forEach { it.onCapabilitiesObserved(capabilityObservation) }
+            onCapabilitiesObserved?.invoke(capabilityObservation)
         }
         val observedOffGeneration = screen.currentOffGeneration()
         val physicallyDark = screen.observedDark()
@@ -877,7 +847,7 @@ internal class PanelStateCore(
             rssi = true,
             privilegedRoute = capabilityShape.current().live.networkAdb,
         )).rssiDbm?.toString()
-        // Rolling outage counts stay reported (retained last value) through a Wi-Fi dropout —
+        // Rolling outage counts keep their last reported value through a Wi-Fi dropout —
         // that dropout is exactly what they exist to report — so they are not WIFI_DIAGNOSTIC_KEYS.
         "diag_wifi_outages_24h" -> wifiOutages()?.last24h?.toString()
         // Room climate — apply the calibration offset to temperature; humidity is reported whole-percent.
@@ -948,23 +918,6 @@ internal val WIFI_DIAGNOSTIC_KEYS = setOf("diag_wifi_ssid", "diag_wifi_rssi")
 /** Whether the published count is a total or a known lower bound, so HA never records a floor as exact. */
 internal fun wifiOutageAttributes(counts: WifiOutageCounts): String =
     JSONObject().put("is_lower_bound", counts.saturated).toString()
-
-/**
- * What the outage-attributes channel should carry right now.
- *
- * The attributes share the count's opt-in: hiding the sensor makes them unavailable rather than
- * leave a stale `is_lower_bound` for an entity nobody exposed. Pure so the
- * expose/hide/reconnect boundary is checked by behaviour, not by reading source.
- */
-internal fun wifiOutageAttributeObservation(
-    exposed: Boolean,
-    counts: WifiOutageCounts?,
-): io.panelassistant.android.state.StateConverger.Observation =
-    if (!exposed || counts == null) {
-        io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    } else {
-        io.panelassistant.android.state.StateConverger.Observation.Known(wifiOutageAttributes(counts))
-    }
 
 /** Path-free, bounded Home Assistant attributes derived from the shared immutable snapshot. */
 internal fun storageHealthAttributes(snapshot: StorageHealthSnapshot): String {
@@ -1052,7 +1005,7 @@ internal fun autoSleepActivityProjection(snapshot: AutoSleepActivitySnapshot): A
 }
 
 /** A mode-change signal carries no truth. The admitted runtime generation samples the service-owned
- * authority immediately before it clears stale state and schedules fresh discovery. */
+ * authority immediately before it clears stale state and re-observes the channel. */
 internal fun refreshLearnedProximityFromAuthority(
     admitted: Boolean,
     eligible: () -> Boolean,
@@ -1122,7 +1075,7 @@ internal data class CapabilityObservation(
 /**
  * Separates monotonic channel shape from the latest live probe. Once hardware has been confirmed its
  * channel identity stays stable; a later unavailable snapshot gates its state observer instead of deleting
- * the entity. Newly confirmed channels can be registered and announced by the existing runtime.
+ * the entity. Newly confirmed channels can be registered and described by the existing runtime.
  */
 internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {
     init {
@@ -1159,13 +1112,12 @@ internal class CapabilityShape(private val maxDynamicChannels: Int = 64) {
         CapabilityObservation(possible, live, live, grew = false)
 }
 
-/** One immutable capability value per discovery announcement, with a short monotonic burst cache. */
+/** One immutable capability value per hello, with a short monotonic burst cache. */
 internal class CapabilitySnapshotSource(
     private val supplier: (() -> Capabilities)?,
     private val onFailure: (Exception) -> Unit = {},
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
-    private val initial = AtomicReference<Capabilities?>()
     private var latest: Capabilities? = null
     private var latestAtMs = Long.MIN_VALUE
 
@@ -1185,17 +1137,14 @@ internal class CapabilitySnapshotSource(
             source()
         } catch (e: Exception) {
             onFailure(e)
-            // A failed live probe must not abort the complete discovery announcement. All-false is the
+            // A failed live probe must not abort the hello. All-false is the
             // fail-closed settings view; hardware entities driven by constructor/profile facts continue.
             Capabilities()
         }
-        initial.compareAndSet(null, value)
         latest = value
         latestAtMs = nowMs()
         return value
     }
-
-    fun initialSnapshot(): Capabilities? = initial.get()
 
     @Synchronized
     fun invalidate() {

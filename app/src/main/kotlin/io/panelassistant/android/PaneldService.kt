@@ -145,7 +145,7 @@ import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.panelassistant.PanelAssistantCommandSink
 import io.panelassistant.android.panelassistant.PanelAssistantHelloIdentity
-import io.panelassistant.android.panelassistant.PanelAssistantShadowReporter
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
 import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
@@ -542,6 +542,7 @@ class PaneldService : Service() {
     private val scheduledLiveSettingRetries = mutableSetOf<String>()
     private lateinit var restartLease: ServiceRestartBarrier.Lease
     private var startupInitialization: Job? = null
+    @Volatile private var portalStartupOverlayDismissal: io.panelassistant.android.input.PortalStartupOverlayDismissal? = null
     private var pendingStart = false
     private var pendingInstalledHandoff = false
     private lateinit var mainHandler: Handler
@@ -647,7 +648,7 @@ class PaneldService : Service() {
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
     // the active profile's.
-    private val panelAssistantShadow = PanelAssistantShadowReporter(describe = { wire ->
+    private val panelAssistantReporter = PanelAssistantStateReporter(describe = { wire ->
         if (wire == "button" && ::profile.isInitialized) {
             io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.buttonDescriptor(profile.evdevButtons.mapTo(linkedSetOf()) { it.eventType })
         } else io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.describe(wire)
@@ -747,6 +748,7 @@ class PaneldService : Service() {
     private lateinit var relay: RelayController
     private lateinit var cpu: CpuController
     private lateinit var adb: AdbController
+    private val usbDebugging by lazy { io.panelassistant.android.control.UsbDebuggingObserver(this) }
     private lateinit var power: PowerController
     private lateinit var powerSafety: PowerSafetyController
     private lateinit var profile: DeviceProfile
@@ -871,6 +873,10 @@ class PaneldService : Service() {
             if (teardownBoundary.isStopping ||
                 IdentityMigrationGate.disposition(this@PaneldService) == StartDisposition.RETIRED_BRIDGE
             ) return@launch
+            preparePortalStartupOverlayDismissal(prepare = {
+                io.panelassistant.android.input.PanelAccessibilityService
+                    .preparePortalStartupOverlayDismissal(this@PaneldService, resolvedProfile.profile.id)
+            })
             when (BundledHelperInstaller.ensureCurrent(this@PaneldService)) {
                 BundledHelperInstaller.Result.INSTALLED -> Log.i(TAG, "migrated bundled root helper for this release")
                 BundledHelperInstaller.Result.FAILED ->
@@ -897,6 +903,18 @@ class PaneldService : Service() {
                 if (pendingStart) startInitializedRuntime(pendingInstalledHandoff)
             }
         }
+    }
+
+    private fun preparePortalStartupOverlayDismissal(
+        prepare: () -> io.panelassistant.android.input.PortalStartupOverlayDismissal?,
+        install: (io.panelassistant.android.input.PortalStartupOverlayDismissal) -> Unit = {
+            io.panelassistant.android.input.PanelAccessibilityService.installPortalStartupOverlayDismissal(it)
+        },
+    ) {
+        val dismissal = runCatching(prepare)
+            .onFailure { Log.w(TAG, "could not prepare the Portal startup overlay dismissal", it) }.getOrNull()
+        portalStartupOverlayDismissal = dismissal
+        if (teardownBoundary.isStopping) dismissal?.close() else dismissal?.let(install)
     }
 
     private fun initializeRuntimeAfterDatabase(
@@ -1091,7 +1109,7 @@ class PaneldService : Service() {
                 }.getOrDefault(emptyList())
                 io.panelassistant.android.util.localPanelAddresses(primary)
             },
-            shadow = panelAssistantShadow,
+            reporter = panelAssistantReporter,
             observeForHello = {
                 val observed = runtime.observe() ?: return@PanelAssistantTransportOwner false
                 observed.value.core.observeForNativeHello { runtime.isCurrent(observed) }
@@ -1112,8 +1130,10 @@ class PaneldService : Service() {
             onTransportFailure = { route -> HaConnectionRoutes.failed(config, route) },
             onConnection = { session, accepted ->
                 val route = session.route
-                route != null && HaConnectionRoutes.isCurrent(config, route) &&
-                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true)
+                (route != null && HaConnectionRoutes.isCurrent(config, route) &&
+                    (accepted.connection?.let { HaConnectionRoutes.learn(config, route, it, accepted.entryId) } ?: true))
+                    // The device link is keyed on the learned entry, so a first or changed entry resolves it now.
+                    .also { learned -> if (learned) runtime.observe()?.value?.core?.maybeResolveHaLink() }
             },
             checkPreferred = {
                 val route = HaConnectionRoutes.preferredCandidate(config)
@@ -1285,7 +1305,7 @@ class PaneldService : Service() {
             media.hold(io.panelassistant.android.media.PanelMediaPlayer.Hold.VOICE, state.inTurn)
         }
         microphoneMute.start(scope)
-        system = SystemController(AndroidSystemEnv(this), vendorHomePackages = profile.vendorHomePackages, beforeReboot = {
+        system = SystemController(AndroidSystemEnv(this), vendorHomePackages = profile.vendorHomePackages, isDeviceSecure = AndroidScreenPower(this)::isDeviceSecure, beforeReboot = {
             announcePanelAssistantRestart("panel", "reboot", 120_000L)
         }, homeDashboard = { config.homeDashboard }, onCompanionHome = { pkg, home ->
             val generation = companionHomeReturnGeneration.incrementAndGet()
@@ -1607,7 +1627,7 @@ class PaneldService : Service() {
             profileReport = passiveProfileProbe::report,
             profileProbe = { passiveProfileProbe.report() },
             onProfileRestart = { profileRestart.request() },
-            onDurableStateRestored = { wifiOutageTracker.adoptRestoredRecord() },
+            onDurableStateRestored = { wifiOutageTracker.adoptRestoredRecord(); sensors.reloadProximityCalibration() },
             profileRestartAllowed = { !InstallProgress.running },
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,
@@ -1645,11 +1665,11 @@ class PaneldService : Service() {
     }
 
     private fun buildNetworkRuntime(identity: NetworkRuntimeIdentity): NetworkRuntime {
-        val core = buildCore(identity)
+        val core = buildCore()
         return NetworkRuntime(core, buildCommands(core), buildMdns(identity))
     }
 
-    private fun buildCore(identity: NetworkRuntimeIdentity): PanelStateCore = PanelStateCore(
+    private fun buildCore(): PanelStateCore = PanelStateCore(
         config, brightness, screen, led, ledEffect, volume, system, bootChime, zigbee, relay, cpu, adb,
         accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
@@ -1667,15 +1687,14 @@ class PaneldService : Service() {
         softwareUpdateSources = ::softwareUpdateSources,
         zigbeeHealth = zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
-        panelId = identity.panelId,
-        friendlyName = identity.friendlyName,
         wifiDiagnostics = wifiDiagnostics::snapshot,
         wifiOutages = { wifiOutageTracker.counts() },
         learnedProximityEligibility = sensors::hasLearnedProximity,
         learnedProximityState = sensors::learnedProximityState,
+        usbDebugging = usbDebugging::observation,
     ).also { core ->
-        core.addStateSink(panelAssistantShadow.bindShape(core::nativeChannelShape))
-        core.addEventSink(panelAssistantShadow::event)
+        core.addStateSink(panelAssistantReporter.bindShape(core::nativeChannelShape))
+        core.addEventSink(panelAssistantReporter::event)
     }
 
     private fun buildCommands(core: PanelStateCore): PanelCommandDispatcher = PanelCommandDispatcher(
@@ -2198,7 +2217,7 @@ class PaneldService : Service() {
             // A persisted intent is reported by whether adbd really listens: its own property writes
             // would otherwise read as active while vendor init or an adbd restart has dropped TCP.
             networkAdbActive = if (persistedAdb) adb.listenerState(allowRootCrossCheck = privilege.directSuReady)
-                else adb.isActive(allowRootCrossCheck = privilege.directSuReady),
+                else adb.activeState(allowRootCrossCheck = privilege.directSuReady),
             zigbee = zigbee.observe(includeRole = true, directSuReady = privilege.directSuReady),
             relayCount = relay.count(allowRootProbe = privilege.directSuReady),
             buttonLedCount = relay.ledCount(),
@@ -2297,6 +2316,7 @@ class PaneldService : Service() {
             "Relays" to controllers.relayCount.let { if (it > 0) it.toString() else "none" },
             "CPU profile" to (controllers.cpuTier ?: "n/a"),
             "Network ADB" to networkAdbDiagnostic(controllers.networkAdbPersisted, controllers.networkAdbActive),
+            "USB debugging" to usbDebugging.statusText(),
             "Log shipping" to logShipper.statusText(),
             "Audio playback" to audio.snapshot().statusText(),
         )
@@ -2979,8 +2999,8 @@ class PaneldService : Service() {
             }
             startStateObservationTick()
             // Never-blank-screen watchdog. A screen-off kills the backlight but leaves the device
-            // interactive, and nothing re-lights it — so a stray/stale screen-off (e.g. the retained-command
-            // strand) or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
+            // interactive, and nothing re-lights it — so a stray or stale screen-off command
+            // or a firmware idle-dim can leave the panel dark and apparently bricked. If the screen
             // is dark but ha-paneld did NOT deliberately turn it off, re-light it; a user-intended
             // "screen off" (isIntendedOff) is left alone.
             scope.periodic(
@@ -3428,7 +3448,9 @@ class PaneldService : Service() {
     )
 
     override fun onDestroy() {
+        teardownBoundary.markStopping()
         notifications.releaseForeground()
+        portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
             stopForeground(true)
             super.onDestroy()
@@ -3449,7 +3471,6 @@ class PaneldService : Service() {
             return
         }
         if (!::runtime.isInitialized) {
-            teardownBoundary.markStopping()
             startupInitialization?.invokeOnCompletion { restartLease.completeTeardown() }
             startupInitialization?.cancel()
             scope.cancel()
@@ -3463,7 +3484,6 @@ class PaneldService : Service() {
         // App-local completion may continue off-main, but every subsidiary owner shares this one budget.
         // External display/system-policy recovery remains mandatory even after this deadline expires.
         val asyncTeardownDeadline = MonotonicDeadline(ASYNC_TEARDOWN_BUDGET_MS)
-        teardownBoundary.markStopping()
         if (::migrationNotice.isInitialized) migrationNotice.close()
         // Bind any armed request to this exact lifecycle generation. A finalizer that was already in
         // flight before PREPARE cannot later satisfy or cancel the new request.

@@ -22,7 +22,7 @@ internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
         val rig = rig()
         try {
             rig.start()
-            val native = PanelAssistantShadowReporter(log = {})
+            val native = PanelAssistantStateReporter(log = {})
             rig.core.addStateSink(native.bindShape(rig.core::nativeChannelShape))
             // The accepted hello's pass confirms the relays, as it does on a panel.
             assertTrue(kotlinx.coroutines.runBlocking { rig.core.observeForNativeHello { true } })

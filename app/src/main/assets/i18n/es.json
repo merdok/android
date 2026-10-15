@@ -2894,7 +2894,7 @@
       "text": "apagado real de la retroiluminación mediante su bl_power"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "apagado real de la retroiluminación mediante el RPC local del fabricante; si no, tiempo de espera de pantalla de Android",
+      "text": "apagado real de la retroiluminación por RPC local del fabricante; tiempo de espera de pantalla de Android si el fabricante no responde",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },
@@ -3558,6 +3558,11 @@
       "state": "machine-cross-checked",
       "text": "WebView del sistema"
     },
+    "dashboard.fact.usb_debugging": {
+      "text": "Depuración USB",
+      "sourceHash": "b717e583d6326d6b22ebe7350400ad7894456fc01a7a98710d34967300728636",
+      "state": "machine-cross-checked"
+    },
     "dashboard.fact.webview_reporting": {
       "sourceHash": "8a803bb805676261f2d7d35ad7880bec48082293ee16ed448bf0deceb816bec4",
       "state": "machine-cross-checked",
@@ -4107,11 +4112,6 @@
       "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
       "state": "machine-cross-checked",
       "text": "transmisión en {url} (no es para el panel de control de este dispositivo)"
-    },
-    "dashboard.runtime.convergence": {
-      "sourceHash": "bc3a794f1545af2f3efcf5a5edb88b1889648fefb0a843e152e1a603f92d21b7",
-      "state": "machine-cross-checked",
-      "text": "{channels} canales · {dirty} con cambios · {inFlight} en curso · {unknown} desconocidos · confirm. {successes}/{failures} · en espera {pending}"
     },
     "dashboard.runtime.database.on_disk": {
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",
@@ -4667,6 +4667,11 @@
       "sourceHash": "6ee0eb490ff832101cf82a3d387c35f29e4230be786978f7acf9e811febf6723",
       "state": "machine-cross-checked",
       "text": "configurado"
+    },
+    "dashboard.value.unknown": {
+      "text": "desconocido",
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
+      "state": "machine-cross-checked"
     },
     "entities.age.days": {
       "text": "hace {count} d",

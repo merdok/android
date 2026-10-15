@@ -1,5 +1,6 @@
 package io.panelassistant.android.panelassistant
 
+import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.testsupport.TestSources
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,7 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PanelAssistantTransportContractFixtureTest {
+internal class PanelAssistantTransportContractFixtureTest : PanelRuntimeRig() {
     @Test
     fun `Android producer messages match the source-stamped golden`() {
         val fixture = JSONObject(resource(PRODUCER_FIXTURE))
@@ -70,8 +71,17 @@ class PanelAssistantTransportContractFixtureTest {
     @Test
     fun `every channel descriptor this build describes matches the exported producer fixture`() {
         val fixture = JSONObject(resource(PRODUCER_FIXTURE))
-        val wires = (PanelAssistantChannelCatalogTest.convergerChannels()
-            .mapNotNull(PanelAssistantChannelCatalog::wireChannel) + listOf("reload", "reboot", "button")).distinct().sorted()
+        // A numbered family is pinned by the members the fixture names; the rest of the family is the same descriptor.
+        val family = Regex("^(relay|button_led)[0-9]+$")
+        fun sample(key: String) = family.matchEntire(key)?.let { it.groupValues[1] + "1" } ?: key
+        val registered = everyChannel().map(::sample).toSet()
+        val fixtureChannels = fixture.getJSONArray("channelDescriptors").objects().map { it.getString("channel") }
+        val actions = setOf("reload", "reboot", "button")
+        val wires = (registered + fixtureChannels + actions).sorted()
+        if (!recordingProducer()) {
+            val unregistered = fixtureChannels.filter { sample(it) !in registered + actions }
+            assertEquals("fixture channels the state core no longer registers", emptyList<String>(), unregistered)
+        }
         val described = wires.map { wire ->
             val descriptor = PanelAssistantChannelCatalog.describe(wire)
             assertNotNull("$wire must remain describable", descriptor)

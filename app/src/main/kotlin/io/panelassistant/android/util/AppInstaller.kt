@@ -611,33 +611,31 @@ object AppInstaller {
                 return@withContext policyFailure(why)
             }
         }
-        // DB_COMPAT_MUTATION_ANCHOR: IN_APP_FIRST_MUTATION
-        val stateQuiescence = if (replacingSelf) {
-            prepareSelfReplace(
-                snapshot = { ConfigUpgradeBackup.snapshot(context) },
-                quiesce = { AppState.quiesceForSelfReplace(context, SELF_REPLACE_STATE_FLUSH_MS) },
-                warn = { Log.w(TAG, it) },
-            )
-        } else null
-        if (replacingSelf && stateQuiescence == null) {
-            apk.delete()
-            return@withContext retryable(
-                "install deferred: application state is still being saved",
-                "install-deferred-saving-state",
-                component,
-            )
-        }
-        var installSucceeded = false
         val submissionRefusal: (() -> InstallOutcome.Failure?)? = if (AppIdentity.isPanelApp(info.pkg)) {
             { currentPanelUpdateRefusal(context, info)?.let(::policyFailure) }
         } else null
-        try {
-            // Snapshot/flush can outlive the hello that admitted them. PA stays connected through state
-            // quiescence, so re-admit immediately before submitting any privileged package transaction.
-            submissionRefusal?.invoke()?.let { refusal ->
+        // DB_COMPAT_MUTATION_ANCHOR: IN_APP_FIRST_MUTATION
+        installWithStateQuiescence(
+            route = route,
+            prepare = if (replacingSelf) {
+                {
+                    prepareSelfReplace(
+                        snapshot = { ConfigUpgradeBackup.snapshot(context) },
+                        quiesce = { AppState.quiesceForSelfReplace(context, SELF_REPLACE_STATE_FLUSH_MS) },
+                        warn = { Log.w(TAG, it) },
+                    )
+                }
+            } else null,
+            onDeferred = {
                 apk.delete()
-                return@withContext refusal
-            }
+                retryable(
+                    "install deferred: application state is still being saved",
+                    "install-deferred-saving-state",
+                    component,
+                )
+            },
+            beforeSubmit = { submissionRefusal?.invoke()?.also { apk.delete() } },
+        ) { submit ->
             if (route == InstallRoute.SU) {
                 val out = try {
                     // Stream the APK straight into `pm install -S <size>` — no intermediate /data/local/tmp copy
@@ -652,16 +650,15 @@ object AppInstaller {
                 }
                 val result = classifyPmInstallReply(out)
                 if (result == InstallOutcome.Succeeded) {
-                    installSucceeded = true
-                    return@withContext InstallOutcome.Succeeded
+                    return@installWithStateQuiescence InstallOutcome.Succeeded
                 }
                 Log.w(TAG, "install failed: $out")
-                return@withContext (result as InstallOutcome.Failure).withFailurePresentation(component)
+                return@installWithStateQuiescence (result as InstallOutcome.Failure).withFailurePresentation(component)
             }
 
             val outcome: InstallOutcome = if (route == InstallRoute.CONFIRMED) {
                 try {
-                    ConfirmedSelfInstaller.install(context, apk, info.versionCode) {
+                    ConfirmedSelfInstaller.install(context, apk, info.versionCode, submit) {
                         InstallProgress.presentRunning(
                             "Tap Install on the panel to finish the update",
                             InstallPresentation("install-awaiting-confirmation", mapOf("component" to component)),
@@ -682,12 +679,7 @@ object AppInstaller {
             }
             val presentedOutcome = outcome.withFailurePresentation(component)
             if (presentedOutcome is InstallOutcome.Failure) Log.w(TAG, presentedOutcome.message)
-            installSucceeded = presentedOutcome is InstallOutcome.Succeeded
             presentedOutcome
-        } finally {
-            // Package-manager success may return before process replacement. Keep state mutation
-            // admission quiesced across that lag; only a failed install reopens writes.
-            finishSelfReplaceQuiescence(stateQuiescence, installSucceeded)
         }
     }
 
@@ -782,6 +774,41 @@ object AppInstaller {
     ): io.panelassistant.android.persistence.StateQuiescence? {
         if (!snapshot()) warn(SNAPSHOT_UNWRITABLE_WARNING)
         return quiesce()
+    }
+
+    /** Privileged replacement holds state through success/process death. Android's confirmed route
+     * commits its session before asking for a tap, so only that submission holds the state lease. */
+    internal suspend fun installWithStateQuiescence(
+        route: InstallRoute,
+        prepare: (() -> io.panelassistant.android.persistence.StateQuiescence?)?,
+        onDeferred: () -> InstallOutcome.Failure,
+        beforeSubmit: () -> InstallOutcome.Failure? = { null },
+        install: suspend ((() -> Unit) -> InstallOutcome.Failure?) -> InstallOutcome,
+    ): InstallOutcome {
+        if (route == InstallRoute.CONFIRMED) {
+            return install { commit ->
+                val lease = if (prepare == null) null else prepare() ?: return@install onDeferred()
+                try {
+                    beforeSubmit() ?: run {
+                        commit()
+                        null
+                    }
+                } finally {
+                    lease?.close()
+                }
+            }
+        }
+        val lease = if (prepare == null) null else prepare() ?: return onDeferred()
+        var installSucceeded = false
+        try {
+            // Snapshot/flush can outlive the hello that admitted them: re-read live authority.
+            beforeSubmit()?.let { return it }
+            return install { commit -> commit(); null }.also {
+                installSucceeded = it is InstallOutcome.Succeeded
+            }
+        } finally {
+            finishSelfReplaceQuiescence(lease, installSucceeded)
+        }
     }
 
     internal const val SNAPSHOT_UNWRITABLE_WARNING =
