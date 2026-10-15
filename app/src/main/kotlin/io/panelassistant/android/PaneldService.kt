@@ -13,11 +13,9 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
-import android.os.CancellationSignal
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.OperationCanceledException
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.pm.PackageInfoCompat
@@ -145,25 +143,8 @@ import io.panelassistant.android.panelassistant.PanelAssistantTransportOwner
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
 import io.panelassistant.android.panelassistant.panelAssistantTransportDemand
 import io.panelassistant.android.sensors.KtorHaExactEntityStreamTransport
-import io.panelassistant.android.storage.DisposableFileSweeper
-import io.panelassistant.android.storage.DisposableSweepResult
-import io.panelassistant.android.storage.ProcessStartWallClock
-import io.panelassistant.android.storage.RetentionResult
-import io.panelassistant.android.storage.StorageMaintenancePlan
-import io.panelassistant.android.storage.StorageRemediationLadder
-import io.panelassistant.android.storage.StorageRemediationOperations
-import io.panelassistant.android.storage.VacuumOutcome
-import io.panelassistant.android.storage.VacuumResult
-import io.panelassistant.android.storage.WalCheckpointOutcome
-import io.panelassistant.android.storage.WalCheckpointResult
-import io.panelassistant.android.storage.appOwnedDisposableDirectoryRules
-import io.panelassistant.android.storage.appOwnedDisposableFileRules
-import io.panelassistant.android.storage.storageMaintenancePlan
-import io.panelassistant.android.storage.StorageHealthObservationQueue
-import io.panelassistant.android.storage.StorageHealthRecoveryLifecycle
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
-import io.panelassistant.android.storage.StorageQuickCheck
 import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.util.localIpv4
 import io.panelassistant.android.util.localIpv6
@@ -209,8 +190,6 @@ import io.panelassistant.android.util.HelperClient
 import io.panelassistant.android.util.HelperLogcatOpenResult
 import io.panelassistant.android.util.GuardDbProcessAdmission
 import io.panelassistant.android.util.GuardDbSentinelLoad
-import io.panelassistant.android.util.guardDbAppStaging
-import io.panelassistant.android.util.validGuardDbAppFile
 import io.panelassistant.android.util.HelperInstallReconciler
 import io.panelassistant.android.util.HelperInstallTransaction
 import io.panelassistant.android.state.SoftwareComponent
@@ -224,7 +203,6 @@ import java.io.File
 import java.net.SocketTimeoutException
 import java.net.Inet4Address
 import java.net.InetAddress
-import java.util.Locale
 import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -547,12 +525,10 @@ class PaneldService : Service() {
     // Voice-assistant phase authority, driven by the coordinator. Home Assistant sees the phase as its
     // satellite entity's state; on the panel it drives the listening indicator.
     private val voiceStateAuthority = io.panelassistant.android.assist.VoiceStateAuthority()
-    private var storageHealthSubscription: AutoCloseable? = null
-    private val storageHealthLifecycleLock = Any()
-    private var storageHealthRecoveryLifecycle: StorageHealthRecoveryLifecycle? = null
-    private val storageHealthObservationQueue = StorageHealthObservationQueue(
-        create = ::CancellationSignal,
-        cancel = CancellationSignal::cancel,
+    // Daily health checks, maintenance and recovery for the app database and its files.
+    private val storageHealth = ServiceStorageHealth(
+        this, scope, { teardownBoundary.isStopping }, { entityLearning },
+        { ::companionDataOperationState.isInitialized && companionDataOperationState.isPending() },
     )
     private lateinit var companionDataOperationState: CompanionDataOperationState
     private val core: PanelStateCore get() = runtime.current().core
@@ -1617,11 +1593,11 @@ class PaneldService : Service() {
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
             identityMigration = identityMigration,
             storageHealth = StorageHealthRuntime::snapshot,
-            refreshStorageHealth = ::refreshStorageHealthForStatus,
+            refreshStorageHealth = storageHealth::refreshStorageHealthForStatus,
             manageTable = manageTable,
             door = { runCatching { runtime.current().commands }.getOrNull() },
         )
-        storageHealthSubscription = StorageHealthRuntime.subscribe(::onStorageHealthSnapshot)
+        storageHealth.subscribe(::onStorageHealthSnapshot)
         sensors.setLearnedProximityListener {
             server.invalidateCapabilitySnapshot()
             runtime.observe()?.value?.core?.notifyLearnedProximityChanged()
@@ -2542,7 +2518,7 @@ class PaneldService : Service() {
             config.registerChangeListener(voicePrefsListener)
             voiceForegroundRetry = { voice.retryStart() }
             scope.launch { if (!teardownBoundary.isStopping) voice.start() }
-            startStorageHealthChecks()
+            storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
             registerBrightnessPreferenceObserver()
             refreshAdaptiveBrightnessInputs(restartSource = false)
@@ -2953,184 +2929,6 @@ class PaneldService : Service() {
         runCatching { cm.registerDefaultNetworkCallback(cb) }.onSuccess { netCallback = cb }
     }
 
-    private fun startStorageHealthChecks() {
-        val recoveryLifecycle = StorageHealthRecoveryLifecycle(
-            scope = scope,
-            delaysMs = STORAGE_HEALTH_RECOVERY_DELAYS_MS,
-            subscribeFailures = StorageHealthRuntime::subscribeDatabaseFailures,
-            verify = {
-                storageHealthRecoveryAttemptComplete(runQueuedStorageHealthObservation())
-            },
-            onError = { error ->
-                Log.w(TAG, "storage health recovery failed (${error.javaClass.simpleName})")
-            },
-        )
-        val admitted = synchronized(storageHealthLifecycleLock) {
-            if (teardownBoundary.isStopping) {
-                false
-            } else {
-                storageHealthRecoveryLifecycle = recoveryLifecycle
-                true
-            }
-        }
-        if (!admitted) {
-            recoveryLifecycle.close()
-            return
-        }
-        scope.periodic(
-            intervalMs = STORAGE_HEALTH_CHECK_MS,
-            initialDelayMs = 0L,
-            tag = TAG,
-            name = "storage-health",
-            // The shared health authority already retains a controlled failure category. Do not copy
-            // SQLite messages or app-private paths into log shipping/support output.
-            onError = { error -> Log.w(TAG, "storage health check failed (${error.javaClass.simpleName})") },
-        ) {
-            repeat(STORAGE_HEALTH_CHECK_ATTEMPTS) { index ->
-                if (teardownBoundary.isStopping) return@periodic
-                val attempt = index + 1
-                when (runQueuedStorageHealthObservation()) {
-                    StorageHealthObservationAttempt.Complete -> {
-                        runStorageMaintenance()
-                        return@periodic
-                    }
-                    StorageHealthObservationAttempt.Stopped -> return@periodic
-                    StorageHealthObservationAttempt.Retry -> Unit
-                }
-                if (attempt == STORAGE_HEALTH_CHECK_ATTEMPTS) {
-                    Log.w(TAG, "storage health check remained incomplete after $attempt attempts")
-                    return@periodic
-                }
-                Log.w(TAG, "storage health check retrying ($attempt/$STORAGE_HEALTH_CHECK_ATTEMPTS)")
-                kotlinx.coroutines.delay(STORAGE_HEALTH_RETRY_MS)
-            }
-        }
-    }
-
-    /**
-     * Daily storage maintenance after a completed observation, serialized with every observation so
-     * no SQLite work overlaps a health read. A healthy panel converges its existing retention limits;
-     * elevated pressure runs the fail-safe remediation ladder, whose measured result is published on
-     * every storage-health surface. Prompt recovery and HTTP refreshes never start remediation.
-     */
-    private suspend fun runStorageMaintenance() {
-        storageHealthObservationQueue.run { signal ->
-            if (teardownBoundary.isStopping) return@run Unit
-            val snapshot = StorageHealthRuntime.snapshot()
-            when (storageMaintenancePlan(snapshot)) {
-                StorageMaintenancePlan.NONE -> Unit
-                StorageMaintenancePlan.RETENTION -> runCatching { entityLearning.enforceHistoryRetention() }
-                    .onFailure { Log.w(TAG, "history retention failed (${it.javaClass.simpleName})") }
-                StorageMaintenancePlan.REMEDIATE ->
-                    StorageRemediationLadder(storageRemediationOperations(signal)).run(snapshot)?.let { summary ->
-                        StorageHealthRuntime.recordRemediation(summary)
-                        Log.w(
-                            TAG,
-                            "storage remediation ${summary.verdict.name.lowercase(Locale.ROOT)}: " +
-                                "freed ${summary.bytesFreed} bytes (${summary.filesDeleted} files), " +
-                                "retention=${summary.retention.name.lowercase(Locale.ROOT)} " +
-                                "wal=${summary.walCheckpoint.name.lowercase(Locale.ROOT)} " +
-                                "vacuum=${summary.vacuum.result.name.lowercase(Locale.ROOT)}" +
-                                (summary.vacuum.refusal?.let { "/${it.name.lowercase(Locale.ROOT)}" } ?: ""),
-                        )
-                    }
-            }
-            Unit
-        }
-    }
-
-    private fun storageRemediationOperations(signal: CancellationSignal) = object : StorageRemediationOperations {
-        override fun sweepDisposableFiles(): List<DisposableSweepResult> {
-            // Only files written before this process existed can be orphans, judged against its start
-            // in the oldest clock epoch it has run in. With no captured start nothing is provably
-            // orphaned, so nothing is swept.
-            val processStart = ProcessStartWallClock.orphanBoundary(
-                System.currentTimeMillis(),
-                android.os.SystemClock.elapsedRealtime(),
-            ) ?: return emptyList()
-            val sweeper = DisposableFileSweeper(processStart)
-            val pairUnarmable = { guardDbAppStaging(this@PaneldService).unarmable(File(applicationInfo.sourceDir)) }
-            return appOwnedDisposableFileRules(cacheDir, filesDir, pairUnarmable, ::validGuardDbAppFile).map(sweeper::sweep) +
-                appOwnedDisposableDirectoryRules(cacheDir).map(sweeper::sweep)
-        }
-
-        override fun enforceRetention(): RetentionResult = runCatching {
-            if (entityLearning.enforceHistoryRetention()) RetentionResult.PRUNED else RetentionResult.CONVERGED
-        }.getOrElse { RetentionResult.FAILED }
-
-        override fun checkpointWal(): WalCheckpointOutcome = runCatching { entityLearning.truncateDatabaseWal() }
-            .getOrElse { WalCheckpointOutcome(WalCheckpointResult.FAILED, 0L, 0L) }
-
-        override fun writeVerifiedBackup(): Boolean = entityLearning.writeVerifiedConfigurationBackup()
-
-        override fun vacuum(): VacuumOutcome = runCatching { entityLearning.vacuumDatabase() }
-            .getOrElse { VacuumOutcome(VacuumResult.FAILED) }
-
-        // A companion data backup or restore owns the data directory until its marker clears.
-        override fun lifecycleOwned(): Boolean = !teardownBoundary.isStopping && !signal.isCanceled &&
-            !(::companionDataOperationState.isInitialized && companionDataOperationState.isPending())
-
-        override suspend fun observe(): StorageHealthSnapshot? =
-            when (runStorageHealthObservation(signal)) {
-                StorageHealthObservationAttempt.Complete -> StorageHealthRuntime.snapshot()
-                StorageHealthObservationAttempt.Retry,
-                StorageHealthObservationAttempt.Stopped -> null
-            }
-    }
-
-    /** One bounded observation attempt shared by prompt recovery and the independent daily loop. */
-    private suspend fun runQueuedStorageHealthObservation(): StorageHealthObservationAttempt =
-        storageHealthObservationQueue.run(::runStorageHealthObservation)
-            ?: StorageHealthObservationAttempt.Stopped
-
-    /** Same-request HTTP proof joins the daily/recovery queue; it never creates a second SQLite reader
-     * authority. Only a complete clean observation earns a nonce-bound status proof. */
-    private suspend fun refreshStorageHealthForStatus(): StorageHealthSnapshot? =
-        when (runQueuedStorageHealthObservation()) {
-            StorageHealthObservationAttempt.Complete -> StorageHealthRuntime.snapshot().takeIf {
-                it.schemaVersion > 0 && it.quickCheck == StorageQuickCheck.OK && it.checkedAtMillis > 0L
-            }
-            StorageHealthObservationAttempt.Retry,
-            StorageHealthObservationAttempt.Stopped -> null
-        }
-
-    private suspend fun runStorageHealthObservation(
-        cancellationSignal: CancellationSignal,
-    ): StorageHealthObservationAttempt {
-        if (teardownBoundary.isStopping) return StorageHealthObservationAttempt.Stopped
-        return try {
-            // Capture immediately before the read. A database failure recorded while this observation
-            // is in flight must remain newer truth when the result returns.
-            val observationToken = StorageHealthRuntime.beginObservation()
-            val observation = entityLearning.storageHealthObservation(cancellationSignal)
-            if (teardownBoundary.isStopping) {
-                StorageHealthObservationAttempt.Stopped
-            } else {
-                val quality = storageHealthObservationQuality(observation)
-                // Refresh never clears the failure latch. A completed clean observation only arms the
-                // next ordinary durable write; a completed integrity failure remains authoritative.
-                StorageHealthRuntime.refresh(observation, observationToken)
-                if (storageHealthObservationNeedsRetry(observation)) {
-                    Log.w(TAG, "storage health observation ${quality.name.lowercase(Locale.ROOT)}")
-                    StorageHealthObservationAttempt.Retry
-                } else {
-                    StorageHealthObservationAttempt.Complete
-                }
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: OperationCanceledException) {
-            if (teardownBoundary.isStopping) StorageHealthObservationAttempt.Stopped
-            else StorageHealthObservationAttempt.Retry
-        } catch (failure: Exception) {
-            if (!teardownBoundary.isStopping) {
-                Log.w(TAG, "storage health observation failed (${failure.javaClass.simpleName})")
-            }
-            if (teardownBoundary.isStopping) StorageHealthObservationAttempt.Stopped
-            else StorageHealthObservationAttempt.Retry
-        }
-    }
-
     private fun onStorageHealthSnapshot(snapshot: StorageHealthSnapshot) {
         if (teardownBoundary.isStopping) return
         server.invalidateStorageHealthDiagnostics()
@@ -3278,13 +3076,7 @@ class PaneldService : Service() {
         // Bind any armed request to this exact lifecycle generation. A finalizer that was already in
         // flight before PREPARE cannot later satisfy or cancel the new request.
         upgradeShutdownClaim = UpgradeShutdownCoordinator.claimShutdown()
-        storageHealthSubscription?.close()
-        storageHealthSubscription = null
-        val recoveryLifecycle = synchronized(storageHealthLifecycleLock) {
-            storageHealthRecoveryLifecycle.also { storageHealthRecoveryLifecycle = null }
-        }
-        recoveryLifecycle?.close()
-        storageHealthObservationQueue.close()
+        storageHealth.close()
         lightPublisher.close()
         adaptiveSiteGeneration.incrementAndGet()
         brightnessObserver?.let { observer ->
@@ -4135,12 +3927,6 @@ class PaneldService : Service() {
 
         internal const val TAG = "ha-paneld/svc"
         private const val CAMERA_STOP_MS = 3_000L
-        // Daily rather than wall-clock scheduled: the service owns one immediate check, then delays
-        // from completion. A bounded short retry absorbs transient StatFs/SQLite observation failures.
-        private const val STORAGE_HEALTH_CHECK_MS = 24L * 3_600L * 1_000L
-        private const val STORAGE_HEALTH_CHECK_ATTEMPTS = 3
-        private const val STORAGE_HEALTH_RETRY_MS = 5_000L
-        private val STORAGE_HEALTH_RECOVERY_DELAYS_MS = longArrayOf(5_000L, 15_000L, 30_000L)
         // Local observation cadence; the one-minute state audit of state-convergence.md.
         private const val STATE_OBSERVATION_MS = 60_000L
         private const val RECOVERY_RESTART_GRACE_MS = 1_000L
