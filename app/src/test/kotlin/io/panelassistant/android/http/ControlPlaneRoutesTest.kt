@@ -1340,49 +1340,116 @@ class ControlPlaneRoutesTest {
      */
     @Test
     fun backupTerminalSeparatesAnIncompleteArchiveFromACompleteOne() = testApplication {
-        var stateUnavailable = false
-        application {
-            routing {
-                controlPlaneRoutes(
-                    dependencies(
-                        buildBackup = { _, _ ->
-                            PanelBackup.Artifact(
-                                temporary.newFile("state-marker-$stateUnavailable.zip").apply {
-                                    writeBytes(byteArrayOf(7))
-                                },
-                                "zip",
-                                stateUnavailable,
-                            )
-                        },
-                    ),
-                )
+        PaneldServerHttpFixture().use { fixture ->
+            var failState = false
+            var failIssues = false
+            val issue = io.panelassistant.android.persistence.DashboardIgnoredIssue(
+                "owner", "/lovelace", "0123456789abcdef", 1L,
+            )
+            val issues = object : io.panelassistant.android.persistence.DashboardIssueCustody {
+                override fun export(): List<io.panelassistant.android.persistence.DashboardIgnoredIssue> {
+                    if (failIssues) throw IllegalStateException("database unavailable")
+                    return listOf(issue)
+                }
+                override fun restore(rows: List<io.panelassistant.android.persistence.DashboardIgnoredIssue>) =
+                    error("Backup must not restore")
+            }
+            val companionFile = temporary.newFile("captured-companion.db")
+            java.sql.DriverManager.getConnection("jdbc:sqlite:${companionFile.absolutePath}").use { db ->
+                db.createStatement().use { it.execute("CREATE TABLE sessions(value TEXT)") }
+            }
+            val companionBytes = companionFile.readBytes()
+            var capturesClosed = 0
+            fixture.values["friendly_name"] = "Recovery settings"
+            val builder = fixture.backupBuilder(
+                null, dashboardIssues = issues,
+                exportState = {
+                    if (failState) throw IllegalStateException("database unavailable")
+                    listOf(io.panelassistant.android.persistence.ConfigVault.StateRow(
+                        "auto_sleep_learning", "lease", "long", "720000", 1L,
+                    ))
+                },
+                captureCompanion = {
+                    CapturedCompanion(
+                        "io.homeassistant.companion.android",
+                        listOf(CapturedCompanionFile("databases/HomeAssistantDB", companionFile)),
+                        java.io.Closeable { capturesClosed++ },
+                    )
+                },
+            ) { spec, live -> effectiveSettingValue(fixture.config, spec, live) }
+            application {
+                routing { controlPlaneRoutes(dependencies(buildBackup = builder::build)) }
+            }
+            // Independently failed reads and a shared unreadable DB all preserve the recovery download.
+            for ((stateFailed, issuesFailed) in listOf(false to false, true to true, false to true, true to false)) {
+                failState = stateFailed
+                failIssues = issuesFailed
+                val response = runCatching {
+                    client.post("/api/v1/backup") {
+                        contentType(ContentType.Application.FormUrlEncoded)
+                        setBody("allow_plaintext=1&include_companion=1")
+                    }
+                }.getOrElse { throw AssertionError("DB capture failure must preserve the recovery backup", it) }
+                assertEquals(HttpStatusCode.OK, response.status)
+                val entries = java.util.zip.ZipInputStream(response.bodyAsBytes().inputStream()).use { zip ->
+                    generateSequence { zip.nextEntry }.associate { it.name to zip.readBytes() }
+                }
+                val manifest = org.json.JSONObject(requireNotNull(entries["manifest.json"]).decodeToString())
+                assertEquals("Recovery settings", manifest.getJSONObject("config").getString("friendly_name"))
+                assertArrayEquals(companionBytes, entries["companion/0"])
+                assertEquals("io.homeassistant.companion.android", manifest.getJSONObject("companion").getString("pkg"))
+                val incomplete = failState || failIssues
+                if (incomplete) {
+                    assertEquals("capture-failed", manifest.optJSONObject("state")?.optString("error"))
+                    assertFalse(entries.containsKey("state/app-state.txt"))
+                    assertFalse(manifest.has("ignored_dashboard_issues"))
+                } else {
+                    assertEquals(1, manifest.getJSONObject("state").getInt("rows"))
+                    assertTrue(entries.containsKey("state/app-state.txt"))
+                    assertEquals(1, manifest.getJSONArray("ignored_dashboard_issues").length())
+                }
+                val terminal = InstallProgress.presentationSnapshot()
+                assertEquals(if (incomplete) "backup ready without panel state" else "backup ready", terminal.message)
+                assertEquals(if (incomplete) "backup-ready-state-unavailable" else "backup-ready", terminal.presentation?.code)
+                assertOperationLaneReleased()
+            }
+            assertEquals(4, capturesClosed)
+            assertTrue(fixture.directory.listFiles().orEmpty().none { it.name.startsWith("panel-backup-") })
+        }
+    }
+
+    @Test
+    fun degradedBackupStillRefusesInvalidOrOversizedIgnoredFindings() {
+        PaneldServerHttpFixture().use { fixture ->
+            val valid = io.panelassistant.android.persistence.DashboardIgnoredIssue(
+                "owner", "/lovelace", "0123456789abcdef", 1L,
+            )
+            var rows = listOf(valid)
+            var validateDuringRead = false
+            val issues = object : io.panelassistant.android.persistence.DashboardIssueCustody {
+                override fun export() = rows.also {
+                    if (validateDuringRead) io.panelassistant.android.persistence.DashboardIssueBackup.validate(it)
+                }
+                override fun restore(rows: List<io.panelassistant.android.persistence.DashboardIgnoredIssue>) =
+                    error("Backup must not restore")
+            }
+            val builder = fixture.backupBuilder(
+                null, dashboardIssues = issues, exportState = { error("database unavailable") },
+            )
+            val oversized = (0..io.panelassistant.android.persistence.DashboardIssueBackup.MAX_ROWS).map {
+                valid.copy(fingerprint = "%016x".format(it))
+            }
+            for (catalogValidation in listOf(false, true)) {
+                validateDuringRead = catalogValidation
+                for (invalid in listOf(listOf(valid.copy(fingerprint = "invalid")), oversized)) {
+                    rows = invalid
+                    org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                        builder.build(CompanionBackupRequest.EXCLUDED, "").close()
+                    }
+                    assertTrue(fixture.directory.listFiles().orEmpty().none { it.name.startsWith("panel-backup-") })
+                }
             }
         }
-
-        suspend fun requestBackup() = client.post("/api/v1/backup") {
-            contentType(ContentType.Application.FormUrlEncoded)
-            setBody("allow_plaintext=1")
-        }
-
-        assertEquals(HttpStatusCode.OK, requestBackup().status)
-        val complete = InstallProgress.presentationSnapshot()
-        assertEquals("backup ready", complete.message)
-        assertEquals("backup-ready", complete.presentation?.code)
-        assertOperationLaneReleased()
-
-        stateUnavailable = true
-        val incomplete = requestBackup()
-        assertEquals("an incomplete archive is still delivered", HttpStatusCode.OK, incomplete.status)
-        assertArrayEquals(byteArrayOf(7), incomplete.bodyAsBytes())
-        val marked = InstallProgress.presentationSnapshot()
-        assertEquals("backup ready without panel state", marked.message)
-        assertEquals("backup-ready-state-unavailable", marked.presentation?.code)
-        assertNotEquals(
-            "the incomplete terminal must not reuse the complete one",
-            complete.presentation?.code,
-            marked.presentation?.code,
-        )
-        assertOperationLaneReleased()
     }
 
     private fun dependencies(

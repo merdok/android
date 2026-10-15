@@ -16,6 +16,8 @@ import io.panelassistant.android.metrics.DashboardMetrics
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.MetricPayload
 import io.panelassistant.android.persistence.ConfigVault
+import io.panelassistant.android.persistence.DashboardIgnoredIssue
+import io.panelassistant.android.persistence.DashboardIssueBackup
 import io.panelassistant.android.metrics.FeatureCostOutcome
 import io.panelassistant.android.metrics.FeatureCosts
 import io.panelassistant.android.storage.DatabaseBusyRetry
@@ -805,6 +807,60 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
         "SELECT fingerprint FROM dashboard_ignored_issue WHERE instance=? AND path=? ORDER BY fingerprint",
         arrayOf(instance, path),
     ).use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+
+    /** All explicit decisions, including dashboards not currently selected, within the archive budget. */
+    internal fun exportIgnoredDashboardIssues(): List<DashboardIgnoredIssue> = readableDatabase.rawQuery(
+        "SELECT instance,path,fingerprint,ignored_at FROM dashboard_ignored_issue " +
+            "ORDER BY instance,path,fingerprint LIMIT ${DashboardIssueBackup.MAX_ROWS + 1}",
+        emptyArray(),
+    ).use { cursor ->
+        buildList {
+            while (cursor.moveToNext()) add(
+                DashboardIgnoredIssue(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3)),
+            )
+        }.also(DashboardIssueBackup::validate)
+    }
+
+    /** Recreate only the FK parent on a cleared catalog; normal scanning still owns all derived data. */
+    internal fun restoreIgnoredDashboardIssues(rows: List<DashboardIgnoredIssue>): Int {
+        DashboardIssueBackup.validate(rows)
+        if (rows.isEmpty()) return 0
+        return observedWrite("catalog-issue-restore") {
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                rows.forEach { row ->
+                    db.execSQL("INSERT OR IGNORE INTO dashboard(instance,path) VALUES(?,?)", arrayOf(row.instance, row.path))
+                    db.execSQL(
+                        "INSERT OR REPLACE INTO dashboard_ignored_issue(instance,path,fingerprint,ignored_at) VALUES(?,?,?,?)",
+                        arrayOf<Any?>(row.instance, row.path, row.fingerprint, row.ignoredAt),
+                    )
+                }
+                rows.map { it.instance to it.path }.distinct().forEach { (instance, path) ->
+                    val issues = db.rawQuery(
+                        "SELECT issues_json FROM dashboard WHERE instance=? AND path=?", arrayOf(instance, path),
+                    ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else "[]" }
+                    val ignored = db.rawQuery(
+                        "SELECT fingerprint FROM dashboard_ignored_issue WHERE instance=? AND path=?", arrayOf(instance, path),
+                    ).use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+                    db.execSQL(
+                        "UPDATE dashboard SET issues_json=? WHERE instance=? AND path=?",
+                        arrayOf(EntityCatalogIssuePersistence.applyIgnores(JSONArray(issues), ignored), instance, path),
+                    )
+                }
+                val present = rows.count { row ->
+                    db.rawQuery(
+                        "SELECT ignored_at FROM dashboard_ignored_issue WHERE instance=? AND path=? AND fingerprint=?",
+                        arrayOf(row.instance, row.path, row.fingerprint),
+                    ).use { cursor -> cursor.moveToFirst() && cursor.getLong(0) == row.ignoredAt }
+                }
+                db.setTransactionSuccessful()
+                present
+            } finally {
+                db.endTransaction()
+            }
+        }
+    }
 
     /** Persist a dashboard-scoped diagnostic override only for an issue visible in the current scan. */
     fun setIssueIgnored(instance: String, path: String, fingerprint: String, ignored: Boolean, now: Long): Boolean =

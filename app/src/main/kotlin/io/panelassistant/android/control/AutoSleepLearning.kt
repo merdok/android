@@ -46,6 +46,15 @@ internal class AutoSleepLearningStore private constructor(
     private var dirty = false
     private var lastWriteAtEpochMs: Long? = null
 
+    /** The restored preferences replace pending local evidence; the next consumer reads them afresh. */
+    @Synchronized
+    fun adoptRestoredRecord() {
+        cachedOwner = null
+        cachedState = null
+        dirty = false
+        lastWriteAtEpochMs = null
+    }
+
     @Synchronized
     fun learnedLease(partition: String, baseLeaseMs: Long): AutoSleepLearnedLease {
         val now = epochMillis()

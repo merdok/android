@@ -2909,7 +2909,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "desligamento real da luz de fundo pelo RPC local do fabricante; senão, tempo limite de tela do Android",
+      "text": "desligamento real da luz de fundo via RPC local do fabricante; tempo limite de tela do Android quando o fabricante não responde",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },

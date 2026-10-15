@@ -31,9 +31,14 @@ internal class PanelBackupBuilder(
     private val configLiveValues: () -> Map<String, String>,
     private val effectiveValue: (io.panelassistant.android.config.SettingSpec, Map<String, String>) -> String,
     private val profileAdmin: ProfileAdmin?,
-    private val companion: CompanionBackupOperations,
+    private val captureCompanion: () -> CapturedCompanion,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
     private val calibrations: ProximityCalibrationCustody = CatalogProximityCalibrationCustody(appContext),
+    private val dashboardIssues: io.panelassistant.android.persistence.DashboardIssueCustody =
+        io.panelassistant.android.persistence.CatalogDashboardIssueCustody(appContext),
+    private val exportState: () -> List<ConfigVault.StateRow> = {
+        readThenClose(EntityCatalogStore(appContext), { it.close() }) { it.exportAppState() }
+    },
 ) {
     private data class BackupArchiveParts(
         val manifest: String,
@@ -54,7 +59,7 @@ internal class PanelBackupBuilder(
         if (cacheDir.usableSpace < backupStagingRequirement(includeCompanion, passphrase.isNotEmpty())) {
             throw CompanionBackupUnavailable("Insufficient storage to stage a backup safely")
         }
-        val capture = if (includeCompanion) companion.capture() else null
+        val capture = if (includeCompanion) captureCompanion() else null
         return withBackupCaptureAndPlaintext(
             capture,
             createPlaintext = { File.createTempFile("panel-backup-", ".zip", cacheDir) },
@@ -139,12 +144,20 @@ internal class PanelBackupBuilder(
             // compiles against the current compileSdk yet throws ClassCastException at runtime on
             // Android 8.1. readThenClose also isolates the close, so a store that exported successfully
             // but failed to close still contributes its rows.
-            val stateCapture = runCatching {
-                readThenClose(EntityCatalogStore(appContext), { it.close() }) { it.exportAppState() }
+            val stateCapture = runCatching(exportState)
+                .onFailure { Log.w(TAG, "backup could not read app_state", it) }
+            val ignoredCapture = runCatching { dashboardIssues.export() }.onFailure {
+                // The catalog also validates its rows: malformed or oversized decisions must refuse,
+                // rather than masquerade as an operational database failure.
+                if (it is IllegalArgumentException) throw it
+                Log.w(TAG, "backup could not read ignored dashboard findings", it)
             }
-            val stateFailure = stateCapture.exceptionOrNull()
-            if (stateFailure != null) Log.w(TAG, "backup could not read app_state", stateFailure)
-            val stateRows = stateCapture.getOrDefault(emptyList())
+            // Validate before degradation, even when app_state failed. Both logical payloads share
+            // the existing incomplete-state marker; a partial DB read must never claim full custody.
+            val ignoredFragment = io.panelassistant.android.persistence.DashboardIssueBackup
+                .manifestFragment(ignoredCapture.getOrDefault(emptyList()))
+            val stateFailure = stateCapture.exceptionOrNull() ?: ignoredCapture.exceptionOrNull()
+            val stateRows = if (stateFailure == null) stateCapture.getOrThrow() else emptyList()
             // Its own table, so its own read: an unreadable calibration leaves it out of this archive and
             // costs nothing else.
             val calibrationRows = runCatching { calibrations.export() }
@@ -178,6 +191,7 @@ internal class PanelBackupBuilder(
                     stateRows.size,
                     stateFailure != null,
                     calibrationRows,
+                    if (stateFailure == null) ignoredFragment else "",
                     wakeWordEntry?.let {
                         io.panelassistant.android.backup.WakeWordBackup.manifestFragment(it.file.length(), importedWakeWords.size)
                     },
@@ -202,6 +216,7 @@ internal class PanelBackupBuilder(
         stateRows: Int,
         stateCaptureFailed: Boolean,
         calibrations: List<EntityCatalogStore.ProximityModelRow>,
+        ignoredIssues: String,
         wakeWordSection: String?,
     ): String {
         val live = configLiveValues()
@@ -224,8 +239,14 @@ internal class PanelBackupBuilder(
             BackupIdentity.manifestFragment(
                 panelAssistantDiscoveryId(config.deviceUid),
                 appContext.packageName,
+                config.androidId.takeIf(String::isNotBlank)?.let(::panelAssistantDiscoveryId),
             ),
         )
+        config.profile?.let {
+            sb.append(",\"owner_profile\":{\"id\":").append(Json.str(it.id))
+                .append(",\"revision\":").append(Json.str(it.revision)).append('}')
+        }
+        sb.append(ignoredIssues)
         sb.append(
             RawPreferenceBackup.manifestFragment { store ->
                 appContext.getSharedPreferences(store, android.content.Context.MODE_PRIVATE).all

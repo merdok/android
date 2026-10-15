@@ -213,7 +213,6 @@ class SocketHttpParityMatrixTest {
             "diag" to "the fixture refuses diagnostics collection",
             "display.density" to "needs the helper daemon the density controller talks to",
             "hand_back_home" to "needs the vendor home packages the system controller is built with",
-            "health" to "the health line reads runtime collaborators the read server does not construct",
             "info" to "renders from the setup journey, which needs the device profile and an Android context",
             "page.configure" to "renders from the setup journey, which needs the device profile and an Android context",
             "page.entities" to "renders from the setup journey, which needs the device profile and an Android context",

@@ -439,6 +439,84 @@ class ConfigPostProductionRouteTest {
             }
         }
 
+    @Test fun `backup and production restore retain explicit owner choices and report failed choices`() =
+        withFullReadServer { config, fixture ->
+            val row = io.panelassistant.android.persistence.DashboardIgnoredIssue("owner", "/lovelace", "0123456789abcdef", 1L)
+            val issues = object : io.panelassistant.android.persistence.DashboardIssueCustody {
+                val stored = linkedSetOf<io.panelassistant.android.persistence.DashboardIgnoredIssue>()
+                var refuse = false
+                override fun export() = listOf(row)
+                override fun restore(rows: List<io.panelassistant.android.persistence.DashboardIgnoredIssue>): Int {
+                    if (refuse) return 0
+                    stored.addAll(rows)
+                    return rows.count(stored::contains)
+                }
+            }
+            config.setPanelId("owner_panel")
+            config.ignoreUpdate("Panel Assistant", "1.0.0-preview1")
+            config.prefs.edit().putString("ui_dashboard_layout", "[{\"id\":\"presence\",\"x\":2}]").apply()
+            config.setApkUploadAllowed(false)
+            val hidden = config.prefs.all.filterKeys { it in setOf("update_ignored", "ui_dashboard_layout", "allow_apk_upload") }
+                .map { (key, value) -> io.panelassistant.android.persistence.ConfigVault.StateRow(
+                    "config", key, if (value is Boolean) "boolean" else "string",
+                    if (value is Boolean) if (value) "1" else "0" else value.toString(), 1L,
+                ) }
+            val builder = fixture.backupBuilder(null, config, dashboardIssues = issues, exportState = { hidden }) { spec, live ->
+                effectiveSettingValue(config, spec, live)
+            }
+            builder.build(CompanionBackupRequest.EXCLUDED, "").use { artifact ->
+                val bytes = rewriteManifest(artifact.file) { manifest ->
+                    manifest.getJSONObject("entity_state").put("instance_key", "owner")
+                }
+                config.ignoreUpdate("Panel Assistant", "changed")
+                config.prefs.edit().putString("ui_dashboard_layout", "changed").apply()
+                config.setApkUploadAllowed(true)
+                setField(fixture.server, "dashboardIssueCustody", issues)
+                setField(fixture.server, "applySetting", { _: String, _: String -> LiveSettingRequestOutcome.APPLIED })
+                setField(fixture.server, "onReconfigure", { _: Set<String> -> })
+                setField(fixture.server, "onDurableStateRestored", {})
+                val observations = PaneldServer::class.java.getDeclaredField("managementObservations")
+                    .apply { isAccessible = true }.get(fixture.server) as ManagementObservations
+                val snapshot = observations.snapCache.get()
+                testApplication {
+                    application { fixture.mount(this) }
+                    suspend fun restore(payload: ByteArray): JSONObject {
+                        observations.snapCache.set(snapshot)
+                        val response = client.post("/api/v1/restore") { setBody(payload) }
+                        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+                        kotlinx.coroutines.withTimeout(5_000) {
+                            while (InstallProgress.running) kotlinx.coroutines.delay(10)
+                        }
+                        val status = JSONObject(InstallProgress.json())
+                        assertTrue(status.has("result"), status.toString())
+                        return status.getJSONObject("result")
+                    }
+                    repeat(2) {
+                        val result = restore(bytes)
+                        assertEquals("1.0.0-preview1", config.ignoredUpdates["Panel Assistant"])
+                        assertEquals("[{\"id\":\"presence\",\"x\":2}]", config.prefs.getString("ui_dashboard_layout", ""))
+                        assertEquals(false, config.apkUploadAllowed)
+                        assertEquals(setOf(row), issues.stored)
+                        assertEquals("succeeded", result.getJSONObject("state").getString("status"))
+                        assertEquals(4, result.getJSONObject("state").getInt("items"))
+                    }
+                    issues.refuse = true
+                    val failed = restore(bytes)
+                    assertEquals("partial", failed.getString("status"))
+                    assertEquals("partial", failed.getJSONObject("state").getString("status"))
+                    assertTrue(failed.getJSONObject("state").getString("detail").contains("failed=1"))
+                    assertEquals(false, config.apkUploadAllowed)
+                    val malformed = rewriteManifest(artifact.file) {
+                        it.put("ignored_dashboard_issues", org.json.JSONArray().put(JSONObject().put("fingerprint", "bad")))
+                    }
+                    config.prefs.edit().putString("ui_dashboard_layout", "keep on refusal").apply()
+                    val response = client.post("/api/v1/restore") { setBody(malformed) }
+                    assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+                    assertEquals("keep on refusal", config.prefs.getString("ui_dashboard_layout", ""))
+                }
+            }
+        }
+
     /** The model table as the panel holds it: keyed by fingerprint, and only ever added to by a restore. */
     private class CalibrationTable(vararg rows: EntityCatalogStore.ProximityModelRow) :
         io.panelassistant.android.persistence.ProximityCalibrationCustody {

@@ -30,6 +30,10 @@ import sun.misc.Unsafe
 
 internal fun withFullReadServer(block: (Config, PaneldServerHttpFixture) -> Unit) =
     withRouteConfig { config, _, server, _ ->
+        Config::class.java.getDeclaredField("contentResolver").apply {
+            isAccessible = true
+            set(config, object : android.content.ContentResolver(null) {})
+        }
         PaneldServerHttpFixture().use { fixture ->
             // Reuse the existing real Config/projection collaborators inside the complete root mount.
             for (name in listOf(

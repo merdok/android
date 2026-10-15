@@ -1071,7 +1071,7 @@ class Config private constructor(
     private fun sanitizeProfileIdentity(value: String): String =
         value.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9._-]"), "-")
 
-    private fun buttonBacklightKey(profile: DeviceProfile): String =
+    internal fun buttonBacklightKey(profile: DeviceProfile): String =
         "last_button_backlight.${profileStateSuffix(profile)}"
 
     private fun migrateLegacyButtonBacklight(profile: DeviceProfile) {

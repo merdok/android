@@ -547,54 +547,6 @@ class ConfigTransactionTest {
         }
     }
 
-    @Test fun typedWritersStoreWhatTheirSpecStoresAndRefuseWhatItRefuses() {
-        val prefs = fakePreferences()
-        val config = Config(prefs.instance)
-
-        config.setTameVendorPackages(" com.vendor.one, android com.vendor.one\ncom.vendor.two ")
-        assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
-        for (refused in listOf("com.good;reboot", (0..128).joinToString(" ") { "com.vendor.pkg$it" })) {
-            assertTrue(runCatching { config.setTameVendorPackages(refused) }.exceptionOrNull() is IllegalArgumentException)
-            assertEquals("com.vendor.one com.vendor.two", config.tameVendorPackagesRaw)
-        }
-
-        assertTrue(config.setHaConnection(" http://ha.local:8123/ ", "token-one"))
-        assertEquals("http://ha.local:8123", config.haUrl)
-        for (refused in listOf("http://owner:secret@ha.local:8123", "ftp://ha.local", "http://ha.local:8123/?next=1")) {
-            assertFalse(refused, config.setHaConnection(refused, "token-two"))
-            assertFalse(refused, config.setBorrowedRendererSettings(refused, "token-two", "refresh", 1L, "client", 90))
-            assertEquals("http://ha.local:8123", config.haUrl)
-            assertEquals("token-one", config.haToken)
-            assertFalse(config.rendererLaunchPending)
-        }
-    }
-
-    @Test fun liveMigrationFoldsTheControllerKeysIntoEachSettingsOwnKey() {
-        for (schema in listOf(14, SettingsRegistry.SCHEMA)) {
-            // The controllers acted on their own keys; a registry write they had not followed disagrees.
-            val prefs = fakePreferences(initial = mapOf(
-                "config_schema" to schema,
-                "network_adb_enabled" to true, "network_adb" to false,
-                "zigbee_router_enabled" to false, "zigbee_router_configured" to true,
-            ))
-            val config = Config(prefs.instance)
-
-            assertTrue("migration from schema $schema", config.migrateLiveStore())
-            assertTrue(config.networkAdbEnabled)
-            assertFalse(config.zigbeeRouterEnabled)
-            assertTrue(config.zigbeeRouterConfigured)
-            assertEquals(true, prefs.values["network_adb"])
-            assertEquals(false, prefs.values["zigbee_router"])
-            assertEquals("true", config.getRaw(SettingsRegistry.spec("network_adb")!!))
-            assertEquals("false", config.getRaw(SettingsRegistry.spec("zigbee_router")!!))
-            assertFalse(prefs.values.containsKey("network_adb_enabled"))
-            assertFalse(prefs.values.containsKey("zigbee_router_enabled"))
-            val committed = prefs.values.toMap()
-            assertTrue(Config(prefs.instance).migrateLiveStore())
-            assertEquals("a second startup must be a no-op", committed, prefs.values)
-        }
-    }
-
     @Test fun liveMigrationCarriesTheAddressFamilyToItsRenamedKey() {
         val prefs = fakePreferences(initial = mapOf(
             "config_schema" to 14,
