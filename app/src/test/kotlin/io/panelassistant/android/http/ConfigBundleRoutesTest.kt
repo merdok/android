@@ -13,6 +13,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.ConfigBundle
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.SystemController
@@ -135,6 +136,7 @@ class ConfigBundleRoutesTest {
                         authorizeSensitive = { _, _, _, _ -> true },
                         rejectHardenedNetworkAdb = { _, _ -> false },
                         planEntityBackup = { error("No entity state") },
+                        capabilities = { Capabilities(networkAdb = true) },
                     )
                 }
             }
