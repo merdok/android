@@ -66,6 +66,7 @@
     <string name="voice_pill_thinking">Thinking</string>
     <string name="voice_pill_replying">Replying</string>
     <string name="voice_pill_missed">Didn\'t catch that</string>
+    <string name="voice_pill_failed">Something went wrong</string>
     <string name="voice_step_heard">Heard</string>
     <string name="voice_step_understood">Understood</string>
     <string name="voice_step_answered">Answered</string>

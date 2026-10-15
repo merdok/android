@@ -48,6 +48,7 @@
     <string name="voice_pill_thinking">Přemýšlí</string>
     <string name="voice_pill_replying">Odpovídá</string>
     <string name="voice_pill_missed">Nezachyceno</string>
+    <string name="voice_pill_failed">Něco se pokazilo</string>
     <string name="voice_step_heard">Slyšeno</string>
     <string name="voice_step_understood">Pochopeno</string>
     <string name="voice_step_answered">Zodpovězeno</string>

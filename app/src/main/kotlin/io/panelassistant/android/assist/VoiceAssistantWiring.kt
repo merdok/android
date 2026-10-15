@@ -153,6 +153,16 @@ internal fun publishMicrophoneMute(voice: () -> VoiceAssistantCoordinator): (Boo
     voice().microphoneMuteChanged()
 }
 
+/**
+ * The panel's turn runner: the chime is muted from what the turn hears, and every event of the turn reaches
+ * [conversation], the card on screen.
+ */
+internal fun satelliteTurnRunner(
+    voice: PanelAssistantVoice,
+    log: (String) -> Unit,
+    conversation: VoiceConversation = VoiceAttention.conversation,
+): SatelliteTurnRunner = SatelliteTurnRunner(voice, log, chime = { VoiceAttention.chime }, onEvent = conversation::event)
+
 /** Assemble the coordinator for the running service. */
 internal fun voiceAssistantCoordinator(
     context: Context,
@@ -169,8 +179,7 @@ internal fun voiceAssistantCoordinator(
     log: (String) -> Unit,
     source: () -> MicrophoneSource,
 ): VoiceAssistantCoordinator {
-    // The chime is muted from what the turn hears, and every event of the turn reaches the card on screen.
-    val runner = SatelliteTurnRunner(voice, log, chime = { VoiceAttention.chime }, onEvent = VoiceAttention.conversation::event)
+    val runner = satelliteTurnRunner(voice, log)
     return VoiceAssistantCoordinator(
         scope = scope,
         settings = {

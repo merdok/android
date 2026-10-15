@@ -48,6 +48,7 @@
     <string name="voice_pill_thinking">正在思考</string>
     <string name="voice_pill_replying">正在回复</string>
     <string name="voice_pill_missed">没听清</string>
+    <string name="voice_pill_failed">出了点问题</string>
     <string name="voice_step_heard">已听到</string>
     <string name="voice_step_understood">已理解</string>
     <string name="voice_step_answered">已回答</string>

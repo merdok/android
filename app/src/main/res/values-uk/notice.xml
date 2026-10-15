@@ -48,6 +48,7 @@
     <string name="voice_pill_thinking">Думає</string>
     <string name="voice_pill_replying">Відповідає</string>
     <string name="voice_pill_missed">Не розчуто</string>
+    <string name="voice_pill_failed">Щось пішло не так</string>
     <string name="voice_step_heard">Почуто</string>
     <string name="voice_step_understood">Зрозуміло</string>
     <string name="voice_step_answered">Відповідено</string>

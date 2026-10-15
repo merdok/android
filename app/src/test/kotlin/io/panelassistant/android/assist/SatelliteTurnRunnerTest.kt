@@ -143,7 +143,8 @@ class SatelliteTurnRunnerTest {
     private fun TestScope.shownTurn(link: Link, conversation: VoiceConversation, continued: Boolean = false) = async {
         conversation.begin()
         conversation.state(VoiceState.LISTENING)
-        SatelliteTurnRunner(link.voice, onEvent = conversation::event).run(
+        // Built as the service builds it, so the card hears the turn only through the production wiring.
+        satelliteTurnRunner(link.voice, {}, conversation).run(
             VoiceTurnRequest("okay_nabu", continued = continued),
             // As the coordinator wires them: the capture closing is the move to thinking, playback to replying.
             { AutoCloseable { conversation.state(VoiceState.PROCESSING) } },
@@ -227,7 +228,7 @@ class SatelliteTurnRunnerTest {
         assertEquals(VoiceConversation.LEAVE_MIN_MS, conversation.card!!.leaveAtMs)
     }
 
-    @Test fun `a continued conversation keeps the card and the new exchange replaces the old`() = runTest {
+    @Test fun `a follow-up keeps the last exchange readable while the panel listens, until the new transcript replaces it`() = runTest {
         val link = link()
         val conversation = VoiceConversation { 0L }
         val first = shownTurn(link, conversation)
@@ -243,8 +244,12 @@ class SatelliteTurnRunnerTest {
 
         val second = shownTurn(link, conversation, continued = true)
         runCurrent()
-        conversation.shows(VoiceConversation.Phase.LISTENING, null, null, done = 0, current = 0)
+        // The question it asked stays on screen: it may be the part someone missed.
+        conversation.shows(VoiceConversation.Phase.LISTENING, "Set a timer", "For how long?", done = 0, current = 0)
         val nextId = link.started()
+        link.event(nextId, "listen_end")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, "Set a timer", "For how long?", done = 0, current = 0)
         link.event(nextId, "transcript", "text" to "Ten minutes")
         runCurrent()
         conversation.shows(VoiceConversation.Phase.THINKING, "Ten minutes", null, done = 1, current = 1)

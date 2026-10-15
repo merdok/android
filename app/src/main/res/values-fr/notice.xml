@@ -48,6 +48,7 @@
     <string name="voice_pill_thinking">Réflexion</string>
     <string name="voice_pill_replying">Réponse</string>
     <string name="voice_pill_missed">Pas compris</string>
+    <string name="voice_pill_failed">Un problème est survenu</string>
     <string name="voice_step_heard">Entendu</string>
     <string name="voice_step_understood">Compris</string>
     <string name="voice_step_answered">Répondu</string>

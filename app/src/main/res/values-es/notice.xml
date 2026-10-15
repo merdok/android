@@ -48,6 +48,7 @@
     <string name="voice_pill_thinking">Pensando</string>
     <string name="voice_pill_replying">Respondiendo</string>
     <string name="voice_pill_missed">No te he entendido</string>
+    <string name="voice_pill_failed">Algo ha fallado</string>
     <string name="voice_step_heard">Oído</string>
     <string name="voice_step_understood">Entendido</string>
     <string name="voice_step_answered">Respondido</string>

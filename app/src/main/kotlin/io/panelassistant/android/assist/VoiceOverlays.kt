@@ -109,18 +109,18 @@ private class VoiceNotice(private val activity: Activity, decor: ViewGroup) {
             view.visibility = View.GONE
             return
         }
-        val missed = card.phase == VoiceConversation.Phase.MISSED
         notice.setPill(activity.getString(when (card.phase) {
             VoiceConversation.Phase.LISTENING -> R.string.voice_pill_listening
             VoiceConversation.Phase.THINKING -> R.string.voice_pill_thinking
             VoiceConversation.Phase.REPLYING -> R.string.voice_pill_replying
             VoiceConversation.Phase.MISSED -> R.string.voice_pill_missed
-        }), warn = missed)
+            VoiceConversation.Phase.FAILED -> R.string.voice_pill_failed
+        }), warn = card.failed)
         hero.text = card.heard?.let { activity.getString(R.string.voice_heard, it) }
         hero.visibility = if (card.heard.isNullOrBlank()) View.GONE else View.VISIBLE
         line.text = card.reply
         line.visibility = if (card.reply.isNullOrBlank()) View.GONE else View.VISIBLE
-        track.view.visibility = if (missed) View.GONE else View.VISIBLE
+        track.view.visibility = if (card.failed) View.GONE else View.VISIBLE
         track.show(card.current, List(VoiceConversation.STEPS) { if (it < card.done) 1 else 0 }, ValueAnimator.areAnimatorsEnabled())
         if (view.visibility != View.VISIBLE) {
             view.visibility = View.VISIBLE

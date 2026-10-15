@@ -19,7 +19,8 @@ internal class VoiceConversation(
     /** The clock [Card.leaveAtMs] is on; the view's own delays run on uptime, so production passes that. */
     private val now: () -> Long,
 ) {
-    enum class Phase { LISTENING, THINKING, REPLYING, MISSED }
+    /** [MISSED] when nothing was heard, [FAILED] when a command was heard and something after it broke. */
+    enum class Phase { LISTENING, THINKING, REPLYING, MISSED, FAILED }
 
     /**
      * @property done how many of the [STEPS] are proven
@@ -34,14 +35,20 @@ internal class VoiceConversation(
         val live: Boolean = true,
         val leaveAtMs: Long? = null,
     ) {
+        val failed: Boolean get() = phase == Phase.MISSED || phase == Phase.FAILED
+
         /** The step under way, or null once the exchange is over or failed. */
-        val current: Int? get() = if (live && phase != Phase.MISSED && done < STEPS) done else null
+        val current: Int? get() = if (live && !failed && done < STEPS) done else null
     }
 
     @Volatile
     private var shown: Card? = null
-    private var failed = false
+    /** The code of the turn's failure, once Home Assistant has reported one. */
+    private var failure: String? = null
     private var replied = false
+
+    /** A follow-up still shows the exchange before it; the next transcript replaces it. */
+    private var carried = false
 
     /** Told of every change, on the thread that made it. */
     @Volatile
@@ -50,12 +57,18 @@ internal class VoiceConversation(
     /** What the card shows now, or null when it is closed or has left. */
     val card: Card? get() = shown?.takeIf { it.leaveAtMs == null || now() < it.leaveAtMs }
 
-    /** The panel has started listening: a new exchange replaces the last, whatever it showed. */
+    /**
+     * The panel has started listening. A new conversation replaces whatever the card showed. A follow-up in
+     * the same conversation keeps the last exchange readable while the panel listens (the question it asked
+     * may be what someone missed), with the pill and the track back at the start.
+     */
     @Synchronized
     fun begin() {
-        failed = false
+        failure = null
         replied = false
-        publish(Card(Phase.LISTENING))
+        val previous = shown?.takeIf { it.live }
+        carried = previous != null
+        publish(Card(Phase.LISTENING, heard = previous?.heard, reply = previous?.reply))
     }
 
     @Synchronized
@@ -64,8 +77,11 @@ internal class VoiceConversation(
         when (state) {
             VoiceState.PROCESSING -> if (card.phase == Phase.LISTENING) publish(card.copy(phase = Phase.THINKING))
             VoiceState.RESPONDING -> publish(card.copy(phase = Phase.REPLYING))
-            // Only a failure the coordinator reports; one it keeps quiet (a duplicate wake word) ends idle.
-            VoiceState.ERROR -> end(card.copy(phase = Phase.MISSED))
+            // Only a failure the coordinator reports; one it keeps quiet (a duplicate wake word) ends idle. It
+            // was not caught when nothing proved the command heard; anything later is another fault.
+            VoiceState.ERROR -> end(
+                card.copy(phase = if (failure == STT_NO_TEXT || card.done == 0) Phase.MISSED else Phase.FAILED),
+            )
             // An exchange that ended with nothing heard or said, such as that duplicate wake word, leaves at
             // once: there is nothing to read.
             VoiceState.IDLE, VoiceState.OFF -> if (card.done == 0 && card.reply == null) publish(null) else end(card)
@@ -80,6 +96,7 @@ internal class VoiceConversation(
             is VoiceTurnEvent.Transcript -> publish(
                 card.copy(
                     heard = event.text,
+                    reply = if (carried) null else card.reply,
                     done = maxOf(card.done, 1),
                     phase = if (card.phase == Phase.LISTENING) Phase.THINKING else card.phase,
                 ),
@@ -90,10 +107,11 @@ internal class VoiceConversation(
                 publish(card.copy(reply = event.text, done = if (event.final) maxOf(card.done, 2) else card.done))
             }
             is VoiceTurnEvent.Play -> publish(card.copy(done = maxOf(card.done, 2)))
-            is VoiceTurnEvent.Failed -> failed = true
-            VoiceTurnEvent.End -> if (!failed) publish(card.copy(done = STEPS))
+            is VoiceTurnEvent.Failed -> failure = event.code
+            VoiceTurnEvent.End -> if (failure == null) publish(card.copy(done = STEPS))
             VoiceTurnEvent.ListenEnd -> Unit
         }
+        if (event is VoiceTurnEvent.Transcript) carried = false
     }
 
     /** Someone tapped the card. */
@@ -109,6 +127,9 @@ internal class VoiceConversation(
 
     companion object {
         const val STEPS = 3
+
+        /** Home Assistant's code for speech that produced no text. */
+        const val STT_NO_TEXT = "stt-no-text-recognized"
 
         /** The reply was just spoken aloud, so the card is a reminder: a glance's worth with no reply. */
         const val LEAVE_MIN_MS = 4_000L
