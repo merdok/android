@@ -156,16 +156,14 @@ internal class ServiceAutoBrightnessHttpApi(
         }.toString()
     }
 
-    override fun haSourcesJson(query: String, limit: Int): String {
-        haAmbientLux().refreshCandidates()
-        val projection = haAmbientLux().latestCandidates()
+    override suspend fun haSourcesJson(query: String, limit: Int): String {
+        val projection = haAmbientLux().freshCandidates()
         val needle = query.lowercase()
         val items = projection.items.asSequence()
             .filter { needle.isBlank() || it.entityId.lowercase().contains(needle) || it.friendlyName.lowercase().contains(needle) }
             .take(limit)
         return JSONObject().apply {
             put("available", projection.error.isBlank())
-            put("refreshing", haAmbientLux().candidateRefreshInFlight())
             if (projection.error.isNotBlank()) put("detail", projection.error)
             put("items", JSONArray().apply { items.forEach { source -> put(JSONObject().apply {
                 put("entityId", source.entityId)

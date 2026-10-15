@@ -89,8 +89,8 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
       if (path === '/api/v1/auto-brightness/sources') {
         sourceReads++;
-        if (sourceReads === 3) return staleSource.promise;
-        return json(sourceReads === 1 ? { items: [], refreshing: true } : {
+        if (sourceReads === 2) return staleSource.promise;
+        return json({
           items: [{ entity_id: 'sensor.office_lux', friendly_name: 'Office light', unit: 'lx' }], available: true,
         });
       }
@@ -108,7 +108,6 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     await input.waitFor();
     await input.focus();
     await page.locator('.ha-entity-option').waitFor();
-    assert.ok(sourceReads >= 2, 'refreshing catalog was polled');
     assert.equal(await input.getAttribute('aria-expanded'), 'true');
     const geometry = await page.locator('.ha-entity-listbox').evaluate((list) => {
       const rect = list.getBoundingClientRect();
@@ -186,7 +185,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
         type: 'STRING', tier: 'ADVANCED', available: true, picker: 'ha_illuminance',
       }]);
       if (path === '/api/v1/config') return json({ settings: { auto_brightness_ha_entity: '' }, ha_expose: {}, ha_auth: {} });
-      if (path === '/api/v1/auto-brightness/sources') return json({ available: true, refreshing: false, items });
+      if (path === '/api/v1/auto-brightness/sources') return json({ available: true, items });
       if (path === '/api/v1/apps') return json({ apps: [] });
       if (path === '/api/v1/auto-brightness' || path === '/api/v1/auto-brightness/history') return json({ available: true });
       return json({});

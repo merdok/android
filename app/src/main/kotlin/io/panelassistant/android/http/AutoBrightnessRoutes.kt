@@ -86,7 +86,7 @@ internal fun Route.autoBrightnessRoutes(
 internal interface AutoBrightnessHttpApi {
     fun statusJson(): String
     fun historyJson(hours: Int = 168, sensitivity: Int? = null, minimumPercent: Int? = null, maximumPercent: Int? = null): String
-    fun haSourcesJson(query: String, limit: Int): String
+    suspend fun haSourcesJson(query: String, limit: Int): String
     suspend fun validateHaSource(entityId: String): AutoBrightnessHttpValidation
     suspend fun selectHaSource(entityId: String?): AutoBrightnessHttpAction
     fun resetHistory(): AutoBrightnessHttpAction
@@ -103,7 +103,7 @@ internal interface AutoBrightnessHttpApi {
             override fun historyJson(hours: Int, sensitivity: Int?, minimumPercent: Int?, maximumPercent: Int?): String =
                 """{"available":false,"hours":$hours,"bucket_minutes":0,"sourceRevision":null,"latestEpochMinute":null,"points":[]}"""
 
-            override fun haSourcesJson(query: String, limit: Int): String =
+            override suspend fun haSourcesJson(query: String, limit: Int): String =
                 """{"available":false,"items":[]}"""
 
             override suspend fun validateHaSource(entityId: String): AutoBrightnessHttpValidation =

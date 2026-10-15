@@ -104,7 +104,6 @@ class HaAmbientLuxSubscriber internal constructor(
     fun latestStatus(): HaAmbientSourceStatus = status
 
     fun latestCandidates(): HaAmbientCandidateProjection = candidates
-    fun candidateRefreshInFlight(): Boolean = candidateJob?.isActive == true
 
     /** Blank/null disables the shared exact-entity stream generation. */
     fun setSource(entityId: String?) {
@@ -121,33 +120,39 @@ class HaAmbientLuxSubscriber internal constructor(
         }
     }
 
-    /** Refreshes the bounded illuminance-candidate projection without disturbing a live source. */
-    fun refreshCandidates(force: Boolean = false) {
-        synchronized(lock) {
+    /**
+     * A candidate projection no older than [CANDIDATE_FRESH_MS], so the list matches what a save would
+     * validate. Joins an in-flight read or starts one; a burst of requests costs one states read. The
+     * read is bounded by the transport's connect and read timeouts.
+     */
+    suspend fun freshCandidates(): HaAmbientCandidateProjection {
+        val job = synchronized(lock) {
             check(!stopped) { "subscriber is closed" }
-            if (candidateJob?.isActive == true) return
-            val age = epochMillis() - candidates.refreshedAtEpochMs
-            val ttl = if (candidates.error.isBlank()) CANDIDATE_TTL_MS else CANDIDATE_ERROR_TTL_MS
-            if (!force && candidates.refreshedAtEpochMs > 0L && age in 0 until ttl) return
-            val refresh = candidateGeneration.incrementAndGet()
-            candidateJob = scope.launch {
-                val projection = runCatching { discoverCandidates() }.fold(
-                    onSuccess = { HaAmbientCandidateProjection(it, epochMillis()) },
-                    onFailure = { error ->
-                        if (error is CancellationException) throw error
-                        HaAmbientCandidateProjection(
-                            items = candidates.items,
-                            refreshedAtEpochMs = epochMillis(),
-                            error = safeDetail(error, "Home Assistant candidate discovery failed"),
-                        )
-                    },
-                )
-                if (!stopped && candidateGeneration.get() == refresh) {
-                    candidates = projection
-                    safeCallback { onCandidates(projection) }
-                }
+            candidateJob?.takeIf { it.isActive } ?: run {
+                val age = epochMillis() - candidates.refreshedAtEpochMs
+                if (candidates.refreshedAtEpochMs > 0L && age in 0 until CANDIDATE_FRESH_MS) return candidates
+                val refresh = candidateGeneration.incrementAndGet()
+                scope.launch {
+                    val projection = runCatching { discoverCandidates() }.fold(
+                        onSuccess = { HaAmbientCandidateProjection(it, epochMillis()) },
+                        onFailure = { error ->
+                            if (error is CancellationException) throw error
+                            HaAmbientCandidateProjection(
+                                items = candidates.items,
+                                refreshedAtEpochMs = epochMillis(),
+                                error = safeDetail(error, "Home Assistant candidate discovery failed"),
+                            )
+                        },
+                    )
+                    if (!stopped && candidateGeneration.get() == refresh) {
+                        candidates = projection
+                        safeCallback { onCandidates(projection) }
+                    }
+                }.also { candidateJob = it }
             }
         }
+        job.join()
+        return candidates
     }
 
     fun invalidateCandidates() {
@@ -414,8 +419,8 @@ class HaAmbientLuxSubscriber internal constructor(
     private companion object {
         const val TAG = "HaAmbientLux"
         const val MAX_DETAIL_CHARS = 240
-        const val CANDIDATE_TTL_MS = 10L * 60_000L
-        const val CANDIDATE_ERROR_TTL_MS = 60_000L
+        /** Collapses a burst of picker requests (debounced keystrokes) into one Home Assistant read. */
+        const val CANDIDATE_FRESH_MS = 5_000L
         const val HISTORY_MINUTE_MS = 60_000L
         const val HISTORY_WINDOW_MS = 7L * 24L * 60L * HISTORY_MINUTE_MS
         const val HISTORY_CHUNK_MS = 12L * 60L * HISTORY_MINUTE_MS

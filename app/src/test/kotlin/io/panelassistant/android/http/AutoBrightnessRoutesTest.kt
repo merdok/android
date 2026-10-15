@@ -22,7 +22,7 @@ class AutoBrightnessRoutesTest {
             override fun statusJson() = """{"state":"live"}"""
             override fun historyJson(hours: Int, sensitivity: Int?, minimumPercent: Int?, maximumPercent: Int?) =
                 """{"hours":$hours,"sensitivity":$sensitivity,"minimum":$minimumPercent,"maximum":$maximumPercent}"""
-            override fun haSourcesJson(query: String, limit: Int) = """{"query":"$query","limit":$limit}"""
+            override suspend fun haSourcesJson(query: String, limit: Int) = """{"query":"$query","limit":$limit}"""
             override suspend fun validateHaSource(entityId: String) = AutoBrightnessHttpValidation(AutoBrightnessHttpAction.ok())
             override suspend fun selectHaSource(entityId: String?): AutoBrightnessHttpAction {
                 selected = entityId ?: "panel"
