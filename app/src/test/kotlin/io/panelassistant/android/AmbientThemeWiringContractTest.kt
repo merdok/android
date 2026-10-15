@@ -46,12 +46,12 @@ class AmbientThemeWiringContractTest {
     }
 
     @Test fun `a dashboard returning to the front is checked again`() {
-        val service = source("PaneldService.kt")
-        val registration = service.substringAfter("BuiltinDashboard.setForegroundGainedListener {")
-            .substringBefore("\n            }\n")
+        // Source-text reason: the service's display owner registers the listener while the service starts, which no JVM test can run.
+        val service = source("ServiceDisplay.kt")
+        val registration = slice(service, "BuiltinDashboard.setForegroundGainedListener {", "\n        }\n")
         assertTrue(registration.contains("reconcileAmbientTheme()"))
         assertTrue("teardown must clear it", service.contains("BuiltinDashboard.setForegroundGainedListener(null)"))
-        val reconcile = service.substringAfter("private fun reconcileAmbientTheme()").substringBefore("\n    }\n")
+        val reconcile = slice(service, "private fun reconcileAmbientTheme()", "\n    }\n")
         assertTrue(reconcile.contains("if (applied == effective) ambientRebuildRequestedFor = null"))
         assertTrue(reconcile.contains("alreadyRequested = ambientRebuildRequestedFor"))
         val dashboard = source("control/BuiltinDashboard.kt")
@@ -81,10 +81,10 @@ class AmbientThemeWiringContractTest {
             .substringAfter("private fun publishAmbientVerdict() {").substringBefore("\n    }\n")
         assertTrue(publish.contains("config.setDashboardAmbientDark(dark)"))
         assertTrue(publish.contains("scheduler.execute { if (!closed) onAmbientThemeChanged() }"))
-        val service = source("PaneldService.kt")
+        val service = source("ServiceDisplay.kt")
         assertTrue(service.contains("onAmbientThemeChanged = ::reconcileAmbientTheme"))
         assertTrue(service.contains("private fun reconcileAmbientTheme(): Unit = synchronized(ambientRebuildLock) {"))
-        val reconcile = service.substringAfter("private fun reconcileAmbientTheme()").substringBefore("\n    }\n")
+        val reconcile = slice(service, "private fun reconcileAmbientTheme()", "\n    }\n")
         assertTrue(reconcile.contains("system.reloadDashboard(SystemController.BUILTIN_DASHBOARD"))
         assertTrue(reconcile.contains("val applied = BuiltinDashboard.appliedThemeSignature"))
         assertTrue(reconcile.contains("appliedSignature = applied,"))
@@ -100,6 +100,14 @@ class AmbientThemeWiringContractTest {
             .substringAfter("private val rendererPowerListener").substringBefore("convergeStatusTheme() }")
         assertTrue(listener.contains("key == \"dashboard_theme_ambient_dark\""))
         assertTrue(listener.contains("key == \"auto_brightness\""))
+    }
+
+    /** The text between [start] and [end]; fails rather than answering with the whole file when either is missing. */
+    private fun slice(text: String, start: String, end: String): String {
+        assertTrue("missing: $start", text.contains(start))
+        val after = text.substringAfter(start)
+        assertTrue("missing the end of: $start", after.contains(end))
+        return after.substringBefore(end)
     }
 
     private fun source(relative: String): String {

@@ -4,7 +4,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.ContentObserver
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -31,23 +30,14 @@ import io.panelassistant.android.persistence.StateQuiescence
 import io.panelassistant.android.upgrade.UpgradeShutdownCoordinator
 import io.panelassistant.android.upgrade.UpgradeShutdownClaim
 import io.panelassistant.android.input.EvdevButtonClient
-import io.panelassistant.android.control.AutoBrightnessController
-import io.panelassistant.android.control.AutoSleepController
-import io.panelassistant.android.control.BrightnessController
-import io.panelassistant.android.control.BrightnessSettingObserver
 import io.panelassistant.android.control.BuiltinDashboard
-import io.panelassistant.android.control.BrightnessPreferenceOrigin
 import io.panelassistant.android.control.CompanionDb
 import io.panelassistant.android.control.CompanionDataOperationGate
 import io.panelassistant.android.control.CompanionDataOperationState
 import io.panelassistant.android.control.CdpRelay
 import io.panelassistant.android.control.RemoteDebugSecurityTransitionGate
 import io.panelassistant.android.control.NavbarController
-import io.panelassistant.android.control.PowerController
-import io.panelassistant.android.control.PowerSafetyController
 import io.panelassistant.android.control.PrivilegedRouteObservation
-import io.panelassistant.android.control.OverlayWakeTap
-import io.panelassistant.android.control.ScreenController
 import io.panelassistant.android.control.WakeOutcome
 import io.panelassistant.android.control.AndroidWifiDiagnostics
 import io.panelassistant.android.control.AndroidWifiOutageStore
@@ -75,7 +65,6 @@ import io.panelassistant.android.http.PanelInfo
 import io.panelassistant.android.http.ManagementProjection
 import io.panelassistant.android.http.ConfigDiscoverySuggestions
 import io.panelassistant.android.http.DiagReader
-import io.panelassistant.android.http.AutoSleepHttpApi
 import io.panelassistant.android.http.retainCompanionLeaseUntilHelperIdle
 import io.panelassistant.android.logship.LogCapture
 import io.panelassistant.android.logship.LogShipper
@@ -90,10 +79,6 @@ import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.sensors.SensorReporter
 import io.panelassistant.android.sensors.SensorLightPublisher
 import io.panelassistant.android.sensors.submitIlluminanceIfExposed
-import io.panelassistant.android.sensors.HaAmbientLuxSubscriber
-import io.panelassistant.android.sensors.HaAmbientSourcePhase
-import io.panelassistant.android.sensors.HaPresenceSourceManager
-import io.panelassistant.android.sensors.HaSiteMetadataClient
 import io.panelassistant.android.panelassistant.PanelAssistantApprovalState
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
@@ -103,7 +88,6 @@ import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
 import io.panelassistant.android.panelassistant.PanelAssistantTransportDemand
 import io.panelassistant.android.storage.StorageHealthRuntime
 import io.panelassistant.android.storage.StorageHealthSnapshot
-import io.panelassistant.android.util.DashboardTheme
 import io.panelassistant.android.util.localIpv4
 import io.panelassistant.android.util.localIpv6
 import kotlinx.coroutines.CancellationException
@@ -114,7 +98,6 @@ import kotlinx.coroutines.SupervisorJob
 import io.panelassistant.android.util.LatestOperationPolicy
 import io.panelassistant.android.util.LatestOperationTimeoutPolicy
 import io.panelassistant.android.util.ServiceRuntimeOwner
-import io.panelassistant.android.util.SingleFlightExecutor
 import io.panelassistant.android.util.SuccessStickyProbe
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome
@@ -151,7 +134,6 @@ import io.panelassistant.android.util.GuardDbSentinelLoad
 import io.panelassistant.android.util.HelperInstallReconciler
 import io.panelassistant.android.util.HelperInstallTransaction
 import io.panelassistant.android.state.SoftwareComponent
-import io.panelassistant.android.platform.AndroidScreenPower
 import io.panelassistant.android.platform.PanelPermissionRepair
 import io.panelassistant.android.util.periodic
 import io.panelassistant.android.util.SystemProps
@@ -169,12 +151,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-
-internal fun shouldDisableAutoBrightnessForMissingSource(
-    enabled: Boolean,
-    haEntity: String,
-    hasLocalSensor: Boolean,
-): Boolean = enabled && haEntity.isBlank() && !hasLocalSensor
 
 /** Hard outer owner for synchronous SQLite/file proof. Its daemon worker cannot retain process exit. */
 internal fun <T> runBoundedShutdownProof(timeoutMs: Long, proof: () -> T): T? {
@@ -238,28 +214,6 @@ internal fun commitBorrowedRendererTarget(
     if (committed) onCommitted()
     return committed
 }
-
-internal fun adaptiveHaSource(enabled: Boolean, configuredEntity: String): String? =
-    configuredEntity.trim().takeIf { enabled && it.isNotEmpty() }
-
-/**
- * Whether the built-in dashboard must be rebuilt for the Ambient theme: only when it is the renderer,
- * it is in front, and the WebView there carries a different effective policy from the one Ambient
- * resolves to now. A renderer that is not in front is left alone rather than pulled forward; it is
- * checked again when it returns to the front, and its next launch compares the same signature.
- *
- * [alreadyRequested] is the resolution a rebuild was last requested for. One request per resolution:
- * a relaunch that could not rebuild (an on-panel sign-in, say) pauses and resumes the dashboard, and
- * asking again on that resume would relaunch it forever.
- */
-internal fun ambientThemeNeedsRebuild(
-    effectivePolicy: String,
-    appliedSignature: String?,
-    builtinRenderer: Boolean,
-    foreground: Boolean,
-    alreadyRequested: String? = null,
-): Boolean = builtinRenderer && foreground && appliedSignature != null && appliedSignature != effectivePolicy &&
-    alreadyRequested != effectivePolicy
 
 internal fun prepareEntityLearningStartup(
     startMdns: () -> Unit,
@@ -350,68 +304,6 @@ internal data class NetworkConfigurationSnapshot(
     val haRouteEpoch: Long = 0L,
 )
 
-internal fun refreshAmbientSourceBinding(
-    restartSource: Boolean,
-    selectedSource: String?,
-    markUnavailable: () -> Unit,
-    setSource: (String?) -> Unit,
-) {
-    if (restartSource) {
-        markUnavailable()
-        setSource(null)
-    }
-    setSource(selectedSource)
-}
-
-internal fun applyAutoSleepAreaFailOff(
-    expectedEpoch: Long,
-    expectedSettingGeneration: Long,
-    epochIsCurrent: (Long) -> Boolean,
-    persistOff: (Long) -> AutoSleepWriteResult?,
-    refreshController: () -> Unit,
-    applyBridge: () -> LiveSettingApplyResult,
-): LiveSettingApplyResult {
-    if (!epochIsCurrent(expectedEpoch)) return LiveSettingApplyResult.APPLIED
-    return when (persistOff(expectedSettingGeneration)) {
-        null -> LiveSettingApplyResult.APPLIED
-        AutoSleepWriteResult.FAILED -> LiveSettingApplyResult.FAILED
-        AutoSleepWriteResult.COMMITTED -> {
-            refreshController()
-            applyBridge()
-        }
-        AutoSleepWriteResult.UNCHANGED -> applyBridge()
-    }
-}
-
-internal fun applyAutoSleepFencedReplay(
-    fence: Long,
-    currentGeneration: Long,
-    currentEnabled: Boolean,
-    persistOff: (Long) -> AutoSleepWriteResult?,
-    refreshController: () -> Unit,
-    applyBridge: () -> LiveSettingApplyResult,
-): LiveSettingApplyResult = when {
-    currentGeneration == fence -> applyBridge()
-    currentEnabled && currentGeneration + 1L == fence -> when (persistOff(currentGeneration)) {
-        AutoSleepWriteResult.COMMITTED -> {
-            refreshController()
-            applyBridge()
-        }
-        AutoSleepWriteResult.UNCHANGED -> applyBridge()
-        AutoSleepWriteResult.FAILED -> LiveSettingApplyResult.FAILED
-        null -> LiveSettingApplyResult.APPLIED
-    }
-    else -> LiveSettingApplyResult.APPLIED
-}
-
-internal fun acceptCommittedAutoSleepSetting(
-    authority: LiveSettingAuthority,
-    refreshController: () -> Unit,
-) {
-    authority.discard("auto_sleep")
-    refreshController()
-}
-
 /**
  * Persistent foreground service. Hosts the Ktor HTTP listener, the JmDNS advertiser, the Panel
  * Assistant session and the hardware controllers for the panel's lifetime. Declared
@@ -491,9 +383,7 @@ class PaneldService : Service() {
     )
     private lateinit var mdnsRuntimeReconciler: MdnsRuntimeReconciler<NetworkRuntime>
     @Volatile private var stateObservationTick: OwnedThread? = null
-    private val wakeOnWaveWorker = SingleFlightExecutor("ha-paneld-wake-on-wave")
     private var proximityWizard: ProximityWizardCoordinator? = null
-    private var vendorScreen: io.panelassistant.android.platform.VendorScreen = io.panelassistant.android.platform.NoVendorScreen
 
     /**
      * Whether this panel could repair its own Android System WebView, computed away from the screen.
@@ -520,10 +410,6 @@ class PaneldService : Service() {
     private lateinit var logCaptureWebView: LogCapture
 
     // Controllers are fields so the network runtime can be rebuilt on a panel_id change.
-    private lateinit var brightness: BrightnessController
-    private lateinit var autoBright: AutoBrightnessController
-    private lateinit var autoSleep: AutoSleepController
-    private lateinit var haAmbientLux: HaAmbientLuxSubscriber
     private lateinit var haLinks: ServiceHaLinks
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
@@ -554,21 +440,12 @@ class PaneldService : Service() {
             LocalApprovalBroker.instance.deny(approvalId)
         }
     }
-    private lateinit var haSiteMetadata: HaSiteMetadataClient
-    private var brightnessObserver: ContentObserver? = null
-    private var haCandidateIdentity = ""
-    private val adaptiveSiteGeneration = java.util.concurrent.atomic.AtomicLong()
-    // One observer task at a time, in delivery order, on the service scope's IO pool: no thread of its own.
-    private val brightnessObserverLane = Dispatchers.IO.limitedParallelism(1)
-    private lateinit var screen: ScreenController
     private lateinit var camera: io.panelassistant.android.camera.CameraSessionOwner
     // The RTSP transport for the camera trial. It listens only while the camera switch is on, holds no
     // thread until then, and is drained before the camera owner so no client can reattach mid-stop.
     private lateinit var cameraStream: io.panelassistant.android.camera.CameraRtspServer
     private val notifications = ServiceNotifications(this)
     private lateinit var migrationNotice: MigrationNotice
-    private lateinit var power: PowerController
-    private lateinit var powerSafety: PowerSafetyController
     private lateinit var profile: DeviceProfile
     private lateinit var profileRegistry: RuntimeProfileRegistry
     private lateinit var passiveProfileProbe: AndroidPassiveProfileProbe
@@ -586,17 +463,23 @@ class PaneldService : Service() {
     // stood down for as long as the doomed process lives.
     @Volatile private var standingDown = false
     private val teardownBoundary = ServiceTeardownBoundary()
+    // Screen, brightness, adaptive and ambient inputs, auto-sleep and power: built, started and closed
+    // at the points below. Not named `display`, which Context already answers.
+    private val displayPower: ServiceDisplay = ServiceDisplay(
+        this, scope, teardownBoundary, { config }, { profile }, { runtime }, { ::runtime.isInitialized },
+        { liveSettingAuthority }, { haLinks }, { sensors }, { ::sensors.isInitialized }, { controls },
+    )
     // The panel's system controls: launcher and HOME, kiosk, navbar, watchdog, LEDs, volume, touch
     // sound, boot chime, Zigbee, relays, CPU, network ADB and USB debugging feedback.
-    private val controls = ServiceSystemControls(
+    private val controls: ServiceSystemControls = ServiceSystemControls(
         this, scope, teardownBoundary, { config }, { profile }, { runtime }, { ::runtime.isInitialized },
-        { liveSettingAuthority }, { server }, { mainHandler }, { brightness }, { autoBright }, { sensors },
+        { liveSettingAuthority }, { server }, { mainHandler }, { displayPower.brightness }, { displayPower.autoBright }, { sensors },
         ::announcePanelAssistantRestart,
-        vendorUp = { if (vendorScreen.holdBrightness()) screen.restoreLevelOverVendor() },
+        vendorUp = { displayPower.restoreLevelOverVendor() },
     )
     // Voice, the microphone, audio playback and the media player: built, started and closed at the
     // points below, in the order this service has always used.
-    private val voiceAudio = ServiceVoiceAudio(
+    private val voiceAudio: ServiceVoiceAudio = ServiceVoiceAudio(
         this, scope, teardownBoundary, notifications, { config }, { profile }, { standingDown },
         { if (::config.isInitialized) config.silenceBootChime else true },
         { runtime }, { controls.volume }, { mainHandler }, ::reconfigure,
@@ -604,11 +487,10 @@ class PaneldService : Service() {
     // The screen-on and WebView-provider receivers, registered at startup and released in onDestroy.
     private val receivers = ServiceReceivers(
         this, teardownBoundary, voiceAudio.microphoneMute,
-        { controls.vendorServiceStarter }, { screen }, { core }, { webViewRebindRestart },
+        { controls.vendorServiceStarter }, { displayPower.screen }, { core }, { webViewRebindRestart },
     )
     private val restartAfterInternalBoundary = AtomicBoolean(false)
     private var upgradeShutdownClaim: UpgradeShutdownClaim? = null
-    private val screenExitRecoveryOwner = AtomicReference<CompletableFuture<Boolean>?>(null)
     private val startupRecoveryPrefs by lazy {
         AppState.preferences(this, "startup-recovery", "ha-paneld-startup-recovery")
     }
@@ -852,56 +734,14 @@ class PaneldService : Service() {
         // onStartCommand alongside the other network subsystems; restarted on a /config change.
         logShipper = LogShipper(config, scope, logCaptureApp, logCaptureWebView, logCaptureSystem)
 
-        brightness = BrightnessController(
-            this,
-            scale = io.panelassistant.android.control.BacklightScale(
-                profile.backlightTransfer,
-                profile.backlightRoute,
-                config.ownedBacklightLevel,
-            ),
-        )
-        vendorScreen = profile.vendorService?.let { io.panelassistant.android.platform.LocalRpcVendorScreen(it.port) }
-            ?: io.panelassistant.android.platform.NoVendorScreen
-        screen = ScreenController(
-            brightness,
-            AndroidScreenPower(this),
-            wakeTap = OverlayWakeTap(this),
-            route = profile.screenOff,
-            displacedTimeout = io.panelassistant.android.control.ConfigDisplacedScreenTimeout(config),
-            vendor = vendorScreen,
-        )
-        autoBright = AutoBrightnessController(
-            this, brightness, config, screen::actuateBrightnessIfOn,
-            onAmbientThemeChanged = ::reconcileAmbientTheme,
-        )
-        haSiteMetadata = HaSiteMetadataClient(config)
+        displayPower.buildControllers()
         voiceAudio.buildAnnouncements()
         // The Home Assistant links and their health, built once in this order on the configuration above.
         haLinks = ServiceHaLinks(
             this, scope, config, teardownBoundary, panelAssistantReporter, panelAssistantCommands,
             voiceAudio.panelAssistantVoice, voiceAudio.voiceStream, { runtime }, { server },
         )
-        haAmbientLux = HaAmbientLuxSubscriber(
-            scope = scope,
-            auth = haLinks.haSessionAuthority,
-            transport = haLinks.haApi,
-            streamOwner = haLinks.haExactEntityStream,
-            onSample = { sample -> autoBright.submitHaLux(sample.lux) },
-            onStatus = { status ->
-                autoBright.setHaSourceAvailable(status.phase == HaAmbientSourcePhase.LIVE)
-            },
-        )
-        screen.onWakeCompleted = {
-            scope.launch(Dispatchers.Default) { autoBright.reapplyLatest() }
-            if (::autoSleep.isInitialized) autoSleep.noteScreenWoken()
-        }
-        // After a LOCAL touch-wake, tell HA the screen is on so `light.<panel>_screen` tracks reality.
-        screen.onWakeByTap = { automaticEpoch ->
-            // Manual tap-wakes are already observed by the shared raw-touch listener; only an exact
-            // automatic epoch is additional causal proof for the auto-sleep learner.
-            if (automaticEpoch != null && ::autoSleep.isInitialized) autoSleep.noteTapWake(automaticEpoch)
-            runCatching { core.publishScreenOn() }
-        }
+        displayPower.bindHaAmbient()
         controls.buildLighting()
         // Camera trial. Owned here, beside the LED it borrows for off-screen indication and the screen
         // whose intended-off state decides the handover; nothing runs until a subscriber asks for a frame.
@@ -944,7 +784,7 @@ class PaneldService : Service() {
                 ledEffect = controls.ledEffect,
                 // Re-derive from persisted intent through whichever runtime is current, never a snapshot.
                 restoreLed = { runCatching { runtime.current().core.reapplyStoredLed() } },
-                screenOff = { screen.isIntendedOff() },
+                screenOff = { displayPower.screen.isIntendedOff() },
                 cameraLensOffsetPx = profile.cameraLensOffsetPx,
             ),
             foreground = io.panelassistant.android.camera.AndroidCameraForegroundGate(this),
@@ -955,78 +795,7 @@ class PaneldService : Service() {
         companionDataOperationState = CompanionDataOperationState.from(this)
         entityLearning = preparedEntityLearning
         controls.buildControls()
-        power = PowerController(this)
-        powerSafety = PowerSafetyController(
-            context = this,
-            power = power,
-            screenOffMechanism = profile.screenOff.name.lowercase(),
-            screenRouteSelection = screen::routeSelection,
-            directRootExpected = profile.appCanSu,
-            heldSleep = screen::heldSleepRecord,
-        )
-
-        autoSleep = AutoSleepController(
-            context = this,
-            scope = scope,
-            config = config,
-            screen = screen,
-            onScreenChanged = {
-                if (::runtime.isInitialized && !teardownBoundary.isStopping) {
-                    runCatching { core.publishScreenState() }
-                }
-            },
-            onProjectionChanged = {
-                if (::runtime.isInitialized && !teardownBoundary.isStopping) {
-                    runCatching { runtime.observe()?.value?.core?.publishAutoSleepActivity() }
-                }
-            },
-            onNoArea = { expectedEpoch ->
-                if (::runtime.isInitialized && !teardownBoundary.isStopping) {
-                    val expectedSettingGeneration = config.autoSleepGeneration
-                    val admitted = liveSettingAuthority.applyOrQueueIf(
-                        key = "auto_sleep",
-                        value = "false",
-                        previousValue = "true",
-                        fence = expectedSettingGeneration + 1L,
-                        expected = {
-                            config.autoSleep && config.autoSleepGeneration == expectedSettingGeneration &&
-                                autoSleep.isCurrentConfigurationEpoch(expectedEpoch)
-                        },
-                    ) { _, _, _ ->
-                        applyAutoSleepAreaFailOff(
-                            expectedEpoch = expectedEpoch,
-                            expectedSettingGeneration = expectedSettingGeneration,
-                            epochIsCurrent = autoSleep::isCurrentConfigurationEpoch,
-                            persistOff = { generation ->
-                                config.setAutoSleepIf(
-                                    expected = true,
-                                    expectedGeneration = generation,
-                                    on = false,
-                                )
-                            },
-                            refreshController = { refreshAutoSleepPresence() },
-                            applyBridge = {
-                                runtime.observe()?.value?.commands?.convergeAutoSleep(
-                                    expectedGeneration = expectedSettingGeneration + 1L,
-                                    expectedValue = false,
-                                ) ?: LiveSettingApplyResult.DEFERRED
-                            },
-                        )
-                    }
-                    if (!admitted) {
-                        Log.w(TAG, "stale or failed auto-sleep Area-removal fail-off was not admitted")
-                    }
-                }
-            },
-            sourceManagerFactory = { offerAggregate ->
-                HaPresenceSourceManager(
-                    scope = scope,
-                    config = config,
-                    streamOwner = haLinks.haExactEntityStream,
-                    offerAggregate = offerAggregate,
-                )
-            },
-        )
+        displayPower.buildPowerAndSleep()
 
         runtime = ServiceRuntimeOwner(
             initial = buildNetworkRuntime(appliedNetworkConfiguration.runtime),
@@ -1104,7 +873,7 @@ class PaneldService : Service() {
             // persisted setting and replay it against the replacement before reconfigure completes.
             { k, v ->
                 requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, k, v, { controls.kiosk.apply(false) }) {
-                    refreshAutoSleepPresence()
+                    displayPower.refreshAutoSleepPresence()
                 }
             },
             onProximityCalibration = { action, id -> proximityWizard?.remote(action, id) == true },
@@ -1126,12 +895,12 @@ class PaneldService : Service() {
             // Live log viewer sources (Logs tab). System is gated on Su.available() per request.
             logApp = logCaptureApp, logSystem = logCaptureSystem, logWebView = logCaptureWebView,
             webViewConsoleEnabled = { webViewConsoleEnabled(config) },
-            effectiveBrightness = { brightness.getBrightness() },
+            effectiveBrightness = { displayPower.brightness.getBrightness() },
             onRepairCompanionUrl = { componentOperations.repairCompanionUrl() },
             onInstallComponent = { name, action, version -> componentOperations.installComponent(name, action, version) },
-            powerSafety = { powerSafety.assess(config.keepAwake, config.preventIdleDim) },
-            freshPowerSafetyRepairCapability = powerSafety::repairCapabilityFresh,
-            onRepairPowerSafety = ::repairPowerSafety,
+            powerSafety = { displayPower.powerSafety.assess(config.keepAwake, config.preventIdleDim) },
+            freshPowerSafetyRepairCapability = displayPower.powerSafety::repairCapabilityFresh,
+            onRepairPowerSafety = displayPower::repairPowerSafety,
             // One-line EFR32 radio status for the Install-tab Radio card; null when this panel has no radio.
             radioStatus = { if (profile.zigbeeGatewayDir != null) controls.zigbeeHealth.snapshot() else null },
             camera = camera,
@@ -1153,19 +922,8 @@ class PaneldService : Service() {
             },
             rendererPreparation = rendererPreparation,
             entityLearning = entityLearning,
-            autoBrightnessHttpApi = io.panelassistant.android.http.ServiceAutoBrightnessHttpApi(
-                { config }, { autoBright }, { sensors }, { haAmbientLux }, { refreshAdaptiveBrightnessInputs() },
-            ),
-            autoSleepHttpApi = object : AutoSleepHttpApi {
-                override fun statusJson(): String = autoSleep.statusJson()
-                override suspend fun historyJson(hours: Int): String = autoSleep.historyJson(hours)
-                override suspend fun prerequisite() = autoSleep.prerequisite()
-                override fun setSourceIncluded(areaKey: String, sourceKey: String, included: Boolean) =
-                    autoSleep.setSourceIncluded(areaKey, sourceKey, included)
-                override fun noteAreaChanged() {
-                    refreshAutoSleepPresence()
-                }
-            },
+            autoBrightnessHttpApi = displayPower.autoBrightnessHttpApi(),
+            autoSleepHttpApi = displayPower.autoSleepHttpApi(),
             companionDataOperationState = companionDataOperationState,
             profileAdmin = profileRegistry,
             profileTemplate = {
@@ -1182,7 +940,7 @@ class PaneldService : Service() {
             onDurableStateRestored = {
                 wifiOutageTracker.adoptRestoredRecord()
                 sensors.reloadProximityCalibration()
-                check(autoSleep.adoptRestoredRecord()) { "sleep owner is stopping" }
+                check(displayPower.autoSleep.adoptRestoredRecord()) { "sleep owner is stopping" }
                 core.reapplyStoredLed()
                 core.restoreButtonBacklight()
             },
@@ -1205,23 +963,13 @@ class PaneldService : Service() {
         }
     }
 
-    private fun refreshAutoSleepPresence(): Boolean {
-        val accepted = autoSleep.refresh()
-        if (accepted && ::sensors.isInitialized) {
-            autoSleep.noteProximityState(
-                sensors.proximityPresenceNear().takeIf { sensors.proximityPresenceReady() },
-            )
-        }
-        return accepted
-    }
-
     private fun buildNetworkRuntime(identity: NetworkRuntimeIdentity): NetworkRuntime {
         val core = buildCore()
         return NetworkRuntime(core, buildCommands(core), buildMdns(identity))
     }
 
     private fun buildCore(): PanelStateCore = PanelStateCore(
-        config, brightness, screen, controls.led, controls.ledEffect, controls.volume, controls.system, controls.bootChime,
+        config, displayPower.brightness, displayPower.screen, controls.led, controls.ledEffect, controls.volume, controls.system, controls.bootChime,
         controls.zigbee, controls.relay, controls.cpu, controls.adb,
         accessibilityEnabled(), profile.buttonKeys(),
         { capabilitiesSnapshot() },
@@ -1235,7 +983,7 @@ class PaneldService : Service() {
         media = voiceAudio.media.takeIf { profile.hasSpeaker },
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
-        autoSleepActivity = { autoSleep.activitySnapshot() },
+        autoSleepActivity = { displayPower.autoSleep.activitySnapshot() },
         softwareUpdateSources = componentOperations::softwareUpdateSources,
         zigbeeHealth = controls.zigbeeHealth::snapshot,
         storageHealth = StorageHealthRuntime::snapshot,
@@ -1250,7 +998,7 @@ class PaneldService : Service() {
     }
 
     private fun buildCommands(core: PanelStateCore): PanelCommandDispatcher = PanelCommandDispatcher(
-        config, core, brightness, screen, controls.navigate, controls.volume, controls.system, controls.navbar,
+        config, core, displayPower.brightness, displayPower.screen, controls.navigate, controls.volume, controls.system, controls.navbar,
         controls.watchdog, controls.touchSound, controls.bootChime, controls.zigbee, controls.relay, controls.cpu, controls.adb,
         hasProximity = sensors.hasProximity(),
         // Button backlight is a distinct profiled node (TPA10), not a property of the RGB backend:
@@ -1260,8 +1008,8 @@ class PaneldService : Service() {
         hasMicrophone = voiceAudio.microphonePresence().offered,
         media = voiceAudio.media.takeIf { profile.hasSpeaker },
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
-        autoBright = autoBright,
-        onAutoBrightnessConfigChanged = { refreshAdaptiveBrightnessInputs() },
+        autoBright = displayPower.autoBright,
+        onAutoBrightnessConfigChanged = { displayPower.refreshAdaptiveBrightnessInputs() },
         // A camera switch commanded from Home Assistant performs the same actuation the reconfigure
         // fan-out performs for a Configure-page change, so the owner has one authority, not two.
         onCameraEnabledChanged = { if (::camera.isInitialized) runCatching { camera.onEnabledChanged() } },
@@ -1271,7 +1019,7 @@ class PaneldService : Service() {
         onExternalSettingApplied = liveSettingAuthority::discard,
         onZigbeeExplicitRetry = controls.zigbeeHealth::explicitRetry,
         onAutoSleepConfigChanged = {
-            acceptCommittedAutoSleepSetting(liveSettingAuthority) { refreshAutoSleepPresence() }
+            acceptCommittedAutoSleepSetting(liveSettingAuthority) { displayPower.refreshAutoSleepPresence() }
         },
         manageTable = manageTable,
     )
@@ -1291,7 +1039,7 @@ class PaneldService : Service() {
         key: String,
         value: String,
         previousValue: String? = null,
-    ): LiveSettingApplication = applyLiveSetting(config, commands, key, value, previousValue) { refreshAutoSleepPresence() }
+    ): LiveSettingApplication = applyLiveSetting(config, commands, key, value, previousValue) { displayPower.refreshAutoSleepPresence() }
 
     private fun replayLiveSettingObserved(
         commands: PanelCommandDispatcher,
@@ -1310,7 +1058,7 @@ class PaneldService : Service() {
             persistOff = { generation ->
                 config.setAutoSleepIf(expected = true, expectedGeneration = generation, on = false)
             },
-            refreshController = { refreshAutoSleepPresence() },
+            refreshController = { displayPower.refreshAutoSleepPresence() },
             applyBridge = { commands.convergeAutoSleep(expectedGeneration = fence, expectedValue = false) },
         ))
     }
@@ -1341,109 +1089,6 @@ class PaneldService : Service() {
             FeatureCostOperation.NETWORK_RECONFIGURE,
             runtime.pendingLatestCount(),
         )
-    }
-
-    private fun registerBrightnessPreferenceObserver() {
-        val observer = BrightnessSettingObserver(
-            handler = Handler(Looper.getMainLooper()),
-            initialLevel = brightness.getCommanded(),
-            readSetting = {
-                runCatching { Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS) }
-                    .getOrNull()
-            },
-            levelFromSetting = brightness::levelFromSetting,
-            consumeOwnedWrite = { setting -> brightness.consumeOwnedSettingChange(setting) },
-            observedDark = screen::observedDark,
-            noteExternal = { level, prior ->
-                autoBright.noteExternalBrightness(level, BrightnessPreferenceOrigin.ANDROID_SYSTEM, prior)
-            },
-            background = { task -> scope.launch(brightnessObserverLane) { task() } },
-        )
-        contentResolver.registerContentObserver(
-            Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
-            false,
-            observer,
-        )
-        brightnessObserver = observer
-    }
-
-    private fun refreshAdaptiveBrightnessInputs(restartSource: Boolean = true) {
-        if (shouldDisableAutoBrightnessForMissingSource(
-                enabled = config.autoBrightness,
-                haEntity = config.autoBrightnessHaEntity,
-                hasLocalSensor = sensors.hasLight(),
-            )
-        ) {
-            Log.w(TAG, "Disabling auto-brightness: no local light sensor or HA illuminance source is configured")
-            config.setAutoBrightness(false)
-        }
-        val enabled = config.autoBrightness
-        val selected = adaptiveHaSource(enabled, config.autoBrightnessHaEntity)
-        val candidateIdentity = config.haUrl.trim()
-        if (candidateIdentity != haCandidateIdentity) {
-            haCandidateIdentity = candidateIdentity
-            haAmbientLux.invalidateCandidates()
-        }
-        refreshAmbientSourceBinding(
-            restartSource = restartSource,
-            selectedSource = selected,
-            markUnavailable = { autoBright.setHaSourceAvailable(false) },
-            setSource = haAmbientLux::setSource,
-        )
-        val generation = adaptiveSiteGeneration.incrementAndGet()
-        if (enabled) {
-            scope.launch {
-                val site = haSiteMetadata.fetch().metadata
-                if (site != null && !teardownBoundary.isStopping && adaptiveSiteGeneration.get() == generation) {
-                    autoBright.updateSite(site.latitude, site.longitude, site.timeZone)
-                }
-                if (selected != null && !teardownBoundary.isStopping && adaptiveSiteGeneration.get() == generation) {
-                    try {
-                        val seed = haAmbientLux.loadHistory(selected)
-                        if (!teardownBoundary.isStopping && adaptiveSiteGeneration.get() == generation) {
-                            autoBright.seedHaHistory(seed)
-                        }
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (error: Throwable) {
-                        Log.i(TAG, "Home Assistant ambient history bootstrap unavailable (${error.javaClass.simpleName})")
-                    }
-                }
-            }
-        }
-        autoBright.reapplyLatest()
-        // Turning auto-brightness on or off moves an Ambient panel's effective theme too.
-        reconcileAmbientTheme()
-    }
-
-    // The resolution the last Ambient rebuild was requested for; see [ambientThemeNeedsRebuild].
-    private var ambientRebuildRequestedFor: String? = null
-    private val ambientRebuildLock = Any()
-
-    /**
-     * Take an Ambient panel's dashboard to the theme its room now resolves to, through the same
-     * rebuild a Dashboard theme change uses: the renderer compares signatures on the relaunch and
-     * bakes the matching document-start script.
-     */
-    private fun reconcileAmbientTheme(): Unit = synchronized(ambientRebuildLock) {
-        if (teardownBoundary.isStopping) return
-        val system = controls.systemOrNull() ?: return
-        if (config.dashboardTheme != DashboardTheme.AMBIENT) return
-        val effective = config.dashboardThemeEffective
-        val applied = BuiltinDashboard.appliedThemeSignature
-        if (applied == effective) ambientRebuildRequestedFor = null
-        if (!ambientThemeNeedsRebuild(
-                effectivePolicy = effective,
-                appliedSignature = applied,
-                builtinRenderer = system.resolveDashboard(config.dashboardPackage) == SystemController.BUILTIN_DASHBOARD,
-                foreground = BuiltinDashboard.foreground,
-                alreadyRequested = ambientRebuildRequestedFor,
-            )
-        ) return
-        ambientRebuildRequestedFor = effective
-        Log.i(TAG, "Ambient theme now resolves to $effective — rebuilding the dashboard")
-        runCatching { system.reloadDashboard(SystemController.BUILTIN_DASHBOARD, reason = "applying your settings") }
-            .onFailure { Log.w(TAG, "Ambient theme rebuild failed", it) }
     }
 
     private fun performNetworkReconfigure(
@@ -1477,7 +1122,7 @@ class PaneldService : Service() {
                 .work(units = if (replacementRequired) 1 else 0)
             cost = operationCost
             if (ownerRefresh.adaptiveBrightness) {
-                refreshAdaptiveBrightnessInputs(restartSource = adaptiveSourceRestartRequired)
+                displayPower.refreshAdaptiveBrightnessInputs(restartSource = adaptiveSourceRestartRequired)
             }
             if (!replacementRequired) {
                 val active = mutation.current
@@ -1638,8 +1283,8 @@ class PaneldService : Service() {
         }
         appliedNetworkConfiguration = desired
         if (ownerRefresh.logShipping) runCatching { logShipper.reconfigure() }
-        if (ownerRefresh.keepAwake) runCatching { power.apply(config.keepAwake) }
-        if (ownerRefresh.autoSleep) runCatching { refreshAutoSleepPresence() }
+        if (ownerRefresh.keepAwake) displayPower.applyKeepAwake()
+        if (ownerRefresh.autoSleep) runCatching { displayPower.refreshAutoSleepPresence() }
         if (ownerRefresh.rendererTarget) {
             haLinks.haExactEntityStream.replaceHaLink(currentHaLinkIdentity(), config.haRouteEpoch())
             io.panelassistant.android.http.PerfReader.updateRendererTarget(rendererTargetSnapshot())
@@ -1742,8 +1387,8 @@ class PaneldService : Service() {
             },
             // Wakelock/Wi-Fi-lock intent vs reality — a panel that should be keep-awake but isn't
             // holding the lock is a strong hint for stalled-idle-connection reports.
-            "Keep panel responsive" to if (config.keepAwake) (if (power.isHeld()) "on · power locks held" else "on · power lock NOT held") else "off",
-            "Prevent idle dim" to preventIdleDimDiagnostic(config.preventIdleDim, brightness.screenOffTimeoutMs()),
+            "Keep panel responsive" to if (config.keepAwake) (if (displayPower.power.isHeld()) "on · power locks held" else "on · power lock NOT held") else "off",
+            "Prevent idle dim" to preventIdleDimDiagnostic(config.preventIdleDim, displayPower.brightness.screenOffTimeoutMs()),
             "Android dashboard lock" to if (config.kioskLock) "on" else "off",
             "mDNS" to mdns.statusPublic(),
             "Platform" to profile.displayName,
@@ -2011,15 +1656,9 @@ class PaneldService : Service() {
             voiceAudio.start()
             storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
-            registerBrightnessPreferenceObserver()
+            displayPower.registerBrightnessPreferenceObserver()
             controls.startUsbDebuggingFeedback()
-            refreshAdaptiveBrightnessInputs(restartSource = false)
-            autoBright.activate()
-            // A verdict reached while the dashboard was paused is applied when it returns to the front.
-            BuiltinDashboard.setForegroundGainedListener {
-                scope.launch(Dispatchers.Default) { reconcileAmbientTheme() }
-            }
-            brightness.applyPreventIdleDim(config.preventIdleDim, config)
+            displayPower.startAdaptive()
             EntityLearningRuntime.attach(entityLearning)
             componentOperations.attachSoftwareUpdateObservers()
             val kioskRecoveredAtStartup = controls.recoverKioskAtStartup()
@@ -2035,8 +1674,8 @@ class PaneldService : Service() {
                 cancel = sensors::cancelProximitySession,
                 heartbeat = sensors::proximityCalibrationHeartbeat,
                 reset = sensors::resetProximityToProfile,
-                acquireDisplay = screen::acquireVisibleHold,
-                releaseDisplay = screen::releaseVisibleHold,
+                acquireDisplay = displayPower.screen::acquireVisibleHold,
+                releaseDisplay = displayPower.screen::releaseVisibleHold,
                 launch = controls.system::launchProximityWizard,
                 narrator = ProximityWizardNarrator(speak = { text, localeTag, onGeneration ->
                     io.panelassistant.android.assist.AssistPipelineClient(config).speakText(
@@ -2108,9 +1747,7 @@ class PaneldService : Service() {
             if (rendererResult == RendererPreparationCoordinator.Result.CLOSED) return@runtimeStart
             // Resolve "Open in HA" from the prepared built-in renderer session.
             activeRuntime.core.maybeResolveHaLink()
-            // Keep the SoC + network awake (screen still free to sleep) so Doze/suspend can't freeze the
-            // Home Assistant connection into a half-open, unreachable one. On by default; see keep_awake.
-            runCatching { power.apply(config.keepAwake) }
+            displayPower.applyKeepAwake()
             io.panelassistant.android.http.PerfReader.start(scope, packageName, rendererTargetSnapshot())
             server.start()
             // A successor with a migration in progress continues it now that its own server listens.
@@ -2119,7 +1756,7 @@ class PaneldService : Service() {
             // the write-ahead overlay ownership markers. This completes work handed off by profile restart.
             server.requestTameReconcile()
             activeRuntime.core.start()
-            autoSleep.start()
+            displayPower.startAutoSleep()
             controls.startZigbeeHealth()
             liveSettingAuthority.replayKeysObserved(PanelCommandDispatcher.APPLY_SETTING_KEYS) { key, value, previous, fence ->
                 replayLiveSettingObserved(activeRuntime.commands, key, value, previous, fence)
@@ -2152,18 +1789,18 @@ class PaneldService : Service() {
                         submit = lightPublisher::submit,
                     )
                 },
-                onLuxRaw = autoBright::submitLux,
+                onLuxRaw = displayPower.autoBright::submitLux,
                 onProximity = { near, level, reportMask ->
                     core.publishProximity(near, level, reportMask)
-                    autoSleep.noteProximityState(near.takeIf {
+                    displayPower.autoSleep.noteProximityState(near.takeIf {
                         !sensors.proximityCalibrationActive() && sensors.proximityPresenceReady()
                     })
                 },
                 onPresenceApproach = {
                     val proximityGeneration = sensors.proximityGeneration()
                     val observedAt = android.os.SystemClock.elapsedRealtime()
-                    wakeOnWaveWorker.execute {
-                        screen.brightenForPresence {
+                    displayPower.wakeOnWaveWorker.execute {
+                        displayPower.screen.brightenForPresence {
                             !teardownBoundary.isStopping && sensors.proximityPresenceNear() &&
                                 sensors.proximityGeneration() == proximityGeneration &&
                                 android.os.SystemClock.elapsedRealtime() - observedAt in 0L..750L
@@ -2177,13 +1814,13 @@ class PaneldService : Service() {
                         return@gesture
                     }
                     val proximityGeneration = sensors.proximityGeneration()
-                    val generation = screen.currentOffGeneration()
+                    val generation = displayPower.screen.currentOffGeneration()
                     if (generation == null) {
                         sensors.completeProximityGesture(token, false)
                         return@gesture
                     }
                     val settingGeneration = config.wakeOnWaveGeneration
-                    val submitted = wakeOnWaveWorker.execute {
+                    val submitted = displayPower.wakeOnWaveWorker.execute {
                         var accepted = false
                         try {
                             if (
@@ -2191,7 +1828,7 @@ class PaneldService : Service() {
                                 sensors.proximityGeneration() != proximityGeneration ||
                                 config.wakeOnWaveGeneration != settingGeneration
                             ) return@execute
-                            accepted = screen.wakeIfStillDark(generation) {
+                            accepted = displayPower.screen.wakeIfStillDark(generation) {
                                 !teardownBoundary.isStopping && config.wakeOnWave && sensors.proximityReady() &&
                                     sensors.proximityGeneration() == proximityGeneration &&
                                     config.wakeOnWaveGeneration == settingGeneration
@@ -2234,10 +1871,7 @@ class PaneldService : Service() {
                 tag = TAG,
                 name = "never-blank",
             ) {
-                if (screen.recoverUnexpectedDark()) {
-                    Log.w(TAG, "screen dark with no intent — re-lighting (never-blank guard)")
-                    core.publishScreenOn()
-                }
+                displayPower.relightIfUnexpectedlyDark()
                 controls.repairAdminHomeFromCapturedRoute()
             }
             // The HTTP surface, network owner, sensors, evdev and periodic safety owners have all been
@@ -2442,24 +2076,9 @@ class PaneldService : Service() {
         proximityWizard?.close()
         voiceAudio.closeAdmission()
         controls.closeAdmissions()
-        if (::screen.isInitialized) screen.closeAdmission()
+        displayPower.closeAdmission()
         if (::camera.isInitialized) camera.closeAdmission()
     }
-
-    /** Explicit power-safety repair. This is referenced by the HTTP server during startup but can execute
-     * only after admission on an IO dispatcher, behind the service replacement fence. */
-    private fun repairPowerSafety() = powerSafety.repair(
-        readKeepAwakeConfigured = { config.keepAwake },
-        readPreventIdleDimConfigured = { config.preventIdleDim },
-        persistKeepAwake = {
-            config.setKeepAwake(true)
-            config.keepAwake
-        },
-        applyPreventIdleDim = {
-            config.setPreventIdleDim(true)
-            config.preventIdleDim && brightness.applyPreventIdleDim(true, config).effective
-        },
-    )
 
     override fun onDestroy() {
         teardownBoundary.markStopping()
@@ -2505,18 +2124,14 @@ class PaneldService : Service() {
         upgradeShutdownClaim = UpgradeShutdownCoordinator.claimShutdown()
         storageHealth.close()
         lightPublisher.close()
-        adaptiveSiteGeneration.incrementAndGet()
-        brightnessObserver?.let { observer ->
-            runCatching { contentResolver.unregisterContentObserver(observer) }
-            brightnessObserver = null
-        }
+        displayPower.closeObservers()
         receivers.releaseServiceReceivers()
         closeServiceAdmissions()
         // A deliberately dark panel is the only external state that becomes unrecoverable if Android
         // kills this process after onDestroy returns (the touch-wake overlay dies with it). Give its
         // dedicated recovery owner first use of the aggregate deadline, then let it keep retrying while
         // all slower server/network teardown proceeds off-main.
-        val screenExitRecovery = ensureScreenExitRecovery()
+        val screenExitRecovery = displayPower.ensureScreenExitRecovery()
         val screenRecoveryWaitMs = teardownDeadline.remainingMs()
         if (screenRecoveryWaitMs > 0L) {
             runCatching { screenExitRecovery.get(screenRecoveryWaitMs, TimeUnit.MILLISECONDS) }
@@ -2598,19 +2213,11 @@ class PaneldService : Service() {
             // producers and hardware owners in dependency order.
             controls.stopZigbeeHealth(::closeOwnerResult)
             closeOwner("evdev") { EvdevButtonClient.stop() }
-            if (::haAmbientLux.isInitialized) closeOwner("HA ambient light") { haAmbientLux.close() }
-            if (::autoSleep.isInitialized) {
-                closeOwnerResult("auto sleep") { autoSleep.closeAndJoin(asyncTeardownDeadline.remainingMs()) }
-            }
+            displayPower.closeHaAmbientAndSleep(::closeOwner, ::closeOwnerResult, asyncTeardownDeadline)
             voiceAudio.closeVoice(::closeOwnerResult, asyncTeardownDeadline)
             if (::haLinks.isInitialized) haLinks.close(::closeOwner)
             closeOwner("sensors") { sensorPersistenceClosed.set(sensors.stop()) }
-            BuiltinDashboard.setForegroundGainedListener(null)
-            if (::autoBright.isInitialized) {
-                closeOwnerResult("adaptive brightness") {
-                    autoBright.closeAndJoin(asyncTeardownDeadline.remainingMs())
-                }
-            }
+            displayPower.closeAdaptive(::closeOwnerResult, asyncTeardownDeadline)
             controls.stopWatchdog(::closeOwner)
             // The stream transport before the camera: every client is disconnected and its lease
             // returned before the owner tears the session down, and no new client can reattach.
@@ -2623,12 +2230,7 @@ class PaneldService : Service() {
                 }
             }
             controls.closeLedEffect(::closeOwner)
-            closeOwnerResult("wake-on-wave worker") {
-                wakeOnWaveWorker.closeAndJoin(
-                    minOf(asyncTeardownDeadline.remainingMs(), WAKE_WORKER_JOIN_MS),
-                )
-            }
-            closeOwnerResult("power") { power.releaseAndVerify() }
+            displayPower.closeWakeAndPower(::closeOwnerResult, asyncTeardownDeadline)
             closeOwner("log shipper") { logShipper.stop() }
             closeOwner("performance reader") { io.panelassistant.android.http.PerfReader.stop() }
             closeOwner("app log capture") { logCaptureApp.close() }
@@ -2872,38 +2474,6 @@ class PaneldService : Service() {
         }
     }
 
-    private fun ensureScreenExitRecovery(): CompletableFuture<Boolean> {
-        screenExitRecoveryOwner.get()?.let { return it }
-        val completion = CompletableFuture<Boolean>()
-        if (!screenExitRecoveryOwner.compareAndSet(null, completion)) {
-            return checkNotNull(screenExitRecoveryOwner.get())
-        }
-        if (!::screen.isInitialized) {
-            completion.complete(true)
-            return completion
-        }
-        Thread {
-            while (!completion.isDone) {
-                val safe = runCatching { screen.restoreAndEstablishExitSafety() }
-                    .onFailure { Log.e(TAG, "screen restore before process restart failed", it) }
-                    .getOrDefault(false)
-                if (safe) {
-                    completion.complete(true)
-                    return@Thread
-                }
-                try {
-                    Thread.sleep(EXTERNAL_STATE_RETRY_MS)
-                } catch (_: InterruptedException) {
-                    // Screen recovery remains mandatory until hardware readback proves it is lit.
-                }
-            }
-        }.apply {
-            isDaemon = true
-            name = "ha-paneld-screen-exit-recovery"
-        }.start()
-        return completion
-    }
-
     /**
      * Route profile/WebView/recovery restarts through the complete Android lifecycle teardown. Closing
      * synchronous admission now prevents new hardware work before the main-loop stop reaches onDestroy;
@@ -2957,7 +2527,7 @@ class PaneldService : Service() {
                 val kioskSafe = controls.proveKioskSafe()
                 val navbarSafe = controls.proveNavbarSafe()
                 val screenSafe = runCatching {
-                    proveScreenSafeForBoundary(ensureScreenExitRecovery())
+                    proveScreenSafeForBoundary(displayPower.ensureScreenExitRecovery())
                 }.onFailure { Log.e(TAG, "screen recovery before process restart failed", it) }
                     .getOrDefault(false)
                 val relaySafe = runCatching {
@@ -3079,7 +2649,7 @@ class PaneldService : Service() {
         private const val SERVICE_DESTROY_BUDGET_MS = 1_000L
         private const val ASYNC_TEARDOWN_WAIT_MS = 10_000L
         private const val ASYNC_TEARDOWN_BUDGET_MS = 30_000L
-        private const val EXTERNAL_STATE_RETRY_MS = 1_000L
+        internal const val EXTERNAL_STATE_RETRY_MS = 1_000L
         private const val EXTERNAL_STATE_BOUNDARY_ATTEMPTS = 5
         private const val NETWORK_RECONFIGURE_BUDGET_MS = 15_000L
 
