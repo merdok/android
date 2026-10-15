@@ -71,6 +71,9 @@ class PanelAssistantDeviceStatusContractTest {
         )
         val properties = openApi.getJSONObject("components").getJSONObject("schemas")
             .getJSONObject("PanelAssistantHardware").getJSONObject("properties")
-        assertEquals(setOf("firmware", "android_release", "serial_number"), properties.keys().asSequence().toSet())
+        assertEquals(
+            setOf("firmware", "android_release", "serial_number", "network_macs"),
+            properties.keys().asSequence().toSet(),
+        )
     }
 }
