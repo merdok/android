@@ -115,7 +115,8 @@ object BuiltinDashboard {
     // watchdog return loops). The launch travels through `am start`, which can't carry that distinction
     // reliably — instead reload requesters set this in-process flag just before launching, and the
     // renderer's onNewIntent consumes it. Absent flag + healthy page = foreground only, so a kiosk
-    // snap-back no longer blanks the dashboard with a full reload.
+    // snap-back no longer blanks the dashboard with a full reload. Any page load that starts after the
+    // request also satisfies it (recordLoadStart), so a cold start or rebuild never leaves it armed.
     @Volatile private var reloadRequested = false
 
     @Volatile private var reloadReason = ""
@@ -206,10 +207,13 @@ object BuiltinDashboard {
     private var coldCaptured = false
     private val warmTti = ArrayDeque<Long>()        // recent WARM durations (ms), newest last, capped at TTI_RING
 
-    /** Record a page load STARTING. The first call since process start pins the cold-load origin. Main-thread. */
+    /** Record a page load STARTING. The first call since process start pins the cold-load origin. Main-thread.
+     *  A starting load also satisfies any pending reload request (cold start, rebuild, watchdog);
+     *  handleNewIntent reads the request before its own load starts. */
     @Synchronized fun recordLoadStart(nowMs: Long) {
         if (firstLoadStartAt < 0) firstLoadStartAt = nowMs
         lastLoadStartAt = nowMs
+        consumeSupersededReload()
     }
 
     /** Record the frontend reaching `connected`. The first connect since process start closes the cold

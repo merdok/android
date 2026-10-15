@@ -33,7 +33,11 @@ class SystemControllerTest {
         BuiltinDashboard.setActivityForeground(builtinOwner, false)
     }
 
-    @After fun releaseBuiltinDashboard() = BuiltinDashboard.releaseActivityOwner(builtinOwner)
+    @After fun releaseBuiltinDashboard() {
+        BuiltinDashboard.releaseActivityOwner(builtinOwner)
+        BuiltinDashboard.consumeSupersededReload()
+        BuiltinDashboard.resetRendererPerf()
+    }
 
     private val OWN = "io.github.maxlyth.hapaneld"
     private val MIN = "io.homeassistant.companion.android.minimal" // HA Companion (minimal)
@@ -1020,6 +1024,62 @@ class SystemControllerTest {
         val (c, _, _) = sc(env, daemon = null, su = false) // no daemon, su fails
         c.launchHome(BUILTIN)
         assertTrue("direct-start fallback", env.directStarts.contains("$OWN/io.panelassistant.android.DashboardActivity"))
+    }
+
+    // The contract: a reload request is satisfied by any page load that starts after it
+    // (BuiltinDashboard.recordLoadStart), not only by the singleTask onNewIntent. DashboardActivity's cold start (initializeRenderer -> buildAndLoad ->
+    // onLoadStarted) acquires an owner and records the load start; it never reaches handleNewIntent, so the
+    // next plain bring-to-foreground asks consumeReloadRequest() whether to show the restart card and reload.
+
+    /** Reload requested through the production caller with the relaunch actually issued (else the
+     *  controller consumes the request itself and every assertion below passes for the wrong reason). */
+    private fun requestBuiltinReloadThatLaunches() {
+        val (c, _, d) = sc(FakeSystemEnv(), daemon = mapOf("START $OWN/io.panelassistant.android.DashboardActivity" to "OK"))
+        assertTrue(c.reloadDashboard(BUILTIN, "manual retry"))
+        assertEquals(listOf("START $OWN/io.panelassistant.android.DashboardActivity"), d.sent.filter { it.startsWith("START") })
+    }
+
+    @Test fun builtinReloadStaysArmedUntilSomethingSatisfiesIt() {
+        // Control: with no load in between, the next intent must reload (proves the request is armed).
+        requestBuiltinReloadThatLaunches()
+        assertTrue(BuiltinDashboard.consumeReloadRequest())
+    }
+
+    @Test fun loadStartAfterReloadRequestSatisfiesIt_retryDashboardColdStart() {
+        // Path (a): the crash-loop fallback finished the renderer; Retry dashboard requests a reload and
+        // starts a fresh DashboardActivity, whose onCreate loads the page (the reload is now done).
+        BuiltinDashboard.releaseActivityOwner(builtinOwner)
+        requestBuiltinReloadThatLaunches()
+        builtinOwner = BuiltinDashboard.acquireActivityOwner()   // initializeRenderer
+        BuiltinDashboard.recordLoadStart(1_000L)                 // buildAndLoad -> onLoadStarted
+        // Hours later: HOME / navbar Dashboard / kiosk return delivers a plain singleTask intent.
+        assertFalse(
+            "plain return after a cold-start load still sees reload=true: restart card + reload of a healthy page",
+            BuiltinDashboard.consumeReloadRequest(),
+        )
+        assertEquals("no restart reason left to announce", "", BuiltinDashboard.consumeReloadReason())
+    }
+
+    @Test fun loadStartAfterReloadDuringPreparationSatisfiesIt() {
+        // Path (b): the fresh instance owns the renderer but is still preparing (activityConfig unset, so
+        // handleNewIntent returns early); Panel Assistant's reload arrives now, then the first load starts.
+        BuiltinDashboard.releaseActivityOwner(builtinOwner)
+        builtinOwner = BuiltinDashboard.acquireActivityOwner()   // initializeRenderer, before preparation suspends
+        requestBuiltinReloadThatLaunches()                       // onNewIntent -> early return, nothing consumed
+        BuiltinDashboard.recordLoadStart(2_000L)                 // preparation done -> buildAndLoad -> onLoadStarted
+        assertFalse(
+            "plain return after the cold-start load still sees reload=true: restart card + reload of a healthy page",
+            BuiltinDashboard.consumeReloadRequest(),
+        )
+    }
+
+    @Test fun reloadReadBeforeItsOwnLoadStartKeepsItsReason() {
+        // handleNewIntent order: read the request and its reason, then start the reload's own page load.
+        val (c, _, _) = sc(FakeSystemEnv(), daemon = mapOf("START $OWN/io.panelassistant.android.DashboardActivity" to "OK"))
+        assertTrue(c.reloadDashboard(BUILTIN, BuiltinDashboard.LEARNING_RELOAD_REASON))
+        assertTrue("the intent must still see the reload it was sent for", BuiltinDashboard.consumeReloadRequest())
+        assertEquals("learning card reason", BuiltinDashboard.LEARNING_RELOAD_REASON, BuiltinDashboard.consumeReloadReason())
+        BuiltinDashboard.recordLoadStart(3_000L)
     }
 
     @Test fun builtinReloadRelaunchesActivity() {
