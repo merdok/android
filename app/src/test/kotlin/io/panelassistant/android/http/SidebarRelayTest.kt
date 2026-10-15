@@ -163,6 +163,17 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
         }
     }
 
+    @Test fun aRelayedLongOperationWithATwoMinuteDeadlineRuns() {
+        // The page gives backup, restore, config import and APK install two minutes (deadline_ms 120000).
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.manageTable.register("probe.long", ManageKind.COMMAND) { ManageReply("applied", null, JSONObject()) }
+            Session({ fixture.door }) { op, args, onPending -> fixture.server.managementRequest(op, args, onPending, auth) }.use { session ->
+                session.deliver(manage("l1", "probe.long").put("deadline_ms", 120_000))
+                assertEquals("applied", session.answer("l1").getString("outcome"))
+            }
+        }
+    }
+
     @Test fun aMalformedOriginNeverRunsAndNeverAsPanelAssistant() {
         val ran = AtomicInteger()
         val table = ManageTable().apply { register("probe.write", ManageKind.COMMAND) { ran.incrementAndGet(); ManageReply("applied", null) } }
