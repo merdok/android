@@ -1002,13 +1002,17 @@ class EntityLearningManager(
                         RuntimePromotionDecision.UNCHANGED -> Unit
                         RuntimePromotionDecision.CAPPED -> store.markStatus(
                             snapshot.instanceKey, snapshot.dashboardPath,
-                            "degraded", "runtime dependencies queued; synchronize manually",
+                            "degraded", PROMOTION_CAP_ERROR,
                         )
                         RuntimePromotionDecision.PROMOTE -> {
                             check(config.commitDashboardEntitySubscription(true, active, applied = true)) {
                                 "failed to commit runtime entity promotion"
                             }
                             promotionsInWindow++
+                            // Clear only the cap's own degraded status; a failed sync's error stays.
+                            if (store.snapshot(snapshot.instanceKey, snapshot.dashboardPath).error == PROMOTION_CAP_ERROR) {
+                                store.markStatus(snapshot.instanceKey, snapshot.dashboardPath, "active")
+                            }
                             onFilterChanged()
                         }
                     }
@@ -1842,6 +1846,7 @@ class EntityLearningManager(
         private const val PROMOTION_DEBOUNCE_MS = 20_000L
         private const val PROMOTION_WINDOW_MS = 10L * 60_000
         private const val MAX_PROMOTIONS = 2
+        private const val PROMOTION_CAP_ERROR = "runtime dependencies queued; synchronize manually"
         private const val MAX_DYNAMIC_EXPRESSIONS = 128
         private const val MAX_TELEMETRY_IDS = EntityFilterProtocol.MAX_ENTITY_IDS
         private const val PERFORMANCE_SUMMARY_CACHE_MS = 10_000L
