@@ -232,6 +232,31 @@ internal class ManageDoorTest : PanelRuntimeRig() {
         assertEquals(JSONArray(listOf("three", "four")).toString(), updates.poll(5, TimeUnit.SECONDS))
     }
 
+    @Test fun aSecondLogViewerOfOneOwnerAtTheViewerLimitStillFollows() {
+        // One viewer at a time, and a closing viewer takes a moment to let go of its place.
+        val held = java.util.concurrent.atomic.AtomicBoolean(false)
+        val table = ManageTable().apply {
+            logSources = ManageLogSources { _ ->
+                object : ManageLogSource {
+                    override fun backlog() = listOf("one")
+                    override fun follow(onLine: (String) -> Unit): AutoCloseable? {
+                        if (!held.compareAndSet(false, true)) return null
+                        return AutoCloseable { Thread.sleep(200); held.set(false) }
+                    }
+                }
+            }
+        }
+        val rig = managedRig(table, families = mapOf("logs" to ManageFamily("logs", FLOOR_MS, emptyList(), append = true)))
+        val origin = CommandOrigin.peer("192.0.2.7")
+        val first = LinkedBlockingQueue<String>()
+        val second = LinkedBlockingQueue<String>()
+        rig.commands.subscribe("logs", origin) { update, known, delivered -> first.put("$known $update"); delivered() }
+        assertEquals("true [\"one\"]", first.poll(5, TimeUnit.SECONDS))
+        rig.commands.subscribe("logs", origin) { update, known, delivered -> second.put("$known $update"); delivered() }
+
+        assertEquals("the second viewer follows once the first has let go", "true [\"one\"]", second.poll(5, TimeUnit.SECONDS))
+    }
+
     /** The production mount enters every page-called route under its section 20.6 name, each name once. */
     @Test fun theProductionMountRegistersThePageCalledNames() {
         PaneldServerHttpFixture().use { fixture ->

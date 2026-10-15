@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -395,9 +396,9 @@ internal class ManageOperations(
             replaceSink(newSink, newArgs)
             // A new log viewer gets its own source's backlog first, as a new stream does.
             if (definition.append && worker != null) {
-                worker?.cancel()
                 synchronized(slot) { unsent = null }
-                start()
+                // The old follower lets go of its viewer place first, so a capture at its viewer limit admits this one.
+                start(after = worker)
             }
             return handle
         }
@@ -423,8 +424,9 @@ internal class ManageOperations(
         /** The last value sent or queued, compared by its encoding ([UNAVAILABLE] when it could not be read); null before the first. */
         private var last: String? = null
 
-        fun start() {
+        fun start(after: Job? = null) {
             worker = scope.launch {
+                after?.cancelAndJoin()
                 if (definition.append) followLogs() else poll()
             }
         }
