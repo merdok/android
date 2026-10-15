@@ -1,13 +1,19 @@
 package io.panelassistant.android
 
 import android.content.ContextWrapper
+import android.content.Intent
 import android.os.Handler
 import android.webkit.ValueCallback
 import android.webkit.WebView
+import androidx.appcompat.app.AppCompatActivity
 import io.panelassistant.android.control.BuiltinDashboard
+import io.panelassistant.android.dashboard.EntityLearningProtocol
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import java.lang.reflect.Proxy
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
 /**
  * A [DashboardActivity] on the plain JVM, for tests that drive its own renderer entry points (the
@@ -25,6 +31,21 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
     val owner = BuiltinDashboard.acquireActivityOwner()
     val cover = DashboardWebCover(activity, main)
     private val bridge = DashboardFrontendBridge(main, CoroutineScope(Job()), proxy(DashboardFrontendBridge.Host::class.java))
+    val config = Config(fakePreferences(prefs).instance)
+    private val entityGate = DashboardEntityGate(
+        activity = allocate(AppCompatActivity::class.java),
+        main = main,
+        scope = CoroutineScope(Dispatchers.Unconfined),
+        statusScreens = allocate(DashboardStatusScreens::class.java),
+        host = object : DashboardEntityGate.Host {
+            override val activityOwner get() = owner
+            override val destroyed get() = false
+            override val screenAwake get() = get("screenAwake") as Boolean
+            override fun buildAndLoad(config: Config) = error("no rebuild expected")
+            override fun teardownWeb() = error("no teardown expected")
+        },
+        readConfig = { config },
+    )
 
     init {
         set("main", main)
@@ -34,7 +55,12 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         set("shownPage", ShownPageTracker())
         set("webCover\$delegate", lazyOf(cover))
         set("activityOwner", owner)
-        set("activityConfig", Config(fakePreferences(prefs).instance))
+        set("activityConfig", config)
+        set("entityGate", entityGate)
+        set("statusScreens", allocate(DashboardStatusScreens::class.java))
+        BuiltinDashboard.consumeNavPath()
+        BuiltinDashboard.consumeReloadRequest()
+        BuiltinDashboard.consumeReloadReason()
         set("retryPolicy", DashboardRetryPolicy())
         set("wakeMediaRecovery", WakeMediaRecoveryGate())
         set("screenAwake", true)
@@ -45,6 +71,26 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         set("web", view)
         DashboardFrontendBridge::class.java.getDeclaredField("v2ListenerView").apply { isAccessible = true }.set(bridge, view)
         committed?.let { (get("shownPage") as ShownPageTracker).onCommitVisible(it) }
+    }
+
+    /** The state after admission loaded [home]: compatibility checked for this address, the home dashboard
+     *  resolved for this credential and path, and the entity filter and theme baked as configured. */
+    fun admitted(home: String = "lovelace") = runBlocking {
+        set("compatibilityReadyUrl", HA)
+        set("homeDashboardResolution", OwnedHomeDashboardResolution(
+            HomeDashboardResolutionOwner(config.haAuthSnapshot().stableOwner(), config.homeDashboard.trim()),
+            EntityLearningProtocol.HomeDashboardResolution(home, EntityLearningProtocol.HomeDashboardSource.EXPLICIT),
+        ))
+        set("dashboardThemeSignature", config.dashboardThemeEffective)
+        entityGate.configureEntityFilter(config, entityGate.prepareEntityFilter(config))
+    }
+
+    /** Deliver a relaunch to the renderer's own intent handling, as `onNewIntent` does, and wait for it. */
+    fun relaunch(intent: Intent?) = runBlocking { suspendCall("handleNewIntent", intent) }
+
+    private suspend fun suspendCall(name: String, vararg args: Any?): Any? {
+        val method = DashboardActivity::class.java.declaredMethods.single { it.name == name }.apply { isAccessible = true }
+        return suspendCoroutineUninterceptedOrReturn { continuation -> method.invoke(activity, *args, continuation) }
     }
 
     /** Stand the reconnecting or latch cover over the page, as showReconnecting or the latch page leaves it. */

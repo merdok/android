@@ -63,3 +63,47 @@ internal enum class RendererEvent {
     /** A navigate, an explicit reload or a configuration change: the person's consent to try again. */
     CONSENT,
 }
+
+/**
+ * Why the live renderer no longer embodies its configuration, in the order the renderer reports it. One
+ * rebuild applies every cause found; each says what that rebuild must reset before building again.
+ */
+internal enum class RendererRebuildCause(
+    /** Ask Home Assistant's compatibility again: the admitted address or route is no longer the one wanted. */
+    val readmit: Boolean,
+    /** Resolve the home dashboard again: its owner (credential and configured path) or its route moved. */
+    val resolveHome: Boolean,
+    /** A change someone made is the consent to retry a refused login and restart the handshake cadence. */
+    val consent: Boolean,
+) {
+    /** The Home Assistant route changed: a failover to a peer address, or a new address or credential. */
+    ROUTE(readmit = true, resolveHome = true, consent = false),
+
+    /** Credentials arrived while the on-panel sign-in was showing (a browser sign-in, a restore). */
+    SIGNED_IN(readmit = false, resolveHome = false, consent = true),
+
+    /** The Home Assistant address differs from the one admission checked. */
+    ENDPOINT(readmit = true, resolveHome = false, consent = true),
+
+    /** The home dashboard's owner (credential or configured path) differs from the one resolved. */
+    HOME_DASHBOARD(readmit = false, resolveHome = true, consent = true),
+
+    /** The entity filter or learning mode differs from the one baked into the document-start script. */
+    ENTITY_FILTER(readmit = false, resolveHome = false, consent = true),
+
+    /** The dashboard theme policy differs from the one baked into the document-start script. */
+    THEME(readmit = false, resolveHome = false, consent = true),
+}
+
+/**
+ * Whether a change to [key] makes the renderer reconcile at once, whoever wrote it (a settings page, a
+ * Panel Assistant entity, an import): every setting it bakes in or was admitted with. The entity-filter
+ * settings are the exception, because their owner, the learner, rebuilds once it has re-learned the set;
+ * reconciling them here too would rebuild twice.
+ */
+internal fun rendererReconcilesOnChange(key: String, sdkInt: Int): Boolean =
+    when (io.panelassistant.android.config.SettingsRegistry.rendererApply(key, sdkInt)) {
+        io.panelassistant.android.config.RendererApply.READMIT -> true
+        io.panelassistant.android.config.RendererApply.REBUILD -> !key.startsWith("dashboard_entity_")
+        else -> false
+    }

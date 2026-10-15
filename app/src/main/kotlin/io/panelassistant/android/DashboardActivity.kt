@@ -63,7 +63,8 @@ import kotlinx.coroutines.withContext
 
 internal fun shouldRouteDashboardHomeToAdmin(
     configuredLauncherPackage: String,
-    ownPackage: String,
+    // Nullable as the platform reports it: an activity with no package (only off-device) never routes.
+    ownPackage: String?,
     action: String?,
     categories: Set<String>?,
 ): Boolean = configuredLauncherPackage == ownPackage &&
@@ -160,6 +161,12 @@ class DashboardActivity : AppCompatActivity() {
         }
     })
     private var newIntentJob: Job? = null
+    // A setting changed while a reconcile was under way: reconcile once more when it ends, rather than
+    // replacing it and dropping the navigate or reload its relaunch carried.
+    private var reconcileAgain = false
+    // The route epoch moved; the next reconcile re-admits. Kept until one consumes it, so a cancelled
+    // reconcile cannot lose it.
+    private var routeChangePending = false
     private val rendererGate = RendererGenerationGate()
     private val wakeMediaRecovery = WakeMediaRecoveryGate()
     private var rendererGeneration = 0L
@@ -174,17 +181,10 @@ class DashboardActivity : AppCompatActivity() {
     @Volatile private var destroyed = false
     private var rendererRoute: HaConnectionRoute? = null
     private val rendererPowerListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == HaConnectionRoutes.EPOCH_KEY) runOnUiThread {
-            if (!destroyed && ::activityConfig.isInitialized && BuiltinDashboard.ownsActivity(activityOwner)) {
-                compatibilityJob?.cancel()
-                compatibilityCheckingOwner = null
-                compatibilityReadyUrl = null
-                compatibilityAttempts.invalidate()
-                invalidateHomeDashboardResolution()
-                teardownWeb()
-                buildAndLoad(activityConfig)
-            }
-        }
+        // Configuration is an ordinary input: the route epoch (a failover, or a new address or credential)
+        // and every setting the renderer bakes in or was admitted with go to the one reconcile.
+        if (key == HaConnectionRoutes.EPOCH_KEY) runOnUiThread { routeChangePending = true; reconcileConfiguration() }
+        if (key != null && rendererReconcilesOnChange(key, android.os.Build.VERSION.SDK_INT)) runOnUiThread { reconcileConfiguration() }
         if (key == "dashboard_network_warning") runOnUiThread { if (!destroyed) redrawLifecycleBar() }
         if (key == "prevent_idle_dim") {
             runOnUiThread {
@@ -759,9 +759,26 @@ class DashboardActivity : AppCompatActivity() {
         setIntent(intent)
         entityGate.supersedePreparation()
         newIntentJob?.cancel()
-        newIntentJob = activityScope.launch { handleNewIntent(intent) }
+        newIntentJob = activityScope.launch { reconcile(intent) }
     }
 
+    /** A renderer setting or the route epoch changed: reconcile with no intent, after any reconcile under way. */
+    private fun reconcileConfiguration() {
+        if (destroyed || !::activityConfig.isInitialized || !BuiltinDashboard.ownsActivity(activityOwner)) return
+        if (newIntentJob?.isActive == true) { reconcileAgain = true; return }
+        newIntentJob = activityScope.launch { reconcile(null) }
+    }
+
+    private suspend fun reconcile(intent: Intent?) {
+        handleNewIntent(intent)
+        while (reconcileAgain && !destroyed) {
+            reconcileAgain = false
+            handleNewIntent(null)
+        }
+    }
+
+    /** Reconcile what the live renderer embodies with the configuration, then act on [intent]: a navigate,
+     *  an explicit reload or a plain return to the foreground. Null [intent] is a configuration change alone. */
     private suspend fun handleNewIntent(intent: Intent?) {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         if (!::activityConfig.isInitialized) return // the changed epoch makes initial preparation repeat
@@ -798,78 +815,27 @@ class DashboardActivity : AppCompatActivity() {
             }
             return
         }
-        // Credentials arrived while the on-panel sign-in was showing — typically because the user signed
-        // in from a browser instead, but also provisioning or a token restore. The current WebView is the
-        // bare sign-in page: its client only permits the OAuth navigation and it carries no dashboard
-        // bridge, so the reuse path below would load the dashboard URL into it, HA would find no external
-        // auth and bounce straight back to its own login, and the panel would appear to loop the sign-in
-        // page forever. Tear it down and build the real renderer instead.
-        if (signInShownForUrl != null && !haSignInPending(config.haUrl, config.haToken, config.haRefreshToken)) {
-            Log.i(TAG, "credentials present — leaving the on-panel sign-in for the dashboard")
-            BuiltinDashboard.consumeSupersededReload()
-            consentToRetry("credentials arrived during sign-in")
-            teardownWeb()
-            entityGate.configureEntityFilter(config, prepared)
-            buildAndLoad(config)
-            return
-        }
-        if (compatibilityReadyUrl != null && compatibilityReadyUrl != normalizedUrl) {
-            Log.i(TAG, "Home Assistant endpoint changed — rebuilding and rechecking the V2 renderer")
-            BuiltinDashboard.consumeSupersededReload()
-            compatibilityJob?.cancel()
-            compatibilityCheckingOwner = null
-            compatibilityReadyUrl = null
-            compatibilityAttempts.invalidate()
-            consentToRetry("Home Assistant endpoint change")
-            teardownWeb()
-            entityGate.configureEntityFilter(config, prepared)
-            buildAndLoad(config)
-            return
-        }
         val activeHomeDashboardOwner = homeDashboardResolution?.owner ?: homeDashboardCheckingOwner
-        if (activeHomeDashboardOwner != null && activeHomeDashboardOwner != homeDashboardOwner(config)) {
-            Log.i(TAG, "dashboard authority changed — resolving the authenticated dashboard list again")
-            BuiltinDashboard.consumeSupersededReload()
-            invalidateHomeDashboardResolution()
-            consentToRetry("dashboard authority change")
-            teardownWeb()
-            entityGate.configureEntityFilter(config, prepared)
-            buildAndLoad(config)
+        val causes = buildList {
+            if (routeChangePending) add(RendererRebuildCause.ROUTE)
+            // The current WebView is the bare sign-in page: its client only permits the OAuth navigation and
+            // it carries no dashboard bridge, so loading the dashboard into it would loop the sign-in.
+            if (signInShownForUrl != null) add(RendererRebuildCause.SIGNED_IN)
+            if (compatibilityReadyUrl != null && compatibilityReadyUrl != normalizedUrl) add(RendererRebuildCause.ENDPOINT)
+            if (activeHomeDashboardOwner != null && activeHomeDashboardOwner != homeDashboardOwner(config)) {
+                add(RendererRebuildCause.HOME_DASHBOARD)
+            }
+            // Document-start scripts cannot be replaced in an existing WebView, so a filter-set, learning-mode
+            // or theme-policy change rebuilds only the WebView, keeping the service and the process alive.
+            if (prepared.signature != entityGate.entityFilterSignature) add(RendererRebuildCause.ENTITY_FILTER)
+            if (config.dashboardThemeEffective != dashboardThemeSignature) add(RendererRebuildCause.THEME)
+        }
+        routeChangePending = false
+        if (causes.isNotEmpty()) {
+            rebuildFor(causes, config, prepared)
             return
         }
-        // The filter endpoint reloads this singleTask activity after committing. Document-start scripts
-        // cannot be replaced in an existing WebView, so a filter-set change or learning-mode change
-        // deliberately rebuilds only the WebView while keeping the foreground service and app process alive.
-        val nextFilterSignature = prepared.signature
-        if (nextFilterSignature != entityGate.entityFilterSignature) {
-            Log.i(TAG, "entity instrumentation changed — rebuilding dashboard WebView")
-            // The learner's reload lands here with its reason pending. Only it is a learning restart;
-            // a hand edit of the filter or a settings change announces as a lone restart.
-            statusScreens.announceDeliberateRestart(
-                getString(R.string.optimizing_entities_restart),
-                learning = BuiltinDashboard.consumeSupersededReload() == BuiltinDashboard.LEARNING_RELOAD_REASON,
-            )
-            consentToRetry("entity-filter change")
-            teardownWeb()
-            entityGate.configureEntityFilter(config, prepared)
-            buildAndLoad(config)
-            return
-        }
-        // Same reason as the filter set above: the theme policy is carried by a document-start script,
-        // which the WebView fixes at creation. Rebuilding is also what makes the change reversible —
-        // the fresh script runs the hand-back transaction before Home Assistant's own bootstrap reads
-        // the store, so the restored value is the one the frontend boots with.
-        val nextThemeSignature = config.dashboardThemeEffective
-        if (nextThemeSignature != dashboardThemeSignature) {
-            Log.i(TAG, "dashboard theme policy changed — rebuilding dashboard WebView")
-            BuiltinDashboard.consumeSupersededReload()
-            statusScreens.announceDeliberateRestart(getString(R.string.applying_dashboard_theme))
-            consentToRetry("theme policy change")
-            teardownWeb()
-            entityGate.configureEntityFilter(config, prepared)
-            buildAndLoad(config)
-            return
-        }
+        if (intent == null) return
         val nav = BuiltinDashboard.consumeNavPath()
         val reload = BuiltinDashboard.consumeReloadRequest()
         val reloadReason = BuiltinDashboard.consumeReloadReason()
@@ -885,6 +851,11 @@ class DashboardActivity : AppCompatActivity() {
             sendBusNavigate(nav)
             return
         }
+        // A plain return to the foreground (the kiosk and watchdog return loops, HOME) is not consent. It
+        // never replays a refused login, never restarts a load already in flight and never re-runs admission
+        // over a status screen, which owns its own retry. Only the reconnecting page, which only a fresh
+        // load replaces, is loaded again at once.
+        if (nav == null && !reload && phase != RendererPhase.RECONNECTING) return
         consentToRetry("new load") // a deliberate reload/navigate (or a config change) is the retry consent
         if (w == null) { buildAndLoad(config); return }  // defensive: relaunched with no WebView built
         // Re-apply force-dark (only set at WebView creation otherwise) and, on the no-system-dark-mode
@@ -919,6 +890,35 @@ class DashboardActivity : AppCompatActivity() {
             w.loadUrl(url)
         }
         onLoadStarted()
+    }
+
+    /** Rebuild the renderer once for every cause [handleNewIntent] found, resetting what they need. */
+    private fun rebuildFor(causes: List<RendererRebuildCause>, config: Config, prepared: PreparedEntityFilter) {
+        Log.i(TAG, "renderer no longer embodies its configuration (${causes.joinToString { it.name.lowercase() }}) — rebuilding")
+        // A rebuild satisfies a pending reload request. The learner's reload lands here with its reason
+        // pending: only it is a learning restart; a hand edit or a settings change announces as a lone one.
+        val superseded = BuiltinDashboard.consumeSupersededReload()
+        when {
+            RendererRebuildCause.ENTITY_FILTER in causes -> statusScreens.announceDeliberateRestart(
+                getString(R.string.optimizing_entities_restart),
+                learning = superseded == BuiltinDashboard.LEARNING_RELOAD_REASON,
+            )
+            // The fresh theme script runs the hand-back transaction before Home Assistant's own bootstrap
+            // reads the store, so the restored value is the one the frontend boots with.
+            RendererRebuildCause.THEME in causes ->
+                statusScreens.announceDeliberateRestart(getString(R.string.applying_dashboard_theme))
+        }
+        if (causes.any { it.readmit }) {
+            compatibilityJob?.cancel()
+            compatibilityCheckingOwner = null
+            compatibilityReadyUrl = null
+            compatibilityAttempts.invalidate()
+        }
+        if (causes.any { it.resolveHome }) invalidateHomeDashboardResolution()
+        if (causes.any { it.consent }) consentToRetry(causes.first().name.lowercase())
+        teardownWeb()
+        entityGate.configureEntityFilter(config, prepared)
+        buildAndLoad(config)
     }
 
     // --- frontend-handshake watchdog + reconnect ---
