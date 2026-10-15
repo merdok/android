@@ -170,7 +170,7 @@ internal fun Route.haOAuthRoutes(dependencies: HaOAuthRouteDependencies) {
             val claim = dependencies.claim(call.request.queryParameters["state"].orEmpty(), panelOrigin)
             val attempt = when (claim) {
                 is HaOAuthClaim.Claimed -> claim.attempt
-                HaOAuthClaim.Invalid -> return@get call.respondHaOAuthPage(
+                is HaOAuthClaim.Invalid -> return@get call.respondHaOAuthPage(
                     false,
                     "This sign-in link has expired or was already used.",
                 )

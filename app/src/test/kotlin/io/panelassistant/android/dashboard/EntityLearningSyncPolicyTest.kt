@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -122,6 +123,15 @@ class EntityLearningSyncPolicyTest {
         assertFalse(shouldPersistEntityLearningFailure(7, 8, "instance-a", "/dash", "instance-a", "/dash"))
         assertFalse(shouldPersistEntityLearningFailure(7, 7, "instance-a", "/dash", "instance-b", "/dash"))
         assertFalse(shouldPersistEntityLearningFailure(7, 7, "instance-a", "/dash", "instance-a", "/other"))
+    }
+
+    @Test fun aRouteChangeMidScanRerunsOnceInsteadOfPersistingDegraded() {
+        assertEquals(ROUTE_CHANGED_RERUN_REASON, entityLearningRerunAfterFailure(EntityLearningRouteChanged(), "target-change"))
+        // The rerun that loses its route again persists, so a flapping route cannot loop.
+        assertNull(entityLearningRerunAfterFailure(EntityLearningRouteChanged(), ROUTE_CHANGED_RERUN_REASON))
+        // Any other failure stands, including one whose text merely mentions a route.
+        assertNull(entityLearningRerunAfterFailure(IllegalStateException("Home Assistant route changed"), "manual"))
+        assertNull(entityLearningRerunAfterFailure(IllegalStateException("Home Assistant credential changed"), "manual"))
     }
 
     @Test fun concurrentDisableCannotBeOvertakenByAnAlreadyRunningActivation() {

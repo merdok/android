@@ -470,8 +470,12 @@ class EntityLearningManager(
                     .onFailure {
                         if (it is CancellationException && it !is TimeoutCancellationException) return@onFailure
                         Log.w(TAG, "entity catalog sync failed ($reason): ${it.message}")
-                        // A superseded request must not stamp its failure onto the newly-selected target.
-                        if (shouldPersistEntityLearningFailure(
+                        val rerun = entityLearningRerunAfterFailure(it, reason)
+                        if (rerun != null) {
+                            // Picked up by the completion latch below, like a request that arrived mid-scan.
+                            synchronized(this@EntityLearningManager) { if (syncRerunReason == null) syncRerunReason = rerun }
+                        } else if (shouldPersistEntityLearningFailure(
+                                // A superseded request must not stamp its failure onto the newly-selected target.
                                 requestGeneration,
                                 effectGeneration.get(),
                                 fallbackInstance,
@@ -1602,7 +1606,7 @@ class EntityLearningManager(
     }
 
     private fun adoptStableTarget(target: AuthenticatedTarget, uuid: String): AuthenticatedTarget {
-        check(HaConnectionRoutes.isCurrent(config, target.route)) { "Home Assistant route changed" }
+        if (!HaConnectionRoutes.isCurrent(config, target.route)) throw EntityLearningRouteChanged()
         check(target.generation == effectGeneration.get()) { "entity-learning target changed during discovery" }
         check(EntityFilterProtocol.origin(config.haUrl) == target.origin && dashboardPath() == target.dashboardPath) {
             "entity-learning target changed during discovery"
@@ -1619,7 +1623,7 @@ class EntityLearningManager(
     }
 
     private fun captureSyncSnapshot(target: AuthenticatedTarget): EntityLearningSyncSnapshot {
-        check(HaConnectionRoutes.isCurrent(config, target.route)) { "Home Assistant route changed" }
+        if (!HaConnectionRoutes.isCurrent(config, target.route)) throw EntityLearningRouteChanged()
         check(target.generation == effectGeneration.get()) { "entity-learning target changed before scan" }
         val state = currentEffectState()
         check(state.origin == target.origin && state.instanceKey == target.instanceKey &&

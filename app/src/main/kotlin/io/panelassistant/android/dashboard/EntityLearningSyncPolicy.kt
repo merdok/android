@@ -153,6 +153,19 @@ internal fun supersedeEntityLearningSync(current: Job?, clearQueuedRerun: () -> 
     return null
 }
 
+/** The Home Assistant route a scan authenticated on stopped being current mid-scan. */
+internal class EntityLearningRouteChanged : IllegalStateException("Home Assistant route changed")
+
+internal const val ROUTE_CHANGED_RERUN_REASON = "route-changed"
+
+/**
+ * The rerun a failed scan owes, or null when its failure stands. A route change supersedes the scan the
+ * way a new generation does, so it reruns once on the new route instead of persisting `degraded`; a
+ * rerun that loses its route again persists, so a flapping route cannot loop.
+ */
+internal fun entityLearningRerunAfterFailure(error: Throwable, reason: String): String? =
+    ROUTE_CHANGED_RERUN_REASON.takeIf { error is EntityLearningRouteChanged && reason != ROUTE_CHANGED_RERUN_REASON }
+
 /** Persist failures only for the generation and target that admitted the scan. */
 internal fun shouldPersistEntityLearningFailure(
     requestGeneration: Long,

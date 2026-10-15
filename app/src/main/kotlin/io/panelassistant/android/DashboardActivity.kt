@@ -710,9 +710,7 @@ class DashboardActivity : AppCompatActivity() {
             // If we're not the visible dashboard, reload right now rather than risk an OOM renderer kill.
             if (!screenAwake || !BuiltinDashboard.foreground) {
                 reloadPending = false
-                lastFullLoadAt = SystemClock.elapsedRealtime()
-                doReloadNoWatchdog("memory pressure L$level")
-                if (!screenAwake) scheduleDarkSettle()
+                memoryReload("memory pressure L$level")
             }
         }
     }
@@ -722,10 +720,18 @@ class DashboardActivity : AppCompatActivity() {
         if (maintenanceFence.stop(this)) return
         if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !authLatched &&
             (!screenAwake || !BuiltinDashboard.foreground)) {
-            lastFullLoadAt = SystemClock.elapsedRealtime()
-            doReloadNoWatchdog("onLowMemory")
-            if (!screenAwake) scheduleDarkSettle()
+            memoryReload("onLowMemory")
         }
+    }
+
+    /** A memory reload while the dashboard is not what the person sees. Lit (an overlay or another
+     *  activity in front), it is an ordinary load and the handshake watchdog retries one that does not
+     *  connect; dark, the settle window governs it, so a dark panel never reload-loops. */
+    private fun memoryReload(reason: String) {
+        if (screenAwake) { doReload(reason); return }
+        lastFullLoadAt = SystemClock.elapsedRealtime()
+        doReloadNoWatchdog(reason)
+        scheduleDarkSettle()
     }
 
     /** Hand off to ha-paneld's admin launcher and finish — the never-strand fallback for a missing
@@ -1895,13 +1901,21 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /** Resolve before WebView creation; entity learning may be disabled or may never have scanned. */
+    /** A dashboard-phase block replaces the admission verdict with BLOCKED, so the compatibility pass
+     *  that admitted this URL no longer stands: a later rebuild must re-admit (recording ADMITTED again)
+     *  rather than reuse it, or status keeps naming the block over a dashboard that rendered. */
+    private fun showDashboardBlocked(title: String, detail: String, outcome: AdmissionOutcome) {
+        compatibilityReadyUrl = null
+        statusScreens.showBlockedAdmissionScreen(title, detail, outcome)
+    }
+
     private fun resolveHomeDashboardAndLoad(config: Config) {
         val owner = homeDashboardOwner(config)
         val owned = homeDashboardResolution?.takeIf { it.owner == owner }
         if (owned != null && owned.confirmed) {
             val path = owned.resolution.path
             if (path == null) {
-                statusScreens.showBlockedAdmissionScreen(
+                showDashboardBlocked(
                     getString(R.string.no_dashboard_title),
                     getString(R.string.no_dashboard_detail),
                     AdmissionOutcome.NO_LEGAL_DASHBOARD,
@@ -2008,7 +2022,7 @@ class DashboardActivity : AppCompatActivity() {
                 // A transient failure neither erases the persisted cache nor tears down the page it
                 // admitted: with the provisional dashboard rendering, retry quietly behind it.
                 if (shownPath == null || web == null) {
-                    statusScreens.showBlockedAdmissionScreen(
+                    showDashboardBlocked(
                         getString(R.string.dashboard_list_unavailable),
                         getString(R.string.dashboard_list_unavailable_detail),
                         AdmissionOutcome.DASHBOARD_LIST_UNREADABLE,
@@ -2037,14 +2051,14 @@ class DashboardActivity : AppCompatActivity() {
                     // would claim a convergence that did not happen; keep the retry armed instead so
                     // the invalidation is attempted again.
                     Log.e(TAG, "home dashboard cache invalidation did not commit — retrying before settling")
-                    statusScreens.showBlockedAdmissionScreen(
+                    showDashboardBlocked(
                         getString(R.string.no_dashboard_title),
                         getString(R.string.no_dashboard_cache_clear_detail),
                         AdmissionOutcome.DASHBOARD_LIST_UNREADABLE,
                     )
                     return@launch
                 }
-                statusScreens.showBlockedAdmissionScreen(
+                showDashboardBlocked(
                     getString(R.string.no_dashboard_title),
                     getString(R.string.no_dashboard_detail),
                     AdmissionOutcome.NO_LEGAL_DASHBOARD,

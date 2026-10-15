@@ -99,6 +99,10 @@ class AdbController private constructor(
             // convert an interrupted teardown into TCP enablement merely because config ownership is
             // still true from the pre-teardown state.
             if (disableMarker.isPending()) return@mutate false
+            // Without root the app cannot open the port, so recording the intent would leave a switch
+            // that reads ON over a port the app never owned (and, before OFF learned the same rule, one
+            // it could not turn off).
+            if (!available()) return@mutate false
             if (!config.setNetworkAdbEnabled(true)) return@mutate false
             return@mutate apply()
         }
@@ -158,6 +162,7 @@ class AdbController private constructor(
 
     private fun completeDisableTransition(): Boolean = completeNetworkAdbDisableTransition(
         owned = { config.networkAdbEnabled },
+        rootAvailable = ::available,
         disablePending = disableMarker::isPending,
         armDisable = disableMarker::arm,
         teardown = { Su.run(networkAdbDisableCommand()) },
@@ -333,6 +338,7 @@ internal class NetworkAdbDisableTransitionMarker(private val file: File) {
  * durable marker or the already-safe ownership=false state, so the next process can repeat the work. */
 internal fun completeNetworkAdbDisableTransition(
     owned: () -> Boolean,
+    rootAvailable: () -> Boolean = { true },
     disablePending: () -> Boolean,
     armDisable: () -> Boolean,
     teardown: () -> Boolean,
@@ -341,6 +347,13 @@ internal fun completeNetworkAdbDisableTransition(
     clearDisable: () -> Boolean,
 ): Boolean {
     if (!owned() && !disablePending()) return true // externally-active adb — don't kill it
+    if (!rootAvailable()) {
+        // The app cannot have opened a port it has no root to open, so the intent is all OFF can clear;
+        // a listener there belongs to whatever started it (Panel Assistant's own ADB session, say). A
+        // pending marker from a rooted past stays armed for the next reassert with root.
+        if (!clearOwnership() || owned()) return false
+        return !disablePending()
+    }
     if (!armDisable()) return false
     if (!teardown()) return false
     if (!inactiveReadback()) return false

@@ -141,9 +141,20 @@ internal data class HaOAuthAttempt(
 
 internal data class HaOAuthStart(val authorizationUrl: String)
 
+/** Why a callback's state was refused, so a rejected sign-in names its cause in the log. */
+internal enum class HaOAuthRejection {
+    MALFORMED,
+    /** A newer start replaced it: only the most recent login stays usable. */
+    SUPERSEDED,
+    EXPIRED,
+    ALREADY_USED,
+    /** This process never issued it: the app or its HTTP server restarted after the start. */
+    UNKNOWN,
+}
+
 internal sealed class HaOAuthClaim {
     data class Claimed(val attempt: HaOAuthAttempt) : HaOAuthClaim()
-    object Invalid : HaOAuthClaim()
+    data class Invalid(val why: HaOAuthRejection) : HaOAuthClaim()
     object WrongOrigin : HaOAuthClaim()
 }
 
@@ -155,6 +166,11 @@ internal class HaOAuthFlow(
     private data class Pending(val attempt: HaOAuthAttempt, val expiresAtMillis: Long)
 
     private val pending = LinkedHashMap<String, Pending>()
+
+    /** The last few states that stopped being usable and why; bounded, and none of them is claimable. */
+    private val retired = object : LinkedHashMap<String, HaOAuthRejection>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, HaOAuthRejection>) = size > RETIRED_LIMIT
+    }
 
     init {
         require(ttlMillis in 1..(60 * 60 * 1_000L))
@@ -170,6 +186,8 @@ internal class HaOAuthFlow(
         purgeExpired()
         // Only the most recently requested login remains usable. The config-owned epoch also blocks
         // an older callback which was claimed before this map could invalidate its state.
+        val superseded = pending.size
+        pending.keys.forEach { retired[it] = HaOAuthRejection.SUPERSEDED }
         pending.clear()
         val state = generateUniqueState()
         val clientId = "$panelOrigin/"
@@ -184,6 +202,7 @@ internal class HaOAuthFlow(
             startContext,
         )
         pending[state] = Pending(attempt, nowMillis() + ttlMillis)
+        android.util.Log.i(TAG, "Home Assistant sign-in started; superseded $superseded pending")
         val authorizationUrl = "$haUrl/auth/authorize?" + listOf(
             "client_id" to clientId,
             "redirect_uri" to redirectUri,
@@ -197,9 +216,11 @@ internal class HaOAuthFlow(
      * leaving a valid bearer-like login capability available for a second request. */
     @Synchronized
     fun claim(state: String, panelOrigin: String): HaOAuthClaim {
-        if (!validHaOAuthState(state)) return HaOAuthClaim.Invalid
+        if (!validHaOAuthState(state)) return rejected(HaOAuthRejection.MALFORMED)
         purgeExpired()
-        val found = pending.remove(state) ?: return HaOAuthClaim.Invalid
+        val found = pending.remove(state) ?: return rejected(retired[state] ?: HaOAuthRejection.UNKNOWN)
+        retired[state] = HaOAuthRejection.ALREADY_USED
+        android.util.Log.i(TAG, "Home Assistant sign-in callback claimed")
         return if (found.attempt.panelOrigin == panelOrigin) HaOAuthClaim.Claimed(found.attempt)
         else HaOAuthClaim.WrongOrigin
     }
@@ -210,9 +231,21 @@ internal class HaOAuthFlow(
         return pending.size
     }
 
+    private fun rejected(why: HaOAuthRejection): HaOAuthClaim {
+        android.util.Log.i(TAG, "Home Assistant sign-in callback rejected: ${why.name.lowercase()}")
+        return HaOAuthClaim.Invalid(why)
+    }
+
     private fun purgeExpired() {
         val now = nowMillis()
-        pending.entries.removeAll { it.value.expiresAtMillis <= now }
+        pending.entries.removeAll { (state, entry) ->
+            (entry.expiresAtMillis <= now).also { if (it) retired[state] = HaOAuthRejection.EXPIRED }
+        }
+    }
+
+    private companion object {
+        const val TAG = "HaOAuth"
+        const val RETIRED_LIMIT = 8
     }
 
     private fun generateUniqueState(): String {
