@@ -2360,7 +2360,7 @@ class PaneldService : Service() {
                     mainHandler.post {
                         if (!teardownBoundary.isStopping && usbDebuggingFeedback == null) {
                             usbDebuggingFeedback = io.panelassistant.android.control.UsbDebuggingFeedback.observePortal(
-                                this@PaneldService, profile.id, mainHandler, usbDebugging::state,
+                                this@PaneldService, profile.id, mainHandler, scope, usbDebugging::state,
                                 { teardownBoundary.isStopping }, { config.uiLanguage },
                             )
                         }

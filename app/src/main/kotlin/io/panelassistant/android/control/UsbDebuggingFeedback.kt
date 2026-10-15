@@ -7,6 +7,9 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import io.panelassistant.android.i18n.CatalogueLoader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** Main-looper feedback for observed USB-setting changes, never an ADB controller. */
 internal class UsbDebuggingFeedback private constructor(
@@ -87,10 +90,34 @@ internal class UsbDebuggingFeedback private constructor(
             }
         }
 
+        /** Cancellation invalidates preparation, already-posted UI work and an existing Toast. */
+        fun showWhenPrepared(
+            isStopping: () -> Boolean,
+            prepare: (ready: (String) -> Unit) -> (() -> Unit),
+            post: (() -> Unit) -> Unit,
+            show: (String) -> (() -> Unit)?,
+        ): () -> Unit {
+            // Only the main looper reads/writes these; preparation only posts its result there.
+            var cancelled = false
+            var cancelShown: (() -> Unit)? = null
+            val cancelPreparation = prepare { text ->
+                post {
+                    if (!cancelled && !isStopping()) cancelShown = show(text)
+                }
+            }
+            return {
+                cancelled = true
+                cancelPreparation()
+                cancelShown?.invoke()
+                cancelShown = null
+            }
+        }
+
         fun observePortal(
             context: Context,
             profileId: String,
             handler: Handler,
+            scope: CoroutineScope,
             readState: () -> Boolean?,
             isStopping: () -> Boolean,
             uiLanguage: () -> String?,
@@ -104,17 +131,32 @@ internal class UsbDebuggingFeedback private constructor(
                     .onFailure { Log.w("ha-paneld", "could not release USB debugging feedback", it) }
             },
             show = { enabled ->
-                runCatching {
-                    val strings = CatalogueLoader.assets(context).strings(CatalogueLoader.nativeLocale(uiLanguage()))
-                    val text = strings.get("dashboard.fact.usb_debugging") + ": " +
-                        strings.get(if (enabled) "dashboard.value.on" else "dashboard.value.off")
-                    if (isStopping()) return@runCatching null
-                    val toast = Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT)
-                    toast.show()
-                    Log.i("ha-paneld", "USB debugging feedback: ${if (enabled) "on" else "off"}")
-                    val cancel: () -> Unit = toast::cancel
-                    cancel
-                }.onFailure { Log.w("ha-paneld", "could not show USB debugging feedback", it) }.getOrNull()
+                showWhenPrepared(
+                    isStopping = isStopping,
+                    prepare = { ready ->
+                        val job = scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                val strings = CatalogueLoader.assets(context)
+                                    .strings(CatalogueLoader.nativeLocale(uiLanguage()))
+                                strings.get("dashboard.fact.usb_debugging") + ": " +
+                                    strings.get(if (enabled) "dashboard.value.on" else "dashboard.value.off")
+                            }.onSuccess(ready)
+                                .onFailure { Log.w("ha-paneld", "could not prepare USB debugging feedback", it) }
+                        }
+                        val cancel: () -> Unit = { job.cancel() }
+                        cancel
+                    },
+                    post = { handler.post(it) },
+                    show = { text ->
+                        runCatching {
+                            val toast = Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT)
+                            toast.show()
+                            Log.i("ha-paneld", "USB debugging feedback: ${if (enabled) "on" else "off"}")
+                            val cancel: () -> Unit = toast::cancel
+                            cancel
+                        }.onFailure { Log.w("ha-paneld", "could not show USB debugging feedback", it) }.getOrNull()
+                    },
+                )
             },
         ) }.onFailure { Log.w("ha-paneld", "could not observe USB debugging feedback", it) }.getOrNull()
     }

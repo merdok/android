@@ -149,4 +149,58 @@ class UsbDebuggingFeedbackTest {
         assertEquals(0, redacted.reads)
         assertTrue(redacted.events.isEmpty())
     }
+    @Test fun delayedPreparationCannotShowAnOlderStateAfterReplacementOrClose() {
+        var value = false
+        var observer: ContentObserver? = null
+        val prepared = mutableListOf<(String) -> Unit>()
+        val main = ArrayDeque<() -> Unit>()
+        val events = mutableListOf<String>()
+        val feedback = checkNotNull(UsbDebuggingFeedback.observe(
+            "meta-portal", null, { value }, { false }, { observer = it }, {},
+            show = { enabled ->
+                UsbDebuggingFeedback.showWhenPrepared(
+                    isStopping = { false },
+                    prepare = { ready -> prepared += ready; { events += "cancel-prepare:$enabled" } },
+                    post = { main.addLast(it) },
+                    show = { text ->
+                        events += "show:$text"
+                        val cancel: () -> Unit = { events += "cancel-toast:$text" }
+                        cancel
+                    },
+                )
+            },
+        ))
+        value = true
+        observer!!.onChange(false)
+        prepared[0]("USB debugging: On")
+        value = false
+        observer!!.onChange(false)
+        main.removeFirst().invoke()
+        assertEquals(listOf("cancel-prepare:true"), events)
+        prepared[1]("USB debugging: Off")
+        main.removeFirst().invoke()
+        assertEquals(listOf("cancel-prepare:true", "show:USB debugging: Off"), events)
+        feedback.close()
+        assertEquals(listOf("cancel-prepare:true", "show:USB debugging: Off", "cancel-prepare:false", "cancel-toast:USB debugging: Off"), events)
+        prepared[0]("late On")
+        main.removeFirst().invoke()
+        assertEquals(4, events.size)
+    }
+
+    @Test fun aPreparedMessageIsDroppedWhenStoppingBeforeMainDelivery() {
+        var stopping = false
+        var ready: ((String) -> Unit)? = null
+        var posted: (() -> Unit)? = null
+        val shown = mutableListOf<String>()
+        val cancel = UsbDebuggingFeedback.showWhenPrepared(
+            { stopping }, prepare = { ready = it; {} }, post = { posted = it },
+            show = { shown += it; null },
+        )
+        ready!!("USB debugging: On")
+        stopping = true
+        posted!!.invoke()
+        assertTrue(shown.isEmpty())
+        cancel()
+    }
+
 }
