@@ -294,7 +294,7 @@ internal class PanelStateCore(
         val learned = runCatching(learnedProximityState).getOrNull()
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
-        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true)
+        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot())
         // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
         val noKeys = buttonKeys == PanelButtonKeys.NONE
         val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }

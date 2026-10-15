@@ -199,8 +199,6 @@ internal abstract class PanelRuntimeRig {
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
         /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
         systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
-        /** The packages and activities the system controller resolves starts against. */
-        systemEnv: FakeSystemEnv = FakeSystemEnv(),
         onZigbeeExplicitRetry: () -> Unit = {},
         /** Retires a queued HTTP value an external command superseded; a test records the keys. */
         onExternalSettingApplied: (String) -> Boolean = { true },
@@ -238,7 +236,7 @@ internal abstract class PanelRuntimeRig {
         )
         val companion = "io.homeassistant.companion.android.minimal"
         val system = SystemController(
-            systemEnv, FakeRootShell(runResult = rebootSucceeds), systemDaemon,
+            FakeSystemEnv(), FakeRootShell(runResult = rebootSucceeds), systemDaemon,
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
             isDeviceSecure = { deviceSecure },
