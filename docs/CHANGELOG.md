@@ -8,6 +8,7 @@
 
 ### Changed
 
+- **Voice starts on where the panel has a known microphone.** A panel whose model has a proven microphone, such as the Sonoff NSPanel Pro, the Electron WF1589T, the Tuya TPA10 and the Shelly Wall Display X2i, starts with the voice assistant on. A panel where voice was already turned on or off keeps that choice. Panel Assistant can now turn voice on too: enabling the panel's Assist entity in Home Assistant turns the voice assistant on.
 - **Shelly Wall Display navigation bar starts hidden.** A newly set up Shelly Wall Display starts with the navigation bar on Swipe reveal: swipe up from the bottom edge to show it. A panel already set up keeps its setting.
 - **Camera snapshots use the Home Assistant camera entity.** The separate image entity and panel JPEG endpoint are retired. Snapshots now come from the camera stream, which uses Home Assistant's normal timeout after a request.
 
