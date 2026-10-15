@@ -75,8 +75,16 @@ internal val BUNDLE_ROOT_FILES: Map<String, String> =
     linkedMapOf("info.js" to "info.js", "info.css" to "info.css", "icon.svg" to "icon.svg", "favicon.svg" to "icon.svg")
 
 /**
- * Write the bundle as one zip: exactly the files the stub's bundle routes serve, at the paths the page base sees
- * them (`assets/<path>` and the root names), so Panel Assistant can serve the sidebar frame without the panel.
+ * The asset types a page loads: its scripts, styles and images. The rest of `assets/` (translation catalogues,
+ * which the page shell inlines, wake-word models, helper binaries, profile sources, the OpenAPI file) never
+ * reaches a page and would multiply the bundle a slow panel must upload before the sidebar can show it.
+ */
+internal val PAGE_ASSET_TYPES: Set<String> = setOf("js", "css", "svg")
+
+/**
+ * Write the bundle as one zip: the page files the stub's bundle routes serve ([PAGE_ASSET_TYPES]), at the paths
+ * the page base sees them (`assets/<path>` and the root names), so Panel Assistant can serve the sidebar frame
+ * without the panel.
  */
 internal fun writeUiBundle(assets: UiBundleAssets, out: java.io.OutputStream) {
     java.util.zip.ZipOutputStream(out).use { zip ->
@@ -86,7 +94,8 @@ internal fun writeUiBundle(assets: UiBundleAssets, out: java.io.OutputStream) {
             zip.closeEntry()
         }
         BUNDLE_ROOT_FILES.forEach { (path, name) -> entry(path, assets.bytes(name)) }
-        assets.names().sorted().forEach { name -> entry("assets/$name", assets.bytes(name)) }
+        assets.names().filter { it.substringAfterLast('.') in PAGE_ASSET_TYPES }.sorted()
+            .forEach { name -> entry("assets/$name", assets.bytes(name)) }
     }
 }
 

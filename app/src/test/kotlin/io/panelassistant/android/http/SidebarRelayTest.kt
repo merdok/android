@@ -358,11 +358,21 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
                 ZipInputStream(zip.inputStream()).use { input ->
                     while (true) entries[(input.nextEntry ?: break).name] = input.readBytes()
                 }
-                // Source-text reason: the APK's bundled assets are what the bundle must carry, listed from where they ship.
-                val root = java.io.File("src/main/assets")
-                val expected = listOf("info.js", "info.css", "icon.svg", "favicon.svg") +
-                    root.walkTopDown().filter { it.isFile }.map { "assets/" + it.relativeTo(root).invariantSeparatorsPath }
-                assertEquals(expected.toSortedSet(), entries.keys.toSortedSet())
+                // Every file a rendered page or a bundled script asks for is in the bundle, so the sidebar frame
+                // needs nothing from the panel but its session.
+                val wanted = sortedSetOf<String>()
+                val reference = Regex("(?:src|href)=\"(assets/[^\"?#]+|info\\.js|info\\.css|icon\\.svg|favicon\\.svg)\"")
+                for (page in listOf("/", "/configure", "/setup", "/profiles", "/install", "/logs", "/entities")) {
+                    reference.findAll(client.get(page).bodyAsText()).forEach { wanted += it.groupValues[1] }
+                }
+                val scripted = Regex("\"(assets/[A-Za-z0-9_./-]+\\.(?:js|css|svg))\"")
+                entries.filterKeys { it.endsWith(".js") }.values.forEach { bytes -> scripted.findAll(String(bytes)).forEach { wanted += it.groupValues[1] } }
+                assertTrue("pages reference their files: $wanted", wanted.size > 10)
+                assertTrue("pages ask for ${wanted - entries.keys}", entries.keys.containsAll(wanted))
+                assertTrue("a page script is bundled", "assets/transport.js" in entries.keys)
+                // Only page files: a slow panel must be able to upload it (2.9 MB zipped with everything, 2026-10-15).
+                assertEquals(emptyList<String>(), entries.keys.filter { it.substringAfterLast('.') !in setOf("js", "css", "svg") })
+                assertTrue("bundle is ${zip.size} bytes", zip.size < 1024 * 1024)
                 // Each entry is the file the stub serves at that path, relative to the page base.
                 for ((path, bytes) in entries) {
                     val response = client.get("/$path")
