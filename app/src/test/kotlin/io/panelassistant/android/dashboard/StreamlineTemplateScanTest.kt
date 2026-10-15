@@ -271,10 +271,15 @@ class StreamlineTemplateScanTest {
             val templates = StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { guarded++ }
             assertEquals(setOf("light.hall_nested"), idsOf(templates, "included_tile"))
             assertEquals("every request, includes too, passes the route guard", requests.size, guarded)
+        }
+        // On the last template path no later request repeats the guard, so only the include's own check can end the sync.
+        val last = "/local/community/streamline-card/"
+        serving(files.mapKeys { (path, _) -> path.replace(dir, last) }::get) { port, _ ->
             var calls = 0
             assertThrows(IllegalStateException::class.java) {
-                StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { check(++calls < 2) { "route changed" } }
+                StreamlineTemplates.fetch("http://127.0.0.1:$port", 5_000) { check(++calls < 4) { "route changed" } }
             }
+            assertEquals("the guard stopped the include before its request", 4, calls)
         }
     }
 
