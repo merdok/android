@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -105,6 +106,11 @@ internal class Notice(
     private val form: NoticeForm,
     /** False for a transient card that names no build (the voice conversation): the pill heads the card alone. */
     brand: Boolean = true,
+    /**
+     * The card's opacity. Opaque for a card read from across the room over a busy dashboard: at the overlay's
+     * 86% the dashboard's own text showed through the voice card on hardware.
+     */
+    surfaceAlpha: Int = if (form == NoticeForm.OVERLAY) NOTICE_OVERLAY_ALPHA else 0xFF,
 ) {
     private val metrics = context.resources.displayMetrics
     val scale: Float = noticeScale(metrics)
@@ -151,7 +157,7 @@ internal class Notice(
         setPadding(px(PAD_H), px(PAD_V), px(PAD_H), px(PAD_V + 2f))
         background = GradientDrawable().apply {
             cornerRadius = CORNER * scale
-            setColor(noticeWithAlpha(colours.surface, if (form == NoticeForm.OVERLAY) NOTICE_OVERLAY_ALPHA else 0xFF))
+            setColor(noticeWithAlpha(colours.surface, surfaceAlpha))
             setStroke(maxOf(3, px(BORDER)), noticeEdge(backdropDark))
         }
         if (brand) addView(brandRow(backdropDark))
@@ -301,7 +307,6 @@ internal class Notice(
         val segments = labels.map {
             ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
                 isIndeterminate = false
-                indeterminateTintList = ColorStateList.valueOf(colours.accent)
                 this.max = max
                 progressDrawable = LayerDrawable(arrayOf(
                     GradientDrawable().apply { cornerRadius = corner; setColor(noticeWithAlpha(colours.text, 0x1F)) },
@@ -463,20 +468,65 @@ internal class NoticeTrack(
     private val names: List<TextView>,
     private val colours: NoticeColours,
 ) {
+    private var pulse: ValueAnimator? = null
+    private var pulsing: Int? = null
+
+    init {
+        // A pulse must not outlive the card it is drawn on.
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+            override fun onViewDetachedFromWindow(v: View) = pulse(null)
+        })
+    }
+
     /**
-     * Mark [current] (or none) and, when given, set each segment's fill. [sweeping] runs the current
-     * segment's indeterminate bar, for a step under way with no measure of how far along it is; the
-     * caller passes false when Android's animations are off, and the bold name alone marks the step.
+     * Mark [current] (or none) and, when given, set each segment's fill. [pulsing] fills the current segment
+     * and breathes it, inside its own rounded segment, for a step under way with no measure of how far
+     * along it is; the caller passes false when Android's animations are off, and the bold name alone marks
+     * the step.
      */
-    fun show(current: Int?, fills: List<Int>? = null, sweeping: Boolean = false) {
+    fun show(current: Int?, fills: List<Int>? = null, pulsing: Boolean = false) {
         names.forEachIndexed { i, name ->
             val active = i == current
             name.setTextColor(if (active) colours.text else colours.muted)
             name.typeface = if (active) Notice.MEDIUM else Typeface.DEFAULT
         }
-        // Before the fills: an indeterminate bar ignores a progress set on it.
-        segments.forEachIndexed { i, segment -> segment.isIndeterminate = sweeping && i == current }
         fills?.forEachIndexed { i, fill -> segments.getOrNull(i)?.progress = fill }
+        pulse(current?.takeIf { pulsing && it in segments.indices })
+    }
+
+    private fun pulse(index: Int?) {
+        if (index != pulsing) {
+            pulse?.cancel()
+            pulse = null
+            pulsing?.let { fill(it).alpha = 0xFF }
+            pulsing = index
+            if (index != null) {
+                val segment = segments[index]
+                val layer = fill(index)
+                pulse = ValueAnimator.ofInt(PULSE_LOW, PULSE_HIGH).apply {
+                    duration = PULSE_MS
+                    repeatMode = ValueAnimator.REVERSE
+                    repeatCount = ValueAnimator.INFINITE
+                    addUpdateListener {
+                        layer.alpha = it.animatedValue as Int
+                        segment.invalidate()
+                    }
+                    start()
+                }
+            }
+        }
+        // Full, but never at full strength while it breathes: the fill says "under way", not "this far".
+        pulsing?.let { segments[it].progress = segments[it].max }
+    }
+
+    private fun fill(index: Int) =
+        (segments[index].progressDrawable as LayerDrawable).findDrawableByLayerId(android.R.id.progress)
+
+    private companion object {
+        const val PULSE_LOW = 0x26
+        const val PULSE_HIGH = 0xB3
+        const val PULSE_MS = 900L
     }
 }
 

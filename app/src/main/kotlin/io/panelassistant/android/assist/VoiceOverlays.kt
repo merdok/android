@@ -81,7 +81,10 @@ internal object VoiceOverlays {
  */
 private class VoiceNotice(private val activity: Activity, decor: ViewGroup) {
     // Direct Boot: settings unreadable means the dark dashboard, and so the light card.
-    private val notice = Notice(activity, runCatching { Config(activity).dashboardThemeDark }.getOrNull() ?: true, NoticeForm.OVERLAY, brand = false)
+    private val notice = Notice(
+        activity, runCatching { Config(activity).dashboardThemeDark }.getOrNull() ?: true, NoticeForm.OVERLAY,
+        brand = false, surfaceAlpha = 0xFF,
+    )
     private val hero = notice.sentence("")
     // An agent's answer can run long, and the card is there for whoever missed hearing it.
     private val line = notice.line("").apply { maxLines = REPLY_LINES }
@@ -106,6 +109,7 @@ private class VoiceNotice(private val activity: Activity, decor: ViewGroup) {
         view.removeCallbacks(leave)
         val card = VoiceAttention.conversation.card
         if (card == null) {
+            track.show(null)
             view.visibility = View.GONE
             return
         }
