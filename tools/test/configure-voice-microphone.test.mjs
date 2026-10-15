@@ -107,7 +107,8 @@ for (const engine of engines) {
     await eventually(p, false, 2000, 'no notice while the microphone is on');
     const before = h.state.reads;
     h.state.failing = 2;
-    await p.waitForTimeout(7000); // both failing reads are answered
+    const until = Date.now() + 10000; // both failing reads are answered
+    while (h.state.reads < before + 2 && Date.now() < until) await p.waitForTimeout(100);
     assert.ok(h.state.reads >= before + 2, `the card kept reading through failures (${h.state.reads - before} reads)`);
     h.state.muted = true;
     await eventually(p, true, 5000, 'the mute shows once reads succeed again');
