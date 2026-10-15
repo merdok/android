@@ -3,7 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.BuildConfig
 import io.panelassistant.android.i18n.Strings as AppStrings
 
-/** Configure tab — schema-driven, save-together settings only. */
+/** Configure tab — schema-driven settings, each change sent as it is made (configure.js). */
 internal fun configureBody(strings: AppStrings, proximityLearningEnabled: Boolean, setup: String): String {
     val proximityMount = if (proximityLearningEnabled) """<div id="proximity-learning-mount" hidden></div>""" else ""
     val proximityScript = if (proximityLearningEnabled) """<script src="assets/proximity-learning.js"></script>""" else ""
@@ -14,7 +14,7 @@ $setup
 <div id="cfg-all-cards">
 <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1" data-card-size-proximity="${if (proximityLearningEnabled) "1" else "0"}"></div>
 $proximityMount</div>
-<div id="savebar" class="savebar" role="region" aria-label="${esc(strings.get("configure.unsaved.label"))}" hidden><button id="savebtn" type="button" disabled onclick="cfgSave()">${esc(strings.get("configure.action.save"))}</button><span id="cfg-msg" class="muted" role="status" aria-live="polite" aria-atomic="true"></span></div>
+<div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="cfg-help" class="cfg-help" popover="manual" role="dialog" aria-labelledby="cfg-help-title"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" class="cfg-help-close" type="button" aria-label="${esc(strings.get("configure.help.close"))}">×</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more" target="_blank" rel="noopener">${esc(strings.get("configure.help.more"))}</a></div></div>
 <script src="assets/card-size-memory.js"></script>
 <script src="assets/card-column-alignment.js"></script>

@@ -58,11 +58,6 @@
       "state": "machine-cross-checked",
       "text": "La acción falló ({error})."
     },
-    "configure.action.save": {
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "state": "machine-cross-checked",
-      "text": "Guardar cambios"
-    },
     "configure.action.updated": {
       "sourceHash": "c890307de9b706a96bb48a12cd6cf33fd333765a1c02fd950011a914b53935f0",
       "state": "machine-cross-checked",
@@ -1873,25 +1868,15 @@
       "state": "machine-cross-checked",
       "text": "{package} · renderizador externo configurado"
     },
+    "configure.renderer.pending": {
+      "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
+      "state": "machine-cross-checked",
+      "text": "Guardado; aún no está en el panel de control."
+    },
     "configure.renderer.storage": {
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
       "state": "machine-cross-checked",
       "text": "Datos del renderizador"
-    },
-    "configure.save.action": {
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "state": "machine-cross-checked",
-      "text": "Guardar cambios"
-    },
-    "configure.save.applied_newer_changes": {
-      "sourceHash": "922c6c27af2eadf2a8bd74b0ed260b1c9955cf4b55e8dd631500349797ac4631",
-      "state": "machine-cross-checked",
-      "text": "La configuración guardada ya se aplicó; aún debes guardar los cambios más recientes."
-    },
-    "configure.save.failed": {
-      "sourceHash": "19b9455ce71a631f52e74d6fc358e95b9f35ab9a933aaf2fb159d97f1246983c",
-      "state": "machine-cross-checked",
-      "text": "Error al guardar."
     },
     "configure.save.hardware_pending": {
       "sourceHash": "9bd2748bda208a2e6c2bac42067692436f2f9189a3f7e197e5b338bdba1c44ef",
@@ -1903,50 +1888,10 @@
       "sourceHash": "67b5afeafe3ae46c4d5fe55a308ba88d39ff45f61c663e5fae47d17317334f3b",
       "state": "machine-cross-checked"
     },
-    "configure.save.now_applied": {
-      "sourceHash": "f7bfcea102edeb4ba0e93aa5a17733d1de0cc1183edc5b707e474640363b018e",
-      "state": "machine-cross-checked",
-      "text": "La configuración guardada ya se aplicó."
-    },
-    "configure.save.outcome_newer_changes": {
-      "sourceHash": "1afa8dc5ecaddb4f7ea2e4bdf97f0ec039ea7ddbb919727f42f339178250829d",
-      "state": "machine-cross-checked",
-      "text": "{outcome} Aún debes guardar los cambios más recientes."
-    },
     "configure.save.refused": {
       "text": "No se guardó: {reason}",
       "sourceHash": "efd0fb5c5d944eaf6a7e4ebb5b08b47cc65284f06ee919bb04e2777a1e27538e",
       "state": "machine-cross-checked"
-    },
-    "configure.save.reload_failed": {
-      "sourceHash": "a2dd4f224888a496a50ea48da45bb9db08515fa0c2c4d962760aa3d83fd089e6",
-      "state": "machine-cross-checked",
-      "text": "Guardado (falló la recarga; actualiza la página)."
-    },
-    "configure.save.saved": {
-      "sourceHash": "fca046ccd586c67f7fe0b3c12c29873a8abf9376f7cd514fc6272ec03b2de0b3",
-      "state": "machine-cross-checked",
-      "text": "Guardado."
-    },
-    "configure.save.saved_newer_changes": {
-      "sourceHash": "ce417972a2f79643e1f4952031e4f0878c53746492d013b7667a6238312156f7",
-      "state": "machine-cross-checked",
-      "text": "Guardado; aún debes guardar los cambios más recientes."
-    },
-    "configure.save.saving": {
-      "sourceHash": "23e39291d6135814ed7c936e278974544b0df5fbf0eb0427b6700979b7472a93",
-      "state": "machine-cross-checked",
-      "text": "Guardando…"
-    },
-    "configure.save.unavailable_to_apply": {
-      "text": "Guardado, pero este panel todavía no puede aplicarlos: {settings}.",
-      "sourceHash": "54f575188113309c907825190ece15259dc8d17ae43647dbc27c593b497258d9",
-      "state": "machine-cross-checked"
-    },
-    "configure.save.waiting_to_apply": {
-      "sourceHash": "38120c8464a6a191ec813e411dd11ae6c3ad94acf6cd05d5e6842f03ef02b400",
-      "state": "machine-cross-checked",
-      "text": "Configuración guardada pendiente de aplicar: {settings}."
     },
     "configure.secret.blank_keeps_current": {
       "sourceHash": "a1fd67a2fad62ffba6c9be55ccfc50d793385a19d23e769f5bb4714175837338",
@@ -2047,11 +1992,6 @@
       "sourceHash": "f30f0038ab9360511cab3626792d2c21140065599d0e2d78bca81a55b116ba63",
       "state": "machine-cross-checked",
       "text": "Actualizado el {date} ({relative})"
-    },
-    "configure.unsaved.label": {
-      "sourceHash": "842e70aacb24a1d6bdea7c34b46777aee7e3446d3ab8f346147b16670e5b974a",
-      "state": "machine-cross-checked",
-      "text": "Configuración sin guardar"
     },
     "configure.validation.invalid": {
       "sourceHash": "0777a1e67635c2883095675c05a9cbc18ff3d9649867f6105e9e77a580cd7655",
@@ -12176,11 +12116,6 @@
     "shell.runtime.ha_network_evidence_p95_no_misses": {
       "text": "p95 {p95Ms} ms, sin sondeos perdidos en los últimos 5 min",
       "sourceHash": "a08cd2009df8200e13ce7cdb0024bd922a85da3afde81dcc4c13bafa1749ae99",
-      "state": "machine-cross-checked"
-    },
-    "shell.settings_changed.externally": {
-      "text": "La configuración se modificó fuera de esta página",
-      "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
       "state": "machine-cross-checked"
     },
     "install.tame.hand_back.action": {

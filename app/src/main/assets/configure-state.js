@@ -9,24 +9,23 @@ window.ConfigurePage = {};
   cfg.haAuth = {};
   cfg.applyPending = {};
   cfg.applyStalled = {};
-  cfg.applyPendingTimer = null;
+  // Settings the dashboard on screen does not show yet (the panel's renderer_pending), as a key set.
+  cfg.rendererPending = {};
+  // The panel's state as last read or pushed; the form shows it for every key it is not holding.
+  cfg.panel = {};
+  cfg.panelExpose = {};
+  // Per-row outcome of the last change ("Not saved: …"), until the row is changed again.
+  cfg.rowMessages = Object.create(null);
   cfg.advanced = false;
-  cfg.dirty = false;
-  cfg.saving = false;
-  cfg.editGeneration = 0;
   cfg.configDiscoveryRequest = 0;
   cfg.schemaLanguageRequest = 0;
   cfg.apps = [];
   cfg.rendererChoices = [];
   cfg.radio = null;
-  cfg.savedValues = {};
-  cfg.savedExpose = {};
-  cfg.dirtyValues = Object.create(null);
-  cfg.dirtyExpose = Object.create(null);
   cfg.joinCooldownUntil = 0;
   cfg.joinPollTimer = null;
   cfg.hashJumpUntil = 0;
-  // Viewer-local presentation state. None of it is a setting, so none of it marks the form dirty.
+  // Viewer-local presentation state. None of it is a setting, so none of it is sent to the panel.
   cfg.descriptions = true;
   cfg.revealedGroups = Object.create(null);
   cfg.filterText = "";
@@ -119,10 +118,6 @@ window.ConfigurePage = {};
   cfg.haOauthTargetUrl = "";
   cfg.haUserStatus = { phase: "unknown" };
   cfg.haUserStatusRequest = 0;
-  cfg.localeDocumentReloadPending = false;
-  var localeDocumentReloadScheduled = false;
-  var localeReloadMessageConsumed = false;
-  var localeReloadMessageKey = "ha-paneld-config-locale-reload-message";
   var UI_LANGUAGE_LABELS = {
     "auto": "Automatic", "en": "English", "de": "Deutsch", "fr": "Français",
     "it": "Italiano", "es": "Español", "zh-Hans": "简体中文",
@@ -232,59 +227,27 @@ window.ConfigurePage = {};
     return args;
   }
 
-  // The Configure selector is the explicit panel setting. Once its save is confirmed, an older
-  // browser/query override must not continue to outrank the value the user just chose. Recreate the
-  // document so every localized field is fetched under the resulting precedence; a concurrent edit
-  // can defer that reload, but cannot lose it.
-  function acceptSavedUiLanguage(submittedValues) {
-    if (!Object.prototype.hasOwnProperty.call(submittedValues, "ui_language")) return;
+  // The Configure selector is the explicit panel setting. Once the panel has it, an older browser/query
+  // override must not continue to outrank the value the user just chose, so the document is recreated
+  // and every localized field is fetched under the resulting precedence.
+  function reloadForSavedUiLanguage() {
     storeBrowserLanguage("");
     stripLanguageQuery();
-    cfg.localeDocumentReloadPending = true;
-  }
-
-  function reloadForSavedLocale(message) {
-    if (message) {
-      try { window.sessionStorage.setItem(localeReloadMessageKey, message); } catch (_) {}
-    }
     window.location.reload();
-  }
-
-  function reloadSavedLocaleWhenSettled() {
-    if (!cfg.localeDocumentReloadPending || cfg.dirty || cfg.saving || localeDocumentReloadScheduled) return;
-    localeDocumentReloadScheduled = true;
-    setTimeout(function () {
-      localeDocumentReloadScheduled = false;
-      if (cfg.localeDocumentReloadPending && !cfg.dirty && !cfg.saving) reloadForSavedLocale();
-    }, 0);
-  }
-
-  function consumeLocaleReloadMessage() {
-    if (localeReloadMessageConsumed) return;
-    localeReloadMessageConsumed = true;
-    var reloadMessage = "";
-    try {
-      reloadMessage = window.sessionStorage.getItem(localeReloadMessageKey) || "";
-      window.sessionStorage.removeItem(localeReloadMessageKey);
-    } catch (_) {}
-    if (reloadMessage) document.getElementById("cfg-msg").textContent = reloadMessage;
   }
 
   function reloadSchemaForHaLanguage() {
     if (cfg.values.ui_language !== "auto" || admittedBrowserLanguage(browserLanguageChoice()) ||
         cfg.haUserStatus.phase !== "connected" || !validLanguageTag(cfg.haUserStatus.language)) return;
     var request = ++cfg.schemaLanguageRequest;
-    var generation = cfg.editGeneration;
     window.PaneldTransport.request("config.schema", configSchemaArgs(cfg.haUserStatus.language))
       .then(function (reply) {
         return reply.result;
       })
       .then(function (nextSchema) {
-        if (request !== cfg.schemaLanguageRequest || cfg.dirty || cfg.editGeneration !== generation ||
-            !Array.isArray(nextSchema)) return;
+        if (request !== cfg.schemaLanguageRequest || !Array.isArray(nextSchema)) return;
         cfg.schema = nextSchema;
-        cfg.render();
-        cfg.configCardGeometryChanged();
+        cfg.renderWhenIdle();
       })
       .catch(function () {});
   }
@@ -327,10 +290,7 @@ window.ConfigurePage = {};
   cfg.localizedEnumOption = localizedEnumOption;
   cfg.localizedPageHref = localizedPageHref;
   cfg.configSchemaArgs = configSchemaArgs;
-  cfg.acceptSavedUiLanguage = acceptSavedUiLanguage;
-  cfg.reloadForSavedLocale = reloadForSavedLocale;
-  cfg.reloadSavedLocaleWhenSettled = reloadSavedLocaleWhenSettled;
-  cfg.consumeLocaleReloadMessage = consumeLocaleReloadMessage;
+  cfg.reloadForSavedUiLanguage = reloadForSavedUiLanguage;
   cfg.reloadSchemaForHaLanguage = reloadSchemaForHaLanguage;
   cfg.approvalMessage = approvalMessage;
   cfg.approvalAware = approvalAware;

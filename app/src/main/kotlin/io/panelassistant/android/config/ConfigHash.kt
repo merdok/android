@@ -3,11 +3,10 @@ package io.panelassistant.android.config
 import java.security.MessageDigest
 
 /**
- * Stable short fingerprint of the panel's settings, exposed as `cfg=` on `/health` and as the
- * `data-cfg` baseline on the web pages: buildwatch.js compares the two and auto-reloads the Configure
- * page when the settings change UNDERNEATH an open browser tab (an API POST, an HA entity, another
- * browser) — the config-state sibling of the per-install build token. Order-insensitive (sorted keys)
- * so map iteration order can never fake a change.
+ * Stable short fingerprint of the panel's settings, exposed as `cfg=` on `/health`: a client that
+ * watches the health line sees the settings change underneath it (an API POST, an HA entity, another
+ * browser), and config import compares it — the config-state sibling of the per-install build token.
+ * Order-insensitive (sorted keys) so map iteration order can never fake a change.
  */
 object ConfigHash {
     fun of(values: Map<String, String>): String {

@@ -1,305 +1,299 @@
-// Configure save/load coordination and page startup. Load after the Configure modules.
+// Configure live settings and page startup. Load after the Configure modules.
+//
+// There is no Save button. Each finished gesture sends one `settings` op for its key, and the page follows
+// the panel's `config` family the way Home Assistant's frontend follows entity state (PendingValueSync in
+// home-assistant/frontend src/common/util/pending-value-sync.ts): while a key's send is scheduled or in
+// flight the key ignores pushed values; once it settles the row takes the panel's value, and a refused
+// send puts the panel's value back and says why on the row. Toggles, choices and pickers send at once; a
+// typed field sends when it is committed (Enter or leaving it); repeated stepper presses on a number send
+// once, a second after the last.
 (function (cfg) {
   "use strict";
 
-  function updateSaveUi() {
-    var button = document.getElementById("savebtn");
-    var bar = document.getElementById("savebar");
-    button.disabled = !cfg.dirty || cfg.saving;
-    button.textContent = cfg.saving ? cfg.i18nText("configure.save.saving", "Saving…") : cfg.i18nText("configure.save.action", "Save changes");
-    bar.hidden = !cfg.dirty && !cfg.saving;
-    document.body.classList.toggle("cfg-dirty", cfg.dirty || cfg.saving);
-    syncUnsavedNavigationGuard();
+  var STEP_DEBOUNCE_MS = 1000;
+  // Hold per key (an exposure pip holds "ha_expose_<key>"): {seq, call, timer, before, pushed, local}.
+  var holds = Object.create(null);
+  // Keys whose focused text field holds typed text that has not been sent.
+  var typing = Object.create(null);
+  // Whether the latest input event on a number field was a step (arrow key or spinner), not typing.
+  var stepping = false;
+  var configWatch = null;
+
+  function fieldOf(key) {
+    for (var i = 0; i < cfg.schema.length; i++) if (cfg.schema[i].key === key) return cfg.schema[i];
+    return null;
   }
-  function recomputeDirty() {
-    cfg.dirtyValues = Object.create(null);
-    cfg.dirtyExpose = Object.create(null);
-    cfg.schema.forEach(function (f) {
-      if (cfg.values[f.key] !== cfg.savedValues[f.key]) cfg.dirtyValues[f.key] = true;
-      if (f.ha && (cfg.expose[f.key] !== false) !== (cfg.savedExpose[f.key] !== false)) cfg.dirtyExpose[f.key] = true;
+  function keyOf(node) {
+    var row = node && node.closest ? node.closest(".frow") : null;
+    return row && row.id.indexOf("cfg-") === 0 ? row.id.slice(4) : null;
+  }
+  function textEntry(node) {
+    return !!node && (node.tagName === "TEXTAREA" ||
+      (node.tagName === "INPUT" && !/^(checkbox|radio|button|submit)$/.test(node.type)));
+  }
+  function exposeId(key) { return "ha_expose_" + key; }
+
+  // The panel's values as the form shows them: typed JSON as strings, a desired value waiting for hardware
+  // in place of the observed one.
+  function panelValues(body) {
+    var values = {};
+    [body.settings || {}, body.apply_pending || {}].forEach(function (source) {
+      Object.keys(source).forEach(function (key) {
+        var raw = source[key];
+        values[key] = typeof raw === "boolean" ? (raw ? "true" : "false") : raw == null ? raw : String(raw);
+      });
     });
-    cfg.dirty = Object.keys(cfg.dirtyValues).length > 0 || Object.keys(cfg.dirtyExpose).length > 0;
-  }
-  function setDirty() {
-    cfg.editGeneration++;
-    recomputeDirty();
-    updateSaveUi();
-    cfg.syncHaOAuthAvailability();
-    cfg.syncAutoSleepCardSignature();
-    cfg.reloadSavedLocaleWhenSettled();
-  }
-  function clearDirty() {
-    cfg.dirty = false;
-    cfg.dirtyValues = Object.create(null);
-    cfg.dirtyExpose = Object.create(null);
-    updateSaveUi();
+    return values;
   }
 
-  // Individual controls own their value normalization, but the shared save affordance must be the
-  // final writer after an input event. Capture the event while its target still belongs to the form,
-  // then reconcile after target handlers have finished (including handlers that replace that target).
-  var dirtyUiReconcileQueued = false;
-  function queueDirtyUiReconcile(event) {
-    var groups = document.getElementById("cfg-groups");
-    if (!groups || !event.target || !groups.contains(event.target) || dirtyUiReconcileQueued) return;
-    dirtyUiReconcileQueued = true;
-    setTimeout(function () {
-      dirtyUiReconcileQueued = false;
-      recomputeDirty();
-      updateSaveUi();
-      cfg.reloadSavedLocaleWhenSettled();
-    }, 0);
+  function stalledMap(list) {
+    var map = {};
+    (Array.isArray(list) ? list : []).forEach(function (key) { map[key] = true; });
+    return map;
   }
 
-  function guardUnsavedNavigation(event) {
-    event.preventDefault();
-    event.returnValue = "";
+  // Everything but the values: Home Assistant sign-in, saved values waiting for hardware, and settings the
+  // dashboard on screen does not show yet; a field the body does not carry is left as it is. Returns whether
+  // any of it changed.
+  function adoptStatus(body) {
+    var fields = {
+      haAuth: ["ha_auth", function (v) { return v || {}; }],
+      applyPending: ["apply_pending", function (v) { return v || {}; }],
+      applyStalled: ["apply_stalled", stalledMap],
+      rendererPending: ["renderer_pending", stalledMap],
+    };
+    var changed = false;
+    Object.keys(fields).forEach(function (name) {
+      if (!Object.prototype.hasOwnProperty.call(body, fields[name][0])) return;
+      var next = fields[name][1](body[fields[name][0]]);
+      if (JSON.stringify(cfg[name]) === JSON.stringify(next)) return;
+      cfg[name] = next;
+      changed = true;
+    });
+    return changed;
   }
 
-  var unsavedNavigationGuardArmed = false;
-  function syncUnsavedNavigationGuard() {
-    if (typeof window.addEventListener !== "function" || typeof window.removeEventListener !== "function") return;
-    var shouldArm = cfg.dirty || cfg.saving;
-    if (shouldArm === unsavedNavigationGuardArmed) return;
-    unsavedNavigationGuardArmed = shouldArm;
-    if (shouldArm) window.addEventListener("beforeunload", guardUnsavedNavigation);
-    else window.removeEventListener("beforeunload", guardUnsavedNavigation);
+  // A change to the Home Assistant connection drops what was learned through the old one.
+  function haConnectionChanged(previousUrl, previousAuth, force) {
+    if (force !== true && previousUrl === cfg.values.ha_url &&
+        (previousAuth.configured === true) === (cfg.haAuth.configured === true) &&
+        (previousAuth.oauth === true) === (cfg.haAuth.oauth === true)) return false;
+    cfg.haUserStatus = { phase: "unknown" };
+    cfg.autoSleepAreaGeneration++;
+    cfg.autoSleepSourceUpdating = Object.create(null);
+    cfg.invalidateAutoSleepData(true);
+    cfg.autoSleepAssignedAreaName = "";
+    cfg.autoSleepPrerequisiteRequest++;
+    cfg.autoSleepPrerequisite = { eligible: false, phase: "checking", area_name: "" };
+    return true;
   }
 
-  function keepSaveMessageVisible(text) {
-    return /Home Assistant sign-in|sign-in workflow/i.test(String(text || ""));
+  // What else on the page follows a changed setting, whichever side changed it.
+  function refreshDependents(keys, haChanged) {
+    function any(list) { return list.some(function (key) { return keys.indexOf(key) >= 0; }); }
+    if (keys.indexOf("auto_brightness_ha_entity") >= 0) cfg.beginAutoBrightnessSourceTransition(cfg.values.auto_brightness_ha_entity);
+    if (any(["auto_brightness", "auto_brightness_minimum_percent", "auto_brightness_maximum_percent", "auto_brightness_response_percent", "auto_brightness_ha_entity"])) {
+      cfg.loadAutoBrightnessData(true);
+    }
+    if (any(["auto_sleep", "auto_sleep_source"]) && !haChanged) cfg.invalidateAutoSleepData(false);
+    if ((haChanged || any(["auto_sleep", "auto_sleep_source"])) && cfg.values.auto_sleep === "true") setTimeout(cfg.loadAutoSleepData, 0);
+    if (haChanged) {
+      cfg.scheduleAutoSleepPrerequisite();
+      cfg.loadHaUserStatus();
+    }
+    if (keys.indexOf("zigbee_router") >= 0) cfg.loadRadio();
   }
 
-  function restampConfigWatchBaseline() {
-    // OUR save changes the cfg fingerprint too. Re-stamp even when newer local edits prevent a form
-    // reload, otherwise buildwatch.js falsely reports those acknowledged changes as external.
-    setTimeout(function () {
-      window.PaneldTransport.request("health").then(function (reply) {
-        var m = String(reply.result).match(/cfg=(\S+)/); if (m) document.body.setAttribute("data-cfg", m[1]);
-      }).catch(function () {});
-    }, 500);
+  // cfg.render waits while a field holds unsent typed text (configure-render.js); this is its test.
+  cfg.typingHeld = function () { return Object.keys(typing).length > 0; };
+  function renderWhenIdle() {
+    cfg.render();
+    if (!cfg.renderOwed) cfg.configCardGeometryChanged();
   }
 
-  // A setting's step is the arrow increment, not a rule: the panel accepts any in-range value and rounds
-  // where hardware needs it (camera exposure). A fraction in a whole-number field is rounded before saving.
-  function offStepOnly(field, control) {
-    var v = control.validity;
-    return !!v && v.stepMismatch && !v.rangeUnderflow && !v.rangeOverflow && !v.badInput;
+  // Take the panel's state, from the first read or a `config` family update, for every key not held.
+  function adopt(body) {
+    var previousUrl = cfg.values.ha_url, previousAuth = cfg.haAuth;
+    var values = panelValues(body), expose = body.ha_expose || {}, changedKeys = [];
+    Object.keys(values).forEach(function (key) {
+      cfg.panel[key] = values[key];
+      if (holds[key]) { holds[key].pushed = true; return; }
+      if (typing[key] || cfg.values[key] === values[key]) return;
+      cfg.values[key] = values[key];
+      delete cfg.rowMessages[key];
+      changedKeys.push(key);
+    });
+    Object.keys(expose).forEach(function (key) {
+      cfg.panelExpose[key] = expose[key];
+      var hold = holds[exposeId(key)];
+      if (hold) { hold.pushed = true; return; }
+      if (cfg.expose[key] === expose[key]) return;
+      cfg.expose[key] = expose[key];
+      changedKeys.push(exposeId(key));
+    });
+    var statusChanged = adoptStatus(body);
+    if (!changedKeys.length && !statusChanged) return;
+    var haChanged = haConnectionChanged(previousUrl, previousAuth);
+    renderWhenIdle();
+    refreshDependents(changedKeys, haChanged);
   }
 
+  function newHold(id, before) {
+    return holds[id] || (holds[id] = { seq: 0, call: 0, timer: null, before: before, pushed: false, local: false });
+  }
+
+  // The row keeps the message until it is changed again; the page's live region announces it once.
+  function showRowMessage(key, message) {
+    if (message) cfg.rowMessages[key] = message;
+    else delete cfg.rowMessages[key];
+    var old = document.querySelector("#cfg-" + key + " .cfg-row-message");
+    if (old) old.remove();
+    if (message) document.getElementById("cfg-msg").textContent = message;
+  }
+
+  function refusal(reply, body) {
+    var reason = (typeof reply.result === "string" && reply.result.trim()) || (typeof body.message === "string" && body.message.trim()) ||
+      (typeof body.error === "string" ? body.error + (body.reason ? " (" + body.reason + ")" : "") : "");
+    return reason
+      ? cfg.i18nText("configure.save.refused", "Not saved: {reason}", { reason: reason })
+      : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: reply.code || reply.outcome });
+  }
+
+  function send(key, expose) {
+    var id = expose ? exposeId(key) : key;
+    var hold = newHold(id, expose ? cfg.panelExpose[key] : cfg.panel[key]);
+    if (hold.timer) { clearTimeout(hold.timer); hold.timer = null; }
+    hold.local = false;
+    var call = hold.call = ++hold.seq;
+    var args = {};
+    if (expose) args[id] = cfg.expose[key] !== false ? "true" : "false";
+    else args[key] = cfg.values[key] == null ? "" : cfg.values[key];
+    window.PaneldTransport.request("settings", args).then(function (reply) {
+      settle(id, key, expose, call, reply);
+    }, function () {
+      settle(id, key, expose, call, null);
+    });
+  }
+
+  function settle(id, key, expose, call, reply) {
+    var hold = holds[id];
+    // Only the latest send of a key counts, and a newer change scheduled meanwhile keeps the hold.
+    if (!hold || hold.call !== call || hold.timer || hold.local) return;
+    delete holds[id];
+    var body = reply && reply.result && typeof reply.result === "object" ? reply.result : {};
+    var partial = body.status === "saved-partial" && Array.isArray(body.applied) && body.applied.indexOf(id) >= 0;
+    if (!reply || (reply.outcome !== "applied" && !partial)) {
+      showRowMessage(key, !reply ? cfg.i18nText("configure.error.network", "Failed (network)")
+        : reply.outcome === "pending_approval" ? cfg.approvalMessage(body) : refusal(reply, body));
+      restore(key, expose);
+      return;
+    }
+    // As Home Assistant does, the row keeps the value it sent until the next push; a push that arrived during
+    // the hold and moved off the old value already carries the panel's newer (or normalised) value.
+    var latest = expose ? cfg.panelExpose[key] : cfg.panel[key];
+    var value = hold.pushed && latest !== hold.before ? latest : expose ? cfg.expose[key] : cfg.values[key];
+    if (expose) { cfg.expose[key] = value; cfg.panelExpose[key] = value; }
+    else {
+      cfg.panel[key] = value;
+      if (!typing[key]) cfg.values[key] = value;   // newer typed text stays until it is committed
+    }
+    showRowMessage(key, partial ? refusal(reply, body) : "");
+    if (!expose && key === "ui_language") { cfg.reloadForSavedUiLanguage(); return; }
+    var previousUrl = cfg.values.ha_url, previousAuth = cfg.haAuth;
+    adoptStatus(body);
+    var haChanged = haConnectionChanged(previousUrl, previousAuth, key === "ha_url" || key === "ha_token");
+    renderWhenIdle();
+    refreshDependents([id], haChanged);
+  }
+
+  // A failed or refused change shows the panel's value again.
+  function restore(key, expose) {
+    if (expose) cfg.expose[key] = cfg.panelExpose[key];
+    else if (!typing[key]) cfg.values[key] = cfg.panel[key];
+    renderWhenIdle();
+  }
+
+  // A fraction typed into a whole-number field is rounded (96.5 → 97) rather than refused; the field's
+  // commit then sends the rounded value.
   cfg.roundWholeNumber = function (field, control) {
     var n = Number(control.value);
     if (control.value === "" || !isFinite(n) || Number.isInteger(n)) return;
     control.value = String(Math.round(n));
     cfg.values[field.key] = control.value;
-    cfg.setDirty(field.key);
   };
 
-  function roundDirtyWholeNumbers() {
-    cfg.schema.forEach(function (field) {
-      if (field.type !== "INT" || !cfg.dirtyValues[field.key]) return;
-      var control = document.querySelector("#cfg-" + field.key + " input");
-      if (control) cfg.roundWholeNumber(field, control);
-    });
-  }
-
-  function firstInvalidDirtySetting() {
-    var minimumKey = "auto_brightness_minimum_percent";
-    var maximumKey = "auto_brightness_maximum_percent";
-    if ((cfg.dirtyValues[minimumKey] || cfg.dirtyValues[maximumKey]) &&
-        Number(cfg.values[minimumKey]) >= Number(cfg.values[maximumKey])) {
-      for (var b = 0; b < cfg.schema.length; b++) {
-        var bound = cfg.schema[b];
-        if (bound.key !== maximumKey) continue;
-        return { field: bound, control: document.querySelector("#cfg-" + maximumKey + " input"),
-          message: cfg.i18nText("configure.validation.invalid", "{label} has an invalid value.", { label: bound.label }) };
-      }
-    }
-    for (var i = 0; i < cfg.schema.length; i++) {
-      var field = cfg.schema[i];
-      if (!cfg.dirtyValues[field.key]) continue;
-      var row = document.getElementById("cfg-" + field.key);
-      // The first INVALID control in the row, not the row's first control. A row may carry more than
-      // one — the dashboard picker is a select plus a revealed custom-path input — and the leading
-      // control is typically the valid one while the control being edited is not. Taking the first
-      // match would report the row as valid and let the bad value reach the server.
-      var controls = row && row.querySelectorAll ? row.querySelectorAll("input,select,textarea") : [];
-      var control = null;
-      for (var c = 0; c < controls.length; c++) {
-        if (controls[c].disabled || !controls[c].checkValidity || controls[c].checkValidity() ||
-            offStepOnly(field, controls[c])) continue;
-        control = controls[c];
-        break;
-      }
-      if (!control) continue;
-      var message = field.type === "INT" && field.min != null && field.max != null
+  // The first control in the row the browser finds invalid, as the message that names its rule.
+  function invalidMessage(key) {
+    var field = fieldOf(key), row = document.getElementById("cfg-" + key);
+    if (!field || !row) return "";
+    var controls = row.querySelectorAll("input,select,textarea");
+    for (var i = 0; i < controls.length; i++) {
+      var control = controls[i], validity = control.validity;
+      if (control.disabled || !control.checkValidity || control.checkValidity()) continue;
+      // A step is the arrow increment, not a rule: the panel accepts any in-range value.
+      if (validity && validity.stepMismatch && !validity.rangeUnderflow && !validity.rangeOverflow && !validity.badInput) continue;
+      return field.type === "INT" && field.min != null && field.max != null
         ? cfg.i18nText("configure.validation.whole_range", "{label} must be a whole number between {min} and {max}.", { label: field.label, min: field.min, max: field.max })
         : field.min != null && field.max != null
         ? cfg.i18nText("configure.validation.range", "{label} must be between {min} and {max}.", { label: field.label, min: field.min, max: field.max })
         : cfg.i18nText("configure.validation.invalid", "{label} has an invalid value.", { label: field.label });
-      return { field: field, control: control, message: message };
     }
-    return null;
+    return "";
   }
 
-  window.cfgSave = function () {
-    if (!cfg.dirty || cfg.saving) return;
-    var msg = document.getElementById("cfg-msg");
-    roundDirtyWholeNumbers();
-    var invalid = firstInvalidDirtySetting();
+  // Send a typed or stepped value now: the field was committed, left, or its step debounce ran out.
+  function flush(key) {
+    var hold = holds[key];
+    if (!typing[key] && !(hold && (hold.timer || hold.local))) return;
+    if (hold && hold.timer) { clearTimeout(hold.timer); hold.timer = null; }
+    delete typing[key];
+    var invalid = invalidMessage(key);
+    var field = fieldOf(key);
     if (invalid) {
-      msg.textContent = invalid.message;
-      if (invalid.control && invalid.control.reportValidity) invalid.control.reportValidity();
-      if (invalid.control && invalid.control.focus) invalid.control.focus();
+      if (hold && !hold.call) delete holds[key];
+      showRowMessage(key, invalid);
+      restore(key, false);
+    } else if (!hold && (cfg.values[key] === cfg.panel[key] || (field && field.secret && !cfg.values[key]))) {
+      if (cfg.renderOwed) renderWhenIdle();   // nothing to send: blank keeps a secret, an unchanged value stays
+    } else {
+      send(key, false);
+    }
+  }
+
+  // Every control reports a local change of its setting here, once per event it handles.
+  cfg.localChange = function (key, expose) {
+    showRowMessage(key, "");
+    cfg.syncHaOAuthAvailability();
+    cfg.syncAutoSleepCardSignature();
+    if (expose) { send(key, true); return; }
+    var active = document.activeElement;
+    if (textEntry(active) && keyOf(active) === key) {
+      typing[key] = true;
+      var hold = holds[key];
+      if (stepping && active.type === "number") {
+        hold = newHold(key, cfg.panel[key]);
+        if (hold.timer) clearTimeout(hold.timer);
+        hold.timer = setTimeout(function () { hold.timer = null; flush(key); }, STEP_DEBOUNCE_MS);
+      } else if (hold && hold.timer) {
+        clearTimeout(hold.timer);   // typing took over from stepping: wait for the commit
+        hold.timer = null;
+      }
       return;
     }
-    cfg.saving = true;
-    // Fence any mDNS suggestions computed against the pre-save HA baseline.
-    cfg.configDiscoveryRequest++;
-    var submittedGeneration = cfg.editGeneration;
-    updateSaveUi();
-    var body = new URLSearchParams();
-    var submittedValues = {}, submittedExpose = {};
-    cfg.schema.forEach(function (f) {
-      var v = cfg.values[f.key];
-      if (cfg.dirtyValues[f.key]) {
-        if (f.secret) { if (v) { body.set(f.key, v); submittedValues[f.key] = v; } } // blank password = keep current
-        else if (v != null) { body.set(f.key, v); submittedValues[f.key] = v; }
-      }
-      if (f.ha && cfg.dirtyExpose[f.key]) {
-        submittedExpose[f.key] = cfg.expose[f.key] !== false;
-        body.set("ha_expose_" + f.key, submittedExpose[f.key] ? "true" : "false");
-      }
-    });
-    msg.textContent = cfg.i18nText("configure.save.saving", "Saving…");
-    window.PaneldTransport.request("settings", Object.fromEntries(body)).then(function (reply) {
-      // The panel refuses as JSON `message` or as plain text (the transport carries that as `message`).
-      var body = cfg.approvalAware(reply);
-      if (reply.outcome !== "applied") {
-        var reason = (typeof reply.result === "string" && reply.result.trim()) || (typeof body.message === "string" && body.message.trim()) ||
-          (typeof body.error === "string" ? body.error + (body.reason ? " (" + body.reason + ")" : "") : "");
-        var error = new Error(reason
-          ? cfg.i18nText("configure.save.refused", "Not saved: {reason}", { reason: reason })
-          : cfg.i18nText("configure.error.http", "Failed (HTTP {status})", { status: reply.code || reply.outcome }));
-        error.configOutcome = body;
-        error.refused = true;
-        throw error;
-      }
-      return body;
-    })
-      .then(function (outcome) {
-        var outcomeMessage = outcome && outcome.status === "saved-apply-pending"
-          ? cfg.i18nText("configure.save.hardware_pending", "Saved desired value; hardware application is pending.")
-          : cfg.i18nText("configure.save.saved", "Saved.");
-        var autoBrightnessSourceChanged = Object.prototype.hasOwnProperty.call(submittedValues, "auto_brightness_ha_entity");
-        if (autoBrightnessSourceChanged) cfg.beginAutoBrightnessSourceTransition(submittedValues.auto_brightness_ha_entity);
-        Object.keys(submittedValues).forEach(function (key) { cfg.savedValues[key] = submittedValues[key]; });
-        Object.keys(submittedExpose).forEach(function (key) { cfg.savedExpose[key] = submittedExpose[key]; });
-        cfg.acceptSavedUiLanguage(submittedValues);
-        recomputeDirty();
-        cfg.loadRadio();
-        restampConfigWatchBaseline();
-        var autoSleepInputsChanged = ["auto_sleep", "auto_sleep_source", "ha_url", "ha_token"].some(function (key) {
-          return Object.prototype.hasOwnProperty.call(submittedValues, key);
-        });
-        var haConnectionInputsChanged = ["ha_url", "ha_token"].some(function (key) {
-          return Object.prototype.hasOwnProperty.call(submittedValues, key);
-        });
-        if (autoSleepInputsChanged) {
-          cfg.invalidateAutoSleepData(haConnectionInputsChanged);
-        }
-        if (cfg.editGeneration !== submittedGeneration) {
-          (outcome && outcome.pending || []).forEach(function (key) {
-            if (Object.prototype.hasOwnProperty.call(submittedValues, key)) cfg.applyPending[key] = submittedValues[key];
-          });
-          scheduleApplyPendingPoll();
-          cfg.saving = false;
-          updateSaveUi();
-          if (cfg.localeDocumentReloadPending && !cfg.dirty) {
-            cfg.reloadForSavedLocale();
-            return;
-          }
-          msg.textContent = cfg.dirty ?
-            ((outcome && outcome.pending && outcome.pending.length) ?
-              cfg.i18nText("configure.save.outcome_newer_changes", "{outcome} Newer changes still need saving.", { outcome: outcomeMessage })
-              : cfg.i18nText("configure.save.saved_newer_changes", "Saved; newer changes still need saving.")) :
-            outcomeMessage;
-          if (autoSleepInputsChanged && cfg.values.auto_sleep === "true") setTimeout(cfg.loadAutoSleepData, 0);
-          if (autoBrightnessSourceChanged) setTimeout(function () { cfg.loadAutoBrightnessData(true); }, 0);
-          return;
-        }
-        cfg.saving = false;
-        msg.textContent = cfg.i18nText("configure.save.saving", "Saving…"); clearDirty();
-        // The optional Presence & wake card is server-rendered only while Wake on wave is enabled.
-        if (cfg.localeDocumentReloadPending || Object.prototype.hasOwnProperty.call(submittedValues, "wake_on_wave")) {
-          cfg.reloadForSavedLocale();
-          return;
-        }
-        // Reload the form from the server, then land on a terminal message — don't leave a
-        // "reconnecting…" string hanging (it reads as stuck even though the save is done).
-        // Clear before load(): its render pass is the single owner that schedules enabled status.
-        load(function (ok) {
-          msg.textContent = ok ? outcomeMessage : cfg.i18nText("configure.save.reload_failed", "Saved (reload failed — refresh the page).");
-          var autoBrightnessSettingChanged = Object.prototype.hasOwnProperty.call(submittedValues, "auto_brightness") ||
-              Object.prototype.hasOwnProperty.call(submittedValues, "auto_brightness_minimum_percent") ||
-              Object.prototype.hasOwnProperty.call(submittedValues, "auto_brightness_maximum_percent") ||
-              Object.prototype.hasOwnProperty.call(submittedValues, "auto_brightness_response_percent") ||
-              autoBrightnessSourceChanged;
-          if (autoBrightnessSourceChanged || (ok && autoBrightnessSettingChanged)) {
-            cfg.loadAutoBrightnessData(true);
-          }
-          // Re-enabling keeps the last completed replay visible, but it must still validate status
-          // and history in the background. invalidateAutoSleepData() deliberately retains that
-          // settled snapshot, so render() cannot infer the refresh from a missing status object.
-          if (ok && autoSleepInputsChanged && cfg.values.auto_sleep === "true") {
-            setTimeout(cfg.loadAutoSleepData, 0);
-          }
-          if (ok && !(outcome && outcome.pending && outcome.pending.length)) {
-            if (!keepSaveMessageVisible(outcomeMessage)) {
-              setTimeout(function () { if (msg.textContent === outcomeMessage) msg.textContent = ""; }, 2500);
-            }
-          }
-        }, haConnectionInputsChanged);
-      })
-      .catch(function (e) {
-        cfg.saving = false;
-        if (e && e.configOutcome && e.configOutcome.status === "saved-partial") {
-          var applied = Array.isArray(e.configOutcome.applied) ? e.configOutcome.applied : [];
-          var appliedValues = {};
-          applied.forEach(function (key) {
-            if (!Object.prototype.hasOwnProperty.call(submittedValues, key)) return;
-            appliedValues[key] = submittedValues[key];
-            cfg.savedValues[key] = submittedValues[key];
-          });
-          cfg.acceptSavedUiLanguage(appliedValues);
-          if (cfg.localeDocumentReloadPending) {
-            recomputeDirty();
-            updateSaveUi();
-            if (!cfg.dirty) {
-              cfg.reloadForSavedLocale(e.message);
-              return;
-            }
-          }
-          load(function () {
-            if (cfg.localeDocumentReloadPending) {
-              cfg.reloadForSavedLocale(e.message);
-              return;
-            }
-            msg.textContent = e.message;
-            updateSaveUi();
-          }, false);
-        } else {
-          msg.textContent = e && e.approvalRequired
-            ? cfg.approvalMessage(e.body)
-            : e && e.refused
-            ? e.message
-            : cfg.i18nText("configure.save.failed", "Save failed.");
-          updateSaveUi();
-        }
-      });
+    send(key, false);
   };
 
-  function load(done, forceHaUserStatusRefresh, refreshAutoSleepPrerequisite) {
+  // A value the page proposes but has not sent (the discovered Home Assistant address): held like a local
+  // edit, and sent when its field is committed or left.
+  cfg.proposeValue = function (key, value) {
+    if (holds[key] || typing[key]) return false;
+    cfg.values[key] = value;
+    newHold(key, cfg.panel[key]).local = true;
+    return true;
+  };
+  cfg.renderWhenIdle = renderWhenIdle;
+
+  function load() {
     ++cfg.haAreaSeedGeneration;
     ++cfg.schemaLanguageRequest;
     var read = function (op, args) {
@@ -314,68 +308,33 @@
       // Installed launchable apps for the package pickers; tolerate failure (picker falls back to text).
       window.PaneldTransport.request("apps").then(function (reply) { return reply.result; }).catch(function () { return { apps: [] }; }),
     ]).then(function (res) {
-      var previousHaUrl = cfg.values.ha_url;
-      var previousHaConfigured = cfg.haAuth.configured === true;
-      var previousHaOauth = cfg.haAuth.oauth === true;
       cfg.schema = res[0];
-      cfg.values = res[1].settings || {};
-      cfg.expose = res[1].ha_expose || {};
-      cfg.haAuth = res[1].ha_auth || {};
-      cfg.applyPending = res[1].apply_pending || {};
-      cfg.applyStalled = stalledMap(res[1].apply_stalled);
+      cfg.values = panelValues(res[1]);
+      cfg.panel = Object.assign({}, cfg.values);
+      cfg.expose = Object.assign({}, res[1].ha_expose || {});
+      cfg.panelExpose = Object.assign({}, cfg.expose);
+      adoptStatus(res[1]);
       cfg.haAreaSeed = res[1].ha_area_catalog || null;
       cfg.haAreaUserOverride = res[1].ha_area_user_override === true;
       if (cfg.values.auto_sleep === "true") cfg.configCardExpected.autoSleep = true;
       if (cfg.haAuth.configured === true) cfg.configCardExpected.ha = true;
-      var haConnectionChanged = forceHaUserStatusRefresh === true ||
-        previousHaUrl !== cfg.values.ha_url ||
-        previousHaConfigured !== (cfg.haAuth.configured === true) ||
-        previousHaOauth !== (cfg.haAuth.oauth === true);
-      // Keep an already-rendered identity stable across unrelated saves. A real HA connection edit
-      // clears the old user's name and performs a fresh no-store current-user probe below.
-      if (haConnectionChanged) {
-        cfg.haUserStatus = { phase: "unknown" };
-        cfg.autoSleepAreaGeneration++;
-        cfg.autoSleepSourceUpdating = Object.create(null);
-        cfg.invalidateAutoSleepData(true);
-        cfg.autoSleepAssignedAreaName = "";
-        cfg.autoSleepPrerequisiteRequest++;
-        cfg.autoSleepPrerequisite = { eligible: false, phase: "checking", area_name: "" };
-      }
+      haConnectionChanged(undefined, {}, true);
       cfg.apps = (res[2] && res[2].apps) || [];
       cfg.rendererChoices = (res[2] && Array.isArray(res[2].renderers)) ? res[2].renderers : [];
-      // Normalize bool values to the "true"/"false" strings the toggle compares against.
-      cfg.schema.forEach(function (f) {
-        if (f.type === "BOOL" && typeof cfg.values[f.key] === "boolean") cfg.values[f.key] = cfg.values[f.key] ? "true" : "false";
-        if (cfg.values[f.key] != null && typeof cfg.values[f.key] !== "string") cfg.values[f.key] = String(cfg.values[f.key]);
-        if (Object.prototype.hasOwnProperty.call(cfg.applyPending, f.key)) {
-          var desired = cfg.applyPending[f.key];
-          if (f.type === "BOOL" && typeof desired === "boolean") desired = desired ? "true" : "false";
-          cfg.values[f.key] = typeof desired === "string" ? desired : String(desired);
-        }
-      });
-      cfg.savedValues = Object.assign({}, cfg.values);
-      cfg.savedExpose = Object.assign({}, cfg.expose);
-      // A successful full reload replaces the form's local snapshot, so no previously tracked edit remains.
-      clearDirty();
       cfg.render();
       loadDiscoverySuggestions();
       cfg.loadHomeDashboards();
-      if (!done && Object.keys(cfg.applyPending).length) {
-        document.getElementById("cfg-msg").textContent = applyPendingBannerText();
-      }
-      scheduleApplyPendingPoll();
-      if (refreshAutoSleepPrerequisite !== false) cfg.scheduleAutoSleepPrerequisite();
-      if (haConnectionChanged) cfg.loadHaUserStatus();
+      cfg.scheduleAutoSleepPrerequisite();
+      cfg.loadHaUserStatus();
       cfg.configCardSourceReady("core");
       cfg.configCardGeometryChanged();
-      cfg.consumeLocaleReloadMessage();
-      if (done) done(true);
+      // The first update carries the current state; later ones follow changes made anywhere.
+      if (!configWatch) configWatch = window.PaneldTransport.subscribe("config", function (body, state) {
+        if (state === "known" && body && typeof body === "object") adopt(body);
+      });
     }).catch(function (e) {
       document.getElementById("cfg-status").textContent = cfg.i18nText("configure.load_failed", "Could not load settings ({error}).", { error: e });
       if (!Array.isArray(cfg.schema) || !cfg.schema.some(function (field) { return document.getElementById("cfg-" + field.key); })) window.HaI18n.pageFailure("config.schema / config · " + e);
-      cfg.consumeLocaleReloadMessage();
-      if (done) done(false);
     });
   }
 
@@ -385,30 +344,11 @@
       if (reply.outcome !== "applied") throw new Error(reply.code || reply.outcome);
       return reply.result;
     }).then(function (suggestions) {
-      // Never rebuild the form over an edit made while the bounded mDNS browse was in flight.
-      if (request !== cfg.configDiscoveryRequest || cfg.dirty) return;
-      var applied = false;
-      ["ha_url"].forEach(function (key) {
-        var suggestion = suggestions && suggestions[key];
-        if (!suggestion || cfg.values[key] || cfg.savedValues[key] || cfg.dirtyValues[key]) return;
-        cfg.values[key] = String(suggestion);
-        applied = true;
-      });
-      if (!applied) return;
-      cfg.editGeneration++;
-      recomputeDirty();
-      cfg.render();
-      cfg.configCardGeometryChanged();
+      if (request !== cfg.configDiscoveryRequest) return;
+      var suggestion = suggestions && suggestions.ha_url;
+      if (!suggestion || cfg.values.ha_url || cfg.panel.ha_url || !cfg.proposeValue("ha_url", String(suggestion))) return;
+      renderWhenIdle();
     }).catch(function () {});
-  }
-
-  // The keys whose apply path this panel has been found not to have. Their desired value is still saved
-  // and still retried; only the sentence about it changes, because "waiting to apply" was a promise the
-  // panel could not keep and it never went away.
-  function stalledMap(list) {
-    var map = {};
-    (Array.isArray(list) ? list : []).forEach(function (key) { map[key] = true; });
-    return map;
   }
 
   function applyPendingStatusText(key) {
@@ -417,82 +357,6 @@
       : cfg.i18nText("configure.save.hardware_pending", "Saved desired value; hardware application is pending.");
   }
 
-  function applyPendingBannerText() {
-    var waiting = [], stalled = [];
-    Object.keys(cfg.applyPending).forEach(function (key) {
-      (cfg.applyStalled[key] === true ? stalled : waiting).push(key);
-    });
-    var parts = [];
-    if (waiting.length) {
-      parts.push(cfg.i18nText("configure.save.waiting_to_apply", "Saved settings waiting to apply: {settings}.", {
-        settings: waiting.join(", ")
-      }));
-    }
-    if (stalled.length) {
-      parts.push(cfg.i18nText("configure.save.unavailable_to_apply", "Saved, but this panel has no way to apply them yet: {settings}.", {
-        settings: stalled.join(", ")
-      }));
-    }
-    return parts.join(" ");
-  }
-
-  // Re-reads the config every 3 s while a saved value waits for hardware. Kept as a page timer: 20.4 gives
-  // apply_pending no family, and the health line's cfg= token does not change when hardware catches up.
-  function scheduleApplyPendingPoll() {
-    if (cfg.applyPendingTimer) clearTimeout(cfg.applyPendingTimer);
-    cfg.applyPendingTimer = null;
-    if (!Object.keys(cfg.applyPending).length) return;
-    cfg.applyPendingTimer = setTimeout(function () {
-      window.PaneldTransport.request("config")
-        .then(function (reply) { if (reply.outcome !== "applied") throw reply.code; return reply.result; })
-        .then(function (body) {
-          var next = body.apply_pending || {};
-          var nextStalled = stalledMap(body.apply_stalled);
-          var currentKeys = Object.keys(cfg.applyPending), nextKeys = Object.keys(next);
-          var changed = currentKeys.length !== nextKeys.length || nextKeys.some(function (key) {
-            return !Object.prototype.hasOwnProperty.call(cfg.applyPending, key) ||
-              String(cfg.applyPending[key]) !== String(next[key]) ||
-              (nextStalled[key] === true) !== (cfg.applyStalled[key] === true);
-          });
-          if (!changed) return;
-          var changedKeys = currentKeys.concat(nextKeys).filter(function (key, index, keys) {
-            return keys.indexOf(key) === index;
-          });
-          if (!cfg.dirty) {
-            load(function (ok) {
-              if (ok && !nextKeys.length) {
-                document.getElementById("cfg-msg").textContent = cfg.i18nText("configure.save.now_applied", "Saved settings are now applied.");
-              }
-            }, false, false);
-            return;
-          }
-          cfg.applyPending = next;
-          cfg.applyStalled = nextStalled;
-          changedKeys.forEach(function (key) {
-            var row = document.getElementById("cfg-" + key);
-            var label = row && row.querySelector(".flabel");
-            if (!label) return;
-            var status = label.querySelector(".apply-pending-status");
-            if (Object.prototype.hasOwnProperty.call(next, key)) {
-              var statusText = applyPendingStatusText(key);
-              if (!status) label.appendChild(cfg.el("small", { class: "apply-pending-status", text: statusText }));
-              else if (status.textContent !== statusText) status.textContent = statusText;
-            } else if (status) status.remove();
-          });
-          cfg.syncAutoSleepCardSignature();
-          if (!nextKeys.length) {
-            var msg = document.getElementById("cfg-msg");
-            msg.textContent = cfg.i18nText("configure.save.applied_newer_changes", "Saved settings are now applied; newer changes still need saving.");
-          }
-        })
-        .catch(function () {})
-        .then(scheduleApplyPendingPoll);
-    }, 3000);
-  }
-
-  cfg.updateSaveUi = updateSaveUi;
-  cfg.recomputeDirty = recomputeDirty;
-  cfg.setDirty = setDirty;
   cfg.applyPendingStatusText = applyPendingStatusText;
 
   if ("BroadcastChannel" in window) {
@@ -507,13 +371,30 @@
   }
 
   if (window.addEventListener) {
-    document.addEventListener("input", queueDirtyUiReconcile, true);
-    document.addEventListener("change", queueDirtyUiReconcile, true);
-    document.addEventListener("click", queueDirtyUiReconcile, true);
-    window.addEventListener("focus", cfg.scheduleAutoSleepPrerequisite);
-    document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") cfg.scheduleAutoSleepPrerequisite();
+    // Before a control's own input handler reports the change: was this a step rather than typing?
+    document.addEventListener("input", function (event) {
+      var target = event.target;
+      stepping = !!target && target.type === "number" && !event.inputType;
+    }, true);
+    // After the control's own handlers (bubble phase): a committed field sends, unless it is a number
+    // still being stepped, whose debounce sends it.
+    document.addEventListener("change", function (event) {
+      var target = event.target, key = keyOf(target);
+      if (!key || !textEntry(target)) return;
+      if (stepping && target.type === "number" && target === document.activeElement && holds[key] && holds[key].timer) return;
+      flush(key);
     });
+    document.addEventListener("focusout", function (event) {
+      var key = keyOf(event.target);
+      if (key) flush(key);
+      if (cfg.renderOwed && !cfg.typingHeld()) setTimeout(renderWhenIdle, 0);
+    });
+    // A step debounce still running when the page is hidden is sent now, not lost.
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") { cfg.scheduleAutoSleepPrerequisite(); return; }
+      Object.keys(holds).forEach(function (key) { if (holds[key].timer) flush(key); });
+    });
+    window.addEventListener("focus", cfg.scheduleAutoSleepPrerequisite);
   }
 
   cfg.readConfigView();
@@ -554,6 +435,6 @@
     });
   })();
 
-  load(null, true);
+  load();
   cfg.loadRadio();
 })(window.ConfigurePage);

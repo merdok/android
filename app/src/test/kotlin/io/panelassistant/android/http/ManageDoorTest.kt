@@ -292,7 +292,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
             "page.info", "page.configure", "page.setup", "page.profiles", "page.install", "page.logs", "page.entities",
             "health", "info", "settings", "diag", "status", "peers", "apps", "radio", "radio.join",
             "setup", "setup.attest", "setup.identity", "setup.home_dashboard", "setup.entity_filter",
-            "config", "config.schema", "config.discovery", "config.home_dashboards", "config.ha_area",
+            "config", "config.values", "config.schema", "config.discovery", "config.home_dashboards", "config.ha_area",
             "config.export", "config.import", "ha.oauth.status", "ha.oauth.start", "ha.oauth.panel_start",
             "migration_notice.dismiss",
             "install.component", "install.apk", "install.apk.from_url", "install.apk.fetch.cancel",

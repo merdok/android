@@ -36,10 +36,10 @@ internal class ConfigValueProjection(
     fun effectiveValue(spec: io.panelassistant.android.config.SettingSpec, live: Map<String, String>): String =
         effectiveSettingValue(config, spec, live)
 
-    /** Registry-driven current values (typed JSON; secrets blanked) for the Configure form. */
-    fun settingsValuesJson(): String {
+    /** Registry-driven current values (typed JSON; secrets blanked) for the Configure form. [live] defaults to the
+     *  management snapshot's controller-sourced keys, never fresh su probes. */
+    fun settingsValuesJson(live: Map<String, String> = renderedLiveValues()): String {
         fun s(v: String) = Json.str(v)
-        val live = renderedLiveValues()   // controller-sourced keys via the snapshot, not fresh su probes
         val parts = SettingsRegistry.settable().joinToString(",") { spec ->
             val raw = effectiveValue(spec, live)
             val v = when {
@@ -62,6 +62,31 @@ internal class ConfigValueProjection(
         }
         return "{$parts}"
     }
+
+    private fun haAuthJson(): String =
+        "{\"configured\":${config.haToken.isNotEmpty() || config.haRefreshToken.isNotEmpty()},\"oauth\":${config.haRefreshToken.isNotEmpty()}}"
+
+    /** `"apply_pending":{…},"apply_stalled":[…]`: the live settings saved but not yet applied, and those stuck. */
+    private fun applyStateJson(): String {
+        val pending = pendingLiveSettings()
+        val pendingDesired = pending.entries.joinToString(",") { (key, value) -> "${Json.str(key)}:${Json.str(value)}" }
+        return "\"apply_pending\":{$pendingDesired}," +
+            "\"apply_stalled\":${jarr(stalledApplyKeys(pending.keys, stalledLiveSettings()))}"
+    }
+
+    /**
+     * The values-only read (`config.values`) an open Configure page follows every half second: the `settings`,
+     * `ha_expose`, `ha_auth`, `apply_pending` and `apply_stalled` of [configJson], with `settings` taken from the
+     * su-free live values (the ones the health `cfg=` token and POST equality use), never the management snapshot,
+     * plus [rendererPending] (sorted; null when no built-in renderer runs).
+     */
+    fun valuesJson(rendererPending: Set<String>?): String =
+        "{\"settings\":${settingsValuesJson(configLiveValues())}," +
+            "\"ha_expose\":${haExposeJson()}," +
+            "\"ha_auth\":${haAuthJson()}," +
+            applyStateJson() + "," +
+            "\"renderer_pending\":${rendererPending?.let { jarr(it.sorted()) } ?: "null"}" +
+            "}"
 
     /** Current registry values as a flat map (skips transient inputs; controller-sourced settings
      *  read their live state). The basis for export, the pre-change snapshot, and the dry-run diff. */
@@ -127,11 +152,6 @@ internal class ConfigValueProjection(
                 "\"rejected\":${jarr(rejected)}," +
                 "\"message\":${s(message.orEmpty())},"
         }.orEmpty()
-        val pending = pendingLiveSettings()
-        val pendingDesired = pending.entries.joinToString(",") { (key, value) ->
-            "${s(key)}:${s(value)}"
-        }
-        val stalledDesired = jarr(stalledApplyKeys(pending.keys, stalledLiveSettings()))
         return "{" +
             mutation +
             "\"panel_id\":${s(config.panelId)}," +
@@ -151,7 +171,7 @@ internal class ConfigValueProjection(
             "\"log_ship_host\":${s(config.logShipHost)}," +
             "\"log_ship_port\":${config.logShipPort}," +
             "\"log_ship_protocol\":${s(config.logShipProtocol)}," +
-            "\"ha_auth\":{\"configured\":${config.haToken.isNotEmpty() || config.haRefreshToken.isNotEmpty()},\"oauth\":${config.haRefreshToken.isNotEmpty()}}," +
+            "\"ha_auth\":${haAuthJson()}," +
             "\"version\":${s(appVersion())}," +
             "\"proximity\":${proximityJson()}," +
             "\"power_safety\":${powerAdvisory}," +
@@ -159,8 +179,7 @@ internal class ConfigValueProjection(
             "\"settings\":${settingsValuesJson()}," +
             "\"ha_expose\":${haExposeJson()}," +
             haAreaCatalogJson()?.let { "\"ha_area_catalog\":$it," }.orEmpty() +
-            "\"apply_pending\":{$pendingDesired}," +
-            "\"apply_stalled\":$stalledDesired" +
+            applyStateJson() +
             "}"
     }
 

@@ -154,10 +154,7 @@
     if (!autoSleepUsesHa()) return;
     if (cfg.values.auto_sleep !== "true") return;
     cfg.values.auto_sleep = "false";
-    cfg.savedValues.auto_sleep = "false";
     invalidateAutoSleepData(true);
-    cfg.recomputeDirty();
-    cfg.updateSaveUi();
     var toggle = document.querySelector("#cfg-auto_sleep [role=switch]");
     if (toggle) {
       toggle.classList.remove("on");

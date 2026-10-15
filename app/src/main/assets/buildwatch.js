@@ -1,14 +1,10 @@
-// Build + config watch (shared by every page). /health carries these tokens:
+// Build watch (shared by every page). /health carries these tokens:
 //  - build= : per-INSTALL token (changes on every (re)install, even a same-version dev re-spin). If it
 //    changes while a page is open, the app was updated → AUTO-RELOAD to pull fresh html/css/js.
-//  - cfg=   : fingerprint of the panel settings. If it changes while the CONFIGURE page is open, the
-//    settings were changed underneath this tab (the API, an HA entity, another browser) → auto-reload
-//    so the form shows reality.
+//    Unsaved edits (a focused field, or the Profiles editor's enabled Save button) must never be
+//    destroyed — show the #verbar banner instead and let the user choose. Baseline = <body data-build>.
 //  - pa_notice= : whether an unconnected panel still owes its owner the migration notice.
-// Exception for both: unsaved edits (a focused field, or the Configure form's enabled Save button)
-// must never be destroyed — show the #verbar banner instead and let the user choose.
-// Baselines = <body data-build> / <body data-cfg>; configure.js re-stamps data-cfg after its own save
-// so a save in THIS tab doesn't look like an external change.
+// Configure follows setting changes through its own `config` family (configure.js), not a reload.
 (function () {
   "use strict";
   var LB = document.body.getAttribute("data-build") || "";
@@ -33,7 +29,7 @@
   function dirty() {
     if (document.querySelector("input:focus,textarea:focus")) return true;
     var save = document.getElementById("savebtn");
-    return !!(save && !save.disabled); // enabled Save = unsaved Configure edits
+    return !!(save && !save.disabled); // enabled Save = unsaved Profiles edits
   }
   function clearNode(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -292,12 +288,6 @@
     var mb = t.match(/build=(\S+)/);
     if (mb && LB && mb[1] !== LB) {
       if (dirty()) banner("shell.new_version.installed", "A newer Panel Assistant is installed"); else location.reload();
-      return;
-    }
-    var mc = t.match(/cfg=(\S+)/);
-    var LC = document.body.getAttribute("data-cfg") || "";
-    if (mc && LC && mc[1] !== LC && (location.origin + location.pathname).indexOf(new URL("configure", document.baseURI).href) === 0) {
-      if (dirty()) banner("shell.settings_changed.externally", "Settings were changed outside this page"); else location.reload();
     }
   }
   window.PaneldTransport.subscribe("health", vc);

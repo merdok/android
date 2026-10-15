@@ -42,7 +42,10 @@
       companionRendererHint,
       secretNote,
       Object.prototype.hasOwnProperty.call(cfg.applyPending, f.key) ?
-        cfg.el("small", { class: "apply-pending-status", text: cfg.applyPendingStatusText(f.key) }) : null,
+        cfg.el("small", { class: "apply-pending-status", text: cfg.applyPendingStatusText(f.key) })
+      : cfg.rendererPending[f.key] === true ?
+        cfg.el("small", { class: "renderer-pending-status", text: cfg.i18nText("configure.renderer.pending", "Saved; not on the dashboard yet.") }) : null,
+      cfg.rowMessages[f.key] ? cfg.el("small", { class: "cfg-row-message", text: cfg.rowMessages[f.key] }) : null,
     ]);
     // Read-only rows (diagnostic sensors) have no editable value — just the expose-to-HA pip.
     var valueControl = f.readOnly ? null : cfg.control(f);
@@ -175,7 +178,25 @@
     });
   }
 
+  // Every caller renders through here: asynchronous loads and pushed values alike. A rebuild waits while a
+  // field holds typed text that has not been sent (the field's commit runs it), and focus returns to the
+  // same control of the same row afterwards, so a periodic update cannot pull a person out of a control.
+  function focusables(row) {
+    return row ? row.querySelectorAll("input,select,textarea,button,[tabindex]") : [];
+  }
   function render() {
+    if (cfg.typingHeld && cfg.typingHeld()) { cfg.renderOwed = true; return; }
+    cfg.renderOwed = false;
+    var active = document.activeElement;
+    var row = active && active.closest ? active.closest(".frow") : null;
+    var index = Array.prototype.indexOf.call(focusables(row), active);
+    renderNow();
+    if (index < 0 || document.activeElement !== document.body) return;
+    var again = focusables(document.getElementById(row.id))[index];
+    if (again) { try { again.focus({ preventScroll: true }); } catch (_) { again.focus(); } }
+  }
+
+  function renderNow() {
     var root = document.getElementById("cfg-groups");
     var proximityCard = document.querySelector("#cfg-proximity-learning");
     var groups = [];

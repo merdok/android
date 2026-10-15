@@ -173,18 +173,6 @@
       "softMaxChars": 30,
       "hardMaxChars": 44
     },
-    "configure.action.save": {
-      "text": "Save changes",
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "surface": "configure",
-      "context": "Save configuration button",
-      "risk": "consequential",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 22,
-      "hardMaxChars": 44
-    },
     "configure.action.updated": {
       "text": "Updated.",
       "sourceHash": "c890307de9b706a96bb48a12cd6cf33fd333765a1c02fd950011a914b53935f0",
@@ -4959,48 +4947,24 @@
       "softMaxChars": 50,
       "hardMaxChars": 72
     },
+    "configure.renderer.pending": {
+      "text": "Saved; not on the dashboard yet.",
+      "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
+      "surface": "configure",
+      "context": "Small note under one Configure setting row: the setting is saved on the panel, but the Home Assistant dashboard on screen does not show it until the dashboard reloads, rebuilds or reconnects.",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 40,
+      "hardMaxChars": 58
+    },
     "configure.renderer.storage": {
       "text": "Renderer storage",
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
       "surface": "configure",
       "context": "renderer",
       "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "configure.save.action": {
-      "text": "Save changes",
-      "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "configure.save.applied_newer_changes": {
-      "text": "Saved settings are now applied; newer changes still need saving.",
-      "sourceHash": "922c6c27af2eadf2a8bd74b0ed260b1c9955cf4b55e8dd631500349797ac4631",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 80,
-      "hardMaxChars": 116
-    },
-    "configure.save.failed": {
-      "text": "Save failed.",
-      "sourceHash": "19b9455ce71a631f52e74d6fc358e95b9f35ab9a933aaf2fb159d97f1246983c",
-      "surface": "configure",
-      "context": "save",
-      "risk": "consequential",
       "siblings": [],
       "placeholders": [],
       "frozen": [],
@@ -5031,34 +4995,6 @@
       "softMaxChars": 95,
       "hardMaxChars": 130
     },
-    "configure.save.now_applied": {
-      "text": "Saved settings are now applied.",
-      "sourceHash": "f7bfcea102edeb4ba0e93aa5a17733d1de0cc1183edc5b707e474640363b018e",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 39,
-      "hardMaxChars": 56
-    },
-    "configure.save.outcome_newer_changes": {
-      "text": "{outcome} Newer changes still need saving.",
-      "sourceHash": "1afa8dc5ecaddb4f7ea2e4bdf97f0ec039ea7ddbb919727f42f339178250829d",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{outcome}"
-      ],
-      "frozen": [
-        "{outcome}"
-      ],
-      "softMaxChars": 53,
-      "hardMaxChars": 76
-    },
     "configure.save.refused": {
       "text": "Not saved: {reason}",
       "sourceHash": "efd0fb5c5d944eaf6a7e4ebb5b08b47cc65284f06ee919bb04e2777a1e27538e",
@@ -5072,86 +5008,6 @@
       "frozen": [],
       "softMaxChars": 140,
       "hardMaxChars": 240
-    },
-    "configure.save.reload_failed": {
-      "text": "Saved (reload failed — refresh the page).",
-      "sourceHash": "a2dd4f224888a496a50ea48da45bb9db08515fa0c2c4d962760aa3d83fd089e6",
-      "surface": "configure",
-      "context": "save",
-      "risk": "consequential",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 52,
-      "hardMaxChars": 74
-    },
-    "configure.save.saved": {
-      "text": "Saved.",
-      "sourceHash": "fca046ccd586c67f7fe0b3c12c29873a8abf9376f7cd514fc6272ec03b2de0b3",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "configure.save.saved_newer_changes": {
-      "text": "Saved; newer changes still need saving.",
-      "sourceHash": "ce417972a2f79643e1f4952031e4f0878c53746492d013b7667a6238312156f7",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 49,
-      "hardMaxChars": 71
-    },
-    "configure.save.saving": {
-      "text": "Saving…",
-      "sourceHash": "23e39291d6135814ed7c936e278974544b0df5fbf0eb0427b6700979b7472a93",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 24,
-      "hardMaxChars": 40
-    },
-    "configure.save.unavailable_to_apply": {
-      "text": "Saved, but this panel has no way to apply them yet: {settings}.",
-      "sourceHash": "54f575188113309c907825190ece15259dc8d17ae43647dbc27c593b497258d9",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{settings}"
-      ],
-      "frozen": [
-        "{settings}"
-      ],
-      "softMaxChars": 75,
-      "hardMaxChars": 110
-    },
-    "configure.save.waiting_to_apply": {
-      "text": "Saved settings waiting to apply: {settings}.",
-      "sourceHash": "38120c8464a6a191ec813e411dd11ae6c3ad94acf6cd05d5e6842f03ef02b400",
-      "surface": "configure",
-      "context": "save",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [
-        "{settings}"
-      ],
-      "frozen": [
-        "{settings}"
-      ],
-      "softMaxChars": 55,
-      "hardMaxChars": 80
     },
     "configure.secret.blank_keeps_current": {
       "text": "blank keeps current",
@@ -5421,18 +5277,6 @@
       ],
       "softMaxChars": 34,
       "hardMaxChars": 49
-    },
-    "configure.unsaved.label": {
-      "text": "Unsaved settings",
-      "sourceHash": "842e70aacb24a1d6bdea7c34b46777aee7e3446d3ab8f346147b16670e5b974a",
-      "surface": "configure",
-      "context": "Save bar accessible label",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 28,
-      "hardMaxChars": 56
     },
     "configure.validation.invalid": {
       "text": "{label} has an invalid value.",
@@ -37159,18 +37003,6 @@
       ],
       "softMaxChars": 64,
       "hardMaxChars": 92
-    },
-    "shell.settings_changed.externally": {
-      "text": "Settings were changed outside this page",
-      "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
-      "surface": "shell",
-      "context": "Shared configuration-change banner shown when this page has unsaved edits and the panel settings change elsewhere.",
-      "risk": "ordinary",
-      "siblings": [],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 64,
-      "hardMaxChars": 80
     }
   }
 }
