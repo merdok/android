@@ -137,8 +137,9 @@ const PEERS = [
 
 /**
  * Mirror of PaneldServer.pageShell() + navBar(). Direct pages carry the header, the mDNS switcher and
- * the ?theme= pin script; embedded pages (X-Panel-Assistant-Embed) drop the header and switcher, take
- * the theme from the switch and mark the body data-embedded.
+ * the ?theme= pin script; embedded pages (`args.embed` of `page.<name>`) drop the header and switcher, take
+ * the theme from it and mark the body data-embedded. The real embedded body is also data-ui-relay; the mirror
+ * leaves that out so its pages keep answering from this harness's HTTP fixtures.
  */
 // The header's inline name, prepared as PageShell.kt's inlineWordmark does.
 const WORDMARK = readFileSync(resolve(ASSETS, 'name.svg'), 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '').trim()

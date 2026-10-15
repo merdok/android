@@ -1,6 +1,6 @@
 // API explorer: mirror of PaneldServer's GET /api, which fills the placeholders in assets/api.html and is
-// not wrapped in pageShell(). The route ignores X-Panel-Assistant-Embed, so the embedded view is served
-// the same document; api.js renders every endpoint from the real openapi.json.
+// not wrapped in pageShell(). The route has no embedded form, so the embedded view is served the same
+// document; api.js renders every endpoint from the real openapi.json.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ASSETS, BRAND_LOCKUP, PANEL, escapeHtml, i18nPayload } from '../harness.mjs';
