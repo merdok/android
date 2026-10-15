@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ColdActivityStateReadTest {
-    @Test fun `cold Config construction leaves the launching thread free until state is ready`() {
+    @Test fun `a cold Config read leaves the launching thread free until state is ready`() {
         runBlocking {
             val caller = Thread.currentThread()
             val entered = CountDownLatch(1)
@@ -29,12 +29,13 @@ class ColdActivityStateReadTest {
                     entered.countDown()
                     check(release.await(5, TimeUnit.SECONDS))
                     false
-                } else error("Unexpected preference operation: ${method.name}")
+                } else if (method.name == "getString") null
+                else error("Unexpected preference operation: ${method.name}")
             } as SharedPreferences
 
             try {
                 val config = async(start = CoroutineStart.UNDISPATCHED) {
-                    readActivityStateOffMain { Config(preferences) }
+                    readActivityStateOffMain { Config(preferences).autoSleepSource }
                 }
                 assertTrue(entered.await(5, TimeUnit.SECONDS))
                 assertNotEquals(caller, reader.get())
