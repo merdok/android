@@ -1286,11 +1286,8 @@ class PaneldService : Service() {
                 log = { Log.i(TAG, it) },
                 sensitivity = { config.voiceSensitivity },
             ),
-            runner = io.panelassistant.android.assist.SatelliteTurnRunner(
-                panelAssistantVoice,
-                log = { Log.i(TAG, it) },
-                chime = { io.panelassistant.android.assist.VoiceAttention.chime },
-            ),
+            voice = panelAssistantVoice,
+            log = { Log.i(TAG, it) },
         )
         voiceStateAuthority.setChangeListener {
             val state = voiceStateAuthority.current()

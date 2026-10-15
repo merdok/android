@@ -119,6 +119,9 @@ class VoiceAssistantCoordinatorTest {
     /** Each cue's wake word, with the phase the panel was in when it was cued. */
     private val cues = java.util.Collections.synchronizedList(mutableListOf<Pair<String?, VoiceState>>())
 
+    /** The Voice Notice, cued as [VoiceAttention.cue] cues it; a test that watches it follows the phase too. */
+    private val conversation = VoiceConversation { 0L }
+
     private var source: FakeMicrophoneSource = mic
     private var checkTimeoutMs = 2_000L
 
@@ -134,7 +137,7 @@ class VoiceAssistantCoordinatorTest {
         state = state,
         foregroundRetryMs = retryMs,
         maxConversationTurns = maxTurns,
-        attention = { wakeWordId -> cues += wakeWordId to state.current() },
+        attention = { wakeWordId -> cues += wakeWordId to state.current(); conversation.begin() },
         onMicrophoneStatus = { statusChanges += 1 },
         checkTimeoutMs = checkTimeoutMs,
         muted = { muteReader?.muted ?: muted },
@@ -576,6 +579,56 @@ class VoiceAssistantCoordinatorTest {
         second.release.complete(AssistOutcome(error = AssistError(AssistError.DUPLICATE_WAKE_UP, "dup")))
         awaitRunFinished(c)
         assertEquals("a duplicate wake-up is not a failure the panel reports", VoiceState.IDLE, state.current())
+    }
+
+    @Test
+    fun `the card says a reported failure went unheard, and leaves at once for a silent duplicate`() {
+        // As the service wires it: every phase change reaches the card.
+        state.setChangeListener { conversation.state(state.current()) }
+        val c = coordinator()
+        c.start()
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        awaitRunner(0)
+        assertEquals(VoiceConversation.Phase.LISTENING, conversation.card?.phase)
+        runners[0].release.complete(AssistOutcome(error = AssistError(AssistError.DUPLICATE_WAKE_UP, "dup")))
+        awaitRunFinished(c)
+        assertNull("a duplicate wake word shows nothing", conversation.card)
+
+        engines.single().onActivation(WakeWordActivation("okay_nabu", "okay nabu"))
+        awaitRunner(1).release.complete(AssistOutcome(error = AssistError("stt-no-text-recognized", "no text")))
+        awaitRunFinished(c)
+        val card = conversation.card
+        assertEquals(VoiceConversation.Phase.MISSED, card?.phase)
+        assertEquals("a failed exchange has no step under way", null, card?.current)
+        assertEquals(VoiceConversation.LEAVE_MIN_MS, card?.leaveAtMs)
+    }
+
+    @Test
+    fun `an error outside a conversation, such as a failed microphone check, shows no card`() {
+        state.setChangeListener { conversation.state(state.current()) }
+        presence = MicrophonePresence.UNPROVEN
+        val c = coordinator()
+        c.start()
+        mic.speakForCheck(live = false)
+        settleUntil { state.current() == VoiceState.ERROR }
+        assertEquals(VoiceState.ERROR, state.current())
+        assertNull(conversation.card)
+    }
+
+    @Test
+    fun `the panel's cue opens the card and every phase reaches it, not only the start and end of attention`() {
+        try {
+            VoiceAttention.cue("okay_nabu")
+            VoiceAttention.phase(VoiceState.LISTENING)
+            assertEquals(VoiceConversation.Phase.LISTENING, VoiceAttention.conversation.card?.phase)
+            VoiceAttention.phase(VoiceState.PROCESSING)
+            assertEquals(VoiceConversation.Phase.THINKING, VoiceAttention.conversation.card?.phase)
+            VoiceAttention.phase(VoiceState.RESPONDING)
+            assertEquals(VoiceConversation.Phase.REPLYING, VoiceAttention.conversation.card?.phase)
+        } finally {
+            VoiceAttention.conversation.close()
+            VoiceAttention.phase(VoiceState.IDLE)
+        }
     }
 
     @Test

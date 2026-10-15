@@ -9,6 +9,7 @@ import io.panelassistant.android.audio.MicrophoneAdmission
 import io.panelassistant.android.audio.MicrophoneSource
 import io.panelassistant.android.builtInRendererReady
 import io.panelassistant.android.media.AudioPlaybackCoordinator
+import io.panelassistant.android.panelassistant.PanelAssistantVoice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 
@@ -164,9 +165,12 @@ internal fun voiceAssistantCoordinator(
     foregroundMicrophone: (Boolean) -> Boolean,
     state: VoiceStateAuthority,
     engineFactory: WakeWordEngineFactory,
-    runner: AssistRunner,
+    voice: PanelAssistantVoice,
+    log: (String) -> Unit,
     source: () -> MicrophoneSource,
 ): VoiceAssistantCoordinator {
+    // The chime is muted from what the turn hears, and every event of the turn reaches the card on screen.
+    val runner = SatelliteTurnRunner(voice, log, chime = { VoiceAttention.chime }, onEvent = VoiceAttention.conversation::event)
     return VoiceAssistantCoordinator(
         scope = scope,
         settings = {

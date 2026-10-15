@@ -137,6 +137,158 @@ class SatelliteTurnRunnerTest {
         assertEquals(listOf(0, 1000), link.binary.filter { it.size == 3 }.map { (it[2].toInt() shl 8) or (it[1].toInt() and 0xFF) })
     }
 
+    // --- The Voice Notice, fed as production feeds it: the coordinator's cue and phases, the runner's events.
+
+    /** One turn whose card [conversation] follows: cued, listening, then the runner's own run. */
+    private fun TestScope.shownTurn(link: Link, conversation: VoiceConversation, continued: Boolean = false) = async {
+        conversation.begin()
+        conversation.state(VoiceState.LISTENING)
+        SatelliteTurnRunner(link.voice, onEvent = conversation::event).run(
+            VoiceTurnRequest("okay_nabu", continued = continued),
+            // As the coordinator wires them: the capture closing is the move to thinking, playback to replying.
+            { AutoCloseable { conversation.state(VoiceState.PROCESSING) } },
+            { conversation.state(VoiceState.RESPONDING) },
+        )
+    }
+
+    private fun Link.started(): Long {
+        val runId = request(PanelAssistantVoice.COMMAND_VOICE_RUN).getLong("id")
+        answer(runId, JSONObject().put("handler_id", 5))
+        return runId
+    }
+
+    private fun VoiceConversation.shows(phase: VoiceConversation.Phase, heard: String?, reply: String?, done: Int, current: Int?) {
+        val card = card ?: throw AssertionError("the card is closed")
+        assertEquals(listOf(phase, heard, reply, done, current), listOf(card.phase, card.heard, card.reply, card.done, card.current))
+    }
+
+    @Test fun `the card names each phase, quotes what was heard, grows the reply, and fills each step on its own event`() = runTest {
+        val link = link()
+        var now = 1_000L
+        val conversation = VoiceConversation { now }
+        val turn = shownTurn(link, conversation)
+        runCurrent()
+        val runId = link.started()
+        conversation.shows(VoiceConversation.Phase.LISTENING, null, null, done = 0, current = 0)
+        link.event(runId, "listen_end")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, null, null, done = 0, current = 0)
+        link.event(runId, "transcript", "text" to "Turn on the kitchen lights")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, "Turn on the kitchen lights", null, done = 1, current = 1)
+        link.event(runId, "reply", "text" to "Turned on", "final" to false)
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, "Turn on the kitchen lights", "Turned on", done = 1, current = 1)
+        link.event(runId, "reply", "text" to "Turned on 3 lights in the kitchen.", "final" to true)
+        // A piece still in flight after the final answer never replaces it.
+        link.event(runId, "reply", "text" to "Turned on 3", "final" to false)
+        runCurrent()
+        val reply = "Turned on 3 lights in the kitchen."
+        conversation.shows(VoiceConversation.Phase.THINKING, "Turn on the kitchen lights", reply, done = 2, current = 2)
+        link.event(runId, "play", "url" to "/api/tts_proxy/r.mp3")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.REPLYING, "Turn on the kitchen lights", reply, done = 2, current = 2)
+        link.event(runId, "end")
+        runCurrent()
+        assertNull(turn.await().error)
+        conversation.shows(VoiceConversation.Phase.REPLYING, "Turn on the kitchen lights", reply, done = 3, current = null)
+
+        // The conversation is over: the card stays a few seconds, longer for a longer reply, then leaves.
+        conversation.state(VoiceState.IDLE)
+        val leaveAt = conversation.card!!.leaveAtMs!!
+        assertEquals(VoiceConversation.leaveAfterMs(reply), leaveAt - now)
+        assertTrue(VoiceConversation.leaveAfterMs(reply) > VoiceConversation.leaveAfterMs(null))
+        assertEquals(VoiceConversation.LEAVE_MAX_MS, VoiceConversation.leaveAfterMs("x".repeat(10_000)))
+        now = leaveAt - 1
+        assertTrue(conversation.card != null)
+        now = leaveAt
+        assertNull("the card has left", conversation.card)
+    }
+
+    @Test fun `a Panel Assistant that sends no text still shows the phase and the steps its events prove`() = runTest {
+        val link = link()
+        var now = 0L
+        val conversation = VoiceConversation { now }
+        val turn = shownTurn(link, conversation)
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "listen_end")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, null, null, done = 0, current = 0)
+        link.event(runId, "play", "url" to "/api/tts_proxy/r.mp3")
+        runCurrent()
+        // A reply to play proves the command was heard and understood.
+        conversation.shows(VoiceConversation.Phase.REPLYING, null, null, done = 2, current = 2)
+        link.event(runId, "end")
+        runCurrent()
+        turn.await()
+        conversation.shows(VoiceConversation.Phase.REPLYING, null, null, done = 3, current = null)
+        conversation.state(VoiceState.IDLE)
+        assertEquals(VoiceConversation.LEAVE_MIN_MS, conversation.card!!.leaveAtMs)
+    }
+
+    @Test fun `a continued conversation keeps the card and the new exchange replaces the old`() = runTest {
+        val link = link()
+        val conversation = VoiceConversation { 0L }
+        val first = shownTurn(link, conversation)
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "transcript", "text" to "Set a timer")
+        link.event(runId, "reply", "text" to "For how long?", "final" to true)
+        link.event(runId, "play", "url" to "/api/tts_proxy/q.mp3", "continue_conversation" to true)
+        link.event(runId, "end")
+        runCurrent()
+        assertTrue(first.await().continueConversation)
+        conversation.shows(VoiceConversation.Phase.REPLYING, "Set a timer", "For how long?", done = 3, current = null)
+
+        val second = shownTurn(link, conversation, continued = true)
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.LISTENING, null, null, done = 0, current = 0)
+        val nextId = link.started()
+        link.event(nextId, "transcript", "text" to "Ten minutes")
+        runCurrent()
+        conversation.shows(VoiceConversation.Phase.THINKING, "Ten minutes", null, done = 1, current = 1)
+        link.event(nextId, "end")
+        runCurrent()
+        second.await()
+    }
+
+    @Test fun `a failed turn proves no further step, and an exchange that ended with nothing heard leaves at once`() = runTest {
+        val link = link()
+        val conversation = VoiceConversation { 0L }
+        val turn = shownTurn(link, conversation)
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "error", "code" to AssistError.DUPLICATE_WAKE_UP)
+        link.event(runId, "end")
+        runCurrent()
+        assertEquals(AssistError.DUPLICATE_WAKE_UP, turn.await().error?.code)
+        conversation.shows(VoiceConversation.Phase.THINKING, null, null, done = 0, current = 0)
+        // The coordinator keeps a duplicate wake word quiet and rests idle: nothing was heard, nothing to read.
+        conversation.state(VoiceState.IDLE)
+        assertNull(conversation.card)
+    }
+
+    @Test fun `a tap closes the card for the rest of the exchange, and the next wake word opens it again`() = runTest {
+        val link = link()
+        val conversation = VoiceConversation { 0L }
+        val turn = shownTurn(link, conversation)
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "transcript", "text" to "What time is it")
+        runCurrent()
+        conversation.close()
+        assertNull(conversation.card)
+        link.event(runId, "reply", "text" to "It is ten o'clock.", "final" to true)
+        link.event(runId, "end")
+        runCurrent()
+        turn.await()
+        conversation.state(VoiceState.IDLE)
+        assertNull("nothing reopens a card someone closed", conversation.card)
+        conversation.begin()
+        conversation.shows(VoiceConversation.Phase.LISTENING, null, null, done = 0, current = 0)
+    }
+
     /** The voice link opened on a scripted session; the test plays the session loop. */
     private class Link(val voice: PanelAssistantVoice, private val scope: TestScope) {
         val sent = mutableListOf<JSONObject>()

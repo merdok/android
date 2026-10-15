@@ -31,6 +31,8 @@ internal class SatelliteTurnRunner(
      * hears the chime, which once turned a command into nonsense.
      */
     private val chime: () -> LongRange = { LongRange.EMPTY },
+    /** Every event of the turn as it arrives, for the conversation shown on screen; never changes the audio. */
+    private val onEvent: (VoiceTurnEvent) -> Unit = {},
 ) : AssistRunner {
     override suspend fun run(
         request: VoiceTurnRequest,
@@ -57,6 +59,7 @@ internal class SatelliteTurnRunner(
                     } else {
                         withTimeoutOrNull(remainingMs.coerceAtLeast(0L)) { turn.events.receive() }
                     }
+                    event?.let(onEvent)
                     when (event) {
                         null -> {
                             stopListening()
@@ -80,6 +83,7 @@ internal class SatelliteTurnRunner(
                             voice.played(null)
                         }
                         is VoiceTurnEvent.Failed -> error = error ?: AssistError(event.code, "The pipeline failed")
+                        is VoiceTurnEvent.Transcript, is VoiceTurnEvent.Reply -> Unit
                         VoiceTurnEvent.End -> break
                     }
                 }

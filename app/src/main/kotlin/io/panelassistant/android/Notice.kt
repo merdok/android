@@ -101,8 +101,10 @@ internal fun noticeTextScale(scale: Float, fontScale: Float): Float = scale * (i
  */
 internal class Notice(
     private val context: Context,
-    backdropDark: Boolean,
+    private val backdropDark: Boolean,
     private val form: NoticeForm,
+    /** False for a transient card that names no build (the voice conversation): the pill heads the card alone. */
+    brand: Boolean = true,
 ) {
     private val metrics = context.resources.displayMetrics
     val scale: Float = noticeScale(metrics)
@@ -121,6 +123,7 @@ internal class Notice(
     private val innerWidthPx: Int = (widthPx - 2 * px(PAD_H)).coerceAtLeast(1)
 
     private val pillText = text(PILL, colours.text, MEDIUM).apply { maxLines = 1 }
+    private val pillDot = dot(DOT)
     private val pill = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -129,7 +132,7 @@ internal class Notice(
             cornerRadius = 999f * scale
             setColor(noticeWithAlpha(colours.accent, 0x24))
         }
-        addView(dot(DOT), LinearLayout.LayoutParams(px(DOT), px(DOT)).apply { marginEnd = px(8f) })
+        addView(pillDot, LinearLayout.LayoutParams(px(DOT), px(DOT)).apply { marginEnd = px(8f) })
         addView(pillText)
         visibility = View.GONE
     }
@@ -151,7 +154,8 @@ internal class Notice(
             setColor(noticeWithAlpha(colours.surface, if (form == NoticeForm.OVERLAY) NOTICE_OVERLAY_ALPHA else 0xFF))
             setStroke(maxOf(3, px(BORDER)), noticeEdge(backdropDark))
         }
-        addView(brandRow(backdropDark))
+        if (brand) addView(brandRow(backdropDark))
+        else addView(pill, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
 
@@ -179,9 +183,15 @@ internal class Notice(
         }
     }
 
-    /** The pill word: the step, or the severity. Blank hides it. */
-    fun setPill(word: CharSequence) {
+    /**
+     * The pill word: the step, or the severity. Blank hides it. [warn] turns the dot amber, the compact
+     * notices' warning colour in the card's own tone, for a step that failed.
+     */
+    fun setPill(word: CharSequence, warn: Boolean = false) {
         pillText.text = word
+        val dot = if (!warn) colours.accent
+        else if (backdropDark) PanelTokens.Chip.LIGHT.warningBorder else PanelTokens.Chip.DARK.warningBorder
+        (pillDot.background as GradientDrawable).setColor(dot)
         pill.visibility = if (word.isBlank()) View.GONE else View.VISIBLE
     }
 
@@ -222,6 +232,16 @@ internal class Notice(
     fun setHero(hero: TextView, value: CharSequence, word: Boolean) {
         hero.text = value
         hero.setTextSize(TypedValue.COMPLEX_UNIT_PX, (if (word) HERO_WORD else HERO_NUMBER) * textScale)
+    }
+
+    /**
+     * A sentence as the hero (what someone said), smaller than a word hero so a spoken command fits in a
+     * line or two, and in the medium face so it still reads across a room.
+     */
+    fun sentence(value: CharSequence): TextView = text(HERO_SENTENCE, colours.text, MEDIUM).apply {
+        tag = HERO_TAG
+        maxLines = 3
+        text = value
     }
 
     /** The height of a number hero, so a hero that switches between a number and a word never resizes the card. */
@@ -281,6 +301,7 @@ internal class Notice(
         val segments = labels.map {
             ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
                 isIndeterminate = false
+                indeterminateTintList = ColorStateList.valueOf(colours.accent)
                 this.max = max
                 progressDrawable = LayerDrawable(arrayOf(
                     GradientDrawable().apply { cornerRadius = corner; setColor(noticeWithAlpha(colours.text, 0x1F)) },
@@ -419,6 +440,7 @@ internal class Notice(
         const val DOT = 9f
         const val HERO_NUMBER = 96f
         const val HERO_WORD = 56f
+        const val HERO_SENTENCE = 30f
         const val LINE = 20f
         const val SEGMENT = 12f
         const val SEGMENT_GAP = 6f
@@ -441,13 +463,19 @@ internal class NoticeTrack(
     private val names: List<TextView>,
     private val colours: NoticeColours,
 ) {
-    /** Mark [current] (or none) and, when given, set each segment's fill. */
-    fun show(current: Int?, fills: List<Int>? = null) {
+    /**
+     * Mark [current] (or none) and, when given, set each segment's fill. [sweeping] runs the current
+     * segment's indeterminate bar, for a step under way with no measure of how far along it is; the
+     * caller passes false when Android's animations are off, and the bold name alone marks the step.
+     */
+    fun show(current: Int?, fills: List<Int>? = null, sweeping: Boolean = false) {
         names.forEachIndexed { i, name ->
             val active = i == current
             name.setTextColor(if (active) colours.text else colours.muted)
             name.typeface = if (active) Notice.MEDIUM else Typeface.DEFAULT
         }
+        // Before the fills: an indeterminate bar ignores a progress set on it.
+        segments.forEachIndexed { i, segment -> segment.isIndeterminate = sweeping && i == current }
         fills?.forEachIndexed { i, fill -> segments.getOrNull(i)?.progress = fill }
     }
 }

@@ -44,4 +44,12 @@
     <string name="network_chip_pings_lost">发往 Home Assistant 的 %2$d 次 ping 中有 %1$d 次在 %3$d 分钟内丢失</string>
     <string name="network_chip_no_ping_answered">%1$d 分钟内没有任何发往 Home Assistant 的 ping 得到响应</string>
     <string name="network_chip_ping_time">发往 Home Assistant 的 ping 耗时 %1$s</string>
+    <string name="voice_pill_listening">正在聆听</string>
+    <string name="voice_pill_thinking">正在思考</string>
+    <string name="voice_pill_replying">正在回复</string>
+    <string name="voice_pill_missed">没听清</string>
+    <string name="voice_step_heard">已听到</string>
+    <string name="voice_step_understood">已理解</string>
+    <string name="voice_step_answered">已回答</string>
+    <string name="voice_heard">“%1$s”</string>
 </resources>
