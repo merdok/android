@@ -171,6 +171,7 @@ jobs:
         run: |
           npm ci --ignore-scripts --audit=false --fund=false
           npm run check
+          npm test
           npm run sbom
 
       - name: Set up JDK 17
