@@ -48,6 +48,7 @@ import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.platform.AndroidSystemEnv
+import io.panelassistant.android.platform.EXTRA_DASHBOARD_RETURN
 import io.panelassistant.android.dashboard.InjectionScript
 import io.panelassistant.android.dashboard.EntityLearningProtocol
 import io.panelassistant.android.dashboard.EntityLearningRuntime
@@ -69,8 +70,14 @@ internal fun shouldRouteDashboardHomeToAdmin(
     ownPackage: String?,
     action: String?,
     categories: Set<String>?,
-): Boolean = configuredLauncherPackage == ownPackage &&
+    // The app's own HOME intent back to this dashboard (EXTRA_DASHBOARD_RETURN) is a return, not a HOME press.
+    dashboardReturn: Boolean,
+): Boolean = configuredLauncherPackage == ownPackage && !dashboardReturn &&
     action == Intent.ACTION_MAIN && categories?.contains(Intent.CATEGORY_HOME) == true
+
+/** The intent shape Android treats as a HOME launch, so it keeps the activity in the HOME task. */
+internal fun isHomeLaunch(action: String?, categories: Set<String>?, hasDataOrType: Boolean): Boolean =
+    action == Intent.ACTION_MAIN && categories == setOf(Intent.CATEGORY_HOME) && !hasDataOrType
 
 /**
  * Built-in dashboard renderer (experimental): a full-screen WebView onto the configured Home
@@ -176,6 +183,7 @@ class DashboardActivity : AppCompatActivity() {
     private val wakeMediaRecovery = WakeMediaRecoveryGate()
     private var rendererGeneration = 0L
     private var activityOwner = 0L
+    private var countedInHomeTask = false
     private var dashboardIsTopResumed = false
     private var conn: ConnectivityManager? = null
     private var netCallback: ConnectivityManager.NetworkCallback? = null
@@ -379,6 +387,11 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android keeps an activity a HOME intent created in the HOME task, which a component-explicit start
+        // never reaches, so while one is alive the app returns to it with the HOME intent too
+        // (SystemController.builtinInHomeTask). Counted before any configuration is read.
+        countedInHomeTask = intent?.let { isHomeLaunch(it.action, it.categories, it.data != null || it.type != null) } == true
+        if (countedInHomeTask) BuiltinDashboard.homeTaskActivityCreated()
         if (maintenanceFence.stop(this)) return
         // Home stays put on Back: Android 11 finished this task root, dropping the panel onto Shelly's Stargate.
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) { override fun handleOnBackPressed() = Unit })
@@ -389,11 +402,8 @@ class DashboardActivity : AppCompatActivity() {
         })
         // Android 14's HOME role resolves at package granularity when one package exposes multiple HOME
         // activities: set-home-activity can report success for AdminLauncherActivity yet still resolve
-        // DashboardActivity. Route an actual HOME intent according to the explicit Launcher app policy.
-        // Android keeps an activity created by a HOME intent in the HOME task, which a component-explicit
-        // start never reaches, so the service starts this one with the HOME intent too
-        // (SystemController.builtinInHomeTask). Read before onNewIntent replaces the intent.
-        val launchedAsHome = intent?.hasCategory(Intent.CATEGORY_HOME) == true
+        // DashboardActivity. Route an actual HOME intent according to the explicit Launcher app policy;
+        // the app's own starts (component-explicit, or its marked HOME intent) foreground the dashboard.
         activityScope.launch {
             val config = readActivityStateOffMain {
                 Config(this@DashboardActivity).also { config ->
@@ -409,18 +419,23 @@ class DashboardActivity : AppCompatActivity() {
             if (!destroyed && !isFinishing) {
                 // This visible start avoids arming Oreo's foreground deadline during cold class loading.
                 PaneldService.start(this@DashboardActivity, fromVisibleActivity = true)
-                initializeRenderer(config, launchedAsHome)
+                initializeRenderer(config)
             }
         }
     }
 
-    private suspend fun initializeRenderer(config: Config, launchedAsHome: Boolean) {
-        if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
+    private fun homeRoutesToAdmin(config: Config): Boolean = shouldRouteDashboardHomeToAdmin(
+        config.launcherPackage, packageName, intent?.action, intent?.categories,
+        dashboardReturn = intent?.getBooleanExtra(EXTRA_DASHBOARD_RETURN, false) == true,
+    )
+
+    private suspend fun initializeRenderer(config: Config) {
+        if (homeRoutesToAdmin(config)) {
             Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
         }
-        activityOwner = BuiltinDashboard.acquireActivityOwner(launchedAsHome)
+        activityOwner = BuiltinDashboard.acquireActivityOwner()
         if (dashboardIsTopResumed) {
             BuiltinDashboard.setActivityForeground(activityOwner, true)
         }
@@ -450,7 +465,7 @@ class DashboardActivity : AppCompatActivity() {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         // onNewIntent may have arrived while preparation was suspended, before activityConfig existed.
         // Its epoch forced a fresh preparation; honor its latest HOME and readiness state as well.
-        if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
+        if (homeRoutesToAdmin(config)) {
             fallbackToLauncher()
             return
         }
@@ -526,6 +541,7 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (countedInHomeTask) BuiltinDashboard.homeTaskActivityDestroyed()
         destroyed = true
         compatibilityAttempts.invalidate()
         homeDashboardAttempts.invalidate()
@@ -810,7 +826,7 @@ class DashboardActivity : AppCompatActivity() {
         if (!::activityConfig.isInitialized) return // the changed epoch makes initial preparation repeat
         val filterEpoch = entityGate.filterPreparationEpoch
         val config = activityConfig
-        if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
+        if (homeRoutesToAdmin(config)) {
             Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return

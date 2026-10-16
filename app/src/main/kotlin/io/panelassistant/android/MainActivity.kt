@@ -593,8 +593,8 @@ class MainActivity : AppCompatActivity() {
      *  would open a second one in this activity's task. */
     private fun builtinDashboardIntent(): Intent {
         val env = AndroidSystemEnv(this)
-        val intent = if (SystemController(env).builtinInHomeTask()) env.homeIntent() else Intent(this, DashboardActivity::class.java)
-        return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return if (SystemController(env).builtinInHomeTask()) env.dashboardHomeIntent()
+        else Intent(this, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     private fun dashboardRecoveryState(): PanelStatus.DashboardRecoveryState =

@@ -256,7 +256,7 @@ class FakeSystemEnv(
 ) : SystemEnv {
     val directStarts = mutableListOf<String>()
     var homeStarts = 0
-    override fun startHome(): Boolean {
+    override fun startDashboardHome(): Boolean {
         homeStarts++
         return true
     }

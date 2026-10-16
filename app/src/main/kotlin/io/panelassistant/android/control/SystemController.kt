@@ -142,19 +142,19 @@ class SystemController(
             Log.w(TAG, "builtin renderer crash-latched — refusing automatic relaunch (explicit reload clears it)")
             return false
         }
-        if (builtinInHomeTask() && env.startHome()) {
+        if (builtinInHomeTask() && env.startDashboardHome()) {
             Log.i(TAG, "builtin dashboard -> HOME")
             return true
         }
         return launchComponent(AppIdentity.component(env.ownPackage, ".DashboardActivity"), "builtin dashboard")
     }
 
-    /** True while the built-in dashboard lives in Android's HOME task: its activity came from a HOME intent
-     *  and it is still the default HOME. Only a HOME intent reaches that task; a component-explicit start
-     *  opens a second dashboard in a task of its own above it, which stays on "Preparing dashboard…"
-     *  because the renderer belongs to the first. */
+    /** True while the built-in dashboard lives in Android's HOME task: an activity created from a HOME
+     *  intent is alive and the dashboard is still the default HOME. Only a HOME intent reaches that task; a
+     *  component-explicit start opens a second dashboard in a task of its own above it, which can stay on
+     *  "Preparing dashboard…" because the renderer belongs to the other. */
     fun builtinInHomeTask(): Boolean =
-        BuiltinDashboard.ownerLaunchedAsHome && isOwnDashboard(env.defaultHome())
+        BuiltinDashboard.homeTaskActivityAlive && isOwnDashboard(env.defaultHome())
 
     private fun isOwnDashboard(activity: ActivityRef?): Boolean =
         activity?.pkg == env.ownPackage && activity.cls.endsWith("DashboardActivity")

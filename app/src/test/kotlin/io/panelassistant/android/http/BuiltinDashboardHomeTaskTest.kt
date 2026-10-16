@@ -30,12 +30,20 @@ class BuiltinDashboardHomeTaskTest {
     private val daemon = FakeDaemon(replies = mapOf(dashboardStart to "OK"))
     private val system = SystemController(env, FakeRootShell(runResult = false), daemon)
 
-    @After fun releaseOwner() {
-        BuiltinDashboard.acquireActivityOwner()
+    private var homeTaskActivities = 0
+
+    /** Android created a dashboard from a HOME intent and it is still alive, as DashboardActivity.onCreate reports. */
+    private fun homeTaskDashboardAlive() {
+        BuiltinDashboard.homeTaskActivityCreated()
+        homeTaskActivities++
+    }
+
+    @After fun destroyHomeTaskDashboards() {
+        repeat(homeTaskActivities) { BuiltinDashboard.homeTaskActivityDestroyed() }
     }
 
     @Test fun aThemeChangeBringsTheHomeTaskForward() = runBlocking {
-        BuiltinDashboard.acquireActivityOwner(launchedAsHome = true)
+        homeTaskDashboardAlive()
         changeTheme()
         assertEquals(1, env.homeStarts)
         assertEquals(emptyList<String>(), daemon.sent.filter { it.startsWith("START ") })
@@ -43,16 +51,15 @@ class BuiltinDashboardHomeTaskTest {
     }
 
     @Test fun startupAfterAnUpdateBringsTheHomeTaskForward() {
-        BuiltinDashboard.acquireActivityOwner(launchedAsHome = true)
+        homeTaskDashboardAlive()
         val result = preparation().reconcileStartup(ensureHome = { _, _ -> }, launchHome = system::launchHome)
         assertEquals(RendererPreparationCoordinator.Result.ALREADY_READY, result)
         assertEquals(1, env.homeStarts)
         assertEquals(emptyList<String>(), daemon.sent.filter { it.startsWith("START ") })
     }
 
-    /** A dashboard the service started itself lives in an ordinary task, which the explicit start reaches. */
+    /** A dashboard only ever started explicitly lives in an ordinary task, which the explicit start reaches. */
     @Test fun aDashboardStartedExplicitlyIsStillStartedExplicitly() = runBlocking {
-        BuiltinDashboard.acquireActivityOwner(launchedAsHome = false)
         changeTheme()
         assertEquals(0, env.homeStarts)
         assertEquals(listOf(dashboardStart), daemon.sent.filter { it.startsWith("START ") })
@@ -60,7 +67,7 @@ class BuiltinDashboardHomeTaskTest {
 
     /** Once Panel admin (or any other app) is HOME, a HOME intent would open it rather than the dashboard. */
     @Test fun anotherHomeAppKeepsTheExplicitStart() = runBlocking {
-        BuiltinDashboard.acquireActivityOwner(launchedAsHome = true)
+        homeTaskDashboardAlive()
         env.default = ActivityRef(own, "io.panelassistant.android.AdminLauncherActivity")
         changeTheme()
         assertEquals(0, env.homeStarts)

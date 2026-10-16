@@ -4,6 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 
+/** Marks [AndroidSystemEnv.dashboardHomeIntent]: the app bringing its dashboard back, not a HOME press. */
+const val EXTRA_DASHBOARD_RETURN = "io.panelassistant.android.extra.DASHBOARD_RETURN"
+
 /** A resolved activity: its package + fully-qualified class. [component] is the `am`-style "pkg/cls". */
 data class ActivityRef(val pkg: String, val cls: String) {
     val component: String get() = "$pkg/$cls"
@@ -35,15 +38,21 @@ interface SystemEnv {
     /** Whether Android accepted a direct start of [component] ("pkg/cls") — the pre-BAL fallback. */
     fun directStart(component: String): Boolean
 
-    /** Whether Android accepted the HOME intent, which brings the HOME task forward. Android 10+ allows it
-     *  from the background while this process hosts the HOME activity. False keeps the explicit start. */
-    fun startHome(): Boolean = false
+    /** Whether Android accepted [AndroidSystemEnv.dashboardHomeIntent], which brings the dashboard's HOME
+     *  task forward. Android 10+ allows it from the background while this process hosts the HOME activity.
+     *  False keeps the explicit start. */
+    fun startDashboardHome(): Boolean = false
 }
 
 /** Real [SystemEnv] over the Android PackageManager + Context. */
 class AndroidSystemEnv(private val context: Context) : SystemEnv {
     private val pm get() = context.packageManager
-    fun homeIntent(): Intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+    private fun homeIntent() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+
+    /** The HOME intent, marked as the app returning to its own dashboard so the dashboard shows itself
+     *  rather than routing to Panel admin as it does for a HOME press. Extras leave it a HOME intent. */
+    fun dashboardHomeIntent(): Intent =
+        homeIntent().putExtra(EXTRA_DASHBOARD_RETURN, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     override val ownPackage: String get() = context.packageName
 
@@ -66,6 +75,5 @@ class AndroidSystemEnv(private val context: Context) : SystemEnv {
         }.isSuccess
     }
 
-    override fun startHome(): Boolean =
-        runCatching { context.startActivity(homeIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+    override fun startDashboardHome(): Boolean = runCatching { context.startActivity(dashboardHomeIntent()) }.isSuccess
 }
