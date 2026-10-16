@@ -62,6 +62,26 @@ internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
         }
     }
 
+    @Test fun anInvalidHomeDashboardRouteFromPanelAssistantIsRefusedAndAValidOneApplies() {
+        val superseded = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val rig = rig(onExternalSettingApplied = { superseded += it; true })
+        try {
+            rig.start()
+            val stored = rig.config.homeDashboard
+            // Refused, so Home Assistant raises an error and restores its field rather than keeping the typed text.
+            assertEquals(
+                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE),
+                submitNative(rig, "home_dashboard", "/alpha/../evil"),
+            )
+            assertEquals(stored, rig.config.homeDashboard)
+            assertEquals("a refused command retires no queued page value", emptyList<String>(), superseded.toList())
+
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "home_dashboard", "/dashboard-test/alpha"))
+            assertEquals("/dashboard-test/alpha", rig.config.homeDashboard)
+            assertEquals(listOf("home_dashboard"), superseded.toList())
+        } finally { rig.close() }
+    }
+
     @Test fun aHandlerOutcomeReadsAsItsCommandResult() {
         assertEquals(PanelAssistantCommandResult.Applied, panelAssistantCommandResult(null))
         assertEquals(

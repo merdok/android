@@ -140,7 +140,9 @@ function contextRows(s) {
   const f = (key, values) => esc(s.format(key, values));
   return [
     row(fact(s, 'wifi_stability'), '3 drops in the last hour · RSSI −71 dBm'),
-    `<tr><th>${esc(fact(s, 'ha_network_path'))}</th><td id="hanetcell">${f('dashboard.runtime.ha_network_healthy_slow', { evidence: 'p95 412 ms over 120 probes' })}</td></tr>`,
+    // buildwatch.js blanks these two cells from the harness's token-less /health; serving them empty
+    // too means the measured height no longer depends on which script writes last.
+    `<tr><th>${esc(fact(s, 'ha_network_path'))}</th><td id="hanetcell"></td></tr>`,
     row(fact(s, 'ha_renderer'), f('dashboard.runtime.renderer.admitted_age', { status: s.format('dashboard.runtime.renderer.builtin', { summary: s.text('dashboard.runtime.renderer.rendered_cached') }), age: '3m' })),
     row(fact(s, 'local_state_sync'), 'in sync · 38 entities'),
     row(fact(s, 'app_database'), esc([s.format('dashboard.runtime.database.schema', { version: 42 }), s.format('dashboard.runtime.database.used', { bytes: '1.2 MB' }), s.format('dashboard.runtime.database.on_disk', { bytes: '1.6 MB' })].join(' · '))),
@@ -148,7 +150,7 @@ function contextRows(s) {
     row(fact(s, 'audio_playback'), f('dashboard.runtime.audio_failed_detail', { detail: 'HTTP 404 from media source' })),
     row(fact(s, 'camera'), f('dashboard.runtime.camera.live_many_streaming', { count: 2, streaming: 1, stream: s.format('dashboard.runtime.camera.stream_url', { url: 'http://192.0.2.10:8889/stream.mjpeg' }) })),
     row(fact(s, 'log_shipping'), `on · syslog://192.0.2.30:514${cfgIcon(s, 'cfg-log_ship_enabled')}`),
-    `<tr><th>${esc(fact(s, 'ha_lifecycle'))}</th><td id="halifecell">${s.t('dashboard.runtime.ha_events_refused')}</td></tr>`,
+    `<tr><th>${esc(fact(s, 'ha_lifecycle'))}</th><td id="halifecell"></td></tr>`,
     row(fact(s, 'webview_reporting'), 'package version and engine version disagree'),
   ].join('\n');
 }
@@ -306,7 +308,7 @@ export default {
     const haLink = `<a class="pbtn" href="https://example.invalid/home-assistant" target="_blank" rel="noopener" title="${s.t('dashboard.open_in_ha.title')}">${s.t('shell.open_in_ha')}</a>`;
     return shellHtml({
       ...context, active: 'dashboard', sectionTitle: null, prefixes: ['shell.', 'dashboard.', 'runtime.'],
-      bodyAttrs: 'data-ver="0.9.8" data-build="layout-gate" data-cfg="layout-gate" data-hydrate="cold" data-hardened="1"',
+      bodyAttrs: 'data-ver="0.9.8" data-build="layout-gate" data-hydrate="cold" data-hardened="1"',
       rightControls: `${haLink}${revealBtn} ${ghLink(s)}`,
       body: body(s),
       extraScripts: '<script src="assets/card-size-memory.js"></script>\n<script src="assets/card-column-alignment.js"></script>\n<script src="info.js"></script>\n',

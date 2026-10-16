@@ -33,6 +33,29 @@ class ProximityRoutesTest {
         assertEquals("start/session-3", received)
     }
 
+    @Test fun `the sidebar relay's page may run proximity calibration`() = testApplication {
+        val table = io.panelassistant.android.ManageTable()
+        var received = ""
+        application {
+            paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                serveOperations(table)
+                route("/api/v1") {
+                    proximityRoutes(hasProximity = { true }, proximityJson = { "{\"present\":true}" }, calibrate = { action, id -> received = "$action/$id"; true })
+                }
+            }
+        }
+        startApplication()
+        val answers = java.util.concurrent.LinkedBlockingQueue<io.panelassistant.android.ManageReply>()
+        // The relay's origin: the Home Assistant user Panel Assistant checked, on its relay connection.
+        io.panelassistant.android.ManageOperations(table, { io.panelassistant.android.security.LocalApprovalBroker.instance }).manage(
+            "p1", "proximity.calibration", org.json.JSONObject().put("action", "start").put("sessionId", "session-4"),
+            io.panelassistant.android.CommandOrigin.user("0123456789abcdef0123456789abcdef").withConnection("relay-1"),
+        ) { answers.put(it) }
+
+        assertEquals("applied", answers.poll(10, java.util.concurrent.TimeUnit.SECONDS)?.outcome)
+        assertEquals("start/session-4", received)
+    }
+
     @Test fun `proximity calibration keeps UI origin form and source guards`() = testApplication {
         var present = false
         var accepted = false
@@ -85,19 +108,5 @@ class ProximityRoutesTest {
         val started = submit("start")
         assertEquals(HttpStatusCode.Accepted, started.status)
         assertEquals("start/session-1", received)
-
-        // Exactly the headers the Panel Assistant sidebar proxy forwards: no Origin, Referer or marker.
-        received = ""
-        val embedded = client.submitForm(
-            "/api/v1/proximity/calibration",
-            Parameters.build { append("action", "start"); append("sessionId", "session-2") },
-        ) {
-            header(HttpHeaders.Host, "localhost")
-            header(HttpHeaders.Accept, "application/json")
-            header("Sec-Fetch-Site", "same-origin")
-            header(EmbedMode.HEADER, "v=1;lang=en")
-        }
-        assertEquals(HttpStatusCode.Accepted, embedded.status)
-        assertEquals("start/session-2", received)
     }
 }

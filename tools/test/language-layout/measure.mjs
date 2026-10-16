@@ -143,13 +143,16 @@ export function measureLayout() {
       // A row header (a th beside td cells in a key/value table) sits in a fixed share of a narrow card;
       // its wrapping is reported separately from column headers and controls.
       const rowHeader = node.tagName === 'TH' && !!node.parentElement && [...node.parentElement.children].some((cell) => cell.tagName === 'TD');
-      const descriptiveLabel = node.matches('.entity-policy label') && !!node.querySelector('input[type="checkbox"]');
+      // Descriptive labels: an Entities checkbox label, and the label a text field carries above it.
+      const field = node.matches('label[for]') ? document.getElementById(node.htmlFor) : null;
+      const descriptiveLabel = (node.matches('.entity-policy label') && !!node.querySelector('input[type="checkbox"]')) ||
+        !!field?.matches('textarea,input:not([type]),input[type="text"],input[type="search"],input[type="password"],input[type="email"],input[type="url"],input[type="number"]');
       if (tops.length > 1) wraps.push({ key: keyOf(node), text: textOf(node), lines: tops.length, ...(rowHeader ? { rowHeader: true } : {}), ...(descriptiveLabel ? { descriptiveLabel: true } : {}) });
     }
   }
 
   // Cards: containment (b), overlap of controls and labels (b), and height for the growth rule (d).
-  const cardNodes = all.filter((node) => node.matches('.card,.wiz,.profile-toolbar,.profile-editor-pane,.profile-inspector,details.ep,.savebar,.topbar'));
+  const cardNodes = all.filter((node) => node.matches('.card,.wiz,.profile-toolbar,.profile-editor-pane,.profile-inspector,details.ep,.topbar'));
   for (const card of cardNodes) {
     if (cardNodes.some((other) => other !== card && other.contains(card) && other.matches('.card,.wiz'))) continue;
     const key = keyOf(card);

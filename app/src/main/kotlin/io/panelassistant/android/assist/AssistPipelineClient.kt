@@ -67,6 +67,12 @@ internal fun interface AssistPlayback {
      */
     suspend fun playStream(streamId: String): Boolean =
         throw AssistPlaybackException(AssistPipelineClient.CODE_PLAYBACK_FAILED, "This panel has no voice stream")
+
+    /**
+     * Silence what this playback last started, if it is still the panel's current sound: the owner said
+     * stop. Cancelling the run alone leaves its sound playing to the end.
+     */
+    fun silence() {}
 }
 
 /**

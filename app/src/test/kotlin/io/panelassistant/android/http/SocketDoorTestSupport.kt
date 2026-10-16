@@ -20,8 +20,12 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
 /** A door onto [table]'s named operations, as a dispatcher serves them; channel commands are absent here. */
-internal fun tableDoor(table: ManageTable): ManageDoor {
-    val operations = ManageOperations(table, { LocalApprovalBroker.instance })
+internal fun tableDoor(
+    table: ManageTable,
+    families: Map<String, io.panelassistant.android.ManageFamily> = io.panelassistant.android.ManageFamilies.DEFAULT,
+    approvalPollMs: Long = 1_000,
+    operations: ManageOperations = ManageOperations(table, { LocalApprovalBroker.instance }, families, approvalPollMs = approvalPollMs),
+): ManageDoor {
     return object : ManageDoor {
         override fun manage(
             commandId: String, op: String, args: JSONObject, origin: CommandOrigin,

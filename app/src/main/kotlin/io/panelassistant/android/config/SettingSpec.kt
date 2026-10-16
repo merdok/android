@@ -29,6 +29,28 @@ enum class Tier { BASIC, ADVANCED }
  */
 enum class Scope { IDENTITY, DEVICE, PORTABLE }
 
+/**
+ * When the built-in dashboard renderer shows a change to a setting. The renderer, the commit path and the
+ * settings pages read this one answer from the setting's [SettingSpec.renderer]; resolve it through
+ * [SettingsRegistry.rendererApply], which settles [RELOAD_BEFORE_ANDROID_10] for the running Android.
+ */
+enum class RendererApply {
+    /** The renderer does not read it. */
+    NONE,
+    /** On screen at once, without a page load. */
+    LIVE,
+    /** On screen once the page load the change itself triggers has connected. */
+    RELOAD,
+    /** [RELOAD] on Android 9 and older, where it is written into the page before a load; [LIVE] from
+     *  Android 10, where the WebView follows the system night mode. */
+    RELOAD_BEFORE_ANDROID_10,
+    /** Baked into the dashboard WebView's document-start scripts: on screen once a rebuilt WebView connects. */
+    REBUILD,
+    /** Part of what the renderer admitted (Home Assistant address, credential, home dashboard): on screen
+     *  once the re-admitted renderer connects. */
+    READMIT,
+}
+
 /** Outcome of validating one raw value against a spec. */
 sealed class Validation {
     /** Valid; carries the canonical normalized string form to persist. */
@@ -84,6 +106,9 @@ data class Capabilities(
     // Android 10+ ships a system-wide dark/light setting; panels that have it follow the OS and hide
     // ha-paneld's own dark_mode toggle (Android 9- panels have no such control, so ours fills the gap).
     val hasSystemDarkMode: Boolean = false,
+    // The profile declares a speaker, so Panel Assistant shows the volume on the panel's media player and
+    // has no separate volume entity whose exposure a pip could choose.
+    val hasSpeaker: Boolean = false,
     // Runtime-only privilege routes. These describe what the panel can do now; they are never config
     // switches and therefore cannot be imported or changed through Home Assistant or HTTP.
     val canCaptureAndInput: Boolean = false,
@@ -212,6 +237,8 @@ data class SettingSpec(
     // path. This keeps HTTP config, bundle/restore, and Home Assistant command admission on one
     // declared set instead of independently maintained key lists.
     val liveApply: Boolean = false,
+    // When the built-in renderer shows a change ([RendererApply]); NONE for every setting it never reads.
+    val renderer: RendererApply = RendererApply.NONE,
     val transient: Boolean = false,          // accepted + routed to a controller but never persisted
     // Omit from the generated Configure form (an API-only setting): still readable via GET /config,
     // settable via POST /config, and carried in config bundles — just never rendered as a form field.

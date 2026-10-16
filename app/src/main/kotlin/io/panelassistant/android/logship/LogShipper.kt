@@ -600,9 +600,9 @@ private class NetworkDeadline(timeoutMs: Long) {
     private val expiresAtNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
 
     fun remainingMs(): Int {
-        val remaining = expiresAtNanos - System.nanoTime()
+        val remaining = TimeUnit.NANOSECONDS.toMillis(expiresAtNanos - System.nanoTime())
         if (remaining <= 0L) throw SocketTimeoutException("log sink deadline exceeded")
-        return TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        return remaining.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     }
 }
 

@@ -68,6 +68,7 @@
     <string name="choose_dashboard_app">Escolha um aplicativo de dashboard.</string>
     <string name="continue_setup_browser">Continue na página de configuração em um navegador.</string>
     <string name="connected_next_ha_address">Conectado. Próximo passo: o endereço do Home Assistant.</string>
+    <string name="choose_home_dashboard">Escolha o dashboard inicial deste painel.</string>
     <string name="almost_there_sign_in">Quase pronto — falta só entrar na conta.</string>
     <string name="continue_or_sign_in_here">Continue no navegador ou toque no botão abaixo para entrar na conta nesta tela.</string>
     <string name="one_important_question_left">Falta uma pergunta importante.</string>

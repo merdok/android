@@ -15,7 +15,6 @@ internal class PageShell(
     private val catalogueLoader: CatalogueLoader,
     private val setupNeedsUser: () -> Boolean,
     private val buildToken: () -> String,
-    private val renderConfigConcurrencyHash: () -> String,
     /** Reads a bundled asset; the header inlines the name from the brand asset set ([inlineWordmark]). */
     private val asset: (String) -> String,
 ) {
@@ -88,10 +87,11 @@ internal class PageShell(
         // switcher (whose links leave the proxy) are omitted, and the tab bar and everything below it stay.
         // Only validated enum values reach the markup.
         val themeAttr = embed?.theme?.let { """ data-theme="$it"""" }.orEmpty()
-        // Outside the sidebar the page talks to its panel over the stub's `/ui` socket (protocol section 20.7),
-        // when its peer may open it: hardened mode keeps the socket to loopback, so a LAN page there stays on HTTP.
+        // In the sidebar the page talks to its panel through the relay (protocol section 20.2); outside it, over
+        // the stub's `/ui` socket (section 20.7) when its peer may open it: hardened mode keeps the socket to
+        // loopback, so a LAN page there stays on HTTP.
         val socket = !config.hardenedSecurityEnabled || peer?.let { io.panelassistant.android.util.isLoopbackPeer(it) } == true
-        val embedAttr = if (embed != null) " data-embedded" else if (socket) """ data-ui-socket="ui"""" else ""
+        val embedAttr = if (embed != null) " data-embedded data-ui-relay" else if (socket) """ data-ui-socket="ui"""" else ""
         // Embedded keeps only the panel identity install.js names downloads from, as escaped attributes.
         val header = if (embed != null) """<span id="pswitch" hidden data-self-id="$panelId" data-self-name="$friendlyName"></span>""" else """<div class="hdr"><button id="navburger" class="navburger pbtn" aria-label="${esc(strings.get("shell.menu.label"))}">☰</button><h1>${brandLockup(asset)} <small id="pswitch" data-self-id="$panelId" data-self-name="$friendlyName"><span class="sep">·</span>$friendlyName</small></h1>
  <span style="display:flex;gap:10px;align-items:center">$rightControls</span></div>
@@ -123,13 +123,13 @@ internal class PageShell(
 <script id="ha-i18n" type="application/json">${browserI18nPayload(strings, translationPrefixes)}</script>
 <script src="assets/i18n.js"></script>
 <script src="assets/transport.js"></script>
-<script>/* Over the stub's socket a download link names its operation (data-op): fetch it through the page transport.
-A modified click keeps the plain link; a new tab opens before the request, as a click must open it, and the file keeps the panel's name. */
+<script>/* Over the stub's socket a download link names its operation (data-op): fetch it through the page transport, as in the sidebar relay.
+A link marked data-relay-only (a stub path such as diag) keeps its plain link on the socket page. A modified click keeps the plain link; a new tab opens before the request, as a click must open it, and the file keeps the panel's name. */
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[data-op]');
-if(!a||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!document.body.hasAttribute('data-ui-socket')||!window.PaneldTransport)return;e.preventDefault();
+if(!a||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!(document.body.hasAttribute('data-ui-relay')||(document.body.hasAttribute('data-ui-socket')&&!a.hasAttribute('data-relay-only')))||!window.PaneldTransport)return;e.preventDefault();
 var w=a.target==='_blank'?window.open('','_blank'):null;if(w)w.opener=null;
 PaneldTransport.request(a.getAttribute('data-op'),{}).then(function(r){if(r.outcome!=='applied')throw new Error(r.code||r.outcome);
-var b=typeof Blob!=='undefined'&&r.result instanceof Blob?r.result:new Blob([typeof r.result==='string'?r.result:JSON.stringify(r.result,null,2)],{type:'application/json'});
+var b=typeof Blob!=='undefined'&&r.result instanceof Blob?r.result:new Blob([typeof r.result==='string'?r.result:JSON.stringify(r.result,null,2)],{type:typeof r.result==='string'?'text/plain':'application/json'});
 var named=((r.headers&&r.headers['content-disposition'])||'').match(/filename="?([^";]+)"?/);
 var u=URL.createObjectURL(b);if(w){w.location.href=u;}else{var l=document.createElement('a');l.href=u;l.download=named?named[1]:(a.getAttribute('data-file')||'');document.body.appendChild(l);l.click();l.remove();}
 setTimeout(function(){URL.revokeObjectURL(u);},60000);}).catch(function(err){if(w)w.close();window.alert(String(err&&err.message||err));});});</script></head><body $bodyAttrs$embedAttr><div class="wrap">
@@ -173,7 +173,7 @@ $extraScripts<script src="assets/power-safety.js"></script>
             active = active,
             sectionTitle = title,
             bodyAttrs = (if (commissioning) """class="commissioning" """ else "") +
-                """data-build="${buildToken()}" data-cfg="${renderConfigConcurrencyHash()}"""",
+                """data-build="${buildToken()}"""",
             rightControls = "$haLink${ghLink(strings)}",
             body = """${hardenedApprovalDescription(strings)}
 $approvalKeyBefore

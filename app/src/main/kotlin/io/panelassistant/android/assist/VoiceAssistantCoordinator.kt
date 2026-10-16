@@ -1,5 +1,6 @@
 package io.panelassistant.android.assist
 
+import io.panelassistant.android.assist.wakeword.LoadedWakeWordModel
 import io.panelassistant.android.audio.GainStage
 import io.panelassistant.android.audio.MicLease
 import io.panelassistant.android.audio.MicPurpose
@@ -16,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -32,6 +35,8 @@ data class VoiceSettings(
     val pipelines: Map<String, String>,
     /** Decibels of pre-amplification for the pipeline audio only; the wake-word listener never sees it. */
     val micGainDb: Int = 0,
+    /** Saying "stop" ends what the panel is saying; it listens only while the wake word is armed. */
+    val stopWord: Boolean = false,
 ) {
     companion object {
         /** Tolerant of malformed JSON: the registry validates on write, but a hand-edited store must not crash the service. */
@@ -40,6 +45,7 @@ data class VoiceSettings(
             wakeWordsJson: String?,
             pipelinesJson: String?,
             micGainDb: Int = 0,
+            stopWord: Boolean = false,
         ): VoiceSettings {
             val words = runCatching {
                 val array = JSONArray(wakeWordsJson ?: "[]")
@@ -54,6 +60,7 @@ data class VoiceSettings(
                 words,
                 map,
                 micGainDb.coerceIn(MicrophoneGain.MIN_DB, MicrophoneGain.MAX_DB),
+                stopWord,
             )
         }
     }
@@ -116,10 +123,12 @@ fun interface WakeWordEngineFactory {
 
 /** One conversation turn: Home Assistant runs the pipeline, the panel streams and plays. */
 internal fun interface AssistRunner {
+    /** [onReply] hears the reply's text as it is written, before it is spoken. */
     suspend fun run(
         request: VoiceTurnRequest,
         attachAudio: (PcmConsumer) -> AutoCloseable,
         playback: AssistPlayback,
+        onReply: (String) -> Unit,
     ): AssistOutcome
 }
 
@@ -134,6 +143,8 @@ internal data class VoiceAnnouncement(
      * [preannounceUrl] and [url] as before.
      */
     val stream: String? = null,
+    /** The announcement's text, when Panel Assistant sends it. */
+    val text: String? = null,
     /** Called once the announcement has played, or could not be. */
     val done: () -> Unit,
 )
@@ -180,6 +191,9 @@ class VoiceAssistantCoordinator internal constructor(
     private val checkTimeoutMs: Long = MicrophoneSelfCheck.TIMEOUT_MS,
     /** Android reports the microphone muted; [microphoneMuteChanged] is called when it changes. */
     private val muted: () -> Boolean = { false },
+    /** A fresh stop-word model for one run, or null where none can run. */
+    private val stopWordModel: () -> LoadedWakeWordModel? = { null },
+    private val log: (String) -> Unit = {},
 ) : AutoCloseable {
 
     private val lock = Any()
@@ -423,27 +437,39 @@ class VoiceAssistantCoordinator internal constructor(
                 state.set(VoiceState.ERROR)
                 return RunAdmission.FOREGROUND_REFUSED
             }
+            // The stop word needs the microphone while nothing else hears it; the wake word's lease is what
+            // holds the panel's claim to it, so a panel not listening for its wake word has no stop word.
+            val hearsStop = current.stopWord && wakeLease != null && mic != null
             wakeLease?.pause()
             runJob = scope.launch {
                 var failed = false
+                var stop: StopWord? = null
                 try {
+                    stop = if (hearsStop && mic != null) stopWord(mic, coroutineContext.job) else null
+                    val speaker = stop?.let { heardBy(it.listener) } ?: playback
                     if (announcement != null) {
+                        announcement.text?.let { stop?.listener?.reply(it) }
                         state.set(VoiceState.RESPONDING)
                         val played = runCatching {
                             val stream = announcement.stream
                             if (stream != null) {
                                 // Panel Assistant's end decides whether to listen, within what the event allowed.
-                                if (!playback.playStream(stream)) listens = false
+                                if (!speaker.playStream(stream)) listens = false
                             } else {
-                                announcement.preannounceUrl?.let { playback.play(it) }
-                                playback.play(announcement.url)
+                                announcement.preannounceUrl?.let { speaker.play(it) }
+                                speaker.play(announcement.url)
                             }
                         }
                         announcement.done()
                         played.exceptionOrNull()?.let { if (it is CancellationException) throw it }
                     }
-                    if (listens && mic != null) failed = !converse(mic, activation, current)
+                    if (listens && mic != null) {
+                        // An announcement stopped as it ended must not go on to listen.
+                        coroutineContext.ensureActive()
+                        failed = !converse(mic, activation, current, speaker, stop?.listener)
+                    }
                 } finally {
+                    stop?.close()
                     synchronized(lock) {
                         // This run is the only one the coordinator has admitted, so its cleanup owns
                         // the shared state outright and releases the seat for the next request.
@@ -472,8 +498,57 @@ class VoiceAssistantCoordinator internal constructor(
         return RunAdmission.STARTED
     }
 
+    /** The stop word for one run, heard from its start: it cancels [run] and silences what [run] is playing. */
+    private inner class StopWord(mic: MicrophoneSource, model: LoadedWakeWordModel, run: Job) : AutoCloseable {
+        val listener = StopWordListener(model, state::current, onStop = { stopHeard(run) }, log)
+        private val lease = mic.lease(MicPurpose.WAKE_WORD, consumer = listener)
+
+        override fun close() {
+            lease.close()
+            listener.close()
+        }
+    }
+
+    private fun stopWord(mic: MicrophoneSource, run: Job): StopWord? = stopWordModel()?.let { StopWord(mic, it, run) }
+
+    /** [playback] as one run uses it, with the stop word told each time a sound starts. */
+    private fun heardBy(stop: StopWordListener) = object : AssistPlayback {
+        override suspend fun play(url: String) {
+            stop.playbackStarted()
+            playback.play(url)
+        }
+
+        override suspend fun playStream(streamId: String): Boolean {
+            stop.playbackStarted()
+            return playback.playStream(streamId)
+        }
+
+        override fun silence() = playback.silence()
+    }
+
+    /**
+     * The owner said stop: end [run] as an announcement replacing it would, and silence its sound, which
+     * the run's cancellation alone would leave playing. The run's own cleanup cancels the pipeline in Home
+     * Assistant, tells it the reply is over, and gives back the microphone and the panel's media.
+     */
+    private fun stopHeard(run: Job) {
+        // Under the lock, so no later run can have been admitted and started a sound of its own. Cancelled
+        // first, so a run that sees its sound end already knows it was stopped, not finished.
+        synchronized(lock) {
+            if (runJob !== run) return
+            run.cancel()
+            playback.silence()
+        }
+    }
+
     /** Returns false when the exchange ended in a reportable error. */
-    private suspend fun converse(mic: MicrophoneSource, activation: WakeWordActivation?, current: VoiceSettings): Boolean {
+    private suspend fun converse(
+        mic: MicrophoneSource,
+        activation: WakeWordActivation?,
+        current: VoiceSettings,
+        speaker: AssistPlayback,
+        stop: StopWordListener?,
+    ): Boolean {
         var request = VoiceTurnRequest(activation?.modelId, heardAtNs = activation?.heardAtNs ?: 0L)
         var turns = 0
         while (true) {
@@ -494,7 +569,8 @@ class VoiceAssistantCoordinator internal constructor(
                         state.set(VoiceState.PROCESSING)
                     }
                 },
-                playback = playback,
+                playback = speaker,
+                onReply = { text -> stop?.reply(text) },
             )
             val error = outcome.error
             if (error != null) return error.silent

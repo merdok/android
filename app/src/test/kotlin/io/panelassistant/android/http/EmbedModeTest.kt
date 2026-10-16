@@ -2,16 +2,7 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.i18n.sourceHash
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
-import io.ktor.server.application.ApplicationCallPipeline
-import io.ktor.server.application.call
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
-import io.ktor.server.testing.testApplication
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -25,8 +16,7 @@ class EmbedModeTest {
     private val vectors = JSONObject(File("src/main/assets/panel_assistant_embed_v1.json").readText())
     private val embed = vectors.getJSONObject("embed")
 
-    @Test fun `shared vectors name the header and the tab set the parser admits`() {
-        assertEquals(EmbedMode.HEADER, vectors.getJSONObject("headers").getString("embed"))
+    @Test fun `shared vectors name the tab set the parser admits`() {
         assertEquals(EmbedMode.MAX_BYTES, embed.getInt("max_bytes"))
         assertEquals(EmbedMode.TABS, strings(embed.getJSONArray("tabs")).toSet())
     }
@@ -52,52 +42,19 @@ class EmbedModeTest {
         }
     }
 
-    @Test fun `an absent or repeated header line is not a switch`() {
-        assertNull(EmbedMode.parse(null as List<String>?))
-        assertNull(EmbedMode.parse(listOf("v=1", "v=1;hide=api")))
-        assertNotNull(EmbedMode.parse(listOf("v=1;hide=api")))
-    }
-
-    @Test fun `only a valid switch varies the response and reaches the page builders`() = testApplication {
-        application {
-            intercept(ApplicationCallPipeline.Plugins) { call.admitEmbedMode() }
-            routing { get("/") { call.respondText(call.embedMode()?.hiddenTabs?.joinToString(",") ?: "lan") } }
-        }
-        val lan = client.get("/")
-        assertNull(lan.headers[HttpHeaders.Vary])
-        assertEquals("lan", lan.bodyAsText())
-
-        val invalid = client.get("/") { header(EmbedMode.HEADER, "v=1;theme=blue;hide=api") }
-        assertNull(invalid.headers[HttpHeaders.Vary])
-        assertEquals("lan", invalid.bodyAsText())
-
-        val embedded = client.get("/") { header(EmbedMode.HEADER, "v=1;hide=api,logs") }
-        assertEquals(EmbedMode.HEADER, embedded.headers[HttpHeaders.Vary])
-        assertEquals("api,logs", embedded.bodyAsText())
-    }
-
-    @Test fun `embedded language stands in for Automatic and never overrides a chosen language`() = testApplication {
+    @Test fun `embedded language stands in for Automatic and never overrides a chosen language`() {
         val loader = catalogueLoader()
-        application {
-            intercept(ApplicationCallPipeline.Plugins) { call.admitEmbedMode() }
-            routing {
-                get("/") {
-                    val strings = resolvedRequestStrings(
-                        call = call,
-                        persistedLanguage = call.request.headers["X-Persisted"] ?: "de",
-                        deviceLanguageTag = "fr",
-                        allowPseudo = false,
-                        catalogueLoader = loader,
-                    )
-                    call.respondText(strings.requestedLocale)
-                }
-            }
+        // A page as the sidebar relay asks for it: the query's signals and the presentation in `args`.
+        fun locale(path: String, embed: String?, persisted: String = "de"): String {
+            val args = JSONObject()
+            java.net.URI("http://panel$path").rawQuery?.split('&')?.forEach { pair -> args.put(pair.substringBefore('='), pair.substringAfter('=')) }
+            embed?.let { args.put("embed", it) }
+            val origin = io.panelassistant.android.CommandOrigin.user("0123456789abcdef0123456789abcdef")
+                .withHeaders(mapOf(HttpHeaders.AcceptLanguage to "es"))
+            val call = ManageOpCall(io.panelassistant.android.ManageRequest("page.info", args, origin, null), io.ktor.http.HttpMethod.Get, "/")
+            return resolvedRequestStrings(call, persistedLanguage = persisted, deviceLanguageTag = "fr", allowPseudo = false, catalogueLoader = loader)
+                .requestedLocale
         }
-        suspend fun locale(path: String, embedHeader: String?, persisted: String = "de"): String = client.get(path) {
-            header(HttpHeaders.AcceptLanguage, "es")
-            header("X-Persisted", persisted)
-            embedHeader?.let { header(EmbedMode.HEADER, it) }
-        }.bodyAsText()
 
         // Outside embedded mode the persisted panel choice wins, as on the LAN.
         assertEquals("de", locale("/?ha_lang=it", null))

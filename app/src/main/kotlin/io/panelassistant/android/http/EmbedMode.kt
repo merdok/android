@@ -1,15 +1,12 @@
 package io.panelassistant.android.http
 
-import io.ktor.http.HttpHeaders
-import io.ktor.server.application.ApplicationCall
-import io.ktor.util.AttributeKey
 import java.util.Locale
 
 /**
- * The presentation switch Panel Assistant sends when it proxies the web interface into its Home Assistant
- * sidebar (`X-Panel-Assistant-Embed`). It changes how pages render; the only guard that reads it is proximity
- * UI admission, which a LAN client can already pass with its own Origin, so sending it gains nothing. No
- * response header other than `Vary`, approval or persisted setting reads it. Its value is never logged.
+ * The presentation Panel Assistant asks for when it shows a page in its Home Assistant sidebar: `args.embed` of
+ * `page.<name>` (protocol section 20.3), in the grammar the retired `X-Panel-Assistant-Embed` header carried. It
+ * changes how pages render and nothing else: no guard, approval or persisted setting reads it. Its value is never
+ * logged.
  *
  * Grammar, version 1 (quoted literals match case-insensitively, as in RFC 5234):
  *
@@ -20,7 +17,7 @@ import java.util.Locale
  * ```
  *
  * A `hide` item must be token-shaped; a well-formed name that is not a tab is ignored. Anything else that
- * fails the grammar, a value over 256 bytes, or more than one header line makes the whole header invalid.
+ * fails the grammar, or a value over 256 bytes, makes the whole value invalid.
  * A repeated `lang` or `theme` takes its last value; repeated `hide` lists are combined.
  */
 internal data class EmbedMode(
@@ -29,17 +26,11 @@ internal data class EmbedMode(
     val hiddenTabs: Set<String>,
 ) {
     companion object {
-        const val HEADER = "X-Panel-Assistant-Embed"
         const val MAX_BYTES = 256
         val TABS = setOf("setup", "dashboard", "configure", "profiles", "entities", "install", "logs", "api")
 
         private val LANG_TAG = Regex("[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*")
         private val TAB_TOKEN = Regex("[A-Za-z0-9_-]{1,32}")
-
-        fun parse(values: List<String>?): EmbedMode? {
-            val raw = values?.singleOrNull() ?: return null
-            return parse(raw)
-        }
 
         fun parse(raw: String?): EmbedMode? {
             if (raw == null || raw.toByteArray(Charsets.UTF_8).size > MAX_BYTES) return null
@@ -67,21 +58,5 @@ internal data class EmbedMode(
             }
             return EmbedMode(lang, theme, hidden)
         }
-
-        val ATTRIBUTE = AttributeKey<EmbedMode>("PanelAssistantEmbedMode")
     }
 }
-
-/**
- * Parse the request's embed switch once, at the top of the request intercept. A valid switch is kept for the
- * page builders and varies the response; an invalid or absent one leaves the request exactly as on the LAN.
- */
-internal fun ApplicationCall.admitEmbedMode(): EmbedMode? {
-    val embed = EmbedMode.parse(request.headers.getAll(EmbedMode.HEADER)) ?: return null
-    attributes.put(EmbedMode.ATTRIBUTE, embed)
-    response.headers.append(HttpHeaders.Vary, EmbedMode.HEADER)
-    return embed
-}
-
-/** The request's parsed embed switch, set once by the request intercept; null outside embedded mode. */
-internal fun ApplicationCall.embedMode(): EmbedMode? = attributes.getOrNull(EmbedMode.ATTRIBUTE)

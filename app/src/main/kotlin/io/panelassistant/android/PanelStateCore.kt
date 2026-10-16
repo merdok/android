@@ -209,8 +209,10 @@ internal class PanelStateCore(
         }
         channel("navigate") { known(config.lastNavigate.ifEmpty { "/" }) }
         channel("home_dashboard") { known(config.homeDashboard) }
+        // A panel's media player shows and sets its volume through this channel, so the exposure pip,
+        // which a panel with a speaker does not offer, cannot blank it.
         channel("volume") {
-            if (config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
+            if (media != null || config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
         }
         channel("media") { media?.let { known(it.observation()) } ?: unknown }
         if (hasButtonBacklight) channel("buttons") { known(buttonBacklightState(config.lastButtonBacklight)) }
@@ -294,7 +296,7 @@ internal class PanelStateCore(
         val learned = runCatching(learnedProximityState).getOrNull()
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
-        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot())
+        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true)
         // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
         val noKeys = buttonKeys == PanelButtonKeys.NONE
         val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }

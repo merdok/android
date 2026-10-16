@@ -543,9 +543,12 @@ internal data class RendererAdmissionPresentation(
         const val AMBIENT_AUTO_BRIGHTNESS_OFF_ACTION =
             "Turn on auto-brightness so the Ambient theme can follow the room's light."
 
-        /** The one fix is on the Home Assistant side, so the action names it rather than the panel. */
+        /**
+         * The panel now beats a Light or Dark saved on its user, so what is left is a named theme that
+         * lacks the scheme the policy asks for: the frontend renders such a theme in its one mode.
+         */
         const val OVERRIDDEN_ACTION =
-            "Set this panel's Home Assistant user to the Auto theme, or give the panel its own user, " +
+            "Choose a Home Assistant theme with both light and dark modes for this panel's user, " +
                 "so the Dashboard theme setting applies."
 
         /** Only the scheme leaves the panel — a full URL would carry the host into a pasted report. */

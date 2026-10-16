@@ -105,7 +105,8 @@ internal class HttpOpCall(private val call: ApplicationCall) : OpCall() {
     override val parameters: Parameters get() = call.parameters
     override val http: ApplicationCall get() = call
     override val args: JSONObject? get() = null
-    override fun embedMode(): EmbedMode? = call.embedMode()
+    // Only the sidebar relay embeds a page; over HTTP a page always renders as on the LAN.
+    override fun embedMode(): EmbedMode? = null
     override suspend fun respondText(text: String, contentType: ContentType?, status: HttpStatusCode?) =
         call.respondText(text, contentType, status)
     override suspend fun respondBytes(bytes: ByteArray, contentType: ContentType?, status: HttpStatusCode?) =
@@ -138,11 +139,8 @@ internal class ManageOpCall(
 
     override val origin: CommandOrigin get() = managed.origin
     override val args: JSONObject get() = managed.args
-    // An embedded request's `lang` is the Home Assistant user's language (the embed switch's), which stands in
-    // for Automatic and never overrides a chosen language, so it is not an explicit `?lang`.
-    override val parameters: Parameters = managed.args.asParameters(
-        setOfNotNull(RAW_BODY_ARG, "lang".takeIf { managed.args.optBoolean("embed", false) }),
-    )
+    // `args.embed` is the page's presentation, never a parameter of the operation; `lang` is an explicit `?lang`.
+    override val parameters: Parameters = managed.args.asParameters(setOf(RAW_BODY_ARG, EMBED_ARG))
 
     /**
      * A raw body, as the page transport sends one (the bytes its `args.blob` names, or the text of `args.body`),
@@ -167,16 +165,11 @@ internal class ManageOpCall(
     override val response = OpCallResponse { name, value -> extraHeaders += name to value }
     override val http: ApplicationCall? get() = null
 
-    override fun embedMode(): EmbedMode? {
-        val embedded = managed.args.optBoolean("embed", false)
-        val lang = managed.args.optString("lang").takeIf(String::isNotBlank)
-        val theme = managed.args.optString("theme").takeIf { it == "light" || it == "dark" }
-        val hide = managed.args.optJSONArray("hide")?.let { list ->
-            (0 until list.length()).mapNotNull { list.optString(it).lowercase().takeIf { tab -> tab in EmbedMode.TABS } }.toSet()
-        } ?: managed.args.optString("hide").split(',').map { it.trim().lowercase() }.filter { it in EmbedMode.TABS }.toSet()
-        if (!embedded && theme == null && hide.isEmpty()) return null
-        return EmbedMode(lang, theme, hide)
-    }
+    /**
+     * The sidebar's presentation for a `page.<name>` (protocol section 20.3): `args.embed` in the grammar the
+     * `X-Panel-Assistant-Embed` header carried; absent or invalid renders the page as on the LAN.
+     */
+    override fun embedMode(): EmbedMode? = EmbedMode.parse(managed.args.opt(EMBED_ARG) as? String)
 
     override suspend fun respondText(text: String, contentType: ContentType?, status: HttpStatusCode?) {
         val type = contentType ?: ContentType.Text.Plain
@@ -280,6 +273,9 @@ internal fun manageReplyFor(status: Int, body: Any?, contentType: String?, heade
 
 /** The `args` key that carries a raw text body (YAML, for the profile editor), as the page transport sends it. */
 private const val RAW_BODY_ARG = "body"
+
+/** The `args` key that carries a page's embedded presentation. */
+private const val EMBED_ARG = "embed"
 
 /** `args` as request parameters: strings, numbers and booleans by name; an array gives one value per item. */
 private fun JSONObject.asParameters(except: Set<String>): Parameters = Parameters.build {

@@ -16,9 +16,9 @@ const wording = (key) => english[key].text;
 function page(kind) {
   const content = kind === 'configure'
     ? `<span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
-      <button id="tab-basic"></button><button id="tab-adv"></button><p id="cfg-msg"></p><p id="cfg-status"></p>
+      <button id="tab-basic"></button><button id="tab-adv"></button><div id="cfg-status" class="muted"></div>
       <div id="cfg-groups" class="cards"></div><div id="proximity-learning-mount"></div>
-      <div id="savebar" hidden><button id="savebtn"></button></div>
+      <div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
       <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
       <script src="/configure-state.js"></script><script src="/configure-view.js"></script><script src="/configure-help.js"></script><script src="/configure-controls.js"></script><script src="/configure-brightness.js"></script><script src="/configure-auto-sleep.js"></script><script src="/configure-cards.js"></script><script src="/configure-render.js"></script><script src="/configure.js"></script><script src="/proximity-learning.js"></script>`
     : `<div class="cards"><section class="card" id="nettbl"><h2>${wording('dashboard.card.networking')}</h2>
@@ -42,7 +42,7 @@ async function harness() {
       help: wording('settings.dashboard_network_warning.help'),
       summary: wording('settings.dashboard_network_warning.summary'), default: 'true',
     }]));
-    if (path === '/api/v1/config') return send(JSON.stringify({
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return send(JSON.stringify({
       settings: { dashboard_network_warning: false, dashboard_package: 'builtin' },
       ha_expose: {}, ha_auth: { configured: false },
     }));

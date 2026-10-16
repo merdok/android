@@ -598,7 +598,7 @@ function refreshScreenshot(card){
 }
 function showAndRefreshScreenshot(card,cachedUrl){
  var im=card&&card.querySelector('img');if(!im)return;
- if(!im.getAttribute('src')&&cachedUrl)im.src=cachedUrl;
+ if(!im.getAttribute('src')&&cachedUrl&&!document.body.hasAttribute('data-ui-relay'))im.src=cachedUrl;
  card.style.display='';refreshScreenshot(card);scheduleDashboardColumnAlignment();
 }
 

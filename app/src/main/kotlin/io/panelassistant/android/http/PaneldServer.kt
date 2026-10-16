@@ -223,7 +223,12 @@ class PaneldServer internal constructor(
     internal val manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
     /** The current runtime generation's dispatcher, which the stub's pages and `/ui` door enter (section 20.7). */
     private val door: () -> io.panelassistant.android.ManageDoor? = { null },
+    /** The bundle Panel Assistant keeps for the sidebar (protocol section 20.5): the APK's assets. */
+    private val bundleAssets: UiBundleAssets = UiBundleAssets.ofApk { appContext.applicationInfo.sourceDir },
 ) {
+    /** The dispatcher the sidebar relay enters, as the stub's door does (protocol section 20.2). */
+    internal fun manageDoor(): io.panelassistant.android.ManageDoor? = door()
+
     /** The stub's 410 answers, printed in `/diag` (protocol section 20.7). */
     private val goneCounts = GoneCounts()
     private val stubBlobs = StubBlobs(java.io.File(cacheDir, "ui-blobs"))
@@ -333,7 +338,7 @@ class PaneldServer internal constructor(
     )
     private val catalogueLoader by lazy { CatalogueLoader(asset) }
     private val pageHealth = PageHealth(appContext, config)
-    private val pages get() = PageShell(config, catalogueLoader, { setupState.setupNeedsUser() }, ::buildToken, ::renderConfigConcurrencyHash, asset)
+    private val pages get() = PageShell(config, catalogueLoader, { setupState.setupNeedsUser() }, ::buildToken, asset)
 
     /** One locale negotiation path for every localized human page and its hydration payload. */
     private fun requestStrings(call: ApplicationCall): AppStrings = resolvedRequestStrings(
@@ -729,7 +734,7 @@ class PaneldServer internal constructor(
 
     private fun dashboardPageHandler() = DashboardPageHandler(
         config, appContext, profile, camera, managementObservations, pageHealth, screenshots,
-        dashboardRows(), dashboardAdvisories(), { pages }, ::buildToken, ::renderConfigConcurrencyHash,
+        dashboardRows(), dashboardAdvisories(), { pages }, ::buildToken,
         { rootReady -> interactive.screenshotReady(rootReady) },
     )
 
@@ -818,6 +823,7 @@ class PaneldServer internal constructor(
             val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
             return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
         }
+        if (op == PanelAssistantTransportProtocol.MANAGE_BUNDLE) return uploadUiBundle(args, PanelAssistantBlobs(auth), bundleAssets, buildToken(), cacheDir)
         return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
             authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
         } ?: manageThroughDispatcher(op, args, onPending)

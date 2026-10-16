@@ -8,21 +8,21 @@ import vm from 'node:vm';
 const shell = readFileSync(new URL('../../app/src/main/kotlin/io/panelassistant/android/http/PageShell.kt', import.meta.url), 'utf8');
 const script = shell.match(/<script>(\/\* Over the stub's socket a download link[\s\S]*?)<\/script>/)[1];
 
-function load(reply) {
+function load(reply, door = 'data-ui-socket') {
   let onClick;
-  const calls = [], saved = [];
+  const calls = [], saved = [], opened = [];
   const window = {
     open(url, target) { calls.push(['open', url, target]); return { opener: 'x', location: {}, close() { calls.push(['close']); } }; },
     alert(text) { calls.push(['alert', text]); },
   };
   const document = {
     addEventListener(name, fn) { if (name === 'click') onClick = fn; },
-    body: { hasAttribute: (name) => name === 'data-ui-socket', appendChild() {} },
+    body: { hasAttribute: (name) => name === door, appendChild() {} },
     createElement: () => ({ click() { saved.push(this.download); }, remove() {} }),
   };
   window.PaneldTransport = { request(op) { calls.push(['request', op]); return Promise.resolve(reply); } };
   vm.runInNewContext(script, {
-    window, document, PaneldTransport: window.PaneldTransport, Blob, URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+    window, document, PaneldTransport: window.PaneldTransport, Blob, URL: { createObjectURL: (blob) => { opened.push(blob); return 'blob:x'; }, revokeObjectURL() {} },
     setTimeout() {},
   });
   const click = async (link, modifiers = {}) => {
@@ -32,10 +32,10 @@ function load(reply) {
     for (let i = 0; i < 10; i++) await Promise.resolve();
     return { event, synchronous };
   };
-  return { click, calls, saved };
+  return { click, calls, saved, opened };
 }
 
-const link = (target) => ({ target, getAttribute: (name) => ({ 'data-op': 'config.export', 'data-file': 'config.json' })[name] });
+const link = (target) => ({ target, hasAttribute: () => false, getAttribute: (name) => ({ 'data-op': 'config.export', 'data-file': 'config.json' })[name] });
 
 test('a modified click is left to the plain link', async () => {
   const rig = load({ outcome: 'applied', result: new Blob(['{}']) });
@@ -58,4 +58,37 @@ test('a saved file keeps the name the panel gave it', async () => {
   const rig = load({ outcome: 'applied', result: new Blob(['{}']), headers: { 'content-disposition': 'attachment; filename="panel-7-config.json"' } });
   await rig.click(link(''));
   assert.deepEqual(rig.saved, ['panel-7-config.json']);
+});
+
+test("in the sidebar relay a download link goes through the transport too", async () => {
+  const rig = load({ outcome: 'applied', result: new Blob(['{}']) }, 'data-ui-relay');
+  const { event } = await rig.click(link(''));
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(rig.calls, [['request', 'config.export']]);
+  assert.deepEqual(rig.saved, ['config.json']);
+});
+
+test('a page on plain HTTP leaves the link to the browser', async () => {
+  const rig = load({ outcome: 'applied', result: new Blob(['{}']) }, null);
+  const { event } = await rig.click(link(''));
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(rig.calls, []);
+});
+
+test('in the sidebar the Diagnostics link fetches diag through the transport and opens it as text', async () => {
+  const rig = load({ outcome: 'applied', result: 'ha-paneld diagnostics\n' }, 'data-ui-relay');
+  const diag = { target: '_blank', hasAttribute: (name) => name === 'data-relay-only', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
+  const { event } = await rig.click(diag);
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(rig.calls.slice(0, 2), [['open', '', '_blank'], ['request', 'diag']]);
+  assert.equal(rig.opened[0].type, 'text/plain');
+  assert.equal(await rig.opened[0].text(), 'ha-paneld diagnostics\n');
+});
+
+test('on the LAN socket page a relay-only link (Diagnostics) is left to its plain link', async () => {
+  const rig = load({ outcome: 'applied', result: 'x' });
+  const diag = { target: '_blank', hasAttribute: (name) => name === 'data-relay-only', getAttribute: (name) => ({ 'data-op': 'diag', 'data-file': 'diag.txt' })[name] };
+  const { event } = await rig.click(diag);
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(rig.calls, []);
 });

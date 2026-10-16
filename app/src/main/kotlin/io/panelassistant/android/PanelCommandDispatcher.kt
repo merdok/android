@@ -280,7 +280,7 @@ internal class PanelCommandDispatcher(
                 PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
             })
         }
-        val admission = if (command.channel == "reload" || command.channel == "reboot") {
+        val admission = if (command.channel in ACTION_CHANNELS) {
             queue.submitAction(onSkipped, run)
         } else {
             queue.submitLatest(key = command.channel, onSkipped = onSkipped, command = run)
@@ -387,6 +387,9 @@ internal class PanelCommandDispatcher(
                 )
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
             }
+            // Kiosk lock keeps the panel on its dashboard, so neither leaves it while the lock is on.
+            "android_settings" -> if (config.kioskLock || !system.launchAndroidSettings()) throw LiveSettingUnavailableException(channel)
+            "launcher" -> if (config.kioskLock || !system.launchLauncher(config.launcherPackage)) throw LiveSettingUnavailableException(channel)
             "reboot" -> {
                 system.requireRebootAllowed()
                 authorizeRemoteSensitive(
@@ -724,6 +727,8 @@ internal class PanelCommandDispatcher(
         val origin = checkNotNull(currentOrigin.get()) { "sensitive ${operation.name} dispatched without an origin" }
         // Protocol section 20.2: a loopback peer (the stub in hardened mode) is exempt, as it is over HTTP.
         if (!always && origin.peerAddress?.let { io.panelassistant.android.util.isLoopbackPeer(it) } == true) return
+        // A relayed Home Assistant administrator is exempt for the same operations as on the manage path.
+        if (!always && io.panelassistant.android.http.relayedAdministratorExempt(origin, operation)) return
         val (decision, approvalId) = LocalApprovalBroker.instance.request(operation, origin.approvalKey, payload, summary)
         if (decision != ApprovalBroker.Decision.APPROVED) {
             throw SensitiveApprovalPendingException(
@@ -770,10 +775,12 @@ internal class PanelCommandDispatcher(
             is Validation.Ok -> validated.normalized
             else -> {
                 // Refuse rather than coerce, then republish so the entity cannot go on showing a value
-                // the panel did not accept. The route itself is not logged; it names the owner's rooms.
+                // the panel did not accept. The refusal answers `refused`/`invalid_value`, so Home Assistant
+                // raises an error and restores its field instead of keeping the typed text. The route itself
+                // is not logged; it names the owner's rooms.
                 Log.w(TAG, "home_dashboard command refused: not a well-formed dashboard route")
                 core.reconcile("home_dashboard")
-                return
+                throw IllegalArgumentException("home_dashboard: not a well-formed dashboard route")
             }
         }
         val changed = target != (previousValue ?: config.homeDashboard)
@@ -791,13 +798,9 @@ internal class PanelCommandDispatcher(
         val path = toLocalPath(target)
         if (path.isEmpty()) return
         if (config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) {
-            if (path == config.lastNavigate && config.homeDashboard.isNotBlank() && config.homeDashboard != "/") {
-                BuiltinDashboard.navPath = null
-                system.reloadDashboard(config.dashboardPackage)
-                return
-            }
             // Built-in renderer: set the target path and (re)launch DashboardActivity, which loads it —
-            // the deep link targets the Companion and would no-op on a builtin-only panel.
+            // the deep link targets the Companion and would no-op on a builtin-only panel. A repeated path
+            // navigates again, because the page may have moved since by touch.
             BuiltinDashboard.navPath = path
             system.launchHome(config.dashboardPackage)
             config.lastNavigate = path
@@ -988,7 +991,7 @@ internal class PanelCommandDispatcher(
             "camera_enabled",
         )
         /** Channels whose commands never conflate. */
-        private val ACTION_CHANNELS = setOf("reload", "reboot")
+        private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher")
 
         /** Keys accepted by [applySetting], declared once by [SettingsRegistry]. */
         internal val APPLY_SETTING_KEYS = SettingsRegistry.liveApplyKeys().toSet()

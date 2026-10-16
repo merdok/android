@@ -50,9 +50,9 @@ internal data class ManageReply(
  * request's reference names, or null when it names nothing usable.
  */
 internal interface ManageBlobs {
-    fun put(bytes: ByteArray, type: String): JSONObject
+    suspend fun put(bytes: ByteArray, type: String): JSONObject
     /** The uploaded body [ref] names, read once; closing it releases the bytes. */
-    fun take(ref: JSONObject): java.io.InputStream?
+    suspend fun take(ref: JSONObject): java.io.InputStream?
 }
 
 /** One named request as its handler sees it. */
@@ -152,6 +152,7 @@ internal object ManageFamilies {
         ManageFamily("sensors", 2_000, listOf("sensors")),
         ManageFamily("camera", 2_000, listOf("camera.status")),
         ManageFamily("health", 5_000, listOf("health")),
+        ManageFamily("config", 500, listOf("config.values")),
         ManageFamily("entities", 5_000, listOf("dashboard.entities", "dashboard.entities.sync", "dashboard.entities.issues")),
         ManageFamily("proximity", 1_000, listOf("proximity")),
         ManageFamily("microphone", 2_000, listOf("voice.microphone")),

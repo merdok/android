@@ -23,13 +23,14 @@ internal fun Route.proximityRoutes(
     ops {
     get("/proximity") { call.respondText(proximityJson(), ContentType.Application.Json) }
     post("/proximity/calibration") {
-        // The stub's socket admitted its page at the upgrade (same origin), so a request it carries from a
-        // peer is the panel's own UI; over HTTP the request has to show it.
-        val fromSocketPage = call.http == null && call.origin.peerAddress != null
-        if (!fromSocketPage && !proximityUiRequestAllowed(
+        // The stub's socket admitted its page at the upgrade (same origin), and the sidebar relay carries only its
+        // own frame's requests for a user Panel Assistant checked, so either is the panel's own UI; over HTTP the
+        // request has to show it.
+        val fromDoorPage = call.http == null && (call.origin.peerAddress != null || call.origin.isUser)
+        if (!fromDoorPage && !proximityUiRequestAllowed(
                 call.request.headers["Origin"], call.request.headers["Referer"],
                 call.request.headers["Host"], call.request.headers["Sec-Fetch-Site"],
-                call.request.headers["X-Proximity-UI"], call.request.headers[EmbedMode.HEADER],
+                call.request.headers["X-Proximity-UI"],
             )) {
             call.respondText(proximityError("Start proximity setup from this panel's HTML UI."),
                 ContentType.Application.Json, HttpStatusCode.Forbidden)

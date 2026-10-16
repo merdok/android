@@ -68,6 +68,7 @@
     <string name="choose_dashboard_app">Wybierz aplikację do pulpitu nawigacyjnego.</string>
     <string name="continue_setup_browser">Kontynuuj na stronie konfiguracji w przeglądarce.</string>
     <string name="connected_next_ha_address">Połączono. Dalej: adres Home Assistant.</string>
+    <string name="choose_home_dashboard">Wybierz pulpit główny tego panelu.</string>
     <string name="almost_there_sign_in">Już prawie gotowe — zostało jeszcze jedno logowanie.</string>
     <string name="continue_or_sign_in_here">Kontynuuj w przeglądarce lub dotknij przycisku poniżej, żeby zalogować się na tym ekranie.</string>
     <string name="one_important_question_left">Zostało jeszcze jedno ważne pytanie.</string>

@@ -111,6 +111,11 @@
 
   function autoSleepUsesPanel() { return cfg.values.auto_sleep_source === "panel"; }
   function autoSleepUsesTouch() { return cfg.values.auto_sleep_source === "touch"; }
+  // The touch source fetches no status: its summary comes from the setting itself, the moment it changes.
+  function currentAutoSleepSummaryModel() {
+    if (autoSleepUsesTouch()) return autoSleepSummaryModel();
+    return cfg.autoSleepStatus ? autoSleepSummaryModel(cfg.autoSleepStatus) : autoSleepLoadingSummaryModel();
+  }
   function autoSleepUsesHa() { return !autoSleepUsesPanel() && !autoSleepUsesTouch(); }
 
   function autoSleepPrerequisiteText() {
@@ -154,10 +159,7 @@
     if (!autoSleepUsesHa()) return;
     if (cfg.values.auto_sleep !== "true") return;
     cfg.values.auto_sleep = "false";
-    cfg.savedValues.auto_sleep = "false";
     invalidateAutoSleepData(true);
-    cfg.recomputeDirty();
-    cfg.updateSaveUi();
     var toggle = document.querySelector("#cfg-auto_sleep [role=switch]");
     if (toggle) {
       toggle.classList.remove("on");
@@ -285,7 +287,7 @@
     ]);
     var summary = autoSleepSummaryNode();
     var announcement = autoSleepSummaryAnnouncementNode();
-    setAutoSleepSummary(summary, announcement, cfg.autoSleepStatus ? autoSleepSummaryModel(cfg.autoSleepStatus) : autoSleepLoadingSummaryModel());
+    setAutoSleepSummary(summary, announcement, currentAutoSleepSummaryModel());
     var panel = cfg.el("div", { class: "autobright-panel", id: "auto-sleep-status" }, [
       cfg.el("div", { class: "autobright-head auto-sleep-head" }, [
       cfg.el("div", {}, [
@@ -317,7 +319,7 @@
     if (!summary || !announcement) return;
     // Five fixed rows keep the chart origin stable while status values change. Loading occupies the
     // same geometry before the first response; later readiness refreshes retain the settled values.
-    setAutoSleepSummary(summary, announcement, cfg.autoSleepStatus ? autoSleepSummaryModel(cfg.autoSleepStatus) : autoSleepLoadingSummaryModel());
+    setAutoSleepSummary(summary, announcement, currentAutoSleepSummaryModel());
   }
 
   function autoSleepHistoryMessage() {

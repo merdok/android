@@ -29,8 +29,7 @@
   --fg-warn:#d9a528;--highlight:#4a9eff;--install-rule:#2a2a2a;--link:#9cf;--listbox-shadow:rgba(0,0,0,.28);
   --log-error:#f07868;--log-info:#cfcfcf;--log-verbose:#777;--log-warn:#f5c451;--primary-text:#fff;
   --pkg-active:#3fb950;--pkg-dialog-bg:#1a1a1a;--pkg-dialog-border:#333;--pkg-dialog-fg:#eee;
-  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;
-  --primary-glow:rgba(37,87,167,.55);--primary-glow-off:rgba(37,87,167,0);--profile-danger-border:#8b342f;
+  --pkg-divider:#222;--pkg-note:#9aa;--pkg-protected:#777;--primary:#2557a7;--profile-danger-border:#8b342f;
   --profile-danger-fg:#ffb3a6;--profile-editor-active-line:rgba(127,153,204,.09);
   --profile-editor-selection:rgba(77,121,195,.35);--profile-issue-error:#d05248;--profile-issue-info:#4284bb;
   --profile-issue-warning:#c6952d;--profile-modal-backdrop:rgba(0,0,0,.66);
@@ -557,12 +556,6 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 .toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--knob);transition:.15s}
 .toggle.on::after,input:checked+.toggle::after{left:20px}
 .toggle:focus-visible,input:focus-visible+.toggle,.pip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.savebar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;box-sizing:border-box;
-  background:var(--bg);padding:12px max(20px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
-  border-top:1px solid var(--card-border);box-shadow:0 -8px 18px -12px var(--shadow);display:flex;gap:14px;align-items:center;z-index:25}
-.savebar[hidden]{display:none}
-.cfg-dirty{padding-bottom:76px}
-.savebar button{padding:9px 24px}
 .muted{color:var(--dim)}
 
 @media(max-width:600px){
@@ -586,8 +579,6 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
   .autobright-actions{width:100%;justify-content:flex-start}
   .autobright-actions .pbtn{flex:1 1 auto;text-align:center}
   .autobright-legend small{width:100%;margin-left:0}
-  .savebar{padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
-  .savebar button{flex:1 1 auto}
 }
 
 /* ---- configurable-value marker (Dashboard) + anchor flash (Configure) ---- */
@@ -682,13 +673,6 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 .wiz details p{color:var(--dim);font-size:.9rem;line-height:1.55}
 @media (max-width:600px){.wiz{padding-left:2px;padding-right:2px}.wiz-dots{gap:10px}}
 /* component:end */
-/* Commissioning only: an unsaved change on a panel that cannot yet show a dashboard is urgent, because
-   the user may not yet know Save exists. Off the instant setup completes (the body class is a pure
-   function of journey state), so a working panel's save bar never nags. Reduced motion keeps the
-   signal as a persistent outline — only the animation is dropped, never the information. */
-body.commissioning.cfg-dirty #savebtn{animation:wiz-throb 2s ease-in-out infinite}
-@keyframes wiz-throb{0%,100%{box-shadow:0 0 0 0 var(--primary-glow)}50%{box-shadow:0 0 0 8px var(--primary-glow-off)}}
-@media (prefers-reduced-motion:reduce){body.commissioning.cfg-dirty #savebtn{animation:none;outline:2px solid var(--primary);outline-offset:3px}}
 /* Completion navigation: the two next-step buttons a new owner actually wants, prominent rather than
    quiet links. Stacks on a narrow panel. */
 .wiz-cta{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}

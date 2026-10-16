@@ -68,6 +68,7 @@
     <string name="choose_dashboard_app">Kies een dashboard-app.</string>
     <string name="continue_setup_browser">Ga verder op de instellingenpagina in een browser.</string>
     <string name="connected_next_ha_address">Verbonden. Volgende stap: het Home Assistant-adres.</string>
+    <string name="choose_home_dashboard">Kies het startdashboard van dit paneel.</string>
     <string name="almost_there_sign_in">Je bent er bijna — nog één keer inloggen.</string>
     <string name="continue_or_sign_in_here">Ga verder in de browser, of tik op de knop hieronder om je op dit scherm aan te melden.</string>
     <string name="one_important_question_left">Er is nog één belangrijke vraag over.</string>

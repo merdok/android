@@ -31,6 +31,9 @@ class DashboardPageHttpTest {
                 assertEquals(HttpStatusCode.OK, response.status)
                 val html = response.bodyAsText()
                 assertTrue(html.contains("data-hydrate=\"0\""))
+                // In the sidebar the Diagnostics links work only through the page transport (data-op); on the LAN the href serves.
+                assertEquals(Regex("href=\"api/v1/diag\"").findAll(html).count(), Regex("href=\"api/v1/diag\" data-op=\"diag\" data-relay-only data-file=\"diag.txt\"").findAll(html).count())
+                assertTrue(html.contains("data-op=\"diag\""))
                 assertTrue(html.contains("Warm &lt;panel&gt;"))
                 assertTrue(html.contains("<span class=\"secret\">secret-value</span>"))
                 assertTrue(html.contains("id=\"halifecell\""))

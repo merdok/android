@@ -1556,6 +1556,7 @@ class PaneldService : Service() {
                 relays = controllers?.relayCount ?: controls.relay.count(),
                 buttonLeds = controllers?.buttonLedCount ?: controls.relay.ledCount(),
                 hasSystemDarkMode = Build.VERSION.SDK_INT >= 29,   // Android 10+ has the system dark/light setting
+                hasSpeaker = profile.hasSpeaker,
                 canInstallVerifiedApps = typedShellControlReady,
                 canCaptureAndInput = typedShellControlReady,
                 canSetDisplay = typedShellControlReady,

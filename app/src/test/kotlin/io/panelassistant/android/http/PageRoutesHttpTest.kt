@@ -29,15 +29,6 @@ class PageRoutesHttpTest {
                 assertTrue(html.contains("href=\"./?lang=de\""))
                 assertEquals("DENY", page.headers["X-Frame-Options"])
                 assertEquals("de", page.headers[HttpHeaders.ContentLanguage])
-                val embedded = client.get("/missing-page") {
-                    header(HttpHeaders.Accept, "text/html")
-                    header(EmbedMode.HEADER, "v=1;theme=light;lang=fr")
-                }.bodyAsText()
-                assertTrue(embedded.contains("<base href=\"/\">"))
-                assertTrue(embedded.contains("<html lang=\"fr\" data-theme=\"light\""))
-                assertTrue(embedded.contains("href=\"info.css\""))
-                assertTrue(embedded.contains("src=\"assets/pickles.svg\""))
-                assertTrue(embedded.contains("href=\"./?lang=fr\""))
                 for (path in listOf("/api/v1/missing", "/assets/missing.js", "/missing.css")) {
                     val machine = client.get(path) { header(HttpHeaders.Accept, "text/html") }
                     assertEquals(path, HttpStatusCode.NotFound, machine.status)
@@ -125,7 +116,7 @@ class PageRoutesHttpTest {
                     assertEquals(HttpStatusCode.OK, response.status)
                     val html = response.bodyAsText()
                     assertTrue(html.contains("id=\"cfg-groups\""))
-                    assertTrue(html.contains("id=\"savebar\""))
+                    assertTrue(html.contains("id=\"cfg-msg\""))
                     val scripts = Regex("""<script src="assets/(configure[^"]*\.js)"></script>""").findAll(html)
                         .map { it.groupValues[1] }.toList()
                     assertEquals(listOf(
@@ -205,7 +196,6 @@ class PageRoutesHttpTest {
                 val setup = client.get("/setup?lang=en").bodyAsText()
                 assertTrue(setup.contains("href=\"configure?lang=en\""))
                 assertTrue(setup.contains("wiz_escape=1;path=/;max-age=3600"))
-                assertFalse(setup.contains("data-cfg="))
                 val api = client.get("/api?lang=zh-Hans") {
                     header(HttpHeaders.Cookie, "wiz_escape=1")
                 }

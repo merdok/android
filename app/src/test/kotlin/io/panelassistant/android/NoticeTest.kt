@@ -8,6 +8,7 @@ import io.panelassistant.android.sensors.HaNetworkPathSeverity
 import io.panelassistant.android.sensors.PathProbeCause
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -264,16 +265,35 @@ class NoticeTest {
     }
 
     /**
-     * What MainActivity.applySetupStage feeds the pill, from a real journey. applySetupStage maps
-     * every non-null `next` of an incomplete journey to a stage line (render_proof -> "Loading your
-     * dashboard..." / "Nothing to do here."), so stage presence is `!complete && next != null` and identity
-     * is `next == identity`; needsUser is the endpoint's `needs_user`, i.e. [SetupJourney.Journey.needsUser].
-     * The activity is not constructible on the JVM, so the mapping is restated here.
+     * What MainActivity.applySetupStage shows for a real journey, read the way the activity reads the
+     * endpoint: `next` as its lowercase wire name and the renderer step's detail.
      */
+    private fun stageFor(journey: SetupJourney.Journey): SetupStageLine? = setupStageLine(
+        journey.complete,
+        journey.next?.name?.lowercase().orEmpty(),
+        journey.step(SetupJourney.Stage.RENDERER).detail,
+    )
+
     private fun pillFor(journey: SetupJourney.Journey, everCompleted: Boolean): Int? {
-        val stagePresent = !journey.complete && journey.next != null
         val identity = !journey.complete && journey.next == SetupJourney.Stage.IDENTITY
-        return standingNoticePill(stagePresent, identity, journey.needsUser, everCompleted)
+        return standingNoticePill(stageFor(journey) != null, identity, journey.needsUser, everCompleted)
+    }
+
+    @Test
+    fun aSignedInPanelWaitingForItsHomeDashboardSaysSetupContinuesInTheBrowser() {
+        val journey = SetupJourney.evaluate(configuredInputs().copy(homeDashboardChosen = false))
+        assertEquals(SetupJourney.Stage.HOME_DASHBOARD, journey.next)
+        assertEquals(true, journey.needsUser)
+        assertEquals(false, journey.complete)
+        assertEquals(SetupStageLine(R.string.choose_home_dashboard, R.string.continue_setup_browser), stageFor(journey))
+        assertEquals(R.string.notice_pill_setup, pillFor(journey, everCompleted = false))
+    }
+
+    @Test
+    fun everyStageOfAnUnfinishedSetupHasAStandingLine() {
+        for (stage in SetupJourney.Stage.entries) {
+            assertNotNull(stage.name, setupStageLine(complete = false, next = stage.name.lowercase(), rendererDetail = ""))
+        }
     }
 
     private fun configuredInputs(haCredentialed: Boolean = true) = SetupJourney.Inputs(

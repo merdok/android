@@ -28,15 +28,6 @@ import io.ktor.websocket.readText
 import io.panelassistant.android.CommandOrigin
 import io.panelassistant.android.ManageBlobs
 import io.panelassistant.android.ManageDoor
-import io.panelassistant.android.ManageReply
-import io.panelassistant.android.ManageSink
-import io.panelassistant.android.ManageSubscription
-import io.panelassistant.android.panelassistant.CommandValue
-import io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog
-import io.panelassistant.android.panelassistant.PanelAssistantCommand
-import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
-import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
-import io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
 import io.panelassistant.android.util.BoundedStreams
 import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.SelfUpdater
@@ -45,16 +36,12 @@ import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
-import io.panelassistant.android.security.ApprovalBroker
-import io.panelassistant.android.security.LocalApprovalBroker
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -206,7 +193,7 @@ internal class StubBlobs(
         slots.entries.filter { it.value.expiresAt <= now }.forEach { slots.remove(it.key)?.discard() }
     }
 
-    override fun put(bytes: ByteArray, type: String): JSONObject {
+    override suspend fun put(bytes: ByteArray, type: String): JSONObject {
         val token = mint(Slot(upload = false, expiresAt = nowMs() + ttlMs, bytes = bytes, type = type))
         return reference(token, bytes.size.toLong(), sha256Hex(bytes), type)
     }
@@ -227,7 +214,7 @@ internal class StubBlobs(
     fun uploadLimit(token: String): Long? =
         slots[token]?.takeIf { it.upload && it.file == null && it.expiresAt > nowMs() }?.limit
 
-    override fun take(ref: JSONObject): java.io.InputStream? {
+    override suspend fun take(ref: JSONObject): java.io.InputStream? {
         purge()
         val token = ref.optString("url").substringAfterLast('/')
         val slot = slots.remove(token) ?: return null
@@ -366,20 +353,13 @@ internal fun Route.stubRoutes(
 
 /**
  * A page through the dispatcher. Its `args` are the locale signals of the query (`lang`, and `ha_lang`, which the
- * Setup redirect carries) and the presentation the embed header asks for; its origin carries the request's
- * `Host` and `Accept-Language` as headers. The query never switches presentation, so `?embed=1` alone renders the
- * ordinary page.
+ * Setup redirect carries); its origin carries the request's `Host` and `Accept-Language` as headers. Only the
+ * sidebar relay embeds a page (`args.embed`), so the query never switches presentation.
  */
 private suspend fun ApplicationCall.answerPage(door: () -> ManageDoor?, op: String) {
     val dispatcher = door() ?: return respondText("starting\n", status = HttpStatusCode.ServiceUnavailable)
     val args = JSONObject()
     PAGE_QUERY_ARGS.forEach { name -> request.queryParameters[name]?.let { args.put(name, it) } }
-    embedMode()?.let { embed ->
-        args.put("embed", true)
-        embed.lang?.let { if (!args.has("lang")) args.put("lang", it) }
-        embed.theme?.let { args.put("theme", it) }
-        if (embed.hiddenTabs.isNotEmpty()) args.put("hide", JSONArray(embed.hiddenTabs.sorted()))
-    }
     val origin = CommandOrigin.peer(request.origin.remoteAddress).withHeaders(doorHeaders(request.headers))
     val reply = suspendCancellableCoroutine { waiting ->
         dispatcher.manage(UUID.randomUUID().toString(), op, args, origin) {
@@ -404,11 +384,9 @@ private fun doorHeaders(headers: io.ktor.http.Headers): Map<String, String> = bu
 }
 
 /**
- * `GET /ui`: the stub's door (protocol section 20.2). One text frame per request object; the origin is the
- * peer's address whatever the frame says; replies, interim `pending_approval` answers (marked `interim`) and
- * subscription updates are one text frame each. A `pending_approval` without `interim` is final, as an HTTP
- * 202 approval answer is. Closing the socket ends every subscription its origin holds; turning hardened mode on
- * closes a LAN peer's socket.
+ * `GET /ui`: the stub's door (protocol section 20.2). One text frame per request object, handled by [UiFrames];
+ * the origin is the peer's address whatever the frame says. Closing the socket ends every subscription its origin
+ * holds; turning hardened mode on closes a LAN peer's socket.
  */
 private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: () -> Boolean) {
     application.pluginOrNull(WebSockets) ?: application.install(WebSockets) { maxFrameSize = MAX_FRAME_BYTES }
@@ -438,8 +416,6 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                 delay(HARDENED_CHECK_MS)
             }
         }
-        val subscriptions = ConcurrentHashMap<String, ManageSubscription>()
-        val open = java.util.concurrent.atomic.AtomicBoolean(true)
         // One sender, so frames leave in the order they were queued.
         val queued = Channel<Pair<JSONObject, () -> Unit>>(Channel.UNLIMITED)
         launch {
@@ -451,180 +427,21 @@ private fun Route.uiSocket(door: () -> ManageDoor?, blobs: StubBlobs, hardened: 
                 }
             }
         }
-        fun send(frame: JSONObject, after: () -> Unit = {}) {
-            queued.trySend(frame to after)
-        }
-        fun answer(commandId: String, reply: ManageReply) = send(
-            JSONObject().put("command_id", commandId).put("outcome", reply.outcome)
-                .apply { reply.code?.let { put("code", it) } }
-                // The route's own status, when it did not succeed, as the HTTP transport reports it.
-                .apply { if (reply.status !in 200..299) put("status", reply.status) }
-                .apply { if (reply.result != null) put("result", reply.result) }
-                .apply { replyHeaders(reply)?.let { put("headers", it) } },
-        )
-        fun answer(commandId: String, outcome: String, code: String? = null, result: Any? = null) =
-            answer(commandId, ManageReply(outcome, code, result))
-        fun interim(commandId: String, approvalId: String? = null) = send(
-            JSONObject().put("command_id", commandId).put("outcome", PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL)
-                .put("interim", true).apply { approvalId?.let { put("result", JSONObject().put("approval_id", it)) } },
-        )
+        val frames = UiFrames(dispatcher, origin, this, uploads = blobs) { frame, after -> queued.trySend(frame to after) }
         try {
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue
-                val request = runCatching { JSONObject(frame.readText()) }.getOrNull()
-                val commandId = request?.optString("command_id").orEmpty()
-                if (request == null || commandId.isEmpty()) {
-                    answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantTransportProtocol.CODE_INVALID_FORMAT)
-                    continue
-                }
-                val args = request.optJSONObject("args") ?: JSONObject()
-                when (request.optString("kind")) {
-                    "command" -> {
-                        val deadlineMs = request.optLong("deadline_ms", DEFAULT_DEADLINE_MS)
-                        val value = request.opt("value")
-                        val channel = request.optString("channel")
-                        // The value decodes as Panel Assistant's does. A channel that takes no commands keeps its
-                        // raw value, so the dispatcher answers it as the unknown channel it is.
-                        val descriptor = PanelAssistantChannelCatalog.describe(channel)
-                            ?.takeIf { it.platform in PanelAssistantCommandProcessor.COMMANDABLE_PLATFORMS }
-                        val decoded = if (descriptor == null) CommandValue.Text(value?.toString().orEmpty())
-                        else io.panelassistant.android.panelassistant.decode(descriptor, value)
-                        if (decoded == null) {
-                            answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
-                            continue
-                        }
-                        // A sensitive command is held for its approval on the panel's screen: the door answers
-                        // an interim pending_approval, waits, runs it again once approved and answers the
-                        // outcome, as Panel Assistant's processor does on the session.
-                        fun run(held: Boolean) {
-                            val deadlineAt = System.nanoTime() / 1_000_000 + deadlineMs
-                            dispatcher.submit(
-                                PanelAssistantCommand(
-                                    channel = channel,
-                                    value = decoded,
-                                    requestId = commandId,
-                                    admit = {
-                                        when {
-                                            !open.get() -> PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
-                                            System.nanoTime() / 1_000_000 > deadlineAt ->
-                                                PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_EXPIRED)
-                                            else -> null
-                                        }
-                                    },
-                                ),
-                                origin,
-                            ) { result ->
-                                if (result !is PanelAssistantCommandResult.ApprovalPending) return@submit answer(commandId, commandReply(result))
-                                // Asked again after an approval was consumed: one interim answer per command.
-                                if (held) return@submit answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_APPROVAL_TIMEOUT)
-                                interim(commandId, result.approvalId)
-                                launch {
-                                    val heldAt = System.nanoTime()
-                                    while (true) {
-                                        delay(APPROVAL_POLL_MS)
-                                        when (LocalApprovalBroker.instance.state(result.approvalId)) {
-                                            ApprovalBroker.State.PENDING -> continue
-                                            ApprovalBroker.State.APPROVED -> { run(held = true); break }
-                                            ApprovalBroker.State.ABSENT -> {
-                                                val expired = (System.nanoTime() - heldAt) / 1_000_000 >= ApprovalBroker.DEFAULT_TTL_MS
-                                                answer(
-                                                    commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED,
-                                                    if (expired) PanelAssistantCommandProcessor.CODE_APPROVAL_TIMEOUT else PanelAssistantCommandProcessor.CODE_APPROVAL_DENIED,
-                                                )
-                                                break
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        run(held = false)
-                    }
-                    "manage" -> when (val op = request.optString("op")) {
-                        "subscribe" -> {
-                            val family = args.optString("family")
-                            // Updates queue behind the `applied` answer that names their subscription.
-                            val answered = CompletableDeferred<Unit>()
-                            // Every other argument reaches each read of the family (a visible wizard's presence).
-                            val familyArgs = JSONObject(args.toString()).apply { remove("family") }
-                            val subscription = dispatcher.subscribe(family, origin, sink = ManageSink { value, known, delivered ->
-                                val update = JSONObject().put("subscription", commandId).put(
-                                    "observations",
-                                    JSONArray().put(
-                                        JSONObject().put("channel", family).put("state", if (known) "known" else "unavailable")
-                                            .put("value", if (known) value ?: JSONObject.NULL else JSONObject.NULL),
-                                    ),
-                                )
-                                // An update racing this subscription's unsubscribe is dropped, never sent after its answer.
-                                launch { answered.await(); if (subscriptions.containsKey(commandId)) send(update, after = delivered) else delivered() }
-                            }, args = familyArgs)
-                            if (subscription == null) {
-                                answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE)
-                            } else {
-                                subscriptions[commandId] = subscription
-                                answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED, result = JSONObject().put("subscription", commandId))
-                                answered.complete(Unit)
-                            }
-                        }
-                        "unsubscribe" -> {
-                            subscriptions.remove(args.optString("subscription"))?.close()
-                            answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED)
-                        }
-                        // Section 20.5: the door answers this itself, without reaching the panel's operations.
-                        "blob.upload" -> when (val minted = blobs.mintUpload(
-                            args.optString("type").ifEmpty { ContentType.Application.OctetStream.toString() },
-                            args.optLong("size", -1).takeIf { it >= 0 },
-                        )) {
-                            null -> answer(
-                                commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantCommandProcessor.CODE_INVALID_VALUE,
-                                JSONObject().put("error", "too-large").put("max_size", StubBlobs.MAX_BYTES),
-                            )
-                            else -> answer(commandId, PanelAssistantTransportProtocol.OUTCOME_APPLIED, result = minted)
-                        }
-                        else -> dispatcher.manage(
-                            commandId, op, args, origin, blobs,
-                            onPending = { interim(commandId) },
-                        ) { reply -> answer(commandId, reply) }
-                    }
-                    else -> answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantTransportProtocol.CODE_INVALID_FORMAT)
-                }
+                frames.handle(runCatching { JSONObject(frame.readText()) }.getOrNull(), blobs)
             }
         } finally {
-            open.set(false)
             generationEnded.close()
             queued.close()
-            dispatcher.closeOrigin(origin)
+            frames.close()
         }
     }
 }
 
-/**
- * The `x-*` headers a route set (screenshot id, input route, profile presentation) and a download's
- * `content-disposition` (its file name), lower-cased as the page transport reads them over HTTP; null when there
- * are none.
- */
-private fun replyHeaders(reply: ManageReply): JSONObject? {
-    val named = reply.headers.filter { (name, _) ->
-        val lower = name.lowercase()
-        (lower.startsWith("x-") && lower != "x-frame-options" && lower != "x-content-type-options") || lower == "content-disposition"
-    }
-    if (named.isEmpty()) return null
-    return JSONObject().apply { named.forEach { (name, value) -> put(name.lowercase(), value) } }
-}
-
-private fun commandReply(result: PanelAssistantCommandResult): ManageReply = when (result) {
-    PanelAssistantCommandResult.Applied -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null)
-    PanelAssistantCommandResult.Superseded -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_SUPERSEDED, null)
-    is PanelAssistantCommandResult.ApprovalPending -> ManageReply(
-        PanelAssistantTransportProtocol.OUTCOME_PENDING_APPROVAL, null, JSONObject().put("approval_id", result.approvalId),
-    )
-    is PanelAssistantCommandResult.Refused -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_REFUSED, result.code)
-    is PanelAssistantCommandResult.Failed -> ManageReply(PanelAssistantTransportProtocol.OUTCOME_FAILED, result.code)
-}
-
 private const val HARDENED_CHECK_MS = 500L
-private const val APPROVAL_POLL_MS = 1_000L
 
 /** Frames into the panel are capped at 2 MiB (section 20.1); larger bodies move as blobs. */
 private const val MAX_FRAME_BYTES = 2L * 1024 * 1024
-private const val DEFAULT_DEADLINE_MS = 10_000L

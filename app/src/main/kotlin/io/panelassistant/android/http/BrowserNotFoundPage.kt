@@ -29,18 +29,18 @@ internal fun Application.browserNotFoundPage(requestStrings: (ApplicationCall) -
         val strings = requestStrings(call)
         call.response.headers.append(HttpHeaders.Vary, HttpHeaders.AcceptLanguage)
         call.response.headers.append(HttpHeaders.ContentLanguage, strings.languages(setOf("shell.pickles.")).joinToString(", "))
-        call.respondText(browserNotFoundHtml(strings, path, call.embedMode()), ContentType.Text.Html, HttpStatusCode.NotFound)
+        call.respondText(browserNotFoundHtml(strings, path), ContentType.Text.Html, HttpStatusCode.NotFound)
     }
 }
 
-internal fun browserNotFoundHtml(strings: AppStrings, path: String, embed: EmbedMode? = null): String = """<!doctype html>
-<html lang="${esc(strings.requestedLocale)}"${embed?.theme?.let { " data-theme=\"$it\"" }.orEmpty()}><head><base href="/"><meta charset="utf-8">
+internal fun browserNotFoundHtml(strings: AppStrings, path: String): String = """<!doctype html>
+<html lang="${esc(strings.requestedLocale)}"><head><base href="/"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(strings.get("shell.pickles.not_found"))}</title>
 <link rel="icon" href="favicon.svg"><link rel="stylesheet" href="info.css">
 <link rel="stylesheet" href="assets/pickles.css">
 <script>(function(){var m=location.search.match(/[?&]theme=(dark|light)\b/);if(m)document.documentElement.setAttribute('data-theme',m[1])})();</script>
-</head><body${if (embed == null) "" else " data-embedded"}><main class="pickles">
+</head><body><main class="pickles">
 <img src="assets/pickles.svg" alt="">
 <h1>${esc(strings.get("shell.pickles.title"))}</h1>
 <p>${esc(strings.get("shell.pickles.story"))}</p>

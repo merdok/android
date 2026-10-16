@@ -3,6 +3,7 @@ package io.panelassistant.android.assist
 import io.panelassistant.android.audio.PcmConsumer
 import io.panelassistant.android.audio.PcmFrame
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
+import io.panelassistant.android.panelassistant.VoiceTurn
 import io.panelassistant.android.panelassistant.VoiceTurnEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -26,6 +27,11 @@ internal class SatelliteTurnRunner(
     /** And on the whole turn, reply included. */
     private val maxTurnMs: Long = MAX_TURN_MS,
     /**
+     * How long Home Assistant has to start the turn, by naming its audio handler. Panel Assistant names it
+     * before the pipeline runs, so a turn not started by then never will be.
+     */
+    private val maxStartMs: Long = MAX_START_MS,
+    /**
      * When the panel's own chime sounds, `System.nanoTime()` base. What the microphone hears then is sent
      * as silence: the stream still starts at the wake word, but neither voice detection nor speech-to-text
      * hears the chime, which once turned a command into nonsense.
@@ -38,6 +44,7 @@ internal class SatelliteTurnRunner(
         request: VoiceTurnRequest,
         attachAudio: (PcmConsumer) -> AutoCloseable,
         playback: AssistPlayback,
+        onReply: (String) -> Unit,
     ): AssistOutcome {
         val turn = voice.begin(request.wakeWordId, request.continued)
             ?: return AssistOutcome(error = AssistError(CODE_UNAVAILABLE, "Panel Assistant is not connected"))
@@ -49,9 +56,15 @@ internal class SatelliteTurnRunner(
         }
         var continueConversation = false
         var error: AssistError? = null
+        // Whether Home Assistant has heard that the panel is done speaking for this turn.
+        var reported = false
         try {
             withTimeout(maxTurnMs) {
                 var listenDeadline: Long? = nanoTime() + maxListenMs * 1_000_000L
+                if (!withinStart(turn)) {
+                    error = AssistError(CODE_NOT_STARTED, "Home Assistant did not start the voice turn")
+                    return@withTimeout
+                }
                 while (true) {
                     val remainingMs = listenDeadline?.let { (it - nanoTime()) / 1_000_000L }
                     val event = if (remainingMs == null) {
@@ -78,12 +91,16 @@ internal class SatelliteTurnRunner(
                                 if (stream != null) playback.playStream(stream) else playback.play(event.url)
                             } catch (failed: AssistPlaybackException) {
                                 error = AssistError(failed.code, failed.message.orEmpty())
+                            } finally {
+                                // Home Assistant holds the satellite in "responding" until it hears this, a
+                                // reply cut short by the stop word included.
+                                voice.played(null)
+                                reported = true
                             }
-                            // Home Assistant holds the satellite in "responding" until it hears this.
-                            voice.played(null)
                         }
                         is VoiceTurnEvent.Failed -> error = error ?: AssistError(event.code, "The pipeline failed")
-                        is VoiceTurnEvent.Transcript, is VoiceTurnEvent.Reply -> Unit
+                        is VoiceTurnEvent.Reply -> onReply(event.text)
+                        is VoiceTurnEvent.Transcript -> Unit
                         VoiceTurnEvent.End -> break
                     }
                 }
@@ -91,6 +108,9 @@ internal class SatelliteTurnRunner(
         } catch (_: TimeoutCancellationException) {
             error = AssistError(CODE_TIMEOUT, "The voice turn took too long")
         } catch (cancelled: CancellationException) {
+            // Stopped once the command was heard: Home Assistant may already have begun the reply, and
+            // holds the satellite in "responding" until it hears the panel will not play it.
+            if (attachment == null && !reported) voice.played(null)
             throw cancelled
         } finally {
             attachment?.close()
@@ -98,6 +118,9 @@ internal class SatelliteTurnRunner(
         }
         return AssistOutcome(continueConversation = continueConversation && error == null, error = error)
     }
+
+    /** False when Home Assistant has not started [turn] within [maxStartMs]; a turn it refused counts as started. */
+    private suspend fun withinStart(turn: VoiceTurn): Boolean = withTimeoutOrNull(maxStartMs) { turn.awaitStart() } != null
 
     private fun withoutChime(consumer: PcmConsumer): PcmConsumer = object : PcmConsumer {
         override fun onFrame(frame: PcmFrame) {
@@ -131,6 +154,8 @@ internal class SatelliteTurnRunner(
     companion object {
         const val CODE_UNAVAILABLE = "unavailable"
         const val CODE_TIMEOUT = "timeout"
+        const val CODE_NOT_STARTED = "not_started"
+        const val MAX_START_MS = 4_000L
         const val MAX_LISTEN_MS = 15_000L
         const val MAX_TURN_MS = 120_000L
     }

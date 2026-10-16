@@ -191,8 +191,6 @@ internal class PanelAssistantTransportOwner(
     private val onLifecycleAuthenticated: () -> Unit = {},
     private val onLifecycleDisconnected: () -> Unit = {},
     private val onLifecycleRetired: () -> Unit = {},
-    /** Holds the sidebar proof key for the live session; null offers no `embed_proof`. */
-    private val embedKeys: io.panelassistant.android.http.EmbedProofKeyring? = null,
     /** The Assist satellite; null, or one reporting no configuration, offers no `voice`. */
     private val voice: PanelAssistantVoice? = null,
     /** The synchronised voice stream; null, or one whose player has no client id, offers no `voice_stream_session`. */
@@ -340,12 +338,15 @@ internal class PanelAssistantTransportOwner(
                         val offered = PanelAssistantTransportProtocol.CAPABILITIES.filter { capability ->
                             when (capability) {
                                 PanelAssistantTransportProtocol.CAPABILITY_STATE -> reporter != null
-                                // Proofs are verified by the web server, whatever else the session carries.
-                                PanelAssistantTransportProtocol.CAPABILITY_EMBED_PROOF -> embedKeys != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE -> voice?.offered() == true
                                 PanelAssistantTransportProtocol.CAPABILITY_MEDIA -> reporter != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE_STREAM_SESSION -> streamClientId != null
-                                PanelAssistantTransportProtocol.CAPABILITY_MANAGEMENT -> management != null
+                                // The sidebar relay, its subscriptions and the bundle ride the management requests.
+                                PanelAssistantTransportProtocol.CAPABILITY_MANAGEMENT,
+                                PanelAssistantTransportProtocol.CAPABILITY_UI_SUBSCRIBE,
+                                PanelAssistantTransportProtocol.CAPABILITY_UI_BUNDLE,
+                                PanelAssistantTransportProtocol.CAPABILITY_REST_RETIRED,
+                                -> management != null
                                 else -> commands != null
                             }
                         }
@@ -383,11 +384,6 @@ internal class PanelAssistantTransportOwner(
                                         log = log,
                                     )
                                 }
-                                val embed = outcome.session.embed
-                                val did = demand.identity.did
-                                if (embed != null && did != null) {
-                                    embedKeys?.install(io.panelassistant.android.http.EmbedProofKey(embed.keyId, embed.key(), did))
-                                }
                                 val speaking = voice?.takeIf {
                                     PanelAssistantTransportProtocol.CAPABILITY_VOICE in outcome.session.capabilities
                                 }
@@ -406,8 +402,6 @@ internal class PanelAssistantTransportOwner(
                                     publish(run, PanelAssistantTransportStatus(PanelAssistantTransportPhase.WAITING, attempt))
                                     speaking?.close()
                                     streaming?.close()
-                                    // The key belongs to this session: once it ends no proof verifies.
-                                    if (embed != null) embedKeys?.clear(embed.keyId)
                                     commanding?.close()
                                     reporting?.close()
                                     // Every way an accepted session ends reopens the window: a Core
@@ -661,8 +655,12 @@ internal class PanelAssistantTransportOwner(
             when (val event = PanelAssistantTransportProtocol.sessionEvent(frame, HELLO_ID)) {
                 is PanelAssistantSessionEvent.Lifecycle -> lifecycleCurrent(run) { onLifecycleNotice(event.notice) }
                 is PanelAssistantSessionEvent.Closed -> return event.reason
-                is PanelAssistantSessionEvent.Command ->
+                // A command the sidebar relays runs as its browser's user, through the same door as a `/ui` frame.
+                is PanelAssistantSessionEvent.Command -> if (event.origin != null) {
+                    managing?.onRelayed(event) ?: log("native transport ignored a relayed command: management not granted")
+                } else {
                     commanding?.onCommand(event) ?: log("native transport ignored a command: commands not offered")
+                }
                 is PanelAssistantSessionEvent.Manage ->
                     managing?.onRequest(event) ?: log("native transport ignored a management request: not granted")
                 PanelAssistantSessionEvent.MalformedCommand -> log("native transport ignored a command without an id")

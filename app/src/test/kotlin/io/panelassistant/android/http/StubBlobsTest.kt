@@ -71,7 +71,7 @@ class StubBlobsTest {
         assertEquals(2, dir.list().orEmpty().size)
         // The stale upload expires; no new upload is minted after it.
         now = 1_500
-        blobs.take(reference)?.use { it.readBytes() }
+        kotlinx.coroutines.runBlocking { blobs.take(reference) }?.use { it.readBytes() }
         assertEquals("nothing is left once the fresh upload is read and the stale one has expired", 0, dir.list().orEmpty().size)
         dir.deleteRecursively()
     }

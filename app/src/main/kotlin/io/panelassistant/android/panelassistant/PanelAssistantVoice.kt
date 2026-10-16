@@ -60,6 +60,8 @@ internal data class PanelAssistantAnnouncement(
      * streamed announcement plays the voice stream, not [url].
      */
     val stream: String? = null,
+    /** What it says, as written: the stop word must not take the panel's own voice saying "stop" for the owner. */
+    val message: String? = null,
 )
 
 /** What Home Assistant says during one conversation turn. */
@@ -287,6 +289,7 @@ internal class PanelAssistantVoice(
             preannounceUrl = (event.opt("preannounce_url") as? String)?.takeIf { it.isNotBlank() }?.let(::resolve),
             listenAfter = event.opt("listen_after") == true,
             stream = streamedId(event),
+            message = (event.opt("message") as? String)?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -413,6 +416,9 @@ internal class VoiceTurn(
         handler.complete(handlerId)
     }
 
+    /** Returns once Home Assistant has named the turn's handler, or the turn has failed. */
+    suspend fun awaitStart() = handler.join()
+
     internal fun deliver(event: VoiceTurnEvent) {
         if (event == VoiceTurnEvent.End) finished = true
         events.trySend(event)
@@ -429,7 +435,10 @@ internal class VoiceTurn(
     }
 
     private companion object {
-        /** Two seconds of 10 ms frames, held while Home Assistant names the handler. */
-        const val MAX_BUFFERED_FRAMES = 200
+        /**
+         * Four seconds of 10 ms frames, held while Home Assistant names the handler: as long as the turn
+         * waits for it, so a slow start loses none of the command.
+         */
+        const val MAX_BUFFERED_FRAMES = 400
     }
 }

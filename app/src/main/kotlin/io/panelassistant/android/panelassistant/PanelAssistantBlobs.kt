@@ -64,10 +64,15 @@ internal class PanelAssistantBlobs(
      * PUT [file] to the upload slot [token] names; the reference to it once Panel Assistant confirms it
      * received exactly these bytes, else null.
      */
-    suspend fun upload(token: String, file: File, type: String): Reference? = withContext(Dispatchers.IO) {
+    suspend fun upload(token: String, file: File, type: String): Reference? = upload(token, file.length(), type, file::inputStream)
+
+    /** [upload] for bytes already in memory (a relayed request's answer). */
+    suspend fun upload(token: String, bytes: ByteArray, type: String): Reference? =
+        upload(token, bytes.size.toLong(), type) { bytes.inputStream() }
+
+    private suspend fun upload(token: String, size: Long, type: String, body: () -> java.io.InputStream): Reference? = withContext(Dispatchers.IO) {
         if (!TOKEN.matches(token)) return@withContext null
         val path = PATH + token
-        val size = file.length()
         val connection = runCatching { open(path, "PUT") }.getOrNull() ?: return@withContext null
         try {
             connection.doOutput = true
@@ -75,7 +80,7 @@ internal class PanelAssistantBlobs(
             connection.setRequestProperty("Content-Type", type)
             val digest = MessageDigest.getInstance("SHA-256")
             connection.outputStream.use { output ->
-                file.inputStream().use { input ->
+                body().use { input ->
                     val buffer = ByteArray(BUFFER_BYTES)
                     while (true) {
                         val read = input.read(buffer)
@@ -139,5 +144,43 @@ internal class PanelAssistantBlobs(
         }
 
         private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
+    }
+}
+
+/**
+ * A relayed request's bodies (protocol section 20.5): an answer's bytes go up once through the request's own
+ * upload [token], and a body the reader uploaded is fetched from the reference Panel Assistant minted and checked
+ * before use. The download is written to a file in [dir] (the default temporary directory when null) and deleted
+ * once read.
+ */
+internal class PanelAssistantRelayBlobs(
+    private val blobs: PanelAssistantBlobs,
+    private val token: String?,
+    private val dir: File? = null,
+    private val maxBytes: Long = io.panelassistant.android.http.StubBlobs.MAX_BYTES,
+) : io.panelassistant.android.ManageBlobs {
+    private val spent = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Whether the upload token is still unused, so a large answer can still move as a blob. */
+    val canUpload: Boolean get() = token != null && !spent.get()
+
+    override suspend fun put(bytes: ByteArray, type: String): JSONObject {
+        val upload = token?.takeIf { spent.compareAndSet(false, true) } ?: throw IOException("no blob token for this answer")
+        return (blobs.upload(upload, bytes, type) ?: throw IOException("blob upload failed")).json()
+    }
+
+    override suspend fun take(ref: JSONObject): java.io.InputStream? {
+        val reference = PanelAssistantBlobs.reference(ref, maxBytes) ?: return null
+        dir?.mkdirs()
+        val file = File.createTempFile("relay", ".blob", dir)
+        if (blobs.download(reference, file) != PanelAssistantBlobs.Fetched.WRITTEN) {
+            file.delete()
+            return null
+        }
+        return object : java.io.FilterInputStream(file.inputStream()) {
+            override fun close() {
+                try { super.close() } finally { file.delete() }
+            }
+        }
     }
 }

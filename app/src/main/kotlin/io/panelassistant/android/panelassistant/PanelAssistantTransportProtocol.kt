@@ -24,8 +24,6 @@ internal data class PanelAssistantSession(
     val token: String,
     val capabilities: List<String>,
     val integrationVersion: String,
-    /** The sidebar proof key, present exactly when the session granted `embed_proof`. Never logged. */
-    val embed: PanelAssistantEmbedGrant? = null,
     val connection: io.panelassistant.android.HaConnectionAdvertisement? = null,
     val lifecycle: HaLifecycleNotice? = null,
     val updatePolicy: PanelAssistantUpdatePolicy? = null,
@@ -38,18 +36,9 @@ internal data class PanelAssistantSession(
      */
     val entryId: String? = null,
 ) {
-    /** The session token is a bearer for this session's requests, and the embed key a secret; keep both out of logs. */
+    /** The session token is a bearer for this session's requests; keep it out of logs. */
     override fun toString(): String =
         "PanelAssistantSession(protocol=$protocol, capabilities=$capabilities, integrationVersion=$integrationVersion)"
-}
-
-/** The key Panel Assistant issued for proving sidebar requests (`hello` result field `embed`). */
-internal class PanelAssistantEmbedGrant(val keyId: String, key: ByteArray) {
-    private val key = key.copyOf()
-
-    fun key(): ByteArray = key.copyOf()
-
-    override fun toString(): String = "PanelAssistantEmbedGrant(keyId=$keyId)"
 }
 
 /**
@@ -72,6 +61,15 @@ internal sealed interface PanelAssistantHelloOutcome {
     data class Refused(val code: String) : PanelAssistantHelloOutcome
 }
 
+/**
+ * The browser a sidebar relay request came from (protocol section 20.2): the Home Assistant [user] Panel Assistant
+ * checked, and the relay [connection] that carries that browser's requests. Either is null when the event's
+ * `origin` was present but malformed, which no relayed request may run with.
+ */
+internal data class PanelAssistantRelayOrigin(val user: String?, val connection: String?) {
+    val valid: Boolean get() = user != null && connection != null
+}
+
 /** An event delivered on the `hello` subscription. */
 internal sealed interface PanelAssistantSessionEvent {
     data class Closed(val reason: String) : PanelAssistantSessionEvent
@@ -89,6 +87,8 @@ internal sealed interface PanelAssistantSessionEvent {
         val channel: String?,
         val value: Any?,
         val deadlineMs: Long?,
+        /** Present when Panel Assistant relays this command from the sidebar; absent for its own. */
+        val origin: PanelAssistantRelayOrigin? = null,
     ) : PanelAssistantSessionEvent
 
     /**
@@ -104,6 +104,8 @@ internal sealed interface PanelAssistantSessionEvent {
         val settings: Map<String, String>?,
         val deadlineMs: Long?,
         val args: JSONObject? = null,
+        /** Present when Panel Assistant relays this request from the sidebar; absent for its own. */
+        val origin: PanelAssistantRelayOrigin? = null,
     ) : PanelAssistantSessionEvent
 
     /** A command event with no usable `command_id`: there is nothing to answer it with. */
@@ -144,12 +146,6 @@ internal object PanelAssistantTransportProtocol {
     const val CAPABILITY_COMMANDS = "commands"
     const val CAPABILITY_APPROVAL = "approval"
 
-    /**
-     * This panel verifies Panel Assistant's sidebar request proofs. Granting it makes the reply's `embed` key
-     * required; the key lives in memory for the session only.
-     */
-    const val CAPABILITY_EMBED_PROOF = "embed_proof"
-
     /** The panel is an Assist satellite on this session ([PanelAssistantVoice]). */
     const val CAPABILITY_VOICE = "voice"
 
@@ -169,12 +165,21 @@ internal object PanelAssistantTransportProtocol {
      */
     const val CAPABILITY_MANAGEMENT = "management"
     /**
-     * Protocol section 20.4 and 20.5: a Panel Assistant that grants both makes none of its HTTP calls to this
-     * panel, so the panel closes its REST routes (section 20.8, [io.panelassistant.android.Config.uiRoutesClosed]).
-     * Not offered yet: this build only reads the grant.
+     * Protocol section 20.4: the panel sends a relayed subscription's updates as `panel_assistant/ui_update`,
+     * which a Panel Assistant granting it registers.
      */
     const val CAPABILITY_UI_SUBSCRIBE = "ui_subscribe"
+
+    /** Protocol section 20.5: Panel Assistant keeps this panel's bundle, which the `bundle` op uploads. */
     const val CAPABILITY_UI_BUNDLE = "ui_bundle"
+
+    /**
+     * The panel can serve only its stub (protocol section 20.7). A Panel Assistant grants it only once it makes no
+     * REST call to this panel, and the grant closes the REST routes ([io.panelassistant.android.Config.uiRoutesClosed]).
+     */
+    const val CAPABILITY_REST_RETIRED = "rest_retired"
+    const val COMMAND_UI_UPDATE = "panel_assistant/ui_update"
+    const val MANAGE_BUNDLE = "bundle"
     const val MANAGE_SNAPSHOT = "snapshot"
     const val MANAGE_SETTINGS = "settings"
 
@@ -215,11 +220,13 @@ internal object PanelAssistantTransportProtocol {
             CAPABILITY_STATE,
             CAPABILITY_COMMANDS,
             CAPABILITY_APPROVAL,
-            CAPABILITY_EMBED_PROOF,
             CAPABILITY_VOICE,
             CAPABILITY_MEDIA,
             CAPABILITY_VOICE_STREAM_SESSION,
             CAPABILITY_MANAGEMENT,
+            CAPABILITY_UI_SUBSCRIBE,
+            CAPABILITY_UI_BUNDLE,
+            CAPABILITY_REST_RETIRED,
         )
 
     /**
@@ -228,7 +235,7 @@ internal object PanelAssistantTransportProtocol {
      * text, so a change to the handshake vocabulary changes the digest the integration records.
      */
     internal const val CANONICAL_CONTRACT: String =
-        """{"protocol":{"min":5,"max":5},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop"],"capabilities":["state","commands","approval","embed_proof","voice","media","voice_stream_session","management"]}"""
+        """{"protocol":{"min":5,"max":5},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop","panel_assistant/ui_update"],"capabilities":["state","commands","approval","voice","media","voice_stream_session","management","ui_subscribe","ui_bundle","rest_retired"]}"""
 
     val CONTRACT_DIGEST: String = MessageDigest.getInstance("SHA-256")
         .digest(CANONICAL_CONTRACT.toByteArray(Charsets.UTF_8))
@@ -240,8 +247,7 @@ internal object PanelAssistantTransportProtocol {
     private val COMMAND_ID = Regex("^[A-Za-z0-9_-]{1,64}$")
     private val VERSION = Regex("^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$")
     private val ENTRY_ID = Regex("^[0-9A-Za-z_-]{1,64}$")
-    private val EMBED_KEY_ID = Regex("^[0-9a-f]{16}$")
-    private val EMBED_KEY = Regex("^[A-Za-z0-9_-]{43}$")
+    private val KEY_43 = Regex("^[A-Za-z0-9_-]{43}$")
     private const val MAX_SESSION_TOKEN_CHARS = 64
     private const val MAX_CAPABILITIES = 16
 
@@ -326,6 +332,8 @@ internal object PanelAssistantTransportProtocol {
         outcome: String,
         code: String?,
         result: Any? = null,
+        /** A relayed request's answer also carries what the `/ui` frame carries: the route's status, headers, interim. */
+        extra: JSONObject? = null,
     ): String =
         JSONObject()
             .put("id", id)
@@ -335,7 +343,12 @@ internal object PanelAssistantTransportProtocol {
             .put("outcome", outcome)
             .apply { if (code != null) put("code", code) }
             .apply { if (result != null) put("result", result) }
+            .apply { extra?.keys()?.forEach { key -> put(key, extra.get(key)) } }
             .toString()
+
+    /** One relayed subscription's update (protocol section 20.4): the `/ui` frame's update with `type` and `session`. */
+    fun uiUpdate(id: Long, session: String, update: JSONObject): String =
+        JSONObject(update.toString()).put("id", id).put("type", COMMAND_UI_UPDATE).put("session", session).toString()
 
     fun ping(id: Long): String = JSONObject().put("id", id).put("type", "ping").toString()
 
@@ -401,12 +414,6 @@ internal object PanelAssistantTransportProtocol {
         val integrationVersion = (result.optJSONObject("integration")?.opt("version") as? String)
             ?.takeIf(VERSION::matches)
             ?: throw PanelAssistantProtocolException("hello result has no integration version")
-        val embed = if (CAPABILITY_EMBED_PROOF in capabilities) {
-            embedGrant(result.optJSONObject("embed"))
-                ?: throw PanelAssistantProtocolException("hello result grants embed_proof without a usable key")
-        } else {
-            null
-        }
         val voiceStream = if (CAPABILITY_VOICE_STREAM_SESSION in capabilities) {
             voiceStreamGrant(result.optJSONObject("voice_stream_session"))
                 ?: throw PanelAssistantProtocolException("hello result grants voice_stream_session without a usable grant")
@@ -414,7 +421,7 @@ internal object PanelAssistantTransportProtocol {
             null
         }
         return PanelAssistantHelloOutcome.Accepted(
-            PanelAssistantSession(protocol, token, capabilities, integrationVersion, embed,
+            PanelAssistantSession(protocol, token, capabilities, integrationVersion,
                 io.panelassistant.android.HaConnectionAdvertisement.parse(result.optJSONObject("connection")),
                 lifecycleNotice(result.optJSONObject("lifecycle")),
                 updatePolicy(result, protocol),
@@ -423,17 +430,9 @@ internal object PanelAssistantTransportProtocol {
         )
     }
 
-    private fun embedGrant(embed: JSONObject?): PanelAssistantEmbedGrant? {
-        val keyId = (embed?.opt("key_id") as? String)?.takeIf(EMBED_KEY_ID::matches) ?: return null
-        val key = (embed.opt("key") as? String)?.takeIf(EMBED_KEY::matches) ?: return null
-        val bytes = runCatching { java.util.Base64.getUrlDecoder().decode(key) }.getOrNull() ?: return null
-        // Forty-three base64url characters are exactly 32 bytes.
-        return PanelAssistantEmbedGrant(keyId, bytes)
-    }
-
     private fun voiceStreamGrant(grant: JSONObject?): PanelAssistantVoiceStreamGrant? {
-        val serverId = (grant?.opt("server_id") as? String)?.takeIf(EMBED_KEY::matches) ?: return null
-        val psk = (grant.opt("psk") as? String)?.takeIf(EMBED_KEY::matches) ?: return null
+        val serverId = (grant?.opt("server_id") as? String)?.takeIf(KEY_43::matches) ?: return null
+        val psk = (grant.opt("psk") as? String)?.takeIf(KEY_43::matches) ?: return null
         // Forty-three base64url characters are exactly 32 bytes, as a Sendspin key and PSK are.
         val bytes = runCatching { java.util.Base64.getUrlDecoder().decode(psk) }.getOrNull() ?: return null
         if (runCatching { java.util.Base64.getUrlDecoder().decode(serverId) }.isFailure) return null
@@ -500,6 +499,16 @@ internal object PanelAssistantTransportProtocol {
             channel = (event.opt("channel") as? String)?.takeIf(CODE::matches),
             value = if (event.has("value")) event.opt("value") else null,
             deadlineMs = deadline(event),
+            origin = relayOrigin(event),
+        )
+    }
+
+    private fun relayOrigin(event: JSONObject): PanelAssistantRelayOrigin? {
+        if (!event.has("origin")) return null
+        val origin = event.optJSONObject("origin")
+        return PanelAssistantRelayOrigin(
+            (origin?.opt("user") as? String)?.takeIf(COMMAND_ID::matches),
+            (origin?.opt("connection") as? String)?.takeIf(COMMAND_ID::matches),
         )
     }
 
@@ -516,6 +525,7 @@ internal object PanelAssistantTransportProtocol {
             settings = settings,
             deadlineMs = deadline(event),
             args = event.optJSONObject("args"),
+            origin = relayOrigin(event),
         )
     }
 }

@@ -45,6 +45,7 @@ class InstallPageHttpTest {
                     assertEquals(root, html.contains("id=\"uninst-pkg\""))
                     assertTrue(html.contains("id=\"hand-back-home-button\""))
                     assertTrue(html.contains("href=\"api/v1/config/export\""))
+                    assertTrue(html.contains("href=\"api/v1/diag\" data-op=\"diag\" data-relay-only data-file=\"diag.txt\""))
                     val refused = client.get("/install") {
                         header(HttpHeaders.Cookie, "wiz_escape=1")
                         header(HttpHeaders.Host, "elsewhere.example")

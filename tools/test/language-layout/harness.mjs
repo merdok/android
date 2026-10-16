@@ -137,8 +137,9 @@ const PEERS = [
 
 /**
  * Mirror of PaneldServer.pageShell() + navBar(). Direct pages carry the header, the mDNS switcher and
- * the ?theme= pin script; embedded pages (X-Panel-Assistant-Embed) drop the header and switcher, take
- * the theme from the switch and mark the body data-embedded.
+ * the ?theme= pin script; embedded pages (`args.embed` of `page.<name>`) drop the header and switcher, take
+ * the theme from it and mark the body data-embedded. The real embedded body is also data-ui-relay; the mirror
+ * leaves that out so its pages keep answering from this harness's HTTP fixtures.
  */
 // The header's inline name, prepared as PageShell.kt's inlineWordmark does.
 const WORDMARK = readFileSync(resolve(ASSETS, 'name.svg'), 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '').trim()
@@ -191,7 +192,7 @@ export function tabbedPage(options) {
   return shellHtml({
     ...options,
     rightControls: options.rightControls ?? `${haLink}${ghLink}`,
-    bodyAttrs: `${options.bodyAttrs || ''}data-build="layout-gate" data-cfg="layout-gate"`,
+    bodyAttrs: `${options.bodyAttrs || ''}data-build="layout-gate"`,
     body: `${description}\n${active === 'install' ? key : ''}\n${body}\n${active !== 'install' ? key : ''}`,
     prefixes: options.prefixes || ['shell.', `${active}.`, 'runtime.'],
   });
@@ -386,7 +387,7 @@ export function verdict(result, english, view, locale, scale = 1) {
   const wrapsInEnglish = englishKeys('wraps');
   // Row headers of key/value tables wrap in a fixed 46% column; making them single-line needs either
   // shorter translations or a table layout that changes English, so they are reported, not blocking,
-  // (see tools/test/README.md). Descriptive Entities checkbox labels may wrap too; their clipping,
+  // (see tools/test/README.md). Descriptive labels (Entities checkbox labels, a text field's label) may wrap too; their clipping,
   // overflow, overlap, reachability and card growth are still checked independently.
   for (const item of result.wraps) add(item.rowHeader ? 'd row header wraps' : item.descriptiveLabel ? 'd descriptive label wraps' : 'd wraps', item, !panel && !isEnglish && !item.rowHeader && !item.descriptiveLabel && !wrapsInEnglish.has(item.key));
   if (!isEnglish && english) {
