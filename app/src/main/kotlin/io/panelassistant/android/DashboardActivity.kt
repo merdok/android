@@ -111,12 +111,13 @@ class DashboardActivity : AppCompatActivity() {
     private fun redrawLifecycleBar() {
         // Each owner supplies one atomic snapshot. Cached admission can explain a disconnected
         // dashboard even before the service has observed a lifecycle event.
-        lifecycleBar?.update(
-            io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot(),
-            RendererAdmissionRuntime.current()?.takeIf { it.owner == activityOwner },
-        )
+        lifecycleBar?.update(io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot(), ownAdmission())
         networkChip?.update(io.panelassistant.android.sensors.HaNetworkPathRuntime.snapshot(), activityConfig.dashboardNetworkWarning)
     }
+
+    /** This renderer's admission and connection state; another activity's is never this one's. */
+    private fun ownAdmission(): RendererAdmissionRuntime.Live? =
+        RendererAdmissionRuntime.current()?.takeIf { it.owner == activityOwner }
 
     /** Drop the bar and chip with their container. Every content-view swap must reach here, or they outlive their root. */
     private fun detachLifecycleBar() {
@@ -1266,6 +1267,13 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         if (web == null) {
+            // No WebView is also what a blocked admission screen leaves. One that only a person can clear
+            // keeps its Retry: building again here would put a refused login to Home Assistant once per flap.
+            val blocked = ownAdmission()?.record?.takeIf { it.state == RendererAdmissionState.BLOCKED }?.outcome
+            if (blocked != null && admissionRetryClass(blocked) == AdmissionRetryClass.MANUAL_ONLY) {
+                Log.i(TAG, "network regained over a blocked admission screen (${blocked.name.lowercase()}) — leaving it for its Retry")
+                return
+            }
             val waitMs = statusScreens.endNetworkWait()
             Log.i(TAG, "network became available during startup after ${waitMs}ms — creating dashboard WebView")
             retryPolicy.reset()
