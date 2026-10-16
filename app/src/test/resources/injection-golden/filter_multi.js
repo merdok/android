@@ -3,15 +3,43 @@
   const Native=window.WebSocket;
   if(!Native||Native.__haPaneldEntityFilter)return;
   const targetWsOrigins=["ws://ha.example","wss://ha.example"],targetWsPath="/api/websocket",entityIds=["light.alpha"],emptySubscriptionEntityId="ha_paneld_internal.empty_subscription_5f39d48b7a6c4e2a",filterKeys=["entity_ids","exclude","exclude_domains","exclude_entities","exclude_entity_globs","include","include_domains","include_entities","include_entity_globs"];
+  const allowed=new Set(entityIds),registryCommands={'config/entity_registry/list_for_display':'entities','config/device_registry/list':'devices'};
   function FilteredWebSocket(url,protocols){
     const socket=protocols===undefined?new Native(url):new Native(url,protocols);
     try{
       const u=new URL(String(url),location.href);
       if(targetWsOrigins.includes(u.origin)&&u.pathname===targetWsPath){
+        const pending=new Map(),deviceEvents=new Set();let reachedDevices=null,lastDevices=null,delivered=null;
+        const keepIds=rows=>{
+          const keep=new Set(reachedDevices);
+          for(const r of rows)if(reachedDevices.has(r.id)&&typeof r.parent_device_id==='string')keep.add(r.parent_device_id);
+          return keep;
+        };
+        const trim={
+          entities(result){
+            const rows=result&&typeof result==='object'?result.entities:null;
+            if(!Array.isArray(rows)||!rows.every(r=>r&&typeof r.ei==='string'))return false;
+            const kept=rows.filter(r=>allowed.has(r.ei));
+            reachedDevices=new Set(kept.map(r=>r.di).filter(d=>typeof d==='string'));
+            if(lastDevices){
+              const keep=keepIds(lastDevices),missing=lastDevices.find(r=>keep.has(r.id)&&!delivered.has(r.id));
+              if(missing)setTimeout(()=>{for(const id of deviceEvents)socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({id,type:'event',event:{event_type:'device_registry_updated',data:{action:'update',device_id:missing.id}}})}))},0);
+            }
+            result.entities=kept;return true;
+          },
+          devices(rows,message){
+            if(!reachedDevices||!deviceEvents.size||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string'))return false;
+            const keep=keepIds(rows),kept=rows.filter(r=>keep.has(r.id));
+            lastDevices=rows;delivered=new Set(kept.map(r=>r.id));
+            message.result=kept;return true;
+          },
+        };
         Object.defineProperty(socket,'send',{configurable:true,writable:true,value:function(data){
           let outgoing=data;
           if(typeof data==='string')try{
             const message=JSON.parse(data);
+            if(message&&registryCommands[message.type])pending.set(message.id,registryCommands[message.type]);
+            if(message&&message.type==='subscribe_events'&&message.event_type==='device_registry_updated')deviceEvents.add(message.id);
             if(message&&message.type==='subscribe_entities'){
               window.__haPaneldEntitySubscriptionId=message.id;
               if(!filterKeys.some(key=>Object.prototype.hasOwnProperty.call(message,key))){
@@ -23,6 +51,17 @@
           }catch(e){}
           return Native.prototype.send.call(this,outgoing);
         }});
+        socket.addEventListener('message',event=>{
+          if(!pending.size)return;
+          let decoded;try{decoded=JSON.parse(event.data)}catch(e){return}
+          let changed=false;
+          for(const m of Array.isArray(decoded)?decoded:[decoded]){
+            if(!m||m.type!=='result'||!pending.has(m.id))continue;
+            const kind=pending.get(m.id);pending.delete(m.id);
+            if(trim[kind](m.result,m))changed=true;
+          }
+          if(changed)Object.defineProperty(event,'data',{configurable:true,value:JSON.stringify(decoded)});
+        });
       }
     }catch(e){}
     return socket;
