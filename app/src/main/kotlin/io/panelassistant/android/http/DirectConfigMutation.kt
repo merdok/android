@@ -24,7 +24,6 @@ internal data class DirectConfigMutationPlan(
     val changedLive: List<Pair<String, String>>,
 ) {
     val isNoOp: Boolean get() = changedKeys.isEmpty()
-    val requiresReconfigure: Boolean get() = changedKeys.any { it !in SettingsRegistry.liveApplyKeys() }
 }
 
 /** Direct settings whose real writer is a post-commit subsystem transition rather than Config's

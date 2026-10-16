@@ -22,7 +22,6 @@ class DirectConfigMutationPlanTest {
 
         assertEquals(setOf("touch_sound"), plan.changedKeys)
         assertEquals(listOf("touch_sound" to "true"), plan.changedLive)
-        assertFalse(plan.requiresReconfigure)
     }
 
     @Test fun `touch only execution cannot acquire any broad replay owner or restore itself`() {
@@ -56,13 +55,12 @@ class DirectConfigMutationPlanTest {
 
         assertEquals(listOf("touch_sound"), dispatches)
         assertTrue(plan.changedKeys.intersect(forbiddenOwners).isEmpty())
-        assertFalse(plan.requiresReconfigure)
         assertEquals("false", applied["touch_sound"])
         assertEquals("Off", applied["navbar_mode"])
         assertEquals("true", applied["auto_sleep"])
     }
 
-    @Test fun `unchanged auto sleep is a true no-op with no broad reconfigure`() {
+    @Test fun `unchanged auto sleep is a true no-op`() {
         val plan = planDirectConfigMutation(
             posted = mapOf("auto_sleep" to "false"),
             before = mapOf("auto_sleep" to "false"),
@@ -70,22 +68,6 @@ class DirectConfigMutationPlanTest {
 
         assertTrue(plan.isNoOp)
         assertTrue(plan.changedLive.isEmpty())
-        assertFalse(plan.requiresReconfigure)
-    }
-
-    @Test fun `ordinary or exposure change requests reconfigure while local live change does not`() {
-        assertTrue(planDirectConfigMutation(
-            posted = mapOf("friendly_name" to "Alpha"),
-            before = mapOf("friendly_name" to "Panel"),
-        ).requiresReconfigure)
-        assertTrue(planDirectConfigMutation(
-            posted = mapOf("ha_expose_touch_sound" to "false"),
-            before = mapOf("ha_expose_touch_sound" to "true"),
-        ).requiresReconfigure)
-        assertFalse(planDirectConfigMutation(
-            posted = mapOf("touch_sound" to "true"),
-            before = mapOf("touch_sound" to "false"),
-        ).requiresReconfigure)
     }
 
     @Test fun `secret placeholder and an already canonical dashboard path are unchanged`() {
