@@ -68,11 +68,9 @@ internal object HandBackHomePolicy {
      *
      * This is deliberately [TamePackagePolicy.isCritical] rather than a list of its own. That set already
      * names `com.android.settings` — which declares `FallbackHome`, the "Android is starting…" placeholder,
-     * and is therefore a HOME candidate on every device — and it already names both of this app's
-     * application ids through `AppIdentity.ALL`. A local list here had only the first, so hand back could
-     * give HOME to ha-paneld's other identity: enabled mid-migration, declaring `CATEGORY_HOME`, and
-     * sorting ahead of a vendor launcher. That is the same brick by another route, and the migration would
-     * then uninstall the package now holding the role.
+     * and is therefore a HOME candidate on every device — and it already names this app. A local list
+     * here had only the first, so hand back could give HOME to an app that declares `CATEGORY_HOME` and
+     * sorts ahead of a vendor launcher.
      *
      * One definition. When the untouchable set grows, this grows with it.
      */

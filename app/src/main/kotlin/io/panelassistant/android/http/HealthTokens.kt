@@ -27,7 +27,7 @@ internal fun panelAssistantDiscoveryHealthToken(deviceUid: String, androidId: St
         " did=$did identity=install" + panelAssistantDiscoveryId(androidId)?.let { " legacy_did=$it" }.orEmpty()
     }.orEmpty()
 
-/** Which installed identity answered: during the application-id migration a panel can hold both. */
+/** Which application id answered. Panel Assistant reads an absent token as the app published before 0.9.11. */
 internal fun packageHealthToken(packageName: String): String = " pkg=$packageName"
 
 /** The build number beside the version name, so a reader can tell two builds of one release apart. */

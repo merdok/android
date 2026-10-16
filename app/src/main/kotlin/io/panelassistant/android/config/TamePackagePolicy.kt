@@ -13,9 +13,8 @@ internal object TamePackagePolicy {
         "com.android.systemui",
         "com.android.settings",
         "com.android.phone",
-        // Both installed identities of this app. During the application-id migration either one may
-        // be the panel's app, and the other must never be offered for taming.
-    ) + AppIdentity.ALL
+        AppIdentity.OWN,
+    )
 
     fun isCritical(pkg: String): Boolean = pkg in critical
 

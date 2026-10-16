@@ -428,7 +428,7 @@ class GuardDbMaintenanceProtocolTest {
     @Test fun `evidence accepts only bounded framed ASCII records`() {
         val valid =
             "OK GUARDEVIDENCE 1\n" +
-                "SESSION $session\nBOOT $boot\nPACKAGE io.github.maxlyth.hapaneld\nSIGNER $signer\n" +
+                "SESSION $session\nBOOT $boot\nPACKAGE io.panelassistant.android\nSIGNER $signer\n" +
                 "STATE 19 WAIT_B_HEALTH B $bSha 569 15 NONE NONE 1800000 1320000\n" +
                 "BASELINE 4096 ${"c".repeat(64)} 14 37 ${"d".repeat(64)} ${"e".repeat(64)}\n" +
                 "SETTINGS 2 3 ${"f".repeat(64)}\n" +

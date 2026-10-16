@@ -431,7 +431,7 @@ internal object GuardDbMaintenanceProtocol {
         val premigrate = exactEvidenceFields(lines[10], "PREMIGRATE", 2) ?: return null
         val bPrimary = exactEvidenceFields(lines[11], "B_PRIMARY", 2) ?: return null
         if (!validSession(session[0]) || !validSha256(boot[0]) ||
-            !AppIdentity.isPanelApp(packageName[0]) || !validSha256(signer[0]) ||
+            packageName[0] != AppIdentity.OWN || !validSha256(signer[0]) ||
             state.isEmpty()
         ) return null
         if (baseline[0].strictPositiveLong() == null || !validSha256(baseline[1]) ||

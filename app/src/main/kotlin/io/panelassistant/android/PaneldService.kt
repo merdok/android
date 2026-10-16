@@ -69,11 +69,6 @@ import io.panelassistant.android.http.retainCompanionLeaseUntilHelperIdle
 import io.panelassistant.android.logship.LogCapture
 import io.panelassistant.android.logship.LogShipper
 import io.panelassistant.android.logship.webViewConsoleEnabled
-import io.panelassistant.android.migration.AndroidIdentityMigration
-import io.panelassistant.android.migration.IdentityMigrationGate
-import io.panelassistant.android.migration.StartDisposition
-import io.panelassistant.android.migration.SuccessorMigrationRunner
-import io.panelassistant.android.migration.SuccessorHandoff
 import io.panelassistant.android.security.ApprovalBroker
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.sensors.SensorReporter
@@ -316,9 +311,6 @@ internal data class NetworkConfigurationSnapshot(
  */
 class PaneldService : Service() {
     private var guardDbRedirect = false
-    // Application-id migration: a retired bridge or a passive successor constructs nothing below.
-    private var identityMigrationStandby = false
-    private var identityMigrationSticky = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // One dedicated transition lane owns initial start, config rebuilds, reconnects, and final teardown.
     // Observations capture the generation and its concrete state core, dispatcher and mDNS owners together, so tick/network work cannot read a generation from one runtime and then reach a replacement through a mutable field.
@@ -336,7 +328,6 @@ class PaneldService : Service() {
     private var startupInitialization: Job? = null
     @Volatile private var portalStartupOverlayDismissal: io.panelassistant.android.input.PortalStartupOverlayDismissal? = null
     private var pendingStart = false
-    private var pendingInstalledHandoff = false
     private lateinit var mainHandler: Handler
     private lateinit var liveSettingAuthority: LiveSettingAuthority
     private lateinit var config: Config
@@ -450,14 +441,12 @@ class PaneldService : Service() {
     private lateinit var profileRegistry: RuntimeProfileRegistry
     private lateinit var passiveProfileProbe: AndroidPassiveProfileProbe
     private lateinit var profileRestart: ProfileRestartCoordinator
-    private lateinit var identityMigration: AndroidIdentityMigration
     private lateinit var recoveryRestart: ProfileRestartCoordinator
     private lateinit var webViewRebindRestart: ProfileRestartCoordinator
     private lateinit var activeProfileIdentity: String
     private var profileActivationGeneration: Long? = null
     // One-time-start guard for onStartCommand (see there for why). Reset in onDestroy.
     @Volatile private var started = false
-    private val installedHandoffWake = InstalledSuccessorHandoffWake()
     // This generation was created inside a process that had already committed to exiting, so it owns
     // nothing and must not be torn down as though it did. Never cleared: a stood-down generation stays
     // stood down for as long as the doomed process lives.
@@ -507,26 +496,6 @@ class PaneldService : Service() {
             stopSelf()
             return
         }
-        when (IdentityMigrationGate.disposition(this)) {
-            StartDisposition.RETIRED_BRIDGE -> {
-                // This bridge handed the panel to the successor. A sticky restart, a boot or an explicit
-                // intent must never bind the port or resume a kiosk loop beside it.
-                notifications.startForegroundCompat(nativeString(R.string.starting), silent = true)
-                identityMigrationStandby = true
-                stopSelf()
-                return
-            }
-            StartDisposition.PASSIVE_SUCCESSOR -> {
-                // The legacy app still owns the panel. Run only the migration, with no Config, server,
-                // mDNS or controller, until the legacy app has released it.
-                notifications.startForegroundCompat(nativeString(R.string.starting), silent = true)
-                identityMigrationStandby = true
-                identityMigrationSticky = true
-                SuccessorMigrationRunner.runPassive(this, scope)
-                return
-            }
-            StartDisposition.HELD_SUCCESSOR, StartDisposition.NORMAL -> Unit
-        }
         // Android starts the foreground-service deadline before onCreate. Promote before profile/DB/
         // controller construction: slow root-backed initialization must never consume that deadline.
         // The bootstrap notification is deliberately silent until persisted notification policy is read.
@@ -548,9 +517,6 @@ class PaneldService : Service() {
             // These migrations and generated identities precede every renderer and network owner.
             preparedConfig.migrateLogShipTcpDefault()
             preparedConfig.migrateSetupQuestionsForExistingInstall()
-            io.panelassistant.android.migration.MigrationState.of(this@PaneldService).deviceUid()?.let { inherited ->
-                check(preparedConfig.adoptMigrationDeviceUid(inherited)) { "migration installation identity was not committed" }
-            }
             preparedConfig.ensureDeviceUid()
             preparedConfig.ensurePanelId()
             val preparedLiveSettings = LiveSettingAuthority.persistent(
@@ -589,9 +555,7 @@ class PaneldService : Service() {
             // Settle privileged startup before controllers cache grants or replay saved settings.
             // An older same-process service must finish teardown before this generation changes them.
             restartLease.awaitPredecessor()
-            if (teardownBoundary.isStopping ||
-                IdentityMigrationGate.disposition(this@PaneldService) == StartDisposition.RETIRED_BRIDGE
-            ) return@launch
+            if (teardownBoundary.isStopping) return@launch
             preparePortalStartupOverlayDismissal(prepare = {
                 io.panelassistant.android.input.PanelAccessibilityService
                     .preparePortalStartupOverlayDismissal(this@PaneldService, resolvedProfile.profile.id)
@@ -619,7 +583,7 @@ class PaneldService : Service() {
                 liveSettingAuthority = preparedLiveSettings
                 profileRegistry = preparedProfiles
                 initializeRuntimeAfterDatabase(resolvedProfile, wifiStore, preparedEntityLearning)
-                if (pendingStart) startInitializedRuntime(pendingInstalledHandoff)
+                if (pendingStart) startInitializedRuntime()
             }
         }
     }
@@ -853,20 +817,6 @@ class PaneldService : Service() {
             },
             completeLaunch = config::completeRendererLaunch,
         )
-        identityMigration = AndroidIdentityMigration(
-            context = this,
-            scope = scope,
-            httpPort = { config.httpPort },
-            panelAssistantConnected = {
-                ::haLinks.isInitialized &&
-                    haLinks.panelAssistantTransport.facts().phase == io.panelassistant.android.panelassistant.PanelAssistantTransportPhase.CONNECTED
-            },
-            offerHandoff = { offerSuccessorHandoff() },
-            // LAN delivery has installed the successor; never fall back to a release download.
-            offerInstalledHandoff = { offerSuccessorHandoff(allowInstall = false) },
-            // The restore is durable; only a fresh process runs wholly from the restored configuration.
-            requestRestart = { recoveryRestart.request() },
-        )
         server = PaneldServer(
             config, cacheDir, scope, this, sensors, profile, controls.system, controls.volume, voiceAudio.audio::submit, ::reconfigure,
             // The dispatcher is replaceable. If its command admission is already draining, retain the
@@ -946,7 +896,6 @@ class PaneldService : Service() {
             },
             profileRestartAllowed = { !InstallProgress.running },
             onProfileRestartAbort = profileRegistry::abortPendingActivation,
-            identityMigration = identityMigration,
             storageHealth = StorageHealthRuntime::snapshot,
             refreshStorageHealth = storageHealth::refreshStorageHealthForStatus,
             manageTable = manageTable,
@@ -1574,21 +1523,6 @@ class PaneldService : Service() {
         }
     }
 
-    /**
-     * Bridge build only. The bridge no longer installs, starts or hands the panel to the successor:
-     * Panel Assistant moves a panel through its Home Assistant Repair, and a successor that has run
-     * beside the bridge is a state that Repair refuses. Nothing is launched; the caller sees no offer.
-     */
-    internal suspend fun offerSuccessorHandoff(allowInstall: Boolean = true): SuccessorHandoff.Outcome? {
-        if (AppIdentity.IS_BRIDGE) Log.i(TAG, "successor handoff not offered: the panel is moved by Panel Assistant (allowInstall=$allowInstall)")
-        return null
-    }
-
-    private fun requestInstalledSuccessorHandoff(reason: String) {
-        if (!AppIdentity.IS_BRIDGE) return
-        Log.i(TAG, "installed successor handover not started: $reason; the panel is moved by Panel Assistant")
-    }
-
     /** The resolved renderer-target snapshot for perf smoothness attribution (the built-in sentinel, a
      *  foreign dashboard package, or none), resolved here off the sampling path and handed to PerfReader
      *  as an immutable value so PerfReader never touches PackageManager on the hot path. */
@@ -1609,7 +1543,6 @@ class PaneldService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (guardDbRedirect) return START_NOT_STICKY
-        if (identityMigrationStandby) return if (identityMigrationSticky) START_STICKY else START_NOT_STICKY
         // Start subsystems once. Android re-delivers onStartCommand on every startForegroundService()
         // re-issue and on START_STICKY re-create; re-running this block would call server.start() again,
         // binding a second Ktor server on :8888 -> BindException crashes the process (and would also
@@ -1617,23 +1550,14 @@ class PaneldService : Service() {
         // A stood-down generation has no owner to start. START_STICKY is the point of keeping it: the
         // live started-service record is what Android recreates once the committed process has exited.
         if (standingDown) return START_STICKY
-        val handoffRequested = installedHandoffWakeRequested(AppIdentity.IS_BRIDGE, intent?.action)
         if (!::runtime.isInitialized) {
             pendingStart = true
-            pendingInstalledHandoff = pendingInstalledHandoff || handoffRequested
             return START_STICKY
         }
-        return startInitializedRuntime(handoffRequested)
+        return startInitializedRuntime()
     }
 
-    private fun startInitializedRuntime(handoffRequested: Boolean): Int {
-        // Generic RELEASE also runs on abort. Only the host's separate, post-commit handoff action
-        // may request migration; retain it across cold startup or an already-starting generation.
-        if (!teardownBoundary.isStopping && handoffRequested) {
-            val ready = installedHandoffWake.request()
-            Log.i(TAG, "installed successor handover requested: host commit, ready=$ready")
-            if (ready) requestInstalledSuccessorHandoff("host commit")
-        }
+    private fun startInitializedRuntime(): Int {
         if (started) return START_STICKY
         started = true
         val startupActivationGeneration = profileActivationGeneration
@@ -1642,9 +1566,6 @@ class PaneldService : Service() {
             // Initialization already waited for the prior service's teardown before repairing grants
             // and constructing feature owners. Recheck admission before starting those owners.
             if (teardownBoundary.isStopping) return@runtimeStart
-            // The predecessor this generation waited behind may have been the one that retired the
-            // bridge. A retired bridge starts nothing, however its start was queued.
-            if (IdentityMigrationGate.disposition(this) == StartDisposition.RETIRED_BRIDGE) return@runtimeStart
 
             // Everything below can start work, write hardware state, attach a process-global owner, or
             // create an overlay. Keep all of it behind the predecessor fence, not merely HTTP start.
@@ -1755,8 +1676,6 @@ class PaneldService : Service() {
             displayPower.applyKeepAwake()
             io.panelassistant.android.http.PerfReader.start(scope, packageName, rendererTargetSnapshot())
             server.start()
-            // A successor with a migration in progress continues it now that its own server listens.
-            identityMigration.startInService()
             // Startup always reconciles both additions and removals from durable desired state against
             // the write-ahead overlay ownership markers. This completes work handed off by profile restart.
             server.requestTameReconcile()
@@ -1781,7 +1700,7 @@ class PaneldService : Service() {
                 },
             ) { key, value, previous -> applyLiveSettingObserved(activeRuntime.commands, key, value, previous) }
             scheduleLiveSettingRetries(PanelCommandDispatcher.APPLY_SETTING_KEYS)
-            if (!IdentityMigrationGate.holdsNetworkIdentity()) migrationNotice.start()
+            migrationNotice.start()
             controls.startPolicies(kioskRecoveredAtStartup)
             receivers.startScreenOnReconciliation()
             controls.startVendorService()
@@ -1917,11 +1836,6 @@ class PaneldService : Service() {
                     mdnsRuntimeReconciler.runtimeRunning()
                     startupRecoveryPrefs.edit().clear().commit()
                     updateForegroundStatus(nativeString(R.string.listening_on_port, config.httpPort))
-                    // Ordinary startup must not migrate an already-installed successor before the
-                    // host has prepared and committed its transaction. Consume only an explicit wake.
-                    if (installedHandoffWake.markStartupHealthy()) {
-                        requestInstalledSuccessorHandoff("pending host commit")
-                    }
                 }
                 ServiceStartupDisposition.PROFILE_ACTIVATION_ROLLBACK -> {
                     updateForegroundStatus(nativeString(R.string.degraded_profile_startup))
@@ -2091,14 +2005,6 @@ class PaneldService : Service() {
         notifications.releaseForeground()
         portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
-            stopForeground(true)
-            super.onDestroy()
-            return
-        }
-        // A retired bridge or a passive successor constructed nothing, exactly like the redirect above.
-        if (identityMigrationStandby) {
-            // Only the passive migration pass runs in this generation; nothing else was started.
-            scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
             stopForeground(true)
             super.onDestroy()
             return
@@ -2668,8 +2574,6 @@ class PaneldService : Service() {
                 GuardDbMaintenanceService.start(context)
                 return
             }
-            // A retired bridge stays idle on every route into the app, not only inside onCreate.
-            if (IdentityMigrationGate.disposition(context) == StartDisposition.RETIRED_BRIDGE) return
             // An armed upgrade has deliberately claimed this service down so an install can proceed
             // against a quiesced database. Every route that legitimately resumes it — cancelAndResume,
             // failShutdown — disarms the gate first and then calls back in here, so refusing while

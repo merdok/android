@@ -9,7 +9,6 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
 import android.os.Build
 import android.util.Log
-import io.panelassistant.android.migration.MigrationTokenReceiver
 import java.io.File
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -126,8 +125,8 @@ internal object ConfirmedSelfInstaller {
         }
     }
 
-    /** The release-signer-only permission the two panel-app identities already declare and hold. */
-    internal const val STATUS_BROADCAST_PERMISSION = MigrationTokenReceiver.PERMISSION
+    /** The signature-level permission the manifest declares and this app holds. */
+    internal const val STATUS_BROADCAST_PERMISSION = "io.panelassistant.android.permission.INSTALL_STATUS"
 
     /**
      * A confirmation is shown only when it opens a system app (Android's package installer), never an

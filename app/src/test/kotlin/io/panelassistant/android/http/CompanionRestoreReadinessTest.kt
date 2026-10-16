@@ -2,7 +2,6 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
-import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.util.InstallProgress
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -97,7 +96,6 @@ class CompanionRestoreReadinessTest {
             val route = RestoreRoutes(
                 cacheDir = fixture.directory,
                 config = fixture.config,
-                identityMigration = IdentityMigrationSurface.NONE,
                 reader = BackupArchiveReader(fixture.directory) {
                     setOf("io.homeassistant.companion.android.minimal")
                 },
@@ -109,7 +107,6 @@ class CompanionRestoreReadinessTest {
                 scope = scope,
                 executor = unsafe.allocateInstance(RestoreExecutor::class.java) as RestoreExecutor,
                 wakeWords = null,
-                verifiedRetiredReceipt = { false },
             )
             // Fixture setup remains compatible with the untouched base for red-before-fix runs.
             route.javaClass.declaredFields.firstOrNull { it.name == "companionHelperReady" }?.apply {

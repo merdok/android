@@ -514,53 +514,44 @@ class SystemControllerTest {
         assertEquals(OWN, c.resolvedLauncher(OWN))
     }
 
-    @Test fun blankLauncherWithBothPanelAppsNeverOpensEitherDashboard() {
-        for (own in AppIdentity.ALL) {
-            val counterpart = AppIdentity.ALL.single { it != own }
-            val dashboards = listOf(counterpart, own).map {
-                ActivityRef(it, AppIdentity.className(it, ".DashboardActivity"))
-            }
-            val admin = AppIdentity.component(own, ".AdminLauncherActivity")
-            for (default in dashboards) {
-                for (hasLauncher in listOf(true, false)) {
-                    val vendor = ActivityRef(VENDOR, "L")
-                    val env = FakeSystemEnv(
-                        ownPackage = own,
-                        installed = AppIdentity.ALL + if (hasLauncher) setOf(VENDOR) else emptySet(),
-                        homes = dashboards + if (hasLauncher) listOf(vendor) else emptyList(),
-                        default = default,
-                    )
-                    val (controller, root, _) = sc(env)
+    @Test fun blankLauncherBesideAStrayOldAppNeverOpensEitherDashboard() {
+        val own = AppIdentity.OWN
+        val panelApps = setOf(own, AppIdentity.LEGACY)
+        val dashboards = panelApps.map { ActivityRef(it, AppIdentity.className(it, ".DashboardActivity")) }
+        val admin = AppIdentity.component(own, ".AdminLauncherActivity")
+        for (default in dashboards) {
+            for (hasLauncher in listOf(true, false)) {
+                val vendor = ActivityRef(VENDOR, "L")
+                val env = FakeSystemEnv(
+                    ownPackage = own,
+                    installed = panelApps + if (hasLauncher) setOf(VENDOR) else emptySet(),
+                    homes = dashboards + if (hasLauncher) listOf(vendor) else emptyList(),
+                    default = default,
+                )
+                val (controller, root, _) = sc(env)
 
-                    controller.launchLauncher("")
+                controller.launchLauncher("")
 
-                    val expected = if (hasLauncher) vendor.component else admin
-                    assertEquals("own=$own default=${default.pkg} launcher=$hasLauncher",
-                        listOf("am start -n $expected"), root.ran)
-                }
+                val expected = if (hasLauncher) vendor.component else admin
+                assertEquals("default=${default.pkg} launcher=$hasLauncher", listOf("am start -n $expected"), root.ran)
             }
         }
     }
 
-    @Test fun restoredCounterpartLauncherWithBothPanelAppsOpensCurrentAdmin() {
-        for (own in AppIdentity.ALL.reversed()) {
-            val counterpart = AppIdentity.ALL.single { it != own }
-            val env = FakeSystemEnv(
-                ownPackage = own,
-                installed = AppIdentity.ALL,
-                homes = listOf(counterpart, own).map {
-                    ActivityRef(it, AppIdentity.className(it, ".DashboardActivity"))
-                } + ActivityRef(VENDOR, "L"),
-                default = ActivityRef(VENDOR, "L"),
-            )
-            val (controller, root, _) = sc(env)
+    @Test fun aRestoredLauncherNamingTheOldAppIdOpensThisAppsDrawer() {
+        val own = AppIdentity.OWN
+        val env = FakeSystemEnv(
+            ownPackage = own,
+            installed = setOf(own),
+            homes = listOf(ActivityRef(own, AppIdentity.className(own, ".DashboardActivity")), ActivityRef(VENDOR, "L")),
+            default = ActivityRef(VENDOR, "L"),
+        )
+        val (controller, root, _) = sc(env)
 
-            controller.launchLauncher(counterpart)
+        controller.launchLauncher(AppIdentity.LEGACY)
 
-            assertEquals("restored $counterpart in $own must open this app's drawer",
-                listOf("am start -n ${AppIdentity.component(own, ".AdminLauncherActivity")}"), root.ran)
-            assertEquals(own, controller.resolvedLauncher(counterpart))
-        }
+        assertEquals(listOf("am start -n ${AppIdentity.component(own, ".AdminLauncherActivity")}"), root.ran)
+        assertEquals(own, controller.resolvedLauncher(AppIdentity.LEGACY))
     }
 
     @Test fun launcherNoneSuitableFallsBackToAdminLauncher() {
@@ -1209,40 +1200,5 @@ class SystemControllerTest {
         BuiltinDashboard.requestExplicitReload()
         assertTrue(BuiltinDashboard.consumeReloadRequest())
         assertFalse(BuiltinDashboard.consumeReloadRequest())
-    }
-
-    // ---------- identity migration: starting the other panel-app id ----------
-
-    private val SUCCESSOR_MAIN = "io.panelassistant.android/.MainActivity"
-
-    @Test fun launchPanelAppStartsTheSuccessorByItsFullyQualifiedActivity() {
-        val (c, root, d) = sc(FakeSystemEnv(), daemon = mapOf("START $SUCCESSOR_MAIN" to "OK"))
-        assertTrue(c.launchPanelApp("io.panelassistant.android"))
-        assertEquals(listOf("START $SUCCESSOR_MAIN"), d.sent)
-        assertTrue(root.ran.isEmpty())
-    }
-
-    @Test fun launchPanelAppFallsBackToSuAndReportsAFailedStart() {
-        val (viaSu, suRoot, _) = sc(FakeSystemEnv(), daemon = null, su = true)
-        assertTrue(viaSu.launchPanelApp("io.panelassistant.android"))
-        assertEquals(listOf("am start -n $SUCCESSOR_MAIN"), suRoot.ran)
-
-        val env = FakeSystemEnv()
-        val (failed, _, _) = sc(env, daemon = null, su = false)
-        assertFalse(failed.launchPanelApp("io.panelassistant.android"))
-        assertTrue("never a direct start of another package", env.directStarts.isEmpty())
-    }
-
-    @Test fun launchPanelAppRefusesItselfAndEveryOtherPackage() {
-        val (c, root, d) = sc(FakeSystemEnv(), daemon = emptyMap())
-        assertFalse(c.launchPanelApp(OWN))
-        assertFalse(c.launchPanelApp(MIN))
-        assertTrue(root.ran.isEmpty() && d.sent.isEmpty())
-    }
-
-    @Test fun aHelperThatIsBusyBlocksTheSuccessorStartWithoutAnSuBypass() {
-        val (c, root, _) = sc(FakeSystemEnv(), daemon = mapOf("START $SUCCESSOR_MAIN" to "BUSY"))
-        assertFalse(c.launchPanelApp("io.panelassistant.android"))
-        assertTrue(root.ran.isEmpty())
     }
 }

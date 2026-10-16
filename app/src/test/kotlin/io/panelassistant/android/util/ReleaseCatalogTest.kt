@@ -118,14 +118,12 @@ class ReleaseCatalogTest {
         assertTrue(versions.drop(1).all { it.installable })
     }
 
-    @Test fun parsedReleaseDistinguishesOlderIdentityFromMissingCompatibleDownload() {
+    @Test fun aReleaseWithoutThisAppsApkHasNoCompatibleDownload() {
         val legacy = org.json.JSONObject("""{"tag_name":"v0.9.7","assets":[{"name":"ha-paneld-v0.9.7.apk","browser_download_url":"legacy"}]}""")
         val noAsset = org.json.JSONObject("""{"tag_name":"v0.9.9","assets":[]}""")
-        val parsed = listOf(legacy, noAsset).map {
-            ReleaseCatalog.raw(it, SelfUpdater::isSuccessorAsset) { name -> name.startsWith("ha-paneld-") && name.endsWith(".apk") }
-        }
+        val parsed = listOf(legacy, noAsset).map { ReleaseCatalog.raw(it, SelfUpdater::isOwnAsset) }
         val versions = ReleaseCatalog.select(parsed, "stable", 10, strip)
-        assertEquals(listOf("older_app_id", "no_matching_asset"), versions.map { it.unavailableReason })
+        assertEquals(listOf("no_matching_asset", "no_matching_asset"), versions.map { it.unavailableReason })
         assertTrue(versions.all { !it.installable && it.apkUrl == null })
     }
 

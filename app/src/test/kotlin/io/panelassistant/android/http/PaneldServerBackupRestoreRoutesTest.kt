@@ -205,9 +205,6 @@ class PaneldServerBackupRestoreRoutesTest {
                 }
                 assertEquals(HttpStatusCode.UnprocessableEntity, invalid.status)
                 assertEquals("invalid backup config", JSONObject(invalid.bodyAsText()).getString("error"))
-                val migration = client.post("/api/v1/restore?mode=migration") { setBody("not a backup") }
-                assertEquals(HttpStatusCode.Forbidden, migration.status)
-                assertEquals("migration-restore-refused", JSONObject(migration.bodyAsText()).getString("error"))
             }
         }
     }

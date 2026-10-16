@@ -13,13 +13,7 @@ import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.device.profile.ProfileBackup
 import io.panelassistant.android.persistence.ConfigVault
 import io.panelassistant.android.persistence.StateArchiveSection
-import io.panelassistant.android.migration.IdentityMigrationSurface
-import io.panelassistant.android.migration.MigrationRestoreAdmission
-import io.panelassistant.android.migration.RestoreAttempt
-import io.panelassistant.android.migration.claimsRestoreAttempt
-import io.panelassistant.android.migration.migrationRestoreAdmission
 import io.panelassistant.android.persistence.BackupIdentity
-import io.panelassistant.android.persistence.RawPreferenceBackup
 import io.panelassistant.android.persistence.ProximityCalibrationBackup
 import io.panelassistant.android.persistence.StateBackupPolicy
 import io.panelassistant.android.security.SensitiveOperation
@@ -42,7 +36,6 @@ import java.security.MessageDigest
 internal class RestoreRoutes(
     private val cacheDir: File,
     private val config: Config,
-    private val identityMigration: IdentityMigrationSurface,
     private val reader: BackupArchiveReader,
     private val profileAdmin: ProfileAdmin?,
     private val ensureCompanionHelper: () -> Boolean,
@@ -52,7 +45,6 @@ internal class RestoreRoutes(
     private val scope: CoroutineScope,
     private val executor: RestoreExecutor,
     private val wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
-    private val verifiedRetiredReceipt: (File) -> Boolean,
     private val companionHelperReady: () -> Boolean = { false },
 ) {
 
@@ -64,28 +56,6 @@ internal class RestoreRoutes(
         val pw = call.args?.optString("passphrase")?.takeIf(String::isNotEmpty)
             ?: call.request.headers["X-Backup-Passphrase"].orEmpty()
         val dryRun = call.request.queryParameters["dry_run"] == "1"
-        val migrationRestore = when (
-            migrationRestoreAdmission(
-                requested = call.request.queryParameters["mode"] == "migration",
-                loopbackPeer = isLoopbackPeer(call.request.origin.remoteAddress),
-                restoreOpen = identityMigration.restoreOpen(),
-            )
-        ) {
-            MigrationRestoreAdmission.NOT_REQUESTED -> false
-            MigrationRestoreAdmission.ADMITTED -> true
-            MigrationRestoreAdmission.REFUSED -> return call.respondText(
-                """{"ok":false,"error":"migration-restore-refused"}""",
-                ContentType.Application.Json,
-                HttpStatusCode.Forbidden,
-            )
-        }
-        // Claim the successor's wait now, not when the restore ends. A restore that outlives the five
-        // minute wait must still answer the attempt that started it: by the time it finishes, the
-        // successor may already have opened another, and answering that one would report this restore's
-        // outcome for a restore that has not run.
-        val restoreAttempt =
-            if (claimsRestoreAttempt(migrationRestore, dryRun)) identityMigration.claimRestoreAttempt()
-            else RestoreAttempt.NONE
         // Claim the shared destructive-operation lane before buffering, decrypting, or parsing a bundle.
         // Otherwise several losing requests can each consume 64 MiB and expensive KDF/JSON work before
         // discovering that another restore/install already owns admission.
@@ -241,8 +211,6 @@ internal class RestoreRoutes(
             val configPlan = planRestoreConfig(
                 cfgObj, backupSchema, { canonicalHaOrigin(config.haUrl) }, { config.zigbeeRouterConfigured },
             ).let { plan ->
-                if (migrationRestore) plan.copy(values = migrationRestoreConfig(plan.values)) else plan
-            }.let { plan ->
                 SettingsRegistry.automaticBrightnessBoundsError(
                     plan.values, config.autoBrightnessMinimumPercent, config.autoBrightnessMaximumPercent,
                 )?.let { plan.copy(errors = plan.errors + it) } ?: plan
@@ -368,35 +336,12 @@ internal class RestoreRoutes(
                 ContentType.Application.Json,
                 HttpStatusCode.UnprocessableEntity,
             )
-            // A migration-mode restore is this app's other identity handing its state over on one device.
-            // The successor has not adopted the panel id yet, so the device is proven by the discovery
-            // pseudonym instead, and an archive from anywhere else is refused outright rather than
-            // restored with its device-local rows withheld.
-            val sameDeviceByDiscoveryId =
-                BackupIdentity.sameDevice(obj, panelAssistantDiscoveryId(config.deviceUid)) ||
-                    (migrationRestore && verifiedRetiredReceipt(plainFile))
-            if (migrationRestore && !sameDeviceByDiscoveryId) return call.respondText(
-                """{"ok":false,"error":"migration-backup-not-from-this-device"}""",
-                ContentType.Application.Json,
-                HttpStatusCode.UnprocessableEntity,
-            )
-            val rawPreferences = if (migrationRestore) {
-                RawPreferenceBackup.restorable(obj) ?: return call.respondText(
-                    """{"ok":false,"error":"invalid raw_preferences object"}""",
-                    ContentType.Application.Json,
-                    HttpStatusCode.BadRequest,
-                )
-            } else emptyMap()
             // New archives use the health protocol's reinstall link, sampled before configuration changes.
             // Older archives retain their historical pre-restore panel-name classification.
-            val samePanel = StateBackupPolicy.sameDevice(
-                migrationRestore = migrationRestore,
-                panelIdMatches = BackupIdentity.sameRestoreDevice(
-                    obj,
-                    config.androidId.takeIf(String::isNotBlank)?.let(::panelAssistantDiscoveryId),
-                    obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
-                ),
-                discoveryIdMatches = sameDeviceByDiscoveryId,
+            val samePanel = BackupIdentity.sameRestoreDevice(
+                obj,
+                config.androidId.takeIf(String::isNotBlank)?.let(::panelAssistantDiscoveryId),
+                obj.optString("panel_id").let { it.isNotEmpty() && it == config.panelId },
             )
             val restorableCalibrations = ProximityCalibrationBackup.restorable(obj, samePanel)
             var archivedState = emptyList<ConfigVault.StateRow>()
@@ -416,10 +361,7 @@ internal class RestoreRoutes(
                         reader.readArchiveText(plainFile, ref, archiveEntries, "app-state-restore-"),
                     ) ?: throw IllegalArgumentException("corrupt app_state payload")
                     archivedState = decoded.rows
-                    StateBackupPolicy.restorableRows(decoded.rows, samePanel) +
-                        io.panelassistant.android.migration.migrationNoticeHistoryRows(
-                            decoded.rows, migrationRestore, sameDeviceByDiscoveryId,
-                        )
+                    StateBackupPolicy.restorableRows(decoded.rows, samePanel)
                 }.getOrNull() ?: return call.respondText(
                     withInstallPresentation(
                         """{"ok":false,"error":"invalid app_state payload"}""",
@@ -586,9 +528,9 @@ internal class RestoreRoutes(
             val job = scope.launch {
                 executor.execute(
                     configPlan, entityState, profilePayload, profilePlan, companionPlan,
-                    rawPreferences, restorableState, stateUnavailable, migrationRestore,
+                    restorableState, stateUnavailable,
                     restoreWakeWords, wakeWordCatalog,
-                    progress, restoreAttempt,
+                    progress,
                     restorableCalibrations = restorableCalibrations,
                     ownerChoices = ownerChoices,
                     restorableIssues = restorableIssues,
@@ -596,11 +538,6 @@ internal class RestoreRoutes(
                 )
             }
             job.invokeOnCompletion {
-                // A job that was cancelled, or that failed somewhere its own result never reaches,
-                // still ends the attempt. Reporting is first-wins, so a job that already reported its
-                // real outcome keeps it and only an unanswered attempt is failed here — which the
-                // successor retries at once rather than waiting out the five minute timeout.
-                restoreAttempt.finished(false)
                 retainedCompanionPlan?.close()
                 restoreFiles.forEach(File::delete)
             }
@@ -611,9 +548,6 @@ internal class RestoreRoutes(
         } finally {
             if (!transferredToJob) {
                 // Rejected before any restore ran — a bad bundle, a refused approval, a missing helper.
-                // The attempt is answered here for the same reason the job answers its own: the
-                // successor should retry now, not in five minutes.
-                restoreAttempt.finished(false)
                 retainedCompanionPlan?.close()
                 restoreFiles.forEach(File::delete)
                 val result = if (requestAccepted) {

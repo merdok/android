@@ -2,51 +2,36 @@ package io.panelassistant.android
 
 
 /**
- * The two installable identities one source tree builds. A new applicationId is a new app to Android,
- * so a panel moves from [LEGACY] to [SUCCESSOR] by running both for one handover: the `bridge` build
- * keeps the legacy id and installs the successor, and the successor pulls state, takes over and removes
- * the bridge. Only the applicationId differs; the Kotlin package, manifest component classes and the
- * release signer are shared, so a component name is always `<applicationId>/<fully.qualified.Class>`.
+ * This app's application id and component names. A component name is always
+ * `<applicationId>/<fully.qualified.Class>`, shortened to `/.Class` when the class lives in the id's package.
  */
 object AppIdentity {
-    const val LEGACY: String = BuildConfig.LEGACY_APPLICATION_ID
-    const val SUCCESSOR: String = BuildConfig.SUCCESSOR_APPLICATION_ID
-
     /** This build's own applicationId. */
     const val OWN: String = BuildConfig.APPLICATION_ID
 
-    /** True for the build that keeps the legacy id and hands over to the successor. */
-    const val IS_BRIDGE: Boolean = BuildConfig.SUCCESSOR_BRIDGE
+    /**
+     * The id this app was published under before 0.9.11. Kept so a stored setting or a stray old install
+     * naming it still means this app; nothing installs, signs, tames or hands HOME to it.
+     */
+    const val LEGACY: String = "io.github.maxlyth.hapaneld"
 
-    /** Both ids, legacy first. Either one may be the installed panel app during the migration. */
-    val ALL: Set<String> = linkedSetOf(LEGACY, SUCCESSOR)
-
-    /** The other identity: the package this build hands over to, or takes over from. */
-    val COUNTERPART: String = counterpartOf(OWN)
-
-    fun isPanelApp(pkg: String?): Boolean = pkg != null && pkg in ALL
+    /** This app under either id it has carried. */
+    fun isPanelApp(pkg: String?): Boolean = pkg == OWN || pkg == LEGACY
 
     /**
      * The flattened component for one of this app's own classes, given as the manifest's relative name
      * (`.DashboardActivity`). Android resolves the `/.Class` shorthand against the applicationId, while
-     * the classes live in [CODE_PACKAGE] whichever id the build carries, so the shorthand is only valid
-     * for the id that equals it, the successor's.
+     * the classes live in [CODE_PACKAGE], so the shorthand is only valid for the id that equals it.
      */
     fun component(applicationId: String, relativeClass: String): String =
         "$applicationId/${className(applicationId, relativeClass)}"
 
-    /** The class half of [component]: relative for the successor id, fully qualified for any other. */
+    /** The class half of [component]: relative for [CODE_PACKAGE], fully qualified for any other id. */
     fun className(applicationId: String, relativeClass: String): String {
         require(relativeClass.startsWith(".")) { "$relativeClass is not a relative class name" }
         return if (applicationId == CODE_PACKAGE) relativeClass else "$CODE_PACKAGE$relativeClass"
     }
 
-    /** The Gradle namespace and Kotlin package, which do not move with the applicationId. */
+    /** The Gradle namespace and Kotlin package. */
     const val CODE_PACKAGE: String = "io.panelassistant.android"
-
-    internal fun counterpartOf(pkg: String): String = when (pkg) {
-        LEGACY -> SUCCESSOR
-        SUCCESSOR -> LEGACY
-        else -> error("$pkg is not a panel application id")
-    }
 }

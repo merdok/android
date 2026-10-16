@@ -20747,8 +20747,7 @@
       "context": "Version-picker suffix: this release is unsupported by the panel profile; version is the maximum supported release.",
       "risk": "ordinary",
       "siblings": [
-        "install.progress.no_matching_asset",
-        "install.progress.older_app_id"
+        "install.progress.no_matching_asset"
       ],
       "placeholders": [
         "{version}"
@@ -20913,7 +20912,6 @@
       "context": "Version-picker suffix: this release has no downloadable APK compatible with the panel.",
       "risk": "ordinary",
       "siblings": [
-        "install.progress.older_app_id",
         "install.progress.above_panel_limit"
       ],
       "placeholders": [],
@@ -20932,21 +20930,6 @@
       "frozen": [],
       "softMaxChars": 20,
       "hardMaxChars": 40
-    },
-    "install.progress.older_app_id": {
-      "text": "(older app, cannot replace this one)",
-      "sourceHash": "04157b3e1449c93f40152094fd704bbea344bedfd3bfac1f3c385e0dab56ed2b",
-      "surface": "install",
-      "context": "Version-picker suffix: this release uses an older application identity and cannot replace the installed application.",
-      "risk": "ordinary",
-      "siblings": [
-        "install.progress.no_matching_asset",
-        "install.progress.above_panel_limit"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 60,
-      "hardMaxChars": 100
     },
     "install.progress.operation_busy": {
       "text": "Another operation is running — try again shortly.",

@@ -556,7 +556,7 @@ class GuardDbTerminalRetirementRoutesTest {
         val emptyStatus = "OK GUARDSTATUS 0 EMPTY NONE NONE NONE NONE 0 0 0 NONE NONE 0 0"
         private val evidence = (
             "OK GUARDEVIDENCE 1\n" +
-                "SESSION $session\nBOOT $boot\nPACKAGE io.github.maxlyth.hapaneld\n" +
+                "SESSION $session\nBOOT $boot\nPACKAGE io.panelassistant.android\n" +
                 "SIGNER ${"3".repeat(64)}\n" +
                 "STATE 20 FINALIZED A $aSha 568 14 NONE CANARY_PASSED 1800000 1320000\n" +
                 "BASELINE 4096 ${"c".repeat(64)} 14 37 ${"d".repeat(64)} ${"e".repeat(64)}\n" +

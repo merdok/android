@@ -12,7 +12,6 @@ import io.panelassistant.android.device.profile.ProfileBackupRestorePlan
 import io.panelassistant.android.device.profile.ProfileSelection
 import io.panelassistant.android.device.profile.ProfileStatus
 import io.panelassistant.android.DashboardEntityBackupState
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.util.InstallProgress
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -27,32 +26,6 @@ import org.junit.rules.TemporaryFolder
 
 class RestoreExecutorTest {
     @get:Rule val folder = TemporaryFolder()
-
-    @Test fun policySkippedStateDoesNotHoldAMigrationWhoseAdmittedValuesAreDurable() = runBlocking {
-        PaneldServerHttpFixture().use { fixture ->
-            val ticket = requireNotNull(InstallProgress.start("restore"))
-            val completed = mutableListOf<Boolean>()
-            val executor = executor(
-                fixture,
-                commit = RestoreConfigCommit { _, _, _, _, publish, _, afterApply ->
-                    publish("durable")
-                    afterApply()
-                    1
-                },
-                rollback = { _, _, _, _ -> error("policy exclusion is not a failed write") },
-            )
-            executor.execute(
-                RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
-                null, null, null, null, emptyMap(), emptyList(), false, true, emptyList(), null,
-                ticket, RestoreAttempt { completed += it }, stateSkipped = 3,
-            )
-            val result = JSONObject(InstallProgress.json()).getJSONObject("result")
-            assertEquals("succeeded", result.getString("status"))
-            assertEquals("skipped", result.getJSONObject("state").getString("status"))
-            assertEquals("admitted=0; skipped=3; failed=0", result.getJSONObject("state").getString("detail"))
-            assertEquals(listOf(true), completed)
-        }
-    }
 
     @Test fun aFailedOrdinaryStateWriteIsPartialAndKeepsCommittedConfiguration() = runBlocking {
         PaneldServerHttpFixture().use { fixture ->
@@ -70,9 +43,9 @@ class RestoreExecutorTest {
             )
             executor.execute(
                 RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
-                null, null, null, null, emptyMap(),
+                null, null, null, null,
                 listOf(io.panelassistant.android.persistence.ConfigVault.StateRow("controller-state", "saved", "int", "4", 1L)),
-                false, false, emptyList(), null, ticket, RestoreAttempt.NONE,
+                false, emptyList(), null, ticket,
             )
             val result = JSONObject(InstallProgress.json()).getJSONObject("result")
             assertEquals(1, attempts)
@@ -89,7 +62,6 @@ class RestoreExecutorTest {
             val ticket = requireNotNull(InstallProgress.start("restore"))
             var notified = false
             var rolledBack = false
-            val answers = mutableListOf<Boolean>()
             try {
                 val executor = executor(
                     fixture,
@@ -107,27 +79,25 @@ class RestoreExecutorTest {
                 )
                 executor.execute(
                     RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, true,
-                    listOf(importedWakeWord("porch")), catalog, ticket, RestoreAttempt { answers += it },
+                    null, null, null, null, emptyList(), false,
+                    listOf(importedWakeWord("porch")), catalog, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertTrue(rolledBack)
                 assertEquals("failed", result.getString("status"))
                 assertEquals("succeeded", result.getJSONObject("wake_words").getString("status"))
                 assertEquals(listOf("porch"), catalog.exportImported().map { it.id })
-                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
         }
     }
 
-    @Test fun refusedModelsMakeSuccessfulConfigPartialAndDoNotCompleteMigration() = runBlocking {
+    @Test fun refusedModelsMakeSuccessfulConfigPartial() = runBlocking {
         val catalog = wakeWordCatalog(folder.newFolder(), accepts = false)
         PaneldServerHttpFixture().use { fixture ->
             val ticket = requireNotNull(InstallProgress.start("restore"))
             var committed = false
-            val answers = mutableListOf<Boolean>()
             try {
                 val executor = executor(
                     fixture,
@@ -140,8 +110,8 @@ class RestoreExecutorTest {
                 )
                 executor.execute(
                     RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, true,
-                    listOf(importedWakeWord("porch")), catalog, ticket, RestoreAttempt { answers += it },
+                    null, null, null, null, emptyList(), false,
+                    listOf(importedWakeWord("porch")), catalog, ticket,
                 )
                 val status = JSONObject(InstallProgress.json())
                 val result = status.getJSONObject("result")
@@ -150,7 +120,6 @@ class RestoreExecutorTest {
                 assertEquals("partial", result.getJSONObject("wake_words").getString("status"))
                 assertEquals(0, result.getJSONObject("wake_words").getInt("items"))
                 assertTrue(status.getString("message").contains("1 wake word not restored (porch)"))
-                assertEquals(listOf(false), answers)
                 assertTrue(catalog.exportImported().isEmpty())
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
@@ -164,7 +133,6 @@ class RestoreExecutorTest {
                 val ticket = requireNotNull(InstallProgress.start("restore"))
                 val before = mapOf("panel_id" to "prior-panel")
                 var rollbackCount = 0
-                val answers = mutableListOf<Boolean>()
                 try {
                     val executor = executor(
                         fixture,
@@ -185,9 +153,9 @@ class RestoreExecutorTest {
                     )
                     executor.execute(
                         RestoreConfigPlan(mapOf("panel_id" to "new-panel"), emptyList(), emptyList()),
-                        null, null, null, null, emptyMap(), emptyList(), false, false,
+                        null, null, null, null, emptyList(), false,
                         emptyList(), null,
-                        ticket, RestoreAttempt { answers += it },
+                        ticket,
                     )
                     val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                     assertEquals(1, rollbackCount)
@@ -196,7 +164,6 @@ class RestoreExecutorTest {
                         if (rollbackSucceeds) "rolled_back" else "rollback_failed",
                         result.getJSONObject("config").getString("status"),
                     )
-                    assertEquals(listOf(false), answers)
                     assertFalse(InstallProgress.running)
                 } finally {
                     InstallProgress.finish(ticket, "test cleanup")
@@ -208,7 +175,6 @@ class RestoreExecutorTest {
     @Test fun incompleteArchiveReportsItsMissingStateAfterSuccessfulApply() = runBlocking {
         PaneldServerHttpFixture().use { fixture ->
             val ticket = requireNotNull(InstallProgress.start("restore"))
-            val answers = mutableListOf<Boolean>()
             var committed = false
             try {
                 val executor = executor(
@@ -224,15 +190,14 @@ class RestoreExecutorTest {
                 )
                 executor.execute(
                     RestoreConfigPlan(mapOf("panel_id" to "new-panel"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), true, false,
+                    null, null, null, null, emptyList(), true,
                     emptyList(), null,
-                    ticket, RestoreAttempt { answers += it },
+                    ticket,
                 )
                 val status = JSONObject(InstallProgress.json())
                 assertEquals(true, committed)
                 assertEquals("succeeded", status.getJSONObject("result").getString("status"))
                 assertEquals("Restore completed; this backup carried no panel state", status.getString("message"))
-                assertEquals(listOf(true), answers)
                 assertFalse(InstallProgress.running)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
@@ -248,7 +213,6 @@ class RestoreExecutorTest {
             assertTrue(preview.values.containsKey("network_adb"))
             caps = Capabilities(networkAdb = false)
             val ticket = requireNotNull(InstallProgress.start("restore"))
-            val answers = mutableListOf<Boolean>()
             try {
                 var applied: Map<String, String>? = null
                 executor(
@@ -260,8 +224,8 @@ class RestoreExecutorTest {
                     },
                     rollback = { _, _, _, _ -> error("known skips do not roll back supported values") },
                 ).execute(
-                    preview, null, null, null, null, emptyMap(), emptyList(), false, true,
-                    emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    preview, null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertEquals(mapOf("panel_id" to "restored"), applied)
                 val status = JSONObject(InstallProgress.json())
@@ -270,7 +234,6 @@ class RestoreExecutorTest {
                 assertEquals("partial", result.getJSONObject("config").getString("status"))
                 assertTrue(result.getJSONObject("config").getString("detail").contains("network_adb"))
                 assertEquals("restore-partial", status.getJSONObject("presentation").getString("code"))
-                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
@@ -293,8 +256,8 @@ class RestoreExecutorTest {
                     rollback = { values, _, _, _ -> rollbackValues = values; true },
                 ).execute(
                     RestoreConfigPlan(mapOf("panel_id" to "restored", "network_adb" to "true"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertEquals(mapOf("panel_id" to "before"), rollbackValues)
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
@@ -324,8 +287,8 @@ class RestoreExecutorTest {
                     rollback = { values, _, _, _ -> rollbackValues = values; false },
                 ).execute(
                     RestoreConfigPlan(mapOf("network_adb" to "true"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertNotNull("rollback must run", rollbackValues)
                 assertEquals("false", requireNotNull(rollbackValues)["network_adb"])
@@ -338,42 +301,10 @@ class RestoreExecutorTest {
         }
     }
 
-    @Test fun migrationWhoseCarriedPreferencesFailToLandFailsAndLeavesTheStepOpen() = runBlocking {
-        PaneldServerHttpFixture().use { fixture ->
-            val ticket = requireNotNull(InstallProgress.start("restore"))
-            var rolledBack = false
-            val answers = mutableListOf<Boolean>()
-            try {
-                // The executor's context cannot open SharedPreferences, so the carried store fails to land.
-                executor(
-                    fixture,
-                    commit = RestoreConfigCommit { values, _, _, _, publish, _, afterApply ->
-                        publish("durable")
-                        afterApply()
-                        values.size
-                    },
-                    rollback = { _, _, _, _ -> rolledBack = true; true },
-                ).execute(
-                    RestoreConfigPlan(emptyMap(), emptyList(), emptyList()),
-                    null, null, null, null, mapOf("proximity-wake-invalidation" to mapOf("k" to "v")), emptyList(),
-                    false, true, emptyList(), null, ticket, RestoreAttempt { answers += it },
-                )
-                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
-                assertEquals("failed", result.getString("status"))
-                assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
-                assertTrue(rolledBack)
-                assertEquals(listOf(false), answers)
-            } finally {
-                InstallProgress.finish(ticket, "test cleanup")
-            }
-        }
-    }
-
     @Test fun companionApplyFailureRollsBackConfigAndIsNotReportedAsSuccess() = runBlocking {
         PaneldServerHttpFixture().use { fixture ->
             val ticket = requireNotNull(InstallProgress.start("restore"))
             var rolledBack = false
-            val answers = mutableListOf<Boolean>()
             val database = folder.newFile("companion.db").apply { writeText("db") }
             try {
                 executor(
@@ -394,13 +325,12 @@ class RestoreExecutorTest {
                         "io.homeassistant.companion.android.minimal",
                         listOf(CompanionRestore.FilePayload(CompanionRestore.DATABASE_FILE, database, deleteOnClose = false)),
                     ),
-                    emptyMap(), emptyList(), false, false, emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    emptyList(), false, emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertTrue(rolledBack)
                 assertEquals("failed", result.getString("status"))
                 assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
-                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
@@ -411,7 +341,6 @@ class RestoreExecutorTest {
         PaneldServerHttpFixture().use { fixture ->
             val ticket = requireNotNull(InstallProgress.start("restore"))
             var rolledBack = false
-            val answers = mutableListOf<Boolean>()
             val status = ProfileStatus(1, ProfileSelection.Auto, null, ProfileActivationState(ProfileActivationPhase.ACTIVE))
             // The interface's own restoreBackup answers REJECTED.
             val admin = object : ProfileAdmin {
@@ -441,13 +370,12 @@ class RestoreExecutorTest {
                     null,
                     ProfileBackupDecodeResult(ProfileBackup(revisions = emptyList(), selection = ProfileSelection.Auto, active = null, lastKnownGood = null), emptyList()),
                     ProfileBackupRestorePlan(status, 1, true, emptyList(), emptyList(), emptyList(), false),
-                    null, emptyMap(), emptyList(), false, false, emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    null, emptyList(), false, emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertTrue(rolledBack)
                 assertEquals("failed", result.getString("status"))
                 assertEquals("rolled_back", result.getJSONObject("config").getString("status"))
-                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }

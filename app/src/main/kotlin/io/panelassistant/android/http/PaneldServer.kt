@@ -46,7 +46,6 @@ import io.panelassistant.android.device.profile.PassiveProfileReport
 import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.logship.LogCapture
 import io.panelassistant.android.persistence.AppState
-import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.sensors.SensorReporter
@@ -185,9 +184,6 @@ class PaneldServer internal constructor(
     private val dashboardIssueCustody: io.panelassistant.android.persistence.DashboardIssueCustody? = null,
     private val profileRestartAllowed: () -> Boolean = { true },
     private val onProfileRestartAbort: (String) -> Boolean = { false },
-    // Application-id migration: the release and offer endpoints on the bridge build, and the
-    // migration-mode restore on the successor. NONE is a panel that is not migrating.
-    private val identityMigration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
     // Cheap process-local storage/database-health snapshot. The runtime starts at UNCHECKED, so
     // staged callers and tests that omit this provider retain an explicit, truthful initial state.
     private val storageHealth: () -> StorageHealthSnapshot = { StorageHealthRuntime.snapshot() },
@@ -380,7 +376,7 @@ class PaneldServer internal constructor(
 
     /** The control-route dependencies, the same for the HTTP routes and the Panel Assistant session. */
     private fun controlPlane() = controlPlaneDependencies(
-        appContext, config, scope, pendingApks, identityMigration,
+        appContext, config, scope, pendingApks,
         playAudio, onInstallComponent,
         buildBackupArtifact = ::buildBackupArtifact,
         authorizeSensitive = ::authorizeSensitive,
@@ -437,7 +433,6 @@ class PaneldServer internal constructor(
                     authorize = ::authorizeSensitive,
                 ))
                 controlPlaneRoutes(controlPlane())
-                identityMigrationRoutes(identityMigration, ::authorizeSensitive)
                 guardDbBootstrapRoutes(
                     guardDbBootstrapDependencies(appContext, config, scope, pendingApks, guardDbStaging),
                 )
@@ -1011,7 +1006,6 @@ class PaneldServer internal constructor(
         RestoreRoutes(
             cacheDir = cacheDir,
             config = config,
-            identityMigration = identityMigration,
             reader = BackupArchiveReader(cacheDir) { CompanionInstaller.installedPackages(appContext) },
             profileAdmin = profileAdmin,
             ensureCompanionHelper = managementObservations::ensureCompanionHelper,
@@ -1022,9 +1016,6 @@ class PaneldServer internal constructor(
             scope = scope,
             executor = executor,
             wakeWords = wakeWords,
-            verifiedRetiredReceipt = {
-                io.panelassistant.android.migration.MigrationState.of(appContext).verifiedRetiredReceipt(it)
-            },
         ).handle(call)
     }
 

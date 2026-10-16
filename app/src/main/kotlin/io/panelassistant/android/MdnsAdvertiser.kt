@@ -216,9 +216,6 @@ class MdnsAdvertiser(
 
     private fun start(lanIp: String?, resetLivenessBudget: Boolean, expectedEpoch: Long): Boolean =
         ownerGate.runIfOpen(false) start@{
-            // A successor that has not restored the panel's identity yet must not advertise the one it
-            // generated for itself; it restarts from the restored configuration and advertises then.
-            if (io.panelassistant.android.migration.IdentityMigrationGate.holdsNetworkIdentity()) return@start false
             if (!topology.matches(expectedEpoch, lanIp)) return@start false
             val secondaryIp = topology.snapshot().secondaryIp
             if (lanIp == null) {

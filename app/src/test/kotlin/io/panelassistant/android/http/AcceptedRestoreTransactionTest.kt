@@ -4,7 +4,6 @@ import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.LiveSettingRequestOutcome
 import io.panelassistant.android.control.SystemController
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
 import io.panelassistant.android.util.BorrowedRendererSettings
@@ -45,19 +44,17 @@ class AcceptedRestoreTransactionTest {
                 onReconfigure = { error("A stale commit never reconfigures") },
             )
             val ticket = requireNotNull(InstallProgress.start("restore"))
-            val answers = mutableListOf<Boolean>()
             try {
                 executor.execute(
                     RestoreConfigPlan(mapOf("panel_id" to "restored-panel"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertTrue(moved)
                 assertEquals("failed", result.getString("status"))
                 assertEquals("failed", result.getJSONObject("config").getString("status"))
                 assertEquals("moved-panel", config.panelId)
-                assertEquals(listOf(false), answers)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
@@ -150,12 +147,11 @@ class AcceptedRestoreTransactionTest {
             assertEquals(0, liveReads)
             config.setPanelId("execution-time-panel")
             val ticket = requireNotNull(InstallProgress.start("restore"))
-            val answers = mutableListOf<Boolean>()
             try {
                 executor.execute(
                     RestoreConfigPlan(mapOf("panel_id" to "restored-panel"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertEquals(1, rendererAttempts)
@@ -166,7 +162,6 @@ class AcceptedRestoreTransactionTest {
                     if (supersede) "rollback_failed" else "rolled_back",
                     result.getJSONObject("config").getString("status"),
                 )
-                assertEquals(listOf(false), answers)
                 assertFalse(InstallProgress.running)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")

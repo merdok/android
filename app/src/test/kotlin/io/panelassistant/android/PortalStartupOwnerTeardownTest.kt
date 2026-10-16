@@ -166,7 +166,7 @@ class PortalStartupOwnerTeardownTest {
         (PaneldService::class.java.getDeclaredField("scope").apply { isAccessible = true }.get(service) as CoroutineScope).cancel()
 
     private companion object {
-        val earlyGenerations = listOf("uninitialized", "guardDbRedirect", "identityMigrationStandby", "standingDown")
+        val earlyGenerations = listOf("uninitialized", "guardDbRedirect", "standingDown")
         fun drain(queue: ConcurrentLinkedQueue<Runnable>) {
             while (true) (queue.poll() ?: return).run()
         }

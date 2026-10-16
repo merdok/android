@@ -9,15 +9,12 @@ import org.json.JSONObject
  * `panel_id` names a panel to its owner and is restorable configuration, so it cannot also prove which
  * physical device an archive came from: a freshly installed app has not adopted it yet. The discovery
  * id identifies the installation. It is a domain-separated digest of the stored random identity.
- * A signed local application handover transfers that identity before receipt verification. Ordinary
- * settings restore never transfers it, so restoring onto another installation cannot clone discovery.
+ * A settings restore never transfers it, so restoring onto another installation cannot clone discovery.
  */
 object BackupIdentity {
     const val DISCOVERY_ID_KEY = "discovery_id"
     const val PACKAGE_KEY = "package"
     const val DEVICE_LINK_KEY = "legacy_did"
-    /** Written by builds before 1.0: whether the writer held a broker connection. Read from their archives only. */
-    const val LEGACY_CONNECTED_KEY = "mqtt_connected"
     private val DISCOVERY_ID_RE = Regex("[0-9a-f]{64}")
 
     /** The manifest members, each prefixed with a comma; an unavailable discovery id is omitted. */
@@ -37,29 +34,6 @@ object BackupIdentity {
         if (!manifest.has(DEVICE_LINK_KEY)) return legacyPanelIdMatches
         val archived = manifest.opt(DEVICE_LINK_KEY) as? String ?: return false
         return DISCOVERY_ID_RE.matches(archived) && archived == ownDeviceLink
-    }
-
-    /**
-     * True only when an archive from a build before 1.0 records that its writer was connected to Home
-     * Assistant through a broker. The other identity of this app then holds the handover until it reaches
-     * Home Assistant itself; a writer that never was is not held to a connection it never had.
-     */
-    fun legacyWriterConnected(manifest: JSONObject): Boolean = manifest.opt(LEGACY_CONNECTED_KEY) == true
-
-    /** The archive's discovery id, or null when it is absent or not a well-formed pseudonym. */
-    fun discoveryId(manifest: JSONObject): String? =
-        (manifest.opt(DISCOVERY_ID_KEY) as? String)?.takeIf(DISCOVERY_ID_RE::matches)
-
-    /**
-     * True only when the archive was written on this device. Both sides must present a well-formed
-     * pseudonym: an archive that predates the field, or an installation without a durable identity,
-     * proves nothing and is treated as a different device.
-     */
-    fun sameDevice(manifest: JSONObject, ownDiscoveryId: String?): Boolean {
-        // The archive's id is only ever read as a well-formed pseudonym, so equality with it is also the
-        // proof that this device's own value is one.
-        val archived = discoveryId(manifest) ?: return false
-        return archived == ownDiscoveryId
     }
 }
 

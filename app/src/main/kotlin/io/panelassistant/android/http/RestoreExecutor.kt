@@ -18,7 +18,6 @@ import io.panelassistant.android.persistence.AppState
 import io.panelassistant.android.persistence.CatalogProximityCalibrationCustody
 import io.panelassistant.android.persistence.ProximityCalibrationCustody
 import io.panelassistant.android.persistence.ConfigVault
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.InstallProgress
 
@@ -60,14 +59,11 @@ internal class RestoreExecutor(
         profilePayload: io.panelassistant.android.device.profile.ProfileBackupDecodeResult?,
         profilePlan: ProfileBackupRestorePlan?,
         companionPlan: CompanionRestore.Plan?,
-        rawPreferences: Map<String, Map<String, String>>,
         restorableState: List<ConfigVault.StateRow>,
         stateUnavailable: Boolean,
-        migrationRestore: Boolean,
         restoreWakeWords: List<io.panelassistant.android.assist.wakeword.WakeWordCatalog.ImportedFiles>,
         wakeWordCatalog: io.panelassistant.android.assist.wakeword.WakeWordCatalog?,
         progress: InstallProgress.Ticket,
-        restoreAttempt: RestoreAttempt,
         restorableCalibrations: List<EntityCatalogStore.ProximityModelRow> = emptyList(),
         ownerChoices: OwnerChoicesPlan = OwnerChoicesPlan(emptyMap()),
         restorableIssues: List<io.panelassistant.android.persistence.DashboardIgnoredIssue> = emptyList(),
@@ -92,9 +88,8 @@ internal class RestoreExecutor(
         var ownerChoicesRestored = 0
         var issuesRestored = 0
         var stateRefreshFailed = false
-        // A handover receipt requires every admitted value. A policy exclusion was never admitted,
-        // so retrying that same receipt cannot restore it and must not hold the handover forever.
-        val policySkipIsPartial = stateSkipped > 0 && !migrationRestore
+        // A row the restore policy withheld was never admitted, so the restore is partial.
+        val policySkipIsPartial = stateSkipped > 0
         fun stateComponent(): InstallProgress.ComponentResult? {
             if (admittedStateCount == 0 && stateSkipped == 0 && !stateUnavailable) return null
             val restored = restoredStateRows + ownerChoicesRestored + issuesRestored
@@ -146,14 +141,6 @@ internal class RestoreExecutor(
                     // Post-commit, and before the profile early-return below so a backup without
                     // profiles still restores its state. Never fatal: the configuration the owner
                     // came for is already durable, so a failure here must not roll it back.
-                    val rawPreferencesApplied = rawPreferences.all { (store, values) ->
-                        runCatching {
-                            val editor = appContext
-                                .getSharedPreferences(store, android.content.Context.MODE_PRIVATE).edit()
-                            values.forEach { (key, value) -> editor.putString(key, value) }
-                            editor.commit()
-                        }.getOrDefault(false)
-                    }
                     if (restorableState.isNotEmpty()) {
                         restoredStateRows = runCatching {
                             applyState(restorableState)
@@ -170,15 +157,6 @@ internal class RestoreExecutor(
                         // Never fatal, exactly like the writes above: the restore is
                         // already durable, and a live re-read failing must not undo it.
                         stateRefreshFailed = runCatching { onDurableStateRestored() }.isFailure
-                    }
-                    // An ordinary restore forgives a state write that failed, because its archive
-                    // survives it. A migration's receipt is about to become the only copy of a
-                    // package that is then removed, so there every carried value must have landed.
-                    if (migrationRestore &&
-                        (!migrationRestoreComplete(rawPreferencesApplied, restorableState.size, restoredStateRows) ||
-                            ownerChoicesRestored != ownerChoices.values.size || issuesRestored != restorableIssues.size)
-                    ) {
-                        throw IllegalStateException("migration restore did not apply every carried value")
                     }
                     val payload = profilePayload?.payload ?: return@afterApply
                     profileResult = requireNotNull(profileAdmin).restoreBackup(
@@ -282,10 +260,6 @@ internal class RestoreExecutor(
             )
         }
         Log.i(TAG, "restore: ${operation.message}")
-        // Only a whole success advances the migration; a partial or failed restore leaves the
-        // step open, and the successor restores the same receipt again. It is told either way,
-        // so a failure is retried at once rather than after waiting out a timeout.
-        restoreAttempt.finished(operation.structured.status == InstallProgress.Outcome.SUCCEEDED)
         InstallProgress.finish(
             progress,
             operation.message,

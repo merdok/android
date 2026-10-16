@@ -28,8 +28,6 @@ class InstallationRoutesTest {
                             authorizeSensitive = { _, _, _, _ -> true },
                             versionCatalogue = { _, _ -> listOf(
                                 io.panelassistant.android.util.ReleaseCatalog.Version("1", "v1", "notes1", false),
-                                io.panelassistant.android.util.ReleaseCatalog.Version("2", "v2", "notes2", false,
-                                    unavailableReason = "older_app_id"),
                                 io.panelassistant.android.util.ReleaseCatalog.Version("3", "v3", "notes3", false,
                                     unavailableReason = "above_panel_limit", maxVersion = "2026.5.4"),
                                 io.panelassistant.android.util.ReleaseCatalog.Version("4", "v4", "notes4", true, "download4"),
@@ -39,12 +37,12 @@ class InstallationRoutesTest {
                 val response = client.get("/install/versions?name=paneld&channel=prerelease")
                 assertEquals(HttpStatusCode.OK, response.status)
                 val versions = JSONObject(response.bodyAsText()).getJSONArray("versions")
-                assertEquals(listOf("no_matching_asset", "older_app_id", "above_panel_limit"),
-                    (0..2).map { versions.getJSONObject(it).optString("unavailableReason") })
-                assertEquals("2026.5.4", versions.getJSONObject(2).optString("maxVersion"))
-                assertTrue(versions.getJSONObject(3).getBoolean("installable"))
-                assertEquals("download4", versions.getJSONObject(3).optString("apk"))
-                assertTrue(versions.getJSONObject(3).isNull("unavailableReason"))
+                assertEquals(listOf("no_matching_asset", "above_panel_limit"),
+                    (0..1).map { versions.getJSONObject(it).optString("unavailableReason") })
+                assertEquals("2026.5.4", versions.getJSONObject(1).optString("maxVersion"))
+                assertTrue(versions.getJSONObject(2).getBoolean("installable"))
+                assertEquals("download4", versions.getJSONObject(2).optString("apk"))
+                assertTrue(versions.getJSONObject(2).isNull("unavailableReason"))
             }
         }
     }

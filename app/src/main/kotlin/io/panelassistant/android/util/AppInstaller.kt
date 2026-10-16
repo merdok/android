@@ -46,38 +46,8 @@ object AppInstaller {
 
     // Pinned signers (public certificate fingerprints — NOT secrets).
     private const val RELEASE_SIGNER = "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"
-    /** The two panel-app identities share one release signer; only the package half of the pin differs. */
-    val LEGACY = Pin(AppIdentity.LEGACY, RELEASE_SIGNER)
-    val SUCCESSOR = Pin(AppIdentity.SUCCESSOR, RELEASE_SIGNER)
-    /** This build's own pin: what a self-update candidate must match. */
-    val HA_PANELD = ownPin(AppIdentity.OWN)
-
-    /**
-     * The signer the identity migration trusts for the other panel-app package: the release
-     * certificate, except in a secretless debug build, whose two packages are both signed by the
-     * committed debug keystore. Self-update, Guard and every other pin stay on the release signer.
-     */
-    internal val MIGRATION_SIGNER: String = migrationSigner(BuildConfig.MIGRATION_SIGNER_OVERRIDE)
-
-    internal fun migrationSigner(override: String): String =
-        if (override.matches(Regex("[0-9a-f]{64}"))) override else RELEASE_SIGNER
-
-    /** The pin under which [applicationId], one of the two panel-app ids, is installed or trusted. */
-    internal fun migrationPin(applicationId: String): Pin = Pin(ownPin(applicationId).pkg, MIGRATION_SIGNER)
-
-    /** Signer SHA-256 set of an installed package, or null when it is absent or unreadable. */
-    @Suppress("DEPRECATION") // GET_SIGNATURES / PackageInfo.signatures for API < 28
-    internal fun installedSigners(context: Context, pkg: String): Set<String>? = runCatching {
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
-        val info = context.packageManager.getPackageInfo(pkg, flags)
-        val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            info.signingInfo?.apkContentsSigners else info.signatures
-        sigs.orEmpty().mapTo(linkedSetOf()) { signature ->
-            MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
-                .joinToString("") { byte -> "%02x".format(byte) }
-        }
-    }.getOrNull()
+    /** This app's own pin: what a self-update candidate must match. */
+    val HA_PANELD = Pin(AppIdentity.OWN, RELEASE_SIGNER)
     val COMPANION_MINIMAL = Pin("io.homeassistant.companion.android.minimal", "11194ba809b42ddf0e1a7dec6842a59c7ff1119c5482e95febffd5c6014daa5a")
 
     /** Android System WebView, which the uninstall route refuses and the removable-app list leaves out. */
@@ -423,8 +393,8 @@ object AppInstaller {
     private fun currentPanelUpdateRefusal(context: Context, candidate: ApkInfo): String? {
         panelUpdateRefusal(panelUpdatePolicy(), candidate.nativeProtocolRange, candidate.version,
             BuildConfig.VERSION_NAME, candidate.versionCode, BuildConfig.VERSION_CODE.toLong())?.let { return it }
-        // A counterpart may already be newer than the running bridge, or pm may have committed while
-        // an old process is finishing. Observe the actual package being replaced as well.
+        // pm may have committed while an old process is finishing. Observe the actual package being
+        // replaced as well.
         val installed = try {
             context.packageManager.getPackageInfo(candidate.pkg, 0)
         } catch (_: PackageManager.NameNotFoundException) {
@@ -493,9 +463,9 @@ object AppInstaller {
         decideCurrentCompatibility: (DatabaseCompatibilityApkContract.Boundary) -> String?,
     ): String? {
         if (info == null) return "unreadable candidate APK"
-        if (AppIdentity.isPanelApp(info.pkg)) {
+        if (info.pkg == AppIdentity.OWN) {
             if (info.signerSha256s.size != 1 ||
-                !info.signerSha256s.single().equals(ownPin(info.pkg).certSha256, ignoreCase = true)) {
+                !info.signerSha256s.single().equals(HA_PANELD.certSha256, ignoreCase = true)) {
                 return "candidate must have exactly the pinned panel-app signer"
             }
             panelUpdateRefusal(updatePolicy, info.nativeProtocolRange, info.version, currentVersion,
@@ -603,13 +573,13 @@ object AppInstaller {
             )
         }
         // Re-read live authority after installer probing, immediately before our first mutation.
-        if (AppIdentity.isPanelApp(info.pkg)) {
+        if (info.pkg == AppIdentity.OWN) {
             currentPanelUpdateRefusal(context, info)?.let { why ->
                 apk.delete()
                 return@withContext policyFailure(why)
             }
         }
-        val submissionRefusal: (() -> InstallOutcome.Failure?)? = if (AppIdentity.isPanelApp(info.pkg)) {
+        val submissionRefusal: (() -> InstallOutcome.Failure?)? = if (info.pkg == AppIdentity.OWN) {
             { currentPanelUpdateRefusal(context, info)?.let(::policyFailure) }
         } else null
         // DB_COMPAT_MUTATION_ANCHOR: IN_APP_FIRST_MUTATION
@@ -639,7 +609,7 @@ object AppInstaller {
                     // Stream the APK straight into `pm install -S <size>` — no intermediate /data/local/tmp copy
                     // (halves peak disk use). Long-timeout: staging a large stream far exceeds the 5s su bound.
                     Su.runWithStdinLong(
-                        "pm install -S ${apk.length()} -r ${if (AppIdentity.isPanelApp(info.pkg)) "" else "-d "}2>&1",
+                        "pm install -S ${apk.length()} -r ${if (info.pkg == AppIdentity.OWN) "" else "-d "}2>&1",
                         apk,
                         HelperInstallTransaction.INSTALL_TIMEOUT_MS,
                     )?.trim()
@@ -691,14 +661,8 @@ object AppInstaller {
         component,
     )
 
-    internal fun ownPin(applicationId: String): Pin = when (applicationId) {
-        LEGACY.pkg -> LEGACY
-        SUCCESSOR.pkg -> SUCCESSOR
-        else -> error("$applicationId has no pinned panel-app identity")
-    }
-
     private fun componentForPin(pin: Pin): String = when (pin.pkg) {
-        LEGACY.pkg, SUCCESSOR.pkg -> "paneld"
+        HA_PANELD.pkg -> "paneld"
         COMPANION_MINIMAL.pkg -> "companion"
         else -> "apk"
     }
@@ -843,7 +807,7 @@ object AppInstaller {
     /**
      * Pure half of [verifyApk]: null when an APK declaring [declaredPackage] and signed by
      * [signerSha256s] satisfies [pin]. The package is checked first and exactly, so an APK carrying the
-     * shared release signer under the other panel-app id never satisfies this id's pin.
+     * release signer under another package id never satisfies this app's pin.
      */
     internal fun pinRefusal(declaredPackage: String, signerSha256s: Collection<String>, pin: Pin): String? {
         if (declaredPackage != pin.pkg) return "package $declaredPackage not allowlisted"

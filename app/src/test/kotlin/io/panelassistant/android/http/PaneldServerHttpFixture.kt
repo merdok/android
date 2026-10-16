@@ -6,7 +6,6 @@ import io.panelassistant.android.config.SettingsRegistry
 import android.content.ContextWrapper
 import android.content.SharedPreferences
 import io.panelassistant.android.Config
-import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.i18n.CatalogueLoader
 import io.panelassistant.android.sensors.SensorReporter
 import io.panelassistant.android.setDashboardEntityLearningEnabled
@@ -31,7 +30,6 @@ import sun.misc.Unsafe
  */
 internal class PaneldServerHttpFixture(
     wakeWords: io.panelassistant.android.assist.wakeword.WakeWordCatalog? = null,
-    identityMigration: IdentityMigrationSurface = IdentityMigrationSurface.NONE,
     repairCompanionUrl: () -> Boolean = { error("Unexpected Companion repair") },
     stopping: Boolean = false,
     installComponent: (String, String, String) -> Boolean = { _, _, _ -> error("Unexpected install") },
@@ -152,7 +150,6 @@ internal class PaneldServerHttpFixture(
         })
         field("pendingApks", pending)
         field("guardDbStaging", guardDbAppStaging(context))
-        field("identityMigration", identityMigration)
         wakeWords?.let { field("wakeWords", it) }
         field("onWakeWordsChanged", {})
         field("assistPipelines", NO_PIPELINES)

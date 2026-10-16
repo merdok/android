@@ -19,7 +19,7 @@ object ReleaseCatalog {
     internal const val MAX_API_RESPONSE_BYTES = 2L * 1024L * 1024L
 
     /** A raw release as read from the API, before channel filtering. */
-    data class Raw(val tag: String, val prerelease: Boolean, val notesUrl: String, val apkUrl: String?, val olderAppId: Boolean = false)
+    data class Raw(val tag: String, val prerelease: Boolean, val notesUrl: String, val apkUrl: String?)
 
     /** A pickable version for the UI: [version] is the display label, [tag] the API/install key. */
     data class Version(
@@ -63,7 +63,7 @@ object ReleaseCatalog {
             .filter { channel == "prerelease" || !it.prerelease }
             .take(limit)
             .map { Version(normalize(it.tag), it.tag, it.notesUrl, it.apkUrl != null, it.apkUrl,
-                if (it.apkUrl != null) null else if (it.olderAppId) "older_app_id" else "no_matching_asset") }
+                if (it.apkUrl != null) null else "no_matching_asset") }
             .toList()
 
     /** The newest release on [channel], preserving the release object as the authority boundary. Keeping
@@ -84,12 +84,11 @@ object ReleaseCatalog {
         channel: String,
         limit: Int,
         apkMatch: (String) -> Boolean,
-        olderAppMatch: ((String) -> Boolean)? = null,
         maxVersion: String? = null,
         normalize: (String) -> String,
     ): List<Version> = runCatching {
         listPages(channel, limit, maxVersion, normalize) { page, perPage ->
-            fetch(repo, perPage, apkMatch, page, olderAppMatch)
+            fetch(repo, perPage, apkMatch, page)
         }
     }.getOrElse { Log.w(TAG, "list $repo failed", it); emptyList() }
 
@@ -176,19 +175,17 @@ object ReleaseCatalog {
             ApkTarget(normalize(release.tag), release.tag, apk, release.prerelease)
         }
 
-    private fun fetch(repo: String, limit: Int, apkMatch: (String) -> Boolean,
-        page: Int = 1, olderAppMatch: ((String) -> Boolean)? = null): List<Raw> {
+    private fun fetch(repo: String, limit: Int, apkMatch: (String) -> Boolean, page: Int = 1): List<Raw> {
         val json = get("https://api.github.com/repos/$repo/releases?per_page=$limit&page=$page") ?: return emptyList()
         val arr = JSONArray(json)
-        return (0 until arr.length()).map { i -> raw(arr.getJSONObject(i), apkMatch, olderAppMatch) }
+        return (0 until arr.length()).map { i -> raw(arr.getJSONObject(i), apkMatch) }
     }
 
-    internal fun raw(release: JSONObject, apkMatch: (String) -> Boolean, olderAppMatch: ((String) -> Boolean)? = null): Raw = Raw(
+    internal fun raw(release: JSONObject, apkMatch: (String) -> Boolean): Raw = Raw(
         release.getString("tag_name"),
         release.optBoolean("prerelease", false),
         release.optString("html_url", ""),
         assetUrl(release, apkMatch),
-        olderAppMatch?.let { assetUrl(release, it) != null } ?: false,
     )
 
     private fun assetUrl(release: JSONObject, apkMatch: (String) -> Boolean): String? {

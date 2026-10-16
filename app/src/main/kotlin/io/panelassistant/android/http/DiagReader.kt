@@ -313,7 +313,7 @@ object DiagReader {
         // Capture metadata — a normalise-me line for the regression harness: when this dump was taken +
         // how long the panel has been up (uptime is often more telling than wall-clock on a panel).
         appendLine("[captured] ${java.time.OffsetDateTime.now()} uptime=${fmtUptime(android.os.SystemClock.elapsedRealtime())}")
-        // Which installed identity this is: during the application-id migration a panel can hold both.
+        // Which application id wrote this dump.
         appendLine("[package] ${BuildConfig.APPLICATION_ID}")
         if (facts.isNotEmpty()) {
             appendLine()

@@ -460,14 +460,6 @@ class Config private constructor(
         minted
     }
 
-    /** The signed same-panel handover may carry identity; ordinary settings restore never may. */
-    internal fun adoptMigrationDeviceUid(value: String): Boolean = synchronized(CONFIG_LOCK) {
-        if (!Regex("[0-9a-f]{32}").matches(value)) return@synchronized false
-        val existing = deviceUid
-        if (existing.isNotBlank()) return@synchronized existing == value
-        durableCommit { putString(DEVICE_UID_PREF, value) }
-    }
-
     /** The device's configured name (Companion's default-name source), else the model. */
     private fun deviceName(): String =
         (Settings.Global.getString(requireNotNull(contentResolver), Settings.Global.DEVICE_NAME)

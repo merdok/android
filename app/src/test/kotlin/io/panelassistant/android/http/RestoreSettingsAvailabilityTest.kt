@@ -5,7 +5,6 @@ import io.panelassistant.android.LiveSettingAuthority
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.SystemController
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
 import io.panelassistant.android.util.InstallProgress
@@ -17,19 +16,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RestoreSettingsAvailabilityTest {
-    @Test fun rootlessRestorePersistsSupportedValuesWithoutAdbIntentAndLeavesMigrationOpen() = runBlocking {
+    @Test fun rootlessRestorePersistsSupportedValuesWithoutAdbIntent() = runBlocking {
         PaneldServerHttpFixture().use { fixture ->
             fixture.config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Before")
             val calls = mutableListOf<Pair<String, String>>()
             val authority = LiveSettingAuthority(SettingsRegistry.liveApplyKeys().toSet(), bootIdentity = { "test-boot" })
             val executor = executor(fixture, authority, calls)
             val ticket = requireNotNull(InstallProgress.start("restore"))
-            val answers = mutableListOf<Boolean>()
             try {
                 executor.execute(
                     RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "ha_area" to "Kitchen", "network_adb" to "true", "silence_boot_chime" to "false"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, true,
-                    emptyList(), null, ticket, RestoreAttempt { answers += it },
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertEquals("Restored panel", fixture.config.friendlyName)
                 assertEquals("Kitchen", fixture.config.haArea)
@@ -43,7 +41,6 @@ class RestoreSettingsAvailabilityTest {
                 assertEquals(2, result.getJSONObject("config").getInt("items"))
                 assertTrue(result.getJSONObject("config").optString("detail").contains("network_adb"))
                 assertTrue(result.getJSONObject("config").optString("detail").contains("silence_boot_chime"))
-                assertEquals(listOf(false), answers)
                 assertFalse(InstallProgress.running)
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
@@ -62,8 +59,8 @@ class RestoreSettingsAvailabilityTest {
             try {
                 executor.execute(
                     RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "ha_area" to "Kitchen", "network_adb" to "true"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertEquals("Before", fixture.config.friendlyName)
                 assertEquals("Hall", fixture.config.haArea)
@@ -92,8 +89,8 @@ class RestoreSettingsAvailabilityTest {
             try {
                 executor.execute(
                     RestoreConfigPlan(mapOf("friendly_name" to "Restored panel", "silence_boot_chime" to "true"), emptyList(), emptyList()),
-                    null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 assertTrue(calls.contains("silence_boot_chime" to "true"))
                 assertTrue(calls.contains("silence_boot_chime" to "false"))

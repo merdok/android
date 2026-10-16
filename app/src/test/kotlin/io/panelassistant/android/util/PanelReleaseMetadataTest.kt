@@ -15,8 +15,7 @@ class PanelReleaseMetadataTest {
     private val hash = "a".repeat(64)
     private val version = "1.1.0"
     private val tag = "v$version"
-    private val filename = if (AppIdentity.IS_BRIDGE) "ha-paneld-$tag-manual-setup-required.apk"
-        else "panel-assistant-$tag-manual-setup-required.apk"
+    private val filename = "panel-assistant-$tag-manual-setup-required.apk"
     private fun descriptor() = JSONObject()
         .put("schema", "io.panelassistant.android.install.v1")
         .put("apkName", filename).put("apkSha256", hash).put("releaseTag", tag)
@@ -47,7 +46,7 @@ class PanelReleaseMetadataTest {
         assertNull(proof(descriptor = descriptor().put("apkSha256", "b".repeat(64))))
         assertNull(proof(descriptor = descriptor().put("versionName", "1.0.0")))
         assertNull(proof(descriptor = descriptor().put("versionCode", "100")))
-        assertNull(proof(descriptor = descriptor().put("packageId", AppIdentity.COUNTERPART)))
+        assertNull(proof(descriptor = descriptor().put("packageId", AppIdentity.LEGACY)))
         assertNull(proof(protocols = protocols().apply {
             getJSONArray("artifacts").getJSONObject(0).put("protocolMin", 4)
         }))
@@ -87,12 +86,10 @@ class PanelReleaseMetadataTest {
     private class ReleasePair(val version: String, range: IntRange = 1..3) {
         val tag = "v$version"
         val release = "https://github.com/panel-assistant/android/releases/download/$tag/ha-paneld-$tag"
-        val bridge = "ha-paneld-$tag-manual-setup-required.apk"
-        val successor = "panel-assistant-$tag-manual-setup-required.apk"
-        val ownName = listOf(successor, bridge).first(SelfUpdater.ownAssetMatch(AppIdentity.IS_BRIDGE))
-        val ownHash = if (AppIdentity.IS_BRIDGE) "a".repeat(64) else "b".repeat(64)
-        val ownCode = BuildConfig.VERSION_CODE.toLong() + if (AppIdentity.IS_BRIDGE) 10 else 20
-        val descriptorUrl = "$release-${if (AppIdentity.IS_BRIDGE) "bridge-install" else "install"}.json"
+        val ownName = "panel-assistant-$tag-manual-setup-required.apk"
+        val ownHash = "b".repeat(64)
+        val ownCode = BuildConfig.VERSION_CODE.toLong() + 20
+        val descriptorUrl = "$release-install.json"
         val choice = ReleaseCatalog.Version(version, tag, "notes", true,
             "https://github.com/panel-assistant/android/releases/download/$tag/$ownName")
         val documents = mutableMapOf<String, ByteArray>()
@@ -108,19 +105,12 @@ class PanelReleaseMetadataTest {
                 .put("signerCertificateSha256", AppInstaller.HA_PANELD.certSha256)
                 .put("supportedAbis", JSONArray().put("arm64-v8a").put("armeabi-v7a"))
                 .put("versionCode", code).put("versionName", version).toString().toByteArray()
-            val bridgeHash = "a".repeat(64)
-            val successorHash = "b".repeat(64)
             val base = "https://github.com/panel-assistant/android/releases/download/$tag"
-            documents["$base/$bridge.sha256"] = "$bridgeHash  $bridge\n".toByteArray()
-            documents["$base/$successor.sha256"] = "$successorHash  $successor\n".toByteArray()
-            documents["$release-bridge-install.json"] = descriptor(bridge, AppIdentity.LEGACY,
-                bridgeHash, BuildConfig.VERSION_CODE.toLong() + 10)
-            documents["$release-install.json"] = descriptor(successor, AppIdentity.SUCCESSOR,
-                successorHash, BuildConfig.VERSION_CODE.toLong() + 20)
+            documents["$base/$ownName.sha256"] = "$ownHash  $ownName\n".toByteArray()
+            documents[descriptorUrl] = descriptor(ownName, AppIdentity.OWN, ownHash, ownCode)
             documents["$release-protocol.json"] = ("{\"artifacts\":[" +
-                listOf(bridgeHash, successorHash).joinToString(",") { sha ->
-                    "{\"apkSha256\":\"$sha\",\"protocolMax\":${range.last},\"protocolMin\":${range.first}}"
-                } + "],\"schema\":\"io.panelassistant.android.protocol.v1\"}\n").toByteArray()
+                "{\"apkSha256\":\"$ownHash\",\"protocolMax\":${range.last},\"protocolMin\":${range.first}}" +
+                "],\"schema\":\"io.panelassistant.android.protocol.v1\"}\n").toByteArray()
         }
 
         fun read(candidate: ReleaseCatalog.Version = choice): PanelReleaseMetadata.Candidate? =
@@ -150,10 +140,10 @@ class PanelReleaseMetadataTest {
             pair.descriptorUrl), pair.requested.take(3))
     }
 
-    @Test fun pickerRefusesDescriptorForTheOtherInstalledIdentity() {
+    @Test fun pickerRefusesADescriptorNamingAnotherPackage() {
         val pair = ReleasePair("1.1.0")
         pair.documents[pair.descriptorUrl] = JSONObject(pair.documents.getValue(pair.descriptorUrl)
-            .toString(Charsets.UTF_8)).put("packageId", AppIdentity.COUNTERPART).toString().toByteArray()
+            .toString(Charsets.UTF_8)).put("packageId", AppIdentity.LEGACY).toString().toByteArray()
         assertTrue(offers(listOf(pair)).isEmpty())
     }
 

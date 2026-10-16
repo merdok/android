@@ -3,7 +3,6 @@ package io.panelassistant.android.util
 import io.panelassistant.android.appVersion
 import android.content.Context
 import android.util.Log
-import io.panelassistant.android.AppIdentity
 import io.panelassistant.android.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,26 +22,9 @@ object SelfUpdater {
     private const val TAG = "ha-paneld/selfupdate"
     const val RELEASES_URL = "https://github.com/panel-assistant/android/releases"
 
-    /**
-     * A release from the identity migration onwards carries two APKs: the bridge under the legacy id,
-     * named as every earlier release named its only APK, and the successor as `panel-assistant-*.apk`.
-     * Each build follows its own asset by name. Shipped updaters take the first `.apk`, so the release
-     * workflow orders the bridge first; this build does not depend on that order.
-     */
-    internal fun isSuccessorAsset(name: String): Boolean =
+    /** This app's APK in a release is named `panel-assistant-*.apk`; any other `.apk` is not this app. */
+    internal fun isOwnAsset(name: String): Boolean =
         name.startsWith("panel-assistant-", ignoreCase = true) && name.endsWith(".apk", ignoreCase = true)
-
-    internal fun isBridgeAsset(name: String): Boolean =
-        name.endsWith(".apk", ignoreCase = true) && !isSuccessorAsset(name)
-
-    internal fun ownAssetMatch(bridge: Boolean): (String) -> Boolean =
-        if (bridge) ::isBridgeAsset else ::isSuccessorAsset
-
-    private val APK_MATCH: (String) -> Boolean = ownAssetMatch(AppIdentity.IS_BRIDGE)
-
-    /** The successor asset of the release that published [version], or null when it carries none. */
-    fun successorAssetUrl(version: String): String? =
-        ReleaseCatalog.apkUrl(REPO, "v${version.removePrefix("v")}", ::isSuccessorAsset)
 
 
     /** Up to [limit] recent versions on [channel] for the Install-tab picker (version + release-notes URL). */
@@ -51,10 +33,7 @@ object SelfUpdater {
         // PA chooses the effective channel; the request's old channel field has no update authority.
         val effectiveChannel = if (policy.prerelease) "prerelease" else "stable"
         val deadline = System.nanoTime() + 30_000_000_000L
-        val raw = ReleaseCatalog.list(REPO, effectiveChannel, 50, APK_MATCH,
-            olderAppMatch = if (AppIdentity.IS_BRIDGE) null else { name ->
-                name.startsWith("ha-paneld-", ignoreCase = true) && name.endsWith(".apk", ignoreCase = true)
-            }) { it.removePrefix("v") }
+        val raw = ReleaseCatalog.list(REPO, effectiveChannel, 50, ::isOwnAsset) { it.removePrefix("v") }
         return admittedVersions(raw, limit, AppInstaller::panelUpdatePolicy) { version ->
             PanelReleaseMetadata.read(version.tag, version.version, requireNotNull(version.apkUrl)) {
                 (deadline - System.nanoTime()) / 1_000_000L
@@ -120,7 +99,7 @@ object SelfUpdater {
             if (AppInstaller.panelUpdatePolicy() == null) return@withContext InstallOperationResult(
                 "Panel Assistant must be online with update policy",
             )
-            val url = ReleaseCatalog.apkUrl(REPO, tag, APK_MATCH) ?: return@withContext managed(
+            val url = ReleaseCatalog.apkUrl(REPO, tag, ::isOwnAsset) ?: return@withContext managed(
                 "no APK asset for $tag",
                 "managed-apk-missing",
                 "version" to version,

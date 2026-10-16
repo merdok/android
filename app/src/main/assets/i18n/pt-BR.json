@@ -7278,11 +7278,6 @@
       "sourceHash": "9951218352e8274cb230343e99f457c76b845f808b2679eb52dc5e51f808a4c1",
       "state": "machine-cross-checked"
     },
-    "install.progress.older_app_id": {
-      "text": "(app antigo, não pode substituir este)",
-      "sourceHash": "04157b3e1449c93f40152094fd704bbea344bedfd3bfac1f3c385e0dab56ed2b",
-      "state": "machine-cross-checked"
-    },
     "install.progress.operation_busy": {
       "text": "Outra operação em andamento — tente novamente em breve.",
       "sourceHash": "37739a5845b8ab44c9f11e50d380019019c911e9a10795db8ade5dc90d7678b2",

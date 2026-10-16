@@ -40,10 +40,10 @@ class PanelPermissionRepairTest {
     }
 
     private fun repair(panel: Panel, sdk: Int = 34, microphone: Boolean = true, camera: Boolean = true) =
-        PanelPermissionRepair.repair(sdk, microphone, camera, panel::held, panel, AppIdentity.SUCCESSOR)
+        PanelPermissionRepair.repair(sdk, microphone, camera, panel::held, panel, AppIdentity.OWN)
 
     @Test fun updateRepairsOnlyMissingFeatureGrantsAndARepeatWritesNothing() {
-        for (pkg in AppIdentity.ALL) {
+        for (pkg in listOf(AppIdentity.OWN, AppIdentity.LEGACY)) {
             val present = setOf(Grant.NOTIFICATIONS, Grant.OVERLAY, Grant.MICROPHONE)
             val panel = Panel(present.toMutableSet())
             val result = PanelPermissionRepair.repair(34, true, true, panel::held, panel, pkg)
@@ -94,7 +94,7 @@ class PanelPermissionRepairTest {
         val outcomes = PanelPermissionRepair.repair(34, true, true, { grant ->
             if (grant == Grant.CAMERA) throw SecurityException("readback unavailable")
             panel.held(grant)
-        }, panel, AppIdentity.SUCCESSOR)
+        }, panel, AppIdentity.OWN)
         assertEquals(Outcome.UNREADABLE, outcomes[Grant.CAMERA])
         assertEquals(5, outcomes.values.count { it == Outcome.HELD })
         assertTrue(panel.submitted.isEmpty())
@@ -196,7 +196,7 @@ class PanelPermissionRepairTest {
         // A panel updated from a build whose classes lived in io.github.maxlyth.hapaneld keeps an entry
         // naming a class that no longer exists. Startup reads it as missing, asks the helper, and claims
         // the grant only once Android's list names the moved class.
-        val pkg = AppIdentity.SUCCESSOR
+        val pkg = AppIdentity.OWN
         var services = "com.vendor/.Reader:$pkg/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
         val submitted = mutableListOf<String>()
         val helper = object : Daemon {
@@ -219,8 +219,8 @@ class PanelPermissionRepairTest {
         assertEquals("a second start writes nothing", 1, submitted.size)
     }
 
-    private val stale = "com.vendor/.Reader:${AppIdentity.SUCCESSOR}/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
-    private val moved = "${AppIdentity.SUCCESSOR}/io.panelassistant.android.input.PanelAccessibilityService"
+    private val stale = "com.vendor/.Reader:${AppIdentity.OWN}/io.github.maxlyth.hapaneld.input.PanelAccessibilityService"
+    private val moved = "${AppIdentity.OWN}/io.panelassistant.android.input.PanelAccessibilityService"
 
     /** A panel whose accessibility list is changed only by what the root shell runs. */
     private class RootedPanel(var services: String, var enabled: Boolean = false, available: Boolean = true) {
@@ -236,7 +236,7 @@ class PanelPermissionRepairTest {
             },
         )
         fun held(grant: Grant) =
-            grant != Grant.ACCESSIBILITY || PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, services, enabled)
+            grant != Grant.ACCESSIBILITY || PanelPermissionRepair.accessibilityHeld(AppIdentity.OWN, services, enabled)
     }
 
     /** A helper that cannot add the moved class: absent, or installed before the package move. */
@@ -250,31 +250,31 @@ class PanelPermissionRepairTest {
     @Test fun withoutAHelperThatCanGrantItSuAppendsTheMovedAccessibilityClass() {
         for (reply in listOf(DaemonLongResult.NotSubmitted, DaemonLongResult.Reply("OK"))) {
             val panel = RootedPanel(stale)
-            val outcome = PanelPermissionRepair.repair(34, true, true, panel::held, helper(reply), AppIdentity.SUCCESSOR, panel.root)
+            val outcome = PanelPermissionRepair.repair(34, true, true, panel::held, helper(reply), AppIdentity.OWN, panel.root)
             assertEquals("helper $reply", Outcome.CLAIMED, outcome[Grant.ACCESSIBILITY])
             assertEquals("$stale:$moved", panel.services)
             assertTrue(panel.enabled)
             assertEquals("a second start writes nothing", Outcome.HELD,
-                PanelPermissionRepair.repair(34, true, true, panel::held, helper(reply), AppIdentity.SUCCESSOR, panel.root)[Grant.ACCESSIBILITY])
+                PanelPermissionRepair.repair(34, true, true, panel::held, helper(reply), AppIdentity.OWN, panel.root)[Grant.ACCESSIBILITY])
             assertEquals(2, panel.root.ran.size)
         }
     }
 
     @Test fun anUnsetListGetsTheComponentAloneAndNoSuLeavesTheOutcomeAsItWas() {
         val unset = RootedPanel("null")
-        PanelPermissionRepair.repair(34, true, true, unset::held, helper(DaemonLongResult.NotSubmitted), AppIdentity.SUCCESSOR, unset.root)
+        PanelPermissionRepair.repair(34, true, true, unset::held, helper(DaemonLongResult.NotSubmitted), AppIdentity.OWN, unset.root)
         assertEquals(moved, unset.services)
 
         val noSu = RootedPanel(stale, available = false)
         assertEquals(Outcome.NO_HELPER, PanelPermissionRepair.repair(34, true, true, noSu::held,
-            helper(DaemonLongResult.NotSubmitted), AppIdentity.SUCCESSOR, noSu.root)[Grant.ACCESSIBILITY])
+            helper(DaemonLongResult.NotSubmitted), AppIdentity.OWN, noSu.root)[Grant.ACCESSIBILITY])
         assertTrue(noSu.root.ran.isEmpty())
     }
 
     @Test fun aListSuCannotAccountForIsNeverWrittenBack() {
         val panel = RootedPanel("com.vendor/.A;reboot")
         assertEquals(Outcome.NO_HELPER, PanelPermissionRepair.repair(34, true, true, panel::held,
-            helper(DaemonLongResult.NotSubmitted), AppIdentity.SUCCESSOR, panel.root)[Grant.ACCESSIBILITY])
+            helper(DaemonLongResult.NotSubmitted), AppIdentity.OWN, panel.root)[Grant.ACCESSIBILITY])
         assertTrue(panel.root.ran.isEmpty())
     }
 
@@ -286,7 +286,7 @@ class PanelPermissionRepairTest {
         var refusedWrite: Int? = null
         var duringRemoval: () -> Unit = {}
         private fun components() = services.orEmpty().split(':').filter { it.isNotBlank() }.map {
-            if (PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, it, true)) moved else it
+            if (PanelPermissionRepair.accessibilityHeld(AppIdentity.OWN, it, true)) moved else it
         }.toSet()
         private var observed = components()
         private fun observe() {
@@ -300,12 +300,12 @@ class PanelPermissionRepairTest {
         fun held(grant: Grant): Boolean {
             observe()
             return grant != Grant.ACCESSIBILITY ||
-                PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, services, enabled)
+                PanelPermissionRepair.accessibilityHeld(AppIdentity.OWN, services, enabled)
         }
         fun repair() = PanelPermissionRepair.repair(30, false, false, ::held,
-            helper(DaemonLongResult.NotSubmitted), AppIdentity.SUCCESSOR,
+            helper(DaemonLongResult.NotSubmitted), AppIdentity.OWN,
             repairAccessibility = {
-                PanelPermissionRepair.reenableAccessibility(AppIdentity.SUCCESSOR,
+                PanelPermissionRepair.reenableAccessibility(AppIdentity.OWN,
                     { services },
                     { value ->
                         writes += value
@@ -320,7 +320,7 @@ class PanelPermissionRepairTest {
     }
 
     @Test fun startupRetriesARootlessCrashedServiceAndARepeatWritesNothing() {
-        for (component in listOf(moved, "${AppIdentity.SUCCESSOR}/.input.PanelAccessibilityService")) {
+        for (component in listOf(moved, "${AppIdentity.OWN}/.input.PanelAccessibilityService")) {
             val panel = RootlessPanel("com.vendor/.Reader:$component")
             assertEquals(Outcome.CLAIMED, panel.repair())
             assertTrue(panel.enabled)
@@ -398,7 +398,7 @@ class PanelPermissionRepairTest {
     }
 
     @Test fun accessibilityRequiresOurExactComponentAndTheGlobalEnableFlag() {
-        for (pkg in AppIdentity.ALL) {
+        for (pkg in listOf(AppIdentity.OWN, AppIdentity.LEGACY)) {
             val full = "$pkg/${AppIdentity.CODE_PACKAGE}.input.PanelAccessibilityService"
             assertTrue(PanelPermissionRepair.accessibilityHeld(pkg, "com.vendor/.Reader:$full", true))
             assertFalse(PanelPermissionRepair.accessibilityHeld(pkg, full, false))
@@ -408,7 +408,7 @@ class PanelPermissionRepairTest {
         }
         // The shorthand resolves against the applicationId, so it names the class only for the id that
         // equals the Kotlin package.
-        assertTrue(PanelPermissionRepair.accessibilityHeld(AppIdentity.SUCCESSOR, "${AppIdentity.SUCCESSOR}/.input.PanelAccessibilityService", true))
+        assertTrue(PanelPermissionRepair.accessibilityHeld(AppIdentity.OWN, "${AppIdentity.OWN}/.input.PanelAccessibilityService", true))
         assertFalse(PanelPermissionRepair.accessibilityHeld(AppIdentity.LEGACY, "${AppIdentity.LEGACY}/.input.PanelAccessibilityService", true))
     }
 }

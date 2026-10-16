@@ -79,14 +79,14 @@ class AppInstallerTest {
         assertNull(refusal("0.9.9", 1391, "1.0.0", 1246))
         assertEquals("panel-app downgrades are not permitted", refusal("1.0.1", 1245, "1.0.0-rc1", 1246))    }
 
-    @Test fun localPanelCandidatePolicyAppliesToBothIdentitiesAndLeavesOtherAppsAlone() {
-        val otherPanel = selfInfo().copy(pkg = io.panelassistant.android.AppIdentity.COUNTERPART)
+    @Test fun localPanelCandidatePolicyAppliesToThisAppAndLeavesOtherAppsAlone() {
+        val panel = selfInfo()
         assertEquals("candidate must have exactly the pinned panel-app signer",
-            AppInstaller.localInstallCandidateRefusal(otherPanel.copy(signerSha256s = setOf("untrusted")),
+            AppInstaller.localInstallCandidateRefusal(panel.copy(signerSha256s = setOf("untrusted")),
                 AppInstaller.HA_PANELD.pkg, null) { null })
         assertEquals("Panel Assistant must be online with update policy",
-            AppInstaller.localInstallCandidateRefusal(otherPanel, AppInstaller.HA_PANELD.pkg, null) { null })
-        val companion = otherPanel.copy(pkg = AppInstaller.COMPANION_MINIMAL.pkg)
+            AppInstaller.localInstallCandidateRefusal(panel, AppInstaller.HA_PANELD.pkg, null) { null })
+        val companion = panel.copy(pkg = AppInstaller.COMPANION_MINIMAL.pkg)
         assertNull(AppInstaller.localInstallCandidateRefusal(companion, AppInstaller.HA_PANELD.pkg, null) { null })
     }
 

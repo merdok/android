@@ -55,20 +55,6 @@ class ClonedDeviceIdentityTest {
         assertEquals(first, config(store).deviceUid)
     }
 
-    @Test fun signedHandoverAdoptsDurablyButCannotReplaceAnotherInstallation() {
-        val store = RestoredState(emptyMap())
-        val panel = config(store)
-        store.durable = false
-        assertFalse(panel.adoptMigrationDeviceUid("a".repeat(32)))
-        assertEquals("", panel.deviceUid)
-        store.durable = true
-        assertTrue(panel.adoptMigrationDeviceUid("a".repeat(32)))
-        val reopened = config(store)
-        assertEquals("a".repeat(32), reopened.ensureDeviceUid())
-        assertFalse(reopened.adoptMigrationDeviceUid("b".repeat(32)))
-        assertEquals("a".repeat(32), reopened.deviceUid)
-    }
-
     // --- a cloned ANDROID_ID across two simulated panels ------------------------------------------
 
     @Test fun twoPanelsSharingAnAndroidIdMintDistinctIdentities() {

@@ -34,8 +34,7 @@ internal object PanelReleaseMetadata {
         val release = "https://github.com/panel-assistant/android/releases/download/$tag/ha-paneld-$tag"
         val checksum = authenticatedFetch("$apkUrl.sha256", remainingMs) ?: return null
         val protocol = authenticatedFetch("$release-protocol.json", remainingMs) ?: return null
-        val descriptorSuffix = if (AppIdentity.IS_BRIDGE) "bridge-install" else "install"
-        val descriptor = authenticatedFetch("$release-$descriptorSuffix.json", remainingMs) ?: return null
+        val descriptor = authenticatedFetch("$release-install.json", remainingMs) ?: return null
         verifiedCandidate(tag, version, filename, checksum, protocol, descriptor)
     }.getOrNull()
 

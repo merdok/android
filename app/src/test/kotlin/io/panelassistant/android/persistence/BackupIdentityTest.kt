@@ -40,37 +40,6 @@ class BackupIdentityTest {
         assertFalse(BackupIdentity.manifestFragment(null, "pkg").contains("discovery_id"))
     }
 
-    @Test fun theLegacyWritersConnectionIsReadButNeverWritten() {
-        assertFalse(BackupIdentity.manifestFragment(discoveryId, "pkg").contains(BackupIdentity.LEGACY_CONNECTED_KEY))
-        assertTrue(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":true")))
-        assertFalse(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":false")))
-        assertFalse("an archive without the field claims nothing", BackupIdentity.legacyWriterConnected(manifest("")))
-        assertFalse(BackupIdentity.legacyWriterConnected(manifest(",\"${BackupIdentity.LEGACY_CONNECTED_KEY}\":\"true\"")))
-    }
-
-    @Test fun bothIdentitiesOfThisAppProveTheSameDevice() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
-
-        assertTrue(BackupIdentity.sameDevice(written, panelAssistantDiscoveryId(androidId)))
-    }
-
-    @Test fun anotherDeviceIsNotTheSameDevice() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "io.github.maxlyth.hapaneld"))
-
-        assertFalse(BackupIdentity.sameDevice(written, panelAssistantDiscoveryId("0000000000000001")))
-    }
-
-    @Test fun anArchiveOrADeviceWithoutAPseudonymProvesNothing() {
-        val written = manifest(BackupIdentity.manifestFragment(discoveryId, "pkg"))
-
-        assertFalse(BackupIdentity.sameDevice(manifest(""), discoveryId))
-        assertFalse(BackupIdentity.sameDevice(written, null))
-        assertFalse(BackupIdentity.sameDevice(written, ""))
-        assertFalse(BackupIdentity.sameDevice(manifest(",\"discovery_id\":\"\""), ""))
-        assertFalse(BackupIdentity.sameDevice(manifest(",\"discovery_id\":7"), discoveryId))
-        assertNull(BackupIdentity.discoveryId(manifest(",\"discovery_id\":\"${discoveryId.uppercase()}\"")))
-    }
-
     @Test fun rawPreferencesCarryOnlyStringEntriesOfTheListedStores() {
         val fragment = RawPreferenceBackup.manifestFragment { store ->
             if (store == "proximity-wake-invalidation") mapOf("fp-b" to "tok2", "fp-a" to "tok1", "count" to 3)

@@ -33,29 +33,6 @@ internal fun restorableSettingValue(key: String, value: String, configuredOrigin
         else -> value
     }
 
-/**
- * Configuration adjustments for package-valued settings in a migration-mode restore.
- * Every other value is restored exactly as written.
- */
-internal fun migrationRestoreConfig(values: Map<String, String>): Map<String, String> {
-    val restored = LinkedHashMap(values)
-    // A setting that names this app's own package is a sentinel, not a foreign app: the launcher
-    // selection "Panel launcher" and the built-in renderer are both stored as the writer's package name.
-    // Left as written they would name the legacy package, which is about to be removed.
-    MIGRATION_OWN_PACKAGE_SETTINGS.forEach { key ->
-        if (restored[key] == io.panelassistant.android.AppIdentity.LEGACY) {
-            restored[key] = io.panelassistant.android.AppIdentity.SUCCESSOR
-        }
-    }
-    return if (restored == values) values else restored
-}
-
-internal val MIGRATION_OWN_PACKAGE_SETTINGS: Set<String> = setOf("launcher_package", "dashboard_package")
-
-/** Whether a migration-mode restore wrote back everything its receipt carried. */
-internal fun migrationRestoreComplete(rawPreferencesApplied: Boolean, carriedRows: Int, restoredRows: Int): Boolean =
-    rawPreferencesApplied && restoredRows == carriedRows
-
 /** Only structural unavailability may omit a live setting, before it can admit actuator intent.
  * Validation and security admission still see the original archive; failed supported work remains a failure. */
 internal fun unavailableRestoreSettings(values: Map<String, String>, capabilities: Capabilities): List<String> =

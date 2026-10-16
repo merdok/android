@@ -232,9 +232,8 @@ internal class PanelBackupBuilder(
             }
         val sb = StringBuilder("{\"kind\":\"ha-paneld-backup\",\"schema\":${SettingsRegistry.SCHEMA}")
         sb.append(",\"panel_id\":${Json.str(config.panelId)},\"created\":${Json.str(System.currentTimeMillis().toString())}")
-        // Which device and which installed identity wrote this archive: the pseudonym Panel Assistant
-        // already sees, never the Android id. It lets the other identity of this app, installed beside
-        // this one, prove the archive is from the same device before it has adopted the panel id.
+        // Which device and which application id wrote this archive: the pseudonyms Panel Assistant
+        // already sees, never the Android id. A restore proves the same device by the reinstall link.
         sb.append(
             BackupIdentity.manifestFragment(
                 panelAssistantDiscoveryId(config.deviceUid),

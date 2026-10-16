@@ -270,7 +270,6 @@
           var unavailable = '';
           if (!v.installable) {
             if (v.unavailableReason === 'above_panel_limit') unavailable = t('install.progress.above_panel_limit', '(not supported by this panel; limit {version})', { version: v.maxVersion || '' });
-            else if (v.unavailableReason === 'older_app_id') unavailable = t('install.progress.older_app_id', '(older app, cannot replace this one)');
             else unavailable = t('install.progress.no_matching_asset', '(no compatible download)');
           }
           o.value = v.tag; text.textContent = v.version + (unavailable ? ' ' + unavailable : '');

@@ -3,11 +3,7 @@ package io.panelassistant.android.http
 import io.panelassistant.android.assist.wakeword.WakeWordCatalog
 import io.panelassistant.android.backup.PanelBackup
 import io.panelassistant.android.backup.WakeWordBackup
-import io.panelassistant.android.migration.IdentityMigrationSurface
-import io.panelassistant.android.migration.MigrationState
-import io.panelassistant.android.migration.SuccessorMigration.Step
 import io.panelassistant.android.panelAssistantDiscoveryId
-import io.panelassistant.android.util.AppInstaller
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -134,34 +130,6 @@ class BackupReconciliationTest {
                     assertEquals(response.bodyAsText(), HttpStatusCode.ServiceUnavailable, response.status)
                     assertEquals("wake word restore is unavailable", JSONObject(response.bodyAsText()).getString("error"))
                 }
-            }
-        }
-    }
-
-    @Test fun `full mount migration proves install identity or an exact verified retired receipt`() {
-        val migrating = object : IdentityMigrationSurface { override fun restoreOpen() = true }
-        PaneldServerHttpFixture(identityMigration = migrating).use { fixture ->
-            val uid = fixture.config.ensureDeviceUid { "0123456789abcdef0123456789abcdef" }
-            fun backup(discoveryId: String) = """{"kind":"ha-paneld-backup","schema":1,"config":{},"discovery_id":"$discoveryId"}"""
-            val current = backup(panelAssistantDiscoveryId(uid)!!)
-            val legacy = backup("f".repeat(64))
-            testApplication {
-                application { fixture.mount(this) }
-                val accepted = client.post("/api/v1/restore?dry_run=1&mode=migration") { setBody(current) }
-                assertEquals(accepted.bodyAsText(), HttpStatusCode.OK, accepted.status)
-                val refused = client.post("/api/v1/restore?dry_run=1&mode=migration") { setBody(legacy) }
-                assertEquals(HttpStatusCode.UnprocessableEntity, refused.status)
-                assertEquals("migration-backup-not-from-this-device", JSONObject(refused.bodyAsText()).getString("error"))
-                val receipt = folder.newFile().apply { writeText(legacy) }
-                val state = MigrationState.of(fixture.context)
-                val hash = AppInstaller.sha256(receipt)
-                state.record(Step.PULL, hash)
-                state.record(Step.VERIFY, hash)
-                state.record(Step.RELEASE, "released")
-                val retired = client.post("/api/v1/restore?dry_run=1&mode=migration") { setBody(legacy) }
-                assertEquals(retired.bodyAsText(), HttpStatusCode.OK, retired.status)
-                val changed = client.post("/api/v1/restore?dry_run=1&mode=migration") { setBody("$legacy ") }
-                assertEquals(HttpStatusCode.UnprocessableEntity, changed.status)
             }
         }
     }

@@ -3,7 +3,6 @@ package io.panelassistant.android.http
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.SystemController
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
 import io.panelassistant.android.util.InstallProgress
@@ -24,8 +23,8 @@ class RestoreKioskCapabilitiesTest {
             val ticket = requireNotNull(InstallProgress.start("restore"))
             try {
                 executor(fixture, canEnable = false).execute(
-                    plan, null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    plan, null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 val status = JSONObject(InstallProgress.json())
                 val result = status.getJSONObject("result")
@@ -46,8 +45,8 @@ class RestoreKioskCapabilitiesTest {
             val ticket = requireNotNull(InstallProgress.start("restore"))
             try {
                 executor(fixture, canEnable = true).execute(
-                    plan, null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    plan, null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertEquals("succeeded", result.getString("status"))
@@ -65,8 +64,8 @@ class RestoreKioskCapabilitiesTest {
             val ticket = requireNotNull(InstallProgress.start("restore"))
             try {
                 executor(fixture, canEnable = true, actuatorSucceeds = false).execute(
-                    plan, null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {},
+                    plan, null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
                 )
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertEquals("failed", result.getString("status"))

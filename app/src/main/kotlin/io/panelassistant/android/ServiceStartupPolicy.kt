@@ -4,40 +4,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 
-// The service's pure startup, handoff, teardown and recovery rules, kept apart from its Android lifecycle.
+// The service's pure startup, teardown and recovery rules, kept apart from its Android lifecycle.
 
 internal enum class ServiceStartupDisposition {
     RUNNING,
     PROFILE_ACTIVATION_ROLLBACK,
     DEGRADED,
-}
-
-internal const val INSTALLED_SUCCESSOR_HANDOFF_ACTION =
-    "io.github.maxlyth.hapaneld.action.HANDOFF_INSTALLED_SUCCESSOR"
-
-internal fun installedHandoffWakeRequested(isBridge: Boolean, action: String?): Boolean =
-    isBridge && action == INSTALLED_SUCCESSOR_HANDOFF_ACTION
-
-/** Retains only an explicit host handoff wake until this service's startup is healthy. */
-internal class InstalledSuccessorHandoffWake {
-    private var requested = false
-    private var healthy = false
-
-    @Synchronized fun request(): Boolean {
-        requested = true
-        return consumeIfHealthy()
-    }
-
-    @Synchronized fun markStartupHealthy(): Boolean {
-        healthy = true
-        return consumeIfHealthy()
-    }
-
-    private fun consumeIfHealthy(): Boolean {
-        if (!healthy || !requested) return false
-        requested = false
-        return true
-    }
 }
 
 internal data class StartupRecoveryDecision(val restart: Boolean, val nextAttempt: Int)

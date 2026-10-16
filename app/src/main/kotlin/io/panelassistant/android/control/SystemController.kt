@@ -101,16 +101,6 @@ class SystemController(
     fun launchCompanionHomeReturn(): Boolean =
         launchComponent(AppIdentity.component(env.ownPackage, ".CompanionHomeReturnActivity"), "Companion home return")
 
-    /**
-     * Start the other panel-app identity's launcher activity during the application-id migration.
-     * Privileged routes only: a second package is never started from this app's own background.
-     */
-    fun launchPanelApp(applicationId: String): Boolean {
-        if (!AppIdentity.isPanelApp(applicationId) || applicationId == env.ownPackage) return false
-        return privilegedStart(AppIdentity.component(applicationId, ".MainActivity")) ==
-            PrivilegedStartResult.STARTED
-    }
-
     /** Open the local instruction surface; visibility is acknowledged separately by its session. */
     fun launchProximityWizard(): Boolean {
         val component = AppIdentity.component(env.ownPackage, ".ProximityWizardActivity")
@@ -255,13 +245,14 @@ class SystemController(
 
     private fun pickLauncher(configuredPkg: String): io.panelassistant.android.platform.ActivityRef? {
         // Our package exposes more than one HOME activity. PackageManager ordering is not a contract,
-        // so either panel-app identity must never accidentally resolve to DashboardActivity.
-        // It means the on-demand panel-admin app drawer, regardless of the order returned below.
+        // so this app must never accidentally resolve to DashboardActivity. A stored selection naming
+        // this app, under either id it has carried, means the on-demand panel-admin app drawer,
+        // regardless of the order returned below.
         if (isAdminLauncherSelection(configuredPkg) || AppIdentity.isPanelApp(configuredPkg)) return adminLauncherActivity()
         val all = env.homeActivities()
         val default = env.defaultHome()?.pkg
         // Apps that register CATEGORY_HOME but are NOT an app-drawer launcher we'd want to land on:
-        // either panel app, Settings, the HA Companion (a kiosk dashboard, which registers as HOME), and the
+        // this app under either id, Settings, the HA Companion (a kiosk dashboard, which registers as HOME), and the
         // vendor home apps the profile names — arriving at those obstructs the dashboard instead of giving
         // the user an app drawer.
         val notALauncher = { p: String ->
@@ -577,10 +568,7 @@ class SystemController(
          *  A later supported-renderer or built-in selection may reclaim HOME from these; anything else as
          *  home is a deliberate third-party launcher and is left alone. The package identities live in
          *  [RendererResolver], sourced from [io.panelassistant.android.util.CompanionInstaller]. */
-        internal val KNOWN_RENDERER_HOMES = RendererResolver.LEGACY_COMPANION_PACKAGE_SET +
-            // The legacy identity of this app: a successor must be able to take HOME from a bridge that
-            // retired without managing to hand it over.
-            AppIdentity.LEGACY
+        internal val KNOWN_RENDERER_HOMES = RendererResolver.LEGACY_COMPANION_PACKAGE_SET
     }
 }
 

@@ -15,7 +15,6 @@ import io.panelassistant.android.navbarMode
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.SystemController
-import io.panelassistant.android.migration.RestoreAttempt
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
 import io.panelassistant.android.testsupport.PanelRuntimeRig
@@ -57,8 +56,8 @@ internal class RestoreNavbarCapabilitiesTest : PanelRuntimeRig() {
                 }
                 val ticket = requireNotNull(InstallProgress.start("restore"))
                 try {
-                    executor.execute(archivePlan, null, null, null, null, emptyMap(), emptyList(), false, false,
-                        emptyList(), null, ticket, RestoreAttempt {})
+                    executor.execute(archivePlan, null, null, null, null, emptyList(), false,
+                        emptyList(), null, ticket)
                     val progress = JSONObject(InstallProgress.json())
                     val result = progress.getJSONObject("result")
                     assertEquals("Restored", config.friendlyName)
@@ -92,8 +91,8 @@ internal class RestoreNavbarCapabilitiesTest : PanelRuntimeRig() {
             }
             val ticket = requireNotNull(InstallProgress.start("restore"))
             try {
-                executor.execute(plan, null, null, null, null, emptyMap(), emptyList(), false, false,
-                    emptyList(), null, ticket, RestoreAttempt {})
+                executor.execute(plan, null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket)
                 val result = JSONObject(InstallProgress.json()).getJSONObject("result")
                 assertEquals("succeeded", result.getString("status"))
                 assertEquals("Native", config.getRaw(spec))

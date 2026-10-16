@@ -67,20 +67,8 @@ object StateBackupPolicy {
     fun disposition(namespace: String): Disposition? = DISPOSITIONS[namespace]
 
     /**
-     * Whether an archive was written by the panel it is being restored to, which is the one condition
-     * under which [Disposition.DEVICE_LOCAL] rows may return.
-     *
-     * An ordinary restore proves it by `panel_id`, exactly as it always has, and ignores the discovery
-     * id. A migration-mode restore is the application-id handover: the successor has not adopted the
-     * panel id yet, so that comparison would always fail, and it proves the device by the discovery
-     * pseudonym alone. A matching panel id is deliberately not an alternative there, because two
-     * devices can be given the same name and only one of them wrote the archive.
-     */
-    fun sameDevice(migrationRestore: Boolean, panelIdMatches: Boolean, discoveryIdMatches: Boolean): Boolean =
-        if (migrationRestore) discoveryIdMatches else panelIdMatches
-
-    /**
-     * The rows a restore may apply. [samePanel] is [sameDevice]'s answer, which is what makes
+     * The rows a restore may apply. [samePanel] is
+     * [io.panelassistant.android.persistence.BackupIdentity.sameRestoreDevice]'s answer, which is what makes
      * [Disposition.DEVICE_LOCAL] safe: the common real case is reinstalling onto the panel that
      * produced the backup.
      *

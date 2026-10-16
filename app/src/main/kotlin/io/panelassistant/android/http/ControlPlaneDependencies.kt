@@ -5,7 +5,6 @@ import android.util.Log
 import io.panelassistant.android.Config
 import io.panelassistant.android.backup.PanelBackup
 import io.panelassistant.android.control.Su
-import io.panelassistant.android.migration.IdentityMigrationSurface
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.AppInstaller
 import io.panelassistant.android.util.CompanionInstaller
@@ -24,7 +23,6 @@ internal fun controlPlaneDependencies(
     config: Config,
     scope: CoroutineScope,
     pendingApks: PendingUploadStore,
-    identityMigration: IdentityMigrationSurface,
     playAudio: (String) -> Boolean,
     onInstallComponent: (String, String, String) -> Boolean,
     buildBackupArtifact: (CompanionBackupRequest, String) -> PanelBackup.Artifact,
@@ -51,7 +49,6 @@ internal fun controlPlaneDependencies(
     },
     backupFileStem = { config.panelId },
     authorize = authorizeSensitive,
-    identityMigration = identityMigration,
     apkUpload = ApkUploadRouteDependencies(
         enabled = { config.apkUploadAllowed },
         rootAvailable = { Su.availableCachedIsolated() || HelperClient.available() },
@@ -70,7 +67,6 @@ internal fun controlPlaneDependencies(
                 val result = runCatching {
                     installUploadedApk(
                         claimed,
-                        identityMigration,
                         install = { AppInstaller.installLocalApk(appContext, it) },
                     )
                 }.getOrElse {

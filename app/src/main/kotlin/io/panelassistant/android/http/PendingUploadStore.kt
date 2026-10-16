@@ -32,7 +32,6 @@ internal class PendingUploadStore(
         val token: String,
         val file: File,
         val identity: UploadedApkIdentity?,
-        val migrationSha256: String?,
         internal val discardId: String,
         internal val epoch: Long,
         internal val leaseId: Long,
@@ -145,7 +144,7 @@ internal class PendingUploadStore(
 
     /** Atomically convert the exclusive receive lease into the one inspected, commit-ready entry. */
     @Synchronized
-    fun stage(lease: Lease, file: File, identity: UploadedApkIdentity? = null, migrationSha256: String? = null): Entry? {
+    fun stage(lease: Lease, file: File, identity: UploadedApkIdentity? = null): Entry? {
         // A cancelled reservation can never produce a token, however far its transfer had got.
         if (!open || lease.epoch != epoch || !receiving.matches(lease) || active != null || receivingCancelled) {
             file.delete()
@@ -153,7 +152,7 @@ internal class PendingUploadStore(
         }
         receiving = null
         stopPanelWork()
-        return Entry(newToken(), file, identity, migrationSha256, newDiscardId(), epoch, lease.id, monotonicMs()).also { active = it }
+        return Entry(newToken(), file, identity, newDiscardId(), epoch, lease.id, monotonicMs()).also { active = it }
     }
 
     /** Read the immutable inspected identity without transferring the staged file. */
