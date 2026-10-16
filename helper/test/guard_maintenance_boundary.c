@@ -2152,6 +2152,34 @@ static void test_root_resolves_the_present_package(void) {
     create_fixed_test_dirs();
 }
 
+/* Root acts on no package of its own, but a bound plan says which app a session is for, and it is a
+ * record this daemon wrote rather than a name the caller supplied.  So an ADB operator can drive a
+ * session the app prepared, and can still cancel it after the app's data directory is gone, when
+ * root no longer resolves any package for itself. */
+static void test_root_drives_a_bound_plan(void) {
+    setup();
+    prepare();
+
+    static const char a_payload[] = "exact-installed-a";
+    char a_sha[65], command[512], reply[1024];
+    hash_bytes(a_payload, sizeof a_payload - 1, a_sha);
+    snprintf(command, sizeof command, "GUARDDEFINE %s 1 A %zu %s 568 11 14 14",
+        SESSION, sizeof a_payload - 1, a_sha);
+    test_caller = HELPER_CALLER_ROOT;
+    dispatch_once(command, reply, sizeof reply);
+    CHECK(strcmp(reply, "OK GUARDDEFINE 2 STAGING\n") == 0,
+        "root drives a session the app prepared (got %s)\n", reply);
+
+    (void)rmdir(DB_DIR);
+    (void)rmdir(APP_ROOT "/data/user/0/" APP_PKG);
+    CHECK(access(APP_ROOT "/data/user/0/" APP_PKG, F_OK) != 0, "the app data directory is gone\n");
+    snprintf(command, sizeof command, "GUARDCANCEL %s 2", SESSION);
+    dispatch_once(command, reply, sizeof reply);
+    CHECK(strcmp(reply, "OK GUARDCANCEL 3 EMPTY\n") == 0,
+        "root cancels a bound session after the app data directory is gone (got %s)\n", reply);
+    create_fixed_test_dirs();
+}
+
 int main(void) {
     exec_from_canonical_helper();
     signal(SIGPIPE, SIG_IGN);
@@ -2205,6 +2233,7 @@ int main(void) {
     test_pm_normal_rejection_rolls_back_with_typed_outcome();
     test_pm_nonzero_target_and_uncertain_target_matrix();
     test_root_resolves_the_present_package();
+    test_root_drives_a_bound_plan();
     guard_test_reset();
     (void)unlink(BOOT_FILE);
     if (failures) {
