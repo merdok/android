@@ -448,7 +448,7 @@ internal class PanelCommandDispatcher(
     override fun handleWakeOnWave(on: Boolean) {
         if (!hasProximity) {
             Log.w(TAG, "ignoring wake_on_wave command without a proximity source")
-            return
+            throw LiveSettingUnavailableException("wake_on_wave")
         }
         config.setWakeOnWave(on)
         core.reconcile("wake_on_wave")

@@ -160,4 +160,19 @@ internal class NativeReportedChannelsTest : PanelRuntimeRig() {
     private fun channels(report: JSONObject): Set<String> = report.getJSONArray("observations").let { observations ->
         (0 until observations.length()).mapTo(linkedSetOf()) { observations.getJSONObject(it).getString("channel") }
     }
+
+    /** A panel without a proximity source cannot wave-wake: Panel Assistant must hear that, not "applied". */
+    @Test fun aWakeOnWaveCommandWithoutProximityIsReportedAsHardwareUnavailable() {
+        val rig = rig(hasProximity = false)
+        try {
+            rig.start()
+            assertEquals(
+                io.panelassistant.android.panelassistant.PanelAssistantCommandResult.Failed(
+                    io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE,
+                ),
+                submitNative(rig, "wake_on_wave", "on"),
+            )
+            assertFalse("nothing is stored for hardware the panel does not have", rig.config.wakeOnWave)
+        } finally { rig.close() }
+    }
 }
