@@ -47,7 +47,7 @@ internal class DashboardRendererRig(
         host = object : DashboardEntityGate.Host {
             override val activityOwner get() = owner
             override val destroyed get() = false
-            override val screenAwake get() = get("screenAwake") as Boolean
+            override val screenAwake get() = pacer.screenAwake
             override fun buildAndLoad(config: Config) = error("no rebuild expected")
             override fun teardownWeb() = error("no teardown expected")
         },
@@ -70,9 +70,8 @@ internal class DashboardRendererRig(
         BuiltinDashboard.consumeNavPath()
         BuiltinDashboard.consumeReloadRequest()
         BuiltinDashboard.consumeReloadReason()
-        set("retryPolicy", DashboardRetryPolicy())
-        set("wakeMediaRecovery", WakeMediaRecoveryGate())
-        set("screenAwake", true)
+        // The activity's own factory, so the pacer reads this activity back exactly as it does on a panel.
+        set("pacer", DashboardActivity::class.java.getDeclaredMethod("createPacer").apply { isAccessible = true }.invoke(activity))
         set("admissionRetryPolicy", AdmissionRetryPolicy())
         set("homeDashboardAttempts", HomeDashboardResolutionAttemptGate())
         set("compatibilityAttempts", DashboardV2AttemptGate())
@@ -120,6 +119,19 @@ internal class DashboardRendererRig(
     fun call(name: String, vararg args: Any?) {
         DashboardActivity::class.java.declaredMethods.single { it.name == name && it.parameterCount == args.size }
             .apply { isAccessible = true }.invoke(activity, *args)
+    }
+
+    /** The activity's renderer pacer: its watchdog, dark settle, screen fan-out and memory ceiling. */
+    val pacer: DashboardRendererPacer get() = get("pacer") as DashboardRendererPacer
+
+    /** Call one of the pacer's own entry points, as the activity's Handler, screen listener or loads do. */
+    fun pace(name: String, vararg args: Any?) {
+        DashboardRendererPacer::class.java.declaredMethods.single { it.name == name && it.parameterCount == args.size }
+            .apply { isAccessible = true }.invoke(pacer, *args)
+    }
+
+    fun setPaced(name: String, value: Any?) {
+        DashboardRendererPacer::class.java.getDeclaredField(name).apply { isAccessible = true }.set(pacer, value)
     }
 
     fun set(name: String, value: Any?) {

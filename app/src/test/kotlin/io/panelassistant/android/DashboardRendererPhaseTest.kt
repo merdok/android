@@ -28,11 +28,11 @@ class DashboardRendererPhaseTest {
         val page = RecordingWebView("$HA/lovelace/0")
         rig.show(page)
         rig.phase = RendererPhase.CONNECTED
-        rig.set("screenAwake", false)
+        rig.setPaced("screenAwake", false)
         // Past the six-hour ceiling: elapsedRealtime reads 0 on the JVM.
-        rig.set("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+        rig.setPaced("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
 
-        rig.call("onPeriodicCheck")
+        rig.pace("onPeriodicCheck")
 
         assertEquals("the reload, then the page let run", listOf("reload", "onResume", "resumeTimers"), page.calls)
     }
@@ -47,7 +47,7 @@ class DashboardRendererPhaseTest {
         rig.phase = RendererPhase.SIGN_IN
         rig.show(signIn, committed = null)
 
-        rig.call("onWatchdogTimeout")
+        rig.pace("onWatchdogTimeout")
 
         assertEquals("nothing reached the sign-in page", emptyList<String>(), signIn.calls)
     }
@@ -80,7 +80,7 @@ class DashboardRendererPhaseTest {
         val page = RecordingWebView("$HA/lovelace")
         rig.show(page)
         rig.phase = RendererPhase.LOADING
-        rig.call("onLoadStarted", 25_000L)
+        rig.pace("loadStarted", 25_000L)
         val session = rig.bridge.beginDocument(page, rig.config, rig.get("rendererGeneration") as Long)
 
         rig.call("onConnectionStatus", ExternalBusProtocol.ConnectionEvent.CONNECTED, rig.get("rendererGeneration"), session)
@@ -145,7 +145,7 @@ class DashboardRendererPhaseTest {
         rig.show(page)
         rig.phase = RendererPhase.LOADING
 
-        rig.call("onLoadStarted", 25_000L)
+        rig.pace("loadStarted", 25_000L)
 
         assertTrue("the load's timers run: ${page.calls}", "resumeTimers" in page.calls)
     }
@@ -156,7 +156,7 @@ class DashboardRendererPhaseTest {
         rig.show(page)
         rig.phase = RendererPhase.CONNECTED
 
-        rig.call("onScreenChanged", false)
+        rig.pace("onScreenChanged", false)
 
         assertEquals(listOf("onPause", "pauseTimers"), page.calls)
     }
@@ -167,7 +167,7 @@ class DashboardRendererPhaseTest {
         rig.show(page)
         rig.phase = RendererPhase.LOADING
 
-        rig.call("onScreenChanged", false)
+        rig.pace("onScreenChanged", false)
 
         assertEquals(emptyList<String>(), page.calls)
     }
@@ -177,9 +177,9 @@ class DashboardRendererPhaseTest {
         val page = RecordingWebView("$HA/lovelace/0")
         rig.show(page)
         rig.phase = RendererPhase.CONNECTED
-        rig.set("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+        rig.setPaced("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
 
-        rig.call("onScreenChanged", false)
+        rig.pace("onScreenChanged", false)
 
         assertEquals(listOf("reload", "onResume", "resumeTimers"), page.calls)
     }
