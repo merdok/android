@@ -1028,7 +1028,7 @@ class SystemControllerTest {
 
     // The contract: a reload request is satisfied by any page load that starts after it
     // (BuiltinDashboard.recordLoadStart), not only by the singleTask onNewIntent. DashboardActivity's cold start (initializeRenderer -> buildAndLoad ->
-    // onLoadStarted) acquires an owner and records the load start; it never reaches handleNewIntent, so the
+    // the pacer's loadStarted) acquires an owner and records the load start; it never reaches handleNewIntent, so the
     // next plain bring-to-foreground asks consumeReloadRequest() whether to show the restart card and reload.
 
     /** Reload requested through the production caller with the relaunch actually issued (else the
@@ -1051,7 +1051,7 @@ class SystemControllerTest {
         BuiltinDashboard.releaseActivityOwner(builtinOwner)
         requestBuiltinReloadThatLaunches()
         builtinOwner = BuiltinDashboard.acquireActivityOwner()   // initializeRenderer
-        BuiltinDashboard.recordLoadStart(1_000L)                 // buildAndLoad -> onLoadStarted
+        BuiltinDashboard.recordLoadStart(1_000L)                 // buildAndLoad -> loadStarted
         // Hours later: HOME / navbar Dashboard / kiosk return delivers a plain singleTask intent.
         assertFalse(
             "plain return after a cold-start load still sees reload=true: restart card + reload of a healthy page",
@@ -1066,7 +1066,7 @@ class SystemControllerTest {
         BuiltinDashboard.releaseActivityOwner(builtinOwner)
         builtinOwner = BuiltinDashboard.acquireActivityOwner()   // initializeRenderer, before preparation suspends
         requestBuiltinReloadThatLaunches()                       // onNewIntent -> early return, nothing consumed
-        BuiltinDashboard.recordLoadStart(2_000L)                 // preparation done -> buildAndLoad -> onLoadStarted
+        BuiltinDashboard.recordLoadStart(2_000L)                 // preparation done -> buildAndLoad -> loadStarted
         assertFalse(
             "plain return after the cold-start load still sees reload=true: restart card + reload of a healthy page",
             BuiltinDashboard.consumeReloadRequest(),

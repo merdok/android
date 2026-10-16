@@ -10,8 +10,9 @@ import io.panelassistant.android.control.BuiltinDashboard
 
 /**
  * When the built-in dashboard renderer loads, retries, freezes and thaws: the frontend-handshake watchdog,
- * the dark settle window, the screen on/off fan-out, wake-media recovery and the memory ceiling. It is the
- * one owner of the process-wide WebView timers.
+ * the dark settle window, the screen on/off fan-out, wake-media recovery and the memory ceiling. While the
+ * WebView lives, it is the one place the process-wide WebView timers pause and resume; the activity's
+ * teardown gives them their last thaw.
  *
  * [DashboardActivity] decides everything else from its [RendererPhase] and calls in here at each load,
  * reload, connection change and screen change; this reads the phase and the WebView back through [Host]
@@ -154,14 +155,14 @@ internal class DashboardRendererPacer(private val main: Handler, private val hos
             when (screenOffStep(phase == RendererPhase.CONNECTED, phase == RendererPhase.AUTH_LATCHED, reloadDue())) {
                 ScreenOffStep.FREEZE -> { w.onPause(); w.pauseTimers() }
                 // A load still in flight: leave the WebView live, untouched, so it can draw and connect.
-                // onConnected freezes it the moment it connects, darkSettle at the end of the window.
+                // freezeIfDark freezes it the moment it connects, darkSettle at the end of the window.
                 ScreenOffStep.SETTLE -> {
                     Log.i(TAG, "screen off before the dashboard connected — keeping the load live for ${DARK_SETTLE_MS}ms")
                     scheduleDarkSettle()
                 }
                 ScreenOffStep.QUIET_RELOAD -> {
                     // Reload to shed memory, but DON'T pause timers yet — a paused WebView can't load. The dark
-                    // load runs live; onConnected freezes it the moment it connects, or darkSettle freezes it
+                    // load runs live; freezeIfDark freezes it the moment it connects, or darkSettle freezes it
                     // after the settle window if it never does. Either way it doesn't churn all night.
                     reloadPending = false
                     reload("quiet reload (screen off, due)")

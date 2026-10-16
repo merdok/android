@@ -211,7 +211,7 @@ object BuiltinDashboard {
     // number when they switch renderers (surfaced on `/api/v1/perf`), and let traditional (non-firehose-
     // stripped) setups produce their own evidence.
     //
-    // Time-to-interactive = the gap from a page load STARTING (DashboardActivity.onLoadStarted) to the
+    // Time-to-interactive = the gap from a page load STARTING (DashboardRendererPacer.loadStarted) to the
     // frontend reporting `connection-status: connected` (onConnectionStatus) — the app's own "websocket
     // up, cards rendering" signal, the closest analog to the Companion's connected state. The COLD number
     // is launch → first-connected (the meaningful renderer-comparison figure, measured from the FIRST
