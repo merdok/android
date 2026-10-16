@@ -280,7 +280,7 @@ internal class PanelCommandDispatcher(
                 PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)
             })
         }
-        val admission = if (command.channel == "reload" || command.channel == "reboot") {
+        val admission = if (command.channel in ACTION_CHANNELS) {
             queue.submitAction(onSkipped, run)
         } else {
             queue.submitLatest(key = command.channel, onSkipped = onSkipped, command = run)
@@ -386,6 +386,12 @@ internal class PanelCommandDispatcher(
                     "Reload the dashboard renderer from Home Assistant",
                 )
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
+            }
+            // Kiosk lock keeps the panel on its dashboard, so neither leaves it while the lock is on.
+            "android_settings" -> if (config.kioskLock || !system.launchAndroidSettings()) throw LiveSettingUnavailableException(channel)
+            "launcher" -> {
+                if (config.kioskLock) throw LiveSettingUnavailableException("launcher")
+                system.launchLauncher(config.launcherPackage)
             }
             "reboot" -> {
                 system.requireRebootAllowed()
@@ -795,13 +801,9 @@ internal class PanelCommandDispatcher(
         val path = toLocalPath(target)
         if (path.isEmpty()) return
         if (config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) {
-            if (path == config.lastNavigate && config.homeDashboard.isNotBlank() && config.homeDashboard != "/") {
-                BuiltinDashboard.navPath = null
-                system.reloadDashboard(config.dashboardPackage)
-                return
-            }
             // Built-in renderer: set the target path and (re)launch DashboardActivity, which loads it —
-            // the deep link targets the Companion and would no-op on a builtin-only panel.
+            // the deep link targets the Companion and would no-op on a builtin-only panel. A repeated path
+            // navigates again, because the page may have moved since by touch.
             BuiltinDashboard.navPath = path
             system.launchHome(config.dashboardPackage)
             config.lastNavigate = path
@@ -992,7 +994,7 @@ internal class PanelCommandDispatcher(
             "camera_enabled",
         )
         /** Channels whose commands never conflate. */
-        private val ACTION_CHANNELS = setOf("reload", "reboot")
+        private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher")
 
         /** Keys accepted by [applySetting], declared once by [SettingsRegistry]. */
         internal val APPLY_SETTING_KEYS = SettingsRegistry.liveApplyKeys().toSet()
