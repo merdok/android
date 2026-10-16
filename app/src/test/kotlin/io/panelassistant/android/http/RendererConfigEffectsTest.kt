@@ -1,5 +1,9 @@
 package io.panelassistant.android.http
 
+import io.panelassistant.android.config.RendererApply
+import io.panelassistant.android.config.SettingType
+import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.rendererReconcilesOnChange
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,13 +59,13 @@ class RendererConfigEffectsTest {
         assertTrue(effects.relaunchBuiltin)
     }
 
-    @Test fun importedExplicitAccessTokenReloadsWhenItDropsAnOldRefreshSession() {
+    @Test fun importedExplicitAccessTokenReachesTheRendererWhenItDropsAnOldRefreshSession() {
         val effects = RendererConfigEffects.between(
             previous = mapOf("ha_token" to "same-access", "ha_refresh_token" to "old-refresh"),
             accepted = mapOf("ha_token" to "same-access"),
         )
 
-        assertTrue(effects.reloadBuiltin)
+        assertTrue(effects.relaunchBuiltin)
     }
 
     @Test fun trailingSlashOnlyHaUrlDifferenceDoesNotReload() {
@@ -71,6 +75,7 @@ class RendererConfigEffectsTest {
         )
 
         assertFalse(effects.reloadBuiltin)
+        assertFalse(effects.relaunchBuiltin)
     }
 
     @Test fun sameUrlCredentialRepairsAreTargetChanges() {
@@ -94,21 +99,48 @@ class RendererConfigEffectsTest {
         // its live handler actually applied, not from comparing the posted strings.
         val previous = mapOf("ha_token" to "old", "home_dashboard" to "/lovelace/0")
         val accepted = mapOf("ha_token" to "new", "home_dashboard" to "/kiosk/wall")
-        assertTrue(RendererConfigEffects.between(previous, accepted).reloadBuiltin)
+        assertTrue(RendererConfigEffects.between(previous, accepted).relaunchBuiltin)
         assertFalse(
-            RendererConfigEffects.between(previous, accepted, credentialChanged = false, homeChanged = false).reloadBuiltin,
+            RendererConfigEffects.between(previous, accepted, credentialChanged = false, homeChanged = false).relaunchBuiltin,
         )
-        assertTrue(RendererConfigEffects.between(emptyMap(), emptyMap(), credentialChanged = true).reloadBuiltin)
+        assertTrue(RendererConfigEffects.between(emptyMap(), emptyMap(), credentialChanged = true).relaunchBuiltin)
     }
 
-    @Test fun aHomeDashboardChangeReloadsTheBuiltInRenderer() {
+    @Test fun aHomeDashboardChangeBringsTheBuiltInRendererForward() {
         // Editing the home dashboard used to update config without navigating the renderer, so it looked
-        // like nothing happened. A home change now reloads the built-in renderer onto the new path.
+        // like nothing happened. A home change now brings the built-in renderer forward, which re-admits
+        // itself onto the new path; a reload on top would load it twice.
         val effects = RendererConfigEffects.between(
             mapOf("home_dashboard" to "/lovelace/0"),
             mapOf("home_dashboard" to "/kiosk/wall"),
         )
-        assertTrue(effects.reloadBuiltin)
+        assertTrue(effects.relaunchBuiltin)
+        assertFalse(effects.reloadBuiltin)
         assertFalse(effects.dashboardChanged)
+    }
+
+    /**
+     * The settings' own definitions say when the renderer shows a change; a committed change must reach it
+     * that way. Every setting it reconciles itself is brought forward without a reload, every setting the
+     * next page load carries is reloaded, and a new setting declared either way is covered without a list
+     * to keep here. (The JVM reports Android SDK 0, so dark mode is the reload it is below Android 10.)
+     */
+    @Test fun everyRendererSettingACommitChangesReachesTheRendererAsItsDefinitionSays() {
+        SettingsRegistry.SPECS.forEach { spec ->
+            val (before, after) = when (spec.type) {
+                SettingType.BOOL -> "false" to "true"
+                SettingType.INT, SettingType.LONG, SettingType.FLOAT -> "100" to "120"
+                else -> "/before" to "/after"
+            }
+            val effects = RendererConfigEffects.between(mapOf(spec.key to before), mapOf(spec.key to after))
+            when {
+                SettingsRegistry.rendererApply(spec.key, 0) == RendererApply.RELOAD ->
+                    assertTrue("${spec.key} reloads", effects.reloadBuiltin)
+                rendererReconcilesOnChange(spec.key, 0) -> {
+                    assertTrue("${spec.key} brings the renderer forward", effects.relaunchBuiltin)
+                    assertFalse("${spec.key} does not reload on top of the renderer's own rebuild", effects.reloadBuiltin)
+                }
+            }
+        }
     }
 }
