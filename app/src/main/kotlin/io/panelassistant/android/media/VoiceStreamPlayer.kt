@@ -138,13 +138,71 @@ internal interface VoiceOutput {
     /** Frames played so far. */
     fun playedFrames(): Long
 
-    /** The monotonic time at which the last of the [written] frames will have been presented. */
-    fun finishNs(written: Long, rate: Int): Long
+    /**
+     * The monotonic time at which the last of the [written] frames will have been presented, or null while
+     * the output cannot tell yet.
+     */
+    fun finishNs(written: Long, rate: Int): Long?
+}
+
+/**
+ * When frames written to an output will be presented, from the output's own timestamps.
+ *
+ * The library aligns every chunk against the times it is told, and treats a step of 5 ms or more as lost
+ * sync: it cuts audio or inserts silence. So this tells nothing until two successive timestamps agree with
+ * each other at the stream's rate, and then only times on that one timeline. A cold output has no
+ * timestamp at first, and Android's first one is often a placeholder (the current time against a position
+ * that has not moved yet); estimating meanwhile, without the output's latency, cut 130-140 ms of speech
+ * early in most replies on a Sonoff panel when the real timestamps arrived. A reading that disagrees with the one
+ * before it is not followed, and the last agreeing one is extrapolated instead. An output that never gives
+ * an agreeing pair within [NO_TIMESTAMP_LIMIT_NS] falls back to the playback head, so it still plays.
+ */
+internal class PresentationClock(private val rate: Int) {
+    private var lastFrames = -1L
+    private var lastNs = 0L
+    private var anchorFrames = -1L
+    private var anchorNs = 0L
+    private var firstNs = -1L
+
+    /**
+     * When the last of [written] frames will have been presented, given the output's latest timestamp
+     * ([stampFrames] presented at [stampNs], or null when it has none), its playback head and the time now.
+     */
+    fun finishNs(written: Long, stampFrames: Long?, stampNs: Long, headFrames: Long, nowNs: Long): Long? {
+        if (firstNs < 0) firstNs = nowNs
+        if (stampFrames != null) {
+            if (stampFrames > lastFrames && lastFrames >= 0 &&
+                kotlin.math.abs(stampNs - (lastNs + framesToNs(stampFrames - lastFrames))) <= AGREE_NS
+            ) {
+                anchorFrames = stampFrames
+                anchorNs = stampNs
+            }
+            lastFrames = stampFrames
+            lastNs = stampNs
+        }
+        return when {
+            anchorFrames >= 0 -> anchorNs + framesToNs(written - anchorFrames)
+            nowNs - firstNs >= NO_TIMESTAMP_LIMIT_NS -> nowNs + framesToNs(written - headFrames)
+            else -> null
+        }
+    }
+
+    private fun framesToNs(frames: Long) = frames * NANOS_PER_SECOND / rate
+
+    companion object {
+        private const val NANOS_PER_SECOND = 1_000_000_000L
+
+        /** Below the library's 5 ms hard-sync threshold. */
+        const val AGREE_NS = 2_000_000L
+        /** Inside the stream's lead: a time first told this late still comes before its first audio. */
+        const val NO_TIMESTAMP_LIMIT_NS = 400_000_000L
+    }
 }
 
 /** [VoiceOutput] on an [AudioTrack] with the attributes today's speech uses, so the same volume applies. */
 internal class AudioTrackOutput(rate: Int, channels: Int) : VoiceOutput {
     private val stamp = AudioTimestamp()
+    private val clock = PresentationClock(rate)
     private val track: AudioTrack = run {
         val mask = if (channels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO
         val minBuffer = AudioTrack.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
@@ -173,15 +231,9 @@ internal class AudioTrackOutput(rate: Int, channels: Int) : VoiceOutput {
     override fun stop() = track.stop()
     override fun release() = track.release()
     override fun playedFrames() = track.playbackHeadPosition.toLong() and 0xFFFFFFFFL
-    override fun finishNs(written: Long, rate: Int): Long =
-        if (track.getTimestamp(stamp) && stamp.framePosition > 0) {
-            stamp.nanoTime + (written - stamp.framePosition) * NANOS_PER_SECOND / rate
-        } else {
-            System.nanoTime() + (written - track.playbackHeadPosition.toLong()) * NANOS_PER_SECOND / rate
-        }
-
-    private companion object {
-        const val NANOS_PER_SECOND = 1_000_000_000L
+    override fun finishNs(written: Long, rate: Int): Long? {
+        val stamped = track.getTimestamp(stamp) && stamp.framePosition > 0
+        return clock.finishNs(written, stamp.framePosition.takeIf { stamped }, stamp.nanoTime, playedFrames(), System.nanoTime())
     }
 }
 
@@ -299,7 +351,7 @@ internal class VoiceStreamPlayer(
             Log.w(TAG, "voice stream pairing record was not stored")
             return
         }
-        val raw = native.create(stateDir.path, name(), softwareVersion, 0)
+        val raw = native.create(stateDir.path, name(), softwareVersion, REQUIRED_LEAD_MS)
         if (raw == 0L) {
             Log.w(TAG, "voice stream client did not start")
             return
@@ -439,9 +491,11 @@ internal class VoiceStreamPlayer(
 
     /**
      * Feeds one stream to the speaker. Reads the library's aligned PCM, writes it to its own output and
-     * reports each buffer's presentation time; the output opens with the stream's first audio, and once
-     * open, short silence (unreported) keeps its timeline live while the library has nothing. A silenced
-     * stream is read and discarded, reported as presented now, so the library is never left waiting.
+     * reports each buffer's presentation time once the output can tell it; frames written before then are
+     * reported together with the first time it gives, and meanwhile the library keeps priming the output
+     * with silence. The output opens with the stream's first audio, and once open, short silence
+     * (unreported) keeps its timeline live while the library has nothing. A silenced stream is read and
+     * discarded, reported as presented now, so the library is never left waiting.
      */
     private inner class StreamWriter(
         private val handle: SendspinHandle,
@@ -475,6 +529,8 @@ internal class VoiceStreamPlayer(
                 val bytes = ByteArray(buffer.capacity())
                 val silence = ByteArray(rate / 100 * frameBytes) // 10 ms
                 var written = 0L
+                var unreported = 0
+                var timed = false
                 while (!finishing) {
                     val read = handle.call(0) { native.read(it, buffer, buffer.capacity(), READ_WAIT_MS) }
                     val frames = read / frameBytes
@@ -501,10 +557,20 @@ internal class VoiceStreamPlayer(
                     }
                     buffer.get(bytes, 0, read)
                     buffer.clear()
-                    writeFully(speaker, bytes, read)
-                    written += frames
-                    val finishNs = speaker.finishNs(written, rate)
-                    handle.call(Unit) { native.played(it, frames, finishNs / 1_000L) }
+                    if (timed || !silent(bytes, read)) {
+                        writeFully(speaker, bytes, read)
+                        written += frames
+                    } else {
+                        // Until it is told a time, the library sends only priming silence, faster than
+                        // real time and for as long as it waits; what the output cannot take at once is
+                        // dropped (and reported played), so none of it queues ahead of the reply.
+                        written += speaker.write(bytes, 0, read).coerceAtLeast(0) / frameBytes
+                    }
+                    unreported += frames
+                    val finishNs = speaker.finishNs(written, rate) ?: continue
+                    timed = true
+                    handle.call(Unit) { native.played(it, unreported, finishNs / 1_000L) }
+                    unreported = 0
                 }
                 val speaker = output
                 if (speaker != null && !aborted && !silenced) {
@@ -524,6 +590,11 @@ internal class VoiceStreamPlayer(
             } finally {
                 output?.let { runCatching { it.release() } }
             }
+        }
+
+        private fun silent(data: ByteArray, length: Int): Boolean {
+            for (i in 0 until length) if (data[i] != 0.toByte()) return false
+            return true
         }
 
         /** Writes without blocking, waiting a moment while the output is full, so [abort] is seen at once. */
@@ -551,6 +622,16 @@ internal class VoiceStreamPlayer(
         private const val STREAMING_LOOP_MS = 10L
         private const val IDLE_LOOP_MS = 50L
         private const val TAIL_MS = 200
+
+        /**
+         * The lead the player asks Panel Assistant for between a stream's start and its first audio, so
+         * the first audio is placed only once the output can say when it plays. Measured on 2026-10-16
+         * (Shelly X2i, Sonoff NSPanel 86): the stream reached the panel up to about 190 ms after Panel
+         * Assistant started it, its output gave agreeing timestamps 190-340 ms after that, then held
+         * 216-230 ms ahead of now, and the library adds 50 ms of startup silence: 630-790 ms in six traced
+         * starts on the X2i, one more over 800 ms. Below the lead, the start of the reply is cut.
+         */
+        const val REQUIRED_LEAD_MS = 1_000
         private const val DRAIN_LIMIT_MS = 1_500L
         private const val DRAIN_POLL_MS = 10L
         private const val WRITER_JOIN_MS = 2_000L
