@@ -505,6 +505,12 @@ class Config private constructor(
         edit { putString("launcher_package", pkg) }
     }
 
+    /** Hand-back: drop the tame blocklist and the launcher choice in one durable write; false publishes neither. */
+    internal fun clearHandBackDesiredState(): Boolean = applyBatch {
+        setTameVendorPackages("")
+        setLauncherPackage("")
+    }
+
     /**
      * Opt-in blocklist of intrusive vendor packages to **tame** on boot (force-stop + disable the
      * boot-relaunch + strip the floating-overlay permission). The non-empty list IS the opt-in — nothing
