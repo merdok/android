@@ -864,7 +864,14 @@ class DashboardActivity : AppCompatActivity() {
             ),
         )
         routeChangePending = false
-        if (causes.isNotEmpty()) {
+        // The page does not embody its home dashboard, only where it goes next: a change to it alone resolves
+        // the new home behind the connected page rather than rebuilding behind a status screen.
+        val shownHome = homeDashboardResolution?.resolution?.path?.takeIf {
+            intent == null && phase == RendererPhase.CONNECTED && causes == listOf(RendererRebuildCause.HOME_DASHBOARD)
+        }
+        if (shownHome != null) {
+            resolveHomeBehindPage(config, shownHome)
+        } else if (causes.isNotEmpty()) {
             rebuildFor(causes, config, prepared)
             return
         }
@@ -948,6 +955,23 @@ class DashboardActivity : AppCompatActivity() {
             w.loadUrl(url)
         }
         onLoadStarted()
+    }
+
+    /**
+     * The home dashboard changed under a connected page that shows [shown]: resolve the new one behind it, as
+     * watchdog recovery does. The page stays until the answer lands; a different answer moves it over the
+     * bus, a transient list failure retries quietly behind it, and a later change supersedes this one.
+     */
+    private fun resolveHomeBehindPage(config: Config, shown: String) {
+        Log.i(TAG, "home dashboard changed — resolving it behind the connected page")
+        invalidateHomeDashboardResolution()
+        homeDashboardResolution = OwnedHomeDashboardResolution(
+            homeDashboardOwner(config),
+            EntityLearningProtocol.HomeDashboardResolution(shown, EntityLearningProtocol.HomeDashboardSource.CACHED),
+            confirmed = false,
+        )
+        provisionalHomeDashboardEpoch = dashboardNavigationEpoch
+        resolveHomeDashboardAndLoad(config)
     }
 
     /** Rebuild the renderer once for every cause [handleNewIntent] found, resetting what they need. */

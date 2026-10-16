@@ -11,6 +11,7 @@ import io.panelassistant.android.dashboard.EntityLearningProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import java.lang.reflect.Proxy
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
@@ -28,6 +29,8 @@ internal class DashboardRendererRig(
     prefs: Map<String, Any?> = SIGNED_IN,
     /** Where the entity gate's hold screens run; a cancelled scope keeps them from painting a status screen. */
     entityGateScope: CoroutineScope = CoroutineScope(Dispatchers.Unconfined),
+    /** The activity's own scope; by default nothing launched on it ever runs. */
+    activityScope: CoroutineScope = CoroutineScope(java.util.concurrent.Executor {}.asCoroutineDispatcher()),
 ) : AutoCloseable {
     val activity: DashboardActivity = allocate(DashboardActivity::class.java)
     private val main: Handler = allocate(Handler::class.java)
@@ -53,6 +56,7 @@ internal class DashboardRendererRig(
 
     init {
         set("main", main)
+        set("activityScope", activityScope)
         set("rendererGate", gate)
         set("rendererGeneration", gate.open())
         set("embodiment", RendererEmbodiment())
