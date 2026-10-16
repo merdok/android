@@ -192,6 +192,8 @@ internal class HaLifecycleBar private constructor(
     private val sub: TextView,
     private val track: NoticeTrack,
     private val footer: TextView,
+    /** This card's own renderer state: its activity's, never a replacement's. */
+    private val renderer: () -> RendererAdmissionRuntime.Live?,
     private val onVisibilityChanged: (Boolean) -> Unit,
 ) {
     private val view get() = notice.view
@@ -214,11 +216,12 @@ internal class HaLifecycleBar private constructor(
             onVisibilityChanged(next)
         }
     }
-    private val hide = Runnable { update(HaLifecycleRuntime.snapshot(), RendererAdmissionRuntime.current()) }
+    private val hide = Runnable { update(HaLifecycleRuntime.snapshot()) }
 
     /** Render current lifecycle intent and this dashboard's connection evidence. */
-    fun update(snap: HaLifecycle.Snapshot?, renderer: RendererAdmissionRuntime.Live?) {
+    fun update(snap: HaLifecycle.Snapshot?) {
         view.removeCallbacks(hide)
+        val renderer = renderer()
         val now = SystemClock.elapsedRealtime()
         val state = haLifecycleNoticeState(snap, renderer, now)
         val dashboardLost = haDashboardLostMs(renderer, now)
@@ -324,8 +327,13 @@ internal class HaLifecycleBar private constructor(
         /** How often the card re-reads the snapshot, and so how far ahead a step animates. */
         private const val TICK_MS = 1_000L
 
-        /** Attach a hidden card to [root]. */
-        fun attach(context: Context, root: ViewGroup, onVisibilityChanged: (Boolean) -> Unit = {}): HaLifecycleBar {
+        /** Attach a hidden card to [root], showing the state [renderer] reads. */
+        fun attach(
+            context: Context,
+            root: ViewGroup,
+            renderer: () -> RendererAdmissionRuntime.Live?,
+            onVisibilityChanged: (Boolean) -> Unit = {},
+        ): HaLifecycleBar {
             // Direct Boot: settings unreadable means the dark dashboard, and so the light card.
             val dashboardDark = runCatching { Config(context).dashboardThemeDark }.getOrNull() ?: true
             val notice = Notice(context, dashboardDark, NoticeForm.OVERLAY)
@@ -350,7 +358,7 @@ internal class HaLifecycleBar private constructor(
                 FrameLayout.LayoutParams(notice.widthPx, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
                     .apply { setMargins(margin, margin, margin, margin) },
             )
-            return HaLifecycleBar(notice, hero, sub, track, footer, onVisibilityChanged)
+            return HaLifecycleBar(notice, hero, sub, track, footer, renderer, onVisibilityChanged)
         }
     }
 }

@@ -4,6 +4,7 @@ import io.panelassistant.android.DashboardRendererRig.Companion.HA
 import io.panelassistant.android.control.BuiltinDashboard
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -27,11 +28,11 @@ class DashboardRendererPhaseTest {
         val page = RecordingWebView("$HA/lovelace/0")
         rig.show(page)
         rig.phase = RendererPhase.CONNECTED
-        rig.set("screenAwake", false)
+        rig.setPaced("screenAwake", false)
         // Past the six-hour ceiling: elapsedRealtime reads 0 on the JVM.
-        rig.set("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+        rig.setPaced("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
 
-        rig.call("onPeriodicCheck")
+        rig.pace("onPeriodicCheck")
 
         assertEquals("the reload, then the page let run", listOf("reload", "onResume", "resumeTimers"), page.calls)
     }
@@ -46,7 +47,7 @@ class DashboardRendererPhaseTest {
         rig.phase = RendererPhase.SIGN_IN
         rig.show(signIn, committed = null)
 
-        rig.call("onWatchdogTimeout")
+        rig.pace("onWatchdogTimeout")
 
         assertEquals("nothing reached the sign-in page", emptyList<String>(), signIn.calls)
     }
@@ -79,7 +80,7 @@ class DashboardRendererPhaseTest {
         val page = RecordingWebView("$HA/lovelace")
         rig.show(page)
         rig.phase = RendererPhase.LOADING
-        rig.call("onLoadStarted", 25_000L)
+        rig.pace("loadStarted", 25_000L)
         val session = rig.bridge.beginDocument(page, rig.config, rig.get("rendererGeneration") as Long)
 
         rig.call("onConnectionStatus", ExternalBusProtocol.ConnectionEvent.CONNECTED, rig.get("rendererGeneration"), session)
@@ -99,5 +100,87 @@ class DashboardRendererPhaseTest {
 
         assertEquals(RendererPhase.AUTH_LATCHED, rig.phase)
         assertTrue("the health warning still reports the refused login", BuiltinDashboard.authLatched)
+    }
+
+    /**
+     * `resumeTimers()` is process-wide. When Android overlaps two dashboard activities in the dark, the old
+     * one is destroyed after its replacement froze its own page; the old teardown used to unfreeze that page
+     * for the rest of the night.
+     */
+    @Test fun aSupersededTeardownLeavesItsReplacementsTimersAlone() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        val replacement = BuiltinDashboard.acquireActivityOwner()
+        try {
+            rig.call("teardownWeb")
+
+            assertTrue("the old WebView went: ${page.calls}", "destroy" in page.calls)
+            assertFalse("the replacement's frozen page stayed frozen: ${page.calls}", "resumeTimers" in page.calls)
+        } finally {
+            BuiltinDashboard.releaseActivityOwner(replacement)
+        }
+    }
+
+    /** The last renderer still unfreezes on its way out, or the next WebView in this process starts frozen. */
+    @Test fun theLastRenderersTeardownUnfreezesTimers() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        // onDestroy gives up the renderer before it tears the WebView down.
+        BuiltinDashboard.releaseActivityOwner(rig.owner)
+
+        rig.call("teardownWeb")
+
+        assertTrue("timers unfrozen for the next renderer: ${page.calls}", "resumeTimers" in page.calls)
+    }
+
+    /**
+     * With no predecessor left to unfreeze them, a load the new owner starts while the screen is on runs its
+     * own timers: one frozen by the old activity in the dark would otherwise hold the page until a wake that
+     * already happened.
+     */
+    @Test fun anAwakeLoadRunsItsOwnTimers() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.LOADING
+
+        rig.pace("loadStarted", 25_000L)
+
+        assertTrue("the load's timers run: ${page.calls}", "resumeTimers" in page.calls)
+    }
+
+    /** A screen-off over a page that connected freezes it: nothing churns behind a dark screen. */
+    @Test fun aScreenOffFreezesAConnectedPage() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+
+        rig.pace("onScreenChanged", false)
+
+        assertEquals(listOf("onPause", "pauseTimers"), page.calls)
+    }
+
+    /** A screen-off during a load leaves it live, so it can still draw and connect behind the dark screen. */
+    @Test fun aScreenOffLeavesALoadInFlightLive() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.LOADING
+
+        rig.pace("onScreenChanged", false)
+
+        assertEquals(emptyList<String>(), page.calls)
+    }
+
+    /** A screen-off past the memory ceiling sheds it with a reload the dark screen hides, run live. */
+    @Test fun aScreenOffPastTheMemoryCeilingReloadsQuietly() {
+        val page = RecordingWebView("$HA/lovelace/0")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        rig.setPaced("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+
+        rig.pace("onScreenChanged", false)
+
+        assertEquals(listOf("reload", "onResume", "resumeTimers"), page.calls)
     }
 }

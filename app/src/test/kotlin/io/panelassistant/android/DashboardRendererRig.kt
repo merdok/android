@@ -11,6 +11,7 @@ import io.panelassistant.android.dashboard.EntityLearningProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import java.lang.reflect.Proxy
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
@@ -24,7 +25,13 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * only the collaborators those entry points use are filled in, from production classes. Framework calls
  * return mockable-jar defaults, so Handler posts are not observable; what the WebView is asked to do is.
  */
-internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : AutoCloseable {
+internal class DashboardRendererRig(
+    prefs: Map<String, Any?> = SIGNED_IN,
+    /** Where the entity gate's hold screens run; a cancelled scope keeps them from painting a status screen. */
+    entityGateScope: CoroutineScope = CoroutineScope(Dispatchers.Unconfined),
+    /** The activity's own scope; by default nothing launched on it ever runs. */
+    activityScope: CoroutineScope = CoroutineScope(java.util.concurrent.Executor {}.asCoroutineDispatcher()),
+) : AutoCloseable {
     val activity: DashboardActivity = allocate(DashboardActivity::class.java)
     private val main: Handler = allocate(Handler::class.java)
     private val gate = RendererGenerationGate()
@@ -35,12 +42,12 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
     private val entityGate = DashboardEntityGate(
         activity = allocate(AppCompatActivity::class.java),
         main = main,
-        scope = CoroutineScope(Dispatchers.Unconfined),
+        scope = entityGateScope,
         statusScreens = allocate(DashboardStatusScreens::class.java),
         host = object : DashboardEntityGate.Host {
             override val activityOwner get() = owner
             override val destroyed get() = false
-            override val screenAwake get() = get("screenAwake") as Boolean
+            override val screenAwake get() = pacer.screenAwake
             override fun buildAndLoad(config: Config) = error("no rebuild expected")
             override fun teardownWeb() = error("no teardown expected")
         },
@@ -49,6 +56,7 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
 
     init {
         set("main", main)
+        set("activityScope", activityScope)
         set("rendererGate", gate)
         set("rendererGeneration", gate.open())
         set("embodiment", RendererEmbodiment())
@@ -62,9 +70,11 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         BuiltinDashboard.consumeNavPath()
         BuiltinDashboard.consumeReloadRequest()
         BuiltinDashboard.consumeReloadReason()
-        set("retryPolicy", DashboardRetryPolicy())
-        set("wakeMediaRecovery", WakeMediaRecoveryGate())
-        set("screenAwake", true)
+        // The activity's own factory, so the pacer reads this activity back exactly as it does on a panel.
+        set("pacer", DashboardActivity::class.java.getDeclaredMethod("createPacer").apply { isAccessible = true }.invoke(activity))
+        set("admissionRetryPolicy", AdmissionRetryPolicy())
+        set("homeDashboardAttempts", HomeDashboardResolutionAttemptGate())
+        set("compatibilityAttempts", DashboardV2AttemptGate())
     }
 
     /** Make [view] the activity's WebView, its listeners already installed (as after its first load). */
@@ -109,6 +119,19 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
     fun call(name: String, vararg args: Any?) {
         DashboardActivity::class.java.declaredMethods.single { it.name == name && it.parameterCount == args.size }
             .apply { isAccessible = true }.invoke(activity, *args)
+    }
+
+    /** The activity's renderer pacer: its watchdog, dark settle, screen fan-out and memory ceiling. */
+    val pacer: DashboardRendererPacer get() = get("pacer") as DashboardRendererPacer
+
+    /** Call one of the pacer's own entry points, as the activity's Handler, screen listener or loads do. */
+    fun pace(name: String, vararg args: Any?) {
+        DashboardRendererPacer::class.java.declaredMethods.single { it.name == name && it.parameterCount == args.size }
+            .apply { isAccessible = true }.invoke(pacer, *args)
+    }
+
+    fun setPaced(name: String, value: Any?) {
+        DashboardRendererPacer::class.java.getDeclaredField(name).apply { isAccessible = true }.set(pacer, value)
     }
 
     fun set(name: String, value: Any?) {

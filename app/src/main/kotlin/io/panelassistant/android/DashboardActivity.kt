@@ -111,12 +111,13 @@ class DashboardActivity : AppCompatActivity() {
     private fun redrawLifecycleBar() {
         // Each owner supplies one atomic snapshot. Cached admission can explain a disconnected
         // dashboard even before the service has observed a lifecycle event.
-        lifecycleBar?.update(
-            io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot(),
-            RendererAdmissionRuntime.current()?.takeIf { it.owner == activityOwner },
-        )
+        lifecycleBar?.update(io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot())
         networkChip?.update(io.panelassistant.android.sensors.HaNetworkPathRuntime.snapshot(), activityConfig.dashboardNetworkWarning)
     }
+
+    /** This renderer's admission and connection state; another activity's is never this one's. */
+    private fun ownAdmission(): RendererAdmissionRuntime.Live? =
+        RendererAdmissionRuntime.current()?.takeIf { it.owner == activityOwner }
 
     /** Drop the bar and chip with their container. Every content-view swap must reach here, or they outlive their root. */
     private fun detachLifecycleBar() {
@@ -173,7 +174,6 @@ class DashboardActivity : AppCompatActivity() {
     // reconcile cannot lose it.
     private var routeChangePending = false
     private val rendererGate = RendererGenerationGate()
-    private val wakeMediaRecovery = WakeMediaRecoveryGate()
     private var rendererGeneration = 0L
     private var activityOwner = 0L
     private var dashboardIsTopResumed = false
@@ -219,14 +219,8 @@ class DashboardActivity : AppCompatActivity() {
 
     // Stored so onDestroy can clear it by identity — an old instance destroyed after a new one's onCreate
     // must not wipe the new instance's registration (see BuiltinDashboard.clearScreenListener).
-    private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { onScreenChanged(awake) } }
+    private val screenListener: (Boolean) -> Unit = { awake -> runOnUiThread { pacer.onScreenChanged(awake) } }
     private val rendererScreenHold = windowRendererScreenHold(this, { activityConfig.preventIdleDim }) { Log.i(TAG, it) }
-    // Frontend-handshake watchdog: the page "loading" (onPageFinished) is NOT health — the frontend JS
-    // app must post `connection-status: connected` on the external bus. Until it does, we retry with
-    // backoff (a panel has no buttons to press). This catches the "loaded onto a blank/dead frontend"
-    // class that onPageFinished and the crash budget both miss. The watchdog runs ONLY while the screen is
-    // awake: a screen-off pauses JS timers, so a paused WebView could never complete the handshake and the
-    // watchdog would just reload-loop all night behind a dark panel.
     /**
      * The renderer's phase ([RendererPhase]); every change goes through [on].
      *
@@ -259,26 +253,8 @@ class DashboardActivity : AppCompatActivity() {
     private val frontendConnected get() = phase == RendererPhase.CONNECTED
     private val interstitialShown get() = phase == RendererPhase.RECONNECTING
     private val authLatched get() = phase == RendererPhase.AUTH_LATCHED
-    private val retryPolicy = DashboardRetryPolicy()
     private var clearedThisLoad = false
-    private val watchdog = Runnable { onWatchdogTimeout() }
-    // After a screen-off reload (memory shed), let the fresh page load with timers LIVE for a settle
-    // window, then freeze — so we never reload into a frozen WebView, but also never leave it churning
-    // behind a dark screen forever. Fires only if the frontend hasn't already connected (which freezes early).
-    private val darkSettle = Runnable {
-        if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !screenAwake) {
-            if (!frontendConnected && !authLatched) Log.w(TAG, "dark settle: the dashboard did not connect within ${DARK_SETTLE_MS}ms — freezing until the screen wakes")
-            web?.let { it.onPause(); it.pauseTimers() }
-        }
-    }
-    // Time-based memory ceiling. onTrimMemory's RUNNING_* levels are deprecated + never delivered on
-    // Android 14 (the fleet), so a periodic check is the portable ceiling: reload invisibly at the next
-    // screen-off past RELOAD_INTERVAL_MS, or force a (brief, visible) reload past RELOAD_HARD_MS so a
-    // never-sleeping panel still sheds accreted WebView memory ~daily.
-    private val periodicCheck = Runnable { onPeriodicCheck() }
-    private var lastFullLoadAt = 0L
-    private var reloadPending = false
-    private var screenAwake = true
+    private val pacer = createPacer()
     private var compatibilityJob: Job? = null
     private var compatibilityCheckingOwner: DashboardV2CompatibilityOwner? = null
     private var compatibilityReadyUrl: String? = null
@@ -326,17 +302,13 @@ class DashboardActivity : AppCompatActivity() {
     private val entityGate = DashboardEntityGate(this, main, activityScope, statusScreens, object : DashboardEntityGate.Host {
         override val activityOwner get() = this@DashboardActivity.activityOwner
         override val destroyed get() = this@DashboardActivity.destroyed
-        override val screenAwake get() = this@DashboardActivity.screenAwake
+        override val screenAwake get() = pacer.screenAwake
         override fun buildAndLoad(config: Config) = this@DashboardActivity.buildAndLoad(config)
         override fun teardownWeb() = this@DashboardActivity.teardownWeb()
     })
 
     /** Endpoint the on-panel Home Assistant sign-in is currently showing, so a relaunch does not restart it. */
     private var signInShownForUrl: String? = null
-
-    /** Quiet retries before the sign-in surface declares itself unavailable — its start page is served
-     *  by the panel's own HTTP server, which restarts briefly during config reconfigures. */
-    private var signInLoadRetries = 0
 
     private val compatibilityAttempts = DashboardV2AttemptGate()
     // Auth-failure latch. A terminal login-settings rejection (refresh token/client id, repeated
@@ -494,12 +466,8 @@ class DashboardActivity : AppCompatActivity() {
             runOnUiThread { if (!destroyed && ::activityConfig.isInitialized) apply() }
         }
         BuiltinDashboard.setHaLifecycleListener(haLifecycleListener)
-        // Adopt the CURRENT screen state — an instance created while the panel is dark (a relaunch at
-        // night) must not assume the screen is on: it would arm the handshake watchdog against a page
-        // that's about to be frozen, and never freeze the WebView until the next real transition.
-        screenAwake = BuiltinDashboard.screenAwakeNow
+        pacer.start()
         val networkAvailable = registerNetworkCallback()
-        main.postDelayed(periodicCheck, PERIODIC_CHECK_MS)
         lastTouchAt = SystemClock.elapsedRealtime()
         main.postDelayed(idleCheck, IDLE_CHECK_MS)
         if (networkAvailable) buildAndLoad(config) else statusScreens.showWaitingForNetwork()
@@ -507,9 +475,7 @@ class DashboardActivity : AppCompatActivity() {
             resumeOwnsAdmissionVisibility(android.os.Build.VERSION.SDK_INT)) {
             onAdmissionVisibilityChanged(true)
         }
-        // Created dark: freeze after the settle window even if no dashboard load starts (the on-panel
-        // sign-in view never calls onLoadStarted). A load that does start re-arms this window itself.
-        if (!screenAwake) main.postDelayed(darkSettle, DARK_SETTLE_MS)
+        pacer.settleIfCreatedDark()
     }
 
     /** Any touch (the WebView consumes them, but the activity sees them first) resets the idle clock. */
@@ -530,7 +496,7 @@ class DashboardActivity : AppCompatActivity() {
         statusScreens.stopSignInAddressWatch()
         if (::activityConfig.isInitialized) activityConfig.unregisterChangeListener(rendererPowerListener)
         io.panelassistant.android.camera.CameraPermissionPrompt.setListener(null)
-        wakeMediaRecovery.close()
+        pacer.wakeMediaRecovery.close()
         rendererGate.close()
         entityGate.stopLease()
         BuiltinDashboard.releaseActivityOwner(activityOwner)
@@ -546,22 +512,22 @@ class DashboardActivity : AppCompatActivity() {
     /** Fully release the WebView so a long-lived process doesn't leak it: stop background loading,
      *  detach the JS bridge, destroy. `resumeTimers()` is process-global and pauseTimers() may have been
      *  called on a screen-off — without this, an activity destroyed while dark would leave JS timers
-     *  frozen for every future WebView in this forever process (a never-blank violation). */
+     *  frozen for every future WebView in this forever process (a never-blank violation). An activity a
+     *  later one has replaced leaves them alone: that one owns them now, and may have frozen its own page. */
     private fun teardownWeb() {
         rendererRoute = null
         signInShownForUrl = null // the sign-in WebView is going away; a later call must rebuild it
-        wakeMediaRecovery.invalidate()
+        pacer.wakeMediaRecovery.invalidate()
         rendererGate.invalidate()
         bridge.teardown()
-        main.removeCallbacks(watchdog)
-        main.removeCallbacks(darkSettle)
+        pacer.stop()
         detachLifecycleBar()
         customView?.let { view -> runCatching { root?.removeView(view) } }
         runCatching { customViewCallback?.onCustomViewHidden() }
         customView = null
         customViewCallback = null
         web?.let { w ->
-            runCatching { w.resumeTimers() }
+            if (!BuiltinDashboard.ownedByAnother(activityOwner)) runCatching { w.resumeTimers() }
             bridge.removeListeners(w)
             runCatching { w.loadUrl("about:blank") }
             (w.parent as? ViewGroup)?.removeView(w)
@@ -590,156 +556,16 @@ class DashboardActivity : AppCompatActivity() {
         false
     }
 
-    /** Single scheduling authority for the post-reload settle window: cancel any pending settle and
-     *  re-arm it [DARK_SETTLE_MS] out. See [darkSettle] for why a screen-off reload runs live for a
-     *  window before freezing. */
-    private fun scheduleDarkSettle() {
-        main.removeCallbacks(darkSettle)
-        main.postDelayed(darkSettle, DARK_SETTLE_MS)
-    }
-
-    /**
-     * Screen on/off fan-out. Screen ON → resume rendering + JS timers, and re-arm the handshake watchdog
-     * if the frontend isn't connected (recover a page that broke while frozen). Screen OFF → pause
-     * rendering and disarm the watchdog (no handshake retries while timers are frozen); then either shed
-     * memory with an invisible reload (kept live through a settle window, see [darkSettle]) if one is due,
-     * or freeze JS timers. `pauseTimers()` is process-global, which is fine — the dashboard is our only
-     * live WebView.
-     */
-    private fun onScreenChanged(awake: Boolean) {
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
-        val wasAwake = screenAwake
-        screenAwake = awake
-        entityGate.onScreenChanged(awake)
-        val w = web ?: return
-        if (awake) {
-            main.removeCallbacks(darkSettle)
-            w.resumeTimers(); w.onResume()
-            lastTouchAt = SystemClock.elapsedRealtime() // a wake implies presence — don't instantly snap home
-            if (!wasAwake) {
-                // A repeat "awake" changes nothing: re-arming here would cut a pending backoff or the
-                // connected grace short. The sign-in has no handshake to wait for.
-                if (phase.watched) armWatchdog(INITIAL_HANDSHAKE_MS)
-                if (phase == RendererPhase.CONNECTED) armWakeMediaRecovery(w, rendererGeneration)
-                else if (phase == RendererPhase.LOADING) wakeMediaRecovery.defer(rendererGeneration)
-            }
-        } else {
-            wakeMediaRecovery.invalidate()
-            main.removeCallbacks(watchdog) // a paused WebView can't complete the handshake — don't loop
-            when (screenOffStep(frontendConnected, authLatched, reloadDue())) {
-                ScreenOffStep.FREEZE -> { w.onPause(); w.pauseTimers() }
-                // A load still in flight: leave the WebView live, untouched, so it can draw and connect.
-                // onConnectionStatus freezes it the moment it connects, darkSettle at the end of the window.
-                ScreenOffStep.SETTLE -> {
-                    Log.i(TAG, "screen off before the dashboard connected — keeping the load live for ${DARK_SETTLE_MS}ms")
-                    scheduleDarkSettle()
-                }
-                ScreenOffStep.QUIET_RELOAD -> {
-                    // Reload to shed memory, but DON'T pause timers yet — a paused WebView can't load. The dark
-                    // load runs live; onConnectionStatus freezes it the moment it connects, or darkSettle
-                    // freezes it after the settle window if it never does. Either way it doesn't churn all night.
-                    reloadPending = false
-                    doReload("quiet reload (screen off, due)")
-                }
-            }
-        }
-    }
-
-    /** WebView resume does not guarantee that HA's existing WebRTC cards rebuild a transport. After a
-     * real wake, sample only visible playing/autoplay media and allow one full-page recovery if none of
-     * it advances. Every callback is owned by both the renderer generation and the wake cycle. */
-    private fun armWakeMediaRecovery(
-        w: WebView,
-        generation: Long,
-        ticket: WakeMediaRecoveryTicket = wakeMediaRecovery.begin(generation),
-    ) {
-        main.postDelayed({
-            if (!wakeMediaCurrent(ticket, w)) return@postDelayed
-            w.evaluateJavascript(WakeMediaRecoveryScript.arm(ticket.cycle)) { result ->
-                if (!wakeMediaCurrent(ticket, w)) return@evaluateJavascript
-                when (wakeMediaRecovery.onArmResult(ticket, javascriptIntResult(result) ?: -1)) {
-                    WakeMediaRecoveryAction.INSPECT ->
-                        main.postDelayed({ inspectWakeMedia(ticket, w) }, WAKE_MEDIA_SAMPLE_MS)
-                    WakeMediaRecoveryAction.NONE, WakeMediaRecoveryAction.RELOAD -> Unit
-                }
-            }
-        }, WAKE_MEDIA_SETTLE_MS)
-    }
-
-    private fun inspectWakeMedia(ticket: WakeMediaRecoveryTicket, w: WebView) {
-        if (!wakeMediaCurrent(ticket, w)) return
-        w.evaluateJavascript(WakeMediaRecoveryScript.inspect(ticket.cycle)) { result ->
-            if (!wakeMediaCurrent(ticket, w)) return@evaluateJavascript
-            if (wakeMediaRecovery.onInspectResult(ticket, javascriptIntResult(result) == 1) == WakeMediaRecoveryAction.RELOAD) {
-                Log.w(TAG, "visible dashboard media did not resume after screen wake — reloading once")
-                BuiltinDashboard.recordRendererReload(SystemClock.elapsedRealtime())
-                doReload("visible media stalled after screen wake")
-            }
-        }
-    }
-
-    private fun wakeMediaCurrent(ticket: WakeMediaRecoveryTicket, w: WebView): Boolean =
-        screenAwake && wakeMediaRecovery.owns(ticket) && rendererCurrent(ticket.rendererGeneration, w)
-
-    /** A reload is worthwhile now if memory pressure asked for one, or it's been a long time since the
-     *  last full load (WebView memory accretes over days). */
-    private fun reloadDue(): Boolean =
-        reloadPending || (SystemClock.elapsedRealtime() - lastFullLoadAt > RELOAD_INTERVAL_MS)
-
-    /** Portable memory ceiling (see [periodicCheck]): reload invisibly at a screen-off past the interval,
-     *  or force a brief visible reload past the hard cap so a panel that never sleeps still sheds memory. */
-    private fun onPeriodicCheck() {
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
-        if (authLatched) { main.postDelayed(periodicCheck, PERIODIC_CHECK_MS); return }
-        // The memory-ceiling reload measures idle from lastFullLoadAt, which the on-panel sign-in never
-        // sets because it performs no dashboard load. On a panel that has been up for longer than the
-        // interval that reads as "idle for the whole uptime", so the first check would reload — throwing
-        // away a sign-in the user is part-way through, and reintroducing exactly the reload churn this
-        // screen exists to end. Nothing here needs shedding: the sign-in page is a single small form.
-        // No dashboard WebView (a status screen) has nothing to shed either; its next build is a fresh load.
-        if (signInShownForUrl != null || web == null) { main.postDelayed(periodicCheck, PERIODIC_CHECK_MS); return }
-        val idle = SystemClock.elapsedRealtime() - lastFullLoadAt
-        when {
-            idle < RELOAD_INTERVAL_MS -> {}
-            !screenAwake -> doReload("periodic (screen off, ${idle / 3_600_000}h idle)")
-            idle >= RELOAD_HARD_MS -> doReload("periodic hard cap (${idle / 3_600_000}h idle)")
-            else -> reloadPending = true // visible now — wait for the next screen-off to reload invisibly
-        }
-        main.postDelayed(periodicCheck, PERIODIC_CHECK_MS)
-    }
-
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (maintenanceFence.stop(this)) return
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || authLatched) return
-        // The sign-in form has no accreted memory worth shedding, and reloading it would discard a
-        // part-entered Home Assistant login. Leave it alone; it is short-lived by nature.
-        if (signInShownForUrl != null) return
-        // UI_HIDDEN is a routine lifecycle signal, NOT memory pressure — it's delivered on every
-        // screen-off (activities stop when the display sleeps), so reacting to it made every screen-off
-        // full-reload the frontend, defeating the 6-hour quiet-reload ceiling in onScreenChanged.
-        if (level == TRIM_MEMORY_UI_HIDDEN) return
-        // Any real trim signal means shed the WebView's accreted memory. Gate at RUNNING_LOW so we catch
-        // BOTH the pre-14 foreground RUNNING_* levels AND the pressure levels Android 14 actually
-        // delivers (BACKGROUND / MODERATE / COMPLETE, all ≥ RUNNING_LOW's value) — the previous
-        // RUNNING_MODERATE..CRITICAL window was dead code on the fleet's Android-14 panels.
-        if (level >= TRIM_MEMORY_RUNNING_LOW) {
-            reloadPending = true
-            // If we're not the visible dashboard, reload right now rather than risk an OOM renderer kill.
-            if (!screenAwake || !BuiltinDashboard.foreground) {
-                reloadPending = false
-                doReload("memory pressure L$level")
-            }
-        }
+        pacer.onTrimMemory(level)
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
         if (maintenanceFence.stop(this)) return
-        if (!destroyed && BuiltinDashboard.ownsActivity(activityOwner) && !authLatched &&
-            (!screenAwake || !BuiltinDashboard.foreground)) {
-            doReload("onLowMemory")
-        }
+        pacer.onLowMemory()
     }
 
     /** Hand off to ha-paneld's admin launcher and finish — the never-strand fallback for a missing
@@ -863,7 +689,14 @@ class DashboardActivity : AppCompatActivity() {
             ),
         )
         routeChangePending = false
-        if (causes.isNotEmpty()) {
+        // The page does not embody its home dashboard, only where it goes next: a change to it alone resolves
+        // the new home behind the connected page rather than rebuilding behind a status screen.
+        val shownHome = homeDashboardResolution?.resolution?.path?.takeIf {
+            intent == null && phase == RendererPhase.CONNECTED && causes == listOf(RendererRebuildCause.HOME_DASHBOARD)
+        }
+        if (shownHome != null) {
+            resolveHomeBehindPage(config, shownHome)
+        } else if (causes.isNotEmpty()) {
             rebuildFor(causes, config, prepared)
             return
         }
@@ -881,7 +714,8 @@ class DashboardActivity : AppCompatActivity() {
             val sdk = android.os.Build.VERSION.SDK_INT
             embodiment.reconciled(
                 rendererValues { it == RendererApply.REBUILD || it == RendererApply.READMIT }
-                    .filterKeys { rendererReconcilesOnChange(it, sdk) },
+                    // A home being resolved behind the page is on screen once its answer lands, not now.
+                    .filterKeys { rendererReconcilesOnChange(it, sdk) && (shownHome == null || it != "home_dashboard") },
                 connected = phase == RendererPhase.CONNECTED,
             )
             publishPendingSettings()
@@ -924,7 +758,7 @@ class DashboardActivity : AppCompatActivity() {
         val targetPath = nav ?: resolvedHomeDashboard(config)
             ?: return readmitForHomeDashboard(if (reload) "reload" else "relaunch")
         val url = ExternalAuthProtocol.dashboardUrl(config.haEffectiveUrl, targetPath)
-        noteDeliberateDashboardNavigation()
+        noteDeliberateDashboardNavigation(targetPath)
         noteAppNavigationTarget(targetPath)
         val generation = rendererGeneration
         // Same suppression as the seed in createWebView: while Dark/Light owns the `dark` field, a
@@ -946,7 +780,24 @@ class DashboardActivity : AppCompatActivity() {
             bridge.expectPageStart(url)
             w.loadUrl(url)
         }
-        onLoadStarted()
+        pacer.loadStarted()
+    }
+
+    /**
+     * The home dashboard changed under a connected page that shows [shown]: resolve the new one behind it, as
+     * watchdog recovery does. The page stays until the answer lands; a different answer moves it over the
+     * bus, a transient list failure retries quietly behind it, and a later change supersedes this one.
+     */
+    private fun resolveHomeBehindPage(config: Config, shown: String) {
+        Log.i(TAG, "home dashboard changed — resolving it behind the connected page")
+        invalidateHomeDashboardResolution()
+        homeDashboardResolution = OwnedHomeDashboardResolution(
+            homeDashboardOwner(config),
+            EntityLearningProtocol.HomeDashboardResolution(shown, EntityLearningProtocol.HomeDashboardSource.CACHED),
+            confirmed = false,
+        )
+        provisionalHomeDashboardEpoch = dashboardNavigationEpoch
+        resolveHomeDashboardAndLoad(config)
     }
 
     /** Rebuild the renderer once for every cause [handleNewIntent] found, resetting what they need. */
@@ -984,59 +835,33 @@ class DashboardActivity : AppCompatActivity() {
 
     // --- frontend-handshake watchdog + reconnect ---
 
-    /** Called after every page load that should be health-checked (initial, navigate, watchdog reload,
-     *  network-regain reload): reset the connected state + arm the handshake watchdog — but only while the
-     *  screen is awake, since a paused WebView can't run the JS that completes the handshake. */
-    private fun onLoadStarted(handshakeMs: Long = INITIAL_HANDSHAKE_MS) {
-        wakeMediaRecovery.invalidate()
-        on(RendererEvent.LOAD_STARTED)
-        embodiment.loadStarted(rendererValues { it == RendererApply.RELOAD })
-        clearedThisLoad = false
-        lastFullLoadAt = SystemClock.elapsedRealtime()
-        BuiltinDashboard.recordLoadStart(lastFullLoadAt) // TTI origin (first call since process start = cold)
-        if (screenAwake) { armWatchdog(handshakeMs); return }
-        // A load issued while dark (a remote reload, a rebuild) may land in a WebView that an earlier
-        // screen-off froze, where it can never connect. Run it live through the settle window instead;
-        // the watchdog stays off until the screen wakes, so a dark panel still never reload-loops.
-        main.removeCallbacks(watchdog)
-        // resumeTimers() is process-wide: a superseded instance must not unfreeze the owner's page.
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
-        web?.let { it.onResume(); it.resumeTimers() }
-        Log.i(TAG, "load started while the screen is dark — running it live for ${DARK_SETTLE_MS}ms")
-        scheduleDarkSettle()
-    }
-
-    private fun armWatchdog(ms: Long) {
-        if (destroyed) return
-        main.removeCallbacks(watchdog); main.postDelayed(watchdog, ms)
-    }
-
-    private fun onWatchdogTimeout() {
-        // Never retry on a dead activity or latched — both runaway loops. While frozen (screen off) the
-        // policy answers NONE: a paused page cannot complete the handshake, so that fire is not a miss.
-        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner) || !phase.watched) return
-        val step = retryPolicy.onWatchdogFired(screenAwake)
-        if (step == HandshakeRecoveryStep.NONE) return
-        if (bridge.handshakeTimedOut()) {
+    /** The pacer's view of this activity, read at call time. A factory, so a JVM test builds the same one. */
+    private fun createPacer(): DashboardRendererPacer = DashboardRendererPacer(main, object : DashboardRendererPacer.Host {
+        override val destroyed get() = this@DashboardActivity.destroyed
+        override val owned get() = BuiltinDashboard.ownsActivity(activityOwner)
+        override val phase get() = this@DashboardActivity.phase
+        override val web get() = this@DashboardActivity.web
+        override val signInShown get() = signInShownForUrl != null
+        override val rendererGeneration get() = this@DashboardActivity.rendererGeneration
+        override fun rendererCurrent(generation: Long, view: WebView): Boolean = this@DashboardActivity.rendererCurrent(generation, view)
+        override fun loadStarting() {
+            on(RendererEvent.LOAD_STARTED)
+            embodiment.loadStarted(rendererValues { it == RendererApply.RELOAD })
+            clearedThisLoad = false
+        }
+        override fun screenChanged(awake: Boolean) { entityGate.onScreenChanged(awake) }
+        override fun woke() { lastTouchAt = SystemClock.elapsedRealtime() }
+        override fun handshakeTimedOut(): Boolean = bridge.handshakeTimedOut()
+        override fun blockHandshakeMissed() {
             showDashboardBlocked(
                 getString(R.string.home_assistant_unresponsive),
                 getString(R.string.home_assistant_unresponsive_detail),
                 AdmissionOutcome.BRIDGE_HANDSHAKE_MISSED,
             )
-            return
         }
-        if (step != HandshakeRecoveryStep.RELOAD) {
-            escalateHandshakeRecovery(step)
-            return
-        }
-        Log.w(TAG, "frontend handshake watchdog fired (no connection-status:connected) — reloading")
-        // The reconnect grace expired: this load now owns recovery, so a later connection callback must
-        // not revive the pre-timeout wake ticket against the replacement target.
-        wakeMediaRecovery.invalidate()
-        if (!reloadTarget()) return
-        BuiltinDashboard.recordRendererReload(SystemClock.elapsedRealtime()) // involuntary: handshake stalled
-        onLoadStarted(retryPolicy.afterRetry())
-    }
+        override fun escalate(step: HandshakeRecoveryStep) { escalateHandshakeRecovery(step) }
+        override fun reloadTarget(): Boolean = this@DashboardActivity.reloadTarget()
+    })
 
     /**
      * A reload has already failed [DashboardRetryPolicy.consecutiveMisses] times in a row, so do more
@@ -1048,7 +873,7 @@ class DashboardActivity : AppCompatActivity() {
      * both.
      */
     private fun escalateHandshakeRecovery(step: HandshakeRecoveryStep) {
-        val misses = retryPolicy.consecutiveMisses
+        val misses = pacer.retryPolicy.consecutiveMisses
         if (step == HandshakeRecoveryStep.FRESH_LOAD) {
             Log.w(
                 TAG,
@@ -1068,7 +893,7 @@ class DashboardActivity : AppCompatActivity() {
                 if (recreate) "recreating the dashboard WebView" else "fresh dashboard load",
         )
         // Same reason as the reload: this load now owns recovery.
-        wakeMediaRecovery.invalidate()
+        pacer.wakeMediaRecovery.invalidate()
         resolved?.let { homeDashboardResolution = it.copy(confirmed = false) }
         if (recreate) {
             teardownWeb()
@@ -1086,7 +911,7 @@ class DashboardActivity : AppCompatActivity() {
         if (web == null) return
         BuiltinDashboard.recordRendererReload(SystemClock.elapsedRealtime()) // involuntary: handshake stalled
         // The new load armed the cold-start window; keep it no shorter than the reload it replaced.
-        armWatchdog(maxOf(INITIAL_HANDSHAKE_MS, retryPolicy.afterRetry()))
+        pacer.armWatchdog(maxOf(DashboardRendererPacer.INITIAL_HANDSHAKE_MS, pacer.retryPolicy.afterRetry()))
     }
 
     /** Fired from the external-bus `connection-status` message: the frontend telling us it connected or
@@ -1109,18 +934,7 @@ class DashboardActivity : AppCompatActivity() {
             }
             statusScreens.clearReloadNotice()
             authInvalids = 0; refreshRejects = 0 // auth demonstrably works
-            main.removeCallbacks(watchdog)
-            retryPolicy.escalatedTo?.let { reached ->
-                Log.i(
-                    TAG,
-                    "frontend handshake recovered after ${retryPolicy.consecutiveMisses} consecutive misses " +
-                        "(escalated to ${reached.name.lowercase()})",
-                )
-            }
-            retryPolicy.reset()
-            wakeMediaRecovery.activateDeferred(generation)?.let { ticket ->
-                web?.let { w -> armWakeMediaRecovery(w, generation, ticket) }
-            }
+            pacer.onConnected(generation)
             if (!clearedThisLoad) {
                 // Drop the auth/redirect history entries so Back can't reach a stale login page, and
                 // persist cookies so an unclean process death right after login doesn't lose the session.
@@ -1128,9 +942,7 @@ class DashboardActivity : AppCompatActivity() {
                 runCatching { CookieManager.getInstance().flush() }
             }
             captureDashboardTheme(generation, session)
-            // If we connected while the screen is off (a screen-off memory reload), freeze now — the fresh
-            // page is loaded + connected, so there's nothing left to do behind the dark screen.
-            if (!screenAwake) { main.removeCallbacks(darkSettle); web?.let { it.onPause(); it.pauseTimers() } }
+            pacer.freezeIfDark()
             Log.i(TAG, "frontend connected")
             bridge.connected(session)
         } else {
@@ -1143,13 +955,7 @@ class DashboardActivity : AppCompatActivity() {
                 return
             }
             bridge.disconnected(session)
-            // disconnected: give the frontend's own reconnect a grace window, then reload — but only
-            // while awake (a frozen WebView can't reconnect; wake re-arms the handshake watchdog).
-            if (screenAwake && !authLatched) {
-                val delay = retryPolicy.connectionFailureDelay(wasConnected)
-                Log.i(TAG, "frontend '${event.wireValue}' — arming retry watchdog in ${delay}ms (wasConnected=$wasConnected)")
-                armWatchdog(delay)
-            }
+            pacer.onDisconnected(wasConnected, event.wireValue)
         }
     }
 
@@ -1208,7 +1014,7 @@ class DashboardActivity : AppCompatActivity() {
      */
     private fun renderAuthLatchPage() {
         if (!authLatched) return
-        main.removeCallbacks(watchdog)
+        pacer.disarmWatchdog()
         web?.let(bridge::suspend)
         // Panel Assistant's own screen, and for the sharpest reason on any of them: the line names Home
         // Assistant, the browser behind it normally shows Home Assistant, and the decision being reported —
@@ -1243,7 +1049,7 @@ class DashboardActivity : AppCompatActivity() {
      *  handshake cadence and clears a refused login or a reconnecting page; the caller then loads or rebuilds. */
     private fun consentToRetry(why: String) {
         authInvalids = 0; refreshRejects = 0
-        retryPolicy.reset()
+        pacer.retryPolicy.reset()
         if (authLatched) {
             // A latched page runs no automatic retry, so reaching here is a deliberate reload or change:
             // that consent also lets the shared credential authority ask Home Assistant once more.
@@ -1266,20 +1072,27 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         if (web == null) {
+            // No WebView is also what a blocked admission screen leaves. One that only a person can clear
+            // keeps its Retry: building again here would put a refused login to Home Assistant once per flap.
+            val blocked = ownAdmission()?.record?.takeIf { it.state == RendererAdmissionState.BLOCKED }?.outcome
+            if (blocked != null && admissionRetryClass(blocked) == AdmissionRetryClass.MANUAL_ONLY) {
+                Log.i(TAG, "network regained over a blocked admission screen (${blocked.name.lowercase()}) — leaving it for its Retry")
+                return
+            }
             val waitMs = statusScreens.endNetworkWait()
             Log.i(TAG, "network became available during startup after ${waitMs}ms — creating dashboard WebView")
-            retryPolicy.reset()
+            pacer.retryPolicy.reset()
             if (homeDashboardCheckingOwner != null) {
                 invalidateHomeDashboardResolution(resetRetry = false)
             }
             buildAndLoad(activityConfig)
-            if (!screenAwake) scheduleDarkSettle()
+            if (!pacer.screenAwake) pacer.scheduleDarkSettle()
             return
         }
-        if (frontendConnected || !screenAwake) return // frozen page reconnects itself on wake
+        if (frontendConnected || !pacer.screenAwake) return // frozen page reconnects itself on wake
         Log.i(TAG, "network regained while frontend not connected — reloading immediately")
-        retryPolicy.reset() // a changed environment deserves a fresh fast cadence if HA is still starting
-        doReload("network regained")
+        pacer.retryPolicy.reset() // a changed environment deserves a fresh fast cadence if HA is still starting
+        pacer.reload("network regained")
     }
 
     /** Pull-to-refresh: a full `WebView.reload()` re-boots the entire frontend app (seconds of blank),
@@ -1288,14 +1101,14 @@ class DashboardActivity : AppCompatActivity() {
      *  kept for the case that actually needs it: a frontend that isn't connected. */
     private fun lightRefresh() {
         val w = web
-        if (w == null || !frontendConnected) { doReload("pull-to-refresh (frontend not connected)"); return }
+        if (w == null || !frontendConnected) { pacer.reload("pull-to-refresh (frontend not connected)"); return }
         // Pull twice in quick succession = full hard reload (the browser's reload-vs-hard-reload
         // pattern, no extra UI): the light navigate re-renders from the frontend's in-memory config,
         // which can't pick up a YAML-mode dashboard edit — a second deliberate pull escalates.
         val now = SystemClock.elapsedRealtime()
         if (now - lastLightRefreshAt < HARD_REFRESH_WINDOW_MS) {
             lastLightRefreshAt = 0L
-            doReload("pull-to-refresh (hard, double-pull)")
+            pacer.reload("pull-to-refresh (hard, double-pull)")
             return
         }
         lastLightRefreshAt = now
@@ -1315,16 +1128,21 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun sendBusNavigate(path: String) {
-        noteDeliberateDashboardNavigation()
+        noteDeliberateDashboardNavigation(path)
         noteAppNavigationTarget(path)
         bridge.navigate(path)
     }
 
     /** Every navigation that CHOOSES a target — bus navigates (user, Home Assistant, idle return, correction),
      *  full loads of a chosen URL, and navigation observed inside the frontend itself — bumps this.
-     *  Mechanical reloads of the same target do not. The async cache correction compares against it
+     *  Mechanical reloads of the same target do not, and neither does going to [target] while it is the
+     *  provisional home the pending correction will replace (an idle return or reload right after a home
+     *  dashboard change): that chooses nothing new. The async cache correction compares against it
      *  so it can never overwrite a navigation that arrived after the provisional page was chosen. */
-    private fun noteDeliberateDashboardNavigation() {
+    private fun noteDeliberateDashboardNavigation(target: String? = null) {
+        val provisional = homeDashboardResolution?.takeIf { !it.confirmed && provisionalHomeDashboardEpoch != null }
+            ?.resolution?.path
+        if (target != null && provisional != null && normalizeDashboardTarget(target) == normalizeDashboardTarget(provisional)) return
         dashboardNavigationEpoch++
     }
 
@@ -1362,7 +1180,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun onIdleCheck() {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         main.postDelayed(idleCheck, IDLE_CHECK_MS)
-        if (!screenAwake || !frontendConnected || authLatched) return
+        if (!pacer.screenAwake || !frontendConnected || authLatched) return
         val config = activityConfig
         val minutes = config.dashboardIdleReturnMin
         val tick = DashboardIdleReturnPolicy.tick(
@@ -1437,14 +1255,6 @@ class DashboardActivity : AppCompatActivity() {
         return true
     }
 
-    /** Reload through the one load-start path: lit, the handshake watchdog checks it; dark, it runs live
-     *  through the settle window with the watchdog off, so a dark panel never reload-loops. */
-    private fun doReload(reason: String) {
-        Log.i(TAG, "reload: $reason")
-        if (!reloadTarget()) return
-        onLoadStarted()
-    }
-
     /** A main-frame load failed (HA down / network out / DNS): replace Android's native gray error page
      *  with a branded dark "reconnecting" screen while the handshake watchdog keeps retrying behind it.
      *  The native error page can't be styled or suppressed any other way, and a wall panel showing
@@ -1479,7 +1289,7 @@ class DashboardActivity : AppCompatActivity() {
                 getString(R.string.notice_pill_reconnecting),
                 hero,
                 notice.line(getString(R.string.dashboard_reconnecting)),
-                notice.footer(getString(R.string.dashboard_unreachable_retry, retryPolicy.initialRetryMs / 1_000L, retryPolicy.maxRetryMs / 1_000L)),
+                notice.footer(getString(R.string.dashboard_unreachable_retry, pacer.retryPolicy.initialRetryMs / 1_000L, pacer.retryPolicy.maxRetryMs / 1_000L)),
                 notice.footer(detail, small = true),
             )
         }
@@ -1799,7 +1609,6 @@ class DashboardActivity : AppCompatActivity() {
         }
         if (web != null) teardownWeb()
         signInShownForUrl = haUrl
-        signInLoadRetries = 0
         on(RendererEvent.SIGN_IN_SHOWN)
         val generation = rendererGate.open()
         val view = WebView(this).apply {
@@ -1810,55 +1619,29 @@ class DashboardActivity : AppCompatActivity() {
             setBackgroundColor(BG_DARK)
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    if (!rendererCurrent(generation, view)) return true
-                    return !panelHaOAuthNavigationAllowed(haUrl, request.url.toString())
+            webViewClient = PanelHaSignInClient(haUrl, object : PanelHaSignInClient.Host {
+                override fun isCurrent(view: WebView) = rendererCurrent(generation, view)
+                override fun retryLater(view: WebView, delayMs: Long) {
+                    main.postDelayed({
+                        if (rendererCurrent(generation, view) && !destroyed) view.loadUrl(panelHaOAuthStartUrl(haUrl))
+                    }, delayMs)
                 }
-
-                override fun onPageFinished(view: WebView, url: String) {
-                    if (!rendererCurrent(generation, view) || !isPanelHaOAuthCallback(url)) return
-                    view.evaluateJavascript(
-                        "document.body&&document.body.dataset?document.body.dataset.haOauthStatus:\"\"",
-                    ) { result ->
-                        if (!rendererCurrent(generation, view)) return@evaluateJavascript
-                        if (result?.trim('"') == "success") {
-                            main.postDelayed({
-                                if (rendererCurrent(generation, view)) {
-                                    compatibilityReadyUrl = null
-                                    compatibilityCheckingOwner = null
-                                    compatibilityAttempts.invalidate()
-                                    buildAndLoad(activityConfig)
-                                }
-                            }, 750L)
+                override fun showUnreachable() = statusScreens.showBlockedAdmissionScreen(
+                    getString(R.string.ha_sign_in_page_failed),
+                    getString(R.string.ha_sign_in_page_failed_detail),
+                    AdmissionOutcome.SIGN_IN_PAGE_UNREACHABLE,
+                )
+                override fun onSignedIn(view: WebView) {
+                    main.postDelayed({
+                        if (rendererCurrent(generation, view)) {
+                            compatibilityReadyUrl = null
+                            compatibilityCheckingOwner = null
+                            compatibilityAttempts.invalidate()
+                            buildAndLoad(activityConfig)
                         }
-                    }
+                    }, 750L)
                 }
-
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                    if (!rendererCurrent(generation, view) || !request.isForMainFrame) return
-                    // A main-frame error here is usually TRANSIENT: the sign-in start page is served by
-                    // this panel's own local HTTP server, which restarts briefly during a config
-                    // reconfigure — exactly when a first-run user is mid-setup. On hardware review that
-                    // produced a terminal "sign-in unavailable" over a sign-in the user may have been in
-                    // the middle of. Retry quietly first; only a persistent failure earns the verdict.
-                    if (signInLoadRetries < SIGN_IN_LOAD_RETRIES_MAX) {
-                        signInLoadRetries++
-                        Log.i(TAG, "panel sign-in page load failed — retry $signInLoadRetries/$SIGN_IN_LOAD_RETRIES_MAX")
-                        main.postDelayed({
-                            if (rendererCurrent(generation, view) && !destroyed) {
-                                view.loadUrl(panelHaOAuthStartUrl(haUrl))
-                            }
-                        }, SIGN_IN_LOAD_RETRY_MS)
-                        return
-                    }
-                    statusScreens.showBlockedAdmissionScreen(
-                        getString(R.string.ha_sign_in_page_failed),
-                        getString(R.string.ha_sign_in_page_failed_detail),
-                        AdmissionOutcome.SIGN_IN_PAGE_UNREACHABLE,
-                    )
-                }
-            }
+            })
         }
         web = view
         val content = FrameLayout(this).apply {
@@ -1874,6 +1657,8 @@ class DashboardActivity : AppCompatActivity() {
         statusScreens.clearRerender()
         root = content
         setContentView(content)
+        // The sign-in starts no dashboard load, so it must unfreeze timers an activity it replaced froze itself.
+        pacer.resumeTimersIfOwner(view)
         view.loadUrl(panelHaOAuthStartUrl(haUrl))
     }
 
@@ -1901,9 +1686,12 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /** The one admission retry sequence — the automatic timer and the manual Retry button both run
-     *  exactly this, so the two recovery paths cannot diverge. */
+     *  exactly this, so the two recovery paths cannot diverge. Only the button passes [resetBackoff]: a
+     *  person asking again is also the consent to put a refused login to Home Assistant once more, which
+     *  the timer must never do. */
     private fun retryAdmission(resetBackoff: Boolean) {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
+        if (resetBackoff) HaCredentialManager.forgetRefusal()
         invalidateHomeDashboardResolution(resetRetry = resetBackoff)
         compatibilityCheckingOwner = null
         compatibilityReadyUrl = null
@@ -2088,6 +1876,9 @@ class DashboardActivity : AppCompatActivity() {
                 return@launch
             }
             currentConfig.setHomeDashboardLaunchPathIfOwned(launchOwner, resolution.path)
+            // The home is known now: where the page goes home is the configured one.
+            embodiment.reconciled(mapOf("home_dashboard" to rendererShownValue(currentConfig, "home_dashboard")), connected = frontendConnected)
+            publishPendingSettings()
             Log.i(TAG, "home dashboard resolved source=${resolution.source} path=${resolution.path}")
             val provisionalEpoch = provisionalHomeDashboardEpoch
             provisionalHomeDashboardEpoch = null
@@ -2159,7 +1950,7 @@ class DashboardActivity : AppCompatActivity() {
         noteAppNavigationTarget(android.net.Uri.parse(target).path.orEmpty())
         bridge.expectPageStart(target)
         w.loadUrl(target)
-        onLoadStarted()
+        pacer.loadStarted()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -2250,7 +2041,7 @@ class DashboardActivity : AppCompatActivity() {
         // Attached to the same frame the fullscreen-video view uses, so the dashboard keeps rendering
         // underneath. Seeded from the CURRENT state because a renderer rebuilt mid-outage must not come
         // up looking calm.
-        lifecycleBar = HaLifecycleBar.attach(this, container) { visible ->
+        lifecycleBar = HaLifecycleBar.attach(this, container, ::ownAdmission) { visible ->
             if (rendererCurrent(generation, w)) {
                 w.evaluateJavascript(InjectionScript.lifecycleNoticeJs(visible), null)
             }
@@ -2263,18 +2054,18 @@ class DashboardActivity : AppCompatActivity() {
             // The refusal survived the rebuild (a renderer crash, a route failover): the new WebView shows
             // the latch page, not a dashboard load the latch would leave uncovered and unretried.
             renderAuthLatchPage()
-            if (!screenAwake) scheduleDarkSettle()
+            if (!pacer.screenAwake) pacer.scheduleDarkSettle()
             return
         }
         val target = currentUrl(config, homePath)
         noteAppNavigationTarget(android.net.Uri.parse(target).path.orEmpty())
         bridge.expectPageStart(target)
         w.loadUrl(target)
-        onLoadStarted()
+        pacer.loadStarted()
         // buildAndLoad is reached from service-triggered singleTask intents and renderer recovery as
         // well as initial startup. Own dark settling here so no caller can leave a replacement WebView
         // running indefinitely behind a sleeping display while it waits for a connection callback.
-        if (!screenAwake) scheduleDarkSettle()
+        if (!pacer.screenAwake) pacer.scheduleDarkSettle()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -2303,8 +2094,7 @@ class DashboardActivity : AppCompatActivity() {
                     web = null
                     shownPage.forget()
                     on(RendererEvent.TORN_DOWN) // drop the dead page's cover, or the rebuilt page's first error can't raise one
-                    main.removeCallbacks(watchdog)
-                    main.removeCallbacks(darkSettle)
+                    pacer.stop()
                     runCatching { customViewCallback?.onCustomViewHidden() }
                     customView = null
                     customViewCallback = null
@@ -2333,7 +2123,7 @@ class DashboardActivity : AppCompatActivity() {
                     }
                     if (!rotateBusDocument(view, config, generation)) return true
                     bridge.expectPageStart(request.url.toString())
-                    onLoadStarted()
+                    pacer.loadStarted()
                 }
                 return !allowed
             }
@@ -2359,7 +2149,7 @@ class DashboardActivity : AppCompatActivity() {
                 // Rotate only the typed document context here; both listeners were attached before the
                 // first load and remain installed throughout this navigation.
                 runCatching { bridge.beginDocument(view, config, generation) }
-                    .onSuccess { onLoadStarted() }
+                    .onSuccess { pacer.loadStarted() }
                     .onFailure {
                         Log.e(TAG, "secure V2 document rotation failed", it)
                         showDashboardBlocked(
@@ -2503,14 +2293,7 @@ class DashboardActivity : AppCompatActivity() {
         /** Camera trial: the CAMERA runtime-permission request raised when the camera
          *  setting turns on. Distinct from any other request code — this activity had none before. */
         private const val REQUEST_CAMERA_PERMISSION = 4801
-        private const val SIGN_IN_LOAD_RETRIES_MAX = 4
-        private const val SIGN_IN_LOAD_RETRY_MS = 4_000L
         private const val ADMISSION_COUNTDOWN_TICK_MS = 1_000L  // repaint cadence of the visible retry countdown
-        private const val INITIAL_HANDSHAKE_MS = 25_000L        // generous: a cold PX30 frontend can need 20s+
-        private const val RELOAD_INTERVAL_MS = 6 * 60 * 60 * 1000L   // shed WebView memory at a screen-off, ~6h
-        private const val RELOAD_HARD_MS = 26 * 60 * 60 * 1000L      // force a visible reload if never idle-dark
-        private const val PERIODIC_CHECK_MS = 30 * 60 * 1000L        // how often the memory-ceiling check runs
-        private const val DARK_SETTLE_MS = 30_000L              // let a screen-off reload load before freezing
         internal const val BG_DARK = PanelTokens.Overlay.DASHBOARD_DARK
         private const val LIGHT_REFRESH_SPINNER_MS = 800L       // bus navigate is instant; brief spinner ack
         private const val HARD_REFRESH_WINDOW_MS = 6_000L       // second pull inside this = full hard reload
@@ -2518,8 +2301,6 @@ class DashboardActivity : AppCompatActivity() {
         private const val IDLE_CHECK_MS = 60_000L               // idle return-to-home tick
         private const val AUTH_INVALID_LATCH = 3                // consecutive auth-invalid events → latch
         private const val REFRESH_REJECT_LATCH = 2              // consecutive definitive refresh rejections → latch
-        private const val WAKE_MEDIA_SETTLE_MS = 3_000L         // let resumeTimers/onResume reach the page first
-        private const val WAKE_MEDIA_SAMPLE_MS = 6_000L         // tolerate slow camera transport reconstruction
     }
 }
 

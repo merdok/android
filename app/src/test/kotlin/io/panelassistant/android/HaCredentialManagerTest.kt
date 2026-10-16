@@ -1,16 +1,9 @@
 package io.panelassistant.android
 
 import android.content.SharedPreferences
-import com.sun.net.httpserver.HttpServer
 import io.panelassistant.android.sensors.DashboardHaApiSessionProvider
 import java.lang.reflect.Proxy
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -202,66 +195,6 @@ class HaCredentialManagerTest {
         fun result(): T {
             thread.join(20_000)
             return checkNotNull(value) { "caller did not finish" }.getOrThrow()
-        }
-    }
-
-    /** Home Assistant's `/auth/token`, answering from a script the test controls. */
-    private class LoopbackHa : AutoCloseable {
-        val requests = AtomicInteger()
-        @Volatile private var gate = CountDownLatch(0)
-        @Volatile private var status = 500
-        @Volatile private var body = "{}"
-        private val pool = Executors.newCachedThreadPool()
-        private val server = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 16).apply {
-            executor = pool
-            createContext("/auth/token") { exchange ->
-                requests.incrementAndGet()
-                exchange.requestBody.readBytes()
-                gate.await(20, TimeUnit.SECONDS)
-                val bytes = body.toByteArray()
-                exchange.sendResponseHeaders(status, bytes.size.toLong())
-                exchange.responseBody.use { it.write(bytes) }
-            }
-            start()
-        }
-        val url = "http://127.0.0.1:${server.address.port}"
-
-        fun hold() { gate = CountDownLatch(1) }
-
-        fun answer(code: Int, json: String) {
-            status = code
-            body = json
-            gate.countDown()
-        }
-
-        fun reset() {
-            requests.set(0)
-            gate = CountDownLatch(0)
-        }
-
-        fun awaitRequests(count: Int) {
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-            while (requests.get() < count) {
-                check(System.nanoTime() < deadline) { "Home Assistant saw ${requests.get()} of $count requests" }
-                Thread.sleep(5)
-            }
-        }
-
-        /** Until [caller] either sends its own request or is parked waiting on the one in flight. */
-        fun awaitSecondRequestOrParked(caller: Thread) {
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-            while (requests.get() < 2 && caller.state != Thread.State.TIMED_WAITING &&
-                caller.state != Thread.State.WAITING
-            ) {
-                check(System.nanoTime() < deadline) { "second caller neither asked nor waited" }
-                Thread.sleep(5)
-            }
-        }
-
-        override fun close() {
-            gate.countDown()
-            server.stop(0)
-            pool.shutdownNow()
         }
     }
 

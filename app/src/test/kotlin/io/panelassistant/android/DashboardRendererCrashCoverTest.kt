@@ -81,6 +81,7 @@ class DashboardRendererCrashCoverTest {
         set(activity, "web", oldWeb)
         set(activity, "phase", RendererPhase.RECONNECTING) // showReconnecting ran for the first network error
         set(activity, "reconnectingSinceMs", 1L)
+        set(activity, "pacer", DashboardActivity::class.java.getDeclaredMethod("createPacer").apply { isAccessible = true }.invoke(activity))
 
         // The client is an anonymous class whose compiler ordinal shifts as createWebView changes.
         val clientClass = (1..9).mapNotNull {

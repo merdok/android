@@ -420,8 +420,9 @@ internal class Notice(
         const val HERO_TAG = "noticeHero"
         const val LINE_TAG = "noticeLine"
 
-        val MEDIUM: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        val LIGHT_FACE: Typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+        // Created on first use, so a JVM test can hold a Notice without the platform's font machinery.
+        val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+        val LIGHT_FACE: Typeface by lazy { Typeface.create("sans-serif-light", Typeface.NORMAL) }
 
         /** The lock-up's width over its height, and where its name starts, from the brand asset set. */
         const val WORDMARK_ASPECT = 373.57f / 56f
