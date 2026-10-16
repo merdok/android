@@ -335,10 +335,6 @@ class DashboardActivity : AppCompatActivity() {
     /** Endpoint the on-panel Home Assistant sign-in is currently showing, so a relaunch does not restart it. */
     private var signInShownForUrl: String? = null
 
-    /** Quiet retries before the sign-in surface declares itself unavailable — its start page is served
-     *  by the panel's own HTTP server, which restarts briefly during config reconfigures. */
-    private var signInLoadRetries = 0
-
     private val compatibilityAttempts = DashboardV2AttemptGate()
     // Auth-failure latch. A terminal login-settings rejection (refresh token/client id, repeated
     // auth-invalid from the frontend) must not become an infinite reload loop on an unattended panel —
@@ -1844,7 +1840,6 @@ class DashboardActivity : AppCompatActivity() {
         }
         if (web != null) teardownWeb()
         signInShownForUrl = haUrl
-        signInLoadRetries = 0
         on(RendererEvent.SIGN_IN_SHOWN)
         val generation = rendererGate.open()
         val view = WebView(this).apply {
@@ -1855,55 +1850,29 @@ class DashboardActivity : AppCompatActivity() {
             setBackgroundColor(BG_DARK)
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    if (!rendererCurrent(generation, view)) return true
-                    return !panelHaOAuthNavigationAllowed(haUrl, request.url.toString())
+            webViewClient = PanelHaSignInClient(haUrl, object : PanelHaSignInClient.Host {
+                override fun isCurrent(view: WebView) = rendererCurrent(generation, view)
+                override fun retryLater(view: WebView, delayMs: Long) {
+                    main.postDelayed({
+                        if (rendererCurrent(generation, view) && !destroyed) view.loadUrl(panelHaOAuthStartUrl(haUrl))
+                    }, delayMs)
                 }
-
-                override fun onPageFinished(view: WebView, url: String) {
-                    if (!rendererCurrent(generation, view) || !isPanelHaOAuthCallback(url)) return
-                    view.evaluateJavascript(
-                        "document.body&&document.body.dataset?document.body.dataset.haOauthStatus:\"\"",
-                    ) { result ->
-                        if (!rendererCurrent(generation, view)) return@evaluateJavascript
-                        if (result?.trim('"') == "success") {
-                            main.postDelayed({
-                                if (rendererCurrent(generation, view)) {
-                                    compatibilityReadyUrl = null
-                                    compatibilityCheckingOwner = null
-                                    compatibilityAttempts.invalidate()
-                                    buildAndLoad(activityConfig)
-                                }
-                            }, 750L)
+                override fun showUnreachable() = statusScreens.showBlockedAdmissionScreen(
+                    getString(R.string.ha_sign_in_page_failed),
+                    getString(R.string.ha_sign_in_page_failed_detail),
+                    AdmissionOutcome.SIGN_IN_PAGE_UNREACHABLE,
+                )
+                override fun onSignedIn(view: WebView) {
+                    main.postDelayed({
+                        if (rendererCurrent(generation, view)) {
+                            compatibilityReadyUrl = null
+                            compatibilityCheckingOwner = null
+                            compatibilityAttempts.invalidate()
+                            buildAndLoad(activityConfig)
                         }
-                    }
+                    }, 750L)
                 }
-
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                    if (!rendererCurrent(generation, view) || !request.isForMainFrame) return
-                    // A main-frame error here is usually TRANSIENT: the sign-in start page is served by
-                    // this panel's own local HTTP server, which restarts briefly during a config
-                    // reconfigure — exactly when a first-run user is mid-setup. On hardware review that
-                    // produced a terminal "sign-in unavailable" over a sign-in the user may have been in
-                    // the middle of. Retry quietly first; only a persistent failure earns the verdict.
-                    if (signInLoadRetries < SIGN_IN_LOAD_RETRIES_MAX) {
-                        signInLoadRetries++
-                        Log.i(TAG, "panel sign-in page load failed — retry $signInLoadRetries/$SIGN_IN_LOAD_RETRIES_MAX")
-                        main.postDelayed({
-                            if (rendererCurrent(generation, view) && !destroyed) {
-                                view.loadUrl(panelHaOAuthStartUrl(haUrl))
-                            }
-                        }, SIGN_IN_LOAD_RETRY_MS)
-                        return
-                    }
-                    statusScreens.showBlockedAdmissionScreen(
-                        getString(R.string.ha_sign_in_page_failed),
-                        getString(R.string.ha_sign_in_page_failed_detail),
-                        AdmissionOutcome.SIGN_IN_PAGE_UNREACHABLE,
-                    )
-                }
-            }
+            })
         }
         web = view
         val content = FrameLayout(this).apply {
@@ -2553,8 +2522,6 @@ class DashboardActivity : AppCompatActivity() {
         /** Camera trial: the CAMERA runtime-permission request raised when the camera
          *  setting turns on. Distinct from any other request code — this activity had none before. */
         private const val REQUEST_CAMERA_PERMISSION = 4801
-        private const val SIGN_IN_LOAD_RETRIES_MAX = 4
-        private const val SIGN_IN_LOAD_RETRY_MS = 4_000L
         private const val ADMISSION_COUNTDOWN_TICK_MS = 1_000L  // repaint cadence of the visible retry countdown
         private const val INITIAL_HANDSHAKE_MS = 25_000L        // generous: a cold PX30 frontend can need 20s+
         private const val RELOAD_INTERVAL_MS = 6 * 60 * 60 * 1000L   // shed WebView memory at a screen-off, ~6h
