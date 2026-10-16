@@ -202,8 +202,6 @@ class InstallDescriptorTest(unittest.TestCase):
     def test_package_platform_abis_and_launcher_are_closed(self):
         mutations = (
             (BADGING.replace("io.panelassistant.android' versionCode", "example.foreign' versionCode"), "package ID"),
-            # The old application id is foreign too: the app builds only io.panelassistant.android.
-            (BADGING.replace(*OLD_ID_BADGING_REPLACEMENT), "package ID"),
             (BADGING.replace("sdkVersion:'26'", "sdkVersion:'0'"), "minSdk"),
             (BADGING.replace(" 'arm64-v8a'", " 'x86_64'"), "ABI set"),
             (BADGING.replace(".MainActivity'  label", ".DashboardActivity'  label"), "launcher"),

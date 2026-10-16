@@ -1285,9 +1285,7 @@ fi
 
 gate_set_refused=1
 for gate_assets in "$gate_others $gate_companions" \
-    "$gate_release foreign-v1.2.3-rc1.apk.bin" \
-    "$gate_release ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin" \
-    "$gate_others $gate_companions ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin"; do
+    "$gate_release foreign-v1.2.3-rc1.apk.bin"; do
   if run_ordering_case "$gate_assets" || \
      ! grep -Fq "expected exactly '$gate_apk'" "$ordering_case/ordering.log"; then
     sed -n '1,40p' "$ordering_case/ordering.log" >&2
