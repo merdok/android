@@ -552,7 +552,7 @@ internal class PanelCommandDispatcher(
                 always = true,
             )
         }
-        config.setCameraEnabled(on)
+        check(config.commitCameraEnabled(on)) { "camera switch could not be persisted" }
         // The same actuation the HTTP reconfigure path performs, so both routes converge on one owner.
         onCameraEnabledChanged()
         core.reconcile("camera_enabled")

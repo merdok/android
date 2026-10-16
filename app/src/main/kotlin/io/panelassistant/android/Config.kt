@@ -593,11 +593,9 @@ class Config private constructor(
 
     // Camera trial: the master switch and the hard caps that clamp every stream/snapshot request. The
     // HTTP config route persists all five through the registry writer; only the master switch needs a
-    // typed setter.
+    // typed commit, used by the Panel Assistant command before it is acknowledged.
     val cameraEnabled: Boolean get() = boolPref("camera_enabled")
-    fun setCameraEnabled(on: Boolean) {
-        edit { putBoolean("camera_enabled", on) }
-    }
+    fun commitCameraEnabled(on: Boolean): Boolean = commitRaw(specOf("camera_enabled"), on.toString())
     val cameraResolution: CameraResolution
         get() = CameraResolution.parse(enumPref("camera_resolution")) ?: CameraResolution.P720
     val cameraFps: Int get() = intPrefInRange("camera_fps")
