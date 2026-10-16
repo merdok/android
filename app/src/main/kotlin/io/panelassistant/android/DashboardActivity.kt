@@ -111,7 +111,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun redrawLifecycleBar() {
         // Each owner supplies one atomic snapshot. Cached admission can explain a disconnected
         // dashboard even before the service has observed a lifecycle event.
-        lifecycleBar?.update(io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot(), ownAdmission())
+        lifecycleBar?.update(io.panelassistant.android.sensors.HaLifecycleRuntime.snapshot())
         networkChip?.update(io.panelassistant.android.sensors.HaNetworkPathRuntime.snapshot(), activityConfig.dashboardNetworkWarning)
     }
 
@@ -2269,7 +2269,7 @@ class DashboardActivity : AppCompatActivity() {
         // Attached to the same frame the fullscreen-video view uses, so the dashboard keeps rendering
         // underneath. Seeded from the CURRENT state because a renderer rebuilt mid-outage must not come
         // up looking calm.
-        lifecycleBar = HaLifecycleBar.attach(this, container) { visible ->
+        lifecycleBar = HaLifecycleBar.attach(this, container, ::ownAdmission) { visible ->
             if (rendererCurrent(generation, w)) {
                 w.evaluateJavascript(InjectionScript.lifecycleNoticeJs(visible), null)
             }
