@@ -84,6 +84,12 @@ internal fun stageDirectLogShipping(config: Config, posted: Map<String, String>)
     }
 }
 
+/** Whether posting [posted] as `ha_url` moves the panel to another Home Assistant, which clears the stored
+ * credentials. A credential stored while no address was set can only belong to the first address, so setting
+ * that address keeps it: Configure sends each field as it is committed, and a token can arrive first. */
+internal fun haOriginChanges(previousUrl: String, posted: String?): Boolean =
+    posted != null && previousUrl.isNotBlank() && posted.trimEnd('/') != previousUrl.trimEnd('/')
+
 /** Stage the direct form's coupled Home Assistant credentials through their real Config owners. Blank
  * secret placeholders preserve existing credentials except where the URL is explicitly cleared or the
  * Home Assistant origin changes. Kept production-used so mutations to those dependent clears reach the JVM
@@ -98,10 +104,7 @@ internal fun stageDirectCredentialSettings(
     val previousExpiry = config.haTokenExpiry
     val previousClientId = config.haClientId
     val url = posted["ha_url"]
-    // A credential stored while no address was set can only belong to the first address, so setting that
-    // address keeps it: Configure sends each field as it is committed, and a token can arrive first.
-    val haOriginChange = url != null && previousUrl.isNotBlank() &&
-        url.trimEnd('/') != previousUrl.trimEnd('/')
+    val haOriginChange = haOriginChanges(previousUrl, url)
     val token = when {
         url != null && url.isEmpty() -> ""
         haOriginChange -> posted["ha_token"]?.takeIf(String::isNotEmpty) ?: ""

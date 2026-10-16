@@ -6,6 +6,7 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.DashboardEntityBackupState
 import io.panelassistant.android.HaAuthOwner
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.NativeLocale
 import io.panelassistant.android.dashboardEntityLearningEnabled
 import io.panelassistant.android.haAuthSnapshot
 import io.panelassistant.android.isHaOAuthAttemptCurrent
@@ -191,6 +192,8 @@ internal class AcceptedConfigTransaction(
                         editor,
                         afterCommit = {
                             if ("tame_vendor_packages" in accepted) requestTameReconcileAfterCommit()
+                            // A changed interface language reaches the panel's own screens at once, as a Configure save does.
+                            accepted["ui_language"]?.takeIf { it != previous.values["ui_language"] }?.let(NativeLocale::apply)
                         },
                     )
                 ) {
