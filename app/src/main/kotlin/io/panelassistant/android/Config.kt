@@ -567,9 +567,7 @@ class Config private constructor(
     // App watchdog: poll the dashboard app and self-heal it — relaunch if its process dies, and return
     // to it if it's been backgrounded too long. Opt-in (off by default): a stock panel never auto-acts.
     val watchdogEnabled: Boolean get() = boolPref("watchdog_enabled")
-    fun setWatchdogEnabled(on: Boolean) {
-        edit { putBoolean("watchdog_enabled", on) }
-    }
+    fun commitWatchdogEnabled(on: Boolean): Boolean = commitRaw(specOf("watchdog_enabled"), on.toString())
 
     // Touch sound: an audible tap, owned as persisted intent rather than read back from the platform.
     //

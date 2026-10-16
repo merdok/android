@@ -499,7 +499,7 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleWatchdog(on: Boolean) {
-        config.setWatchdogEnabled(on)
+        check(config.commitWatchdogEnabled(on)) { "watchdog intent could not be persisted" }
         watchdog.apply(on)
         core.reconcile("watchdog")
     }
