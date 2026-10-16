@@ -714,7 +714,8 @@ class DashboardActivity : AppCompatActivity() {
             val sdk = android.os.Build.VERSION.SDK_INT
             embodiment.reconciled(
                 rendererValues { it == RendererApply.REBUILD || it == RendererApply.READMIT }
-                    .filterKeys { rendererReconcilesOnChange(it, sdk) },
+                    // A home being resolved behind the page is on screen once its answer lands, not now.
+                    .filterKeys { rendererReconcilesOnChange(it, sdk) && (shownHome == null || it != "home_dashboard") },
                 connected = phase == RendererPhase.CONNECTED,
             )
             publishPendingSettings()
@@ -757,7 +758,7 @@ class DashboardActivity : AppCompatActivity() {
         val targetPath = nav ?: resolvedHomeDashboard(config)
             ?: return readmitForHomeDashboard(if (reload) "reload" else "relaunch")
         val url = ExternalAuthProtocol.dashboardUrl(config.haEffectiveUrl, targetPath)
-        noteDeliberateDashboardNavigation()
+        noteDeliberateDashboardNavigation(targetPath)
         noteAppNavigationTarget(targetPath)
         val generation = rendererGeneration
         // Same suppression as the seed in createWebView: while Dark/Light owns the `dark` field, a
@@ -1127,16 +1128,21 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun sendBusNavigate(path: String) {
-        noteDeliberateDashboardNavigation()
+        noteDeliberateDashboardNavigation(path)
         noteAppNavigationTarget(path)
         bridge.navigate(path)
     }
 
     /** Every navigation that CHOOSES a target — bus navigates (user, Home Assistant, idle return, correction),
      *  full loads of a chosen URL, and navigation observed inside the frontend itself — bumps this.
-     *  Mechanical reloads of the same target do not. The async cache correction compares against it
+     *  Mechanical reloads of the same target do not, and neither does going to [target] while it is the
+     *  provisional home the pending correction will replace (an idle return or reload right after a home
+     *  dashboard change): that chooses nothing new. The async cache correction compares against it
      *  so it can never overwrite a navigation that arrived after the provisional page was chosen. */
-    private fun noteDeliberateDashboardNavigation() {
+    private fun noteDeliberateDashboardNavigation(target: String? = null) {
+        val provisional = homeDashboardResolution?.takeIf { !it.confirmed && provisionalHomeDashboardEpoch != null }
+            ?.resolution?.path
+        if (target != null && provisional != null && normalizeDashboardTarget(target) == normalizeDashboardTarget(provisional)) return
         dashboardNavigationEpoch++
     }
 
@@ -1870,6 +1876,9 @@ class DashboardActivity : AppCompatActivity() {
                 return@launch
             }
             currentConfig.setHomeDashboardLaunchPathIfOwned(launchOwner, resolution.path)
+            // The home is known now: where the page goes home is the configured one.
+            embodiment.reconciled(mapOf("home_dashboard" to rendererShownValue(currentConfig, "home_dashboard")), connected = frontendConnected)
+            publishPendingSettings()
             Log.i(TAG, "home dashboard resolved source=${resolution.source} path=${resolution.path}")
             val provisionalEpoch = provisionalHomeDashboardEpoch
             provisionalHomeDashboardEpoch = null

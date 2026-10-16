@@ -1,6 +1,7 @@
 package io.panelassistant.android
 
 import io.panelassistant.android.DashboardRendererRig.Companion.HA
+import io.panelassistant.android.control.BuiltinDashboard
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -39,5 +40,43 @@ class DashboardRendererHomeDashboardTest {
                 (rig.get("homeDashboardCheckingOwner") as HomeDashboardResolutionOwner?)?.configuredPath,
             )
         }
+    }
+
+    /**
+     * Until the new home's answer lands, the page still shows the old one, so the settings pages must not
+     * report the new value as on screen yet.
+     */
+    @Test fun theNewHomeIsNotReportedOnScreenBeforeItsAnswerLands() {
+        rig.show(RecordingWebView("$HA/lovelace"))
+        rig.admitted("lovelace")
+        rig.phase = RendererPhase.CONNECTED
+
+        rig.config.setHomeDashboard("/kitchen")
+        rig.relaunch(null)
+
+        val pending = requireNotNull(BuiltinDashboard.pendingRendererSettings()) { "the renderer publishes a report" }
+        assertTrue("the new home is still pending: $pending", "home_dashboard" in pending)
+    }
+
+    /**
+     * An idle return (or a reload) right after a home change goes to the home the page shows, because the
+     * new one is still being resolved. That is no choice of a different page, so the answer, when it lands,
+     * must still move the page to the new home; it used to count as a newer navigation and leave the panel on
+     * the old home. The answer cannot land on the JVM, so this checks what its handler reads.
+     */
+    @Test fun goingToTheShownHomeWhileTheNewOneResolvesLeavesItsAnswerToMoveThePage() {
+        rig.show(RecordingWebView("$HA/lovelace/1"))
+        rig.admitted("lovelace")
+        rig.phase = RendererPhase.CONNECTED
+        rig.config.setHomeDashboard("/kitchen")
+        rig.relaunch(null)
+        val pendingCorrection = rig.get("provisionalHomeDashboardEpoch")
+        rig.config.edit { putInt("dashboard_idle_return_min", 1) }
+        rig.set("idleUnresolvedNotice", DashboardIdleReturnPolicy.UnresolvedNotice())
+        rig.set("lastTouchAt", -10 * 60_000L)
+
+        rig.call("onIdleCheck")
+
+        assertEquals("the new home's answer still moves the page", pendingCorrection, rig.get("dashboardNavigationEpoch"))
     }
 }
