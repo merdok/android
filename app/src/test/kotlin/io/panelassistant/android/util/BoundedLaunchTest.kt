@@ -10,6 +10,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BoundedLaunchTest {
+    // Bounds are seconds, not milliseconds: a loaded JVM can take over a second to start a worker, and a
+    // deadline that expires first returns before the launch the test is about ever begins.
+
     // The launch stays wedged until after the assertion, so a caller that waited for it never returns.
     @Test(timeout = 10_000)
     fun launchThatIgnoresInterruptionCannotExtendTheCallerDeadline() {
@@ -18,7 +21,7 @@ class BoundedLaunchTest {
         val destroyed = AtomicBoolean(false)
         val consumed = AtomicBoolean(false)
         val result = runBoundedLaunch(
-            deadline = MonotonicDeadline(40L),
+            deadline = MonotonicDeadline(2_000L),
             threadName = "bounded-launch-test",
             gate = BoundedLaunchGate(),
             launch = {
@@ -36,11 +39,11 @@ class BoundedLaunchTest {
             destroy = { destroyed.set(true) },
             consume = { consumed.set(true); "unexpected" },
         )
-        assertTrue(launchEntered.await(1, TimeUnit.SECONDS))
+        assertTrue(launchEntered.await(5, TimeUnit.SECONDS))
         assertNull(result)
         assertFalse(consumed.get())
         releaseLaunch.countDown()
-        val destroyDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+        val destroyDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (!destroyed.get() && System.nanoTime() < destroyDeadline) Thread.yield()
         assertTrue("late-launched resource was not destroyed", destroyed.get())
         assertFalse(consumed.get())
@@ -51,7 +54,7 @@ class BoundedLaunchTest {
         val releaseLaunch = CountDownLatch(1)
         val lateDestroyed = AtomicBoolean(false)
         val first = runBoundedLaunch(
-            deadline = MonotonicDeadline(30L),
+            deadline = MonotonicDeadline(2_000L),
             threadName = "bounded-launch-stuck-test",
             gate = gate,
             launch = {
@@ -84,7 +87,7 @@ class BoundedLaunchTest {
 
         releaseLaunch.countDown()
         var third: String? = null
-        val recoveryDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+        val recoveryDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (third == null && System.nanoTime() < recoveryDeadline) {
             third = runBoundedLaunch(
                 deadline = MonotonicDeadline(100L),
@@ -106,7 +109,7 @@ class BoundedLaunchTest {
         val firstDone = CountDownLatch(1)
         val firstThread = Thread {
             runBoundedLaunch(
-                deadline = MonotonicDeadline(500L),
+                deadline = MonotonicDeadline(5_000L),
                 threadName = "bounded-launch-first-dialect-test",
                 gate = gate,
                 launch = { Any() },
@@ -120,7 +123,7 @@ class BoundedLaunchTest {
             firstDone.countDown()
         }.apply { isDaemon = true; start() }
 
-        assertTrue(firstEntered.await(1, TimeUnit.SECONDS))
+        assertTrue(firstEntered.await(5, TimeUnit.SECONDS))
         val releaser = Thread {
             Thread.sleep(50L)
             releaseFirst.countDown()
@@ -128,7 +131,7 @@ class BoundedLaunchTest {
 
         var secondLaunched = false
         val second = runBoundedLaunch(
-            deadline = MonotonicDeadline(500L),
+            deadline = MonotonicDeadline(5_000L),
             threadName = "bounded-launch-second-dialect-test",
             gate = gate,
             launch = { secondLaunched = true; Any() },
@@ -138,7 +141,7 @@ class BoundedLaunchTest {
 
         assertEquals("second", second)
         assertTrue(secondLaunched)
-        assertTrue(firstDone.await(1, TimeUnit.SECONDS))
+        assertTrue(firstDone.await(5, TimeUnit.SECONDS))
         firstThread.join(1_000L)
         releaser.join(1_000L)
     }

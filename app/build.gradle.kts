@@ -457,10 +457,11 @@ val verifyOpenApiVersion = tasks.register("verifyOpenApiVersion") {
 }
 tasks.named("preBuild") { dependsOn(compileCdpRelay, verifyBundledRootHelperBuildIdentity, verifyOpenApiVersion) }
 
-val helperSocketTestServer = rootProject.file("helper/build/socket-test-server")
+// Built outside helper/build, which the helper Makefile's clean deletes while a JVM run may be using it.
+val helperSocketTestServer = layout.buildDirectory.file("helper-socket-test/socket-test-server").get().asFile
 val buildHelperSocketTestServer = tasks.register<Exec>("buildHelperSocketTestServer") {
     workingDir(rootProject.file("helper"))
-    commandLine("make", "socket-test-server")
+    commandLine("make", "BUILD=${helperSocketTestServer.parentFile.absolutePath}", "socket-test-server")
     inputs.files(
         rootProject.file("helper/Makefile"),
         rootProject.fileTree("helper/src"),
