@@ -6,6 +6,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.webkit.WebView
 import io.panelassistant.android.Config
+import io.panelassistant.android.platform.RootRunOutcome
+import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.util.AccessDenialMemo
 import io.panelassistant.android.util.DurableRecoveryMarker
 import java.io.File
@@ -30,9 +32,11 @@ import java.util.concurrent.TimeUnit
  * ⚠️ Security: this leaves a standing adb port open on the LAN — opt-in and root-gated ([Su]). Toggling
  * restarts adbd, briefly dropping an existing adb-over-tcp connection (it re-establishes).
  */
-class AdbController private constructor(
+class AdbController internal constructor(
     private val config: Config,
     private val disableMarker: NetworkAdbDisableTransitionMarker,
+    // Production injects Su; a JVM test injects a fake root boundary.
+    private val root: RootShell = Su,
 ) {
     constructor(context: Context, config: Config) : this(
         config = config,
@@ -42,7 +46,7 @@ class AdbController private constructor(
     )
 
     /** Root present — required to set the props and restart adbd. */
-    fun available(): Boolean = Su.available()
+    fun available(): Boolean = root.available()
 
     /** ha-paneld's persist intent = the switch state. ha-paneld re-asserts adb-tcp at boot/reconnect
      *  while this is true, so it survives firmwares that drop `persist.adb.tcp.port`. */
@@ -187,14 +191,14 @@ class AdbController private constructor(
         rootAvailable = ::available,
         disablePending = disableMarker::isPending,
         armDisable = disableMarker::arm,
-        teardown = { Su.run(networkAdbDisableCommand()) },
+        teardown = { root.run(networkAdbDisableCommand()) },
         inactiveReadback = ::proveInactive,
         clearOwnership = { config.setNetworkAdbEnabled(false) },
         clearDisable = disableMarker::clear,
     )
 
     private fun apply(): Boolean =
-        Su.run(networkAdbEnableCommand())
+        root.run(networkAdbEnableCommand())
 
     private fun resealHardenedAuthorityIfExact() {
         if (config.hardenedSecurityEnabled && !CdpRelay.running && hardenedRemoteDebugOff()) {

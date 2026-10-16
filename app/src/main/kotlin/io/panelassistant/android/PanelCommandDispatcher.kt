@@ -154,6 +154,8 @@ internal class PanelCommandDispatcher(
     // The root helper's command line, for the button backlight.
     private val helperSend: (String) -> String? = HelperClient::send,
     private val onAutoSleepConfigChanged: (Boolean) -> Unit = {},
+    // Whether Home Assistant reports this panel in an Area; asked only when an ON would start Area presence.
+    private val autoSleepAreaPrerequisite: () -> io.panelassistant.android.sensors.HaPanelAreaPrerequisite,
     // The named operations the HTTP routes register (protocol section 20.3), served by [manage].
     manageTable: ManageTable = ManageTable(),
     manageFamilies: Map<String, ManageFamily> = ManageFamilies.DEFAULT,
