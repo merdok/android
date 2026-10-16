@@ -129,6 +129,7 @@ import io.panelassistant.android.util.GuardDbSentinelLoad
 import io.panelassistant.android.util.HelperInstallReconciler
 import io.panelassistant.android.util.HelperInstallTransaction
 import io.panelassistant.android.state.SoftwareComponent
+import io.panelassistant.android.platform.AndroidDeviceName
 import io.panelassistant.android.platform.PanelPermissionRepair
 import io.panelassistant.android.util.periodic
 import io.panelassistant.android.util.SystemProps
@@ -269,6 +270,7 @@ internal data class ConfigOwnerRefreshPlan(
     val rendererTarget: Boolean,
     val camera: Boolean,
     val panelAssistantTransport: Boolean,
+    val androidDeviceName: Boolean,
 )
 
 internal fun configOwnerRefreshPlan(changedKeys: Set<String>): ConfigOwnerRefreshPlan {
@@ -286,6 +288,8 @@ internal fun configOwnerRefreshPlan(changedKeys: Set<String>): ConfigOwnerRefres
         camera = "camera_enabled" in changedKeys,
         // Credentials only; the owner itself ignores a change that leaves the credential identity equal.
         panelAssistantTransport = changedKeys.any(ha::contains),
+        // A rename from Home Assistant, the sidebar or the Configure page, or a restored name.
+        androidDeviceName = "friendly_name" in changedKeys,
     )
 }
 
@@ -402,6 +406,7 @@ class PaneldService : Service() {
 
     // Controllers are fields so the network runtime can be rebuilt on a panel_id change.
     private lateinit var haLinks: ServiceHaLinks
+    private val androidDeviceName by lazy { AndroidDeviceName.of(this) }
     // Outlives runtime generations: each new state core binds its converger here, and the transport owner
     // reports what it records only on a session Panel Assistant accepts. The button event's types include
     // the active profile's.
@@ -1246,6 +1251,12 @@ class PaneldService : Service() {
         // Home Assistant too; otherwise its switch keeps a position the panel has already left.
         if (ownerRefresh.camera) runCatching { core.publishCameraState() }
         runCatching { core.publishExposureChanges(changedKeys) }
+        if (ownerRefresh.androidDeviceName) {
+            val outcome = androidDeviceName.follow(config.chosenFriendlyName)
+            if (outcome != AndroidDeviceName.Outcome.NOT_CHOSEN && outcome != AndroidDeviceName.Outcome.UNCHANGED) {
+                Log.i(TAG, "android device name: ${outcome.name.lowercase()}")
+            }
+        }
     }
 
     /** Controller reads shared by the dashboard facts, live values and capability projection. */

@@ -92,6 +92,30 @@ class ManagedSettingsCommitBoundaryTest {
         }
     }
 
+    /** Renaming the panel's device in Home Assistant sends friendly_name over the session; the panel takes it. */
+    @Test fun aHomeAssistantRenameBecomesThePanelsChosenName() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val reconfigured = mutableListOf<Set<String>>()
+            val transaction = transaction(fixture, renderer(), onReconfigure = { reconfigured += it }) { _, _ -> LiveSettingRequestOutcome.APPLIED }
+            fixture.config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Old name")
+            val code = PanelAssistantManagedSettings.apply(
+                mapOf("friendly_name" to "Garden room"),
+                admit = { true },
+                validate = { values ->
+                    val raw = io.ktor.http.Parameters.build { values.forEach { (key, value) -> append(key, value) } }
+                    (normalizeConfigPostParameters(raw, io.panelassistant.android.config.Capabilities()) as? ConfigPostParameters.Ok)
+                        ?.values?.let { ok -> ok.names().associateWith { ok[it].orEmpty() } }
+                },
+                commit = { accepted, admit -> transaction.applyAccepted(accepted, admit = admit) == ApplyAcceptedResult.Applied },
+            )
+            assertNull(code)
+            assertEquals("Garden room", fixture.config.chosenFriendlyName)
+            assertEquals("Garden room", fixture.config.friendlyName)
+            // The service's reconfigure is what carries the name on to Android's device name.
+            assertEquals(listOf(setOf("friendly_name")), reconfigured)
+        }
+    }
+
     private fun renderer() = RendererPreparationCoordinator(
         builtinPackage = "builtin",
         state = { RendererPreparationState("builtin", "") },
@@ -102,6 +126,7 @@ class ManagedSettingsCommitBoundaryTest {
     private fun transaction(
         fixture: PaneldServerHttpFixture,
         renderer: RendererPreparationCoordinator,
+        onReconfigure: (Set<String>) -> Unit = {},
         applySetting: (String, String) -> LiveSettingRequestOutcome,
     ) = AcceptedConfigTransaction(
         config = fixture.config,
@@ -131,6 +156,6 @@ class ManagedSettingsCommitBoundaryTest {
         effectiveDashboardIsBuiltin = { false },
         requestTameReconcileAfterCommit = { true },
         snapInvalidate = {},
-        onReconfigure = {},
+        onReconfigure = onReconfigure,
     )
 }

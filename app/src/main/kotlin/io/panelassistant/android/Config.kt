@@ -409,6 +409,10 @@ class Config private constructor(
      */
     val friendlyName: String
         get() = stringPref("friendly_name").takeIf { it.isNotBlank() } ?: deviceName()
+
+    /** The name the owner set, or null while [friendlyName] is only the device's own name or the model. */
+    val chosenFriendlyName: String?
+        get() = prefs.getString("friendly_name", null)?.takeIf { it.isNotBlank() }
     /**
      * Settings.Secure.ANDROID_ID, reported as the Home Assistant device `serial_number`.
      *

@@ -30,6 +30,8 @@ internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.
         setField(service, "config", config)
         setField(service, "liveSettingAuthority", LiveSettingAuthority(emptySet(), bootIdentity = { "boot" }))
         setField(service, "appliedNetworkConfiguration", call(service, "currentNetworkConfigurationSnapshot"))
+        val android = FakeAndroidName("Jenna")
+        setField(service, "androidDeviceName\$delegate", lazy { android.deviceName })
 
         val core = idleCore(config)
         val commands = idleCommands()
@@ -76,9 +78,34 @@ internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.
             assertEquals("New name", read(renamed.mdns, "runtimeFriendlyName"))
             val applied = read(service, "appliedNetworkConfiguration") as NetworkConfigurationSnapshot
             assertEquals("New name", applied.runtime.friendlyName)
+            assertEquals("Android's device name follows the rename", listOf("New name"), android.writes)
+
+            // The same name accepted again (a repeated Home Assistant rename, a restore) writes nothing more.
+            settleReconfigure(service, owner, setOf("friendly_name"))
+            assertEquals(listOf("New name"), android.writes)
         } finally {
             owner.shutdown(5_000L) {}
         }
+    }
+
+    /** Android's Settings.Global device name, as the service reads and writes it. */
+    private class FakeAndroidName(var name: String?) {
+        val writes = mutableListOf<String>()
+        val deviceName = io.panelassistant.android.platform.AndroidDeviceName(
+            granted = { true }, read = { name }, write = { writes += it; name = it; true },
+        )
+    }
+
+    private fun settleReconfigure(service: PaneldService, owner: ServiceRuntimeOwner<PaneldService.NetworkRuntime>, keys: Set<String>) {
+        val before = read(service, "appliedNetworkConfiguration")
+        PaneldService::class.java.getDeclaredMethod(
+            "enqueueReconfigure", Set::class.java, Boolean::class.javaPrimitiveType,
+        ).apply { isAccessible = true }.invoke(service, keys, true)
+        val settled = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (System.nanoTime() < settled && (owner.pendingLatestCount() > 0 || read(service, "appliedNetworkConfiguration") === before)) {
+            Thread.sleep(20)
+        }
+        assertTrue("the reconfigure must settle", read(service, "appliedNetworkConfiguration") !== before)
     }
 
     /**
