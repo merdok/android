@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.AppIdentity
 import io.panelassistant.android.config.TamePackagePolicy
 
 /**
@@ -72,9 +73,12 @@ internal object HandBackHomePolicy {
      * here had only the first, so hand back could give HOME to an app that declares `CATEGORY_HOME` and
      * sorts ahead of a vendor launcher.
      *
-     * One definition. When the untouchable set grows, this grows with it.
+     * One definition. When the untouchable set grows, this grows with it. [AppIdentity.isPanelApp] adds the
+     * id this app carried before: a stray old install still declares `CATEGORY_HOME`, and handing it the
+     * role leaves the old dashboard as HOME beside this app.
      */
-    private fun ineligibleForHome(pkg: String): Boolean = TamePackagePolicy.isCritical(pkg)
+    private fun ineligibleForHome(pkg: String): Boolean =
+        TamePackagePolicy.isCritical(pkg) || AppIdentity.isPanelApp(pkg)
 
     /**
      * The ordered work of one hand-back.

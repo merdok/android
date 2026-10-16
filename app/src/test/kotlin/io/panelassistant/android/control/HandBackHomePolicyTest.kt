@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.AppIdentity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,7 +15,7 @@ import org.junit.Test
  */
 class HandBackHomePolicyTest {
 
-    private val own = "io.github.maxlyth.hapaneld"
+    private val own = AppIdentity.OWN
     private val launcher = "com.smartos.xinch.launcher"
     private val monitor = "com.smartos.xinch.monitor"
 
@@ -201,6 +202,37 @@ class HandBackHomePolicyTest {
             ),
         )
         assertEquals(launcher, plan.targetHome.pkg)
+    }
+
+    @Test
+    fun `the old application id is never chosen as the replacement`() {
+        // A stray old install declares CATEGORY_HOME too. Even while it already holds the role, handing it
+        // HOME leaves the old dashboard in front of this app, and Panel Assistant cannot remove either app.
+        val plan = proceed(
+            HandBackHomePolicy.decide(
+                ready(),
+                emptySet(),
+                emptyMap(),
+                homes(
+                    home(own, enabled = true),
+                    home(AppIdentity.LEGACY, enabled = true),
+                    home(launcher, enabled = true),
+                ),
+                own,
+                currentHome = AppIdentity.LEGACY,
+            ),
+        )
+        assertEquals(launcher, plan.targetHome.pkg)
+    }
+
+    @Test
+    fun `a panel whose only other home is the old application id refuses`() {
+        assertEquals(
+            HandBackHomePolicy.Refusal.NO_REPLACEMENT_HOME,
+            refusal(
+                decide(homeCandidates = homes(home(own, enabled = true), home(AppIdentity.LEGACY, enabled = true))),
+            ),
+        )
     }
 
     @Test
