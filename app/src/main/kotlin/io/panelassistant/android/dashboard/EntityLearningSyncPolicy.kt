@@ -153,7 +153,7 @@ internal fun supersedeEntityLearningSync(current: Job?, clearQueuedRerun: () -> 
     return null
 }
 
-/** The Home Assistant route a scan authenticated on stopped being current mid-scan. */
+/** The Home Assistant route or credential a scan authenticated with stopped being current mid-scan. */
 internal class EntityLearningRouteChanged : IllegalStateException("Home Assistant route changed")
 
 internal const val ROUTE_CHANGED_RERUN_REASON = "route-changed"

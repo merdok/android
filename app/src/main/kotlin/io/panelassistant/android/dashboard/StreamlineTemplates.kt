@@ -6,6 +6,7 @@ import io.panelassistant.android.util.ByteLimitExceeded
 import io.panelassistant.android.util.closeBody
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.MalformedURLException
 import java.net.URL
 import org.json.JSONArray
 import org.json.JSONException
@@ -14,6 +15,7 @@ import org.json.JSONTokener
 import org.snakeyaml.engine.v2.api.ConstructNode
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
+import org.snakeyaml.engine.v2.nodes.ScalarNode
 import org.snakeyaml.engine.v2.nodes.Tag
 import org.snakeyaml.engine.v2.schema.CoreSchema
 
@@ -35,6 +37,8 @@ internal object StreamlineTemplates {
     val REMOTE_PATHS = listOf("/hacsfiles/$FILE", "/local/$FILE", "/local/community/$FILE")
     const val MAX_BYTES = 1L * 1024 * 1024
     private const val MAX_DEPTH = 8
+    // The template file plus the files it includes; each is read at most once.
+    private const val MAX_FILES = 16
     // Nesting fans out multiplicatively; a real dashboard expands to tens of cards.
     private const val MAX_EXPANSIONS = 1_000
     private const val TAG = "EntityLearning"
@@ -50,8 +54,7 @@ internal object StreamlineTemplates {
             .setAllowRecursiveKeys(false)
             // The card parses with yaml 2.x, whose maxAliasCount default is 100.
             .setMaxAliasesForCollections(100)
-            // An included template is not fetched: its entities are learned at runtime, and the rest of the file is kept.
-            .setTagConstructors(mapOf(Tag("!include") to ConstructNode { null }))
+            .setTagConstructors(mapOf(Tag("!include") to ConstructNode { (it as? ScalarNode)?.value?.let(::Include) }))
             .setCodePointLimit(MAX_BYTES.toInt())
             .build(),
     )
@@ -64,39 +67,93 @@ internal object StreamlineTemplates {
      */
     fun fetch(base: String, timeoutMs: Int, beforeRequest: () -> Unit = {}): JSONObject? {
         for (path in REMOTE_PATHS) {
-            beforeRequest()
-            var c: HttpURLConnection? = null
             try {
-                c = (URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
-                    instanceFollowRedirects = false
-                    connectTimeout = timeoutMs
-                    readTimeout = timeoutMs
-                }
-                if (c.responseCode !in 200..299) {
-                    c.closeBody()
-                    continue
-                }
-                val templates = c.inputStream.use {
-                    parse(String(BoundedStreams.readBytes(it, MAX_BYTES), Charsets.UTF_8))
-                } ?: continue
+                val templates = RemoteFile(timeoutMs, beforeRequest).read(URL(base.trimEnd('/') + path)) as? JSONObject ?: continue
                 Log.i(TAG, "streamline templates: ${templates.length()} from $path")
                 return templates
             } catch (failure: IOException) {
                 Log.w(TAG, "streamline templates at $path unreadable: ${failure.message}")
             } catch (failure: ByteLimitExceeded) {
                 Log.w(TAG, "streamline templates at $path unreadable: ${failure.message}")
-            } finally {
-                c?.disconnect()
             }
         }
         Log.w(TAG, "streamline templates unavailable; their entities are learned at runtime")
         return null
     }
 
-    /** The template map from the remote file, or null when it is not a YAML mapping. */
-    fun parse(yaml: String): JSONObject? = try {
-        toJson(load.loadFromString(yaml)) as? JSONObject
+    /** The template map from the remote file, or null when it is not a YAML mapping. An `!include` reads as an empty template. */
+    fun parse(yaml: String): JSONObject? = tree(yaml)?.let { json(it) { null } } as? JSONObject
+
+    private class Include(val path: String)
+
+    /**
+     * A template file and the files it includes, each read as the card reads it and replacing its `!include`
+     * node. Unlike the card, an include is read only from the template file's own origin, only once, and
+     * within [MAX_FILES] and one [MAX_BYTES] budget; any other include reads as an empty template, so its
+     * entities are learned at runtime. An include that does not answer or parse loses the file, as in the card.
+     */
+    private class RemoteFile(private val timeoutMs: Int, private val beforeRequest: () -> Unit) {
+        private val budget = BoundedStreams.Budget(MAX_BYTES)
+        private val opened = HashSet<String>()
+        private lateinit var origin: URL
+
+        /** The parsed file at [url], or null when it does not answer 2xx or parse. */
+        fun read(url: URL): Any? {
+            origin = url
+            opened += url.toExternalForm()
+            return load(url)
+        }
+
+        private fun load(url: URL): Any? {
+            val text = get(url) ?: return null
+            return json(tree(text) ?: return null) { include(url, it) }
+        }
+
+        private fun include(from: URL, path: String): Any? {
+            val target = try {
+                URL(from, path)
+            } catch (_: MalformedURLException) {
+                null
+            }
+            if (target == null || target.protocol != origin.protocol || target.authority != origin.authority ||
+                opened.size >= MAX_FILES || !opened.add(target.toExternalForm())
+            ) {
+                Log.w(TAG, "streamline include $path not read; its entities are learned at runtime")
+                return null
+            }
+            return load(target) ?: throw IOException("included file $path unreadable")
+        }
+
+        private fun get(url: URL): String? {
+            beforeRequest()
+            val c = url.openConnection() as? HttpURLConnection ?: return null
+            try {
+                c.instanceFollowRedirects = false
+                c.connectTimeout = timeoutMs
+                c.readTimeout = timeoutMs
+                if (c.responseCode !in 200..299) {
+                    c.closeBody()
+                    return null
+                }
+                return c.inputStream.use { String(budget.accept(BoundedStreams.readBytes(it, budget.remaining)), Charsets.UTF_8) }
+            } finally {
+                c.disconnect()
+            }
+        }
+    }
+
+    private fun tree(yaml: String): Any? = try {
+        load.loadFromString(yaml)
     } catch (_: RuntimeException) {
+        null
+    } catch (_: StackOverflowError) {
+        null
+    }
+
+    // Outside the parse's catch, so a route guard failure inside an include still ends the sync.
+    private fun json(tree: Any?, include: (String) -> Any?): Any? = try {
+        toJson(tree, include)
+    } catch (_: JSONException) {
         null
     } catch (_: StackOverflowError) {
         null
@@ -167,10 +224,11 @@ internal object StreamlineTemplates {
 
     private fun merge(into: JSONObject, from: JSONObject) = from.keys().forEach { into.put(it, from.opt(it)) }
 
-    private fun toJson(value: Any?): Any = when (value) {
+    private fun toJson(value: Any?, include: (String) -> Any?): Any = when (value) {
         null -> JSONObject.NULL
-        is Map<*, *> -> JSONObject().also { obj -> value.forEach { (k, v) -> obj.put(k.toString(), toJson(v)) } }
-        is List<*> -> JSONArray().also { array -> value.forEach { array.put(toJson(it)) } }
+        is Include -> include(value.path) ?: JSONObject.NULL
+        is Map<*, *> -> JSONObject().also { obj -> value.forEach { (k, v) -> obj.put(k.toString(), toJson(v, include)) } }
+        is List<*> -> JSONArray().also { array -> value.forEach { array.put(toJson(it, include)) } }
         is String, is Boolean, is Int, is Long, is Double -> value
         is Number -> value.toDouble()
         else -> value.toString()

@@ -15,7 +15,6 @@ internal class PageShell(
     private val catalogueLoader: CatalogueLoader,
     private val setupNeedsUser: () -> Boolean,
     private val buildToken: () -> String,
-    private val renderConfigConcurrencyHash: () -> String,
     /** Reads a bundled asset; the header inlines the name from the brand asset set ([inlineWordmark]). */
     private val asset: (String) -> String,
 ) {
@@ -174,7 +173,7 @@ $extraScripts<script src="assets/power-safety.js"></script>
             active = active,
             sectionTitle = title,
             bodyAttrs = (if (commissioning) """class="commissioning" """ else "") +
-                """data-build="${buildToken()}" data-cfg="${renderConfigConcurrencyHash()}"""",
+                """data-build="${buildToken()}"""",
             rightControls = "$haLink${ghLink(strings)}",
             body = """${hardenedApprovalDescription(strings)}
 $approvalKeyBefore

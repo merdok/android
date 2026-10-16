@@ -84,7 +84,7 @@ class RestoreKioskCapabilitiesTest {
     ): RestoreExecutor {
         val config = fixture.config
         val capabilities = Capabilities(appCanSu = canEnable, networkAdb = canEnable)
-        val kiosk = io.panelassistant.android.KioskSettingCoordinator(
+        val kiosk = io.panelassistant.android.kioskSetting(
             canEnable = { canEnable }, actuate = { actuatorSucceeds }, persist = config::commitKioskLock,
         )
         val projection = ConfigValueProjection(
@@ -112,7 +112,7 @@ class RestoreKioskCapabilitiesTest {
                     system = system, values = projection,
                     applySetting = { key, value ->
                         if (key == "kiosk_lock") {
-                            if (kiosk.apply(value.toBooleanStrict())) io.panelassistant.android.LiveSettingRequestOutcome.APPLIED
+                            if (kiosk(value.toBooleanStrict())) io.panelassistant.android.LiveSettingRequestOutcome.APPLIED
                             else io.panelassistant.android.LiveSettingRequestOutcome.REJECTED
                         } else {
                             SettingsRegistry.spec(key)?.let { config.setRaw(it, value) }

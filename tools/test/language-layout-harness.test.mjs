@@ -104,6 +104,38 @@ for (const browserName of BROWSERS) {
       await browser.close();
     }
   });
+  test(`a text field's label may wrap, but clipping and other wraps on the page still fail · ${browserName}`, { timeout: 120_000 }, async () => {
+    const browser = await launch(browserName);
+    try {
+      const view = VIEWS.find((item) => item.name === 'sidebar-phone');
+      const context = await browser.newContext({ viewport: { width: view.width, height: view.height } });
+      const page = await context.newPage();
+      const english = await measureCell(page, origin, entities, view, 'dark', 'en');
+      // Page functions are serialised into the browser, so each mutant is spelled out rather than closed over.
+      const wrapLabel = () => {
+        const label = document.querySelector('label[for="entity-search"]');
+        label.id = 'mutant-field-label';
+        label.style.maxWidth = '60px';
+        const legend = document.querySelector('.entity-policy legend');
+        legend.id = 'mutant-legend';
+        legend.style.maxWidth = '60px';
+      };
+      const clipLabel = () => {
+        const label = document.querySelector('label[for="entity-search"]');
+        label.id = 'mutant-field-label';
+        label.style.cssText = 'display:block;max-width:60px;max-height:12px;overflow:hidden';
+      };
+      const wrapped = verdict(await measureCell(page, origin, entities, view, 'dark', 'de', wrapLabel), english, view, 'de', scales.de);
+      assert.ok(wrapped.reports.some((line) => line.includes('(d descriptive label wraps) #mutant-field-label')), wrapped.reports.join('\n'));
+      assert.ok(!wrapped.errors.some((line) => line.includes('#mutant-field-label')), wrapped.errors.join('\n'));
+      assert.ok(wrapped.errors.some((line) => line.includes('(d wraps) #mutant-legend')), `another wrap on the page must still fail\n${wrapped.errors.join('\n')}`);
+      const clipped = verdict(await measureCell(page, origin, entities, view, 'dark', 'de', clipLabel), english, view, 'de', scales.de);
+      assert.ok(clipped.errors.some((line) => line.includes('(a cut off)') && line.includes('#mutant-field-label')), 'a clipped field label must still fail');
+      await context.close();
+    } finally {
+      await browser.close();
+    }
+  });
   test(`language layout checks can fail · ${browserName}`, { timeout: 120_000 }, async () => {
     const browser = await launch(browserName);
     try {

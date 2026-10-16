@@ -67,19 +67,16 @@ class KioskSettingApplyTest {
         ))
         assertEquals(listOf("persist-false", "actuate-false"), events)
     }
+}
 
-    @Test fun coordinatorRejectsUnsupportedOnButNeverPreflightsOff() {
-        var capabilityChecks = 0
-        val events = mutableListOf<String>()
-        val coordinator = KioskSettingCoordinator(
-            canEnable = { capabilityChecks++; false },
-            actuate = { events += "actuate-$it"; true },
-            persist = { events += "persist-$it"; true },
-        )
-
-        assertFalse(coordinator.apply(true))
-        assertTrue(coordinator.apply(false))
-        assertEquals(1, capabilityChecks)
-        assertEquals(listOf("persist-false", "actuate-false"), events)
-    }
+/**
+ * The kiosk handler's persist-and-actuate step over a stand-in controller which, like the real one, refuses
+ * ON when it cannot enable the persistent policy. For HTTP route tests that answer a live kiosk setting.
+ */
+internal fun kioskSetting(
+    canEnable: () -> Boolean,
+    actuate: (Boolean) -> Boolean,
+    persist: (Boolean) -> Boolean,
+): (Boolean) -> Boolean = { on ->
+    applyAcknowledgedKioskSetting(on, { o -> if (o && !canEnable()) false else actuate(o) }, persist) {}
 }

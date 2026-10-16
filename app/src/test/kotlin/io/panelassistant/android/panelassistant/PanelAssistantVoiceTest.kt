@@ -156,12 +156,12 @@ class PanelAssistantVoiceTest {
                 "event",
                 JSONObject().put("kind", "voice_announce").put("announce_id", "abc_1")
                     .put("url", "/api/tts_proxy/b.mp3").put("preannounce_url", JSONObject.NULL)
-                    .put("listen_after", true),
+                    .put("listen_after", true).put("message", "Stop what you are doing."),
             ).toString(),
         )
         runCurrent()
         assertEquals(
-            listOf(PanelAssistantAnnouncement("abc_1", "https://ha.example/api/tts_proxy/b.mp3", null, true)),
+            listOf(PanelAssistantAnnouncement("abc_1", "https://ha.example/api/tts_proxy/b.mp3", null, true, message = "Stop what you are doing.")),
             rig.announcements,
         )
         rig.voice.played("abc_1")

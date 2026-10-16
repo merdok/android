@@ -1,7 +1,7 @@
 package io.panelassistant.android.control
 
 import io.panelassistant.android.hardware.LedEffects
-import org.json.JSONObject
+import io.panelassistant.android.panelassistant.CommandValue
 
 /** Pure parsing, persistence, and observation policy for the command-authoritative RGB LED. */
 internal object LedCommandPolicy {
@@ -30,19 +30,17 @@ internal object LedCommandPolicy {
         )
     }
 
-    fun command(payload: String, previous: Desired): Desired {
-        val json = JSONObject(payload)
-        if (!json.optString("state", "ON").equals("ON", ignoreCase = true)) return Desired(on = false)
-        val brightness = if (json.has("brightness")) clamp(json.getInt("brightness"))
-            else previous.takeIf { it.on }?.brightness ?: 255
-        val color = json.optJSONObject("color")
+    /** A level or colour the command leaves out keeps the previous one; a missing effect clears it. */
+    fun command(light: CommandValue.Light, previous: Desired): Desired {
+        if (!light.on) return Desired(on = false)
+        val lit = previous.takeIf { it.on }
         return Desired(
             on = true,
-            brightness = brightness,
-            red = clamp(color?.optInt("r", 255) ?: previous.takeIf { it.on }?.red ?: 255),
-            green = clamp(color?.optInt("g", 255) ?: previous.takeIf { it.on }?.green ?: 255),
-            blue = clamp(color?.optInt("b", 255) ?: previous.takeIf { it.on }?.blue ?: 255),
-            effect = LedEffects.Effect.from(json.optString("effect")),
+            brightness = clamp(light.brightness ?: lit?.brightness ?: 255),
+            red = clamp(light.rgb?.first ?: lit?.red ?: 255),
+            green = clamp(light.rgb?.second ?: lit?.green ?: 255),
+            blue = clamp(light.rgb?.third ?: lit?.blue ?: 255),
+            effect = LedEffects.Effect.from(light.effect),
         )
     }
 

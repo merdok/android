@@ -498,6 +498,47 @@ class PaneldServiceStartupTest {
         assertEquals(listOf(60_000L, 1_000L, 1_000L), pauses)
     }
 
+    @Test fun kioskRecoveryAWorkerDidNotRunWaitsWithoutUsingAnAttempt() {
+        val pauses = mutableListOf<Long>()
+        val recoverAnswers = ArrayDeque(listOf<Boolean?>(null, null, false, true))
+        val enableAnswers = ArrayDeque(listOf<Boolean?>(null, true))
+
+        val recovered = recoverAndMaybeEnableKiosk(
+            escapeDelayMs = 60_000L,
+            retryDelayMs = 1_000L,
+            maxAttempts = 2,
+            shouldContinue = { true },
+            recover = { recoverAnswers.removeFirst() },
+            enabled = { true },
+            enable = { enableAnswers.removeFirst() },
+            pause = { pauses += it },
+        )
+
+        assertTrue(recovered)
+        assertTrue(recoverAnswers.isEmpty())
+        assertTrue(enableAnswers.isEmpty())
+        assertEquals(listOf(60_000L, 1_000L, 1_000L, 1_000L, 1_000L), pauses)
+    }
+
+    @Test fun kioskRecoveryStopsWaitingForAWorkerWhenTheServiceStops() {
+        var stopping = false
+        var asks = 0
+
+        val recovered = recoverAndMaybeEnableKiosk(
+            escapeDelayMs = 0L,
+            retryDelayMs = 1_000L,
+            maxAttempts = 3,
+            shouldContinue = { !stopping },
+            recover = { if (++asks == 5) stopping = true; null },
+            enabled = { true },
+            enable = { error("never reached") },
+            pause = {},
+        )
+
+        assertFalse(recovered)
+        assertEquals(5, asks)
+    }
+
     @Test fun pendingKioskRecoveryDrainsWhileDisabledWithoutEnabling() {
         var attempts = 0
         var enables = 0

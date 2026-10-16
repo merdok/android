@@ -71,6 +71,7 @@
     <string name="choose_dashboard_app">Elige una aplicación de panel de control.</string>
     <string name="continue_setup_browser">Continúa en la página de configuración desde un navegador.</string>
     <string name="connected_next_ha_address">Conectado. Siguiente paso: la dirección de Home Assistant.</string>
+    <string name="choose_home_dashboard">Elige el panel de control de inicio de este panel.</string>
     <string name="almost_there_sign_in">Ya casi está: solo falta iniciar sesión.</string>
     <string name="continue_or_sign_in_here">Continúa en el navegador o toca el botón de abajo para iniciar sesión en esta pantalla.</string>
     <string name="one_important_question_left">Queda una pregunta importante.</string>

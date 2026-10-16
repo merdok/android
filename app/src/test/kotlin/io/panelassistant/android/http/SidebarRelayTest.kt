@@ -134,8 +134,10 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
         }
     }
 
-    private fun command(id: String, channel: String, value: String = "PRESS") =
-        JSONObject().put("kind", "command").put("command_id", id).put("channel", channel).put("value", value)
+    // A button press carries no value, as the page and Panel Assistant send it.
+    private fun command(id: String, channel: String, value: Any? = null) =
+        JSONObject().put("kind", "command").put("command_id", id).put("channel", channel)
+            .apply { if (value != null) put("value", value) }
             .put("origin", JSONObject().put("user", USER).put("connection", "relay-1"))
 
     private fun manage(id: String, op: String, args: JSONObject = JSONObject(), relayed: Boolean = true) =

@@ -15,7 +15,13 @@ import io.panelassistant.android.util.HaTransportEvidence
 import io.panelassistant.android.util.LocalAdminEndpoint
 import io.panelassistant.android.util.localIpv4
 import io.panelassistant.android.util.localIpv6
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.NetworkInterface
 import java.util.Collections
@@ -31,10 +37,15 @@ import java.util.Collections
 internal class DashboardStatusScreens(
     private val activity: AppCompatActivity,
     private val main: Handler,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     /** Shared with the activity, which resets it when admission succeeds or the dashboard owner changes. */
     private val admissionRetryPolicy: AdmissionRetryPolicy,
     private val host: Host,
+    /** The panel's sign-in address for a phone at a path, or null when it has none a phone can reach. */
+    private val signInAddress: (path: String) -> String? = {
+        LocalAdminEndpoint.externalUrl(localIpv4(), localIpv6(), Config(activity).httpPort, it)
+    },
+    private val addressReader: CoroutineDispatcher = Dispatchers.IO,
 ) {
     interface Host {
         val activityOwner: Long
@@ -150,9 +161,34 @@ internal class DashboardStatusScreens(
     fun clearReloadNotice() { reloadNotice?.let { (it.parent as? ViewGroup)?.removeView(it) }; reloadNotice = null }
 
     /** The panel's own sign-in setting at [path], when it answers there; see [SignInPageCheck]. */
-    fun provenSignInUrl(path: String, redraw: () -> Unit): String? = signInPageCheck.proven(
-        LocalAdminEndpoint.externalUrl(localIpv4(), localIpv6(), Config(activity).httpPort, path), redraw,
-    )
+    fun provenSignInUrl(path: String, redraw: () -> Unit): String? {
+        val address = signInAddress(path)
+        watchSignInAddress(path, address, redraw)
+        return signInPageCheck.proven(address, redraw)
+    }
+
+    private var signInAddressWatch: Job? = null
+
+    /**
+     * While a surface showing the sign-in address is up, re-read the address every
+     * [SIGN_IN_ADDRESS_CHECK_MS] off the main thread (as the standing screen does) and redraw the surface
+     * when it moved, so its code and fix line never keep naming an address the panel no longer has. The
+     * redraw draws through [provenSignInUrl] again, which re-arms this for the new address.
+     */
+    private fun watchSignInAddress(path: String, drawn: String?, redraw: () -> Unit) {
+        signInAddressWatch?.cancel()
+        signInAddressWatch = scope.launch {
+            do delay(SIGN_IN_ADDRESS_CHECK_MS) while (withContext(addressReader) { signInAddress(path) } == drawn)
+            signInAddressWatch = null
+            if (!host.destroyed) redraw()
+        }
+    }
+
+    /** The surface showing the sign-in address went down. */
+    fun stopSignInAddressWatch() {
+        signInAddressWatch?.cancel()
+        signInAddressWatch = null
+    }
 
     /** Redraw every ha-paneld status surface that is currently rendered, native or WebView-drawn. */
     fun convergeStatusTheme() {
@@ -184,6 +220,7 @@ internal class DashboardStatusScreens(
     /** The content view is no longer a status screen (the dashboard or the on-panel sign-in replaced it). */
     fun clearRerender() {
         statusRerender = null
+        stopSignInAddressWatch()
     }
 
     fun statusSurface(config: Config = Config(activity)): StatusSurface {
@@ -477,5 +514,6 @@ internal class DashboardStatusScreens(
     private companion object {
         const val TAG = DashboardActivity.TAG
         const val DEFAULT_NETWORK_WAIT_MS = 60_000L     // calm first-boot progress until learned
+        const val SIGN_IN_ADDRESS_CHECK_MS = 3_000L     // the standing screen's address re-check cadence
     }
 }

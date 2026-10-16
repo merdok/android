@@ -17,13 +17,13 @@ import java.lang.reflect.Proxy
 /**
  * A renderer crash while the Reconnecting cover is up. The crash is delivered to the dashboard
  * WebView's own [WebViewClient], built by [DashboardActivity.createWebView], on an activity whose state
- * is exactly what [DashboardActivity.showReconnecting] leaves behind: the interstitial flag set and the
+ * is exactly what [DashboardActivity.showReconnecting] leaves behind: the reconnecting phase and the
  * cover standing over the current WebView's container.
  *
- * The rebuild that follows creates a new container with `setContentView`. If the crash leaves the flag
- * set, the new WebView's first network error reaches `showReconnecting`, which returns on that stale
- * flag, so nothing covers Chromium's own error page; and the old cover stays in the detached container.
- * Every other rebuild path clears the flag (which also takes the cover down) before rebuilding.
+ * The rebuild that follows creates a new container with `setContentView`. If the crash leaves the phase
+ * reconnecting, the new WebView's first network error reaches `showReconnecting`, which returns on that
+ * stale phase, so nothing covers Chromium's own error page; and the old cover stays in the detached
+ * container. A teardown ends the phase on every rebuild path; the crash path must as well.
  *
  * No Robolectric: the activity is allocated without its constructor (which needs a main Looper) and
  * only the fields the crash path touches are populated; framework calls return mockable-jar defaults.
@@ -79,7 +79,7 @@ class DashboardRendererCrashCoverTest {
         set(activity, "webCover\$delegate", lazyOf(cover))
         set(activity, "activityOwner", BuiltinDashboard.acquireActivityOwner())
         set(activity, "web", oldWeb)
-        set(activity, "interstitialShown", true)      // showReconnecting ran for the first network error
+        set(activity, "phase", RendererPhase.RECONNECTING) // showReconnecting ran for the first network error
         set(activity, "reconnectingSinceMs", 1L)
 
         // The client is an anonymous class whose compiler ordinal shifts as createWebView changes.
@@ -103,13 +103,13 @@ class DashboardRendererCrashCoverTest {
         assertNull("crash did not release the dead WebView", get(activity, "web"))
 
         // What the rebuilt WebView's first main-frame network error needs: showReconnecting returns
-        // early while the flag is still set, and the old cover must not stay behind in the detached
-        // container.
+        // early while the phase is still reconnecting, and the old cover must not stay behind in the
+        // detached container.
         assertEquals(
-            "after the renderer-crash rebuild: [interstitialShown (showReconnecting returns early while true), " +
+            "after the renderer-crash rebuild: [still reconnecting (showReconnecting returns early), " +
                 "old cover still held in the crashed WebView's container]",
             listOf(false, false),
-            listOf(get(activity, "interstitialShown"), get(cover, "cover") != null),
+            listOf(get(activity, "phase") == RendererPhase.RECONNECTING, get(cover, "cover") != null),
         )
     }
 }

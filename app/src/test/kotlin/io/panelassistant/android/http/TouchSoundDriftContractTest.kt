@@ -99,8 +99,8 @@ class TouchSoundDriftContractTest {
     @Test fun anExternallyOriginatedChangePersistsIntentBeforeItActuates() {
         val commands = source("PanelCommandDispatcher.kt")
         val handler = commands.substring(
-            commands.indexOf("override fun handleTouchSound(payload: String)"),
-            commands.indexOf("override fun handleWatchdog(payload: String)"),
+            commands.indexOf("override fun handleTouchSound(on: Boolean)"),
+            commands.indexOf("override fun handleWatchdog(on: Boolean)"),
         )
 
         assertTrue(handler.contains("config.commitTouchSound(on)"))

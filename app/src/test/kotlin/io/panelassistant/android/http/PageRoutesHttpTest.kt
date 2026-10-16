@@ -116,7 +116,7 @@ class PageRoutesHttpTest {
                     assertEquals(HttpStatusCode.OK, response.status)
                     val html = response.bodyAsText()
                     assertTrue(html.contains("id=\"cfg-groups\""))
-                    assertTrue(html.contains("id=\"savebar\""))
+                    assertTrue(html.contains("id=\"cfg-msg\""))
                     val scripts = Regex("""<script src="assets/(configure[^"]*\.js)"></script>""").findAll(html)
                         .map { it.groupValues[1] }.toList()
                     assertEquals(listOf(
@@ -196,7 +196,6 @@ class PageRoutesHttpTest {
                 val setup = client.get("/setup?lang=en").bodyAsText()
                 assertTrue(setup.contains("href=\"configure?lang=en\""))
                 assertTrue(setup.contains("wiz_escape=1;path=/;max-age=3600"))
-                assertFalse(setup.contains("data-cfg="))
                 val api = client.get("/api?lang=zh-Hans") {
                     header(HttpHeaders.Cookie, "wiz_escape=1")
                 }

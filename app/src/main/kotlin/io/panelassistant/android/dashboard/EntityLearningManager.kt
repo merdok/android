@@ -1868,9 +1868,11 @@ internal fun credentialFingerprint(config: Config): String {
     )?.credentialFingerprint ?: error("credential snapshot changed while reading")
 }
 
+/** Every request a scan makes checks its route here; a moved route or credential reruns the scan once. */
 internal fun requireCurrentHaRoute(config: Config, base: String, token: String, route: HaConnectionRoute) {
-    check(route.url == base && HaConnectionRoutes.isCurrent(config, route) &&
-        config.haAuthSnapshot().accessToken == token) { "Home Assistant route or credential changed" }
+    if (route.url != base || !HaConnectionRoutes.isCurrent(config, route) ||
+        config.haAuthSnapshot().accessToken != token
+    ) throw EntityLearningRouteChanged()
 }
 
 internal suspend fun withHaSocket(

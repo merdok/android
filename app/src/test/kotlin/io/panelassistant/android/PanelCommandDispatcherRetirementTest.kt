@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.panelassistant.CommandValue
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
@@ -27,7 +28,7 @@ internal class PanelCommandDispatcherRetirementTest : PanelRuntimeRig() {
             isAccessible = true
         }.get(queue) as Object
         try {
-            rig.commands.submit(PanelAssistantCommand("volume", "50", admit = {
+            rig.commands.submit(PanelAssistantCommand("volume", CommandValue.Quantity(50.0), admit = {
                 worker.set(Thread.currentThread())
                 PanelAssistantCommandResult.Refused("scheduling-barrier")
             }), CommandOrigin.panelAssistant()) { result ->
@@ -64,7 +65,7 @@ internal class PanelCommandDispatcherRetirementTest : PanelRuntimeRig() {
             results.computeIfAbsent(name) { java.util.Collections.synchronizedList(mutableListOf()) } += result
         }
         try {
-            rig.commands.submit(PanelAssistantCommand("volume", "50", admit = {
+            rig.commands.submit(PanelAssistantCommand("volume", CommandValue.Quantity(50.0), admit = {
                 blocking.countDown()
                 // Swallow the retirement interrupt so the worker stays busy while the stop runs.
                 while (true) {
@@ -76,9 +77,9 @@ internal class PanelCommandDispatcherRetirementTest : PanelRuntimeRig() {
                 PanelAssistantCommandResult.Refused("barrier")
             }), CommandOrigin.panelAssistant(), record("volume"))
             assertTrue("worker reached the barrier", blocking.await(2, TimeUnit.SECONDS))
-            rig.commands.submit(PanelAssistantCommand("reload", "", admit = { null }), CommandOrigin.panelAssistant(), record("reload"))
+            rig.commands.submit(PanelAssistantCommand("reload", CommandValue.Press, admit = { null }), CommandOrigin.panelAssistant(), record("reload"))
             rig.commands.submit(
-                PanelAssistantCommand("media", """{"action":"mute","muted":true}""", admit = { null }),
+                PanelAssistantCommand("media", CommandValue.Media(io.panelassistant.android.media.PanelMediaCommand.Mute(true)), admit = { null }),
                 CommandOrigin.panelAssistant(),
                 record("media"),
             )

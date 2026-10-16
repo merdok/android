@@ -1,5 +1,5 @@
 // Setup: mirror of the /setup route — pageShell() (not page(): no hardened-approval key, GitHub link
-// only, data-build without data-cfg) around setupBody(strings, preserveExplicitEnglish, embedded), with the
+// only, data-build) around setupBody(strings, preserveExplicitEnglish, embedded), with the
 // Setup tab shown because setup needs the user. setup.js renders the step from GET /api/v1/setup; the
 // journey here stops on the richest translated card: naming the panel, which carries the lead, two fields
 // with help, the entity preview, the consequence note and the button.

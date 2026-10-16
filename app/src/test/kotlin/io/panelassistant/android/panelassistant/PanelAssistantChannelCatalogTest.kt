@@ -39,7 +39,7 @@ internal class PanelAssistantChannelCatalogTest : PanelRuntimeRig() {
         assertEquals("media", json.getString("unique_suffix"))
         assertTrue(json.getBoolean("enabled_default"))
         assertTrue(json.isNull("entity_category"))
-        assertTrue("media_player" in PanelAssistantCommandTranslation.COMMANDABLE_PLATFORMS)
+        assertTrue("media_player" in PanelAssistantCommandProcessor.COMMANDABLE_PLATFORMS)
         assertTrue("the converger registers media", "media" in everyChannel())
     }
 
@@ -67,7 +67,7 @@ internal class PanelAssistantChannelCatalogTest : PanelRuntimeRig() {
                 assertEquals("${spec.key} ${option.code} state", PanelAssistantWireValue.Known(option.code),
                     PanelAssistantValueTranslation.translate(after, StateConverger.Observation.Known(option.label)))
                 if (after.platform == "select") {
-                    assertEquals("${spec.key} ${option.code} command", option.label, PanelAssistantCommandTranslation.payload(after, option.code))
+                    assertEquals("${spec.key} ${option.code} command", CommandValue.Option(option), decode(after, option.code))
                 }
             }
         }

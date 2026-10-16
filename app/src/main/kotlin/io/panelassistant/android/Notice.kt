@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -101,8 +102,15 @@ internal fun noticeTextScale(scale: Float, fontScale: Float): Float = scale * (i
  */
 internal class Notice(
     private val context: Context,
-    backdropDark: Boolean,
+    private val backdropDark: Boolean,
     private val form: NoticeForm,
+    /** False for a transient card that names no build (the voice conversation): the pill heads the card alone. */
+    brand: Boolean = true,
+    /**
+     * The card's opacity. Opaque for a card read from across the room over a busy dashboard: at the overlay's
+     * 86% the dashboard's own text showed through the voice card on hardware.
+     */
+    surfaceAlpha: Int = if (form == NoticeForm.OVERLAY) NOTICE_OVERLAY_ALPHA else 0xFF,
 ) {
     private val metrics = context.resources.displayMetrics
     val scale: Float = noticeScale(metrics)
@@ -121,6 +129,7 @@ internal class Notice(
     private val innerWidthPx: Int = (widthPx - 2 * px(PAD_H)).coerceAtLeast(1)
 
     private val pillText = text(PILL, colours.text, MEDIUM).apply { maxLines = 1 }
+    private val pillDot = dot(DOT)
     private val pill = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -129,7 +138,7 @@ internal class Notice(
             cornerRadius = 999f * scale
             setColor(noticeWithAlpha(colours.accent, 0x24))
         }
-        addView(dot(DOT), LinearLayout.LayoutParams(px(DOT), px(DOT)).apply { marginEnd = px(8f) })
+        addView(pillDot, LinearLayout.LayoutParams(px(DOT), px(DOT)).apply { marginEnd = px(8f) })
         addView(pillText)
         visibility = View.GONE
     }
@@ -148,10 +157,11 @@ internal class Notice(
         setPadding(px(PAD_H), px(PAD_V), px(PAD_H), px(PAD_V + 2f))
         background = GradientDrawable().apply {
             cornerRadius = CORNER * scale
-            setColor(noticeWithAlpha(colours.surface, if (form == NoticeForm.OVERLAY) NOTICE_OVERLAY_ALPHA else 0xFF))
+            setColor(noticeWithAlpha(colours.surface, surfaceAlpha))
             setStroke(maxOf(3, px(BORDER)), noticeEdge(backdropDark))
         }
-        addView(brandRow(backdropDark))
+        if (brand) addView(brandRow(backdropDark))
+        else addView(pill, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
 
@@ -179,9 +189,15 @@ internal class Notice(
         }
     }
 
-    /** The pill word: the step, or the severity. Blank hides it. */
-    fun setPill(word: CharSequence) {
+    /**
+     * The pill word: the step, or the severity. Blank hides it. [warn] turns the dot amber, the compact
+     * notices' warning colour in the card's own tone, for a step that failed.
+     */
+    fun setPill(word: CharSequence, warn: Boolean = false) {
         pillText.text = word
+        val dot = if (!warn) colours.accent
+        else if (backdropDark) PanelTokens.Chip.LIGHT.warningBorder else PanelTokens.Chip.DARK.warningBorder
+        (pillDot.background as GradientDrawable).setColor(dot)
         pill.visibility = if (word.isBlank()) View.GONE else View.VISIBLE
     }
 
@@ -222,6 +238,16 @@ internal class Notice(
     fun setHero(hero: TextView, value: CharSequence, word: Boolean) {
         hero.text = value
         hero.setTextSize(TypedValue.COMPLEX_UNIT_PX, (if (word) HERO_WORD else HERO_NUMBER) * textScale)
+    }
+
+    /**
+     * A sentence as the hero (what someone said), smaller than a word hero so a spoken command fits in a
+     * line or two, and in the medium face so it still reads across a room.
+     */
+    fun sentence(value: CharSequence): TextView = text(HERO_SENTENCE, colours.text, MEDIUM).apply {
+        tag = HERO_TAG
+        maxLines = 3
+        text = value
     }
 
     /** The height of a number hero, so a hero that switches between a number and a word never resizes the card. */
@@ -419,6 +445,7 @@ internal class Notice(
         const val DOT = 9f
         const val HERO_NUMBER = 96f
         const val HERO_WORD = 56f
+        const val HERO_SENTENCE = 30f
         const val LINE = 20f
         const val SEGMENT = 12f
         const val SEGMENT_GAP = 6f
@@ -441,14 +468,65 @@ internal class NoticeTrack(
     private val names: List<TextView>,
     private val colours: NoticeColours,
 ) {
-    /** Mark [current] (or none) and, when given, set each segment's fill. */
-    fun show(current: Int?, fills: List<Int>? = null) {
+    private var pulse: ValueAnimator? = null
+    private var pulsing: Int? = null
+
+    init {
+        // A pulse must not outlive the card it is drawn on.
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+            override fun onViewDetachedFromWindow(v: View) = pulse(null)
+        })
+    }
+
+    /**
+     * Mark [current] (or none) and, when given, set each segment's fill. [pulsing] fills the current segment
+     * and breathes it, inside its own rounded segment, for a step under way with no measure of how far
+     * along it is; the caller passes false when Android's animations are off, and the bold name alone marks
+     * the step.
+     */
+    fun show(current: Int?, fills: List<Int>? = null, pulsing: Boolean = false) {
         names.forEachIndexed { i, name ->
             val active = i == current
             name.setTextColor(if (active) colours.text else colours.muted)
             name.typeface = if (active) Notice.MEDIUM else Typeface.DEFAULT
         }
         fills?.forEachIndexed { i, fill -> segments.getOrNull(i)?.progress = fill }
+        pulse(current?.takeIf { pulsing && it in segments.indices })
+    }
+
+    private fun pulse(index: Int?) {
+        if (index != pulsing) {
+            pulse?.cancel()
+            pulse = null
+            pulsing?.let { fill(it).alpha = 0xFF }
+            pulsing = index
+            if (index != null) {
+                val segment = segments[index]
+                val layer = fill(index)
+                pulse = ValueAnimator.ofInt(PULSE_LOW, PULSE_HIGH).apply {
+                    duration = PULSE_MS
+                    repeatMode = ValueAnimator.REVERSE
+                    repeatCount = ValueAnimator.INFINITE
+                    addUpdateListener {
+                        layer.alpha = it.animatedValue as Int
+                        segment.invalidate()
+                    }
+                    start()
+                }
+            }
+        }
+        // Full, but never at full strength while it breathes: the fill says "under way", not "this far".
+        pulsing?.let { segments[it].progress = segments[it].max }
+    }
+
+    private fun fill(index: Int) =
+        (segments[index].progressDrawable as LayerDrawable).findDrawableByLayerId(android.R.id.progress)
+
+    private companion object {
+        const val PULSE_LOW = 0x26
+        const val PULSE_HIGH = 0xB3
+        const val PULSE_MS = 900L
     }
 }
 

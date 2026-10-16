@@ -1,6 +1,9 @@
 package io.panelassistant.android
 
 import android.util.Log
+import io.panelassistant.android.config.ChannelOption
+import io.panelassistant.android.config.SettingSpec
+import io.panelassistant.android.config.SettingType
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
@@ -27,6 +30,7 @@ import io.panelassistant.android.control.ZigbeeController
 import io.panelassistant.android.metrics.FeatureCostOperation
 import io.panelassistant.android.metrics.FeatureCostOutcome
 import io.panelassistant.android.metrics.FeatureCosts
+import io.panelassistant.android.panelassistant.CommandValue
 import io.panelassistant.android.panelassistant.PanelAssistantCommand
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
@@ -42,7 +46,6 @@ import io.panelassistant.android.util.submit
 import java.util.WeakHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
-import org.json.JSONObject
 
 /**
  * Who a command came from (protocol section 20.2). [approvalKey] is the approval principal: `panel_assistant`,
@@ -140,9 +143,10 @@ internal class PanelCommandDispatcher(
     // Home-dashboard commands change the automatic entity-learning ownership target. Notify only after
     // the normalized path is durably visible so the manager can hide/rebuild the correct subscription.
     private val onDashboardTargetChanged: () -> Unit = {},
-    // Remote kiosk commands join the service-owned coordinator used by HTTP and the local escape gesture,
-    // instead of creating a second persistence/actuation ordering lane here.
-    private val onDirectKioskSetting: (Boolean) -> Boolean,
+    // The service-owned kiosk controller. Every kiosk change and its start-up recovery runs on this
+    // dispatcher's worker, whichever door it came through, so they apply in the order they were asked for.
+    private val kioskApply: (Boolean) -> Boolean,
+    private val kioskRecover: (legacyMayBeActive: Boolean) -> Boolean,
     // A successfully executed remote setting is newer truth than any HTTP generation which timed out
     // ahead of it, even though their dispatcher conflation keys intentionally differ.
     private val onExternalSettingApplied: (String) -> Boolean = { true },
@@ -257,10 +261,6 @@ internal class PanelCommandDispatcher(
             null -> return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL))
             Kind.ACTION, Kind.LATEST -> Unit
         }
-        val payload = command.payload.toByteArray(Charsets.UTF_8)
-        if (payload.size > MAX_COMMAND_PAYLOAD_BYTES) {
-            return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
-        }
         val run = {
             val refusal = command.admit()
             if (refusal != null) {
@@ -270,7 +270,7 @@ internal class PanelCommandDispatcher(
             ) {
                 finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE))
             } else {
-                finish(panelAssistantCommandResult(consume(command.channel, payload, origin.withRequestId(command.requestId ?: origin.requestId))))
+                finish(panelAssistantCommandResult(consume(command.channel, command.value, origin.withRequestId(command.requestId ?: origin.requestId))))
             }
         }
         val onSkipped = { execution: CommandQueue.Execution ->
@@ -295,8 +295,7 @@ internal class PanelCommandDispatcher(
     private fun submitMediaCommand(command: PanelAssistantCommand, finish: (PanelAssistantCommandResult) -> Unit) {
         val player = media
             ?: return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_CHANNEL))
-        val parsed = runCatching { org.json.JSONObject(command.payload) }.getOrNull()
-            ?.let(io.panelassistant.android.media.PanelMediaCommand::parse)
+        val parsed = (command.value as? CommandValue.Media)?.command
             ?: return finish(PanelAssistantCommandResult.Refused(PanelAssistantCommandProcessor.CODE_INVALID_VALUE))
         val admission = queue.submitAction(
             onSkipped = { finish(PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED)) },
@@ -325,24 +324,24 @@ internal class PanelCommandDispatcher(
     }
 
     /** Returns the failure the command handler raised, already logged, or null when it applied. */
-    private fun consume(channel: String, payloadBytes: ByteArray, origin: CommandOrigin): Exception? {
+    private fun consume(channel: String, value: CommandValue, origin: CommandOrigin): Exception? {
         FeatureCosts.registry.setBacklog(
             FeatureCostOperation.COMMAND_DISPATCH,
             queue.pendingCount(),
         )
         val cost = FeatureCosts.registry.span(FeatureCostOperation.COMMAND_DISPATCH)
-            .work(units = 1, bytes = payloadBytes.size.toLong())
+            .work(units = 1)
         externalIntentCommitted.remove()
         currentOrigin.set(origin)
         try {
-            dispatch(channel, payloadBytes)
+            dispatch(channel, value)
             externalLiveSettingKey(channel)?.let { key ->
                 check(onExternalSettingApplied(key)) { "failed to supersede pending HTTP setting $key" }
             }
             return null
         } catch (e: Exception) {
             cost.outcome(FeatureCostOutcome.FAILURE)
-            Log.w(TAG, "command ${origin.requestId.orEmpty()} from ${origin.approvalKey} failed on $channel (${payloadBytes.size} bytes)", e)
+            Log.w(TAG, "command ${origin.requestId.orEmpty()} from ${origin.approvalKey} failed on $channel", e)
             // The handler may have made newer intent durable before failing to actuate it. Retire the
             // older queued HTTP value anyway — leaving it lets startup replay commit the stale value
             // over the newer one. Best-effort and logged: this is already the failure path, and a
@@ -361,30 +360,29 @@ internal class PanelCommandDispatcher(
         }
     }
 
-    private fun dispatch(channel: String, payloadBytes: ByteArray) {
-        val payload = String(payloadBytes, Charsets.UTF_8)
+    private fun dispatch(channel: String, value: CommandValue) {
         // Relay + button-LED channels are dynamic (relay1/…, button_led1/…) — match before the fixed set.
         if (channel.startsWith("relay")) {
-            handleRelay(channel, payload); return
+            handleRelay(channel, value.expect<CommandValue.Switch>(channel).on); return
         }
         if (channel.startsWith("button_led")) {
-            handleButtonLed(channel, payload); return
+            handleButtonLed(channel, value.expect<CommandValue.Switch>(channel).on); return
         }
         // Every registry-declared live setting, whether it arrived remotely or over HTTP, reaches the same
         // exhaustive owner mapping. Action commands and non-live camera control remain below.
         externalLiveSettingKey(channel)?.let { key ->
-            dispatchLiveSetting(key = key, value = payload, handlers = this)
+            dispatchLiveSetting(key = key, value = value, handlers = this)
             return
         }
         when (channel) {
-            "screen" -> handleScreen(payload)
-            "led" -> handleLed(payload)
-            "navigate" -> handleNavigate(payload)
-            "volume" -> handleVolume(payload)
+            "screen" -> handleScreen(value.expect(channel))
+            "led" -> handleLed(value.expect(channel))
+            "navigate" -> handleNavigate(value.expect<CommandValue.Text>(channel).text)
+            "volume" -> handleVolume(value.expect<CommandValue.Quantity>(channel).value.toInt())
             "reload" -> {
                 authorizeRemoteSensitive(
                     SensitiveOperation.DASHBOARD_RELOAD,
-                    payload,
+                    PRESS_BINDING,
                     "Reload the dashboard renderer from Home Assistant",
                 )
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
@@ -393,19 +391,19 @@ internal class PanelCommandDispatcher(
                 system.requireRebootAllowed()
                 authorizeRemoteSensitive(
                     SensitiveOperation.DEVICE_REBOOT,
-                    payload,
+                    PRESS_BINDING,
                     "Reboot this panel from Home Assistant",
                 )
                 if (!system.reboot()) throw LiveSettingUnavailableException("reboot")
             }
-            "buttons" -> if (hasButtonBacklight) handleButtons(payload)
-            "camera_enabled" -> handleCameraEnabled(payload)
+            "buttons" -> if (hasButtonBacklight) handleButtons(value.expect(channel))
+            "camera_enabled" -> handleCameraEnabled(value.expect<CommandValue.Switch>(channel).on)
             else -> Log.d(TAG, "unhandled command channel $channel")
         }
     }
 
-    private fun handleScreen(payload: String) {
-        val command = io.panelassistant.android.control.ScreenCommandPolicy.parse(payload)
+    private fun handleScreen(light: CommandValue.Light) {
+        val command = io.panelassistant.android.control.ScreenCommandPolicy.parse(light)
         if (!command.on) {
             screen.sleep()
             core.publishScreenOff()
@@ -428,9 +426,9 @@ internal class PanelCommandDispatcher(
         check(delivered) { "screen wake failed; ON not published" }
     }
 
-    private fun handleLed(payload: String) {
+    private fun handleLed(light: CommandValue.Light) {
         val desired = LedCommandPolicy.command(
-            payload,
+            light,
             LedCommandPolicy.stored(config.lastLed, config.lastLedEffect),
         )
         // Persist user intent even when hardware is temporarily unreachable so reconnect can retry it,
@@ -442,32 +440,27 @@ internal class PanelCommandDispatcher(
         }
     }
 
-    override fun handleWakeOnWave(payload: String) {
+    override fun handleWakeOnWave(on: Boolean) {
         if (!hasProximity) {
             Log.w(TAG, "ignoring wake_on_wave command without a proximity source")
             return
         }
-        val on = payload.trim().equals("ON", ignoreCase = true)
         config.setWakeOnWave(on)
         core.reconcile("wake_on_wave")
     }
 
-    override fun handleAutoSleep(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleAutoSleep(on: Boolean) {
         applyAutoSleepSetting(on, config::setAutoSleep, onAutoSleepConfigChanged)
         core.reconcile("auto_sleep")
     }
 
-    override fun handleAutoSleepSource(payload: String) {
-        config.setRaw(requireNotNull(SettingsRegistry.spec("auto_sleep_source")), payload)
+    override fun handleAutoSleepSource(source: String) {
+        config.setRaw(requireNotNull(SettingsRegistry.spec("auto_sleep_source")), source)
         onAutoSleepConfigChanged(config.autoSleep)
         core.reconcile("auto_sleep")
     }
 
-    override fun handlePreventIdleDim(payload: String, approvalRequired: Boolean) {
-        val on = requireNotNull(PowerSafetyMutationPolicy.parseGuardSwitch(payload)) {
-            "prevent_idle_dim accepts only ON or OFF"
-        }
+    override fun handlePreventIdleDim(on: Boolean, approvalRequired: Boolean) {
         if (approvalRequired && PowerSafetyMutationPolicy.requestsSafetyReduction(
                 keepAwake = config.keepAwake,
                 requestedKeepAwake = null,
@@ -477,7 +470,7 @@ internal class PanelCommandDispatcher(
         ) {
             authorizeRemoteSensitive(
                 SensitiveOperation.POWER_CONFIGURATION,
-                "prevent_idle_dim\u0000$payload",
+                "prevent_idle_dim\u0000${if (on) "on" else "off"}",
                 "Disable the panel's native screen-timeout guard from Home Assistant",
             )
         }
@@ -486,8 +479,7 @@ internal class PanelCommandDispatcher(
         core.reconcile("prevent_idle_dim")
     }
 
-    override fun handleTouchSound(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleTouchSound(on: Boolean) {
         // Persist the intent before actuating it, like every other live setting. The state channel now
         // reports the persisted value, so a change that only reached the controller would publish the old
         // value straight back and flip the switch in Home Assistant. The HTTP path has already committed
@@ -501,8 +493,7 @@ internal class PanelCommandDispatcher(
         core.reconcile("touch_sound")
     }
 
-    override fun handleWatchdog(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleWatchdog(on: Boolean) {
         config.setWatchdogEnabled(on)
         watchdog.apply(on)
         core.reconcile("watchdog")
@@ -518,8 +509,7 @@ internal class PanelCommandDispatcher(
     // both cases report execution SUCCEEDED, so a refused or unpersisted ON came back to the caller as
     // APPLIED. The decision itself is the pure, directly-testable applyAcknowledgedVoiceEnabled (mirrors
     // applyAcknowledgedKioskSetting), which always reconciles before reporting failure.
-    override fun handleVoiceEnabled(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleVoiceEnabled(on: Boolean) {
         if (on && !hasMicrophone) Log.w(TAG, "ignoring voice_enabled ON command without a microphone")
         val accepted = applyAcknowledgedVoiceEnabled(
             on = on,
@@ -533,18 +523,22 @@ internal class PanelCommandDispatcher(
         }
     }
 
-    override fun handleKiosk(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
-        check(onDirectKioskSetting(on)) { "kiosk setting was not durably acknowledged" }
-        core.reconcile("kiosk_lock")
+    override fun handleKiosk(on: Boolean) {
+        // An ON stores itself only if no OFF was stored ahead of its command while it locked; else it rolls back.
+        val offs = config.kioskOffsStoredAhead()
+        val persist = { value: Boolean ->
+            if (value) config.commitKioskOnUnlessOffStoredSince(offs) else config.commitKioskLock(false)
+        }
+        check(applyAcknowledgedKioskSetting(on, kioskApply, persist) { core.reconcile("kiosk_lock") }) {
+            "kiosk setting was not durably acknowledged"
+        }
     }
 
     /** The camera master switch, commanded from Home Assistant. Enabling arms the camera and nothing more:
      *  Android still withholds the camera until somebody grants the permission at the panel, and every
      *  enable direction waits for a local approval first, so no remote message alone can put this panel's
      *  camera into service. Disabling ends a live session immediately. */
-    private fun handleCameraEnabled(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    private fun handleCameraEnabled(on: Boolean) {
         requireCameraEnableAdmission(on, hasCamera() == true) {
             authorizeRemoteSensitive(
                 SensitiveOperation.CAMERA_ENABLE,
@@ -559,50 +553,43 @@ internal class PanelCommandDispatcher(
         core.reconcile("camera_enabled")
     }
 
-    override fun handleSilenceBootChime(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleSilenceBootChime(on: Boolean) {
         requireControlApplied("silence_boot_chime", bootChime.apply(on)) { "boot chime transition failed" }
         core.reconcile("silence_boot_chime")
     }
 
-    override fun handleAutoBright(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleAutoBright(on: Boolean) {
         config.setAutoBrightness(on)
         autoBright.reapplyLatest()
         onAutoBrightnessConfigChanged()
         core.reconcile("auto_brightness")
     }
 
-    override fun handleAutoBrightnessSensitivity(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessResponsePercent(value)
+    override fun handleAutoBrightnessSensitivity(percent: Int) {
+        config.setAutoBrightnessResponsePercent(percent)
         autoBright.reapplyLatest()
     }
 
-    override fun handleAutoBrightnessMaximum(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessMaximumPercent(value)
+    override fun handleAutoBrightnessMaximum(percent: Int) {
+        config.setAutoBrightnessMaximumPercent(percent)
         autoBright.reapplyLatest()
     }
 
-    override fun handleAutoBrightnessMinimum(payload: String) {
-        val value = payload.trim().trim('"').toIntOrNull() ?: return
-        config.setAutoBrightnessMinimumPercent(value)
+    override fun handleAutoBrightnessMinimum(percent: Int) {
+        config.setAutoBrightnessMinimumPercent(percent)
         autoBright.reapplyLatest()
     }
 
-    override fun handleAutoBrightnessHaEntity(payload: String) {
-        config.setAutoBrightnessHaEntity(payload.trim().trim('"'))
+    override fun handleAutoBrightnessHaEntity(entityId: String) {
+        config.setAutoBrightnessHaEntity(entityId.trim().trim('"'))
         onAutoBrightnessConfigChanged()
         autoBright.reapplyLatest()
     }
 
     // Button backlight (e.g. TPA10): a brightness-only light, driven via the root daemon's BTN command
     // (same daemon that owns the sysfs LED). Daemon calls are short blocking I/O — fine on this thread.
-    private fun handleButtons(payload: String) {
-        val json = JSONObject(payload)
-        val on = json.optString("state", "ON").equals("ON", ignoreCase = true)
-        val level = if (!on) 0 else if (json.has("brightness")) json.getInt("brightness") else 255
+    private fun handleButtons(light: CommandValue.Light) {
+        val level = if (!light.on) 0 else light.brightness ?: 255
         if (helperSend(buttonBacklightCommand(level, buttonBacklightTransfer)) == "OK") {
             config.lastButtonBacklight = level
             core.reconcile("buttons")
@@ -616,8 +603,7 @@ internal class PanelCommandDispatcher(
     // guard's ~30s timer (tens of seconds before it answers) — so it must NOT run on the command worker
     // thread. We publish the commanded state optimistically, then reconcile to the real running state
     // on a background thread (polling for the slow ON) so HA ends up correct without stalling the command worker.
-    override fun handleZigbee(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleZigbee(on: Boolean) {
         if (on) onZigbeeExplicitRetry()
         config.setZigbeeRouterEnabled(on) // persist desired state so it survives a reboot (boot-restore)
         admitZigbee(on)
@@ -692,36 +678,32 @@ internal class PanelCommandDispatcher(
         }
     }
 
-    // On-board relay (Smatek S9E). Channel relay<N>; payload ON/OFF.
+    // On-board relay (Smatek S9E). Channel relay<N>.
     // The write runs here on the ordered command worker; the physical read-back goes through the
     // generation-guarded gate so bursts coalesce and a late read-back never publishes a superseded state.
-    private fun handleRelay(channel: String, payload: String) {
+    private fun handleRelay(channel: String, on: Boolean) {
         val n = channel.removePrefix("relay").toIntOrNull() ?: return
-        val on = payload.trim().let { it.equals("ON", ignoreCase = true) || it == "1" }
         if (!relayReadbackGate.command("relay$n") { relay.set(n, on) }) {
             Log.w(TAG, "relay$n write failed; read-back will publish the physical state")
         }
     }
 
-    // S9E button LED. Channel button_led<N> (N 1-based); payload ON/OFF.
-    private fun handleButtonLed(channel: String, payload: String) {
+    // S9E button LED. Channel button_led<N> (N 1-based).
+    private fun handleButtonLed(channel: String, on: Boolean) {
         val n = channel.removePrefix("button_led").toIntOrNull() ?: return
-        val on = payload.trim().let { it.equals("ON", ignoreCase = true) || it == "1" }
         if (!relayReadbackGate.command("button_led$n") { relay.ledSet(n - 1, on) }) {
             Log.w(TAG, "button_led$n write failed; read-back will publish the physical state")
         }
     }
 
     // CPU scaling governor (select). Quick su write; publishes the read-back governor.
-    override fun handleCpuGov(payload: String) {
-        val tier = payload.trim().trim('"')   // "Performance" | "Efficiency" | "Auto"
-        check(cpu.setTier(tier)) { "CPU governor transition failed" }
+    override fun handleCpuGov(option: ChannelOption) {
+        check(cpu.setTier(option.label)) { "CPU governor transition failed" }
         core.reconcile("cpu_governor")
     }
 
     // Persistent network adb (switch). Restarts adbd to apply; that only affects adb, not the Panel Assistant session.
-    override fun handleNetAdb(payload: String) {
-        val on = payload.trim().equals("ON", ignoreCase = true)
+    override fun handleNetAdb(on: Boolean) {
         if (on && config.hardenedSecurityEnabled) {
             throw HardenedModeRefusalException("network ADB cannot be enabled while Hardened mode is active")
         }
@@ -755,20 +737,19 @@ internal class PanelCommandDispatcher(
 
     // Soft navbar mode (select). Persist and publish only after the asynchronous platform actuation
     // acknowledges both privileged display state and the main-thread overlay mutation.
-    override fun handleNavbar(payload: String) {
+    override fun handleNavbar(option: ChannelOption) {
+        val mode = option.label
         val previous = config.navbarMode
-        // Unlike HTTP, this path coerces rather than rejects — NavbarController.normalise maps anything
-        // unrecognised onto Off and the result is then persisted. "Native" IS recognised, so without this
-        // guard a command aimed at the wrong panel would take away its drawn bar and leave no navigation
-        // at all. Keep the panel where it is and let the reconcile republish the canonical value, which
-        // snaps the Home Assistant select back.
-        if (!navbarModePermitted(payload.trim().trim('"'), config.hasNativeNavbar)) {
-            Log.w(TAG, "navbar: refusing $payload — this panel has no native navigation bar")
+        // "Native" is a valid option everywhere, so without this guard a command aimed at the wrong panel
+        // would take away its drawn bar and leave no navigation at all. Keep the panel where it is and let
+        // the reconcile republish the canonical value, which snaps the Home Assistant select back.
+        if (!navbarModePermitted(mode, config.hasNativeNavbar)) {
+            Log.w(TAG, "navbar: refusing $mode — this panel has no native navigation bar")
             core.reconcile("navbar")
             throw LiveSettingUnavailableException("navbar_mode")
         }
         applyAcknowledgedNavbarMode(
-            payload = payload,
+            payload = mode,
             previousMode = previous,
             actuate = navbar::applyAsync,
             rollback = navbar::rollbackAsync,
@@ -791,10 +772,12 @@ internal class PanelCommandDispatcher(
             is Validation.Ok -> validated.normalized
             else -> {
                 // Refuse rather than coerce, then republish so the entity cannot go on showing a value
-                // the panel did not accept. The route itself is not logged; it names the owner's rooms.
+                // the panel did not accept. The refusal answers `refused`/`invalid_value`, so Home Assistant
+                // raises an error and restores its field instead of keeping the typed text. The route itself
+                // is not logged; it names the owner's rooms.
                 Log.w(TAG, "home_dashboard command refused: not a well-formed dashboard route")
                 core.reconcile("home_dashboard")
-                return
+                throw IllegalArgumentException("home_dashboard: not a well-formed dashboard route")
             }
         }
         val changed = target != (previousValue ?: config.homeDashboard)
@@ -806,10 +789,10 @@ internal class PanelCommandDispatcher(
     /** Nothing to actuate: the server owns HA registry write-back. */
     override fun handleHaAreaPublishOnly() = Unit
 
-    private fun handleNavigate(payload: String) {
+    private fun handleNavigate(target: String) {
         // Local navigation only: strip any scheme + host so an external URL can't be pushed (the HA
         // Companion opens a disorienting in-app WebView for those). We keep just the path.
-        val path = toLocalPath(payload)
+        val path = toLocalPath(target)
         if (path.isEmpty()) return
         if (config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) {
             if (path == config.lastNavigate && config.homeDashboard.isNotBlank() && config.homeDashboard != "/") {
@@ -854,9 +837,7 @@ internal class PanelCommandDispatcher(
         return s
     }
 
-    private fun handleVolume(payload: String) {
-        // number entity sends a plain numeric string (0..100).
-        val pct = payload.trim().trim('"').toDoubleOrNull()?.toInt() ?: return
+    private fun handleVolume(pct: Int) {
         volume.setPercent(pct)
         core.noteVolumeCommanded()
     }
@@ -896,7 +877,7 @@ internal class PanelCommandDispatcher(
                 // request was already approved against the real peer before it became durable or queued.
                 dispatchLiveSetting(
                     key = key,
-                    value = value,
+                    value = liveSettingValue(requireNotNull(SettingsRegistry.spec(key)), value),
                     previousValue = previousValue,
                     sensitiveApprovalRequired = false,
                     handlers = this,
@@ -949,6 +930,26 @@ internal class PanelCommandDispatcher(
         return liveSettingApplyResult(result)
     }
 
+    /**
+     * Kiosk platform recovery after start-up, on the command worker so it orders with every kiosk change:
+     * [enable] false completes or clears a platform transition a prior process left for the stored setting;
+     * true re-locks if the setting is still ON when it runs, so a queued OFF ahead of it wins. Waits for the
+     * worker. Null when this dispatcher did not run it (draining or stopped): the caller asks the current one.
+     */
+    internal fun recoverKiosk(enable: Boolean): Boolean? {
+        if (!lifecycle.isOpen()) return null
+        val outcome = java.util.concurrent.CompletableFuture<Boolean?>()
+        // A recovery that ended without completing its own outcome failed, or did not run.
+        val notRun = { execution: CommandQueue.Execution -> if (execution == CommandQueue.Execution.FAILED) false else null }
+        val result = queue.runLatestResult(key = "kiosk_lock:recover", onAdmission = ::recordCommandAdmission) {
+            outcome.complete(if (enable) config.kioskLock && kioskApply(true) else kioskRecover(config.kioskLock))
+        }
+        if (!result.observeLateCompletion { terminal -> outcome.complete(notRun(terminal)) }) {
+            outcome.complete(notRun(result.execution))
+        }
+        return outcome.get()
+    }
+
     /** Close admission, cancel queued commands, then drain the running handler and Zigbee worker. */
     fun stop(deadline: MonotonicDeadline): Boolean {
         lifecycle.closeAdmission()
@@ -980,7 +981,8 @@ internal class PanelCommandDispatcher(
 
     companion object {
         private const val TAG = "ha-paneld/commands"
-        private const val MAX_COMMAND_PAYLOAD_BYTES = 64 * 1024
+        /** The approval binding of a press, which carries no value of its own. */
+        private const val PRESS_BINDING = "press"
         private const val MAX_DYNAMIC_COMMAND_INDEX = 64
         /** Channels whose commands conflate: the newest value for a channel is the one that runs. */
         private val STATE_CHANNELS = setOf(
@@ -1090,69 +1092,85 @@ internal fun settingConflationKey(key: String): String = settingChannels[key] ?:
  * second key-to-method adapter that can be swapped independently of the behaviour tested by the router.
  */
 internal interface LiveSettingHandlers {
-    fun handleWakeOnWave(payload: String)
-    fun handleAutoSleep(payload: String)
-    fun handleAutoSleepSource(payload: String)
-    fun handlePreventIdleDim(payload: String, approvalRequired: Boolean = true)
-    fun handleWatchdog(payload: String)
-    fun handleKiosk(payload: String)
-    fun handleSilenceBootChime(payload: String)
-    fun handleAutoBright(payload: String)
-    fun handleTouchSound(payload: String)
-    fun handleVoiceEnabled(payload: String)
-    fun handleNetAdb(payload: String)
-    fun handleZigbee(payload: String)
-    fun handleAutoBrightnessMaximum(payload: String)
-    fun handleAutoBrightnessMinimum(payload: String)
-    fun handleAutoBrightnessSensitivity(payload: String)
-    fun handleAutoBrightnessHaEntity(payload: String)
-    fun handleCpuGov(payload: String)
-    fun handleNavbar(payload: String)
+    fun handleWakeOnWave(on: Boolean)
+    fun handleAutoSleep(on: Boolean)
+    fun handleAutoSleepSource(source: String)
+    fun handlePreventIdleDim(on: Boolean, approvalRequired: Boolean = true)
+    fun handleWatchdog(on: Boolean)
+    fun handleKiosk(on: Boolean)
+    fun handleSilenceBootChime(on: Boolean)
+    fun handleAutoBright(on: Boolean)
+    fun handleTouchSound(on: Boolean)
+    fun handleVoiceEnabled(on: Boolean)
+    fun handleNetAdb(on: Boolean)
+    fun handleZigbee(on: Boolean)
+    fun handleAutoBrightnessMaximum(percent: Int)
+    fun handleAutoBrightnessMinimum(percent: Int)
+    fun handleAutoBrightnessSensitivity(percent: Int)
+    fun handleAutoBrightnessHaEntity(entityId: String)
+    fun handleCpuGov(option: ChannelOption)
+    fun handleNavbar(option: ChannelOption)
     fun handleHomeDashboard(payload: String, previousValue: String? = null)
     fun handleHaAreaPublishOnly()
 }
 
-/** Route one normalized registry value to exactly one typed effect handler. */
+/** [this] as the kind [T] the [target] takes; any other kind is refused as an invalid value. */
+internal inline fun <reified T : CommandValue> CommandValue.expect(target: String): T =
+    requireNotNull(this as? T) { "$target does not take ${this::class.simpleName}" }
+
+/**
+ * The typed value of a registry-normalized [normalized] string, as the HTTP config route, the :8888 form and
+ * the live-setting journal carry it: a switch, an integer, the option whose label it names, or text. Throws
+ * when the string does not fit [spec].
+ */
+internal fun liveSettingValue(spec: SettingSpec, normalized: String): CommandValue {
+    val options = spec.ha?.facts?.options
+    return when {
+        spec.type == SettingType.BOOL -> CommandValue.Switch(
+            requireNotNull(SettingValue.parseBool(normalized)) { "${spec.key} requires a normalized boolean" },
+        )
+        spec.type == SettingType.INT -> CommandValue.Quantity(normalized.toInt().toDouble())
+        spec.type == SettingType.ENUM && options != null -> CommandValue.Option(
+            requireNotNull(options.firstOrNull { it.label.equals(normalized, ignoreCase = true) }) {
+                "${spec.key} has no option $normalized"
+            },
+        )
+        else -> CommandValue.Text(normalized)
+    }
+}
+
+/** Route one typed setting value to exactly one typed effect handler. */
 internal fun dispatchLiveSetting(
     key: String,
-    value: String,
+    value: CommandValue,
     previousValue: String? = null,
     sensitiveApprovalRequired: Boolean = true,
     handlers: LiveSettingHandlers,
 ) {
-    val onOff = if (SettingValue.parseBool(value) == true) "ON" else "OFF"
+    fun on() = value.expect<CommandValue.Switch>(key).on
+    fun percent() = value.expect<CommandValue.Quantity>(key).value.toInt()
+    fun text() = value.expect<CommandValue.Text>(key).text
+    fun option() = value.expect<CommandValue.Option>(key).option
     when (LiveSettingEffectOwner.requireFor(key)) {
-        LiveSettingEffectOwner.WAKE_ON_WAVE -> handlers.handleWakeOnWave(onOff)
-        LiveSettingEffectOwner.AUTO_SLEEP -> handlers.handleAutoSleep(onOff)
-        LiveSettingEffectOwner.AUTO_SLEEP_SOURCE -> handlers.handleAutoSleepSource(value)
-        LiveSettingEffectOwner.PREVENT_IDLE_DIM -> handlers.handlePreventIdleDim(
-            if (sensitiveApprovalRequired) value else onOff,
-            sensitiveApprovalRequired,
-        )
-        LiveSettingEffectOwner.WATCHDOG -> handlers.handleWatchdog(onOff)
-        LiveSettingEffectOwner.KIOSK -> handlers.handleKiosk(onOff)
-        LiveSettingEffectOwner.BOOT_CHIME -> handlers.handleSilenceBootChime(onOff)
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS -> handlers.handleAutoBright(onOff)
-        LiveSettingEffectOwner.TOUCH_SOUND -> handlers.handleTouchSound(onOff)
-        LiveSettingEffectOwner.VOICE -> handlers.handleVoiceEnabled(onOff)
-        LiveSettingEffectOwner.NETWORK_ADB -> handlers.handleNetAdb(onOff)
-        LiveSettingEffectOwner.ZIGBEE -> handlers.handleZigbee(onOff)
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MINIMUM -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessMinimum(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MAXIMUM -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessMaximum(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_RESPONSE -> {
-            requireNotNull(value.toIntOrNull()) { "$key requires a normalized integer" }
-            handlers.handleAutoBrightnessSensitivity(value)
-        }
-        LiveSettingEffectOwner.AUTO_BRIGHTNESS_HA_ENTITY -> handlers.handleAutoBrightnessHaEntity(value)
-        LiveSettingEffectOwner.CPU_GOVERNOR -> handlers.handleCpuGov(value)
-        LiveSettingEffectOwner.NAVBAR -> handlers.handleNavbar(value)
-        LiveSettingEffectOwner.HOME_DASHBOARD -> handlers.handleHomeDashboard(value, previousValue)
+        LiveSettingEffectOwner.WAKE_ON_WAVE -> handlers.handleWakeOnWave(on())
+        LiveSettingEffectOwner.AUTO_SLEEP -> handlers.handleAutoSleep(on())
+        LiveSettingEffectOwner.AUTO_SLEEP_SOURCE -> handlers.handleAutoSleepSource(text())
+        LiveSettingEffectOwner.PREVENT_IDLE_DIM -> handlers.handlePreventIdleDim(on(), sensitiveApprovalRequired)
+        LiveSettingEffectOwner.WATCHDOG -> handlers.handleWatchdog(on())
+        LiveSettingEffectOwner.KIOSK -> handlers.handleKiosk(on())
+        LiveSettingEffectOwner.BOOT_CHIME -> handlers.handleSilenceBootChime(on())
+        LiveSettingEffectOwner.AUTO_BRIGHTNESS -> handlers.handleAutoBright(on())
+        LiveSettingEffectOwner.TOUCH_SOUND -> handlers.handleTouchSound(on())
+        LiveSettingEffectOwner.VOICE -> handlers.handleVoiceEnabled(on())
+        LiveSettingEffectOwner.NETWORK_ADB -> handlers.handleNetAdb(on())
+        LiveSettingEffectOwner.ZIGBEE -> handlers.handleZigbee(on())
+        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MINIMUM -> handlers.handleAutoBrightnessMinimum(percent())
+        LiveSettingEffectOwner.AUTO_BRIGHTNESS_MAXIMUM -> handlers.handleAutoBrightnessMaximum(percent())
+        LiveSettingEffectOwner.AUTO_BRIGHTNESS_RESPONSE -> handlers.handleAutoBrightnessSensitivity(percent())
+        LiveSettingEffectOwner.AUTO_BRIGHTNESS_HA_ENTITY -> handlers.handleAutoBrightnessHaEntity(text())
+        LiveSettingEffectOwner.CPU_GOVERNOR -> handlers.handleCpuGov(option())
+        LiveSettingEffectOwner.NAVBAR -> handlers.handleNavbar(option())
+        LiveSettingEffectOwner.HOME_DASHBOARD -> handlers.handleHomeDashboard(text(), previousValue)
         LiveSettingEffectOwner.HA_AREA_PUBLISH_ONLY -> handlers.handleHaAreaPublishOnly()
     }
 }
@@ -1304,23 +1322,6 @@ internal fun requireCameraEnableAdmission(
     if (!on) return
     check(hasCamera) { "this panel has no camera capability" }
     authorize()
-}
-
-/** One non-reentrant lane for HTTP, Home Assistant, and the on-device escape gesture. The kiosk controller is
- * service-owned, so it can apply synchronously without borrowing the replaceable command dispatcher. */
-internal class KioskSettingCoordinator(
-    private val canEnable: () -> Boolean,
-    private val actuate: (Boolean) -> Boolean,
-    private val persist: (Boolean) -> Boolean,
-) {
-    private val lock = Any()
-
-    fun apply(on: Boolean, reconcile: () -> Unit = {}): Boolean = synchronized(lock) {
-        if (on && !canEnable()) return false
-        applyAcknowledgedKioskSetting(on, actuate, persist, reconcile)
-    }
-
-    fun <T> serialized(block: () -> T): T = synchronized(lock, block)
 }
 
 internal fun applyAcknowledgedNavbarMode(

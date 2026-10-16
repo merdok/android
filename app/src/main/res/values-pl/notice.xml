@@ -44,4 +44,13 @@
     <string name="network_chip_pings_lost">Utracono %1$d z %2$d pingów do Home Assistant w ciągu %3$d min</string>
     <string name="network_chip_no_ping_answered">Żaden ping do Home Assistant nie doczekał się odpowiedzi w ciągu %1$d min</string>
     <string name="network_chip_ping_time">Pingi do Home Assistant trwają %1$s</string>
+    <string name="voice_pill_listening">Słucha</string>
+    <string name="voice_pill_thinking">Myśli</string>
+    <string name="voice_pill_replying">Odpowiada</string>
+    <string name="voice_pill_missed">Nie zrozumiano</string>
+    <string name="voice_pill_failed">Coś poszło nie tak</string>
+    <string name="voice_step_heard">Usłyszano</string>
+    <string name="voice_step_understood">Zrozumiano</string>
+    <string name="voice_step_answered">Odpowiedziano</string>
+    <string name="voice_heard">„%1$s”</string>
 </resources>

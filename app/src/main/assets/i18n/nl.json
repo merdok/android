@@ -58,11 +58,6 @@
    "sourceHash": "4acca2deec62ac51cb2dd452216e9edf6e7b8b46625982f24c6c9395c1e57443",
    "state": "machine-cross-checked"
   },
-  "configure.action.save": {
-   "text": "Wijzigingen opslaan",
-   "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-   "state": "machine-cross-checked"
-  },
   "configure.action.updated": {
    "text": "Bijgewerkt.",
    "sourceHash": "c890307de9b706a96bb48a12cd6cf33fd333765a1c02fd950011a914b53935f0",
@@ -1538,24 +1533,14 @@
    "sourceHash": "78d416d2e6869c26000b9ec4728509e68c4ab71fda1939964c10fef6d30eb9bb",
    "state": "machine-cross-checked"
   },
+  "configure.renderer.pending": {
+   "text": "Opgeslagen; nog niet op het dashboard.",
+   "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
+   "state": "machine-cross-checked"
+  },
   "configure.renderer.storage": {
    "text": "Opslag van de renderer",
    "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.action": {
-   "text": "Wijzigingen opslaan",
-   "sourceHash": "dd0ae7a5cbcf233968657563dce34639e681861e2df6d3f845c08d49981c0999",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.applied_newer_changes": {
-   "text": "De opgeslagen instellingen zijn nu toegepast; nieuwere wijzigingen moeten nog worden opgeslagen.",
-   "sourceHash": "922c6c27af2eadf2a8bd74b0ed260b1c9955cf4b55e8dd631500349797ac4631",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.failed": {
-   "text": "Opslaan is mislukt.",
-   "sourceHash": "19b9455ce71a631f52e74d6fc358e95b9f35ab9a933aaf2fb159d97f1246983c",
    "state": "machine-cross-checked"
   },
   "configure.save.hardware_pending": {
@@ -1563,44 +1548,9 @@
    "sourceHash": "9bd2748bda208a2e6c2bac42067692436f2f9189a3f7e197e5b338bdba1c44ef",
    "state": "machine-cross-checked"
   },
-  "configure.save.now_applied": {
-   "text": "De opgeslagen instellingen zijn nu toegepast.",
-   "sourceHash": "f7bfcea102edeb4ba0e93aa5a17733d1de0cc1183edc5b707e474640363b018e",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.outcome_newer_changes": {
-   "text": "{outcome} Nieuwere wijzigingen moeten nog worden opgeslagen.",
-   "sourceHash": "1afa8dc5ecaddb4f7ea2e4bdf97f0ec039ea7ddbb919727f42f339178250829d",
-   "state": "machine-cross-checked"
-  },
   "configure.save.refused": {
    "text": "Niet opgeslagen: {reason}",
    "sourceHash": "efd0fb5c5d944eaf6a7e4ebb5b08b47cc65284f06ee919bb04e2777a1e27538e",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.reload_failed": {
-   "text": "Opgeslagen (herladen mislukt — vernieuw de pagina).",
-   "sourceHash": "a2dd4f224888a496a50ea48da45bb9db08515fa0c2c4d962760aa3d83fd089e6",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.saved": {
-   "text": "Opgeslagen.",
-   "sourceHash": "fca046ccd586c67f7fe0b3c12c29873a8abf9376f7cd514fc6272ec03b2de0b3",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.saved_newer_changes": {
-   "text": "Opgeslagen; nieuwere wijzigingen moeten nog worden opgeslagen.",
-   "sourceHash": "ce417972a2f79643e1f4952031e4f0878c53746492d013b7667a6238312156f7",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.saving": {
-   "text": "Bezig met opslaan…",
-   "sourceHash": "23e39291d6135814ed7c936e278974544b0df5fbf0eb0427b6700979b7472a93",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.waiting_to_apply": {
-   "text": "Opgeslagen instellingen die nog moeten worden toegepast: {settings}.",
-   "sourceHash": "38120c8464a6a191ec813e411dd11ae6c3ad94acf6cd05d5e6842f03ef02b400",
    "state": "machine-cross-checked"
   },
   "configure.secret.blank_keeps_current": {
@@ -1703,11 +1653,6 @@
    "sourceHash": "f30f0038ab9360511cab3626792d2c21140065599d0e2d78bca81a55b116ba63",
    "state": "machine-cross-checked"
   },
-  "configure.unsaved.label": {
-   "text": "Niet-opgeslagen instellingen",
-   "sourceHash": "842e70aacb24a1d6bdea7c34b46777aee7e3446d3ab8f346147b16670e5b974a",
-   "state": "machine-cross-checked"
-  },
   "configure.validation.invalid": {
    "text": "{label} heeft een ongeldige waarde.",
    "sourceHash": "0777a1e67635c2883095675c05a9cbc18ff3d9649867f6105e9e77a580cd7655",
@@ -1726,6 +1671,46 @@
   "configure.voice.configure_wake_word_first": {
    "text": "Stel eerst hierboven een activeringswoord in.",
    "sourceHash": "29db9e0656abb9d76014f07d2f3faac2ece244b4b3e8c217ae984de03ab4aff8",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_author": {
+   "text": "Door {author}",
+   "sourceHash": "c63374c54075c2ecffba6bcf2f66b9b829822e5ef9dd82d4fa9033583317fece",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_button": {
+   "text": "Downloaden",
+   "sourceHash": "d6eafe82359100423c93c5ce53c352c1b51ca1e699215fcec3f5c5dd9bf12d24",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_done": {
+   "text": "Gedownload: {wake_word}.",
+   "sourceHash": "72a644b7802b2f886bd260c40866682780a3e0cc97e1572c000562248c9f5a3a",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_failed": {
+   "text": "Downloaden mislukt: {reason}",
+   "sourceHash": "a9cba27e078073edbace171f6262b4e66249bd4e1e0936ec33dfd8be9824cd94",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_help": {
+   "text": "Modellen die door anderen zijn getraind en gepubliceerd. Controleer vóór het downloaden wie het heeft gemaakt en onder welke licentie het valt.",
+   "sourceHash": "03db31eb796091dba4fdc509ff632c3440e44a171431312abc903f0966ce0bc7",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_license": {
+   "text": "Licentie: {license}",
+   "sourceHash": "c8c093b130e9e68910fca2abed0fd293dcf5be83e653051d2e80e0cac02f2c17",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.download_wake_word": {
+   "text": "Een community-activeringswoord downloaden",
+   "sourceHash": "ea004f814363c9d3dda271e678c42465cef574f6c505263e5e43547a3ea5d2ba",
+   "state": "machine-cross-checked"
+  },
+  "configure.voice.downloading": {
+   "text": "{wake_word} wordt gedownload…",
+   "sourceHash": "f9ebcae88d5cec9f35c0fd8301af7fc0b7437c757890ef20296297adfc3e0ca9",
    "state": "machine-cross-checked"
   },
   "configure.voice.import_button": {
@@ -9873,6 +9858,16 @@
    "sourceHash": "0fa08145c04a8e1391ac642c5536fa2f26f69556c521db192e7f9d7fafe11538",
    "state": "machine-cross-checked"
   },
+  "settings.voice_stop_word.label": {
+   "text": "Woord om te stoppen",
+   "sourceHash": "bb8f307d8c38b68b8aa9279862f49272db3c3033bab7a5ab9aa8ce310c8dffcd",
+   "state": "machine-cross-checked"
+  },
+  "settings.voice_stop_word.summary": {
+   "text": "Zeg „stop” om een antwoord, een mededeling of een afgaande timer te beëindigen.",
+   "sourceHash": "76a087aa8402b64f4be9f3f428c0df4ee90d531cffddf1b62a289277fef00ea8",
+   "state": "machine-cross-checked"
+  },
   "settings.voice_wake_words.help": {
    "text": "De activeringswoorden waarnaar wordt geluisterd: de meegeleverde ‘Okay Nabu’, ‘Hey Jarvis’, ‘Hey Mycroft’ en ‘Alexa’, en de woorden die je hieronder importeert.",
    "sourceHash": "37cd4d65e9c9c982c2c938663ae0863a2a8545f81d0b5165e73d5ad0f56cfbc2",
@@ -10983,11 +10978,6 @@
    "sourceHash": "a08cd2009df8200e13ce7cdb0024bd922a85da3afde81dcc4c13bafa1749ae99",
    "state": "machine-cross-checked"
   },
-  "shell.settings_changed.externally": {
-   "text": "De instellingen zijn buiten deze pagina gewijzigd",
-   "sourceHash": "8324516c95d16846ef9c995a13bb55f3f6523b39a779e6d678bab9f791f47682",
-   "state": "machine-cross-checked"
-  },
   "configure.enum.camera_resolution.1080p": {
    "text": "1080p (Full HD)",
    "sourceHash": "d646b89f5b435e75eabfdf35e0514535ba66e149ef010ff0808c113a72068d3b",
@@ -11121,11 +11111,6 @@
   "configure.save.hardware_unavailable": {
    "text": "Opgeslagen. Dit paneel kan dit nog niet toepassen; het wordt toegepast als dat verandert.",
    "sourceHash": "67b5afeafe3ae46c4d5fe55a308ba88d39ff45f61c663e5fae47d17317334f3b",
-   "state": "machine-cross-checked"
-  },
-  "configure.save.unavailable_to_apply": {
-   "text": "Opgeslagen, maar dit paneel kan ze nog niet toepassen: {settings}.",
-   "sourceHash": "54f575188113309c907825190ece15259dc8d17ae43647dbc27c593b497258d9",
    "state": "machine-cross-checked"
   },
   "dashboard.live.led": {

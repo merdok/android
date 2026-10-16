@@ -152,6 +152,7 @@ internal object ManageFamilies {
         ManageFamily("sensors", 2_000, listOf("sensors")),
         ManageFamily("camera", 2_000, listOf("camera.status")),
         ManageFamily("health", 5_000, listOf("health")),
+        ManageFamily("config", 500, listOf("config.values")),
         ManageFamily("entities", 5_000, listOf("dashboard.entities", "dashboard.entities.sync", "dashboard.entities.issues")),
         ManageFamily("proximity", 1_000, listOf("proximity")),
         ManageFamily("microphone", 2_000, listOf("voice.microphone")),

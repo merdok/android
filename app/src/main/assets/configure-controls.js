@@ -94,6 +94,8 @@
       options.onChange(item.id);
       closeList();
       input.focus();
+      // Picking a suggestion commits the field, as Enter or leaving it does.
+      input.dispatchEvent(new Event("change", { bubbles: true }));
     }
     function openList() {
       if (disposed || !renderedItems.length) { closeList(); return; }
@@ -215,7 +217,7 @@
     return { element: picker, cleanup: cleanup };
   }
 
-  // One input control bound to values[f.key]; Save appears only while the form differs from its baseline.
+  // One input control bound to values[f.key]; each finished change is sent at once (configure.js).
   function control(f) {
     var v = cfg.values[f.key];
     if (f.type === "BOOL") {
@@ -236,7 +238,7 @@
         cfg.values[f.key] = v;
         t.classList.toggle("on", v === "true");
         t.setAttribute("aria-checked", v === "true" ? "true" : "false");
-        cfg.setDirty(f.key);
+        cfg.localChange(f.key);
         if (f.key === "auto_sleep") cfg.updateAutoSleepPrerequisiteUi();
       }
       t.addEventListener("click", toggleValue);
@@ -255,7 +257,7 @@
         input.addEventListener("change", function () {
           if (!input.checked) return;
           var focused = document.activeElement === input;
-          cfg.values[f.key] = input.value; cfg.setDirty(f.key);
+          cfg.values[f.key] = input.value; cfg.localChange(f.key);
           cfg.autoSleepPrerequisiteRequest++;
           cfg.invalidateAutoSleepData(true);
           var previousPanel = document.getElementById("auto-sleep-status");
@@ -277,7 +279,7 @@
         var op = cfg.el("option", { value: o, text: label }); if (o === v) op.selected = true; s.appendChild(op);
       });
       s.addEventListener("change", function () {
-        cfg.values[f.key] = s.value; cfg.setDirty(f.key);
+        cfg.values[f.key] = s.value; cfg.localChange(f.key);
       });
       return s;
     }
@@ -305,7 +307,7 @@
       }
       sel.addEventListener("change", function () {
         cfg.values[f.key] = sel.value;
-        cfg.setDirty(f.key);
+        cfg.localChange(f.key);
         // Renderer-owned rows follow the in-flight picker value immediately; saving is not required
         // just to reveal the built-in renderer's controls.
         if (f.key === "dashboard_package") cfg.render();
@@ -330,7 +332,7 @@
         var o2 = cfg.el("option", { value: cur, text: cfg.i18nText("configure.package.not_installed", "{package} · (not installed)", { package: cur }) });
         o2.selected = true; sel.appendChild(o2);
       }
-      sel.addEventListener("change", function () { cfg.values[f.key] = sel.value; cfg.setDirty(f.key); });
+      sel.addEventListener("change", function () { cfg.values[f.key] = sel.value; cfg.localChange(f.key); });
       return sel;
     }
     // Wake-word picker: a checkbox per wake word the panel holds (the bundled ones and any imported).
@@ -341,7 +343,7 @@
       var wakeWrap = cfg.el("div", { class: "voice-wake-words-picker" });
       if (!Array.isArray(cfg.voiceWakeWordsCatalog)) {
         var wakeRaw = cfg.el("textarea", { class: "voice-wake-words-raw", rows: "2", text: v == null ? "" : v });
-        wakeRaw.addEventListener("input", function () { cfg.values[f.key] = wakeRaw.value; cfg.setDirty(f.key); });
+        wakeRaw.addEventListener("input", function () { cfg.values[f.key] = wakeRaw.value; cfg.localChange(f.key); });
         wakeWrap.appendChild(wakeRaw);
         return wakeWrap;
       }
@@ -359,7 +361,7 @@
           activeWakeWords = activeWakeWords.filter(function (w) { return w !== id; });
           if (box.checked) activeWakeWords.push(id);
           cfg.values[f.key] = JSON.stringify(activeWakeWords);
-          cfg.setDirty(f.key);
+          cfg.localChange(f.key);
           cfg.render();
         });
         wakeWrap.appendChild(cfg.el("label", { class: "voice-wake-word-row", style: "display:block" }, [box, cfg.el("span", { text: word.wake_word ? String(word.wake_word) : id })]));
@@ -394,7 +396,7 @@
         // since. Committing on every keystroke means `values[f.key]` is always current, so nothing
         // typed is ever lost even if the very next render switches this field to the select picker.
         pipelinesRaw.addEventListener("input", function () {
-          cfg.values[f.key] = pipelinesRaw.value; cfg.setDirty(f.key);
+          cfg.values[f.key] = pipelinesRaw.value; cfg.localChange(f.key);
         });
         pipelinesWrap.appendChild(pipelinesRaw);
         if (cfg.voicePipelinesCatalog === false) {
@@ -452,7 +454,7 @@
           if (pipelineSelect.value) pipelineMapping[word] = pipelineSelect.value;
           else delete pipelineMapping[word];
           cfg.values[f.key] = JSON.stringify(pipelineMapping);
-          cfg.setDirty(f.key);
+          cfg.localChange(f.key);
         });
         pipelineRow.appendChild(pipelineSelect);
         pipelinesWrap.appendChild(pipelineRow);
@@ -550,13 +552,17 @@
       }
       dashboardSelect.addEventListener("change", function () {
         syncCustom();
-        cfg.values[f.key] = dashboardSelect.value === cfg.CUSTOM_DASHBOARD ? customInput.value.trim() : dashboardSelect.value;
-        cfg.setDirty(f.key);
-        if (dashboardSelect.value === cfg.CUSTOM_DASHBOARD) customInput.focus();
+        // Choosing Custom sends a path still in its field when it is not the panel's own; otherwise the path
+        // field finishes the gesture.
+        var custom = dashboardSelect.value === cfg.CUSTOM_DASHBOARD;
+        var path = custom ? customInput.value.trim() : dashboardSelect.value;
+        if (custom && (!path || path === cfg.panel[f.key])) { customInput.focus(); return; }
+        cfg.values[f.key] = path;
+        cfg.localChange(f.key);
       });
       customInput.addEventListener("input", function () {
         cfg.values[f.key] = customInput.value.trim();
-        cfg.setDirty(f.key);
+        cfg.localChange(f.key);
         validateCustom();
         refreshCustomNote();
       });
@@ -663,7 +669,7 @@
       areaSelect.addEventListener("change", function () {
         areaTouched = true;
         cfg.values[f.key] = areaSelect.value;
-        cfg.setDirty(f.key);
+        cfg.localChange(f.key);
         syncAreaNote();
       });
       areaWrap.appendChild(areaSelect);
@@ -687,14 +693,14 @@
           failed: cfg.i18nText("configure.brightness.sources_load_failed", "Could not load Home Assistant sources; an exact sensor entity id can still be entered.")
         },
         onItems: function (items) { cfg.haSourceItems = items; },
-        onChange: function (value) { cfg.values[f.key] = value; cfg.setDirty(f.key); },
+        onChange: function (value) { cfg.values[f.key] = value; cfg.localChange(f.key); },
         onBlur: function () { if (sourceReadyAtRender !== cfg.ambientLightSourceReady()) cfg.render(); }
       });
       cfg.haPickerCleanups.push(entityPicker.cleanup);
       return entityPicker.element;
     }
     var type = f.type === "PASSWORD" ? "password" : (f.type === "INT" || f.type === "FLOAT") ? "number" : "text";
-    var inp = cfg.el("input", { type: type, value: f.secret && !cfg.dirtyValues[f.key] ? "" : (v == null ? "" : v) });
+    var inp = cfg.el("input", { type: type, value: v == null ? "" : v });   // a secret reads blank unless being typed
     if (!f.secret && f.placeholder) inp.placeholder = f.placeholder;   // e.g. "auto (io.homeassistant…)" on package fields
     if (f.min != null) inp.min = f.min;
     if (f.max != null) inp.max = f.max;
@@ -706,7 +712,7 @@
       inp.title = cfg.i18nText("configure.brightness.select_source_first", "Select an ambient light source first.");
     }
     inp.addEventListener("input", function () {
-      cfg.values[f.key] = inp.value; cfg.setDirty(f.key);
+      cfg.values[f.key] = inp.value; cfg.localChange(f.key);
       if (f.key === "auto_sleep_touch_delay_seconds") cfg.updateAutoSleepSummary();
       if (f.key === "auto_brightness_minimum_percent" || f.key === "auto_brightness_maximum_percent" || f.key === "auto_brightness_response_percent") cfg.queueAutoBrightnessHistory();
     });
@@ -734,7 +740,7 @@
       btn.setAttribute("aria-label", on ? cfg.i18nText("configure.exposure.exposed", "Exposed to Home Assistant") : cfg.i18nText("configure.exposure.hidden", "Hidden from Home Assistant"));
       btn.setAttribute("aria-pressed", on ? "true" : "false");
     }
-    btn.addEventListener("click", function () { on = !on; cfg.expose[f.key] = on; render(); cfg.setDirty(f.key, true); });
+    btn.addEventListener("click", function () { on = !on; cfg.expose[f.key] = on; render(); cfg.localChange(f.key, true); });
     render();
     return btn;
   }

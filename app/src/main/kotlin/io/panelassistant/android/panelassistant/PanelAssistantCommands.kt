@@ -1,6 +1,8 @@
 package io.panelassistant.android.panelassistant
 
 import android.util.Log
+import io.panelassistant.android.config.ChannelOption
+import io.panelassistant.android.media.PanelMediaCommand
 import kotlinx.coroutines.channels.Channel
 import org.json.JSONObject
 
@@ -22,13 +24,41 @@ internal sealed interface PanelAssistantCommandResult {
 internal enum class PanelAssistantApprovalState { PENDING, APPROVED, ABSENT }
 
 /**
- * One command admitted by the session, in the payload form the panel's existing command handlers take.
+ * One command's value, decoded once at the door it arrived through into the shape its channel takes. Handlers
+ * take these values directly; nothing between the door and the handler parses a payload again.
+ */
+internal sealed interface CommandValue {
+    data class Switch(val on: Boolean) : CommandValue
+
+    /** A number already within its channel's bounds. */
+    data class Quantity(val value: Double) : CommandValue
+
+    data class Option(val option: ChannelOption) : CommandValue
+
+    data class Text(val text: String) : CommandValue
+
+    /** A light: [brightness], [rgb] and [effect] (a code from the channel's options) are null when not carried. */
+    data class Light(
+        val on: Boolean,
+        val brightness: Int? = null,
+        val rgb: Triple<Int, Int, Int>? = null,
+        val effect: String? = null,
+    ) : CommandValue
+
+    data class Media(val command: PanelMediaCommand) : CommandValue
+
+    /** A button press, which carries no value. */
+    data object Press : CommandValue
+}
+
+/**
+ * One command admitted by the session, with its decoded value.
  * [admit] runs on the command worker immediately before the handler: null lets the command run, anything
  * else is its outcome instead (a deadline that elapsed while it was queued, or a session that has ended).
  */
 internal class PanelAssistantCommand(
     val channel: String,
-    val payload: String,
+    val value: CommandValue,
     val admit: () -> PanelAssistantCommandResult?,
     /** The session's command id: the request this command's one result answers. */
     val requestId: String? = null,
@@ -45,80 +75,70 @@ internal interface PanelAssistantCommandSink {
     fun withdrawApproval(approvalId: String)
 }
 
-/** Typed wire values back to the payloads the command handlers already parse. */
-internal object PanelAssistantCommandTranslation {
-    /** Platforms that take commands. Sensors, updates, events and images are read-only. */
-    val COMMANDABLE_PLATFORMS: Set<String> = setOf("switch", "camera", "light", "number", "select", "text", "button", "media_player")
+private val CODE = Regex("^[a-z][a-z0-9_]{0,63}$")
+private val CONTROL = Regex("[\\x00-\\x1f\\x7f]")
+private const val MAX_TEXT_CHARS = 255
 
-    private val CODE = Regex("^[a-z][a-z0-9_]{0,63}$")
-    private val CONTROL = Regex("[\\x00-\\x1f\\x7f]")
-    private const val MAX_TEXT_CHARS = 255
-
-    /**
-     * The handler payload for [value], or null when the value does not fit the descriptor. [baseUrl] is the
-     * address this session reached Home Assistant at; a media URL given as a Home Assistant path resolves
-     * against it, as a voice announcement's does.
-     */
-    fun payload(descriptor: PanelAssistantChannelDescriptor, value: Any?, baseUrl: String? = null): String? = when (descriptor.kind) {
-        PanelAssistantValueKind.BOOLEAN -> (value as? Boolean)?.let(::onOff)
-        PanelAssistantValueKind.NUMBER -> number(descriptor, value)
-        PanelAssistantValueKind.OPTION -> (value as? String)?.let(descriptor::label)
+/**
+ * The typed value a wire [value] carries for [descriptor], or null when it does not fit the descriptor. [baseUrl]
+ * is the address the session reached Home Assistant at; a media URL given as a Home Assistant path resolves
+ * against it, as a voice announcement's does.
+ */
+internal fun decode(descriptor: PanelAssistantChannelDescriptor, value: Any?, baseUrl: String? = null): CommandValue? =
+    when (descriptor.kind) {
+        PanelAssistantValueKind.BOOLEAN -> (value as? Boolean)?.let(CommandValue::Switch)
+        PanelAssistantValueKind.NUMBER -> decodeNumber(descriptor, value)
+        PanelAssistantValueKind.OPTION -> (value as? String)
+            ?.let { code -> descriptor.choices?.firstOrNull { it.code == code } }
+            ?.let(CommandValue::Option)
         PanelAssistantValueKind.TEXT -> (value as? String)
             ?.takeIf { it.length <= MAX_TEXT_CHARS && !CONTROL.containsMatchIn(it) }
-        PanelAssistantValueKind.LIGHT -> light(descriptor, value)
+            ?.let(CommandValue::Text)
+        PanelAssistantValueKind.LIGHT -> decodeLight(descriptor, value)
         PanelAssistantValueKind.UPDATE, PanelAssistantValueKind.EVENT -> null
-        PanelAssistantValueKind.MEDIA -> media(value, baseUrl)
-        PanelAssistantValueKind.BUTTON -> if (value == null || value == JSONObject.NULL) "PRESS" else null
+        PanelAssistantValueKind.MEDIA -> decodeMedia(value, baseUrl)
+        PanelAssistantValueKind.BUTTON -> if (value == null || value == JSONObject.NULL) CommandValue.Press else null
     }
 
-    private fun media(value: Any?, baseUrl: String?): String? {
-        val json = value as? JSONObject ?: return null
-        val path = (json.opt("url") as? String)?.takeIf { it.startsWith("/") && !it.startsWith("//") }
-        val resolved = if (path != null && baseUrl != null) {
-            JSONObject(json.toString()).put("url", PanelAssistantVoice.resolveUrl(baseUrl, path))
-        } else json
-        return resolved.takeIf { io.panelassistant.android.media.PanelMediaCommand.parse(it) != null }?.toString()
-    }
-
-    private fun onOff(on: Boolean): String = if (on) "ON" else "OFF"
-
-    private fun number(descriptor: PanelAssistantChannelDescriptor, value: Any?): String? {
-        val number = (value as? Number)?.takeIf { it.toDouble().isFinite() } ?: return null
-        val double = number.toDouble()
-        descriptor.min?.let { if (double < it.toDouble()) return null }
-        descriptor.max?.let { if (double > it.toDouble()) return null }
-        val long = number.toLong()
-        return if (long.toDouble() == double) long.toString() else double.toString()
-    }
-
-    private fun light(descriptor: PanelAssistantChannelDescriptor, value: Any?): String? {
-        val json = value as? JSONObject ?: return null
-        val on = json.opt("on") as? Boolean ?: return null
-        // Button LEDs take a bare ON/OFF; every other light takes Home Assistant's JSON light schema.
-        if (descriptor.family == "button_led") return onOff(on)
-        val payload = JSONObject().put("state", onOff(on))
-        if (json.has("brightness")) payload.put("brightness", byte(json.opt("brightness")) ?: return null)
-        json.opt("color")?.let { raw ->
-            val color = raw as? JSONObject ?: return null
-            val rgb = JSONObject()
-            for (channel in listOf("r", "g", "b")) rgb.put(channel, byte(color.opt(channel)) ?: return null)
-            payload.put("color", rgb)
-        }
-        if (json.has("effect")) {
-            val effect = (json.opt("effect") as? String)?.takeIf(CODE::matches)
-                ?.takeIf { descriptor.options?.contains(it) == true }
-                ?: return null
-            payload.put("effect", effect)
-        }
-        return payload.toString()
-    }
-
-    private fun byte(value: Any?): Int? = when (value) {
-        is Int -> value
-        is Long -> value.takeIf { it in 0..255 }?.toInt()
-        else -> null
-    }?.takeIf { it in 0..255 }
+private fun decodeMedia(value: Any?, baseUrl: String?): CommandValue? {
+    val json = value as? JSONObject ?: return null
+    val path = (json.opt("url") as? String)?.takeIf { it.startsWith("/") && !it.startsWith("//") }
+    val resolved = if (path != null && baseUrl != null) {
+        JSONObject(json.toString()).put("url", PanelAssistantVoice.resolveUrl(baseUrl, path))
+    } else json
+    return PanelMediaCommand.parse(resolved)?.let(CommandValue::Media)
 }
+
+private fun decodeNumber(descriptor: PanelAssistantChannelDescriptor, value: Any?): CommandValue? {
+    val double = (value as? Number)?.toDouble()?.takeIf { it.isFinite() } ?: return null
+    descriptor.min?.let { if (double < it.toDouble()) return null }
+    descriptor.max?.let { if (double > it.toDouble()) return null }
+    return CommandValue.Quantity(double)
+}
+
+private fun decodeLight(descriptor: PanelAssistantChannelDescriptor, value: Any?): CommandValue? {
+    val json = value as? JSONObject ?: return null
+    val on = json.opt("on") as? Boolean ?: return null
+    // A button LED is a plain switch; every other light carries its level, colour and effect.
+    if (descriptor.family == "button_led") return CommandValue.Switch(on)
+    val brightness = if (json.has("brightness")) byte(json.opt("brightness")) ?: return null else null
+    val rgb = json.opt("color")?.let { raw ->
+        val color = raw as? JSONObject ?: return null
+        Triple(byte(color.opt("r")) ?: return null, byte(color.opt("g")) ?: return null, byte(color.opt("b")) ?: return null)
+    }
+    val effect = if (json.has("effect")) {
+        (json.opt("effect") as? String)?.takeIf(CODE::matches)
+            ?.takeIf { descriptor.options?.contains(it) == true }
+            ?: return null
+    } else null
+    return CommandValue.Light(on, brightness, rgb, effect)
+}
+
+private fun byte(value: Any?): Int? = when (value) {
+    is Int -> value
+    is Long -> value.takeIf { it in 0..255 }?.toInt()
+    else -> null
+}?.takeIf { it in 0..255 }
 
 /**
  * One session's commands: admission, idempotent retry, the approval hold and the answers to send.
@@ -144,7 +164,7 @@ internal class PanelAssistantCommandProcessor(
 
     private val described = channels.associateBy { it.channel }
 
-    private class Request(val channel: String, val payload: String, val deadlineMs: Long)
+    private class Request(val channel: String, val value: CommandValue, val deadlineMs: Long)
 
     private sealed interface State {
         /** Queued or running; [attempt] tells a stale completion from the current run. */
@@ -186,7 +206,7 @@ internal class PanelAssistantCommandProcessor(
         val refusal = when {
             event.channel == null || described[event.channel] == null -> CODE_UNKNOWN_CHANNEL
             event.deadlineMs == null -> CODE_INVALID_VALUE
-            described.getValue(event.channel).platform !in PanelAssistantCommandTranslation.COMMANDABLE_PLATFORMS ->
+            described.getValue(event.channel).platform !in COMMANDABLE_PLATFORMS ->
                 CODE_NOT_COMMANDABLE
             else -> null
         }
@@ -195,14 +215,14 @@ internal class PanelAssistantCommandProcessor(
             return
         }
         val descriptor = described.getValue(requireNotNull(event.channel))
-        val payload = PanelAssistantCommandTranslation.payload(descriptor, event.value, baseUrl)
-        if (payload == null) {
+        val value = decode(descriptor, event.value, baseUrl)
+        if (value == null) {
             synchronized(lock) {
                 finishLocked(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, CODE_INVALID_VALUE)
             }
             return
         }
-        val request = Request(descriptor.channel, payload, requireNotNull(event.deadlineMs))
+        val request = Request(descriptor.channel, value, requireNotNull(event.deadlineMs))
         synchronized(lock) {
             if (closed) return
             // A newer command for a channel replaces one still waiting for its approval, exactly as the
@@ -223,7 +243,7 @@ internal class PanelAssistantCommandProcessor(
         sink.submit(
             PanelAssistantCommand(
                 channel = request.channel,
-                payload = request.payload,
+                value = request.value,
                 requestId = commandId,
                 admit = {
                     when {
@@ -336,6 +356,9 @@ internal class PanelAssistantCommandProcessor(
     }
 
     companion object {
+        /** Platforms that take commands. Sensors, updates, events and images are read-only. */
+        val COMMANDABLE_PLATFORMS: Set<String> = setOf("switch", "camera", "light", "number", "select", "text", "button", "media_player")
+
         const val CODE_UNKNOWN_COMMAND = "unknown_command"
         const val CODE_UNKNOWN_CHANNEL = "unknown_channel"
         const val CODE_INVALID_VALUE = "invalid_value"

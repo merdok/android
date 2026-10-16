@@ -70,8 +70,8 @@ class KioskController(
         persistentPolicyEligible = persistentPolicyEligible,
     )
 
-    /** Fired when the on-device unlock gesture completes. The service wires this to persist OFF + publish
-     *  to HA + call [apply]`(false)` — all off the main thread. */
+    /** Fired when the on-device unlock gesture completes. The service sends the same OFF as the `:8888`
+     *  toggle, off the main thread, through the command worker every kiosk change shares. */
     @Volatile var onUnlockRequested: (() -> Unit)? = null
 
     /** Apply or clear the lock. Runs the root commands on the CALLING thread (blocking) — call it off the

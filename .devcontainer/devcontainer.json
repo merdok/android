@@ -21,6 +21,10 @@
       }
     }
   },
+  // Publishes Home Assistant's default port, so panels on the network can reach a
+  // Home Assistant run inside the container for testing. The image does not include
+  // Home Assistant; with nothing listening on 8123 the published port is unused.
+  "appPort": [8123],
   // Warms the Gradle wrapper so the first build is faster; harmless offline.
   // adb is on PATH — `adb connect <panel-ip>:5555 && adb install -r <apk>` reaches panels over the network.
   // Then runs a local, gitignored per-host setup hook if present (no-op for normal checkouts).

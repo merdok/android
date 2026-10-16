@@ -71,7 +71,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
 
     private fun submit(rig: Rig, channel: String, payload: String, origin: CommandOrigin): PanelAssistantCommandResult {
         val answer = LinkedBlockingQueue<PanelAssistantCommandResult>()
-        rig.commands.submit(PanelAssistantCommand(channel, payload, admit = { null }), origin) { answer.put(it) }
+        rig.commands.submit(PanelAssistantCommand(channel, nativeValue(channel, payload), admit = { null }), origin) { answer.put(it) }
         return requireNotNull(answer.poll(20, TimeUnit.SECONDS)) { "$channel answered" }
     }
 
@@ -162,12 +162,13 @@ internal class ManageDoorTest : PanelRuntimeRig() {
         val http = AtomicReference<LiveSettingApplyResult>()
         val httpWrite = thread { http.set(rig.commands.applySetting("touch_sound", "false")) }
         awaitQueued(rig, 2)
-        val native = AtomicReference<PanelAssistantCommandResult>()
-        val nativeWrite = thread { native.set(submit(rig, "touch_sound", "ON", CommandOrigin.panelAssistant())) }
+        // Admitted on this thread, so the Panel Assistant ON is queued before the worker is released.
+        val native = LinkedBlockingQueue<PanelAssistantCommandResult>()
+        rig.commands.submit(PanelAssistantCommand("touch_sound", nativeValue("touch_sound", "ON"), admit = { null }), CommandOrigin.panelAssistant()) { native.put(it) }
         rig.sysfs.blockRelease.countDown()
-        listOf(held, httpWrite, nativeWrite).forEach { it.join(20_000) }
+        listOf(held, httpWrite).forEach { it.join(20_000) }
 
-        assertEquals(PanelAssistantCommandResult.Applied, native.get())
+        assertEquals(PanelAssistantCommandResult.Applied, native.poll(20, TimeUnit.SECONDS))
         // The HTTP value conflated under the same channel key and never ran; nothing is left to replay.
         assertEquals(LiveSettingApplyResult.APPLIED, http.get())
         assertEquals(listOf("on"), hardware.transitions)
@@ -292,7 +293,7 @@ internal class ManageDoorTest : PanelRuntimeRig() {
             "page.info", "page.configure", "page.setup", "page.profiles", "page.install", "page.logs", "page.entities",
             "health", "info", "settings", "diag", "status", "peers", "apps", "radio", "radio.join",
             "setup", "setup.attest", "setup.identity", "setup.home_dashboard", "setup.entity_filter",
-            "config", "config.schema", "config.discovery", "config.home_dashboards", "config.ha_area",
+            "config", "config.values", "config.schema", "config.discovery", "config.home_dashboards", "config.ha_area",
             "config.export", "config.import", "ha.oauth.status", "ha.oauth.start", "ha.oauth.panel_start",
             "migration_notice.dismiss",
             "install.component", "install.apk", "install.apk.from_url", "install.apk.fetch.cancel",

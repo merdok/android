@@ -417,6 +417,7 @@ object SettingsRegistry {
         // ---- Display -----------------------------------------------------------------------------
         SettingSpec(
             key = "dark_mode", type = SettingType.BOOL, group = "Display",
+            renderer = RendererApply.RELOAD_BEFORE_ANDROID_10,
             tier = Tier.BASIC, summary = "Dark theme for Panel Assistant's own screens and the dashboard default.",
             label = "Dark mode", default = "true", scope = Scope.PORTABLE,
             help = "Themes Panel Assistant's own screens and sets the dashboard's default colour scheme on panels without a system dark-mode setting (Android 9 and older).\n\nA theme picked inside Home Assistant overrides the dashboard default; this web UI always follows the viewing browser's own preference.",
@@ -443,6 +444,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_network_warning", type = SettingType.BOOL, group = "Display",
+            renderer = RendererApply.LIVE,
             tier = Tier.ADVANCED, summary = "Warn on the dashboard when the network drops.",
             label = "Show network warning on dashboard", default = "true", scope = Scope.DEVICE,
             help = "Show the network connection warning on this panel's dashboard. Network checks and status remain available when this is off.",
@@ -511,6 +513,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "prevent_idle_dim", type = SettingType.BOOL, group = "Behaviour",
+            renderer = RendererApply.LIVE,
             shortDescriptionUsefulInPopover = true,
             tier = Tier.BASIC, summary = "Stop the vendor firmware dimming the backlight at screen-off.",
             label = "Prevent idle dim", default = "true", scope = Scope.PORTABLE,
@@ -593,12 +596,14 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_entity_learning", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.BASIC, summary = "Only stream the entities this dashboard uses.",
             label = "Entity filtering", default = "false", scope = Scope.PORTABLE,
             help = "Built-in renderer: limit Home Assistant's state stream to dashboard-used entities and learn runtime dependencies. Manage sources and pins in Entities.",
         ),
         SettingSpec(
             key = "home_dashboard", type = SettingType.STRING, group = "Dashboard",
+            renderer = RendererApply.READMIT,
             tier = Tier.BASIC, summary = "Dashboard opened on reload and idle return.",
             label = "Home dashboard", default = "", picker = "ha_dashboard", scope = Scope.DEVICE,
             liveApply = true,
@@ -626,6 +631,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_theme", type = SettingType.ENUM, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.BASIC, summary = "Who picks light or dark: Home Assistant, this panel or the room.",
             label = "Dashboard theme", default = DashboardTheme.DEFAULT,
             options = DashboardTheme.OPTIONS, aliases = DashboardTheme.ALIASES,
@@ -634,6 +640,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_fullscreen", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.LIVE,
             tier = Tier.ADVANCED, summary = "Hide Android's status and navigation bars behind the dashboard.",
             label = "Hide Android system bars", default = "true", scope = Scope.PORTABLE,
             availableWhen = { it.hasNativeNavbar || it.hasAndroidStatusBar },
@@ -641,12 +648,14 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_native_kiosk", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.LIVE,
             tier = Tier.ADVANCED, summary = "Ask Home Assistant to hide its own navigation.",
             label = "Hide Home Assistant navigation (native)", default = "true", scope = Scope.PORTABLE,
             help = "Built-in renderer only. After Home Assistant 2026.4.2+ connects, asks its native frontend to hide its navigation.\n\nOn by default; an unsupported or failed request leaves the dashboard unchanged. It does not lock Android or inject CSS into the dashboard.",
         ),
         SettingSpec(
             key = "dashboard_idle_return_min", type = SettingType.INT, group = "Dashboard",
+            renderer = RendererApply.LIVE,
             shortDescriptionUsefulInPopover = true,
             tier = Tier.BASIC, summary = "Minutes idle before returning home. 0 turns it off.",
             label = "Idle return to home (min)", default = "0", min = 0.0, max = 1440.0,
@@ -654,6 +663,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "ha_url", type = SettingType.STRING, group = "Dashboard",
+            renderer = RendererApply.READMIT,
             tier = Tier.BASIC, summary = "Address of your Home Assistant server.",
             label = "Home Assistant URL", default = "", scope = Scope.PORTABLE,
             maxChars = 2_048,
@@ -666,6 +676,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "ha_token", type = SettingType.PASSWORD, group = "Dashboard",
+            renderer = RendererApply.READMIT,
             tier = Tier.ADVANCED, summary = "Fallback token when browser sign-in is not possible.",
             label = "Long-lived access token", default = "", scope = Scope.DEVICE,
             secret = true,
@@ -673,6 +684,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "ha_refresh_token", type = SettingType.PASSWORD, group = "Dashboard",
+            renderer = RendererApply.READMIT,
             tier = Tier.ADVANCED,
             label = "HA refresh token", default = "", scope = Scope.DEVICE, secret = true, hidden = true,
             help = "Internal token state retained for API/config import compatibility. Borrowed Companion and Panel Assistant-issued OAuth logins manage it automatically.",
@@ -686,6 +698,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "ha_client_id", type = SettingType.STRING, group = "Dashboard",
+            renderer = RendererApply.READMIT,
             tier = Tier.ADVANCED,
             label = "HA OAuth client_id", default = "", scope = Scope.DEVICE, hidden = true,
             maxChars = 2_048,
@@ -693,6 +706,7 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_entity_overrides", type = SettingType.STRING, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.ADVANCED,
             label = "Entity filter overrides", default = "", scope = Scope.DEVICE, hidden = true,
             // Explicit pins/exclusions may legitimately cover a large installation. This remains
@@ -702,18 +716,21 @@ object SettingsRegistry {
         ),
         SettingSpec(
             key = "dashboard_entity_learning_applied", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.ADVANCED,
             label = "Apply learned entity filter", default = "false", scope = Scope.DEVICE, hidden = true,
             help = "Backup-safe activation latch. Set after a safe empty-install bootstrap or an explicit apply from the Entities API or tab.",
         ),
         SettingSpec(
             key = "dashboard_entity_auto_static", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.ADVANCED,
             label = "Auto-subscribe dashboard references", default = "true", scope = Scope.PORTABLE, hidden = true,
             help = "Entities found by parsing dashboard configuration may be added automatically. Evidence remains visible when disabled.",
         ),
         SettingSpec(
             key = "dashboard_entity_auto_runtime", type = SettingType.BOOL, group = "Dashboard",
+            renderer = RendererApply.REBUILD,
             tier = Tier.ADVANCED,
             label = "Auto-subscribe runtime accesses", default = "true", scope = Scope.PORTABLE, hidden = true,
             help = "Missing entities read through hass.states may be added automatically. Evidence remains visible when disabled.",
@@ -724,6 +741,7 @@ object SettingsRegistry {
         // the only sizing lever, so it is promoted into that place with help that says so.
         SettingSpec(
             key = "dashboard_zoom", type = SettingType.INT, group = "Dashboard",
+            renderer = RendererApply.RELOAD,
             tier = Tier.ADVANCED, summary = "Browser zoom for the dashboard.",
             label = "Zoom (%)", default = "100", min = 50.0, max = 300.0, step = 1.0,
             scope = Scope.DEVICE,
@@ -828,6 +846,12 @@ object SettingsRegistry {
             help = "Amplifies the audio sent to Home Assistant for transcription.\n\nThese panels expose no platform noise suppression or automatic gain control, so a panel heard from across the room may wake reliably and still transcribe poorly: wake-word detection adapts to a quiet signal on its own and speech-to-text does not.\n\n**Raise this** if commands are missed or mistranscribed while the wake word works. Wake-word detection is deliberately left on the unamplified signal.",
             availableWhen = { it.microphone.offered },
         ),
+        SettingSpec(
+            key = "voice_stop_word", type = SettingType.BOOL, group = "Voice",
+            tier = Tier.ADVANCED, summary = "Say \"stop\" to end a reply, an announcement or a ringing timer.",
+            label = "Stop word", default = "true", scope = Scope.DEVICE,
+            availableWhen = { it.microphone.offered },
+        ),
         // ---- Logging -----------------------------------------------------------------------------
         SettingSpec(
             key = "log_ship_enabled", type = SettingType.BOOL, group = "Logging",
@@ -888,6 +912,8 @@ object SettingsRegistry {
             label = "Panel volume", default = "",
             help = "Current panel media volume reported on its native 0–100 percent scale.",
             haExposedByDefault = true,
+            // With a speaker, the volume is the media player's and always reported (PanelStateCore).
+            availableWhen = { !it.hasSpeaker },
             ha = haEntity("number", "volume", readOnly = true) {
                 range(0, 100, 1)
                 unit("%")
@@ -1148,6 +1174,19 @@ object SettingsRegistry {
 
     /** Settable settings whose durable desired state must be applied through the shared live path. */
     fun liveApplyKeys(): List<String> = SPECS.filter { it.liveApply }.map { it.key }
+
+    /** When the built-in renderer shows a change to [key] on Android [sdkInt]: never
+     *  [RendererApply.RELOAD_BEFORE_ANDROID_10], and [RendererApply.NONE] for a key it never reads. */
+    fun rendererApply(key: String, sdkInt: Int): RendererApply = when (val apply = byKey[key]?.renderer) {
+        null -> RendererApply.NONE
+        RendererApply.RELOAD_BEFORE_ANDROID_10 -> if (sdkInt < 29) RendererApply.RELOAD else RendererApply.LIVE
+        else -> apply
+    }
+
+    /** The settings whose change the dashboard on screen shows only after a load, rebuild or re-admission. */
+    fun rendererDeferredKeys(sdkInt: Int): List<String> = SPECS.map { it.key }.filter {
+        rendererApply(it, sdkInt) in setOf(RendererApply.RELOAD, RendererApply.REBUILD, RendererApply.READMIT)
+    }
 
     /** Config-key prefix for the per-setting "expose to HA" pip toggles. These booleans persist in
      *  SharedPreferences and travel in config bundles, so the string is a stored-format contract —

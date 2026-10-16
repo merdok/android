@@ -1,6 +1,11 @@
 package io.panelassistant.android.http
 
-/** Coalesced renderer work caused by a committed configuration change. */
+/**
+ * Coalesced renderer work caused by a committed configuration change. The built-in renderer reconciles
+ * what it bakes in or was admitted with itself ([io.panelassistant.android.config.RendererApply]), so a
+ * change to those only brings it to the front ([relaunchBuiltin]); only a change the next page load
+ * carries ([io.panelassistant.android.config.RendererApply.RELOAD]) asks it to reload.
+ */
 internal data class RendererConfigEffects(
     val dashboardChanged: Boolean,
     val reloadBuiltin: Boolean,
@@ -69,10 +74,11 @@ internal data class RendererConfigEffects(
             // in a live WebView, so a change must reach a fresh page load rather than a foregrounding.
             themePolicyChanged: Boolean = false,
         ): RendererConfigEffects {
-            val reload = !dashboardChanged &&
-                (credentialChanged || zoomChanged || homeChanged || darkMode != null || themePolicyChanged)
+            // A reload on top of the renderer's own rebuild for a credential, home or theme change would load
+            // the rebuilt page a second time; those are foregrounded and the renderer reconciles them.
+            val reload = !dashboardChanged && (zoomChanged || darkMode != null)
             val relaunch = !dashboardChanged && !reload &&
-                (fullscreenChanged || nativeKioskChanged)
+                (credentialChanged || homeChanged || themePolicyChanged || fullscreenChanged || nativeKioskChanged)
             return RendererConfigEffects(dashboardChanged, reload, relaunch, darkMode)
         }
     }

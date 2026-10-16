@@ -1041,12 +1041,15 @@ class CatalogueTest(unittest.TestCase):
             ("it", "shell.runtime.duration_seconds"): "{count} s",
         }.items():
             self.assertEqual(expected, i18n.UNCHANGED_TARGET_EXCEPTIONS.get(pair))
+        targets = {}
         for (locale, key), text in i18n.UNCHANGED_TARGET_EXCEPTIONS.items():
-            target = i18n.validate_target(
-                catalogue_dir / f"{locale}.json",
-                source,
-                expected_locale=locale,
-            )
+            if locale not in targets:
+                targets[locale] = i18n.validate_target(
+                    catalogue_dir / f"{locale}.json",
+                    source,
+                    expected_locale=locale,
+                )
+            target = targets[locale]
             self.assertEqual(text, target["strings"][key]["text"])
             source_record = source["strings"][key]
             protected_positions = {

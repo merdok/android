@@ -1,6 +1,7 @@
 package io.panelassistant.android.control
 
 import io.panelassistant.android.hardware.LedEffects
+import io.panelassistant.android.panelassistant.CommandValue
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,7 +12,7 @@ import org.junit.Test
 class LedCommandPolicyTest {
     @Test fun commandClampsEveryPublicChannel() {
         val desired = LedCommandPolicy.command(
-            """{"state":"ON","brightness":999,"color":{"r":-10,"g":128,"b":300},"effect":"pulse"}""",
+            CommandValue.Light(on = true, brightness = 999, rgb = Triple(-10, 128, 300), effect = "pulse"),
             LedCommandPolicy.Desired(on = false),
         )
 
@@ -25,14 +26,14 @@ class LedCommandPolicyTest {
     @Test fun omittedColorAndBrightnessReuseThePreviousSolidValues() {
         val previous = LedCommandPolicy.Desired(true, 70, 10, 20, 30)
 
-        val desired = LedCommandPolicy.command("""{"state":"ON","effect":"blink"}""", previous)
+        val desired = LedCommandPolicy.command(CommandValue.Light(on = true, effect = "blink"), previous)
 
         assertEquals(previous.copy(effect = LedEffects.Effect.BLINK), desired)
     }
 
     @Test fun offClearsPersistedColorAndEffect() {
         val desired = LedCommandPolicy.command(
-            """{"state":"OFF"}""",
+            CommandValue.Light(on = false),
             LedCommandPolicy.Desired(true, 70, 10, 20, 30, LedEffects.Effect.STROBE),
         )
 

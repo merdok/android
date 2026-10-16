@@ -16,6 +16,7 @@ import io.panelassistant.android.config.ConfigBundle
 import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.backup.CompanionRestore
+import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.dashboard.EntityLearningManager
@@ -299,6 +300,8 @@ internal class AcceptedConfigTransaction(
             effects.relaunchBuiltin && effectiveDashboardIsBuiltin() -> {
                 val result = rendererPreparation.prepareIfNeeded()
                 requireRendererResult(result)
+                // A settings change is a deliberate act, so it lifts a crash latch as an explicit reload does.
+                BuiltinDashboard.clearRendererLatch()
                 system.launchHome(SystemController.BUILTIN_DASHBOARD)
             }
         }

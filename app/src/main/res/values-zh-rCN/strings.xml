@@ -71,6 +71,7 @@
     <string name="choose_dashboard_app">选择仪表盘应用。</string>
     <string name="continue_setup_browser">请在浏览器的设置页面中继续。</string>
     <string name="connected_next_ha_address">已连接。下一步：Home Assistant 地址。</string>
+    <string name="choose_home_dashboard">为此面板选择主仪表盘。</string>
     <string name="almost_there_sign_in">即将完成——只需再登录一次。</string>
     <string name="continue_or_sign_in_here">在浏览器中继续，或点按下方按钮在此屏幕上登录。</string>
     <string name="one_important_question_left">还剩一个重要问题。</string>

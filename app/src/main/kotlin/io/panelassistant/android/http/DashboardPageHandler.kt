@@ -22,7 +22,6 @@ internal class DashboardPageHandler(
     private val advisories: DashboardAdvisories,
     private val pages: () -> PageShell,
     private val buildToken: () -> String,
-    private val renderConfigConcurrencyHash: () -> String,
     /** Whether a capture route serves now, given whether a root route does. */
     private val screenshotReady: (rootReady: Boolean) -> Boolean,
 ) {
@@ -80,7 +79,7 @@ internal class DashboardPageHandler(
         return pages().pageShell(
             active = "dashboard",
             sectionTitle = null,
-            bodyAttrs = """data-ver="${Config.VERSION}" data-build="${buildToken()}" data-cfg="${renderConfigConcurrencyHash()}" data-hydrate="${if (s == null) "cold" else if (hydrate) "1" else "0"}" data-hardened="${if (config.hardenedSecurityEnabled) "1" else "0"}"""",
+            bodyAttrs = """data-ver="${Config.VERSION}" data-build="${buildToken()}" data-hydrate="${if (s == null) "cold" else if (hydrate) "1" else "0"}" data-hardened="${if (config.hardenedSecurityEnabled) "1" else "0"}"""",
             rightControls = rightControls,
             embed = embed,
             peer = peer,

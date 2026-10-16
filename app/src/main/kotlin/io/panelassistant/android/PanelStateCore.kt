@@ -209,8 +209,10 @@ internal class PanelStateCore(
         }
         channel("navigate") { known(config.lastNavigate.ifEmpty { "/" }) }
         channel("home_dashboard") { known(config.homeDashboard) }
+        // A panel's media player shows and sets its volume through this channel, so the exposure pip,
+        // which a panel with a speaker does not offer, cannot blank it.
         channel("volume") {
-            if (config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
+            if (media != null || config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
         }
         channel("media") { media?.let { known(it.observation()) } ?: unknown }
         if (hasButtonBacklight) channel("buttons") { known(buttonBacklightState(config.lastButtonBacklight)) }
@@ -523,12 +525,6 @@ internal class PanelStateCore(
     fun noteVolumeCommanded() {
         volume.getPercent().let { lastPublishedVolume = it }
         reconcile("volume")
-    }
-
-    /** Report the kiosk-lock state — used by the on-device unlock gesture, which turns it OFF outside the
-     *  command path and must still tell HA. */
-    fun publishKioskState() {
-        dispatchStateWork { reconcile("kiosk_lock") }
     }
 
     /** Re-report the camera surface after a change made outside a command (the Configure page, a bundle

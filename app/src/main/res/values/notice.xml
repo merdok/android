@@ -59,4 +59,16 @@
     <string name="network_chip_pings_lost">%1$d of %2$d pings to Home Assistant lost in %3$d min</string>
     <string name="network_chip_no_ping_answered">No ping to Home Assistant answered in %1$d min</string>
     <string name="network_chip_ping_time">Pings to Home Assistant take %1$s</string>
+
+    <!-- Voice Notice: the pill names the phase of a spoken exchange, the track its three steps, and the
+         hero quotes what the panel heard. -->
+    <string name="voice_pill_listening">Listening</string>
+    <string name="voice_pill_thinking">Thinking</string>
+    <string name="voice_pill_replying">Replying</string>
+    <string name="voice_pill_missed">Didn\'t catch that</string>
+    <string name="voice_pill_failed">Something went wrong</string>
+    <string name="voice_step_heard">Heard</string>
+    <string name="voice_step_understood">Understood</string>
+    <string name="voice_step_answered">Answered</string>
+    <string name="voice_heard">“%1$s”</string>
 </resources>

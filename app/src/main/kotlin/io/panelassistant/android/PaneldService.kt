@@ -85,7 +85,6 @@ import io.panelassistant.android.hardware.LedFactory
 import io.panelassistant.android.hardware.Rk3576LedController
 import io.panelassistant.android.hardware.SocketLedController
 import io.panelassistant.android.config.Capabilities
-import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.defaultBool
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.dashboard.EntityLearningManager
@@ -351,7 +350,7 @@ internal fun restoreCompanionLaunchSuppression(
     return status
 }
 
-/** Values whose change requires replacing the network runtime (state core, dispatcher, mDNS). */
+/** Values whose change replaces the network runtime's mDNS advertiser; a running state core and dispatcher are kept. */
 internal data class NetworkRuntimeIdentity(
     internal val panelId: String,
     internal val friendlyName: String,
@@ -677,7 +676,6 @@ class PaneldService : Service() {
     private lateinit var migrationNotice: MigrationNotice
     private lateinit var watchdog: WatchdogController
     private lateinit var kiosk: KioskController
-    private lateinit var kioskSettings: KioskSettingCoordinator
     private lateinit var touchSound: TouchSoundController
     private lateinit var bootChime: BootChimeController
     private lateinit var zigbee: ZigbeeController
@@ -686,6 +684,7 @@ class PaneldService : Service() {
     private lateinit var cpu: CpuController
     private lateinit var adb: AdbController
     private val usbDebugging by lazy { io.panelassistant.android.control.UsbDebuggingObserver(this) }
+    private var usbDebuggingFeedback: io.panelassistant.android.control.UsbDebuggingFeedback? = null
     private lateinit var power: PowerController
     private lateinit var powerSafety: PowerSafetyController
     private lateinit var profile: DeviceProfile
@@ -988,7 +987,7 @@ class PaneldService : Service() {
                     voice.announce(
                         io.panelassistant.android.assist.VoiceAnnouncement(
                             announcement.url, announcement.preannounceUrl, announcement.listenAfter,
-                            stream = announcement.stream, done = done,
+                            stream = announcement.stream, text = announcement.message, done = done,
                         ),
                     )
                 } else {
@@ -1111,11 +1110,8 @@ class PaneldService : Service() {
                 log = { Log.i(TAG, it) },
                 sensitivity = { config.voiceSensitivity },
             ),
-            runner = io.panelassistant.android.assist.SatelliteTurnRunner(
-                panelAssistantVoice,
-                log = { Log.i(TAG, it) },
-                chime = { io.panelassistant.android.assist.VoiceAttention.chime },
-            ),
+            voice = panelAssistantVoice,
+            log = { Log.i(TAG, it) },
         )
         voiceStateAuthority.setChangeListener {
             val state = voiceStateAuthority.current()
@@ -1149,19 +1145,13 @@ class PaneldService : Service() {
         entityLearning = preparedEntityLearning
         watchdog = WatchdogController(system, config, sensors::proximityCalibrationActive)
         kiosk = KioskController(this, system, config, profile.appCanSu)
-        kioskSettings = KioskSettingCoordinator(
-            canEnable = kiosk::canEnablePersistentPolicy,
-            actuate = kiosk::apply,
-            persist = config::commitKioskLock,
-        )
-        // On-device unlock gesture (7 corner taps): persist OFF + clear the lock + tell HA — off the main
-        // thread (the gesture fires on the overlay's touch listener; root work must not run there).
+        // On-device unlock gesture (7 corner taps): the same OFF the :8888 toggle sends, through the command
+        // worker that orders every kiosk change. Off the main thread: the gesture fires on the overlay's touch
+        // listener, and the request waits for the worker.
         kiosk.onUnlockRequested = {
             Thread {
                 if (teardownBoundary.isStopping) return@Thread
-                kioskSettings.apply(false) {
-                    if (!teardownBoundary.isStopping) core.publishKioskState()
-                }
+                requestKioskSetting(config, { runtime.current().commands }, "false") { kiosk.apply(false) }
             }.apply { isDaemon = true; name = "kiosk-unlock" }.start()
         }
         // When taming disables a vendor home launcher (e.g. eWeLink), immediately re-assert the dashboard
@@ -1353,20 +1343,8 @@ class PaneldService : Service() {
             // The dispatcher is replaceable. If its command admission is already draining, retain the
             // persisted setting and replay it against the replacement before reconfigure completes.
             { k, v ->
-                if (k == "kiosk_lock") {
-                    SettingValue.parseBool(v)?.let { on ->
-                        if (kioskSettings.apply(on) { core.publishKioskState() }) {
-                            LiveSettingRequestOutcome.APPLIED
-                        } else {
-                            LiveSettingRequestOutcome.REJECTED
-                        }
-                    } ?: LiveSettingRequestOutcome.REJECTED
-                } else {
-                    liveSettingAuthority.applyOrQueueOutcomeObserved(
-                        key = k,
-                        value = v,
-                        previousValue = previousLiveSettingValue(k),
-                    ) { key, value, previous -> applyLiveSettingObserved(runtime.current().commands, key, value, previous) }
+                requestLiveSetting(liveSettingAuthority, config, { runtime.current().commands }, k, v, { kiosk.apply(false) }) {
+                    refreshAutoSleepPresence()
                 }
             },
             onProximityCalibration = { action, id -> proximityWizard?.remote(action, id) == true },
@@ -1530,7 +1508,8 @@ class PaneldService : Service() {
         // fan-out performs for a Configure-page change, so the owner has one authority, not two.
         onCameraEnabledChanged = { if (::camera.isInitialized) runCatching { camera.onEnabledChanged() } },
         onDashboardTargetChanged = entityLearning::onTargetConfigurationChanged,
-        onDirectKioskSetting = { on -> kioskSettings.apply(on) },
+        kioskApply = kiosk::apply,
+        kioskRecover = kiosk::recoverPersistentState,
         onExternalSettingApplied = liveSettingAuthority::discard,
         onZigbeeExplicitRetry = zigbeeHealth::explicitRetry,
         onAutoSleepConfigChanged = {
@@ -1581,31 +1560,12 @@ class PaneldService : Service() {
         return resolution.enabled
     }
 
-    private fun previousLiveSettingValue(key: String): String? = SettingsRegistry.spec(key)?.let(config::getRaw)
-
     private fun applyLiveSettingObserved(
         commands: PanelCommandDispatcher,
         key: String,
         value: String,
         previousValue: String? = null,
-    ): LiveSettingApplication {
-        val spec = SettingsRegistry.spec(key)
-            ?: return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
-        val previous = previousValue ?: config.getRaw(spec)
-        // Network ADB must retain its durable ownership marker until the controller has cleared every
-        // classic/TLS property and authoritatively read them all inactive. Persisting false here first
-        // made AdbController.set(false) conclude that the listener was external and skip teardown.
-        // voice_enabled must not be persisted ahead of handleVoiceEnabled's live hasMicrophone check —
-        // this generic path runs before dispatchSetting, so pre-persisting ON here would durably record
-        // the setting even when the bridge refuses to act on it for lack of a microphone. handleVoiceEnabled
-        // owns persistence itself (mirrors kiosk_lock/network_adb, whose actuators are also the sole writer).
-        val actuationOwnsPersistence =
-            key == "navbar_mode" || key == "kiosk_lock" || key == "network_adb" || key == "voice_enabled"
-        if (!spec.transient && !actuationOwnsPersistence && !commitHttpLiveSetting(config, spec, value) { refreshAutoSleepPresence() }) {
-            return LiveSettingApplication.immediate(LiveSettingApplyResult.FAILED)
-        }
-        return commands.applySettingObserved(key, value, previous.takeUnless { spec.transient })
-    }
+    ): LiveSettingApplication = applyLiveSetting(config, commands, key, value, previousValue) { refreshAutoSleepPresence() }
 
     private fun replayLiveSettingObserved(
         commands: PanelCommandDispatcher,
@@ -1844,13 +1804,16 @@ class PaneldService : Service() {
                 obligationsCompleted = true
                 return
             }
+            // Only mDNS carries the panel's name, id and port. A running runtime keeps its state core and
+            // dispatcher and replaces the advertiser alone; a failed one is rebuilt whole.
+            val advertiserOnly = mutation.isRunning
             val completed = mutation.replace(
                 retire = { previous ->
                     // Start both retirement fences before awaiting either result. They share one monotonic
                     // budget; no locally reset phase timeout can accumulate beyond it.
                     val mdnsRetirement = previous.mdns.retire(executionDeadline)
-                    val stateDrained = previous.commands.stop(executionDeadline) and
-                        previous.core.stop(executionDeadline)
+                    val stateDrained = advertiserOnly || (previous.commands.stop(executionDeadline) and
+                        previous.core.stop(executionDeadline))
                     val mdnsStopped = mdnsRetirement.awaitTrue(executionDeadline)
                     val withinDeadline = executionDeadline.remainingMs() > 0L
                     check(stateDrained && mdnsStopped && withinDeadline) {
@@ -1858,11 +1821,14 @@ class PaneldService : Service() {
                             "(state=$stateDrained mdns=$mdnsStopped withinDeadline=$withinDeadline)"
                     }
                 },
-                build = { buildNetworkRuntime(desired.runtime) },
+                build = { previous ->
+                    if (advertiserOnly) previous.copy(mdns = buildMdns(desired.runtime))
+                    else buildNetworkRuntime(desired.runtime)
+                },
                 start = { replacement ->
                     replacement.mdns.start()
                     replacement.core.maybeResolveHaLink()
-                    replacement.core.start()
+                    if (!advertiserOnly) replacement.core.start()
                 },
                 complete = { replacement ->
                     liveSettingAuthority.replayKeysObserved(PanelCommandDispatcher.APPLY_SETTING_KEYS) { key, value, previous, fence ->
@@ -2250,6 +2216,7 @@ class PaneldService : Service() {
                 relays = controllers?.relayCount ?: relay.count(),
                 buttonLeds = controllers?.buttonLedCount ?: relay.ledCount(),
                 hasSystemDarkMode = Build.VERSION.SDK_INT >= 29,   // Android 10+ has the system dark/light setting
+                hasSpeaker = profile.hasSpeaker,
                 canInstallVerifiedApps = typedShellControlReady,
                 canCaptureAndInput = typedShellControlReady,
                 canSetDisplay = typedShellControlReady,
@@ -2353,6 +2320,19 @@ class PaneldService : Service() {
             storageHealth.startStorageHealthChecks()
             reconcileHelperInstallStaging()
             registerBrightnessPreferenceObserver()
+            if (io.panelassistant.android.control.UsbDebuggingFeedback.supportsProfile(profile.id)) {
+                scope.launch {
+                    io.panelassistant.android.i18n.CatalogueLoader.assets(this@PaneldService).prepareNative(config.uiLanguage)
+                    mainHandler.post {
+                        if (!teardownBoundary.isStopping && usbDebuggingFeedback == null) {
+                            usbDebuggingFeedback = io.panelassistant.android.control.UsbDebuggingFeedback.observePortal(
+                                this@PaneldService, profile.id, mainHandler, scope, usbDebugging::state,
+                                { teardownBoundary.isStopping }, { config.uiLanguage },
+                            )
+                        }
+                    }
+                }
+            }
             refreshAdaptiveBrightnessInputs(restartSource = false)
             autoBright.activate()
             // A verdict reached while the dashboard was paused is applied when it returns to the front.
@@ -2866,6 +2846,7 @@ class PaneldService : Service() {
 
     override fun onDestroy() {
         teardownBoundary.markStopping()
+        usbDebuggingFeedback?.close()
         notifications.releaseForeground()
         portalStartupOverlayDismissal?.close()
         if (guardDbRedirect) {
@@ -3478,13 +3459,11 @@ class PaneldService : Service() {
                 retryDelayMs = KIOSK_RECOVERY_RETRY_MS,
                 maxAttempts = KIOSK_RECOVERY_ATTEMPTS,
                 shouldContinue = { !teardownBoundary.isStopping },
-                recover = {
-                    kioskSettings.serialized { kiosk.recoverPersistentState(config.kioskLock) }
-                },
+                // On the command worker, ordered after any kiosk change already queued; a dispatcher that
+                // is draining for a replacement answers null and the attempt waits for the next one.
+                recover = { runtime.current().commands.recoverKiosk(enable = false) },
                 enabled = { config.kioskLock },
-                enable = {
-                    kioskSettings.serialized { config.kioskLock && kiosk.apply(true) }
-                },
+                enable = { runtime.current().commands.recoverKiosk(enable = true) },
             )
             if (!recovered && !teardownBoundary.isStopping) {
                 Log.w(TAG, "kiosk platform recovery remains pending; leaving kiosk unlocked")

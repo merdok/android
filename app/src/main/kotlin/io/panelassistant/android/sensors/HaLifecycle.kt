@@ -133,7 +133,9 @@ internal class HaLifecycle(
         // An injected or monotonic clock can move backwards; expire rather than extend the window.
         val elapsed = nowMs - backOnlineSinceMs
         if (elapsed >= backOnlineWindowMs || elapsed < 0L) {
+            // The notice outlives READY only for the recovery card's "restarted in"; NORMAL has nothing to report.
             current = HaLifecycleState.NORMAL
+            notice = null
             revision++
         }
         return current

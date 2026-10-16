@@ -86,29 +86,37 @@ internal fun proveScreenSafeForBoundary(
 
 /** Retry pending durable kiosk cleanup after the boot escape window without blocking unrelated service
  * startup. The retry count is finite so permanently unavailable root never creates steady background
- * load; retained recovery markers make the next service start retry again. */
+ * load; retained recovery markers make the next service start retry again. [recover] and [enable] answer
+ * null when they did not run (the command worker was being replaced): that waits [retryDelayMs] and asks
+ * again without using an attempt, until [shouldContinue] says stop or the thread is interrupted. */
 internal fun recoverAndMaybeEnableKiosk(
     escapeDelayMs: Long,
     retryDelayMs: Long,
     maxAttempts: Int,
     shouldContinue: () -> Boolean,
-    recover: () -> Boolean,
+    recover: () -> Boolean?,
     enabled: () -> Boolean,
-    enable: () -> Boolean,
+    enable: () -> Boolean?,
     pause: (Long) -> Unit = Thread::sleep,
 ): Boolean {
     require(escapeDelayMs >= 0L)
     require(retryDelayMs >= 0L)
     require(maxAttempts > 0)
+    fun ran(step: () -> Boolean?): Boolean? {
+        while (shouldContinue()) {
+            step()?.let { return it }
+            pause(retryDelayMs)
+        }
+        return null
+    }
     return try {
         pause(escapeDelayMs)
         repeat(maxAttempts) { attempt ->
-            if (!shouldContinue()) return false
-            if (recover()) {
-                if (!shouldContinue()) return false
-                return !enabled() || enable()
+            when (ran(recover)) {
+                null -> return false
+                true -> return shouldContinue() && (!enabled() || ran(enable) == true)
+                false -> if (attempt + 1 < maxAttempts) pause(retryDelayMs)
             }
-            if (attempt + 1 < maxAttempts) pause(retryDelayMs)
         }
         false
     } catch (_: InterruptedException) {

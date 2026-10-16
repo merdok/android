@@ -1,5 +1,8 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.config.ChannelOption
+import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.panelassistant.CommandValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -12,35 +15,37 @@ class LiveSettingHandlerBindingTest {
             invocations += Invocation(handler, arguments.toList())
         }
 
-        override fun handleWakeOnWave(payload: String) = record("handleWakeOnWave", payload)
-        override fun handleAutoSleep(payload: String) = record("handleAutoSleep", payload)
-        override fun handleAutoSleepSource(payload: String) = record("handleAutoSleepSource", payload)
-        override fun handlePreventIdleDim(payload: String, approvalRequired: Boolean) =
-            record("handlePreventIdleDim", payload, approvalRequired)
-        override fun handleWatchdog(payload: String) = record("handleWatchdog", payload)
-        override fun handleKiosk(payload: String) = record("handleKiosk", payload)
-        override fun handleSilenceBootChime(payload: String) = record("handleSilenceBootChime", payload)
-        override fun handleAutoBright(payload: String) = record("handleAutoBright", payload)
-        override fun handleTouchSound(payload: String) = record("handleTouchSound", payload)
-        override fun handleVoiceEnabled(payload: String) = record("handleVoiceEnabled", payload)
-        override fun handleNetAdb(payload: String) = record("handleNetAdb", payload)
-        override fun handleZigbee(payload: String) = record("handleZigbee", payload)
-        override fun handleAutoBrightnessMaximum(payload: String) =
-            record("handleAutoBrightnessMaximum", payload)
-        override fun handleAutoBrightnessMinimum(payload: String) =
-            record("handleAutoBrightnessMinimum", payload)
-        override fun handleAutoBrightnessSensitivity(payload: String) =
-            record("handleAutoBrightnessSensitivity", payload)
-        override fun handleAutoBrightnessHaEntity(payload: String) =
-            record("handleAutoBrightnessHaEntity", payload)
-        override fun handleCpuGov(payload: String) = record("handleCpuGov", payload)
-        override fun handleNavbar(payload: String) = record("handleNavbar", payload)
+        override fun handleWakeOnWave(on: Boolean) = record("handleWakeOnWave", on)
+        override fun handleAutoSleep(on: Boolean) = record("handleAutoSleep", on)
+        override fun handleAutoSleepSource(source: String) = record("handleAutoSleepSource", source)
+        override fun handlePreventIdleDim(on: Boolean, approvalRequired: Boolean) =
+            record("handlePreventIdleDim", on, approvalRequired)
+        override fun handleWatchdog(on: Boolean) = record("handleWatchdog", on)
+        override fun handleKiosk(on: Boolean) = record("handleKiosk", on)
+        override fun handleSilenceBootChime(on: Boolean) = record("handleSilenceBootChime", on)
+        override fun handleAutoBright(on: Boolean) = record("handleAutoBright", on)
+        override fun handleTouchSound(on: Boolean) = record("handleTouchSound", on)
+        override fun handleVoiceEnabled(on: Boolean) = record("handleVoiceEnabled", on)
+        override fun handleNetAdb(on: Boolean) = record("handleNetAdb", on)
+        override fun handleZigbee(on: Boolean) = record("handleZigbee", on)
+        override fun handleAutoBrightnessMaximum(percent: Int) = record("handleAutoBrightnessMaximum", percent)
+        override fun handleAutoBrightnessMinimum(percent: Int) = record("handleAutoBrightnessMinimum", percent)
+        override fun handleAutoBrightnessSensitivity(percent: Int) =
+            record("handleAutoBrightnessSensitivity", percent)
+        override fun handleAutoBrightnessHaEntity(entityId: String) =
+            record("handleAutoBrightnessHaEntity", entityId)
+        override fun handleCpuGov(option: ChannelOption) = record("handleCpuGov", option)
+        override fun handleNavbar(option: ChannelOption) = record("handleNavbar", option)
         override fun handleHomeDashboard(payload: String, previousValue: String?) =
             record("handleHomeDashboard", payload, previousValue)
         override fun handleHaAreaPublishOnly() = record("handleHaAreaPublishOnly")
     }
 
-    @Test fun `every live setting invokes exactly its concrete handler method`() {
+    /** The typed value the HTTP config route hands the dispatcher for a normalized [value]. */
+    private fun normalized(key: String, value: String): CommandValue =
+        liveSettingValue(requireNotNull(SettingsRegistry.spec(key)) { key }, value)
+
+    @Test fun `every live setting invokes exactly its concrete handler method with its typed value`() {
         data class Case(
             val key: String,
             val value: String,
@@ -51,44 +56,53 @@ class LiveSettingHandlerBindingTest {
 
         fun invocation(handler: String, vararg arguments: Any?) = Invocation(handler, arguments.toList())
         val cases = listOf(
-            Case("wake_on_wave", "true", expected = invocation("handleWakeOnWave", "ON")),
-            Case("auto_sleep", "true", expected = invocation("handleAutoSleep", "ON")),
+            Case("wake_on_wave", "true", expected = invocation("handleWakeOnWave", true)),
+            Case("auto_sleep", "true", expected = invocation("handleAutoSleep", true)),
             Case("auto_sleep_source", "panel", expected = invocation("handleAutoSleepSource", "panel")),
             Case(
                 "prevent_idle_dim",
                 "true",
-                expected = invocation("handlePreventIdleDim", "ON", false),
+                expected = invocation("handlePreventIdleDim", true, false),
             ),
-            Case("watchdog_enabled", "true", expected = invocation("handleWatchdog", "ON")),
-            Case("kiosk_lock", "true", expected = invocation("handleKiosk", "ON")),
-            Case("silence_boot_chime", "true", expected = invocation("handleSilenceBootChime", "ON")),
-            Case("auto_brightness", "true", expected = invocation("handleAutoBright", "ON")),
-            Case("touch_sound", "true", expected = invocation("handleTouchSound", "ON")),
-            Case("voice_enabled", "true", expected = invocation("handleVoiceEnabled", "ON")),
-            Case("network_adb", "true", expected = invocation("handleNetAdb", "ON")),
-            Case("zigbee_router", "true", expected = invocation("handleZigbee", "ON")),
+            Case("watchdog_enabled", "true", expected = invocation("handleWatchdog", true)),
+            Case("kiosk_lock", "true", expected = invocation("handleKiosk", true)),
+            Case("silence_boot_chime", "true", expected = invocation("handleSilenceBootChime", true)),
+            Case("auto_brightness", "true", expected = invocation("handleAutoBright", true)),
+            Case("touch_sound", "false", expected = invocation("handleTouchSound", false)),
+            Case("voice_enabled", "true", expected = invocation("handleVoiceEnabled", true)),
+            Case("network_adb", "true", expected = invocation("handleNetAdb", true)),
+            Case("zigbee_router", "true", expected = invocation("handleZigbee", true)),
             Case(
                 "auto_brightness_minimum_percent",
                 "23",
-                expected = invocation("handleAutoBrightnessMinimum", "23"),
+                expected = invocation("handleAutoBrightnessMinimum", 23),
             ),
             Case(
                 "auto_brightness_maximum_percent",
                 "73",
-                expected = invocation("handleAutoBrightnessMaximum", "73"),
+                expected = invocation("handleAutoBrightnessMaximum", 73),
             ),
             Case(
                 "auto_brightness_response_percent",
                 "67",
-                expected = invocation("handleAutoBrightnessSensitivity", "67"),
+                expected = invocation("handleAutoBrightnessSensitivity", 67),
             ),
             Case(
                 "auto_brightness_ha_entity",
                 "sensor.office_lux",
                 expected = invocation("handleAutoBrightnessHaEntity", "sensor.office_lux"),
             ),
-            Case("cpu_governor", "Efficiency", expected = invocation("handleCpuGov", "Efficiency")),
-            Case("navbar_mode", "Swipe", expected = invocation("handleNavbar", "Swipe")),
+            Case(
+                "cpu_governor",
+                "Efficiency",
+                expected = invocation("handleCpuGov", ChannelOption("efficiency", "Efficiency")),
+            ),
+            // A stored label in another case still names its option, as the navbar controller always read it.
+            Case(
+                "navbar_mode",
+                "swipe reveal",
+                expected = invocation("handleNavbar", ChannelOption("swipe_reveal", "Swipe reveal")),
+            ),
             Case(
                 "home_dashboard",
                 "/dashboard-alpha/0",
@@ -103,7 +117,7 @@ class LiveSettingHandlerBindingTest {
             val invocations = mutableListOf<Invocation>()
             dispatchLiveSetting(
                 key = case.key,
-                value = case.value,
+                value = normalized(case.key, case.value),
                 previousValue = case.previous,
                 sensitiveApprovalRequired = case.approvalRequired,
                 handlers = RecordingHandlers(invocations),
@@ -112,34 +126,26 @@ class LiveSettingHandlerBindingTest {
         }
     }
 
-    @Test fun `boolean and approval payload shapes are normalized before invoking owners`() {
+    @Test fun `a remote prevent_idle_dim keeps its approval requirement`() {
         val invocations = mutableListOf<Invocation>()
-        val handlers = RecordingHandlers(invocations)
-
-        dispatchLiveSetting("watchdog_enabled", "false", handlers = handlers)
         dispatchLiveSetting(
             "prevent_idle_dim",
-            "OFF",
+            CommandValue.Switch(false),
             sensitiveApprovalRequired = true,
-            handlers = handlers,
+            handlers = RecordingHandlers(invocations),
         )
-
-
-        assertEquals(
-            listOf(
-                Invocation("handleWatchdog", listOf("OFF")),
-                Invocation("handlePreventIdleDim", listOf("OFF", true)),
-            ),
-            invocations,
-        )
+        assertEquals(listOf(Invocation("handlePreventIdleDim", listOf(false, true))), invocations)
     }
 
-    @Test fun `invalid numeric shape fails before reporting handler execution`() {
+    @Test fun `a value of the wrong shape fails before any handler runs`() {
         val invocations = mutableListOf<Invocation>()
+        assertThrows(IllegalArgumentException::class.java) { normalized("auto_brightness_minimum_percent", "twenty") }
+        assertThrows(IllegalArgumentException::class.java) { normalized("touch_sound", "maybe") }
+        assertThrows(IllegalArgumentException::class.java) { normalized("navbar_mode", "Sideways") }
         assertThrows(IllegalArgumentException::class.java) {
             dispatchLiveSetting(
                 "auto_brightness_minimum_percent",
-                "twenty",
+                CommandValue.Text("twenty"),
                 handlers = RecordingHandlers(invocations),
             )
         }
@@ -174,7 +180,7 @@ class LiveSettingHandlerBindingTest {
         listOf("self_update", "update_channel", "companion_auto_update", "companion_update_channel", "webview_auto_update").forEach { key ->
             assertEquals(key, null, externalLiveSettingKey(key))
             assertThrows(IllegalStateException::class.java) {
-                dispatchLiveSetting(key, "true", handlers = RecordingHandlers(invocations))
+                dispatchLiveSetting(key, CommandValue.Switch(true), handlers = RecordingHandlers(invocations))
             }
         }
         assertEquals(emptyList<Invocation>(), invocations)

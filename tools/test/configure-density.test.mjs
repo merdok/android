@@ -1,7 +1,7 @@
 // Configure density, in both engines at a phone width and on a 480x480 panel: Basic is the default view
 // and each card reveals only its own advanced rows, a card with no basic row stays out of Basic, every
-// row carries a one-line summary that one switch removes, the filter finds any setting and never marks
-// the form dirty, and the full help opens in a popover that renders its markdown, links to the website,
+// row carries a one-line summary that one switch removes, the filter finds any setting and never sends
+// anything to the panel, and the full help opens in a popover that renders its markdown, links to the website,
 // stays on screen and never moves the page.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -20,9 +20,9 @@ function page() {
     <link rel="stylesheet" href="/info.css">${i18nBridge()}</head><body><div class="wrap">
     <span id="hardened-approval-description"></span><span id="hardened-approval-conditional-description"></span>
     <div id="cfg-tools" class="cfg-tools" data-app-version="9.9.9-rc1"><input id="cfg-filter" class="cfg-filter" type="search"><div class="seg" role="radiogroup"><label><input type="radio" name="cfg-tier" id="tier-basic" value="basic" checked>Basic</label><label><input type="radio" name="cfg-tier" id="tier-adv" value="advanced">Advanced</label></div><label class="cfg-desc-switch"><input type="checkbox" id="cfg-desc" checked><span class="toggle"></span>Descriptions</label><span id="cfg-count" class="muted cfg-count"></span></div>
-    <p id="cfg-msg"></p><p id="cfg-status"></p>
+    <div id="cfg-status" class="muted"></div>
     <div id="cfg-groups" class="cards" data-card-size-page="configure" data-card-size-epoch="1" data-card-size-restore="1"></div>
-    <div id="proximity-learning-mount"></div><div id="savebar" class="savebar" hidden><button id="savebtn"></button></div>
+    <div id="proximity-learning-mount"></div><div id="cfg-msg" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="cfg-help" class="cfg-help" popover="manual" role="dialog"><div class="cfg-help-head"><b id="cfg-help-title"></b><button id="cfg-help-close" class="cfg-help-close" type="button">x</button></div><div id="cfg-help-body" class="cfg-help-body"></div><div class="cfg-help-foot"><a id="cfg-help-more">More on the website</a></div></div>
     </div>
     <script>window.CardColumnAlignment={attach:()=>()=>{}};</script>
@@ -47,6 +47,7 @@ const SCHEMA = [
 ];
 
 async function harness() {
+  const posts = [];
   const server = createServer(async (request, response) => {
     const path = new URL(request.url, 'http://panel.test').pathname;
     const send = (body, type = 'application/json') => { response.setHeader('content-type', type); response.end(body); };
@@ -54,14 +55,20 @@ async function harness() {
     if (['/configure-state.js', '/configure-view.js', '/configure-help.js', '/configure-controls.js', '/configure-brightness.js', '/configure-auto-sleep.js', '/configure-cards.js', '/configure-render.js', '/configure.js', '/card-size-memory.js'].includes(path)) return send(await readFile(join(root, path.slice(1)), 'utf8'), 'application/javascript');
     if (path === '/info.css') return send(await readFile(join(root, 'info.css'), 'utf8'), 'text/css');
     if (path === '/api/v1/config/schema') return send(JSON.stringify(SCHEMA));
-    if (path === '/api/v1/config') return send(JSON.stringify({ settings: Object.fromEntries(SCHEMA.map((f) => [f.key, 'false'])), ha_expose: {}, ha_auth: { configured: false } }));
+    if (path === '/api/v1/config' && request.method === 'POST') {
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      posts.push(Object.fromEntries(new URLSearchParams(body)));
+      return send(JSON.stringify({ status: 'saved' }));
+    }
+    if (path === '/api/v1/config' || path === '/api/v1/config/values') return send(JSON.stringify({ settings: Object.fromEntries(SCHEMA.map((f) => [f.key, 'false'])), ha_expose: {}, ha_auth: { configured: false } }));
     if (path === '/api/v1/apps') return send(JSON.stringify({ apps: [] }));
     if (['/api/v1/radio', '/api/v1/proximity'].includes(path)) return send(JSON.stringify({ present: false }));
     if (path === '/api/v1/config/discovery' || path === '/api/v1/config/home-dashboards') return send('{}');
     response.statusCode = 404; response.end('not found');
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  return { server, url: `http://127.0.0.1:${server.address().port}` };
+  return { server, posts, url: `http://127.0.0.1:${server.address().port}` };
 }
 
 const engines = [
@@ -128,7 +135,7 @@ for (const engine of engines) {
       await p.locator('#cfg-camera_fps').waitFor();
       assert.equal(await p.locator('#tier-adv').isChecked(), true);
       assert.equal(await p.locator('#cfg-desc').isChecked(), false);
-      assert.equal(await p.locator('#savebar').isHidden(), true, 'view changes never mark the form dirty');
+      assert.deepEqual(h.posts, [], 'view changes never send a setting');
     });
 
     engineTest(`${where}: the filter finds any setting by label, summary or help and stays out of the form and memory`, async (t) => {
@@ -151,7 +158,7 @@ for (const engine of engines) {
       await p.locator('#cfg-filter').fill('no such setting');
       await p.waitForFunction(() => !document.querySelector('#cfg-groups .frow'));
       assert.equal(await p.locator('#cfg-status').isVisible(), true);
-      assert.equal(await p.locator('#savebar').isHidden(), true, 'filter text never marks the form dirty');
+      assert.deepEqual(h.posts, [], 'filter text never sends a setting');
       await p.waitForTimeout(1600);
       const storedAfter = await p.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('ha-paneld.card-sizes')).sort());
       const filtered = await p.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('ha-paneld.card-sizes'))
@@ -230,7 +237,8 @@ for (const engine of engines) {
       assert.equal(await p.evaluate(() => scrollY), y0, 'wheel inside the help does not scroll the page');
       await p.locator('#cfg-help-close').click();
       assert.equal(await p.locator('#cfg-help').isVisible(), false, 'the close button closes a pinned help');
-      assert.equal(await p.locator('#savebar').isHidden(), true);
+      await p.waitForTimeout(300);
+      assert.deepEqual(h.posts, [], 'opening and closing help sends nothing');
     });
   }
 }

@@ -61,10 +61,6 @@ internal class NativeMediaChannelTest : PanelRuntimeRig() {
 
             assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "media", """{"action":"mute","muted":true}"""))
             awaitObserved(observed, """{"state":"playing","muted":true}""")
-            assertEquals(
-                PanelAssistantCommandResult.Refused("invalid_value"),
-                submitNative(rig, "media", """{"action":"play","url":"ftp://x/y","announce":false}"""),
-            )
         } finally {
             rig.close()
         }

@@ -2,6 +2,82 @@ package io.panelassistant.android.input
 
 import io.panelassistant.android.platform.ActivityRef
 
+/** The active window as the chooser answer reads it; [alwaysCentre] is null without an Always button. */
+internal data class ChooserWindow(
+    val packageName: CharSequence?,
+    val title: CharSequence?,
+    val alwaysEnabled: Boolean?,
+    val alwaysCentre: Pair<Int, Int>?,
+)
+
+/**
+ * One accessibility connection's answers to the HOME chooser, by [HomeChooserPolicy.next].
+ *
+ * The app's own start-up can bring the dashboard over the chooser after this service has shown it,
+ * either before the chooser is answered or while the tap on Always is on its way, which then lands on
+ * the dashboard (a Meta Portal, 2026-10-15). So [VERIFY_MS] after showing or tapping it looks again,
+ * and while HOME is still unowned and the chooser is not in front it shows the chooser once more, at
+ * most [RETRIES] times per connection. Always is tapped at most [TAPS] times per connection, so a
+ * chooser whose Always never takes is not pressed forever.
+ */
+internal class HomeChooserAnswer(
+    private val appName: String,
+    private val defaultHome: () -> ActivityRef?,
+    private val activeWindow: () -> ChooserWindow?,
+    private val showChooser: () -> Boolean,
+    private val dismiss: () -> Boolean,
+    private val tap: (Int, Int) -> Boolean,
+    private val answerAgainIn: (Long) -> Unit,
+    private val log: (String) -> Unit,
+) {
+    private var shown = false
+    private var acted = false
+    private var retries = 0
+    private var taps = 0
+
+    fun connected() {
+        shown = false
+        acted = false
+        retries = 0
+        taps = 0
+    }
+
+    fun answer() {
+        val home = defaultHome()
+        val window = activeWindow()
+        if (acted && home?.pkg == "android" && window?.packageName != "android" && retries < RETRIES) {
+            retries++
+            shown = false
+        }
+        acted = false
+        val step = HomeChooserPolicy.next(
+            home, window?.packageName, window?.title, window?.alwaysEnabled, appName, shown,
+        )
+        when (step) {
+            HomeChooserPolicy.Step.NONE -> Unit
+            HomeChooserPolicy.Step.SHOW_CHOOSER -> {
+                shown = true
+                acted = showChooser()
+                log("HOME is unowned; showing the chooser=$acted")
+            }
+            HomeChooserPolicy.Step.TAP_ALWAYS -> if (taps < TAPS) {
+                taps++
+                val centre = window?.alwaysCentre
+                acted = centre != null && tap(centre.first, centre.second)
+                log("HOME chooser offers this app; tapped Always=$acted")
+            }
+            HomeChooserPolicy.Step.DISMISS -> log("HOME chooser offers another app; dismissed=${dismiss()}")
+        }
+        if (acted && (retries < RETRIES || taps < TAPS)) answerAgainIn(VERIFY_MS)
+    }
+
+    companion object {
+        const val VERIFY_MS = 2000L
+        const val RETRIES = 2
+        const val TAPS = 3
+    }
+}
+
 /**
  * **Answering Android's HOME chooser.** Updating the app in place makes some firmware (Meta's Portal)
  * forget the preferred HOME, and the next HOME shows "Use Panel Assistant as Home — Just once / Always".

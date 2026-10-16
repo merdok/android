@@ -67,33 +67,110 @@ object ExternalAuthProtocol {
      * [forcedDark] null means Follow Home Assistant and produces the HAND-BACK script; true/false
      * produce the FORCE script. Both are self-gating and idempotent, so they can run on every page
      * load, and both must run before Home Assistant's bundle: the frontend captures its
-     * `prefers-color-scheme` MediaQueryList at MODULE scope and reads `localStorage.selectedTheme` as
-     * its pre-connection bootstrap seed.
+     * `prefers-color-scheme` MediaQueryList at MODULE scope, and reads `localStorage.selectedTheme` once
+     * the socket exists but before the user's server-side theme arrives.
      *
      * Forcing is two layers, because neither alone covers the cases this setting exists for:
      *
      *  1. A NARROW `matchMedia` shim. The frontend resolves `themeSettings?.dark === undefined ?
-     *     darkPreferred : themeSettings.dark`, so the shim is what decides for every "Auto" user —
-     *     including one whose theme lives in Home Assistant's per-user SERVER storage, where the value
-     *     mirrored back down over `selectedTheme` after connect would otherwise beat anything written
-     *     here. It also decides the FIRST PAINT, before Home Assistant has connected at all. It shims
-     *     only `prefers-color-scheme` queries and delegates every other query to the real
-     *     implementation — answering all of them would break the frontend's layout breakpoints.
+     *     darkPreferred : themeSettings.dark`, so the shim is what decides for every "Auto" user. It
+     *     also decides the FIRST PAINT, before Home Assistant has connected at all. It shims only
+     *     `prefers-color-scheme` queries and delegates every other query to the real implementation —
+     *     answering all of them would break the frontend's layout breakpoints.
      *  2. A read-modify-write of the `dark` field of `selectedTheme`. This is what beats an EXPLICIT
-     *     stored light/dark, which the shim cannot touch because `themeSettings.dark` is then defined.
-     *     It is required rather than optional on Android 9- panels, where ha-paneld's own `dark_mode`
-     *     seed has already planted an explicit `dark` in that store.
+     *     stored light/dark for a user with no server-side theme, which the shim cannot touch because
+     *     `themeSettings.dark` is then defined. It is required rather than optional on Android 9-
+     *     panels, where ha-paneld's own `dark_mode` seed has already planted an explicit `dark` there.
      *
-     * What forcing deliberately does NOT do is write Home Assistant's server-side per-user preference.
-     * That value is shared with the user's phone and laptop, so a wall panel must never set it. The
-     * consequence is a named boundary rather than a hidden failure: an explicit theme chosen inside
-     * Home Assistant still wins over the panel's policy.
+     * An explicit theme saved on the Home Assistant user arrives over the socket after connect and
+     * replaces both; [dashboardThemeSocketJs] is the third layer that handles it. None of the three
+     * ever writes Home Assistant's server-side per-user preference, which may be shared with other
+     * panels or be a person's own.
      */
     fun dashboardThemePolicyJs(forcedDark: Boolean?): String {
         val key = JSONObject.quote(InjectionScript.SELECTED_THEME_KEY)
         val marker = JSONObject.quote(InjectionScript.FORCED_THEME_MARKER_KEY)
         val body = if (forcedDark == null) handBackThemeJs(key, marker) else forceThemeJs(forcedDark, key, marker)
         return "(()=>{${InjectionScript.TOP_FRAME_GUARD}try{$body}catch(e){}})();"
+    }
+
+    /**
+     * Document-start WebSocket wrapper that lets a forcing `dashboard_theme` beat an explicit Light or
+     * Dark saved on the Home Assistant user, without ever writing that user's saved theme.
+     *
+     * After connecting, the frontend subscribes to the user's server-side theme
+     * (`frontend/subscribe_user_data`, key `theme`), REPLACES its selected theme with each non-null
+     * value, and resolves `dark` from that value before it looks at `prefers-color-scheme`. So neither
+     * the shim nor the local store can beat a `dark` that arrives this way. This wrapper sets `dark` to
+     * the policy's value in those frames only, in this WebView only; null (no saved theme) is left
+     * alone. The user's theme name and colours pass through untouched.
+     *
+     * The reverse path matters as much. The profile page on this panel saves the WHOLE selected theme
+     * back with `frontend/set_user_data`, so a colour change would otherwise save the forced `dark` to
+     * an account that may be shared with other panels or be a person's own. Outbound, the wrapper puts
+     * back the last `dark` the server sent, or removes it when the server sent none: the panel owns
+     * `dark` while its policy forces, and nothing it forced is ever saved.
+     *
+     * It keys only on the public WebSocket API, never on minified frontend names. If a future frontend
+     * resolves the theme differently, the panel stops winning and `theme_overridden` reports it. It must
+     * be registered after every other WebSocket wrapper: the entity filter's `send` does not chain, so
+     * only the outermost wrapper is sure to see each outbound frame.
+     */
+    fun dashboardThemeSocketJs(dark: Boolean, haUrl: String, documentOrigins: Collection<String>): String {
+        val (targetWsOrigins, targetWsPath) = InjectionScript.wsTargets(haUrl, documentOrigins)
+        return """
+            (()=>{
+              ${InjectionScript.TOP_FRAME_GUARD}
+              const Parent=window.WebSocket;
+              if(!Parent||Parent.__haPaneldThemeSocket)return;
+              const targetWsOrigins=$targetWsOrigins,targetWsPath=$targetWsPath,forced=$dark;
+              let serverDark;
+              const themeCommand=(m,type)=>m&&m.type===type&&m.key==='theme';
+              function force(m,ids){
+                if(!m||m.type!=='event'||!ids.has(m.id)||!m.event)return false;
+                const v=m.event.value;
+                if(!v||typeof v!=='object'||Array.isArray(v))return false;
+                serverDark=typeof v.dark==='boolean'?v.dark:undefined;
+                v.dark=forced;
+                return true;
+              }
+              function ThemeWebSocket(url,protocols){
+                const socket=protocols===undefined?new Parent(url):new Parent(url,protocols);
+                try{
+                  const u=new URL(String(url),location.href);
+                  if(targetWsOrigins.includes(u.origin)&&u.pathname===targetWsPath){
+                    const ids=new Set(),send=socket.send;
+                    Object.defineProperty(socket,'send',{configurable:true,writable:true,value:function(data){
+                      let outgoing=data;
+                      if(typeof data==='string'&&data.indexOf('"theme"')>=0)try{
+                        const m=JSON.parse(data);
+                        if(themeCommand(m,'frontend/subscribe_user_data'))ids.add(m.id);
+                        else if(themeCommand(m,'frontend/set_user_data')&&m.value&&typeof m.value==='object'){
+                          if(serverDark===undefined)delete m.value.dark;else m.value.dark=serverDark;
+                          outgoing=JSON.stringify(m);
+                        }
+                      }catch(e){}
+                      return send.call(this,outgoing);
+                    }});
+                    socket.addEventListener('message',event=>{
+                      if(!ids.size||typeof event.data!=='string'||event.data.indexOf('"value"')<0)return;
+                      let m;try{m=JSON.parse(event.data)}catch(e){return}
+                      let changed=false;
+                      if(Array.isArray(m)){for(const item of m)if(force(item,ids))changed=true}
+                      else changed=force(m,ids);
+                      if(changed)Object.defineProperty(event,'data',{configurable:true,value:JSON.stringify(m)});
+                    });
+                  }
+                }catch(e){}
+                return socket;
+              }
+              Object.setPrototypeOf(ThemeWebSocket,Parent);
+              ThemeWebSocket.prototype=Parent.prototype;
+              for(const k of ['CONNECTING','OPEN','CLOSING','CLOSED'])Object.defineProperty(ThemeWebSocket,k,{value:Parent[k]});
+              Object.defineProperty(ThemeWebSocket,'__haPaneldThemeSocket',{value:true});
+              window.WebSocket=ThemeWebSocket;
+            })();
+        """.trimIndent()
     }
 
     /** Take ownership of the `dark` field, recording what it held so it can be handed back exactly. */
