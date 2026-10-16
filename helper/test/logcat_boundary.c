@@ -15,7 +15,7 @@ static int failures;
 
 static void *serve(void *arg) {
     int fd = *(int *)arg;
-    conn_ctx ctx = { .fd = fd, .caller = HELPER_CALLER_LEGACY };
+    conn_ctx ctx = { .fd = fd, .caller = HELPER_CALLER_SUCCESSOR };
     char command[] = "LOGCAT";
     dispatch(&ctx, command);
     close(fd);
@@ -26,7 +26,7 @@ int main(void) {
     signal(SIGPIPE, SIG_IGN);
     int pair[2];
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) != 0) return 2;
-    conn_ctx ctx = { .fd = pair[0], .caller = HELPER_CALLER_LEGACY };
+    conn_ctx ctx = { .fd = pair[0], .caller = HELPER_CALLER_SUCCESSOR };
     char caps[] = "LOGCATCAPS", caps_bad[] = "LOGCATCAPS extra", bad[] = "LOGCAT ;sh";
     char reply[64];
     dispatch(&ctx, caps);

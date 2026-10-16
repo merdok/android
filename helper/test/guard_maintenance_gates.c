@@ -418,21 +418,30 @@ static void test_forward_deadline_tick_enters_rollback(void) {
     guard_test_set_now_ms(0);
 }
 
+// The first reply to an INSTALLSTREAM, from a worker thread: an admitted upload answers READY and then
+// blocks on its payload, so the client end is shut afterwards and the worker ends on the short body.
+static void installstream_first_reply(char *reply, size_t capacity) {
+    dispatch_job job;
+    pthread_t thread;
+    int peer[2];
+    start_dispatch(&job, &thread, peer, "INSTALLSTREAM 5");
+    read_line(peer[1], reply, capacity);
+    shutdown(peer[1], SHUT_WR);
+    finish_dispatch(thread, peer[1]);
+}
+
 static void test_package_mutation_refused_while_guard_draft_exists(void) {
     setup();
     prepare();
-    const char *const uninstall[] = { "pm", "uninstall", SUCCESSOR_PKG, NULL };
     char reply[256], command[256];
-    dispatch_once("UNINSTALL " SUCCESSOR_PKG, reply, sizeof reply);
-    CHECK(strcmp(reply, "BUSY\n") == 0 &&
-          sysexec_stub_count_argv("/system/bin/pm", uninstall, 1) == 0,
+    installstream_first_reply(reply, sizeof reply);
+    CHECK(strcmp(reply, "BUSY\n") == 0,
         "package mutation is refused while a Guard draft exists (got %s)\n", reply);
     snprintf(command, sizeof command, "GUARDCANCEL %s 1", SESSION);
     dispatch_once(command, reply, sizeof reply);
-    dispatch_once("UNINSTALL " SUCCESSOR_PKG, reply, sizeof reply);
-    CHECK(strcmp(reply, "OK\n") == 0 &&
-          sysexec_stub_count_argv("/system/bin/pm", uninstall, 1) == 1,
-        "package mutation runs once Guard is empty again (got %s)\n", reply);
+    installstream_first_reply(reply, sizeof reply);
+    CHECK(strcmp(reply, "READY\n") == 0,
+        "package mutation is admitted once Guard is empty again (got %s)\n", reply);
 }
 
 int main(void) {

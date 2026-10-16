@@ -6,26 +6,17 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-/* Each package's data directory is present or absent independently, and owned by its own uid — the
- * two apps carry no sharedUserId, so a panel mid-migration really does hold two distinct uids and two
- * distinct directories. A path-blind fake could not tell "the successor is installed" from "the
- * legacy app is", which is the entire distinction under test. */
-#define LEGACY_DATA_DIR "/data/data/io.github.maxlyth.hapaneld"
-#define SUCCESSOR_DATA_DIR "/data/data/io.panelassistant.android"
+/* The app's data directory is present or absent, and owned by the app's uid. A path-blind fake could
+ * not tell the app's directory from any other path the daemon stats. */
+#define APP_DATA_DIR "/data/data/io.panelassistant.android"
 
-static int legacy_present;
-static uid_t legacy_uid;
-static int successor_present;
-static uid_t successor_uid;
+static int app_present;
+static uid_t app_uid;
 
 static int peer_auth_test_stat(const char *path, struct stat *st) {
-    int present = 0;
-    uid_t owner = 0;
-    if (strcmp(path, LEGACY_DATA_DIR) == 0) { present = legacy_present; owner = legacy_uid; }
-    else if (strcmp(path, SUCCESSOR_DATA_DIR) == 0) { present = successor_present; owner = successor_uid; }
-    if (!present) return -1;
+    if (strcmp(path, APP_DATA_DIR) != 0 || !app_present) return -1;
     memset(st, 0, sizeof *st);
-    st->st_uid = owner;
+    st->st_uid = app_uid;
     return 0;
 }
 
@@ -137,66 +128,29 @@ static int accept_loop_rejects_unrelated_uid(void) {
 #define ALLOWED(uid) (resolve_caller(uid) != HELPER_CALLER_NONE)
 
 int main(void) {
-    /* A single-package panel: only the legacy app is installed. This is every panel in the field
-     * before the migration, and its behaviour must be exactly what it was. */
-    legacy_present = 1;
-    legacy_uid = 12345;
-    successor_present = 0;
-    successor_uid = 0;
+    app_present = 1;
+    app_uid = 12345;
 
     CHECK(resolve_caller(0) == HELPER_CALLER_ROOT, "root must remain allowed");
-    CHECK(resolve_caller(legacy_uid) == HELPER_CALLER_LEGACY,
-          "the currently resolved legacy uid must be allowed, as the legacy package");
+    CHECK(resolve_caller(app_uid) == HELPER_CALLER_SUCCESSOR,
+          "the currently resolved app uid must be allowed, as the app");
     CHECK(!ALLOWED(2000), "generic Android shell uid must not inherit root helper verbs");
     CHECK(!ALLOWED(12346), "an unrelated app uid must be rejected");
 
     /* Prove a successful lookup is not cached across uninstall/data-dir loss. */
-    CHECK(ALLOWED(legacy_uid), "precondition: app uid is allowed while data dir exists");
-    legacy_present = 0;
+    CHECK(ALLOWED(app_uid), "precondition: app uid is allowed while data dir exists");
+    app_present = 0;
     CHECK(resolve_caller(0) == HELPER_CALLER_ROOT, "root must remain available while the app is absent");
-    CHECK(!ALLOWED(legacy_uid), "former app uid must fail closed after data dir disappears");
+    CHECK(!ALLOWED(app_uid), "former app uid must fail closed after data dir disappears");
 
-    legacy_present = 1;
-    legacy_uid = 23456;
+    app_present = 1;
+    app_uid = 23456;
     CHECK(!ALLOWED(12345), "old uid must stay rejected after reinstall with a new uid");
-    CHECK(resolve_caller(legacy_uid) == HELPER_CALLER_LEGACY,
+    CHECK(resolve_caller(app_uid) == HELPER_CALLER_SUCCESSOR,
           "newly resolved app uid must be allowed after reinstall");
-
-    /* Only the successor is installed — the end state of the migration, after the legacy package is
-     * uninstalled. The successor is the app the daemon serves; nothing about it is a special case. */
-    legacy_present = 0;
-    successor_present = 1;
-    successor_uid = 10188;
-    CHECK(resolve_caller(successor_uid) == HELPER_CALLER_SUCCESSOR,
-          "the successor package's uid must be allowed, as the successor");
-    CHECK(!ALLOWED(23456), "the departed legacy uid must be refused once its data dir is gone");
-    CHECK(!ALLOWED(2000), "shell uid stays refused on a successor-only panel");
-
-    /* Both installed — the transition window. Each uid resolves to its OWN package, and a third uid
-     * is refused exactly as on a single-package panel. This is the whole point: the successor gets
-     * root through this socket without inheriting the legacy app's identity, and without the socket
-     * widening to anyone else. */
-    legacy_present = 1;
-    legacy_uid = 10141;
-    successor_present = 1;
-    successor_uid = 10188;
-    CHECK(resolve_caller(legacy_uid) == HELPER_CALLER_LEGACY,
-          "with both installed, the legacy uid must resolve to the legacy package");
-    CHECK(resolve_caller(successor_uid) == HELPER_CALLER_SUCCESSOR,
-          "with both installed, the successor uid must resolve to the successor package");
-    CHECK(resolve_caller(0) == HELPER_CALLER_ROOT, "root stays root with both installed");
-    CHECK(!ALLOWED(10200), "a third app uid must be refused while both packages are installed");
-    CHECK(!ALLOWED(2000), "shell uid must stay refused while both packages are installed");
-
-    /* A uid owning neither directory is refused even when it equals a uid that once owned one. */
-    successor_uid = 10141;
-    CHECK(resolve_caller(10141) == HELPER_CALLER_LEGACY,
-          "a uid owning both directories resolves to the legacy package, never to two identities");
     CHECK(probe_command_allowed("PING"), "root probe mode must allow PING");
     CHECK(probe_command_allowed("COMPANIONCAPS"), "root probe mode must allow capability discovery");
     CHECK(probe_command_allowed("BUILDID"), "root probe mode must allow build identity");
-    CHECK(probe_command_allowed("HELPERSTATUS"),
-          "root probe mode must allow the accepted-package status read");
     CHECK(probe_command_allowed("GUARDCAPS"), "root probe mode must allow Guard capability discovery");
     CHECK(probe_command_allowed("GUARDSELF"), "root probe mode must allow live helper byte identity");
     CHECK(probe_command_allowed("GUARDSTATUS"), "root probe mode must allow Guard status observation");
@@ -220,16 +174,11 @@ int main(void) {
           "root probe mode must require an exact live helper identity verb");
     CHECK(!probe_command_allowed("GUARDSTATUS extra"),
           "root probe mode must require an exact Guard status verb");
-    CHECK(!probe_command_allowed("HELPERSTATUS extra"),
-          "root probe mode must require an exact accepted-package status verb");
-    CHECK(!probe_command_allowed("UNINSTALL io.github.maxlyth.hapaneld"),
-          "root probe mode must not expose package removal");
     CHECK(!probe_command_allowed("GRANT io.panelassistant.android ACCESSIBILITY"),
           "root probe mode must not expose the grant verb");
 
-    legacy_present = 1;
-    legacy_uid = 12345;
-    successor_present = 0;
+    app_present = 1;
+    app_uid = 12345;
     CHECK(accept_loop_rejects_unrelated_uid() == 0,
           "the accept loop closes an unrelated uid before any reply while serving root");
 

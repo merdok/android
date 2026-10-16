@@ -116,9 +116,6 @@ int valid_decimal(const char *s) {
 // Settings, telephony, the framework, or ha-paneld's own controller. The app enforces its own block
 // list too; this is defense-in-depth at the one place that actually holds root. (Re-enabling — ENABLE
 // / overlay allow — is always permitted, so a panel can never get stuck disabled.)
-// Both ha-paneld package ids are critical for the whole transition window: while the successor is
-// installed beside the legacy package, tearing either one down strands the migration — the legacy app
-// still owns the launcher and the state to hand over, and the successor is what will own them next.
 int is_critical_pkg(const char *s) {
     static const char *const CRIT[] = {
         "android",
@@ -168,7 +165,7 @@ int valid_gbl_path(const char *s) {
 // restricts callers to ha-paneld's uid; this keeps a compromised caller from pointing the root install
 // at an arbitrary /system, /sdcard or vendor APK. No traversal, no quote (shell-safe).
 // A path is under a package's own data dir when it starts with that dir followed by a separator —
-// the separator matters, or "/data/data/io.panelassistant.androidX/…" would pass as the successor's.
+// the separator matters, or "/data/data/io.panelassistant.androidX/…" would pass as the app's.
 static int under_directory(const char *path, const char *directory) {
     size_t n = strlen(directory);
     return strncmp(path, directory, n) == 0 && path[n] == '/';
@@ -177,10 +174,8 @@ static int under_directory(const char *path, const char *directory) {
 int valid_apk_path(const char *s) {
     if (!s || s[0] != '/') return 0;
     if (strstr(s, "..")) return 0;
-    // Either known package's own data dir, in the legacy (/data/data) or multi-user (/data/user/0)
-    // form — getCacheDir() returns the /data/user/0 form on API 24+. Both ids are accepted because
-    // during the migration either app may hold a retained input of its own; neither can name a path
-    // outside the two, and peer-uid authorisation already bounds who may ask at all.
+    // The app's own data dir, in the legacy (/data/data) or multi-user (/data/user/0) form —
+    // getCacheDir() returns the /data/user/0 form on API 24+.
     int known = 0;
     for (size_t i = 0; i < HELPER_APP_PACKAGE_COUNT && !known; i++)
         known = under_directory(s, HELPER_APP_PACKAGES[i].data_dir) ||

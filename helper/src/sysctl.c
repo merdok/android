@@ -563,50 +563,17 @@ void cmd_overlay(conn_ctx *ctx, const char *args) {
     }
 }
 
-// --- identity-migration verbs ---------------------------------------------------------------------
-// UNINSTALL and GRANT exist so the successor package never needs `su`. On the six SuperSU panels root
-// is granted per uid behind a prompt nobody can answer remotely, so a new application id cannot get a
-// root shell at all; this authenticated socket is its only root channel, and these are the two things
-// the handover needs root for that no existing verb provides.
+// --- GRANT ----------------------------------------------------------------------------------------
+// GRANT exists so the app never needs `su`. On the SuperSU panels root is granted per uid behind a
+// prompt nobody can answer remotely, so this authenticated socket is the app's only root channel for
+// the grants it repairs at startup.
 //
-// Both refuse any package that is not one of the two known ids. That is not a convenience check: it
-// is why the verbs are safe to expose at all. Neither takes a free-form permission, appop or setting
-// name either — the capability argument selects from a fixed table, so the request can choose WHICH
-// of a known set of grants to apply and nothing else.
-//
-// Note that is_critical_pkg() cannot serve as the gate here: it now flags BOTH our ids precisely so
-// STOP/DISABLE can never tear them down, while UNINSTALL's whole purpose is to remove one of them at
-// the end of a completed handover. The allowlist is therefore its own, and narrower.
+// It refuses any package that is not the app's own id. That is not a convenience check: it is why
+// the verb is safe to expose at all. It does not take a free-form permission, appop or setting name
+// either — the capability argument selects from a fixed table, so the request can choose WHICH of a
+// known set of grants to apply and nothing else.
 
-// Remove one of the two known packages. Refuses to uninstall the CALLER's own package: a request to
-// delete the requester is either a mistake or a compromised caller, and the migration never needs it
-// — the successor removes the legacy app, after its own handover is confirmed. Ordering against the
-// HOME role stays with the app, which queries the resolved launcher before asking; duplicating that
-// query here would be a second definition of the same rule, and it would have to fail closed on any
-// vendor build whose `cmd package` cannot answer it.
-static int uninstall_pkg(const char *pkg, enum helper_caller caller) {
-    if (!valid_pkg(pkg) || !helper_known_package(pkg)) return -1;
-    if (helper_caller_for_package(pkg) == caller) return -1;
-    const char *const argv[] = { "pm", "uninstall", pkg, NULL };
-    return command_ok(sysexec_run_argv("/system/bin/pm", argv, 1)) ? 0 : -1;
-}
-
-void cmd_uninstall(conn_ctx *ctx, const char *args) {
-    char pkg[128] = "", extra[2] = "";
-    if (sscanf(args, "%127s %1s", pkg, extra) != 1) {
-        reply(ctx->fd, "ERR\n");
-        return;
-    }
-    if (guard_maintenance_install_begin() != 0) {
-        reply(ctx->fd, "BUSY\n");
-        return;
-    }
-    int removed = uninstall_pkg(pkg, ctx->caller) == 0;
-    guard_maintenance_install_end();
-    reply(ctx->fd, removed ? "OK\n" : "ERR\n");
-}
-
-// The grants the provisioner applies over ADB, which the successor must instead obtain for itself.
+// The grants the provisioner applies over ADB, which the app must instead obtain for itself.
 // Each entry names the exact actuator and arguments; nothing about a request reaches the command line
 // except the already-validated package id.
 enum grant_kind { GRANT_PERMISSION, GRANT_APPOP, GRANT_BATTERY, GRANT_ACCESSIBILITY };
@@ -651,17 +618,13 @@ static int accessibility_list_plausible(const char *value) {
 }
 
 static int grant_accessibility(const char *pkg) {
-    // The service class lives in the Kotlin package whichever id the build carries, so a component is
-    // the id plus that class. The `.input.…` shorthand resolves against the id, so it names the class
-    // only when the id equals the package; an entry naming any other class is left for the framework.
+    // A component is the id plus the service class. The `.input.…` shorthand resolves against the id
+    // and names the same class; an entry naming any other class is left for the framework.
     char component[256], shorthand[160];
     if (snprintf(component, sizeof component, "%s/%s", pkg, APP_ACCESSIBILITY_CLASS) >= (int)sizeof component)
         return -1;
     if (snprintf(shorthand, sizeof shorthand, "%s/.input.PanelAccessibilityService", pkg) >= (int)sizeof shorthand)
         return -1;
-    size_t pkg_length = strlen(pkg);
-    int shorthand_matches = strncmp(APP_ACCESSIBILITY_CLASS, pkg, pkg_length) == 0 &&
-        strcmp(&APP_ACCESSIBILITY_CLASS[pkg_length], ".input.PanelAccessibilityService") == 0;
 
     char existing[1024];
     const char *const get[] = { "settings", "get", "secure", "enabled_accessibility_services", NULL };
@@ -673,14 +636,14 @@ static int grant_accessibility(const char *pkg) {
     if (strcmp(existing, "null") == 0) existing[0] = '\0', length = 0;
     if (!accessibility_list_plausible(existing)) return -1;
 
-    // Accept shorthand only when it resolves to the actual class. A retry of an interrupted grant
-    // must converge rather than append the component a second time.
+    // Either spelling counts as present. A retry of an interrupted grant must converge rather than
+    // append the component a second time.
     int present = 0;
     char scan[sizeof existing];
     memcpy(scan, existing, length + 1);
     char *save = NULL;
     for (char *entry = strtok_r(scan, ":", &save); entry && !present; entry = strtok_r(NULL, ":", &save))
-        present = strcmp(entry, component) == 0 || (shorthand_matches && strcmp(entry, shorthand) == 0);
+        present = strcmp(entry, component) == 0 || strcmp(entry, shorthand) == 0;
 
     if (!present) {
         char updated[sizeof existing + sizeof component];

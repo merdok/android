@@ -33,13 +33,9 @@
 #define CUSTODY "/tmp/.hapaneld-guard-db-test"
 #define BOOT_FILE "/tmp/.hapaneld-guard-db-test.boot-id"
 #define APP_ROOT "/tmp/.hapaneld-guard-app-test"
-#define LEGACY_PKG "io.github.maxlyth.hapaneld"
-#define SUCCESSOR_PKG "io.panelassistant.android"
-#define DB_DIR APP_ROOT "/data/user/0/" LEGACY_PKG "/databases"
+#define APP_PKG "io.panelassistant.android"
+#define DB_DIR APP_ROOT "/data/user/0/" APP_PKG "/databases"
 #define DB_PATH DB_DIR "/ha-paneld.db"
-#define SUCCESSOR_APP_DIR APP_ROOT "/data/user/0/" SUCCESSOR_PKG
-#define SUCCESSOR_DB_DIR SUCCESSOR_APP_DIR "/databases"
-#define SUCCESSOR_DB_PATH SUCCESSOR_DB_DIR "/ha-paneld.db"
 #define INSTALLED_DIR "/tmp/.hapaneld-guard-installed"
 #define INSTALLED_APK INSTALLED_DIR "/base.apk"
 #define SESSION "1111111111111111111111111111111111111111111111111111111111111111"
@@ -61,9 +57,8 @@ static const char SETTINGS_AUTHORITY[] =
 
 // Guard binds a session to the package the CALLER is, and on the socket that comes from
 // SO_PEERCRED, resolved once in the accept loop.  This harness calls the handlers directly, so it
-// supplies the same identity here.  Everything written before the successor package existed runs as
-// the legacy app, which is why the default keeps today's behaviour under assertion.
-static enum helper_caller test_caller = HELPER_CALLER_LEGACY;
+// supplies the same identity here: the app caller by default.
+static enum helper_caller test_caller = HELPER_CALLER_SUCCESSOR;
 
 static int failures;
 #define CHECK(condition, ...) do { if (!(condition)) { \
@@ -321,41 +316,16 @@ static void create_fixed_test_dirs(void) {
     mkdir_if_missing(APP_ROOT "/data", 0700);
     mkdir_if_missing(APP_ROOT "/data/user", 0700);
     mkdir_if_missing(APP_ROOT "/data/user/0", 0700);
-    mkdir_if_missing(APP_ROOT "/data/user/0/" LEGACY_PKG, 0700);
+    mkdir_if_missing(APP_ROOT "/data/user/0/" APP_PKG, 0700);
     mkdir_if_missing(DB_DIR, 0700);
     mkdir_if_missing(INSTALLED_DIR, 0700);
 }
 
-static void create_successor_test_dirs(void) {
-    mkdir_if_missing(SUCCESSOR_APP_DIR, 0700);
-    mkdir_if_missing(SUCCESSOR_DB_DIR, 0700);
-}
-
-// A data directory that survives a test is a second installed package for every later test, which
-// would make every root caller ambiguous.  Each setup() removes it.
-static void remove_successor_test_dirs(void) {
-    static const char *const leftovers[] = {
-        SUCCESSOR_DB_PATH, SUCCESSOR_DB_PATH "-wal", SUCCESSOR_DB_PATH "-shm",
-        SUCCESSOR_DB_PATH "-journal", SUCCESSOR_DB_PATH ".restore.tmp",
-        SUCCESSOR_DB_PATH ".v14.premigrate", SUCCESSOR_DB_PATH ".v14.premigrate.guard.tmp",
-        SUCCESSOR_DB_PATH ".v15.superseded", SUCCESSOR_DB_PATH ".v15.superseded-wal",
-        SUCCESSOR_DB_PATH ".v15.superseded-shm", SUCCESSOR_DB_PATH ".v15.superseded-journal",
-        SUCCESSOR_DB_DIR "/.ha-paneld.db.restore.v1",
-        SUCCESSOR_DB_DIR "/.ha-paneld.db.restore.v1.tmp",
-        SUCCESSOR_DB_DIR "/.ha-paneld.db.restore.prepared.v1",
-        SUCCESSOR_DB_DIR "/.guard.rollback.tmp",
-    };
-    for (size_t i = 0; i < sizeof leftovers / sizeof leftovers[0]; i++) (void)unlink(leftovers[i]);
-    (void)rmdir(SUCCESSOR_DB_DIR);
-    (void)rmdir(SUCCESSOR_APP_DIR);
-}
-
 static void setup(void) {
-    test_caller = HELPER_CALLER_LEGACY;
+    test_caller = HELPER_CALLER_SUCCESSOR;
     guard_test_reset();
     sysexec_stub_reset();
     create_fixed_test_dirs();
-    remove_successor_test_dirs();
     static const char *const leftovers[] = {
         DB_PATH, DB_PATH "-wal", DB_PATH "-shm", DB_PATH "-journal", DB_PATH ".restore.tmp",
         DB_PATH ".v14.premigrate", DB_PATH ".v14.premigrate.guard.tmp",

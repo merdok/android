@@ -211,7 +211,7 @@ static void dispatch_reply_as(enum helper_caller caller, const char *line, char 
 }
 
 static void dispatch_reply(const char *line, char *out, size_t outsz) {
-    dispatch_reply_as(HELPER_CALLER_LEGACY, line, out, outsz);
+    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, line, out, outsz);
 }
 
 typedef struct {
@@ -261,7 +261,7 @@ static void serve_reply(const char *bytes, size_t len, char *out, size_t outsz) 
     shutdown(sv[1], SHUT_WR);
     input_init();
     gpio_init();
-    server_serve(sv[0], HELPER_CALLER_LEGACY);
+    server_serve(sv[0], HELPER_CALLER_SUCCESSOR);
     fcntl(sv[1], F_SETFL, O_NONBLOCK);
     ssize_t n = read(sv[1], out, outsz - 1);
     out[n > 0 ? n : 0] = '\0';
@@ -271,7 +271,7 @@ static void serve_reply(const char *bytes, size_t len, char *out, size_t outsz) 
 static void test_validators(void) {
     // valid_pkg: package chars only; rejects shell metacharacters and traversal.
     CHECK(valid_pkg("com.foo.bar"), "valid_pkg accepts a package\n");
-    CHECK(valid_pkg("io.github.maxlyth.hapaneld"), "valid_pkg accepts the app id\n");
+    CHECK(valid_pkg("io.panelassistant.android"), "valid_pkg accepts the app id\n");
     CHECK(!valid_pkg(""), "valid_pkg rejects empty\n");
     CHECK(!valid_pkg(";reboot"), "valid_pkg rejects ;reboot\n");
     CHECK(!valid_pkg("a|b`c$d(e)"), "valid_pkg rejects metachars\n");
@@ -302,12 +302,9 @@ static void test_validators(void) {
     // is_critical_pkg: the never-stop/disable backstop.
     CHECK(is_critical_pkg("android"), "is_critical_pkg flags the framework\n");
     CHECK(is_critical_pkg("com.android.systemui"), "is_critical_pkg flags systemui\n");
-    CHECK(is_critical_pkg("io.github.maxlyth.hapaneld"), "is_critical_pkg flags ourselves\n");
-    // Both ha-paneld ids are critical for the whole transition window: with the successor installed
-    // beside the legacy package, tearing either one down strands the migration.
-    CHECK(is_critical_pkg("io.panelassistant.android"), "is_critical_pkg flags the successor package\n");
+    CHECK(is_critical_pkg("io.panelassistant.android"), "is_critical_pkg flags ourselves\n");
     CHECK(!is_critical_pkg("io.panelassistant.androidx"),
-          "is_critical_pkg is exact for the successor id, not a prefix\n");
+          "is_critical_pkg is exact for the app id, not a prefix\n");
     CHECK(!is_critical_pkg("com.eWeLinkControlPanel"), "is_critical_pkg allows a vendor app\n");
     CHECK(!is_critical_pkg("com.android.systemui.x"), "is_critical_pkg is exact, not prefix\n");
     CHECK(!is_critical_pkg(""), "is_critical_pkg allows empty (valid_pkg rejects it first)\n");
@@ -331,35 +328,28 @@ static void test_validators(void) {
 
     // valid_gbl_path: absolute, no '..', no single-quote, ends in ".gbl".
     CHECK(valid_gbl_path("/data/local/tmp/efr32.gbl"), "valid_gbl_path accepts a normal path\n");
-    CHECK(valid_gbl_path("/data/user/0/io.github.maxlyth.hapaneld/cache/efr32.gbl"), "valid_gbl_path accepts app cache path\n");
+    CHECK(valid_gbl_path("/data/user/0/io.panelassistant.android/cache/efr32.gbl"), "valid_gbl_path accepts app cache path\n");
     CHECK(!valid_gbl_path(""), "valid_gbl_path rejects empty\n");
     CHECK(!valid_gbl_path("relative/path.gbl"), "valid_gbl_path rejects non-absolute\n");
     CHECK(!valid_gbl_path("/data/../etc/passwd.gbl"), "valid_gbl_path rejects traversal\n");
     CHECK(!valid_gbl_path("/data/local/tmp/efr32.bin"), "valid_gbl_path rejects wrong extension\n");
     CHECK(!valid_gbl_path("/data/local/tmp/it'squoted.gbl"), "valid_gbl_path rejects single-quote\n");
 
-    // valid_apk_path: an .apk under EITHER known package's own data dir, in either the legacy
-    // (/data/data) or multi-user (/data/user/0) form. During the migration both apps are installed,
-    // and each may hold a retained input of its own.
-    CHECK(valid_apk_path("/data/data/io.github.maxlyth.hapaneld/cache/update.apk"),
-          "valid_apk_path accepts the legacy package's /data/data form\n");
-    CHECK(valid_apk_path("/data/user/0/io.github.maxlyth.hapaneld/cache/update.apk"),
-          "valid_apk_path accepts the legacy package's /data/user/0 form\n");
+    // valid_apk_path: an .apk under the app's own data dir, in either the legacy (/data/data) or
+    // multi-user (/data/user/0) form.
     CHECK(valid_apk_path("/data/data/io.panelassistant.android/cache/update.apk"),
-          "valid_apk_path accepts the successor package's /data/data form\n");
+          "valid_apk_path accepts the app's /data/data form\n");
     CHECK(valid_apk_path("/data/user/0/io.panelassistant.android/cache/update.apk"),
-          "valid_apk_path accepts the successor package's /data/user/0 form\n");
+          "valid_apk_path accepts the app's /data/user/0 form\n");
     // The separator after the directory is load-bearing: without it a sibling directory whose name
-    // merely starts with a known id would pass as that package's private storage.
+    // merely starts with the app id would pass as the app's private storage.
     CHECK(!valid_apk_path("/data/data/io.panelassistant.androidx/cache/update.apk"),
-          "valid_apk_path rejects a directory that only prefixes the successor id\n");
-    CHECK(!valid_apk_path("/data/data/io.github.maxlyth.hapaneldx/cache/update.apk"),
-          "valid_apk_path rejects a directory that only prefixes the legacy id\n");
+          "valid_apk_path rejects a directory that only prefixes the app id\n");
     CHECK(!valid_apk_path("/data/data/com.other.app/cache/update.apk"),
           "valid_apk_path rejects a third package's data dir\n");
     CHECK(!valid_apk_path("/data/local/tmp/update.apk"), "valid_apk_path rejects shared storage\n");
     CHECK(!valid_apk_path("/data/data/io.panelassistant.android/../../local/tmp/update.apk"),
-          "valid_apk_path rejects traversal out of the successor's data dir\n");
+          "valid_apk_path rejects traversal out of the app's data dir\n");
     CHECK(!valid_apk_path("/data/data/io.panelassistant.android/cache/update.txt"),
           "valid_apk_path rejects a non-apk extension\n");
     CHECK(!valid_apk_path("/data/data/io.panelassistant.android/cache/it'squoted.apk"),
@@ -975,7 +965,7 @@ static void test_sysctl_execution_results(void) {
 
     // Legacy pathname INSTALL remains protocol-compatible but fails closed without opening the
     // caller-selected path. INSTALLGC is an idempotent compatibility acknowledgement only.
-    const char *install = "INSTALL /data/user/0/io.github.maxlyth.hapaneld/cache/update.apk";
+    const char *install = "INSTALL /data/user/0/io.panelassistant.android/cache/update.apk";
     const char *install_dir = "/tmp/.hapaneld-helper-test";
     const char *install_stage = "/tmp/.hapaneld-helper-test/hapaneld-install.apk";
     unlink(install_stage);
@@ -985,12 +975,12 @@ static void test_sysctl_execution_results(void) {
     CHECK(strcmp(out, "ERR\n") == 0, "legacy INSTALL fails closed (got '%s')\n", out);
     CHECK(sysexec_stub_count_run(install) == 0, "legacy INSTALL never executes caller-derived text\n");
 
-    const char *install_gc = "INSTALLGC /data/user/0/io.github.maxlyth.hapaneld/files/helper-install-staging/retained.apk";
+    const char *install_gc = "INSTALLGC /data/user/0/io.panelassistant.android/files/helper-install-staging/retained.apk";
     dispatch_reply(install_gc, out, sizeof out);
     CHECK(strcmp(out, "OK\n") == 0, "INSTALLGC authorises retained-input cleanup while install lane is idle (got '%s')\n", out);
     dispatch_reply(install_gc, out, sizeof out);
     CHECK(strcmp(out, "OK\n") == 0, "duplicate INSTALLGC remains idempotent (got '%s')\n", out);
-    dispatch_reply("INSTALL /data/user/0/io.github.maxlyth.hapaneld/files/helper-install-staging/retained.apk", out, sizeof out);
+    dispatch_reply("INSTALL /data/user/0/io.panelassistant.android/files/helper-install-staging/retained.apk", out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "a late legacy INSTALL remains rejected (got '%s')\n", out);
     dispatch_reply("INSTALLGC /data/local/tmp/not-owned.apk", out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "INSTALLGC rejects paths outside app-private storage (got '%s')\n", out);
@@ -1386,7 +1376,7 @@ static void test_server_send_deadline(void) {
     CHECK(created == 0, "send-deadline socketpair created\n");
     if (created != 0) return;
     shutdown(sv[1], SHUT_WR);
-    server_serve(sv[0], HELPER_CALLER_LEGACY);
+    server_serve(sv[0], HELPER_CALLER_SUCCESSOR);
 
     struct timeval timeout = { 0 };
     socklen_t timeout_size = sizeof timeout;
@@ -2136,106 +2126,13 @@ static void test_room_climate_input_discovery(void) {
           "an unreadable member of an exact-name pair fails closed\n");
 }
 
-// The identity-migration verbs. Their whole safety argument is that neither can be pointed at a
-// package outside the two known ids and neither takes a free-form permission or setting name, so the
-// assertions here are about the exact command each one runs and about everything it refuses.
-#define LEGACY_ID "io.github.maxlyth.hapaneld"
+// GRANT. Its whole safety argument is that it cannot be pointed at a package other than the app's
+// own id and takes no free-form permission or setting name, so the assertions here are about the
+// exact command it runs and about everything it refuses.
 #define SUCCESSOR_ID "io.panelassistant.android"
 
 static int ran_argv(const char *path, const char *const argv[]) {
     return sysexec_stub_count_argv(path, argv, 1);
-}
-
-static void test_helper_status_verb(void) {
-    char out[MAX_LINE + 2];
-    const char *expected_packages = "PACKAGES=" LEGACY_ID "," SUCCESSOR_ID;
-
-    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "HELPERSTATUS", out, sizeof out);
-    CHECK(strstr(out, "HELPERSTATUS 1 BUILD=") == out,
-          "HELPERSTATUS opens with its versioned record (got '%s')\n", out);
-    CHECK(strstr(out, expected_packages) != NULL,
-          "HELPERSTATUS reports BOTH accepted package ids, in table order (got '%s')\n", out);
-    CHECK(strstr(out, "CALLER=SUCCESSOR") != NULL,
-          "HELPERSTATUS names the successor as the authenticated caller (got '%s')\n", out);
-
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "HELPERSTATUS", out, sizeof out);
-    CHECK(strstr(out, "CALLER=LEGACY") != NULL,
-          "HELPERSTATUS names the legacy package as the authenticated caller (got '%s')\n", out);
-    CHECK(strstr(out, expected_packages) != NULL,
-          "the bridge sees both ids too — it must confirm the dual-uid helper before the handover (got '%s')\n", out);
-
-    dispatch_reply_as(HELPER_CALLER_ROOT, "HELPERSTATUS", out, sizeof out);
-    CHECK(strstr(out, "CALLER=ROOT") != NULL,
-          "HELPERSTATUS names a root operator as ROOT (got '%s')\n", out);
-
-    // The build id is the helper's source identity; the app compares it against the build it bundles.
-    char expected_build[128];
-    snprintf(expected_build, sizeof expected_build, "BUILD=%s ", helper_build_id());
-    CHECK(strstr(out, expected_build) != NULL,
-          "HELPERSTATUS carries the running helper's build id (got '%s')\n", out);
-
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "HELPERSTATUS extra", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "HELPERSTATUS requires an exact verb (got '%s')\n", out);
-
-    // Through the real connection path, not just dispatch(): the identity the accept loop resolved
-    // has to survive into conn_ctx, or every per-caller decision below it is reading a default.
-    serve_reply("HELPERSTATUS\n", strlen("HELPERSTATUS\n"), out, sizeof out);
-    CHECK(strstr(out, "CALLER=LEGACY") != NULL,
-          "server_serve carries the connection's authenticated identity into conn_ctx (got '%s')\n", out);
-}
-
-static void test_uninstall_verb(void) {
-    char out[MAX_LINE + 2];
-    const char *const remove_successor[] = { "pm", "uninstall", SUCCESSOR_ID, NULL };
-    const char *const remove_legacy[] = { "pm", "uninstall", LEGACY_ID, NULL };
-    const char *const remove_other[] = { "pm", "uninstall", "com.other.app", NULL };
-
-    // The successor removes the legacy package once its own handover is confirmed. That is the one
-    // use this verb exists for, and it is the only direction each caller can drive.
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "UNINSTALL " LEGACY_ID, out, sizeof out);
-    CHECK(strcmp(out, "OK\n") == 0, "the successor may remove the legacy package (got '%s')\n", out);
-    CHECK(ran_argv("/system/bin/pm", remove_legacy) == 1,
-          "UNINSTALL runs exactly `pm uninstall <legacy id>`\n");
-
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL " SUCCESSOR_ID, out, sizeof out);
-    CHECK(strcmp(out, "OK\n") == 0, "the bridge may remove an abandoned successor (got '%s')\n", out);
-    CHECK(ran_argv("/system/bin/pm", remove_successor) == 1,
-          "UNINSTALL runs exactly `pm uninstall <successor id>`\n");
-
-    // A request to delete the requester is either a mistake or a compromised caller; the migration
-    // never needs it.
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "UNINSTALL " SUCCESSOR_ID, out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "a caller may not uninstall its own package (got '%s')\n", out);
-    CHECK(sysexec_stub_count_argv_calls() == 0, "a refused UNINSTALL executes nothing at all\n");
-
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL " LEGACY_ID, out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0,
-          "the legacy caller may not uninstall the legacy package (got '%s')\n", out);
-    CHECK(sysexec_stub_count_argv_calls() == 0, "a refused self-UNINSTALL executes nothing at all\n");
-
-    // Nothing outside the two known ids is reachable. This is the property that makes a root
-    // uninstall verb safe to expose on this socket at all.
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL com.other.app", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "UNINSTALL refuses a third package (got '%s')\n", out);
-    CHECK(ran_argv("/system/bin/pm", remove_other) == 0, "a refused UNINSTALL never reaches pm\n");
-
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL com.android.systemui", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "UNINSTALL refuses a system package (got '%s')\n", out);
-
-    sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "UNINSTALL requires a package (got '%s')\n", out);
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL " SUCCESSOR_ID " extra", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "UNINSTALL rejects a trailing argument (got '%s')\n", out);
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "UNINSTALL " SUCCESSOR_ID ";reboot", out, sizeof out);
-    CHECK(strcmp(out, "ERR\n") == 0, "UNINSTALL rejects package metacharacters (got '%s')\n", out);
-    CHECK(sysexec_stub_count_argv_calls() == 0, "no malformed UNINSTALL executes anything\n");
 }
 
 static void test_grant_verb(void) {
@@ -2292,40 +2189,30 @@ static void test_grant_verb(void) {
     CHECK(ran_argv("/system/bin/dumpsys", battery_legacy) == 1,
           "GRANT BATTERY reaches the dumpsys form when `cmd deviceidle` fails\n");
 
-    // Both ids are grantable — the bridge re-grants for itself after an upgrade, the successor grants
-    // for itself during the handover.
-    sysexec_stub_reset();
-    const char *const legacy_notifications[] = {
-        "pm", "grant", LEGACY_ID, "android.permission.POST_NOTIFICATIONS", NULL
-    };
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT " LEGACY_ID " NOTIFICATIONS", out, sizeof out);
-    CHECK(ran_argv("/system/bin/pm", legacy_notifications) == 1, "GRANT serves the legacy id too\n");
-
-    // Refusals: a third package, and any capability outside the fixed table. A free-form permission
+    // Refusals: another package, and any capability outside the fixed table. A free-form permission
     // name must never reach `pm grant`.
     sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT com.other.app NOTIFICATIONS", out, sizeof out);
+    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "GRANT com.other.app NOTIFICATIONS", out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "GRANT refuses a third package (got '%s')\n", out);
     CHECK(sysexec_stub_count_argv_calls() == 0, "a refused GRANT executes nothing at all\n");
 
     sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT " SUCCESSOR_ID " WRITE_SECURE_SETTINGS", out, sizeof out);
+    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "GRANT " SUCCESSOR_ID " WRITE_SECURE_SETTINGS", out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "GRANT refuses a capability outside its table (got '%s')\n", out);
     CHECK(sysexec_stub_count_argv_calls() == 0, "an unknown capability never reaches an actuator\n");
 
     sysexec_stub_reset();
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT " SUCCESSOR_ID, out, sizeof out);
+    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "GRANT " SUCCESSOR_ID, out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "GRANT requires a capability (got '%s')\n", out);
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT " SUCCESSOR_ID " OVERLAY extra", out, sizeof out);
+    dispatch_reply_as(HELPER_CALLER_SUCCESSOR, "GRANT " SUCCESSOR_ID " OVERLAY extra", out, sizeof out);
     CHECK(strcmp(out, "ERR\n") == 0, "GRANT rejects a trailing argument (got '%s')\n", out);
     CHECK(sysexec_stub_count_argv_calls() == 0, "no malformed GRANT executes anything\n");
 }
 
 static void test_grant_accessibility(void) {
     char out[MAX_LINE + 2];
-    // The class lives in the Kotlin package io.panelassistant.android whichever id the build carries,
-    // so a component is the id plus that fully qualified class. The `.input.…` shorthand resolves
-    // against the id, so it names the class only for the successor.
+    // A component is the id plus the fully qualified class. The `.input.…` shorthand resolves against
+    // the id and names the same class.
     const char *component = SUCCESSOR_ID "/io.panelassistant.android.input.PanelAccessibilityService";
     const char *const enable_flag[] = {
         "settings", "put", "secure", "accessibility_enabled", "1", NULL
@@ -2378,19 +2265,6 @@ static void test_grant_accessibility(void) {
     CHECK(sysexec_stub_count_argv_calls() == 2,
           "a list already carrying the shorthand is left alone (ran %d calls)\n",
           sysexec_stub_count_argv_calls());
-
-    // The legacy id's shorthand resolves to io.github.maxlyth.hapaneld.input.…, a class that no longer
-    // exists, so it is not a grant: the real component is appended beside it.
-    sysexec_stub_reset();
-    sysexec_stub_add_popen("enabled_accessibility_services", LEGACY_ID "/.input.PanelAccessibilityService\n", 0);
-    dispatch_reply_as(HELPER_CALLER_LEGACY, "GRANT " LEGACY_ID " ACCESSIBILITY", out, sizeof out);
-    const char *const put_legacy[] = {
-        "settings", "put", "secure", "enabled_accessibility_services",
-        LEGACY_ID "/.input.PanelAccessibilityService:" LEGACY_ID "/io.panelassistant.android.input.PanelAccessibilityService",
-        NULL
-    };
-    CHECK(strcmp(out, "OK\n") == 0 && ran_argv("/system/bin/settings", put_legacy) == 1,
-          "a legacy shorthand naming no class gets the real service appended\n");
 
     // An app updated from a build whose classes lived in io.github.maxlyth.hapaneld leaves an entry
     // naming a class that no longer exists. Preserve it and the unrelated vendor service while
@@ -2477,8 +2351,6 @@ int main(int argc, char **argv) {
     test_vi530x_start_contract();
     test_room_climate_event_node_names();
     test_room_climate_input_discovery();
-    test_helper_status_verb();
-    test_uninstall_verb();
     test_grant_verb();
     test_grant_accessibility();
 

@@ -10,9 +10,9 @@
 //
 // Security model (this file owns the transport + auth; see each module for its own validation):
 //   * Transport is an ABSTRACT-namespace UNIX socket (SOCK_NAME), so peer credentials are available
-//     via SO_PEERCRED. Every connection is authenticated: we accept ONLY a uid that owns one of the
-//     two known ha-paneld package data directories (resolved at runtime from /data/data/<pkg>, which
-//     changes per reinstall), plus root. ADB operators can still connect through a root shell;
+//     via SO_PEERCRED. Every connection is authenticated: we accept ONLY the uid that owns the app's
+//     package data directory (resolved at runtime from /data/data/<pkg>, which changes per
+//     reinstall), plus root. ADB operators can still connect through a root shell;
 //     accepting Android's generic shell uid would let any app with Shizuku access cross the
 //     documented shell-only boundary into this root daemon.
 //   * Concurrent connections are capped (MAX_CONN) and idle non-subscribers time out (server.c), so a
@@ -83,12 +83,6 @@
 // An app's uid changes on every (re)install, so resolve it live by stat'ing its data dir rather than
 // hardcoding it. Resolve the directories on every connection and fail closed when one is absent: this
 // daemon can outlive an app uninstall, and Android may later reuse the former numeric app uid.
-//
-// During the identity migration the legacy package and its successor are installed side by side with
-// no `sharedUserId`, so they hold two distinct uids and each owns only its own data directory. A
-// caller is authorised when it owns EITHER directory, and is identified as whichever one it owns —
-// any other uid is refused exactly as before. On a single-package panel only one directory exists,
-// so the absent one never matches and the outcome is unchanged.
 
 static enum helper_caller resolve_caller(uid_t uid) {
     if (uid == 0) return HELPER_CALLER_ROOT;
@@ -211,7 +205,6 @@ static int probe_command_allowed(const char *command) {
     return strcmp(command, "PING") == 0 ||
            strcmp(command, "COMPANIONCAPS") == 0 ||
            strcmp(command, "BUILDID") == 0 ||
-           strcmp(command, "HELPERSTATUS") == 0 ||
            strcmp(command, "GUARDCAPS") == 0 ||
            strcmp(command, "GUARDSELF") == 0 ||
            strcmp(command, "GUARDSTATUS") == 0;
@@ -398,8 +391,8 @@ static int run_daemon(
         if (set_cloexec(cfd) != 0) { close(cfd); continue; }
 
         // Authenticate the peer by uid — only possible because this is a UNIX socket. Reject (and
-        // close) anything that is neither root nor one of the two known packages before it can issue
-        // a single command, and keep WHICH one it is: that answer is this connection's identity.
+        // close) anything that is neither root nor the app's own uid before it can issue a single
+        // command, and keep WHICH one it is: that answer is this connection's identity.
         struct ucred cred; socklen_t cl = sizeof cred;
         enum helper_caller caller = HELPER_CALLER_NONE;
         if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cl) < 0 ||

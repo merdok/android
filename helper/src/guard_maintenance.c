@@ -40,13 +40,11 @@
 #endif
 
 #define GUARD_DIR GUARD_PARENT "/" GUARD_DIR_NAME
-// Guard serves TWO app packages during the identity migration, so it can no longer name one at
-// compile time.  The package a session acts on is bound once, at GUARDPREPARE, from the caller's
-// SO_PEERCRED identity, and lives in the durable plan; every later verb and every reconcile derives
-// the package id, its database directory, `pm path`, `am force-stop` and `monkey -p` target from
-// that record.  Only the directory that CONTAINS the database varies: GUARD_DB_NAME and every
-// restore-record, schema and metadata identifier stay byte-identical for both packages, because
-// shipped 0.4.1 verifiers compare them exactly.
+// The package a session acts on is bound once, at GUARDPREPARE, from the caller's SO_PEERCRED
+// identity, and lives in the durable plan; every later verb and every reconcile derives the package
+// id, its database directory, `pm path`, `am force-stop` and `monkey -p` target from that record.
+// GUARD_DB_NAME and every restore-record, schema and metadata identifier stay byte-identical,
+// because shipped 0.4.1 verifiers compare them exactly.
 #define GUARD_DB_NAME "ha-paneld.db"
 #define GUARD_APP_PATH_BYTES 512
 #define GUARD_PACKAGE_BYTES 64
@@ -1529,9 +1527,7 @@ static int open_dir_chain(const char *absolute) {
     return dir;
 }
 
-// The database directory of one package.  In production this is byte-identical to the constant it
-// replaces for the legacy package, and the test root mirrors the same shape, so a single-package
-// panel opens exactly the path it opened before.
+// The database directory of the app package.  The test root mirrors the same shape.
 static int guard_app_db_dir_path(const char *package, char *output, size_t capacity) {
     if (!package || !helper_known_package(package)) return -1;
     int length = snprintf(output, capacity, GUARD_APP_USER_ROOT "/%s/databases", package);
@@ -1555,34 +1551,25 @@ static int guard_app_dir_present(const char *package) {
 // Which package this connection acts on.  An app caller acts on its own package and on nothing else:
 // the answer comes from the SO_PEERCRED identity resolved once in the accept loop, never from a
 // request token, which is why no Guard verb has or needs a package argument.  Root owns no package,
-// so it resolves to the single package whose data directory is present -- on a single-package panel
-// that is the one package, and behaviour is unchanged.  With both installed, root is ambiguous and
-// gets NULL: binding a session to a guess would point `pm`, `am` and the live database at the wrong
-// app's uid.
+// so it resolves to the app package when that package's data directory is present, and to NULL when
+// it is not.
 static const char *guard_caller_package(const conn_ctx *ctx) {
     if (!ctx) return NULL;
     const helper_app_package *entry = helper_app_package_for(ctx->caller);
     if (entry) return entry->package;
     if (ctx->caller != HELPER_CALLER_ROOT) return NULL;
-    const char *resolved = NULL;
-    for (size_t i = 0; i < HELPER_APP_PACKAGE_COUNT; i++) {
-        if (!guard_app_dir_present(HELPER_APP_PACKAGES[i].package)) continue;
-        if (resolved) return NULL;
-        resolved = HELPER_APP_PACKAGES[i].package;
-    }
-    return resolved;
+    const char *package = HELPER_APP_PACKAGES[0].package;
+    return guard_app_dir_present(package) ? package : NULL;
 }
 
 // A caller may only drive the session its own package prepared.  Startup reconcile, the supervisor
 // tick and the deadline worker have no caller at all, which is precisely why the identity lives in
 // the durable plan rather than being looked up per call.
 //
-// Root is the exception, and only once a plan exists.  The ambiguity that makes root refuse at
-// GUARDPREPARE is the absence of anything that says which app the session is for; a bound plan says
-// exactly that, and it is a durable record this daemon wrote, not a name the caller supplied.  So an
-// ADB operator keeps the ability to cancel, drive or retire a Guard session during the transition
-// window -- which is the window in which something is most likely to need driving by hand -- without
-// any verb gaining a package argument.
+// Root is the exception, and only once a plan exists: a bound plan says which app the session is
+// for, and it is a durable record this daemon wrote, not a name the caller supplied.  So an ADB
+// operator keeps the ability to cancel, drive or retire a Guard session by hand without any verb
+// gaining a package argument.
 static int guard_caller_owns_plan(const conn_ctx *ctx, const guard_plan *plan) {
     if (ctx && ctx->caller == HELPER_CALLER_ROOT) return helper_known_package(plan->package);
     const char *package = guard_caller_package(ctx);

@@ -57,7 +57,7 @@ static void run_serve(const uint8_t *data, size_t n) {
     write_all(sv[1], data, n);
     shutdown(sv[1], SHUT_WR);
     reset_state();
-    server_serve(sv[0], HELPER_CALLER_LEGACY);
+    server_serve(sv[0], HELPER_CALLER_SUCCESSOR);
     close(sv[0]); close(sv[1]);
 }
 
@@ -114,16 +114,16 @@ int main(int argc, char **argv) {
         "OVERLAY com.eWeLinkControlPanel deny\n", "OVERLAY com.android.systemui deny\n",
         "OVERLAY com.foo allow\n", "OVERLAY com.foo default\n", "OVERLAY com.foo ignore\n",
         "OVERLAY com.foo foreground\n", "OVERLAY com.foo wipe\n", "OVERLAY\n", "OVERLAY com.foo\n",
-        "INSTALL /data/user/0/io.github.maxlyth.hapaneld/files/helper-install-staging/update.apk\n",
+        "INSTALL /data/user/0/io.panelassistant.android/files/helper-install-staging/update.apk\n",
         "INSTALLSTREAM 3\n",
-        "INSTALLGC /data/user/0/io.github.maxlyth.hapaneld/files/helper-install-staging/update.apk\n",
+        "INSTALLGC /data/user/0/io.panelassistant.android/files/helper-install-staging/update.apk\n",
         "COMPANIONBACKUP io.homeassistant.companion.android.minimal\n",
         "COMPANIONBACKUP com.attacker.fake\n",
         "COMPANIONRESTORE io.homeassistant.companion.android.minimal 3 - -\n",
         "COMPANIONRESTORE io.homeassistant.companion.android.minimal 0 - -\n",
         "COMPANIONRESTORE com.attacker.fake 3 - -\n",
-        "INSTALL /data/user/0/io.github.maxlyth.hapaneld/files/../escape.apk\n",
-        "INSTALL /data/user/0/io.github.maxlyth.hapaneld/files/update.apk';reboot\n",
+        "INSTALL /data/user/0/io.panelassistant.android/files/../escape.apk\n",
+        "INSTALL /data/user/0/io.panelassistant.android/files/update.apk';reboot\n",
         "PERFDUMP\n", "LEDPROBE\n", "CHT8305\n",
         "RGB 1 2 3\r\nOFF\r\nBTN 9\r\n",
         "no newline at all just bytes",
