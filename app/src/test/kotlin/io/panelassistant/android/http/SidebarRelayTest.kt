@@ -290,6 +290,79 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
         }
     }
 
+    // A page the sidebar opens subscribes before the page it replaced has unsubscribed, so its subscription joins
+    // the live one; its first value must not wait for the family's next read (a floor of up to five seconds).
+    @Test fun aSubscriptionJoiningALiveOneGetsTheCurrentValueAtOnce() {
+        val value = AtomicInteger(1)
+        val table = ManageTable().apply { register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", value.get())) } }
+        val door = tableDoor(table, families = mapOf("probe" to ManageFamily("probe", 60_000, listOf("probe"))))
+        fun updates(session: Session, subscription: String) = session.sent.filter { it.optString("subscription") == subscription && it.has("observations") }
+        Session({ door }).use { session ->
+            session.deliver(manage("s1", "subscribe", JSONObject().put("family", "probe")))
+            session.await("first page's value") { it.optString("subscription") == "s1" && it.has("observations") }
+            value.set(2)
+
+            val joined = System.nanoTime()
+            session.deliver(manage("s2", "subscribe", JSONObject().put("family", "probe")))
+            val update = session.await("next page's value") { it.optString("subscription") == "s2" && it.has("observations") }
+            assertTrue("the joining page waited for the next read", System.nanoTime() - joined < 5_000_000_000L)
+            val observation = update.getJSONArray("observations").getJSONObject(0)
+            assertEquals(listOf("known", 2), listOf(observation.getString("state"), observation.getJSONObject("value").getInt("v")))
+            Thread.sleep(300)
+            session.drain()
+            assertTrue(
+                "neither page is told the family went unavailable",
+                (updates(session, "s1") + updates(session, "s2")).all { it.getJSONArray("observations").getJSONObject(0).getString("state") == "known" },
+            )
+        }
+    }
+
+    // The joining page restarts the family's read; a read it interrupts is not an unavailable family.
+    @Test fun aSubscriptionJoiningDuringARunningReadNeverReportsTheFamilyUnavailable() {
+        val reads = AtomicInteger()
+        val firstRead = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val table = ManageTable().apply {
+            register("probe", ManageKind.READ) {
+                if (reads.incrementAndGet() == 1) firstRead.await()
+                ManageReply("applied", null, JSONObject().put("v", reads.get()))
+            }
+        }
+        val door = tableDoor(table, families = mapOf("probe" to ManageFamily("probe", 60_000, listOf("probe"))))
+        Session({ door }).use { session ->
+            session.deliver(manage("s1", "subscribe", JSONObject().put("family", "probe")))
+            session.answer("s1")
+            val until = System.nanoTime() + 5_000_000_000L
+            while (reads.get() == 0 && System.nanoTime() < until) Thread.sleep(10)
+            session.deliver(manage("s2", "subscribe", JSONObject().put("family", "probe")))
+            session.await("joining page's value") { it.optString("subscription") == "s2" && it.has("observations") }
+            Thread.sleep(300)
+            session.drain()
+            val states = session.sent.filter { it.has("observations") }.map { it.getJSONArray("observations").getJSONObject(0).getString("state") }
+            assertTrue("no page is told the family went unavailable: $states", states.isNotEmpty() && states.all { it == "known" })
+        }
+    }
+
+    // Pages replaced quickly join one shared subscription three deep before any read restarts; once every page
+    // has left, no reader may be left polling the panel for nobody.
+    @Test fun subscriptionsJoiningInQuickSuccessionLeaveNoReaderOnceAllHaveLeft() {
+        val reads = AtomicInteger()
+        val table = ManageTable().apply { register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", reads.incrementAndGet())) } }
+        val door = tableDoor(table, families = mapOf("probe" to ManageFamily("probe", 20, listOf("probe"))))
+        Session({ door }).use { session ->
+            repeat(20) { round ->
+                val ids = (1..3).map { "s$round-$it" }
+                ids.forEach { session.deliver(manage(it, "subscribe", JSONObject().put("family", "probe"))) }
+                ids.forEach { session.answer(it) }
+                ids.forEach { session.deliver(manage("u$it", "unsubscribe", JSONObject().put("subscription", it))) }
+                ids.forEach { session.answer("u$it") }
+                Thread.sleep(100)
+                val settled = reads.get()
+                Thread.sleep(200)
+                assertEquals("round $round: every page left, yet the panel is still being read", settled, reads.get())
+            }
+        }
+    }
+
     @Test fun aLargeRelayedResultMovesAsABlobThroughItsTokenAndAnUploadedBodyIsFetchedAndChecked() = testApplication {
         val table = ManageTable()
         val large = "x".repeat(300 * 1024)

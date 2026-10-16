@@ -22,19 +22,24 @@ internal fun dashboardScreenshotCard(
     cachedShot: String?,
     aspectRatio: () -> String,
     strings: AppStrings,
+    relayed: Boolean = false,
 ): String {
     val shotTitle = """<h2>${esc(strings.get("dashboard.card.screenshot"))} <small>· ${esc(strings.get("dashboard.card.live_panel"))}</small><a class="card-title-action" href="#" onclick="refreshScreenshot(this.closest('.card'));return false" title="${esc(strings.get("dashboard.screenshot.capture_title"))}">↻ ${esc(strings.get("dashboard.action.refresh"))}</a></h2>"""
     val shotInner = { src: String? ->
         val source = src?.let { """src="${esc(it)}"""" } ?: ""
         """<a class="shot" href="api/v1/screenshot.png" data-op="screenshot" target="_blank" rel="noopener" title="${esc(strings.get("dashboard.screenshot.open_full_size"))}" data-error-label="${esc(strings.get("dashboard.screenshot.unavailable"))}" style="aspect-ratio:${aspectRatio()}"><img $source alt="${esc(strings.get("dashboard.screenshot.alt"))}" onload="this.parentElement.classList.add('loaded')" onerror="this.parentElement.classList.add('failed')"></a>"""
     }
+    // In the sidebar the last capture's URL is out of the browser's reach: the page asks for it through the
+    // transport by the id the URL names, so it rides on the card instead of the image.
+    val image = if (relayed) null else cachedShot
+    val cached = if (relayed && cachedShot != null) """ data-cached-shot="${esc(cachedShot)}"""" else ""
     return when {
-        cold && cachedShot != null ->
-            """<div class="card" id="shotcard" data-layout-key="screenshot" data-capture-ok="0">$shotTitle${shotInner(cachedShot)}</div>"""
+        cold && image != null ->
+            """<div class="card" id="shotcard" data-layout-key="screenshot" data-capture-ok="0">$shotTitle${shotInner(image)}</div>"""
         cold ->
             """<div class="card" id="shotcard" data-layout-key="screenshot" data-capture-ok="0" style="display:none">$shotTitle${shotInner(null)}</div>"""
         canCapture ->
-            """<div class="card" id="shotcard" data-layout-key="screenshot" data-capture-ok="1">$shotTitle${shotInner(cachedShot)}</div>"""
+            """<div class="card" id="shotcard" data-layout-key="screenshot" data-capture-ok="1"$cached>$shotTitle${shotInner(image)}</div>"""
         else -> ""
     }
 }

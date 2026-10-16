@@ -79,6 +79,43 @@ class DashboardPageHttpTest {
         }
     }
 
+    // The sidebar cannot load the last capture's URL itself: the page asks the transport for it by the id.
+    @Test fun `in the sidebar the screenshot card names the last capture instead of loading it`() {
+        PaneldServerHttpFixture().use { fixture ->
+            fixture.enablePages()
+            fixture.enableWarmDashboard()
+            fixture.useInteractive(io.panelassistant.android.control.InteractiveController(
+                canSu = false,
+                root = io.panelassistant.android.control.FakeRootShell(available = false, runResult = false),
+                daemon = io.panelassistant.android.control.FakeDaemon(available = false),
+                accessibility = object : io.panelassistant.android.platform.AccessibilityActions {
+                    override fun back() = false
+                    override fun recents() = false
+                    override fun tap(x: Int, y: Int) = false
+                    override fun canScreenshot() = true
+                },
+            ))
+            val id = requireNotNull(ScreenshotCache(fixture.directory).store(byteArrayOf(1, 2, 3)))
+            val url = "api/v1/screenshot.png?cached=$id"
+            testApplication {
+                application { fixture.mount(this) }
+                startApplication()
+                client.get("/api/v1/info?lang=en")
+                val lan = client.get("/?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
+                val answer = java.util.concurrent.LinkedBlockingQueue<io.panelassistant.android.ManageReply>()
+                fixture.door.manage(
+                    java.util.UUID.randomUUID().toString(), "page.info", org.json.JSONObject().put("embed", "v=1;lang=en"),
+                    io.panelassistant.android.CommandOrigin.user("0123456789abcdef0123456789abcdef").withConnection("relay-1"),
+                ) { answer.put(it) }
+                val relayed = requireNotNull(answer.poll(20, java.util.concurrent.TimeUnit.SECONDS)).result as String
+                val card = { html: String -> requireNotNull(Regex("<div class=\"card\" id=\"shotcard\"[^>]*>.*?</a></div>").find(html)) { html }.value }
+                assertTrue(card(lan).contains("src=\"$url\""))
+                assertTrue(card(relayed).contains("data-cached-shot=\"$url\""))
+                assertTrue("the sidebar's browser never asks for an address it cannot reach", !card(relayed).contains("<img src="))
+            }
+        }
+    }
+
     @Test fun `a panel without root offers the screenshot only where the accessibility capture serves`() {
         PaneldServerHttpFixture().use { fixture ->
             fixture.enablePages()

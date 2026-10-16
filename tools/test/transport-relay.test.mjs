@@ -182,13 +182,14 @@ test('leaving the page unsubscribes every live relayed subscription', async () =
   assert.deepEqual(ended.sort(), opened.map((frame) => frame.command_id).sort());
 });
 
-test('a relayed backup, restore, config import or APK install may take two minutes; other requests keep ten seconds', async () => {
+test('a relayed request that moves a whole file may take two minutes; other requests keep ten seconds', async () => {
   const { transport, posted } = load();
-  for (const op of ['backup', 'restore', 'config.import', 'install.apk', 'config']) transport.request(op, {}).catch(() => {});
+  const files = ['backup', 'restore', 'config.import', 'install.apk', 'screenshot', 'config.export', 'dashboard.entities.export'];
+  for (const op of [...files, 'config']) transport.request(op, {}).catch(() => {});
   transport.request('input', { x: 1, y: 1 }, { deadline_ms: 60000 }).catch(() => {});
   await settle();
   assert.deepEqual(frames(posted).map((frame) => [frame.op, frame.deadline_ms]), [
-    ['backup', 120000], ['restore', 120000], ['config.import', 120000], ['install.apk', 120000], ['config', 10000], ['input', 60000],
+    ...files.map((op) => [op, 120000]), ['config', 10000], ['input', 60000],
   ]);
 });
 

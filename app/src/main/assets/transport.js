@@ -142,8 +142,13 @@
   };
 
   var DEADLINE_MS = 10000;
-  // Operations that move or apply a whole file: the most a relayed request may ask the panel for.
-  var LONG_DEADLINE_MS = { backup: 120000, restore: 120000, "config.import": 120000, "install.apk": 120000 };
+  // Operations that move or apply a whole file: the most a relayed request may ask the panel for. A file the
+  // panel sends crosses its own uplink first (a screenshot is about 1 MB on a large screen), which on a slow or
+  // remote link takes longer than ten seconds, and Panel Assistant stops waiting at the deadline.
+  var LONG_DEADLINE_MS = {
+    backup: 120000, restore: 120000, "config.import": 120000, "install.apk": 120000,
+    screenshot: 120000, "config.export": 120000, "dashboard.entities.export": 120000,
+  };
   var BLOB_LIMIT = 256 * 1024;
 
   function route(op) {
