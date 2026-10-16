@@ -17,6 +17,21 @@ object BuiltinDashboard {
     private var nextActivityOwner = 0L
     @Volatile private var activityOwner = 0L
 
+    // Dashboards Android created from a HOME intent and still alive. It keeps those in the HOME task,
+    // which only a HOME intent reaches. Counted at onCreate, before any configuration is read, so the
+    // service's first start after an update already sees the one Android launched.
+    private val homeTaskActivities = java.util.concurrent.atomic.AtomicInteger()
+
+    val homeTaskActivityAlive: Boolean get() = homeTaskActivities.get() > 0
+
+    fun homeTaskActivityCreated() {
+        homeTaskActivities.incrementAndGet()
+    }
+
+    fun homeTaskActivityDestroyed() {
+        homeTaskActivities.decrementAndGet()
+    }
+
     @Synchronized fun acquireActivityOwner(): Long {
         val owner = ++nextActivityOwner
         activityOwner = owner
