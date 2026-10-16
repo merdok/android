@@ -13,8 +13,8 @@
     <string name="config_qr_description">QR-code voor %1$s</string>
     <string name="config_activity_label">Configuratie van Panel Assistant</string>
     <string name="guard_db_activity_label">Onderhoud van databaseherstel</string>
-    <string name="dashboard_activity_label">HA-dashboard</string>
-    <string name="admin_launcher_activity_label">Paneelbeheer</string>
+    <string name="dashboard_activity_label">Home Assistant-dashboard</string>
+    <string name="admin_launcher_activity_label">Paneellauncher</string>
     <string name="settings">Instellingen</string>
     <string name="back_to_dashboard">Terug naar het dashboard</string>
     <string name="security_mode">Beveiligingsmodus</string>
@@ -79,7 +79,7 @@
     <string name="retry_dashboard">Dashboard opnieuw proberen</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Log in op Home Assistant</string>
-    <string name="panel_admin">Paneelbeheer</string>
+    <string name="panel_admin">Paneellauncher</string>
     <string name="panel_admin_summary">Snelle toegang voor het beheren van dit paneel. Het dashboard is het startscherm van het paneel.</string>
     <string name="apps">Apps</string>
     <string name="no_launchable_apps">Er zijn geen apps gevonden die je kunt starten.</string>

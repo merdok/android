@@ -9474,8 +9474,8 @@
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.help": {
-   "text": "Застосунок, який виводить на передній план кнопка «Програма запуску». Якщо порожньо, застосунок вибирається автоматично. Вибір «Panel admin» (Panel Assistant) також робить Panel Assistant домашнім застосунком Android і утримує його таким.",
-   "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
+   "text": "Застосунок, який виводить на передній план кнопка «Програма запуску». Якщо порожньо, застосунок вибирається автоматично. Вибір «Panel launcher» (Panel Assistant) також робить Panel Assistant домашнім застосунком Android і утримує його таким.",
+   "sourceHash": "761b2c73b5523b8f4509f393efa23e91405b76552e282cca2d20b9bafd7dc4c9",
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.label": {

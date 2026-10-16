@@ -765,7 +765,7 @@ object SettingsRegistry {
             tier = Tier.ADVANCED, summary = "App the Launcher button opens.",
             label = "Launcher app", default = "", picker = "package", scope = Scope.DEVICE,
             maxChars = 255,
-            help = "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
+            help = "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel launcher (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
         ),
         SettingSpec(
             key = "tame_vendor_packages", type = SettingType.STRING, group = "System",

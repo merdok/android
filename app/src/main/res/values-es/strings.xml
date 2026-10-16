@@ -14,8 +14,8 @@
 
     <string name="config_activity_label">Configuración de Panel Assistant</string>
     <string name="guard_db_activity_label">Mantenimiento de recuperación de la base de datos</string>
-    <string name="dashboard_activity_label">Panel de control de HA</string>
-    <string name="admin_launcher_activity_label">Administración del panel</string>
+    <string name="dashboard_activity_label">Panel de control de Home Assistant</string>
+    <string name="admin_launcher_activity_label">Iniciador del panel</string>
 
     <string name="settings">Configuración</string>
     <string name="back_to_dashboard">Volver al panel de control</string>
@@ -83,7 +83,7 @@
     <string name="dashboard">Panel de control</string>
     <string name="sign_in_home_assistant">Iniciar sesión en Home Assistant</string>
 
-    <string name="panel_admin">Administración del panel</string>
+    <string name="panel_admin">Iniciador del panel</string>
     <string name="panel_admin_summary">Acceso rápido para administrar este panel. El panel de control es la pantalla de inicio del panel.</string>
     <string name="apps">Aplicaciones</string>
     <string name="no_launchable_apps">No se encontraron aplicaciones que se puedan iniciar.</string>

@@ -14,8 +14,8 @@
 
     <string name="config_activity_label">Configuration de Panel Assistant</string>
     <string name="guard_db_activity_label">Maintenance de récupération de la base de données</string>
-    <string name="dashboard_activity_label">Tableau de bord HA</string>
-    <string name="admin_launcher_activity_label">Administration du panneau</string>
+    <string name="dashboard_activity_label">Tableau de bord Home Assistant</string>
+    <string name="admin_launcher_activity_label">Lanceur du panneau</string>
 
     <string name="settings">Paramètres</string>
     <string name="back_to_dashboard">Retour au tableau de bord</string>
@@ -83,7 +83,7 @@
     <string name="dashboard">Tableau de bord</string>
     <string name="sign_in_home_assistant">Connexion à Home Assistant</string>
 
-    <string name="panel_admin">Administration du panneau</string>
+    <string name="panel_admin">Lanceur du panneau</string>
     <string name="panel_admin_summary">Accès rapide pour administrer ce panneau. Le tableau de bord est l’écran d’accueil du panneau.</string>
     <string name="apps">Applications</string>
     <string name="no_launchable_apps">Aucune application lançable trouvée.</string>

@@ -1276,7 +1276,7 @@
      "helpKey": "settings.launcher_package.help",
      "label": "Launcher app",
      "labelLanguage": "en",
-     "help": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
+     "help": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel launcher (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
      "helpLanguage": "en",
      "summary": "App the Launcher button opens.",
      "summaryLanguage": "en",

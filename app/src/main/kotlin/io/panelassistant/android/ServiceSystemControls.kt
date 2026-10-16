@@ -423,7 +423,7 @@ internal class ServiceSystemControls(
             )
         ) return
         val repaired = runCatching { system.ensureAdminLauncherHome(checkNotNull(route)) }
-            .onFailure { Log.w(TAG, "could not reassert Panel admin as HOME", it) }
+            .onFailure { Log.w(TAG, "could not reassert Panel launcher as HOME", it) }
             .getOrDefault(false)
         if (!repaired && launcherHomePolicyGeneration.get() == generation) {
             launcherHomeFailedGeneration.set(generation)

@@ -32142,8 +32142,8 @@
       "hardMaxChars": 90
     },
     "settings.launcher_package.help": {
-      "text": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel admin (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
-      "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
+      "text": "App the Launcher button brings forward. Blank auto-picks an app. Selecting Panel launcher (Panel Assistant) also makes and keeps Panel Assistant the Android Home app.",
+      "sourceHash": "761b2c73b5523b8f4509f393efa23e91405b76552e282cca2d20b9bafd7dc4c9",
       "surface": "settings",
       "context": "Configure > System > Launcher app: supporting help for the launcher_package setting.",
       "risk": "ordinary",

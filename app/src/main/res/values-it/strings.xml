@@ -14,8 +14,8 @@
 
     <string name="config_activity_label">Configurazione di Panel Assistant</string>
     <string name="guard_db_activity_label">Manutenzione per il ripristino del database</string>
-    <string name="dashboard_activity_label">Dashboard di HA</string>
-    <string name="admin_launcher_activity_label">Amministrazione pannello</string>
+    <string name="dashboard_activity_label">Dashboard di Home Assistant</string>
+    <string name="admin_launcher_activity_label">Launcher del pannello</string>
 
     <string name="settings">Impostazioni</string>
     <string name="back_to_dashboard">Torna alla dashboard</string>
@@ -83,7 +83,7 @@
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Accedi a Home Assistant</string>
 
-    <string name="panel_admin">Amministrazione pannello</string>
+    <string name="panel_admin">Launcher del pannello</string>
     <string name="panel_admin_summary">Accesso rapido per amministrare questo pannello. La dashboard è la schermata iniziale del pannello.</string>
     <string name="apps">App</string>
     <string name="no_launchable_apps">Nessuna app avviabile trovata.</string>

@@ -263,7 +263,7 @@ class SystemController(
     }
 
     /**
-     * Open ha-paneld's own on-demand admin launcher (an app drawer for panel admin). The default for
+     * Open ha-paneld's own on-demand admin launcher (the Panel launcher app drawer). The default for
      * the navbar Launcher button — replaces landing on the vendor pseudo-launcher. Reached by explicit
      * component, so it works even when no other launcher is installed.
      */
@@ -280,7 +280,7 @@ class SystemController(
 
     /** Whether ha-paneld currently owns Android HOME. Android 14's HOME role is package-granular when
      * one package has multiple HOME activities and may resolve DashboardActivity even after accepting
-     * AdminLauncherActivity. DashboardActivity routes real HOME intents to Panel admin when explicitly
+     * AdminLauncherActivity. DashboardActivity routes real HOME intents to Panel launcher when explicitly
      * selected, so package ownership is the durable enforcement condition across platform versions. */
     fun isAdminLauncherHome(): Boolean {
         val current = env.defaultHome() ?: return false

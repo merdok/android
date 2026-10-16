@@ -13,8 +13,8 @@
     <string name="config_qr_description">QR-код для %1$s</string>
     <string name="config_activity_label">Конфігурація Panel Assistant</string>
     <string name="guard_db_activity_label">Обслуговування для відновлення бази даних</string>
-    <string name="dashboard_activity_label">Інформаційна панель HA</string>
-    <string name="admin_launcher_activity_label">Адміністрування панелі</string>
+    <string name="dashboard_activity_label">Інформаційна панель Home Assistant</string>
+    <string name="admin_launcher_activity_label">Запускач панелі</string>
     <string name="settings">Налаштування</string>
     <string name="back_to_dashboard">Назад до інформаційної панелі</string>
     <string name="security_mode">Режим безпеки</string>
@@ -79,7 +79,7 @@
     <string name="retry_dashboard">Повторити завантаження інформаційної панелі</string>
     <string name="dashboard">Інформаційна панель</string>
     <string name="sign_in_home_assistant">Увійти в Home Assistant</string>
-    <string name="panel_admin">Адміністрування панелі</string>
+    <string name="panel_admin">Запускач панелі</string>
     <string name="panel_admin_summary">Швидкий доступ до адміністрування цієї панелі. Інформаційна панель — головний екран панелі.</string>
     <string name="apps">Застосунки</string>
     <string name="no_launchable_apps">Не знайдено застосунків, які можна запустити.</string>

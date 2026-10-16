@@ -40,7 +40,7 @@ internal fun restorableSettingValue(key: String, value: String, configuredOrigin
 internal fun migrationRestoreConfig(values: Map<String, String>): Map<String, String> {
     val restored = LinkedHashMap(values)
     // A setting that names this app's own package is a sentinel, not a foreign app: the launcher
-    // selection "Panel admin" and the built-in renderer are both stored as the writer's package name.
+    // selection "Panel launcher" and the built-in renderer are both stored as the writer's package name.
     // Left as written they would name the legacy package, which is about to be removed.
     MIGRATION_OWN_PACKAGE_SETTINGS.forEach { key ->
         if (restored[key] == io.panelassistant.android.AppIdentity.LEGACY) {

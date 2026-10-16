@@ -16,8 +16,8 @@
 
     <string name="config_activity_label">Panel Assistant configuration</string>
     <string name="guard_db_activity_label">Database recovery maintenance</string>
-    <string name="dashboard_activity_label">HA dashboard</string>
-    <string name="admin_launcher_activity_label">Panel admin</string>
+    <string name="dashboard_activity_label">Home Assistant Dashboard</string>
+    <string name="admin_launcher_activity_label">Panel launcher</string>
 
     <string name="settings">Settings</string>
     <string name="back_to_dashboard">Back to dashboard</string>
@@ -85,7 +85,7 @@
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Sign in to Home Assistant</string>
 
-    <string name="panel_admin">Panel admin</string>
+    <string name="panel_admin">Panel launcher</string>
     <string name="panel_admin_summary">Quick access for administering this panel. The dashboard is the panel’s home screen.</string>
     <string name="apps">Apps</string>
     <string name="no_launchable_apps">No launchable apps found.</string>
