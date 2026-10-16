@@ -395,10 +395,11 @@ internal class ManageOperations(
             val handle = Handle(newSink, newArgs)
             handles += handle
             replaceSink(newSink, newArgs)
-            // A new log viewer gets its own source's backlog first, as a new stream does.
-            if (definition.append && worker != null) {
+            // A new subscriber gets the current value now, not after the family's floor: a fresh read, or for a log
+            // viewer its own source's backlog, as a new stream does.
+            if (worker != null) {
                 synchronized(slot) { unsent = null }
-                // The old follower lets go of its viewer place first, so a capture at its viewer limit admits this one.
+                // The old worker stops first, so a log capture at its viewer limit admits this follower.
                 start(after = worker)
             }
             return handle
@@ -442,7 +443,14 @@ internal class ManageOperations(
             while (currentCoroutineContext().isActive) {
                 // A read that fails, throws or answers nothing makes the family unavailable; the next success is
                 // then a change even when it repeats the value from before the failure.
-                val value = runCatching { readFamily(definition, origin, args) }.getOrNull()
+                // A worker stopped mid-read (a new subscriber restarts it) leaves quietly, never as unavailable.
+                val value = try {
+                    readFamily(definition, origin, args)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 val encoded = if (value == null) UNAVAILABLE else encode(value)
                 val changed = synchronized(slot) { (encoded != last).also { if (it) last = encoded } }
                 if (changed) offer(Update(value, value != null), append = false)
