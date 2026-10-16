@@ -100,6 +100,8 @@
     if (haChanged) {
       cfg.scheduleAutoSleepPrerequisite();
       cfg.loadHaUserStatus();
+      cfg.voicePipelinesCatalog = null;
+      cfg.loadVoicePipelines();
     }
     if (keys.indexOf("zigbee_router") >= 0) cfg.loadRadio();
   }
