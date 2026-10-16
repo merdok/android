@@ -11,9 +11,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.panelassistant.android.CommandOrigin
 import io.panelassistant.android.LiveSettingAuthority
-import io.panelassistant.android.autoSleep
 import io.panelassistant.android.navbarMode
-import io.panelassistant.android.setAutoSleep
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.ControlApplyOutcome
@@ -159,46 +157,5 @@ internal class CommandDoorsTest : PanelRuntimeRig() {
         durable.set(true)
         assertTrue("$result", result is PanelAssistantCommandResult.Failed)
         assertFalse("an unpersisted watchdog change was reported as the panel's setting", rig.config.watchdogEnabled)
-    }
-
-    /** Auto sleep off, with Home Assistant Area presence as its activity source. */
-    private fun areaSourcedAutoSleepOff(config: io.panelassistant.android.Config) {
-        config.setRaw(requireNotNull(SettingsRegistry.spec("auto_sleep_source")), "home_assistant")
-        config.setAutoSleep(false)
-    }
-
-    /** The Configure page refuses Area-sourced auto sleep until the panel has an Area; Home Assistant's switch must too. */
-    @Test fun panelAssistantAutoSleepOnIsRefusedWithoutAHomeAssistantArea() {
-        val rig = rig(configure = ::areaSourcedAutoSleepOff).also { it.start(); rigs += it }
-
-        assertEquals(
-            PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_FAILED),
-            submitNative(rig, "auto_sleep", "ON"),
-        )
-        assertFalse("auto sleep was stored ON without an Area", rig.config.autoSleep)
-        assertEquals("the auto-sleep controller was refreshed for a refused ON", 0, rig.autoSleepConfigChanges.get())
-    }
-
-    /** The same admission the Configure page uses: an Area with a settled Home Assistant owner, nothing less. */
-    @Test fun panelAssistantAutoSleepOnAppliesOnlyOnceHomeAssistantReportsAnArea() {
-        val owner = java.util.concurrent.atomic.AtomicReference<io.panelassistant.android.HaAuthOwner?>(null)
-        val rig = rig(
-            autoSleepArea = {
-                io.panelassistant.android.sensors.HaPanelAreaPrerequisite(
-                    io.panelassistant.android.sensors.HaPanelAreaPrerequisitePhase.ASSIGNED,
-                    authOwner = owner.get(),
-                )
-            },
-            configure = ::areaSourcedAutoSleepOff,
-        ).also { it.start(); rigs += it }
-
-        // Settings changed during the check: no owner, so not admitted.
-        assertTrue(submitNative(rig, "auto_sleep", "ON") is PanelAssistantCommandResult.Failed)
-        assertFalse(rig.config.autoSleep)
-
-        owner.set(io.panelassistant.android.HaAuthOwner("http://ha.invalid:8123", "refresh", "client", ""))
-        assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "auto_sleep", "ON"))
-        assertTrue(rig.config.autoSleep)
-        assertEquals(1, rig.autoSleepConfigChanges.get())
     }
 }

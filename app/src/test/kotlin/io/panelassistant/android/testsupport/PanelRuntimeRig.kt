@@ -207,12 +207,6 @@ internal abstract class PanelRuntimeRig {
         bootChimeHardware: BootChimeHardware? = null,
         /** Root for the network ADB controller; null leaves it allocated and unusable, as no network_adb command is sent. */
         adbRoot: RootShell? = null,
-        /** What Home Assistant reports for this panel's Area when auto sleep is turned on; no Area by default. */
-        autoSleepArea: () -> io.panelassistant.android.sensors.HaPanelAreaPrerequisite = {
-            io.panelassistant.android.sensors.HaPanelAreaPrerequisite(
-                io.panelassistant.android.sensors.HaPanelAreaPrerequisitePhase.UNASSIGNED,
-            )
-        },
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
         /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
         systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
@@ -388,7 +382,6 @@ internal abstract class PanelRuntimeRig {
             kioskApply = kioskApply,
             kioskRecover = kioskRecover,
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
-            autoSleepAreaPrerequisite = autoSleepArea,
             onZigbeeExplicitRetry = onZigbeeExplicitRetry,
             onExternalSettingApplied = onExternalSettingApplied,
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,

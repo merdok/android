@@ -1021,8 +1021,6 @@ class PaneldService : Service() {
         onAutoSleepConfigChanged = {
             acceptCommittedAutoSleepSetting(liveSettingAuthority) { displayPower.refreshAutoSleepPresence() }
         },
-        // The same Area check the Configure page runs; bounded by the Home Assistant transport's own timeout.
-        autoSleepAreaPrerequisite = { runBlocking { displayPower.autoSleepHttpApi().prerequisite() } },
         manageTable = manageTable,
     )
 

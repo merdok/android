@@ -154,8 +154,6 @@ internal class PanelCommandDispatcher(
     // The root helper's command line, for the button backlight.
     private val helperSend: (String) -> String? = HelperClient::send,
     private val onAutoSleepConfigChanged: (Boolean) -> Unit = {},
-    // Whether Home Assistant reports this panel in an Area; asked only when an ON would start Area presence.
-    private val autoSleepAreaPrerequisite: () -> io.panelassistant.android.sensors.HaPanelAreaPrerequisite,
     // The named operations the HTTP routes register (protocol section 20.3), served by [manage].
     manageTable: ManageTable = ManageTable(),
     manageFamilies: Map<String, ManageFamily> = ManageFamilies.DEFAULT,
@@ -455,14 +453,6 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleAutoSleep(on: Boolean) {
-        // The Configure page's own admission: Area-sourced auto sleep needs a Home Assistant Area first. The HTTP
-        // door has already committed ON when it reaches here, so this only ever stops a Panel Assistant command.
-        if (io.panelassistant.android.http.autoSleepRequiresHaAdmission(
-                config.autoSleep, config.autoSleepSource, on, config.autoSleepSource,
-            ) && !autoSleepAreaPrerequisite().let {
-                it.phase == io.panelassistant.android.sensors.HaPanelAreaPrerequisitePhase.ASSIGNED && it.authOwner != null
-            }
-        ) error("auto_sleep needs this panel in a Home Assistant Area")
         applyAutoSleepSetting(on, config::setAutoSleep, onAutoSleepConfigChanged)
         core.reconcile("auto_sleep")
     }
