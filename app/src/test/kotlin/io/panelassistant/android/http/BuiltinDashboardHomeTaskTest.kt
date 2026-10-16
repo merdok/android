@@ -28,7 +28,7 @@ class BuiltinDashboardHomeTaskTest {
     private val dashboardHome = ActivityRef(own, "io.panelassistant.android.DashboardActivity")
     private val env = FakeSystemEnv(ownPackage = own, default = dashboardHome)
     private val daemon = FakeDaemon(replies = mapOf(dashboardStart to "OK"))
-    private val system = SystemController(env, FakeRootShell(runResult = false), daemon)
+    private var system = SystemController(env, FakeRootShell(runResult = false), daemon, sdkInt = 27)
 
     private var homeTaskActivities = 0
 
@@ -50,7 +50,7 @@ class BuiltinDashboardHomeTaskTest {
         assertEquals(emptyList<String>(), env.directStarts)
     }
 
-    @Test fun startupAfterAnUpdateBringsTheHomeTaskForward() {
+    @Test fun theServiceStartupReconcileAfterAnUpdateBringsTheHomeTaskForward() {
         homeTaskDashboardAlive()
         val result = preparation().reconcileStartup(ensureHome = { _, _ -> }, launchHome = system::launchHome)
         assertEquals(RendererPreparationCoordinator.Result.ALREADY_READY, result)
@@ -69,6 +69,15 @@ class BuiltinDashboardHomeTaskTest {
     @Test fun anotherHomeAppKeepsTheExplicitStart() = runBlocking {
         homeTaskDashboardAlive()
         env.default = ActivityRef(own, "io.panelassistant.android.AdminLauncherActivity")
+        changeTheme()
+        assertEquals(0, env.homeStarts)
+        assertEquals(listOf(dashboardStart), daemon.sent.filter { it.startsWith("START ") })
+    }
+
+    /** From Android 10 a background HOME start can be dropped silently; the privileged explicit start is not. */
+    @Test fun android10AndNewerKeepTheExplicitStart() = runBlocking {
+        homeTaskDashboardAlive()
+        system = SystemController(env, FakeRootShell(runResult = false), daemon, sdkInt = 29)
         changeTheme()
         assertEquals(0, env.homeStarts)
         assertEquals(listOf(dashboardStart), daemon.sent.filter { it.startsWith("START ") })

@@ -39,8 +39,7 @@ interface SystemEnv {
     fun directStart(component: String): Boolean
 
     /** Whether Android accepted [AndroidSystemEnv.dashboardHomeIntent], which brings the dashboard's HOME
-     *  task forward. Android 10+ allows it from the background while this process hosts the HOME activity.
-     *  False keeps the explicit start. */
+     *  task forward. False keeps the explicit start. */
     fun startDashboardHome(): Boolean = false
 }
 

@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import io.panelassistant.android.AppIdentity
@@ -52,6 +53,7 @@ class SystemController(
     private val adminForeground: () -> Boolean = { io.panelassistant.android.AdminLauncherActivity.isForeground() },
     // The service supplies ScreenPower.isDeviceSecure; missing observation must never permit a reboot.
     private val isDeviceSecure: () -> Boolean = { true },
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) {
 
     // Native descriptor checks run on every live transport wake. Reuse one bounded observation of the
@@ -151,9 +153,11 @@ class SystemController(
 
     /** True while the built-in dashboard lives in Android's HOME task: an activity created from a HOME
      *  intent is alive and the dashboard is still the default HOME. Only a HOME intent reaches that task; a
-     *  component-explicit start opens a second dashboard in a task of its own above it, which can stay on
-     *  "Preparing dashboard…" because the renderer belongs to the other. */
-    fun builtinInHomeTask(): Boolean =
+     *  component-explicit start made while the update's MainActivity task exists opens a second dashboard
+     *  there, which can stay on "Preparing dashboard…" because the renderer belongs to the other.
+     *  Android 9 and older only: that update path exists only through Android 8.1 (BootReceiver), and from
+     *  Android 10 a background HOME start can be dropped without an error, which the explicit start is not. */
+    fun builtinInHomeTask(): Boolean = sdkInt <= Build.VERSION_CODES.P &&
         BuiltinDashboard.homeTaskActivityAlive && isOwnDashboard(env.defaultHome())
 
     private fun isOwnDashboard(activity: ActivityRef?): Boolean =
