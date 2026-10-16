@@ -1901,9 +1901,12 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /** The one admission retry sequence — the automatic timer and the manual Retry button both run
-     *  exactly this, so the two recovery paths cannot diverge. */
+     *  exactly this, so the two recovery paths cannot diverge. Only the button passes [resetBackoff]: a
+     *  person asking again is also the consent to put a refused login to Home Assistant once more, which
+     *  the timer must never do. */
     private fun retryAdmission(resetBackoff: Boolean) {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
+        if (resetBackoff) HaCredentialManager.forgetRefusal()
         invalidateHomeDashboardResolution(resetRetry = resetBackoff)
         compatibilityCheckingOwner = null
         compatibilityReadyUrl = null

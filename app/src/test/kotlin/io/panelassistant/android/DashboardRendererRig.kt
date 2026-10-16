@@ -24,7 +24,11 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * only the collaborators those entry points use are filled in, from production classes. Framework calls
  * return mockable-jar defaults, so Handler posts are not observable; what the WebView is asked to do is.
  */
-internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : AutoCloseable {
+internal class DashboardRendererRig(
+    prefs: Map<String, Any?> = SIGNED_IN,
+    /** Where the entity gate's hold screens run; a cancelled scope keeps them from painting a status screen. */
+    entityGateScope: CoroutineScope = CoroutineScope(Dispatchers.Unconfined),
+) : AutoCloseable {
     val activity: DashboardActivity = allocate(DashboardActivity::class.java)
     private val main: Handler = allocate(Handler::class.java)
     private val gate = RendererGenerationGate()
@@ -35,7 +39,7 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
     private val entityGate = DashboardEntityGate(
         activity = allocate(AppCompatActivity::class.java),
         main = main,
-        scope = CoroutineScope(Dispatchers.Unconfined),
+        scope = entityGateScope,
         statusScreens = allocate(DashboardStatusScreens::class.java),
         host = object : DashboardEntityGate.Host {
             override val activityOwner get() = owner
@@ -65,6 +69,9 @@ internal class DashboardRendererRig(prefs: Map<String, Any?> = SIGNED_IN) : Auto
         set("retryPolicy", DashboardRetryPolicy())
         set("wakeMediaRecovery", WakeMediaRecoveryGate())
         set("screenAwake", true)
+        set("admissionRetryPolicy", AdmissionRetryPolicy())
+        set("homeDashboardAttempts", HomeDashboardResolutionAttemptGate())
+        set("compatibilityAttempts", DashboardV2AttemptGate())
     }
 
     /** Make [view] the activity's WebView, its listeners already installed (as after its first load). */

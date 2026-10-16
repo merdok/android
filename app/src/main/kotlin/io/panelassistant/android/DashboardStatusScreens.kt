@@ -56,7 +56,8 @@ internal class DashboardStatusScreens(
         var root: FrameLayout?
         fun detachLifecycleBar()
         fun activeNetworkPresent(): Boolean
-        /** The one admission retry sequence, shared by the Retry button and the automatic timer. */
+        /** The one admission retry sequence, shared by the Retry button ([resetBackoff] true, which also
+         *  forgets a refused login) and the automatic timer (false). */
         fun retryAdmission(resetBackoff: Boolean)
         /** The automatic admission timer is due. */
         fun onAdmissionRetryDue()
