@@ -531,14 +531,14 @@ class StatusSurfaceInstrumentedTest {
                     val root = FrameLayout(activity)
                     activity.setContentView(root)
                     for (case in cases) {
-                        val bar = HaLifecycleBar.attach(activity, root)
+                        val renderer = RendererAdmissionRuntime.Live(1L, null, case.connected, null)
+                        val bar = HaLifecycleBar.attach(activity, root, { renderer })
                         val description = "$locale font=$scale dark=$dark ${case.name}"
                         try {
                             val snapshot = HaLifecycle.Snapshot(case.state,
                                 false, 1L, if (case.state == HaLifecycleState.BACK_ONLINE) HaLifecycle.DEFAULT_BACK_ONLINE_WINDOW_MS else 0L,
                                 reason = HaLifecycleReason.CORE_UPDATE, elapsedMs = case.elapsed, expectedMs = case.expected)
-                            val renderer = RendererAdmissionRuntime.Live(1L, null, case.connected, null)
-                            bar.update(snapshot, renderer)
+                            bar.update(snapshot)
                             case.expectedTrack?.let { expected ->
                                 val progress = viewGroups(root).flatMap { parent ->
                                     (0 until parent.childCount).map(parent::getChildAt).filterIsInstance<ProgressBar>()
@@ -582,7 +582,7 @@ class StatusSurfaceInstrumentedTest {
                             if (case.connected) {
                                 assertTrue("$description: Reloading labels the current step while Home Assistant is still starting",
                                     texts.count { it.text.toString() == activity.getString(R.string.ha_step_reloading) } >= 2)
-                                bar.update(snapshot.copy(state = HaLifecycleState.BACK_ONLINE), renderer)
+                                bar.update(snapshot.copy(state = HaLifecycleState.BACK_ONLINE))
                                 activity.settle()
                                 assertTrue("$description: ready and connected closes the notice", textViews(root).none { it.isShown })
                                 assertEquals("$description: closing preserves the renderer's container", 1, root.childCount)
