@@ -250,6 +250,7 @@ class DashboardActivity : AppCompatActivity() {
             }
             if ((was == RendererPhase.AUTH_LATCHED) != (value == RendererPhase.AUTH_LATCHED)) {
                 BuiltinDashboard.setActivityAuthLatched(activityOwner, value == RendererPhase.AUTH_LATCHED)
+                if (value != RendererPhase.AUTH_LATCHED) statusScreens.stopSignInAddressWatch()
             }
             if (value != RendererPhase.RECONNECTING) reconnectingSinceMs = 0L
             if (value != RendererPhase.RECONNECTING && value != RendererPhase.AUTH_LATCHED) webCover.hide()
@@ -1244,7 +1245,6 @@ class DashboardActivity : AppCompatActivity() {
         authInvalids = 0; refreshRejects = 0
         retryPolicy.reset()
         if (authLatched) {
-            statusScreens.stopSignInAddressWatch()
             // A latched page runs no automatic retry, so reaching here is a deliberate reload or change:
             // that consent also lets the shared credential authority ask Home Assistant once more.
             HaCredentialManager.forgetRefusal()
