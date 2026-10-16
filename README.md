@@ -17,7 +17,7 @@ For installation, user guides, hardware support and community information, visit
 This repository contains the Android app, its root helper and developer tooling. Start with [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 - [Building from source](https://panel-assistant.io/go/docs?page=building) and [local development](https://panel-assistant.io/go/docs?page=local-builds).
-- [Panel API reference](https://panel-assistant.io/go/docs?page=api). The machine-readable specification is available from a panel at `/api/v1/openapi.json`.
+- [Control and Home Assistant reference](https://panel-assistant.io/go/docs?page=api): the panel's entities, its pages and endpoints, and the deprecated REST API.
 - [Panel-profile development](https://panel-assistant.io/go/docs?page=profiles/readme), with [example](docs/profiles/examples/minimal-community.yaml) and [community profiles](docs/profiles/unofficial/).
 - [Browser test harness](tools/test/README.md).
 - [Root-helper protocol and development](helper/README.md).
