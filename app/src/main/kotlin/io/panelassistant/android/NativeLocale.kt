@@ -16,12 +16,12 @@ import java.util.Locale
 internal object NativeLocale {
     @Volatile private var resourceLanguageTag: String? = null
 
-    /** Read only the downgrade-compatible XML mirror; Guard DB recovery must not construct Config/AppState. */
+    /** Read only [PreDatabaseSettings.FILE]; Guard DB recovery must not construct Config/AppState. */
     fun applyBeforeDatabase(context: Context) {
         val raw = runCatching {
             context.applicationContext
-                .getSharedPreferences(LEGACY_CONFIG_PREFERENCES, Context.MODE_PRIVATE)
-                .getString(UI_LANGUAGE_KEY, AUTO_LANGUAGE)
+                .getSharedPreferences(PreDatabaseSettings.FILE, Context.MODE_PRIVATE)
+                .getString(PreDatabaseSettings.UI_LANGUAGE_KEY, AUTO_LANGUAGE)
         }.getOrNull()
         apply(raw ?: AUTO_LANGUAGE)
     }
@@ -62,31 +62,36 @@ internal object NativeLocale {
         return if (formatArgs.isEmpty()) localized.getString(id) else localized.getString(id, *formatArgs)
     }
 
-    private const val LEGACY_CONFIG_PREFERENCES = "ha-paneld"
-    private const val UI_LANGUAGE_KEY = "ui_language"
     private const val AUTO_LANGUAGE = "auto"
 }
 
 /**
- * Read `dark_mode` from the downgrade-compatible XML mirror, without constructing Config/AppState.
- *
- * Same contract, and same reason, as [NativeLocale.applyBeforeDatabase]: this runs in
- * `Application.onCreate`, inside the `startForegroundService` deadline on a cold start, where opening
- * the protected database costs whole seconds on slow panel hardware. `DowngradeCompatibleStatePersistence`
- * keeps the mirror in step on every commit, and `PaneldService.onCreate` re-asserts the authoritative
- * database value once it has already promoted to the foreground.
- *
- * The default matches the `dark_mode` SettingSpec default (`true`), so a panel whose mirror predates
- * the key themes exactly as the registry says it should.
+ * The `config` settings read in `Application.onCreate` before the database opens: that runs inside the
+ * `startForegroundService` deadline on a cold start, where opening the protected database costs whole
+ * seconds on slow panel hardware. `PreDatabaseSettingsPersistence` copies them into [FILE] on every
+ * durable `config` write, and `PaneldService.onCreate` re-asserts the database value once it has
+ * promoted to the foreground. The file name is the one earlier builds mirrored all of `config` into,
+ * so an updated panel starts with its own language and theme before the first rewrite trims it.
+ */
+internal object PreDatabaseSettings {
+    const val NAMESPACE = "config"
+    const val FILE = "ha-paneld"
+    const val UI_LANGUAGE_KEY = "ui_language"
+    const val DARK_MODE_KEY = "dark_mode"
+    val KEYS = setOf(UI_LANGUAGE_KEY, DARK_MODE_KEY)
+}
+
+/**
+ * Read `dark_mode` from [PreDatabaseSettings.FILE], without constructing Config/AppState; same contract
+ * as [NativeLocale.applyBeforeDatabase]. The default matches the `dark_mode` SettingSpec default
+ * (`true`), so a panel whose file predates the key themes exactly as the registry says it should.
  */
 internal fun darkModeBeforeDatabase(context: Context): Boolean = runCatching {
     context.applicationContext
-        .getSharedPreferences(LEGACY_CONFIG_MIRROR, Context.MODE_PRIVATE)
-        .getBoolean(DARK_MODE_KEY, DARK_MODE_DEFAULT)
+        .getSharedPreferences(PreDatabaseSettings.FILE, Context.MODE_PRIVATE)
+        .getBoolean(PreDatabaseSettings.DARK_MODE_KEY, DARK_MODE_DEFAULT)
 }.getOrDefault(DARK_MODE_DEFAULT)
 
-private const val LEGACY_CONFIG_MIRROR = "ha-paneld"
-private const val DARK_MODE_KEY = "dark_mode"
 private const val DARK_MODE_DEFAULT = true
 
 /** Services and early callbacks must also honor the selected native resource locale. */

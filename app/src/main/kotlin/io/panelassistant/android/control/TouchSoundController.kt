@@ -37,7 +37,7 @@ class TouchSoundController(context: Context, clickGain: Float) {
     private val main = Handler(Looper.getMainLooper())
     private val touchObserver = PanelTouchObserver.shared(ctx)
     private val statePolicy = TouchSoundStatePolicy(
-        AndroidTouchSoundStateStore(AppState.preferences(ctx, "controller-state", STATE_PREFS)),
+        AndroidTouchSoundStateStore(AppState.preferences(ctx, "controller-state")),
         AndroidTouchSoundHardware(ctx),
     )
 
@@ -181,7 +181,6 @@ class TouchSoundController(context: Context, clickGain: Float) {
 
     companion object {
         private const val TAG = "ha-paneld/touchsound"
-        private const val STATE_PREFS = "ha-paneld-controller-state"
         private const val CLICK_FILE = "ha-paneld-touch-click-v1.wav"
     }
 }

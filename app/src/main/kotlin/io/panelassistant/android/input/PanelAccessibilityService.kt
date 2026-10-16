@@ -284,7 +284,7 @@ class PanelAccessibilityService : AccessibilityService() {
                 .getOrNull() ?: return null
             if (vendor.flags and ApplicationInfo.FLAG_SYSTEM == 0) return null
             val label = runCatching { vendor.loadLabel(context.packageManager).toString() }.getOrNull() ?: return null
-            val preferences = AppState.preferences(context, "controller-state", "ha-paneld-controller-state")
+            val preferences = AppState.preferences(context, "controller-state")
             val key = PortalStartupOverlayDismissal.BOOT_KEY
             return PortalStartupOverlayDismissal(
                 profileId = profileId,

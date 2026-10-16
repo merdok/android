@@ -29,7 +29,7 @@ internal class AutoSleepLearningStore private constructor(
     private val minimumWriteIntervalMs: Long,
 ) {
     constructor(context: Context, epochMillis: () -> Long = System::currentTimeMillis) : this(
-        AppState.preferences(context, "auto-sleep-learning", PREFS_NAME),
+        AppState.preferences(context, "auto-sleep-learning"),
         epochMillis,
         DEFAULT_WRITE_INTERVAL_MS,
     )
@@ -233,7 +233,6 @@ internal class AutoSleepLearningStore private constructor(
     )
 
     private companion object {
-        const val PREFS_NAME = "ha-paneld-auto-sleep-learning"
         const val KEY_PARTITION = "partition"
         const val KEY_STATE = "state"
         const val BUCKET_COUNT = 12

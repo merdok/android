@@ -9,7 +9,6 @@ internal class AndroidManualBrightnessPreferenceStore(context: Context) : Manual
     private val preferences = AppState.preferences(
         context,
         namespace = "auto-brightness-runtime",
-        legacyName = "ha-paneld-auto-brightness-runtime",
     )
 
     override fun load(): ManualBrightnessPreferenceRecord? {

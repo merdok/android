@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
+import io.panelassistant.android.PreDatabaseSettings
 import io.panelassistant.android.dashboard.EntityCatalogStore
 import io.panelassistant.android.storage.DatabaseBusyRetry
 import io.panelassistant.android.storage.StorageHealthRuntime
@@ -30,31 +31,25 @@ import kotlin.concurrent.withLock
  * Durable application state, partitioned into explicit namespaces inside ha-paneld.db.
  *
  * The SharedPreferences interface is retained as a compatibility boundary for existing typed callers;
- * XML preferences are retained as a small compatibility journal for supported 0.9.x downgrades.
- * Runtime reads use SQLite-backed state; startup imports the journal so edits made while temporarily
- * running an older build also survive the return upgrade.
+ * SQLite is the only store. The one XML file left, [PreDatabaseSettings.FILE], holds only the settings
+ * read before the database opens.
  */
 object AppState {
-    // TODO(v1.0): Remove legacyName, getSharedPreferences(), the bridge metadata, importLegacyOnce(),
-    // app_state_namespace and the legacy shared-preference backup exclusions. Every supported upgrade
-    // should have crossed a 0.9.x release which performs this bridge before SQLite-only startup is strict.
-    fun preferences(context: Context, namespace: String, legacyName: String): SharedPreferences {
+    fun preferences(context: Context, namespace: String): SharedPreferences {
         val appContext = context.applicationContext
         val process = process(appContext)
         process.stores[namespace]?.let { return it }
         return process.admission.initializeWhenOpen {
+            if (process.legacyStoresSwept.compareAndSet(false, true)) deleteLegacyStores(appContext)
             process.stores.getOrCreate(namespace) {
-                val legacy = appContext.getSharedPreferences(legacyName, Context.MODE_PRIVATE)
+                val sqlite = SqliteNamespacePersistence(process.helper, namespace)
                 SqliteStatePreferences(
-                    DowngradeCompatibleStatePersistence(
-                        SqliteNamespacePersistence(process.helper, namespace, legacyName, legacy),
-                        SharedPreferencesLegacyStateMirror(legacy),
-                        SharedPreferencesBridgeMetadata(
-                            appContext.getSharedPreferences(BRIDGE_PREFS, Context.MODE_PRIVATE),
-                            namespace,
-                        ),
-                        legacyMirrorExclusions(namespace),
-                    ),
+                    if (namespace == PreDatabaseSettings.NAMESPACE) {
+                        PreDatabaseSettingsPersistence(
+                            sqlite,
+                            appContext.getSharedPreferences(PreDatabaseSettings.FILE, Context.MODE_PRIVATE),
+                        )
+                    } else sqlite,
                     process.executor,
                     process.admission,
                 )
@@ -76,7 +71,7 @@ object AppState {
     fun applyRestoredRows(context: Context, rows: List<ConfigVault.StateRow>): Int {
         var applied = 0
         rows.groupBy { it.namespace }.forEach { (namespace, namespaceRows) ->
-            val editor = preferences(context, namespace, "").edit()
+            val editor = preferences(context, namespace).edit()
             var staged = 0
             namespaceRows.forEach { row ->
                 val value = runCatching { decodeRestoredValue(row.type, row.valueText) }.getOrNull()
@@ -151,6 +146,7 @@ object AppState {
         val executor: ExecutorService,
         val admission: StateMutationAdmission,
         val stores: AtomicFactoryCache<String, SqliteStatePreferences> = AtomicFactoryCache(),
+        val legacyStoresSwept: AtomicBoolean = AtomicBoolean(),
     ) {
         fun quiesce(timeoutMs: Long): StateQuiescence? =
             quiesceStateWrites(admission) { flush(timeoutMs) }
@@ -198,7 +194,34 @@ object AppState {
     }
 
     private val processes = AtomicFactoryCache<String, ProcessState>()
-    private const val BRIDGE_PREFS = "ha-paneld-state-bridge"
+
+    /**
+     * XML stores builds before 1.0 kept beside SQLite: the per-namespace import sources, the downgrade
+     * journal's marker file and stores whose feature is gone. Every supported upgrade crossed a 0.9.x
+     * build that imported them, so they only hold stale copies, some of a Home Assistant credential.
+     */
+    internal val LEGACY_XML_STORES = listOf(
+        "", // applyRestoredRows opened an unnamed journal for a namespace not yet cached
+        "ha-paneld-auto-brightness-runtime",
+        "ha-paneld-auto-sleep-learning",
+        "ha-paneld-controller-state",
+        "ha-paneld-device-profiles",
+        "ha-paneld-live-setting-journal",
+        "ha-paneld-performance-binding",
+        "ha-paneld-power-safety-acknowledgement",
+        "ha-paneld-profile-calibration",
+        "ha-paneld-shizuku",
+        "ha-paneld-startup-recovery",
+        "ha-paneld-state-bridge",
+        "ha-paneld-wifi-stability",
+    )
+
+    private fun deleteLegacyStores(appContext: Context) {
+        LEGACY_XML_STORES.forEach { name ->
+            runCatching { appContext.deleteSharedPreferences(name) }
+                .onFailure { Log.w("ha-paneld/state", "could not delete legacy preference store", it) }
+        }
+    }
 }
 
 internal class AtomicFactoryCache<K : Any, V : Any> {
@@ -240,21 +263,9 @@ internal class SqliteStatePreferences(
     constructor(
         helper: EntityCatalogStore,
         namespace: String,
-        legacyName: String,
-        legacy: SharedPreferences,
-        bridge: SharedPreferences,
         clock: () -> Long = System::currentTimeMillis,
-        mirrorExcludedKeys: Set<String> = legacyMirrorExclusions(namespace),
     ) : this(
-        DowngradeCompatibleStatePersistence(
-            SqliteNamespacePersistence(helper, namespace, legacyName, legacy, clock),
-            SharedPreferencesLegacyStateMirror(legacy),
-            SharedPreferencesBridgeMetadata(
-                bridge,
-                namespace,
-            ),
-            mirrorExcludedKeys,
-        ),
+        SqliteNamespacePersistence(helper, namespace, clock),
         Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "ha-paneld-state-test-writer").apply { isDaemon = true }
         },
@@ -757,13 +768,6 @@ private data class PendingStateWrite(
     val deferredPublication: Boolean,
 )
 
-/**
- * Keys that SQLite keeps but the plaintext downgrade journal never holds. Home Assistant credentials
- * stay out of the XML: an older build that reads only that journal starts signed out instead.
- */
-internal fun legacyMirrorExclusions(namespace: String): Set<String> =
-    if (namespace == "config") setOf("ha_token", "ha_refresh_token") else emptySet()
-
 internal interface StateNamespacePersistence {
     fun initialize(): Map<String, Any>
     fun persist(mutation: StateMutation): Boolean
@@ -771,217 +775,48 @@ internal interface StateNamespacePersistence {
 }
 
 /**
- * Keeps the pre-SQLite XML namespace current for the supported 0.9.x downgrade window.
+ * Keeps the settings `HaPaneldApp.onCreate` reads before the database opens ([PreDatabaseSettings.KEYS])
+ * in [PreDatabaseSettings.FILE], and nothing else in it.
  *
- * A separate hash marker distinguishes supported downgrade edits after the bridge is established.
- * A durable write-intent marker brackets runtime composite writes so an interrupted bridge update is
- * never mistaken for a later old-build edit; while an intent exists, SQLite is authoritative.
- * Markerless divergence is possible only after unpublished SQLite-only builds: neither side has
- * reliable ordering evidence, so SQLite stays active, XML is left untouched, and metadata records
- * the conflict for diagnostics rather than destroying either state.
- *
- * [mirrorExcludedKeys] are never written to, read from or hashed over the XML journal; SQLite keeps
- * them through every reconciliation, and a journal that still holds one is scrubbed at startup.
+ * SQLite stays the authority. Each durable write, and the namespace's first load, rewrites the file
+ * when its copy differs, so a stale or missing copy repairs itself on the next start or change. A failed
+ * write costs only a cold start in the previous language or theme until the service re-asserts the
+ * database value; it never fails the save.
  */
-internal class DowngradeCompatibleStatePersistence(
+internal class PreDatabaseSettingsPersistence(
     private val primary: StateNamespacePersistence,
-    private val legacy: LegacyStateMirror,
-    private val metadata: BridgeMetadata,
-    private val mirrorExcludedKeys: Set<String> = emptySet(),
+    private val file: SharedPreferences,
 ) : StateNamespacePersistence {
     private var snapshot: Map<String, Any> = emptyMap()
-    private var markerlessConflict = false
 
-    override fun initialize(): Map<String, Any> {
-        val current = primary.initialize()
-        val rawJournal = legacy.snapshot()
-        if (rawJournal.keys.any(mirrorExcludedKeys::contains)) scrubExcludedKeys()
-        val journal = project(rawJournal)
-        val mirrored = project(current)
-        val journalHash = mirrorHash(journal)
-        val marker = metadata.readHash()
-        if (metadata.readWriteIntent() != null) {
-            // A composite write was admitted but did not durably reach its completion marker. The
-            // SQLite transaction is the authority in every interruption position: it is either the
-            // complete new candidate or the complete previous snapshot. Never interpret the XML
-            // mismatch as a deliberate downgrade edit while this marker is present.
-            snapshot = current
-            markerlessConflict = false
-            if (!runCatching { legacy.replace(mirrored) }.getOrDefault(false)) {
-                Log.w(TAG, "could not repair interrupted legacy compatibility journal")
-            } else if (
-                !runCatching { metadata.writeHash(mirrorHash(current)) }.getOrDefault(false)
-            ) {
-                // Both stores now agree. Keeping the intent marker merely causes the same safe repair
-                // on the next start, so metadata pressure must not make the durable state unavailable.
-                Log.w(TAG, "could not complete interrupted compatibility marker")
-            }
-            return current
-        }
-        snapshot = when {
-            marker == null -> {
-                if (journal == mirrored) {
-                    check(legacy.replace(mirrored)) { "could not seed legacy compatibility journal" }
-                    check(metadata.writeHash(mirrorHash(current))) { "could not mark legacy compatibility journal" }
-                } else {
-                    check(metadata.writeConflict(mirrorHash(current), journalHash)) {
-                        "could not record markerless compatibility conflict"
-                    }
-                    Log.w(TAG, "markerless SQLite/XML state conflict preserved; SQLite remains active")
-                    markerlessConflict = true
-                }
-                current
-            }
-            marker == journalHash -> {
-                if (journal != mirrored) {
-                    val currentPayload = mirrored.filterKeys(::isPayloadKey)
-                    val journalPayload = journal.filterKeys(::isPayloadKey)
-                    val journalContainsCurrent = currentPayload.all { (key, value) -> journalPayload[key] == value }
-                    if (journalContainsCurrent && journalPayload.size > currentPayload.size) {
-                        val recovered = journal.toMutableMap().apply {
-                            current.filterKeys { !isPayloadKey(it) || it in mirrorExcludedKeys }
-                                .forEach { (key, value) -> put(key, value) }
-                        }
-                        check(primary.replace(recovered)) { "could not recover truncated SQLite state" }
-                        check(legacy.replace(project(recovered))) { "could not refresh recovered compatibility journal" }
-                        check(metadata.writeHash(mirrorHash(recovered))) {
-                            "could not mark recovered compatibility journal"
-                        }
-                        recovered
-                    } else {
-                        check(legacy.replace(mirrored)) { "could not refresh legacy compatibility journal" }
-                        check(metadata.writeHash(mirrorHash(current))) { "could not refresh compatibility marker" }
-                        current
+    override fun initialize(): Map<String, Any> = primary.initialize().also(::publish)
+
+    override fun persist(mutation: StateMutation): Boolean =
+        primary.persist(mutation).also { if (it) publish(snapshot.toMutableMap().applyMutation(mutation)) }
+
+    override fun replace(snapshot: Map<String, Any>): Boolean =
+        primary.replace(snapshot).also { if (it) publish(snapshot.toMap()) }
+
+    private fun publish(state: Map<String, Any>) {
+        snapshot = state
+        val wanted = state.filterKeys(PreDatabaseSettings.KEYS::contains)
+        if (file.all == wanted) return
+        runCatching {
+            file.edit().clear().also { editor ->
+                wanted.forEach { (key, value) ->
+                    when (value) {
+                        is String -> editor.putString(key, value)
+                        is Boolean -> editor.putBoolean(key, value)
+                        else -> Log.w(TAG, "pre-database setting $key has unexpected type")
                     }
                 }
-                else current
-            }
-            else -> {
-                // Reconcile by merging the mirror onto the SQLite primary, never replacing it outright:
-                // an old build's downgrade edit still wins for shared keys, but a drifted or degraded
-                // mirror can never drop live keys and wipe a panel's configuration. Excluded keys are
-                // absent from the projected journal, so SQLite's values always survive the merge.
-                val reconciled = current + journal
-                check(primary.replace(reconciled)) { "could not import legacy compatibility journal" }
-                check(metadata.writeHash(mirrorHash(reconciled))) {
-                    "could not mark imported compatibility journal"
-                }
-                reconciled
-            }
-        }
-        return snapshot
-    }
-
-    private fun isPayloadKey(key: String): Boolean = key != "panel_id" && key != "config_schema"
-
-    private fun project(state: Map<String, Any>): Map<String, Any> =
-        state.filterKeys { it !in mirrorExcludedKeys }
-
-    private fun mirrorHash(state: Map<String, Any>): String = stateSnapshotHash(project(state))
-
-    private fun scrubExcludedKeys() {
-        // A journal written before the exclusion, or by an older build, can still hold these keys;
-        // persisting never deletes a key it does not mention. A failed scrub retries next startup.
-        val removal = StateMutation(clear = false, changes = mirrorExcludedKeys.associateWith { null })
-        if (!runCatching { legacy.persist(removal) }.getOrDefault(false)) {
-            Log.w(TAG, "could not remove excluded keys from legacy compatibility journal")
-        }
-    }
-
-    override fun persist(mutation: StateMutation): Boolean {
-        val candidate = snapshot.toMutableMap().applyMutation(mutation)
-        val candidateHash = mirrorHash(candidate)
-        val fullReconcile = markerlessConflict || metadata.readWriteIntent() != null
-        if (!runCatching { metadata.writeIntent(candidateHash) }.getOrDefault(false)) return false
-
-        val primarySucceeded = runCatching {
-            if (fullReconcile) primary.replace(candidate) else primary.persist(mutation)
-        }.getOrDefault(false)
-        if (!primarySucceeded) return false
-
-        snapshot = candidate
-        markerlessConflict = false
-        val legacySucceeded = runCatching {
-            if (fullReconcile) {
-                legacy.replace(project(candidate))
-            } else {
-                legacy.persist(mutation.copy(changes = mutation.changes.filterKeys { it !in mirrorExcludedKeys }))
-            }
-        }.getOrDefault(false)
-        if (!legacySucceeded) {
-            // SQLite is already durable, so this save is committed. The intent must remain: a restart
-            // repairs XML from SQLite, while another live-process write notices the intent and uses a
-            // complete replacement instead of extending a stale compatibility journal.
-            Log.w(TAG, "SQLite state durable but legacy compatibility journal update failed")
-            return true
-        }
-
-        if (!runCatching { metadata.writeHash(candidateHash) }.getOrDefault(false)) {
-            // The primary and compatibility journal are already durable. Returning false here would
-            // publish a false failure to config callers and invite a retry of an already-saved change.
-            // The surviving intent marker makes the next startup repair/finalize this safely.
-            Log.w(TAG, "state stores durable but compatibility marker completion failed")
-        }
-        return true
-    }
-
-    override fun replace(snapshot: Map<String, Any>): Boolean {
-        val durableSnapshot = snapshot.toMap()
-        val snapshotHash = mirrorHash(durableSnapshot)
-        if (!runCatching { metadata.writeIntent(snapshotHash) }.getOrDefault(false)) return false
-        if (!runCatching { primary.replace(durableSnapshot) }.getOrDefault(false)) return false
-
-        this.snapshot = durableSnapshot
-        markerlessConflict = false
-        if (!runCatching { legacy.replace(project(durableSnapshot)) }.getOrDefault(false)) {
-            Log.w(TAG, "SQLite state durable but legacy compatibility journal replacement failed")
-            return true
-        }
-        if (!runCatching { metadata.writeHash(snapshotHash) }.getOrDefault(false)) {
-            Log.w(TAG, "state stores durable but compatibility marker completion failed")
-        }
-        return true
+            }.apply()
+        }.onFailure { Log.w(TAG, "could not write pre-database settings", it) }
     }
 
     private companion object {
         const val TAG = "ha-paneld/state"
     }
-}
-
-internal interface LegacyStateMirror {
-    fun snapshot(): Map<String, Any>
-    fun persist(mutation: StateMutation): Boolean
-    fun replace(snapshot: Map<String, Any>): Boolean
-}
-
-internal interface BridgeMetadata {
-    fun readHash(): String?
-    fun readWriteIntent(): String?
-    fun writeIntent(candidateHash: String): Boolean
-    fun writeHash(hash: String): Boolean
-    fun writeConflict(sqliteHash: String, legacyHash: String): Boolean
-}
-
-private class SharedPreferencesBridgeMetadata(
-    private val preferences: SharedPreferences,
-    private val key: String,
-) : BridgeMetadata {
-    override fun readHash(): String? = preferences.getString(key, null)
-    override fun readWriteIntent(): String? = preferences.getString("$key.write_in_progress", null)
-    override fun writeIntent(candidateHash: String): Boolean = preferences.edit()
-        .putString("$key.write_in_progress", candidateHash)
-        .commit()
-
-    override fun writeHash(hash: String): Boolean = preferences.edit()
-        .putString(key, hash)
-        .remove("$key.conflict")
-        .remove("$key.write_in_progress")
-        .commit()
-
-    override fun writeConflict(sqliteHash: String, legacyHash: String): Boolean =
-        preferences.edit()
-            .putString("$key.conflict", "$sqliteHash:$legacyHash")
-            .commit()
 }
 
 private fun MutableMap<String, Any>.applyMutation(mutation: StateMutation): Map<String, Any> = apply {
@@ -990,75 +825,6 @@ private fun MutableMap<String, Any>.applyMutation(mutation: StateMutation): Map<
         if (value == null) remove(key) else put(key, value)
     }
 }.toMap()
-
-internal fun stateSnapshotHash(snapshot: Map<String, Any>): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-    fun add(text: String) {
-        val bytes = text.toByteArray(Charsets.UTF_8)
-        digest.update(bytes.size.toString().toByteArray(Charsets.US_ASCII))
-        digest.update(':'.code.toByte())
-        digest.update(bytes)
-    }
-    snapshot.toSortedMap().forEach { (key, value) ->
-        add(key)
-        when (value) {
-            is String -> { add("string"); add(value) }
-            is Int -> { add("int"); add(value.toString()) }
-            is Long -> { add("long"); add(value.toString()) }
-            is Float -> { add("float"); add(value.toRawBits().toString()) }
-            is Boolean -> { add("boolean"); add(if (value) "1" else "0") }
-            is Set<*> -> {
-                require(value.all { it is String }) { "only string sets are supported" }
-                add("string_set")
-                value.map { it as String }.sorted().forEach(::add)
-            }
-            else -> error("unsupported state type ${value.javaClass.name}")
-        }
-    }
-    return digest.digest().joinToString("") { "%02x".format(it) }
-}
-
-private class SharedPreferencesLegacyStateMirror(
-    private val preferences: SharedPreferences,
-) : LegacyStateMirror {
-    override fun snapshot(): Map<String, Any> = buildMap {
-        preferences.all.forEach { (key, value) ->
-            if (value != null) {
-                @Suppress("UNCHECKED_CAST")
-                put(key, if (value is Set<*>) (value as Set<String>).toSet() else value)
-            }
-        }
-    }
-
-    override fun persist(mutation: StateMutation): Boolean =
-        preferences.edit().also { editor ->
-            if (mutation.clear) editor.clear()
-            mutation.changes.forEach { (key, value) -> editor.putStateValue(key, value) }
-        }.commit()
-
-    override fun replace(snapshot: Map<String, Any>): Boolean =
-        preferences.edit().clear().also { editor ->
-            snapshot.forEach { (key, value) -> editor.putStateValue(key, value) }
-        }.commit()
-
-    private fun SharedPreferences.Editor.putStateValue(
-        key: String,
-        value: Any?,
-    ): SharedPreferences.Editor = when (value) {
-        null -> remove(key)
-        is String -> putString(key, value)
-        is Int -> putInt(key, value)
-        is Long -> putLong(key, value)
-        is Float -> putFloat(key, value)
-        is Boolean -> putBoolean(key, value)
-        is Set<*> -> {
-            require(value.all { it is String }) { "only string sets are supported" }
-            @Suppress("UNCHECKED_CAST")
-            putStringSet(key, value as Set<String>)
-        }
-        else -> error("unsupported state type ${value.javaClass.name}")
-    }
-}
 
 internal class OrderedStateWriteQueue(
     private val executor: ExecutorService,
@@ -1100,19 +866,12 @@ private fun Future<Boolean>.awaitResult(timeoutMs: Long): Boolean =
 private class SqliteNamespacePersistence(
     private val helper: EntityCatalogStore,
     private val namespace: String,
-    private val legacyName: String,
-    private val legacy: SharedPreferences,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : StateNamespacePersistence {
     private val busyRetry = DatabaseBusyRetry()
 
     override fun initialize(): Map<String, Any> {
         require(namespace.isNotBlank()) { "state namespace must not be blank" }
-        importLegacyOnce()
-        return loadAll()
-    }
-
-    private fun loadAll(): Map<String, Any> {
         val values = linkedMapOf<String, Any>()
         helper.readableDatabase.rawQuery(
             "SELECT state_key,value_type,value_text FROM app_state WHERE namespace=?",
@@ -1123,28 +882,6 @@ private class SqliteNamespacePersistence(
             }
         }
         return values
-    }
-
-    private fun importLegacyOnce() {
-        val db = helper.writableDatabase
-        db.beginTransaction()
-        try {
-            val imported = db.rawQuery(
-                "SELECT 1 FROM app_state_namespace WHERE namespace=?",
-                arrayOf(namespace),
-            ).use { it.moveToFirst() }
-            if (!imported) {
-                val revision = insertRevision(db, "legacy:$legacyName")
-                legacy.all.forEach { (key, value) -> value?.let { putValue(db, key, it, revision) } }
-                db.execSQL(
-                    "INSERT INTO app_state_namespace(namespace,imported_at,legacy_name) VALUES(?,?,?)",
-                    arrayOf<Any?>(namespace, clock(), legacyName),
-                )
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
     }
 
     override fun persist(mutation: StateMutation): Boolean = writeTransaction {

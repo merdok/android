@@ -23,11 +23,6 @@ class ProfileBackupPolicyTest {
         val legacy = exclusions("src/main/res/xml/backup_rules.xml")
         val modern = exclusions("src/main/res/xml/data_extraction_rules.xml")
 
-        for (preferences in NON_TRANSFERABLE_PREFS) {
-            val exclusion = Exclusion("sharedpref", preferences)
-            assertEquals("legacy exclusion for $preferences", 1, legacy.count { it == exclusion })
-            assertEquals("modern exclusions for $preferences", 2, modern.count { it == exclusion })
-        }
         for (path in NON_TRANSFERABLE_FILES) {
             val exclusion = Exclusion("file", path)
             assertEquals("legacy exclusion for $path", 1, legacy.count { it == exclusion })
@@ -60,20 +55,11 @@ class ProfileBackupPolicyTest {
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
-        val NON_TRANSFERABLE_PREFS = listOf(
-            "ha-paneld.xml",
-            "ha-paneld-shizuku.xml",
-            "ha-paneld-performance-binding.xml",
-            "ha-paneld-device-profiles.xml",
-            "ha-paneld-profile-calibration.xml",
-            "ha-paneld-controller-state.xml",
-            "ha-paneld-state-bridge.xml",
-        )
         val NON_TRANSFERABLE_FILES = listOf(
             "panel-screenshots/",
             "last-panel-screenshot.png",
             "config-revisions/",
         )
-        val NON_TRANSFERABLE_DATABASES = listOf("ha-paneld.db", "entity-learning.db")
+        val NON_TRANSFERABLE_DATABASES = listOf("ha-paneld.db")
     }
 }

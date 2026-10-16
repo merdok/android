@@ -67,8 +67,8 @@ object BackupIdentity {
  * Durable preference stores the app keeps outside `app_state`, carried so a move to the other
  * installed identity does not silently drop them.
  *
- * The list is closed and every store is string-to-string. The legacy `ha-paneld` XML file is not here:
- * it is the downgrade mirror of the `config` namespace and is rewritten by the configuration restore.
+ * The list is closed and every store is string-to-string. The `ha-paneld` XML file is not here: it
+ * holds only the `config` settings read before the database opens, rewritten from the restored state.
  * These stores describe the device that wrote them, so they return only under a same-device proof.
  */
 object RawPreferenceBackup {

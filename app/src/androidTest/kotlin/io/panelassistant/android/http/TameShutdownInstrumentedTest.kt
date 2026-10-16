@@ -167,7 +167,7 @@ class TameShutdownInstrumentedTest {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val directory = File(base.cacheDir, "tame-shutdown-${System.nanoTime()}").apply { mkdirs() }
         val context = IsolatedStateContext(base, directory)
-        val state = AppState.preferences(context, "shutdown-test", "ownership")
+        val state = AppState.preferences(context, "shutdown-test")
         try {
             test(context, state)
         } finally {
