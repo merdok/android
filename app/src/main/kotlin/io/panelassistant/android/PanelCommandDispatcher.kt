@@ -455,6 +455,14 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleAutoSleep(on: Boolean) {
+        // The Configure page's own admission: Area-sourced auto sleep needs a Home Assistant Area first. The HTTP
+        // door has already committed ON when it reaches here, so this only ever stops a Panel Assistant command.
+        if (io.panelassistant.android.http.autoSleepRequiresHaAdmission(
+                config.autoSleep, config.autoSleepSource, on, config.autoSleepSource,
+            ) && !autoSleepAreaPrerequisite().let {
+                it.phase == io.panelassistant.android.sensors.HaPanelAreaPrerequisitePhase.ASSIGNED && it.authOwner != null
+            }
+        ) error("auto_sleep needs this panel in a Home Assistant Area")
         applyAutoSleepSetting(on, config::setAutoSleep, onAutoSleepConfigChanged)
         core.reconcile("auto_sleep")
     }
