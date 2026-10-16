@@ -49,13 +49,14 @@ class DashboardRegistryTrimTest {
             ${scripts.joinToString("\n")}
             // --- the frontend -------------------------------------------------------------------------
             const socket=new WebSocket('wss://ha.example/api/websocket');
-            const delivered=[],pending=new Map();let nextId=1;
+            const delivered=[],pending=new Map(),events=new Map();let nextId=1;
             const hass={entities:{},devices:{},areas:{}};
             socket.addEventListener('message',ev=>{
               delivered.push(ev.data);
               let frames;try{frames=JSON.parse(ev.data)}catch(e){return}
               if(!Array.isArray(frames))frames=[frames];
-              for(const f of frames){const cb=pending.get(f.id);if(cb&&f.type==='result'){pending.delete(f.id);if(f.success)cb(f.result)}}
+              for(const f of frames){const cb=pending.get(f.id);if(cb&&f.type==='result'){pending.delete(f.id);if(f.success)cb(f.result)}
+                const listener=events.get(f.id);if(listener&&f.type==='event')listener(f.event)}
             });
             function request(type,cb){const id=nextId++;pending.set(id,cb);socket.send(JSON.stringify({type,id}));return id}
             const entityRequest=()=>request('config/entity_registry/list_for_display',r=>{
@@ -66,6 +67,9 @@ class DashboardRegistryTrimTest {
                 hass.devices[d.id]='connections' in d?d:{manufacturer:p?p.manufacturer:null,...d}}});
             const areaRequest=()=>request('config/area_registry/list',rows=>{hass.areas={};for(const a of rows)hass.areas[a.area_id]=a});
             const subId=nextId++;socket.send(JSON.stringify({type:'subscribe_entities',id:subId}));
+            // ws-device_registry: every device_registry_updated refetches the whole device list.
+            const subscribeDeviceEvents=()=>{const id=nextId++;events.set(id,()=>deviceRequest());socket.send(JSON.stringify({type:'subscribe_events',event_type:'device_registry_updated',id}))};
+            const lastRequest=type=>socket.wire.map(w=>JSON.parse(w)).filter(m=>m.type===type).pop().id;
             const serve=frame=>socket.serve(typeof frame==='string'?frame:JSON.stringify(frame));
             const result=(id,value)=>({id,type:'result',success:true,result:value});
             // What the user sees for an entity: its name, its device's maker and its area's name.
@@ -98,7 +102,7 @@ class DashboardRegistryTrimTest {
 
     /** The connect batch exactly as Home Assistant coalesces it: a state event among the three results. */
     private val connectBatch = """
-        const e=entityRequest(),d=deviceRequest(),a=areaRequest();
+        subscribeDeviceEvents();const e=entityRequest(),d=deviceRequest(),a=areaRequest();
         serve('['+STATE_EVENT+','+[result(e,ENTITIES),result(d,DEVICES),result(a,AREAS)].map(m=>JSON.stringify(m)).join(',')+']');
     """.trimIndent()
 
@@ -147,6 +151,40 @@ class DashboardRegistryTrimTest {
         assertEquals("[true]", out)
     }
 
+    @Test fun anEntityMovedToADeviceTheLastDeviceListWithheldGetsThatDevice() {
+        // Home Assistant answers the frontend's two refetches independently: here the device list (with the
+        // kitchen light's new device) lands first, then the entity registry that moves the light onto it.
+        val out = page(
+            """
+            $connectBatch
+            const moved=[...DEVICES,{id:'dev_kitchen_new',name:'Kitchen bulb v2',manufacturer:'IKEA',area_id:'kitchen',connections:[]}];
+            const d2=deviceRequest();serve(result(d2,moved));
+            const e2=entityRequest();
+            serve(result(e2,{...ENTITIES,entities:ENTITIES.entities.map(r=>r.ei==='light.kitchen'?{...r,di:'dev_kitchen_new'}:r)}));
+            setTimeout(()=>{
+              serve(result(lastRequest('config/device_registry/list'),moved));
+              console.log(JSON.stringify([shown('light.kitchen'),Object.keys(hass.devices).sort()]));
+            },20);
+            """.trimIndent(),
+        )
+        assertEquals(
+            """["Kitchen light/IKEA/Kitchen",["dev_hall_child","dev_hub","dev_kitchen_new"]]""",
+            out,
+        )
+    }
+
+    @Test fun withoutTheFrontendsDeviceSubscriptionDevicesArriveWhole() {
+        // Nothing could tell the frontend to refetch a withheld device, so none is withheld.
+        val out = page(
+            """
+            const e=entityRequest(),d=deviceRequest();
+            serve('['+[result(e,ENTITIES),result(d,DEVICES)].map(m=>JSON.stringify(m)).join(',')+']');
+            console.log(JSON.stringify([Object.keys(hass.entities).length,Object.keys(hass.devices).length]));
+            """.trimIndent(),
+        )
+        assertEquals("[2,4]", out)
+    }
+
     @Test fun aDeviceRefetchInItsOwnFrameIsTrimmedToo() {
         val out = page(
             """
@@ -169,7 +207,7 @@ class DashboardRegistryTrimTest {
     @Test fun devicesBeforeAnyEntityRegistryArriveWhole() {
         // Nothing yet says which devices the allowed entities reach, so keeping all is the safe answer.
         val out = page(
-            "const d=deviceRequest();serve(result(d,DEVICES));console.log(Object.keys(hass.devices).length);",
+            "subscribeDeviceEvents();const d=deviceRequest();serve(result(d,DEVICES));console.log(Object.keys(hass.devices).length);",
         )
         assertEquals("4", out)
     }
@@ -179,6 +217,7 @@ class DashboardRegistryTrimTest {
         val out = page(
             """
             const shapes=[{rows:ENTITIES.entities},{entities:ENTITIES.entities.map(({ei,...r})=>({entity_id:ei,...r}))}];
+            subscribeDeviceEvents();
             const served=shapes.map(shape=>{
               const e=entityRequest(),d=deviceRequest();
               const frame=JSON.stringify([{id:e,type:'result',success:true,result:shape},result(d,DEVICES)]);

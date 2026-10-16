@@ -137,7 +137,10 @@ object EntityFilterProtocol {
      * It also trims the two registry results the frontend loads for every connection, which take no
      * filter argument: `config/entity_registry/list_for_display` keeps only the allowed entities' rows,
      * and `config/device_registry/list` only the devices those rows name plus their parents (the frontend
-     * fills a child device from its parent in the same list). Its message listener is registered before
+     * fills a child device from its parent in the same list). The two arrive independently, so when an entity result
+     * reaches a device the last device list withheld, it hands the frontend's own `device_registry_updated`
+     * subscription an update event, and the refetch that follows is trimmed against the new set; devices
+     * are trimmed only on a socket where the frontend has that subscription. Its message listener is registered before
      * the frontend's, so it parses only while a registry request is pending and replaces the event's
      * `data` before the frontend reads it, inside batched array frames as well as single ones. Areas and
      * floors pass through: they are a few KB, and the admin area picker lists them all. Anything it does
@@ -165,20 +168,28 @@ object EntityFilterProtocol {
                 try{
                   const u=new URL(String(url),location.href);
                   if(targetWsOrigins.includes(u.origin)&&u.pathname===targetWsPath){
-                    const pending=new Map();let reachedDevices=null;
+                    const pending=new Map(),deviceEvents=new Set();let reachedDevices=null,lastDevices=null,delivered=null;
+                    const keepIds=rows=>{
+                      const keep=new Set(reachedDevices);
+                      for(const r of rows)if(reachedDevices.has(r.id)&&typeof r.parent_device_id==='string')keep.add(r.parent_device_id);
+                      return keep;
+                    };
                     const trim={
                       entities(result){
                         const rows=result&&typeof result==='object'?result.entities:null;
                         if(!Array.isArray(rows)||!rows.every(r=>r&&typeof r.ei==='string'))return false;
                         const kept=rows.filter(r=>allowed.has(r.ei));
                         reachedDevices=new Set(kept.map(r=>r.di).filter(d=>typeof d==='string'));
+                        if(lastDevices){
+                          const keep=keepIds(lastDevices),missing=lastDevices.find(r=>keep.has(r.id)&&!delivered.has(r.id));
+                          if(missing)setTimeout(()=>{for(const id of deviceEvents)socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({id,type:'event',event:{event_type:'device_registry_updated',data:{action:'update',device_id:missing.id}}})}))},0);
+                        }
                         result.entities=kept;return true;
                       },
                       devices(rows,message){
-                        if(!reachedDevices||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string'))return false;
-                        const keep=new Set(reachedDevices);
-                        for(const r of rows)if(reachedDevices.has(r.id)&&typeof r.parent_device_id==='string')keep.add(r.parent_device_id);
-                        const kept=rows.filter(r=>keep.has(r.id));
+                        if(!reachedDevices||!deviceEvents.size||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string')){lastDevices=null;return false}
+                        const keep=keepIds(rows),kept=rows.filter(r=>keep.has(r.id));
+                        lastDevices=rows;delivered=new Set(kept.map(r=>r.id));
                         message.result=kept;return true;
                       },
                     };
@@ -187,6 +198,7 @@ object EntityFilterProtocol {
                       if(typeof data==='string')try{
                         const message=JSON.parse(data);
                         if(message&&registryCommands[message.type])pending.set(message.id,registryCommands[message.type]);
+                        if(message&&message.type==='subscribe_events'&&message.event_type==='device_registry_updated')deviceEvents.add(message.id);
                         if(message&&message.type==='subscribe_entities'){
                           window.__haPaneldEntitySubscriptionId=message.id;
                           if(!filterKeys.some(key=>Object.prototype.hasOwnProperty.call(message,key))){
