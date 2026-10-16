@@ -616,7 +616,7 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Build the release identities into the Gradle home
+      - name: Build the release APK into the Gradle home
         run: |
           set -euo pipefail
           if [ -d "${GRADLE_USER_HOME:-$HOME/.gradle}/caches/modules-2" ]; then
@@ -624,5 +624,4 @@ jobs:
             exit 0
           fi
           ./gradlew :app:assembleRelease -x lintVitalRelease --stacktrace
-          ./gradlew :app:assembleRelease -x lintVitalRelease -PappIdentity=successor --stacktrace
           ./gradlew :app:cyclonedxDirectBom --stacktrace

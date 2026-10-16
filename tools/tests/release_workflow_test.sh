@@ -280,9 +280,9 @@ if grep -Fqx '    needs: [verify, seal]' <<<"$publish_job" && \
    grep -Fqx '      input-manifest-sha256: ${{ steps.manifest.outputs.sha256 }}' <<<"$package_job" && \
    grep -Fq 'EXPECTED_MANIFEST_SHA256: ${{ needs.seal.outputs.input-manifest-sha256 }}' <<<"$publish_job" && \
    grep -Fqx "    if: github.event_name == 'push'" <<<"$publish_job"; then
-  pass "publication requires the verify gate and the manifest sealed from both identity builds"
+  pass "publication requires the verify gate and the manifest sealed from the APK build"
 else
-  fail_test "publication requires the verify gate and the manifest sealed from both identity builds"
+  fail_test "publication requires the verify gate and the manifest sealed from the APK build"
 fi
 
 if grep -Fqx '      contents: read' <<<"$verify_job" && \
@@ -520,7 +520,7 @@ if grep -Fq 'cp tools/generate_install_descriptor.py release-input/generate_inst
    ! grep -Fq -- '-srckeypass "$KEY_PASSWORD"' <<<"$proof_step" && \
    ! grep -Fq -- '-passin "pass:' <<<"$proof_step" && \
    grep -Fq 'Install descriptor is not the exact canonical 13-field APK contract.' <<<"$proof_step" && \
-   grep -Fq 'for metadata_name in "$descriptor_name" "$bridge_descriptor_name" "$protocol_name"; do' <<<"$proof_step" && \
+   grep -Fq 'for metadata_name in "$descriptor_name" "$protocol_name"; do' <<<"$proof_step" && \
    grep -Fq '/usr/bin/openssl dgst -sha256 -verify "$public_key" -signature "dist/$metadata_name.sig"' <<<"$proof_step" && \
    grep -Fq 'Final exact verification before publication' <<<"$publish_job" && \
    grep -Fq '/usr/bin/openssl dgst -sha256 -verify "$public_key" -signature "dist/$descriptor_name.sig"' <<<"$final_step" && \
@@ -547,23 +547,20 @@ proof_step_yaml="$(extract_named_step_yaml 'Sign and authenticate release proofs
 final_step_yaml="$(extract_named_step_yaml 'Final exact verification before publication')"
 asset_step="$(extract_named_step 'Sign and validate release APK')"
 if grep -Fq '/usr/bin/install -d -m 0755 dist' <<<"$asset_step" && \
-   grep -Fq 'identity_idsig="$identity_signed_apk.idsig"' <<<"$asset_step" && \
+   grep -Fq 'apk_idsig="$signed_apk.idsig"' <<<"$asset_step" && \
    grep -Fq 'APK Signature Scheme v4 sidecar is not one regular nofollow file.' <<<"$asset_step" && \
    grep -Fq 'APK Signature Scheme v4 sidecar is empty or exceeds 1 MiB.' <<<"$asset_step" && \
-   [ "$(grep -Fc -- '--v4-signature-file "$identity_idsig"' <<<"$asset_step")" -eq 2 ] && \
-   grep -Fq '/usr/bin/chmod 0644 "$identity_signed_apk" "$identity_idsig"' <<<"$asset_step" && \
+   [ "$(grep -Fc -- '--v4-signature-file "$apk_idsig"' <<<"$asset_step")" -eq 2 ] && \
+   grep -Fq '/usr/bin/chmod 0644 "$signed_apk" "$apk_idsig"' <<<"$asset_step" && \
    grep -Fq 'subject_idsig="$subject_apk.idsig"' <<<"$proof_step" && \
    [ "$(grep -Fc -- '--v4-signature-file "$subject_idsig"' <<<"$proof_step")" -eq 2 ] && \
    grep -Fq '"$apk_name.idsig" \' <<<"$final_step" && \
-   grep -Fq '"$successor_apk_name.idsig" \' <<<"$final_step" && \
    grep -Fq 'apk_idsig="dist/$apk_name.idsig"' <<<"$final_step" && \
-   grep -Fq 'successor_apk_idsig="dist/$successor_apk_name.idsig"' <<<"$final_step" && \
-   [ "$(grep -Fc -- '--v4-signature-file "dist/$subject.idsig"' <<<"$final_step")" -eq 2 ] && \
-   grep -Fq 'Final APK Signature Scheme v4 sidecar is empty or exceeds 1 MiB: $sidecar' <<<"$final_step" && \
-   grep -Fq 'for sidecar in "$apk_idsig" "$successor_apk_idsig"' <<<"$final_step"; then
-  pass "both signed APKs and their bounded V4 sidecars remain in the exact readable release set"
+   [ "$(grep -Fc -- '--v4-signature-file "$apk_idsig"' <<<"$final_step")" -eq 3 ] && \
+   grep -Fq 'Final APK Signature Scheme v4 sidecar is empty or exceeds 1 MiB: $apk_idsig' <<<"$final_step"; then
+  pass "the signed APK and its bounded V4 sidecar remain in the exact readable release set"
 else
-  fail_test "both signed APKs and their bounded V4 sidecars remain in the exact readable release set"
+  fail_test "the signed APK and its bounded V4 sidecar remain in the exact readable release set"
 fi
 # Both tag gates in the workflow run, as written, over the shared release corpus: stable and prerelease (rc, preview)
 # tags pass, every other kind is refused.
@@ -622,15 +619,12 @@ chmod 0755 "$TMP" "$descriptor_case" "$descriptor_case/release-input" "$descript
   "$descriptor_case/android/build-tools/36.0.0" "$descriptor_case/runner-temp"
 chmod 0777 "$descriptor_case/forbidden-write"
 cp "$ROOT/tools/generate_install_descriptor.py" "$descriptor_case/release-input/generate_install_descriptor.py"
-# `apk_name` is the descriptor's subject, which is the successor. The bridge is published beside
-# it. Both carry a `.bin` suffix so that no updater shipped before Panel Assistant 0.7.1 finds them.
+# `apk_name` is the descriptor's subject. It carries a `.bin` suffix so that no updater shipped before
+# Panel Assistant 0.7.1 finds it.
 apk_name=panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin
-bridge_apk_name=ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin
 descriptor_name=ha-paneld-v1.2.3-rc1-install.json
-bridge_descriptor_name=ha-paneld-v1.2.3-rc1-bridge-install.json
 protocol_name=ha-paneld-v1.2.3-rc1-protocol.json
 printf 'authenticated release APK fixture\n' > "$descriptor_case/dist/$apk_name"
-printf 'authenticated bridge release APK fixture\n' > "$descriptor_case/dist/$bridge_apk_name"
 cat > "$descriptor_case/android/build-tools/36.0.0/aapt" <<'EOF'
 #!/usr/bin/env bash
 set -eu
@@ -653,17 +647,17 @@ done
 # order aapt actually prints. A hand-shortened package line hides whether the workflow's greedy
 # `.* name='...'` extraction picks the package or a later attribute.
 #
-# The successor carries the new applicationId while its launcher class stays in the Gradle
-# namespace, which does not move. Both are read from the real artifact, not assumed.
+# The package and launcher are read from the real artifact, not assumed. MOCK_BADGING_PACKAGE=old
+# reports the retired application id, which every step must refuse.
 case "$*" in
   *"dump badging"*)
-    if [ "${MOCK_BADGING_IDENTITY:-}" = bridge ] || case "$apk_path" in *ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin*) true ;; *) false ;; esac; then
-      cat <<'BRIDGE_BADGING'
-package: name='io.github.maxlyth.hapaneld' versionCode='702' versionName='1.2.3-rc1' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+    if [ "${MOCK_BADGING_PACKAGE:-}" = old ]; then
+      cat <<'OLD_ID_BADGING'
+package: name='io.github.maxlyth.hapaneld' versionCode='701' versionName='1.2.3-rc1' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
 sdkVersion:'26'
 launchable-activity: name='io.panelassistant.android.MainActivity'  label='' icon=''
 native-code: 'arm64-v8a' 'armeabi-v7a'
-BRIDGE_BADGING
+OLD_ID_BADGING
       exit 0
     fi
     cat <<'BADGING'
@@ -774,29 +768,15 @@ else
   fail_test "credential-free uid-65534 step behaviorally generates the exact 13-field descriptor"
 fi
 
-if jq -e --arg name "$bridge_apk_name" \
-    --arg hash "$(sha256sum "$descriptor_case/dist/$bridge_apk_name" | cut -d' ' -f1)" \
-    --argjson size "$(stat --format='%s' "$descriptor_case/dist/$bridge_apk_name")" '
-    (keys | length) == 13 and .apkName == $name and .apkSha256 == $hash and .apkSize == $size and
-    .packageId == "io.github.maxlyth.hapaneld" and .versionCode == 702 and
-    .launchComponent == "io.github.maxlyth.hapaneld/io.panelassistant.android.MainActivity" and
-    .schema == "io.panelassistant.android.install.v1" and
-    .signerCertificateSha256 == "ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339"' \
-    "$descriptor_case/dist/$bridge_descriptor_name" >/dev/null; then
-  pass "credential-free generation binds the bridge's own APK bytes, package and versionCode"
-else
-  fail_test "credential-free generation binds the bridge's own APK bytes, package and versionCode"
-fi
-
-if jq -e --arg successor "$(sha256sum "$descriptor_case/dist/$apk_name" | cut -d' ' -f1)" \
-    --arg bridge "$(sha256sum "$descriptor_case/dist/$bridge_apk_name" | cut -d' ' -f1)" '
+if jq -e --arg sha "$(sha256sum "$descriptor_case/dist/$apk_name" | cut -d' ' -f1)" '
     keys == ["artifacts","schema"] and .schema == "io.panelassistant.android.protocol.v1" and
-    (.artifacts | map(.apkSha256)) == ([$bridge,$successor] | sort) and
+    (.artifacts | map(.apkSha256)) == [$sha] and
     all(.artifacts[]; .protocolMin == 3 and .protocolMax == 3)' \
-    "$descriptor_case/dist/$protocol_name" >/dev/null; then
-  pass "credential-free generator publishes a protocol companion binding both exact APK hashes"
+    "$descriptor_case/dist/$protocol_name" >/dev/null && \
+   [ "$(find "$descriptor_case/dist" -maxdepth 1 -name '*install.json' | wc -l)" -eq 1 ]; then
+  pass "credential-free generator publishes one descriptor and a protocol companion binding the exact APK hash"
 else
-  fail_test "credential-free generator publishes a protocol companion binding both exact APK hashes"
+  fail_test "credential-free generator publishes one descriptor and a protocol companion binding the exact APK hash"
 fi
 
 key_store="$descriptor_case/test-release.p12"
@@ -827,15 +807,7 @@ test_public_key_sha256=$(openssl pkey -pubin \
 printf '{}\n' > "$descriptor_case/dist/ha-paneld-v1.2.3-rc1-android-gradle-runtime.cdx.json"
 printf '{}\n' > "$descriptor_case/dist/ha-paneld-v1.2.3-rc1-profile-editor-runtime.cdx.json"
 printf 'APK Signature Scheme v4 fixture\n' > "$descriptor_case/dist/$apk_name.idsig"
-printf 'APK Signature Scheme v4 fixture\n' > "$descriptor_case/dist/$bridge_apk_name.idsig"
-(
-  cd "$descriptor_case/dist" || exit 1
-  for subject in \
-    "$apk_name" \
-    "$bridge_apk_name"; do
-    sha256sum "$subject" > "$subject.sha256"
-  done
-)
+(cd "$descriptor_case/dist" && sha256sum "$apk_name" > "$apk_name.sha256")
 keystore_b64=$(base64 -w 0 "$key_store")
 test_proof_step=$(sed \
   "s/502bf38874682ff337f187022b904adbc3ab0b387fd7ceb4043ce722997273f3/$test_public_key_sha256/g" \
@@ -868,29 +840,24 @@ if openssl dgst -sha256 -verify "$descriptor_case/test-release-public-key.pem" \
 else
   fail_test "proof step signs and verifies the exact APK protocol companion"
 fi
-if openssl dgst -sha256 -verify "$descriptor_case/test-release-public-key.pem" \
-    -signature "$descriptor_case/dist/$bridge_descriptor_name.sig" "$descriptor_case/dist/$bridge_descriptor_name" >/dev/null; then
-  pass "proof step signs and verifies the bridge descriptor with the same authority"
-else
-  fail_test "proof step signs and verifies the bridge descriptor with the same authority"
-fi
-cp "$descriptor_case/dist/$bridge_descriptor_name" "$descriptor_case/original-bridge-descriptor.json"
-for mutation in '.versionCode = 701' '.packageId = "io.panelassistant.android"' '.apkSha256 = ("0" * 64)'; do
-  jq -cS "$mutation" "$descriptor_case/original-bridge-descriptor.json" > "$descriptor_case/dist/$bridge_descriptor_name"
-  rm -f "$descriptor_case/dist/$bridge_descriptor_name.sig"
+cp "$descriptor_case/dist/$descriptor_name" "$descriptor_case/signed-descriptor.json"
+# The package mutation moves the launch component with it, so only the package binding can refuse it.
+for mutation in '.packageId = "io.github.maxlyth.hapaneld" | .launchComponent = "io.github.maxlyth.hapaneld/io.panelassistant.android.MainActivity"' '.apkSha256 = ("0" * 64)'; do
+  jq -cS "$mutation" "$descriptor_case/signed-descriptor.json" > "$descriptor_case/dist/$descriptor_name"
+  rm -f "$descriptor_case/dist/$descriptor_name.sig"
   if ! (
     cd "$descriptor_case" || exit 1
     ANDROID_HOME="$descriptor_case/android" JAVA_HOME="$java_home" \
       KEYSTORE_B64="$keystore_b64" KEYSTORE_PASSWORD="$key_password" KEY_ALIAS="$key_alias" KEY_PASSWORD="$key_password" \
       RELEASE_TAG=v1.2.3-rc1 RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_proof_step"
-  ) > "$descriptor_case/bridge-tampered-proof.log" 2>&1 && \
-     [ ! -e "$descriptor_case/dist/$bridge_descriptor_name.sig" ] && \
-     grep -Fq 'exact canonical 13-field APK contract' "$descriptor_case/bridge-tampered-proof.log"; then
-    pass "proof refuses altered bridge descriptor before signing: $mutation"
+  ) > "$descriptor_case/mutated-proof.log" 2>&1 && \
+     [ ! -e "$descriptor_case/dist/$descriptor_name.sig" ] && \
+     grep -Fq 'exact canonical 13-field APK contract' "$descriptor_case/mutated-proof.log"; then
+    pass "proof refuses an altered descriptor before signing: $mutation"
   else
-    fail_test "proof refuses altered bridge descriptor before signing: $mutation"
+    fail_test "proof refuses an altered descriptor before signing: $mutation"
   fi
-  cp "$descriptor_case/original-bridge-descriptor.json" "$descriptor_case/dist/$bridge_descriptor_name"
+  cp "$descriptor_case/signed-descriptor.json" "$descriptor_case/dist/$descriptor_name"
 done
 
 cp "$descriptor_case/dist/$protocol_name" "$descriptor_case/original-protocol.json"
@@ -904,7 +871,7 @@ if ! (
     RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_proof_step"
 ) > "$descriptor_case/tampered-protocol-proof.log" 2>&1 && \
    [ ! -e "$descriptor_case/dist/$protocol_name.sig" ] && \
-   grep -Fq 'Protocol companion does not bind the exact signed APK pair' "$descriptor_case/tampered-protocol-proof.log"; then
+   grep -Fq 'Protocol companion does not bind the exact signed APK.' "$descriptor_case/tampered-protocol-proof.log"; then
   pass "proof signing refuses a changed protocol range despite an unchanged APK hash"
 else
   sed -n '1,80p' "$descriptor_case/tampered-protocol-proof.log" >&2
@@ -987,30 +954,26 @@ else
   fail_test "final pre-upload step behaviorally verifies the exact asset set, checksums, APK signer, and signatures"
 fi
 
-mv "$descriptor_case/dist/$bridge_descriptor_name" "$descriptor_case/held-bridge-descriptor.json"
-if ! (
-  cd "$descriptor_case" || exit 1
-  ANDROID_HOME="$descriptor_case/android" RELEASE_TAG=v1.2.3-rc1 \
-    RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_final_step"
-) > "$descriptor_case/missing-bridge-final.log" 2>&1 && \
-   grep -Fq 'Final release asset set is not exact' "$descriptor_case/missing-bridge-final.log"; then
-  pass "final exact inventory requires the bridge descriptor asset"
+# The retired bridge assets cannot come back: a leftover bridge APK or bridge descriptor fails the exact
+# inventory before publication.
+retired_inventory_refused=1
+for retired in ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin ha-paneld-v1.2.3-rc1-bridge-install.json; do
+  printf 'retired asset fixture\n' > "$descriptor_case/dist/$retired"
+  if (
+    cd "$descriptor_case" || exit 1
+    ANDROID_HOME="$descriptor_case/android" RELEASE_TAG=v1.2.3-rc1 \
+      RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_final_step"
+  ) > "$descriptor_case/retired-asset-final.log" 2>&1 || \
+     ! grep -Fq 'Final release asset set is not exact' "$descriptor_case/retired-asset-final.log"; then
+    retired_inventory_refused=0
+  fi
+  rm -f "$descriptor_case/dist/$retired"
+done
+if [ "$retired_inventory_refused" -eq 1 ]; then
+  pass "final exact inventory refuses a retired bridge APK or bridge descriptor asset"
 else
-  fail_test "final exact inventory requires the bridge descriptor asset"
+  fail_test "final exact inventory refuses a retired bridge APK or bridge descriptor asset"
 fi
-mv "$descriptor_case/held-bridge-descriptor.json" "$descriptor_case/dist/$bridge_descriptor_name"
-cp "$descriptor_case/dist/$bridge_descriptor_name.sig" "$descriptor_case/original-bridge.sig"
-printf '\n' >> "$descriptor_case/dist/$bridge_descriptor_name"
-if ! (
-  cd "$descriptor_case" || exit 1
-  ANDROID_HOME="$descriptor_case/android" RELEASE_TAG=v1.2.3-rc1 \
-    RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_final_step"
-) > "$descriptor_case/bridge-tampered-final.log" 2>&1; then
-  pass "final publication refuses bridge descriptor bytes changed after signing"
-else
-  fail_test "final publication refuses bridge descriptor bytes changed after signing"
-fi
-cp "$descriptor_case/original-bridge-descriptor.json" "$descriptor_case/dist/$bridge_descriptor_name"
 
 cp "$descriptor_case/dist/$apk_name.idsig" "$descriptor_case/original.idsig"
 printf 'corrupt V4 signature fixture\n' > "$descriptor_case/dist/$apk_name.idsig"
@@ -1034,23 +997,24 @@ openssl pkcs12 \
   -nocerts \
   -passin "pass:$key_password" \
   -out "$descriptor_case/test-release-private-key.pem" >/dev/null 2>&1
-for mutation in '.versionCode = 701' '.packageId = "io.panelassistant.android"' '.apkSha256 = ("0" * 64)'; do
-  jq -cS "$mutation" "$descriptor_case/original-bridge-descriptor.json" > "$descriptor_case/dist/$bridge_descriptor_name"
+cp "$descriptor_case/dist/$descriptor_name.sig" "$descriptor_case/original-descriptor.sig"
+for mutation in '.versionCode = 702' '.packageId = "io.github.maxlyth.hapaneld"'; do
+  jq -cS "$mutation" "$descriptor_case/original-descriptor.json" > "$descriptor_case/dist/$descriptor_name"
   openssl dgst -sha256 -sign "$descriptor_case/test-release-private-key.pem" \
-    -out "$descriptor_case/dist/$bridge_descriptor_name.sig" "$descriptor_case/dist/$bridge_descriptor_name"
+    -out "$descriptor_case/dist/$descriptor_name.sig" "$descriptor_case/dist/$descriptor_name"
   if ! (
     cd "$descriptor_case" || exit 1
     ANDROID_HOME="$descriptor_case/android" RELEASE_TAG=v1.2.3-rc1 \
       RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_final_step"
-  ) > "$descriptor_case/bridge-mixed-final.log" 2>&1 && \
-     grep -Fq 'does not bind the exact final release APK' "$descriptor_case/bridge-mixed-final.log"; then
-    pass "final publication refuses validly signed foreign bridge proof: $mutation"
+  ) > "$descriptor_case/mixed-final.log" 2>&1 && \
+     grep -Fq 'does not bind the exact final release APK' "$descriptor_case/mixed-final.log"; then
+    pass "final publication refuses a validly signed descriptor with foreign content: $mutation"
   else
-    fail_test "final publication refuses validly signed foreign bridge proof: $mutation"
+    fail_test "final publication refuses a validly signed descriptor with foreign content: $mutation"
   fi
 done
-cp "$descriptor_case/original-bridge-descriptor.json" "$descriptor_case/dist/$bridge_descriptor_name"
-cp "$descriptor_case/original-bridge.sig" "$descriptor_case/dist/$bridge_descriptor_name.sig"
+cp "$descriptor_case/original-descriptor.json" "$descriptor_case/dist/$descriptor_name"
+cp "$descriptor_case/original-descriptor.sig" "$descriptor_case/dist/$descriptor_name.sig"
 jq -cS '.artifacts[0].apkSha256 = ("0" * 64)' "$descriptor_case/original-protocol.json" > "$descriptor_case/dist/$protocol_name"
 openssl dgst -sha256 -sign "$descriptor_case/test-release-private-key.pem" \
   -out "$descriptor_case/dist/$protocol_name.sig" "$descriptor_case/dist/$protocol_name"
@@ -1059,7 +1023,7 @@ if ! (
   ANDROID_HOME="$descriptor_case/android" RELEASE_TAG=v1.2.3-rc1 \
     RUNNER_TEMP="$descriptor_case/runner-temp" bash <<<"$test_final_step"
 ) > "$descriptor_case/foreign-protocol-final.log" 2>&1 && \
-   grep -Fq 'Final protocol companion does not bind the exact final APK pair' "$descriptor_case/foreign-protocol-final.log"; then
+   grep -Fq 'Final protocol companion does not bind the exact final APK.' "$descriptor_case/foreign-protocol-final.log"; then
   pass "final pre-upload verification rejects a valid signed protocol companion for another APK"
 else
   sed -n '1,80p' "$descriptor_case/foreign-protocol-final.log" >&2
@@ -1112,44 +1076,41 @@ else
   fail_test "final pre-upload verification refuses a descriptor changed after proof signing"
 fi
 
-# --- two installable identities from one tag -------------------------------------------------
+# --- one installable APK per tag ---------------------------------------------------------------
 #
-# The release publishes a `bridge` APK under the legacy application id and a `successor` APK under
-# the new one. Three things have to hold together or panels in the field break:
-#   1. both are built, and each is asserted to carry its own application id;
-#   2. both keep the asset names earlier releases used, plus a `.bin` suffix;
+# The release publishes one APK, under io.panelassistant.android. Three things have to hold together
+# or panels in the field break:
+#   1. it is built once and asserted to carry that application id;
+#   2. it keeps the asset name earlier releases used, plus a `.bin` suffix;
 #   3. the published release carries no asset ending `.apk`: the app's own updater through
-#      0.9.9, old install.sh copies and Panel Assistant 0.7.0 all look for one, and none of them may
-#      move a panel onto this release. Only Panel Assistant 0.7.1 resolves the `.apk.bin` names.
+#      0.9.11, old install.sh copies and Panel Assistant 0.7.0 all look for one, and none of them may
+#      move a panel onto this release. Only Panel Assistant 0.7.1 resolves the `.apk.bin` name.
 
-build_step="$(extract_named_step 'Build release APKs for both identities')"
+build_step="$(extract_named_step 'Build release APK')"
 collect_step="$(extract_named_step 'Collect unsigned release inputs')"
-stage_step="$(extract_named_step 'Stage shared release inputs')"
 ordering_step="$(extract_named_step 'Verify shipped updaters find no installable APK')"
+package_apk_job="$(awk '/^  package-apk:$/ { in_job=1 } /^  seal:$/ { exit } in_job' "$WORKFLOW")"
 
-if grep -Fq 'bridge) ./gradlew :app:assembleRelease -x lintVitalRelease --stacktrace ;;' <<<"$build_step" && \
-   grep -Fq 'successor) ./gradlew :app:assembleRelease -x lintVitalRelease -PappIdentity=successor --stacktrace ;;' <<<"$build_step" && \
-   grep -Fq 'release-build/$IDENTITY' <<<"$build_step" && \
-   grep -Fqx '        identity: [bridge, successor]' <<<"$package_job" && \
-   grep -Fqx '          path: release-build/bridge' <<<"$package_job" && \
-   grep -Fqx '          path: release-build/successor' <<<"$package_job" && \
-   grep -Fq 'collect_identity bridge ha-paneld-unsigned.apk io.github.maxlyth.hapaneld' <<<"$collect_step" && \
-   grep -Fq 'collect_identity successor panel-assistant-unsigned.apk io.panelassistant.android' <<<"$collect_step" && \
-   grep -Fq 'Unsigned $identity APK package is' <<<"$collect_step" && \
-   grep -Fq 'the identity property did not take effect' <<<"$collect_step"; then
-  pass "the package job builds both identities and asserts the application id per artifact"
+if grep -Fqx './gradlew :app:assembleRelease -x lintVitalRelease --stacktrace' <<<"$build_step" && \
+   ! grep -Fq 'appIdentity' "$WORKFLOW" && \
+   ! grep -Eq '^    strategy:|matrix' <<<"$package_apk_job" && \
+   [ "$(grep -Fxc '          path: release-build/' <<<"$package_job")" -eq 1 ] && \
+   [ "$(grep -Fxc '          path: release-build' <<<"$package_job")" -eq 1 ] && \
+   grep -Fq 'cp "${unsigned_apks[0]}" release-input/panel-assistant-unsigned.apk' <<<"$collect_step" && \
+   grep -Fq 'if [ "$application_id" != io.panelassistant.android ]; then' <<<"$collect_step" && \
+   grep -Fq 'Unsigned APK versionName is' <<<"$collect_step"; then
+  pass "the package job builds one APK and asserts its application id"
 else
-  fail_test "the package job builds both identities and asserts the application id per artifact"
+  fail_test "the package job builds one APK and asserts its application id"
 fi
 
-if grep -Fq 'sign_identity release-input/ha-paneld-unsigned.apk "$apk_name" io.github.maxlyth.hapaneld' <<<"$asset_step" && \
-   grep -Fq 'sign_identity release-input/panel-assistant-unsigned.apk "$successor_apk_name" io.panelassistant.android' <<<"$asset_step" && \
+if grep -Fq 'release-input/panel-assistant-unsigned.apk' <<<"$asset_step" && \
+   grep -Fq 'if [ "$package_name" != io.panelassistant.android ]; then' <<<"$asset_step" && \
    [ "$(grep -Fc 'expected_signer_digest=ac6193307fb0b70113aae205d7549406f96e063bc5491b67b1d5694a34b0e339' <<<"$asset_step")" -eq 1 ] && \
-   grep -Fq 'authenticate_apk "$signed_apk" "$apk_name"' <<<"$proof_step" && \
-   grep -Fq 'authenticate_apk "$successor_signed_apk" "$successor_apk_name"' <<<"$proof_step"; then
-  pass "both APKs are signed and authenticated under the one release certificate"
+   [ "$(grep -Fc 'authenticate_apk "$signed_apk" "$apk_name"' <<<"$proof_step")" -eq 1 ]; then
+  pass "the APK is signed and authenticated under the one release certificate"
 else
-  fail_test "both APKs are signed and authenticated under the one release certificate"
+  fail_test "the APK is signed and authenticated under the one release certificate"
 fi
 
 if grep -Fq 'Verify shipped updaters find no installable APK' <<<"$publish_job" && \
@@ -1213,30 +1174,30 @@ for problem in problems:
 sys.exit(1 if problems else 0)
 PY
 then
-  pass "package, identity and seal jobs read only tracked files or outputs they built themselves"
+  pass "package, APK and seal jobs read only tracked files or outputs they built themselves"
 else
-  fail_test "package, identity and seal jobs read only tracked files or outputs they built themselves"
+  fail_test "package, APK and seal jobs read only tracked files or outputs they built themselves"
 fi
 
 seal_helper_step="$(extract_named_step 'Verify standalone helpers match APK-bundled helpers')"
-if grep -Fq 'unzip -p "$apk" assets/hapaneld-helper-arm | cmp release-input/hapaneld-helper-armeabi-v7a -' <<<"$seal_helper_step" && \
-   grep -Fq 'unzip -p "$apk" assets/hapaneld-helper-arm64 | cmp release-input/hapaneld-helper-arm64-v8a -' <<<"$seal_helper_step" && \
-   grep -Fq 'for apk in release-input/ha-paneld-unsigned.apk release-input/panel-assistant-unsigned.apk; do' <<<"$seal_helper_step" && \
+if grep -Fq 'unzip -p release-input/panel-assistant-unsigned.apk assets/hapaneld-helper-arm | cmp release-input/hapaneld-helper-armeabi-v7a -' <<<"$seal_helper_step" && \
+   grep -Fq 'unzip -p release-input/panel-assistant-unsigned.apk assets/hapaneld-helper-arm64 | cmp release-input/hapaneld-helper-arm64-v8a -' <<<"$seal_helper_step" && \
    grep -Fq 'set -euo pipefail' <<<"$seal_helper_step"; then
-  pass "standalone helpers are compared with the helper packaged in both APKs"
+  pass "standalone helpers are compared with the helper packaged in the APK"
 else
-  fail_test "standalone helpers are compared with the helper packaged in both APKs"
+  fail_test "standalone helpers are compared with the helper packaged in the APK"
 fi
 
-# The descriptor names the successor; both APK asset names carry the
-# `.apk.bin` suffix that keeps earlier updaters away.
+# The descriptor names the one APK, whose asset name carries the `.apk.bin` suffix that keeps earlier
+# updaters away. No step names the retired bridge APK or its descriptor.
 if grep -Fq 'apk_name="panel-assistant-${RELEASE_TAG}-manual-setup-required.apk.bin"' <<<"$descriptor_step" && \
    grep -Fq 'descriptor_name="ha-paneld-${RELEASE_TAG}-install.json"' <<<"$descriptor_step" && \
-   grep -Fq 'bridge_apk_name="ha-paneld-${RELEASE_TAG}-manual-setup-required.apk.bin"' <<<"$stage_step" && \
-   grep -Fq 'successor_apk_name="panel-assistant-${RELEASE_TAG}-manual-setup-required.apk.bin"' <<<"$stage_step"; then
-  pass "the descriptor pins the successor and both APK assets carry .apk.bin"
+   [ "$(grep -Fc 'apk_name="panel-assistant-${RELEASE_TAG}-manual-setup-required.apk.bin"' "$WORKFLOW")" -eq 5 ] && \
+   ! grep -Fq 'ha-paneld-${RELEASE_TAG}-manual-setup-required' "$WORKFLOW" && \
+   ! grep -Fq 'bridge-install' "$WORKFLOW"; then
+  pass "the descriptor pins the one APK, its asset carries .apk.bin, and no bridge asset is named"
 else
-  fail_test "the descriptor pins the successor and both APK assets carry .apk.bin"
+  fail_test "the descriptor pins the one APK, its asset carries .apk.bin, and no bridge asset is named"
 fi
 
 # From 0.9.11 the schemas and meta-data keys carry the new id. Panel Assistant 0.8.0 and older compare
@@ -1247,34 +1208,35 @@ if [ "$(grep -Fc 'io.panelassistant.android.install.v1' "$WORKFLOW")" -ge 1 ] &&
    grep -Fq "'io.panelassistant.android.DATABASE_COMPATIBILITY'" <<<"$proof_step" && \
    grep -Fq 'hapaneld-db:v1:ha-paneld\.db' <<<"$proof_step" && \
    grep -Fq '.schema == "io.panelassistant.android.install.v1"' <<<"$final_step" && \
-   grep -Fq 'verify_final_descriptor "$successor_apk_name" "$descriptor_name" io.panelassistant.android' <<<"$final_step" && \
-   grep -Fq '.launchComponent == ($package_id+"/io.panelassistant.android.MainActivity")' <<<"$final_step"; then
-  pass "schemas and metadata keys carry the new id while the bridge keeps its own package id"
+   grep -Fq 'verify_final_descriptor "$apk_name" "$descriptor_name" io.panelassistant.android' <<<"$final_step" && \
+   grep -Fq '.launchComponent == ($package_id+"/io.panelassistant.android.MainActivity")' <<<"$final_step" && \
+   ! grep -Fq 'io.github.maxlyth.hapaneld' "$WORKFLOW"; then
+  pass "schemas, metadata keys and the application id carry only the new id"
 else
-  fail_test "schemas and metadata keys carry the new id while the bridge keeps its own package id"
+  fail_test "schemas, metadata keys and the application id carry only the new id"
 fi
 
-# Behavioral: the final step refuses a pair that is not one bridge and one successor. This is the
-# guard against a dropped `-PappIdentity` property reaching publication.
+# Behavioral: the final step refuses an APK carrying the retired application id.
 if ! (
   cd "$descriptor_case" || exit 1
   ANDROID_HOME="$descriptor_case/android" \
-    MOCK_BADGING_IDENTITY=bridge \
+    MOCK_BADGING_PACKAGE=old \
     RELEASE_TAG=v1.2.3-rc1 \
     RUNNER_TEMP="$descriptor_case/runner-temp" \
     bash <<<"$test_final_step"
-) > "$descriptor_case/same-identity-final.log" 2>&1 && \
-   grep -Fq 'do not carry one bridge and one successor application id' "$descriptor_case/same-identity-final.log"; then
-  pass "final pre-upload verification rejects two APKs carrying the same application id"
+) > "$descriptor_case/old-id-final.log" 2>&1 && \
+   grep -Fq 'does not carry the io.panelassistant.android application id' "$descriptor_case/old-id-final.log"; then
+  pass "final pre-upload verification rejects an APK carrying the old application id"
 else
-  sed -n '1,80p' "$descriptor_case/same-identity-final.log" >&2
-  fail_test "final pre-upload verification rejects two APKs carrying the same application id"
+  sed -n '1,80p' "$descriptor_case/old-id-final.log" >&2
+  fail_test "final pre-upload verification rejects an APK carrying the old application id"
 fi
 
 # Behavioral: the post-publication no-APK-asset guard, driven against a mocked release listing that
 # returns every asset name, companions included. The mock ignores `--jq`, so all filtering is the
 # step's own. Accepted: the exact asset set the final verification publishes. Refused: one stray
-# asset ending `.apk` (in any case), a release missing one `.apk.bin`, and one with a foreign one.
+# asset ending `.apk` (in any case), a release missing the `.apk.bin`, and one with a foreign or
+# retired bridge `.apk.bin` beside it.
 ordering_case="$TMP/publish-ordering"
 mkdir -p "$ordering_case/mock-bin"
 cat > "$ordering_case/mock-bin/gh" <<'MOCK_GH'
@@ -1295,20 +1257,16 @@ run_ordering_case() {
   ) > "$ordering_case/ordering.log" 2>&1
 }
 
-gate_bridge=ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin
-gate_successor=panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin
-gate_others="ha-paneld-v1.2.3-rc1-android-gradle-runtime.cdx.json ha-paneld-v1.2.3-rc1-install.json ha-paneld-v1.2.3-rc1-install.json.sig ha-paneld-v1.2.3-rc1-bridge-install.json ha-paneld-v1.2.3-rc1-bridge-install.json.sig ha-paneld-v1.2.3-rc1-protocol.json ha-paneld-v1.2.3-rc1-protocol.json.sig"
-gate_companions=""
-for gate_apk in "$gate_bridge" "$gate_successor"; do
-  gate_companions="$gate_companions $gate_apk.idsig $gate_apk.sha256 $gate_apk.sha256.sig"
-done
-gate_release="$gate_bridge $gate_others $gate_companions $gate_successor"
+gate_apk=panel-assistant-v1.2.3-rc1-manual-setup-required.apk.bin
+gate_others="ha-paneld-v1.2.3-rc1-android-gradle-runtime.cdx.json ha-paneld-v1.2.3-rc1-install.json ha-paneld-v1.2.3-rc1-install.json.sig ha-paneld-v1.2.3-rc1-protocol.json ha-paneld-v1.2.3-rc1-protocol.json.sig"
+gate_companions="$gate_apk.idsig $gate_apk.sha256 $gate_apk.sha256.sig"
+gate_release="$gate_others $gate_companions $gate_apk"
 
 if run_ordering_case "$gate_release"; then
-  pass "no-APK-asset guard accepts a release whose only APKs are the bridge and successor .apk.bin"
+  pass "no-APK-asset guard accepts a release whose only APK is the one .apk.bin"
 else
   sed -n '1,40p' "$ordering_case/ordering.log" >&2
-  fail_test "no-APK-asset guard accepts a release whose only APKs are the bridge and successor .apk.bin"
+  fail_test "no-APK-asset guard accepts a release whose only APK is the one .apk.bin"
 fi
 
 gate_apk_refused=1
@@ -1325,14 +1283,21 @@ else
   fail_test "no-APK-asset guard refuses a release carrying any asset ending .apk"
 fi
 
-if ! run_ordering_case "$gate_others $gate_companions $gate_bridge" && \
-   grep -Fq 'expected exactly the bridge' "$ordering_case/ordering.log" && \
-   ! run_ordering_case "$gate_release foreign-v1.2.3-rc1.apk.bin" && \
-   grep -Fq 'expected exactly the bridge' "$ordering_case/ordering.log"; then
-  pass "no-APK-asset guard refuses a release whose .apk.bin assets are not exactly the bridge and successor"
+gate_set_refused=1
+for gate_assets in "$gate_others $gate_companions" \
+    "$gate_release foreign-v1.2.3-rc1.apk.bin" \
+    "$gate_release ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin" \
+    "$gate_others $gate_companions ha-paneld-v1.2.3-rc1-manual-setup-required.apk.bin"; do
+  if run_ordering_case "$gate_assets" || \
+     ! grep -Fq "expected exactly '$gate_apk'" "$ordering_case/ordering.log"; then
+    sed -n '1,40p' "$ordering_case/ordering.log" >&2
+    gate_set_refused=0
+  fi
+done
+if [ "$gate_set_refused" -eq 1 ]; then
+  pass "no-APK-asset guard refuses a release whose .apk.bin assets are not exactly the one APK"
 else
-  sed -n '1,40p' "$ordering_case/ordering.log" >&2
-  fail_test "no-APK-asset guard refuses a release whose .apk.bin assets are not exactly the bridge and successor"
+  fail_test "no-APK-asset guard refuses a release whose .apk.bin assets are not exactly the one APK"
 fi
 
 # --- retired assets stay retired -------------------------------------------------------------

@@ -77,5 +77,5 @@ elif ! grep -Fq 'Invalid signature version.' "$TMP/corrupt.err"; then
 fi
 "$BUILD_TOOLS/zipalign" -c -P 16 4 "$SIGNED_APK"
 badging="$("$BUILD_TOOLS/aapt" dump badging "$SIGNED_APK")"
-grep -Fq "package: name='io.github.maxlyth.hapaneld'" <<<"$badging"
+grep -Fq "package: name='io.panelassistant.android'" <<<"$badging"
 printf 'Real apksigner V4 sidecar contract passed (%s bytes).\n' "$idsig_size"

@@ -35,7 +35,7 @@ import subprocess
 import sys
 from typing import Any, Callable
 
-PKG = "io.github.maxlyth.hapaneld"
+PKG = "io.panelassistant.android"
 SCHEMA = 1
 # Bound the crash-log read: the whole `-b crash` buffer can be large and dumping it unbounded times
 # out over a slow/remote (e.g. WireGuard) adb link. A rise within the retained tail is a hard signal;

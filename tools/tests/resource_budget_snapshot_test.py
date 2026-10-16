@@ -21,7 +21,7 @@ MEMINFO_MODERN = """\
 Applications Memory Usage (in Kilobytes):
 Uptime: 1 Realtime: 1
 
-** MEMINFO in pid 4242 [io.github.maxlyth.hapaneld] **
+** MEMINFO in pid 4242 [io.panelassistant.android] **
                    Pss  Private  Private  ...
                  Total    Dirty    Clean  ...
    Native Heap    20480    20000        0
@@ -30,7 +30,7 @@ Uptime: 1 Realtime: 1
 """
 
 MEMINFO_LEGACY = """\
-** MEMINFO in pid 4242 [io.github.maxlyth.hapaneld] **
+** MEMINFO in pid 4242 [io.panelassistant.android] **
    Native Heap    20480 ...
    App Summary
                        Pss(KB)
@@ -66,7 +66,7 @@ class ParserTests(unittest.TestCase):
     def test_crash_markers_count_only_our_package(self):
         log = (
             "--------- beginning of crash\n"
-            "F DEBUG : pid: 4242 >>> io.github.maxlyth.hapaneld <<<\n"
+            "F DEBUG : pid: 4242 >>> io.panelassistant.android <<<\n"
             "F DEBUG : some.other.app crashed\n"
         )
         self.assertEqual(rb.parse_crash_markers(log), 1)

@@ -15,14 +15,12 @@ import tempfile
 from pathlib import Path
 from typing import NoReturn
 
-# The integration's descriptor names the successor; bridge updates use their own descriptor.
 # From 0.9.11 the schemas and meta-data keys carry the new id. Panel Assistant 0.8.0 and older compare
 # the schemas byte for byte, so they skip this release and keep offering the last one they can verify.
 SCHEMA = "io.panelassistant.android.install.v1"
 PACKAGE_ID = "io.panelassistant.android"
-LEGACY_PACKAGE_ID = "io.github.maxlyth.hapaneld"
-# The Kotlin package. Every manifest class lives here whichever applicationId the build carries, so a
-# component is always `<applicationId>/<fully.qualified.Class>`.
+# The Kotlin package. Every manifest class lives here, so a component is always
+# `<applicationId>/<fully.qualified.Class>`.
 CODE_PACKAGE = "io.panelassistant.android"
 MAX_APK_SIZE_BYTES = 64 * 1024 * 1024
 MAX_ANDROID_SDK = 100
@@ -118,15 +116,13 @@ def _apk_identity(apk_fd: int) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
-def parse_badging(
-    badging: str, allowed_packages: tuple[str, ...] = (PACKAGE_ID,)
-) -> dict[str, object]:
+def parse_badging(badging: str) -> dict[str, object]:
     """Read the closed package/version/platform/launch contract from aapt output."""
     package_fields = _quoted_fields(_one_line("package:", badging))
     package_id = package_fields.get("name", "")
     version_name = package_fields.get("versionName", "")
     version_code_text = package_fields.get("versionCode", "")
-    if package_id not in allowed_packages:
+    if package_id != PACKAGE_ID:
         _fail(f"unexpected package ID: {package_id or '<missing>'}")
     if not version_name:
         _fail("APK versionName is missing")
@@ -280,7 +276,6 @@ def inspect_apk(
     release_tag: str,
     aapt: Path,
     apksigner: Path,
-    allowed_packages: tuple[str, ...] = (PACKAGE_ID,),
 ) -> tuple[dict[str, object], str, str, tuple[int, str]]:
     if len(release_tag) > 64 or not RELEASE_TAG_PATTERN.fullmatch(release_tag):
         _fail("release tag is not an accepted vX.Y.Z, vX.Y.Z-previewN or vX.Y.Z-rcN value")
@@ -298,7 +293,7 @@ def inspect_apk(
 
         badging = _run(aapt, apk_fd, "dump", "badging", fd_path)
         _require_path_identity(apk, opened)
-        fields = parse_badging(badging, allowed_packages)
+        fields = parse_badging(badging)
         expected_version_name = release_tag.removeprefix("v")
         if fields["versionName"] != expected_version_name:
             _fail("APK versionName does not match the release tag")
@@ -315,23 +310,17 @@ def inspect_apk(
 
 
 def build_descriptor(apk: Path, release_tag: str, aapt: Path, apksigner: Path) -> dict[str, object]:
-    canonical_packages = {
-        # `.bin` keeps every updater shipped before Panel Assistant 0.7.1 from finding an APK.
-        f"panel-assistant-{release_tag}-manual-setup-required.apk.bin": PACKAGE_ID,
-        f"ha-paneld-{release_tag}-manual-setup-required.apk.bin": LEGACY_PACKAGE_ID,
-    }
-    package_id = canonical_packages.get(apk.name)
-    if package_id is None:
+    # `.bin` keeps every updater shipped before Panel Assistant 0.7.1 from finding an APK.
+    if apk.name != f"panel-assistant-{release_tag}-manual-setup-required.apk.bin":
         _fail("APK filename is not canonical for the release tag")
-    fields, xmltree, signer, final_identity = inspect_apk(apk, release_tag, aapt, apksigner, (package_id,))
+    fields, xmltree, signer, final_identity = inspect_apk(apk, release_tag, aapt, apksigner)
 
     return {
         "apkName": apk.name,
         "apkSha256": final_identity[1],
         "apkSize": final_identity[0],
         "databaseCompatibility": parse_database_compatibility(xmltree),
-        # The class stays fully qualified even when the applicationId differs from its namespace.
-        "launchComponent": f"{package_id}/{LAUNCH_ACTIVITY}",
+        "launchComponent": f"{PACKAGE_ID}/{LAUNCH_ACTIVITY}",
         "minSdk": fields["minSdk"],
         "packageId": fields["packageId"],
         "releaseTag": release_tag,
@@ -350,9 +339,7 @@ def build_protocol_manifest(
         _fail("protocol companion requires 1 to 500 exact APKs")
     artifacts = []
     for apk in apks:
-        _, xmltree, _, identity = inspect_apk(
-            apk, release_tag, aapt, apksigner, (LEGACY_PACKAGE_ID, PACKAGE_ID)
-        )
+        _, xmltree, _, identity = inspect_apk(apk, release_tag, aapt, apksigner)
         low, high = parse_protocol_range(xmltree)
         artifacts.append({"apkSha256": identity[1], "protocolMin": low, "protocolMax": high})
     if len({record["apkSha256"] for record in artifacts}) != len(artifacts):
