@@ -11003,6 +11003,16 @@
       "sourceHash": "0fa08145c04a8e1391ac642c5536fa2f26f69556c521db192e7f9d7fafe11538",
       "state": "machine-cross-checked"
     },
+    "settings.voice_stop_word.label": {
+      "text": "Parola di arresto",
+      "sourceHash": "bb8f307d8c38b68b8aa9279862f49272db3c3033bab7a5ab9aa8ce310c8dffcd",
+      "state": "machine-cross-checked"
+    },
+    "settings.voice_stop_word.summary": {
+      "text": "Di’ «stop» per interrompere una risposta, un annuncio o un timer che sta suonando.",
+      "sourceHash": "76a087aa8402b64f4be9f3f428c0df4ee90d531cffddf1b62a289277fef00ea8",
+      "state": "machine-cross-checked"
+    },
     "settings.voice_wake_words.help": {
       "sourceHash": "37cd4d65e9c9c982c2c938663ae0863a2a8545f81d0b5165e73d5ad0f56cfbc2",
       "state": "machine-cross-checked",

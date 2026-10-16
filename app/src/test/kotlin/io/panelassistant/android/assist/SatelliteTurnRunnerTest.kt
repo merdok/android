@@ -23,7 +23,7 @@ class SatelliteTurnRunnerTest {
     @Test fun `with no session the turn fails at once and never opens the microphone`() = runTest {
         val voice = PanelAssistantVoice(backgroundScope, { null }, {})
         var attached = 0
-        val outcome = SatelliteTurnRunner(voice).run(VoiceTurnRequest("okay_nabu"), { attached++; AutoCloseable {} }, {})
+        val outcome = SatelliteTurnRunner(voice).run(VoiceTurnRequest("okay_nabu"), { attached++; AutoCloseable {} }, {}, {})
         assertEquals(SatelliteTurnRunner.CODE_UNAVAILABLE, outcome.error?.code)
         assertEquals(0, attached)
     }
@@ -38,6 +38,7 @@ class SatelliteTurnRunnerTest {
                 VoiceTurnRequest("hey_jarvis", heardAtNs = 1L),
                 { consumer -> capture = consumer; AutoCloseable { closed++ } },
                 { url -> played += url },
+                {},
             )
         }
         runCurrent()
@@ -77,6 +78,7 @@ class SatelliteTurnRunnerTest {
                         return false
                     }
                 },
+                {},
             )
         }
         runCurrent()
@@ -99,6 +101,7 @@ class SatelliteTurnRunnerTest {
                 VoiceTurnRequest("okay_nabu"),
                 { AutoCloseable { closed++ } },
                 {},
+                {},
             )
         }
         runCurrent()
@@ -115,6 +118,97 @@ class SatelliteTurnRunnerTest {
         assertFalse(turn.await().continueConversation)
     }
 
+    @Test fun `a turn Home Assistant never starts gives up after four seconds, frees the microphone and cancels it there`() = runTest {
+        val link = link()
+        var closed = 0
+        val turn = async {
+            SatelliteTurnRunner(link.voice, nanoTime = { testScheduler.currentTime * 1_000_000L }).run(
+                VoiceTurnRequest("okay_nabu"),
+                { AutoCloseable { closed++ } },
+                {},
+                {},
+            )
+        }
+        runCurrent()
+        // Sent, and never answered with the turn's audio handler.
+        val runId = link.request(PanelAssistantVoice.COMMAND_VOICE_RUN).getLong("id")
+        advanceTimeBy(SatelliteTurnRunner.MAX_START_MS - 1L)
+        runCurrent()
+        assertFalse(turn.isCompleted)
+        advanceTimeBy(2L)
+        runCurrent()
+        assertTrue("the turn does not wait out its two-minute cap", turn.isCompleted)
+        assertEquals(SatelliteTurnRunner.CODE_NOT_STARTED, turn.await().error?.code)
+        assertEquals(1, closed)
+        link.pump()
+        assertEquals(runId, link.sent.single { it.optString("type") == "unsubscribe_events" }.getLong("subscription"))
+    }
+
+    @Test fun `a turn started within four seconds keeps every frame heard before it started`() = runTest {
+        val link = link()
+        var capture: PcmConsumer? = null
+        val turn = async {
+            SatelliteTurnRunner(link.voice).run(
+                VoiceTurnRequest("okay_nabu"),
+                { consumer -> capture = consumer; AutoCloseable {} },
+                {},
+                {},
+            )
+        }
+        runCurrent()
+        val runId = link.request(PanelAssistantVoice.COMMAND_VOICE_RUN).getLong("id")
+        // 3.9 s of command audio arrives before Home Assistant names the handler.
+        repeat(390) { capture!!.onFrame(PcmFrame(shortArrayOf(it.toShort()), timestampNs = it.toLong())) }
+        advanceTimeBy(3_900L)
+        link.answer(runId, JSONObject().put("handler_id", 5))
+        link.event(runId, "listen_end")
+        link.event(runId, "end")
+        runCurrent()
+        assertNull(turn.await().error)
+        val sent = link.binary.filter { it.size == 3 }.map { (it[2].toInt() shl 8) or (it[1].toInt() and 0xFF) }
+        assertEquals((0 until 390).toList(), sent)
+    }
+
+    @Test fun `the reply's text reaches the run as it is written`() = runTest {
+        val link = link()
+        val replies = mutableListOf<String>()
+        val turn = async {
+            SatelliteTurnRunner(link.voice).run(VoiceTurnRequest("okay_nabu"), { AutoCloseable {} }, {}, { replies += it })
+        }
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "listen_end")
+        link.event(runId, "reply", "text" to "Stopping", "final" to false)
+        link.event(runId, "reply", "text" to "Stopping the timer.", "final" to true)
+        link.event(runId, "end")
+        runCurrent()
+        turn.await()
+        assertEquals(listOf("Stopping", "Stopping the timer."), replies)
+    }
+
+    @Test fun `a reply cut short is still reported played, so Home Assistant leaves responding`() = runTest {
+        val link = link()
+        val speaking = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val turn = async {
+            SatelliteTurnRunner(link.voice).run(
+                VoiceTurnRequest("okay_nabu"),
+                { AutoCloseable {} },
+                { speaking.complete(Unit); kotlinx.coroutines.awaitCancellation() },
+                {},
+            )
+        }
+        runCurrent()
+        val runId = link.started()
+        link.event(runId, "play", "url" to "/api/tts_proxy/r.mp3")
+        link.event(runId, "end")
+        runCurrent()
+        assertTrue(speaking.isCompleted)
+        turn.cancel()
+        runCurrent()
+        link.pump()
+        assertTrue(link.sent.any { it.optString("type") == PanelAssistantVoice.COMMAND_VOICE_PLAYED && !it.has("announce_id") })
+    }
+
     @Test fun `what the microphone hears while the panel's chime sounds is sent as silence`() = runTest {
         val link = link()
         var capture: PcmConsumer? = null
@@ -122,6 +216,7 @@ class SatelliteTurnRunnerTest {
             SatelliteTurnRunner(link.voice, chime = { 100L..200L }).run(
                 VoiceTurnRequest("okay_nabu"),
                 { consumer -> capture = consumer; AutoCloseable {} },
+                {},
                 {},
             )
         }
@@ -149,6 +244,7 @@ class SatelliteTurnRunnerTest {
             // As the coordinator wires them: the capture closing is the move to thinking, playback to replying.
             { AutoCloseable { conversation.state(VoiceState.PROCESSING) } },
             { conversation.state(VoiceState.RESPONDING) },
+            {},
         )
     }
 

@@ -987,7 +987,7 @@ class PaneldService : Service() {
                     voice.announce(
                         io.panelassistant.android.assist.VoiceAnnouncement(
                             announcement.url, announcement.preannounceUrl, announcement.listenAfter,
-                            stream = announcement.stream, done = done,
+                            stream = announcement.stream, text = announcement.message, done = done,
                         ),
                     )
                 } else {

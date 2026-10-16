@@ -33311,6 +33311,36 @@
       "softMaxChars": 70,
       "hardMaxChars": 90
     },
+    "settings.voice_stop_word.label": {
+      "text": "Stop word",
+      "sourceHash": "bb8f307d8c38b68b8aa9279862f49272db3c3033bab7a5ab9aa8ce310c8dffcd",
+      "surface": "settings",
+      "context": "Configure > Voice: label for the voice_stop_word setting.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.voice_stop_word.summary"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 32,
+      "hardMaxChars": 32
+    },
+    "settings.voice_stop_word.summary": {
+      "text": "Say \"stop\" to end a reply, an announcement or a ringing timer.",
+      "sourceHash": "76a087aa8402b64f4be9f3f428c0df4ee90d531cffddf1b62a289277fef00ea8",
+      "surface": "settings",
+      "context": "Configure > Voice: one-line summary shown under the voice_stop_word setting's label. Plain text, one line. The quoted word stop is the English word the panel listens for in every language and must stay as written.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.voice_stop_word.label"
+      ],
+      "placeholders": [],
+      "frozen": [
+        "stop"
+      ],
+      "softMaxChars": 70,
+      "hardMaxChars": 90
+    },
     "settings.voice_wake_words.help": {
       "text": "The wake words to listen for: the bundled Okay Nabu, Hey Jarvis, Hey Mycroft and Alexa, and any you import below.",
       "sourceHash": "37cd4d65e9c9c982c2c938663ae0863a2a8545f81d0b5165e73d5ad0f56cfbc2",

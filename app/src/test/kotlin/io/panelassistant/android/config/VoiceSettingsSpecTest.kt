@@ -15,9 +15,10 @@ class VoiceSettingsSpecTest {
     private val sensitivity = requireNotNull(SettingsRegistry.spec("voice_sensitivity"))
 
     private val micGain = requireNotNull(SettingsRegistry.spec("voice_mic_gain_db"))
+    private val stopWord = requireNotNull(SettingsRegistry.spec("voice_stop_word"))
 
     private val everyMicrophoneGatedVoiceSpec =
-        listOf(voiceEnabled, wakeWords, pipelines, audioSource, sensitivity, micGain)
+        listOf(voiceEnabled, wakeWords, pipelines, audioSource, sensitivity, micGain, stopWord)
 
     @Test fun `every voice setting is offered wherever a microphone is present, proven or not, and lives in the Voice group`() {
         val expected = mapOf(

@@ -639,6 +639,8 @@ class Config private constructor(
 
     val voiceMicGainDb: Int get() = intPrefInRange("voice_mic_gain_db")
 
+    val voiceStopWord: Boolean get() = boolPref("voice_stop_word")
+
     /** Device-local acknowledgement of the built-in launch screen for one exact app version. This is
      * outside SettingsRegistry, so config export/import cannot suppress an intro on another panel. */
     val lastLaunchScreenVersionCode: Long?

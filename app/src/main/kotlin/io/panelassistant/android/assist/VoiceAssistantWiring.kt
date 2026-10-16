@@ -64,12 +64,20 @@ internal class AnnouncementLanePlayback(
         return audio.streamEnded(streamId)?.listenAfter == true
     }
 
+    // The coordinator refuses to cancel any generation but the current one, so a later sound is safe.
+    @Volatile private var last: Long? = null
+
+    override fun silence() {
+        last?.let(audio::cancelGeneration)
+    }
+
     private suspend fun watch(submitted: Long?) {
         val generation = submitted
             ?: throw AssistPlaybackException(
                 AssistPipelineClient.CODE_PLAYBACK_FAILED,
                 "The announcement coordinator is no longer accepting playback",
             )
+        last = generation
         onGeneration(generation)
         onStarted()
         while (true) {
@@ -188,6 +196,7 @@ internal fun voiceAssistantCoordinator(
                 config.voiceWakeWords,
                 config.voicePipelines,
                 config.voiceMicGainDb,
+                config.voiceStopWord,
             )
         },
         microphone = microphone,
@@ -200,5 +209,7 @@ internal fun voiceAssistantCoordinator(
         attention = VoiceAttention::cue,
         onMicrophoneStatus = onMicrophoneStatus,
         muted = muted,
+        stopWordModel = { StopWordModel.load(context) },
+        log = log,
     ).also { VoiceAttention.prepare(context) }
 }
