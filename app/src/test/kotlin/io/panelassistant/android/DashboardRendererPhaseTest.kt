@@ -149,4 +149,38 @@ class DashboardRendererPhaseTest {
 
         assertTrue("the load's timers run: ${page.calls}", "resumeTimers" in page.calls)
     }
+
+    /** A screen-off over a page that connected freezes it: nothing churns behind a dark screen. */
+    @Test fun aScreenOffFreezesAConnectedPage() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+
+        rig.call("onScreenChanged", false)
+
+        assertEquals(listOf("onPause", "pauseTimers"), page.calls)
+    }
+
+    /** A screen-off during a load leaves it live, so it can still draw and connect behind the dark screen. */
+    @Test fun aScreenOffLeavesALoadInFlightLive() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.LOADING
+
+        rig.call("onScreenChanged", false)
+
+        assertEquals(emptyList<String>(), page.calls)
+    }
+
+    /** A screen-off past the memory ceiling sheds it with a reload the dark screen hides, run live. */
+    @Test fun aScreenOffPastTheMemoryCeilingReloadsQuietly() {
+        val page = RecordingWebView("$HA/lovelace/0")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        rig.set("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+
+        rig.call("onScreenChanged", false)
+
+        assertEquals(listOf("reload", "onResume", "resumeTimers"), page.calls)
+    }
 }
