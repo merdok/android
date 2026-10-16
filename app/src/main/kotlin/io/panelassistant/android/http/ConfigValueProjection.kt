@@ -207,7 +207,10 @@ internal class ConfigValueProjection(
             val optionLabels = options.joinToString(",") { option ->
                 s(spec.optionLabelKey(option).takeIf(strings::has)?.let(strings::get) ?: option)
             }
-            val isHa = spec.ha != null
+            // The expose pip is offered only where it withholds a sensor reading (PanelStateCore). For a
+            // commandable entity Home Assistant's entity registry is the authority (native-transport-protocol.md
+            // §7), so a pip there would change nothing.
+            val isHa = spec.readOnly
             val placeholder = hints[spec.key]?.let {
                 strings.get("configure.option.auto_detail").replace("{value}", it)
             } ?: when (spec.key) {

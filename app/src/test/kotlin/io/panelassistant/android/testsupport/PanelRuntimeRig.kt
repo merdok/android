@@ -196,6 +196,17 @@ internal abstract class PanelRuntimeRig {
         deviceSecure: Boolean = true,
         /** Touch-sound hardware; null leaves the controller unconstructed, as no touch_sound command is sent. */
         touchSoundHardware: io.panelassistant.android.control.TouchSoundHardware? = null,
+        /** Whether the panel has a proximity source; false is a profile with none. */
+        hasProximity: Boolean = true,
+        /** Whether a durable (commit) write reaches storage; apply still publishes at once, as the SQLite store does. */
+        commitsSucceed: () -> Boolean = { true },
+        /** The SCREEN_OFF_TIMEOUT setting prevent_idle_dim writes; null keeps Android's, which is an inert stub here. */
+        screenOffTimeout: io.panelassistant.android.control.ScreenTimeoutController? = null,
+        /** Boot-chime hardware; null keeps the inert controller. When given, the controller persists its
+         *  setting in this rig's Config, as production does. */
+        bootChimeHardware: BootChimeHardware? = null,
+        /** Root for the network ADB controller; null leaves it allocated and unusable, as no network_adb command is sent. */
+        adbRoot: RootShell? = null,
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
         /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
         systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
@@ -212,7 +223,7 @@ internal abstract class PanelRuntimeRig {
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = scratchDirectory("panel-runtime-rig").toFile()
-        val prefs = MemoryPreferences()
+        val prefs = MemoryPreferences(commitsSucceed)
         val context = FakeContext(tmp, prefs)
         val config = newConfig(prefs, context.contentResolver)
         config.setRaw(requireNotNull(SettingsRegistry.spec("manufacturer")), "Golden Manufacturing")
@@ -231,7 +242,8 @@ internal abstract class PanelRuntimeRig {
             fakeProfile(relayBase = RELAY_BASE, buttonLedGpioBase = LED_GPIO_BASE),
             sysfs,
         )
-        val brightness = BrightnessController(context, FakeRootShell(), FakeDaemon())
+        val brightness = screenOffTimeout?.let { BrightnessController(context, FakeRootShell(), FakeDaemon(), screenTimeout = it) }
+            ?: BrightnessController(context, FakeRootShell(), FakeDaemon())
         val screen = ScreenController(
             FakeBacklight(160), FakeScreenPower(), FakeRootShell(), FakeDaemon(), FakeWakeTap(),
             ScreenOff.BRIGHTNESS_ZERO, nap = {},
@@ -243,22 +255,36 @@ internal abstract class PanelRuntimeRig {
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
             isDeviceSecure = { deviceSecure },
         )
-        val bootChime = BootChimeController(
-            configured = { false },
-            setConfigured = {},
-            stateStore = object : BootChimeStateStore {
-                override fun load(): BootChimeState? = null
-                override fun save(state: BootChimeState) = true
-                override fun clear() = true
-            },
-            hardware = object : BootChimeHardware {
-                override fun capture(): BootChimeState? = null
-                override fun silence() = ControlApplyOutcome.APPLIED
-                override fun restore(state: BootChimeState) = ControlApplyOutcome.APPLIED
-            },
-        )
+        val bootChime = if (bootChimeHardware != null) {
+            BootChimeController(
+                configured = { config.silenceBootChime },
+                setConfigured = config::setSilenceBootChime,
+                stateStore = object : BootChimeStateStore {
+                    private var state: BootChimeState? = null
+                    override fun load(): BootChimeState? = state
+                    override fun save(state: BootChimeState): Boolean { this.state = state; return true }
+                    override fun clear(): Boolean { state = null; return true }
+                },
+                hardware = bootChimeHardware,
+            )
+        } else {
+            BootChimeController(
+                configured = { false },
+                setConfigured = {},
+                stateStore = object : BootChimeStateStore {
+                    override fun load(): BootChimeState? = null
+                    override fun save(state: BootChimeState) = true
+                    override fun clear() = true
+                },
+                hardware = object : BootChimeHardware {
+                    override fun capture(): BootChimeState? = null
+                    override fun silence() = ControlApplyOutcome.APPLIED
+                    override fun restore(state: BootChimeState) = ControlApplyOutcome.APPLIED
+                },
+            )
+        }
         val capabilities = Capabilities(
-            hasProximity = true,
+            hasProximity = hasProximity,
             hasLearnedProximity = true,
             hasLight = true,
             hasTemperature = true,
@@ -291,7 +317,9 @@ internal abstract class PanelRuntimeRig {
             fakeProfile(), cpuShell, FakeDaemon(), io.panelassistant.android.metrics.PanelMetrics(metrics),
         )
         // Only its best-effort reconnect reassertion runs, on a worker that logs and discards failure.
-        val adb = allocate(AdbController::class.java)
+        val adb = adbRoot?.let {
+            AdbController(config, io.panelassistant.android.control.NetworkAdbDisableTransitionMarker(File(tmp, "network-adb-disable.v1")), it)
+        } ?: allocate(AdbController::class.java)
         val volume = VolumeController(context)
         val core = io.panelassistant.android.PanelStateCore(
             config = config,
@@ -309,7 +337,7 @@ internal abstract class PanelRuntimeRig {
             buttonsEnabled = true,
             buttonKeys = buttonKeys,
             capabilities = { capabilities },
-            hasProximity = true,
+            hasProximity = hasProximity,
             hasTemperature = hasTemperature,
             hasHumidity = hasHumidity,
             hasCht8305 = hasCht8305,
@@ -344,7 +372,7 @@ internal abstract class PanelRuntimeRig {
             relay = relay,
             cpu = cpu,
             adb = adb,
-            hasProximity = true,
+            hasProximity = hasProximity,
             hasButtonBacklight = true,
             hasMicrophone = true,
             media = media,
@@ -469,8 +497,9 @@ internal abstract class PanelRuntimeRig {
         override fun getPackageName(): String = "io.panelassistant.android"
     }
 
-    /** Thread-safe in-memory preferences whose commits always succeed. */
-    protected class MemoryPreferences : SharedPreferences by proxy(ConcurrentHashMap())
+    /** Thread-safe in-memory preferences; a commit fails, storing nothing, while [commits] answers false. */
+    protected class MemoryPreferences(commits: () -> Boolean = { true }) :
+        SharedPreferences by proxy(ConcurrentHashMap(), commits = commits)
 
     protected companion object {
         fun drainStatePump() {
@@ -549,6 +578,7 @@ internal abstract class PanelRuntimeRig {
         fun proxy(
             values: MutableMap<String, Any>,
             listeners: CopyOnWriteArrayList<SharedPreferences.OnSharedPreferenceChangeListener> = CopyOnWriteArrayList(),
+            commits: () -> Boolean = { true },
         ): SharedPreferences =
             Proxy.newProxyInstance(
                 SharedPreferences::class.java.classLoader,
@@ -559,7 +589,7 @@ internal abstract class PanelRuntimeRig {
                     "getString", "getInt", "getLong", "getFloat", "getBoolean", "getStringSet" ->
                         values[args!![0] as String] ?: args[1]
                     "contains" -> values.containsKey(args!![0] as String)
-                    "edit" -> editor(values) { key ->
+                    "edit" -> editor(values, commits) { key ->
                         listeners.forEach { it.onSharedPreferenceChanged(instance as SharedPreferences, key) }
                     }
                     "registerOnSharedPreferenceChangeListener" -> {
@@ -577,7 +607,11 @@ internal abstract class PanelRuntimeRig {
                 }
             } as SharedPreferences
 
-        fun editor(values: MutableMap<String, Any>, onChange: (String) -> Unit = {}): SharedPreferences.Editor {
+        fun editor(
+            values: MutableMap<String, Any>,
+            commits: () -> Boolean = { true },
+            onChange: (String) -> Unit = {},
+        ): SharedPreferences.Editor {
             val writes = LinkedHashMap<String, Any?>()
             val removals = LinkedHashSet<String>()
             var clear = false
@@ -597,6 +631,8 @@ internal abstract class PanelRuntimeRig {
                     }
                     "clear" -> editor.also { clear = true }
                     "commit", "apply" -> {
+                        // Only a durable commit can be refused; apply publishes at once, as SqliteStatePreferences does.
+                        if (method.name == "commit" && !commits()) return@newProxyInstance false
                         synchronized(values) {
                             if (clear) values.clear()
                             removals.forEach { values.remove(it) }

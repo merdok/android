@@ -246,15 +246,21 @@ internal class HaAreaRuntime(
             while (true) {
                 val credentialed = config.haToken.isNotBlank() || config.haRefreshToken.isNotBlank()
                 if (HaAreaProtocol.canQueryUnprompted(config.haUrl, credentialed)) {
-                    val snapshot = captureHaAreaSnapshot()
-                    runCatching {
-                        applyHaAreaPrecedence(snapshot, haAreaCatalogFor(snapshot, fresh = true))
-                    }
+                    runCatching { refreshFromHomeAssistant() }
                         .onFailure { Log.w(TAG, "ha-area: unprompted convergence failed", it) }
                 }
                 delay(HA_AREA_REPEAT_MS)
             }
         }
+    }
+
+    /**
+     * One fresh registry read through the precedence rule. Panel Assistant asks for it when Home Assistant
+     * moves this device, so the move does not wait for the slow pass. True only when Home Assistant answered.
+     */
+    suspend fun refreshFromHomeAssistant(): Boolean {
+        val snapshot = captureHaAreaSnapshot()
+        return applyHaAreaPrecedence(snapshot, haAreaCatalogFor(snapshot, fresh = true)).queried
     }
 
     /** Last successfully queried catalog for the current owner; never blocks a config response. */

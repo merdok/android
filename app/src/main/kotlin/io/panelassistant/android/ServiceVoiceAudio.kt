@@ -136,7 +136,15 @@ internal class ServiceVoiceAudio(
 
     /** The one microphone source voice and the camera stream share. */
     fun buildSharedMicrophone() {
-        sharedMicrophone = io.panelassistant.android.assist.ConfiguredMicrophoneSource(service.applicationContext, config())
+        sharedMicrophone = io.panelassistant.android.assist.ConfiguredMicrophoneSource(
+            audioSource = { config().voiceAudioSource },
+            build = { kind ->
+                io.panelassistant.android.audio.AndroidMicrophoneSource(service.applicationContext, kind)
+                    .also(io.panelassistant.android.audio.MicrophoneAdmission::observe)
+            },
+            scope = scope,
+            onFree = { if (::voice.isInitialized && !teardownBoundary.isStopping) voice.start() },
+        )
     }
 
     /** The media player, the announcement lane and the voice-assistant coordinator. */

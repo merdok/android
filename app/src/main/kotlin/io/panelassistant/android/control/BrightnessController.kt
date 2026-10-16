@@ -93,6 +93,8 @@ class BrightnessController internal constructor(
     private val daemon: Daemon = HelperClient,
     private val scale: BacklightScale = BacklightScale.IDENTITY,
     private val setting: BrightnessSetting = SystemBrightnessSetting(context),
+    // The SCREEN_OFF_TIMEOUT boundary prevent_idle_dim writes; a seam so a JVM test can refuse the write.
+    private val screenTimeout: ScreenTimeoutController = systemScreenTimeout(context),
 ) : Backlight {
     constructor(context: Context) : this(context, Su, HelperClient, BacklightScale.IDENTITY)
 
@@ -104,22 +106,6 @@ class BrightnessController internal constructor(
         elapsedRealtimeMs = BrightnessWriteSequencer.ElapsedRealtimeSource(SystemClock::elapsedRealtime),
     )
     private val writeAttribution = BrightnessWriteAttribution()
-    private val screenTimeout = ScreenTimeoutController(
-        read = {
-            Settings.System.getInt(
-                context.contentResolver,
-                Settings.System.SCREEN_OFF_TIMEOUT,
-                -1,
-            )
-        },
-        write = { value ->
-            Settings.System.putInt(
-                context.contentResolver,
-                Settings.System.SCREEN_OFF_TIMEOUT,
-                value,
-            )
-        },
-    )
 
     fun canWrite(): Boolean = Settings.System.canWrite(context)
 
@@ -340,3 +326,20 @@ internal class SystemBrightnessSetting(private val context: Context) : Brightnes
         null
     }
 }
+
+private fun systemScreenTimeout(context: Context) = ScreenTimeoutController(
+    read = {
+        Settings.System.getInt(
+            context.contentResolver,
+            Settings.System.SCREEN_OFF_TIMEOUT,
+            -1,
+        )
+    },
+    write = { value ->
+        Settings.System.putInt(
+            context.contentResolver,
+            Settings.System.SCREEN_OFF_TIMEOUT,
+            value,
+        )
+    },
+)

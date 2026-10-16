@@ -1,5 +1,10 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.Config
+import io.panelassistant.android.persistence.SqliteStatePreferences
+import io.panelassistant.android.persistence.StateMutation
+import io.panelassistant.android.persistence.StateNamespacePersistence
+import java.util.concurrent.Executors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -52,13 +57,13 @@ class HandBackHomeControllerTest {
             HandBackHomePolicy.HomeCandidate(pkg, "$pkg/.Launcher", enabled = pkg in installed && pkg !in disabled)
         }
 
-        fun controller(): HandBackHomeController = HandBackHomeController(
+        fun controller(clear: (() -> Boolean)? = null): HandBackHomeController = HandBackHomeController(
             ownedMarkers = {
                 TameOwnedMarkers.Ready(markers.mapValues { (pkg, mode) -> TameOwnedMarker(pkg, mode) })
             },
             packageStates = ::states,
             homeCandidates = ::homes,
-            clearDesiredState = {
+            clearDesiredState = clear ?: {
                 log += "clear-desired"
                 if (clearSucceeds) desiredCleared = true
                 clearSucceeds
@@ -93,6 +98,42 @@ class HandBackHomeControllerTest {
         installed = mutableSetOf(own, launcher, monitor),
         homePkgs = mutableListOf(own, launcher),
     )
+
+    /** A config store whose disk refuses writes, so only what reached the disk survives a restart. */
+    private class RefusingDisk(initial: Map<String, Any>) : StateNamespacePersistence {
+        val disk = initial.toMutableMap()
+        override fun initialize(): Map<String, Any> = disk.toMap()
+        override fun persist(mutation: StateMutation): Boolean = false
+        override fun replace(snapshot: Map<String, Any>): Boolean = false
+    }
+
+    @Test
+    fun `a desired-state clear that did not reach the disk refuses before HOME moves`() {
+        val disk = RefusingDisk(
+            mapOf("launcher_package" to own, "tame_vendor_packages" to "$launcher $monitor"),
+        )
+        val writer = Executors.newSingleThreadExecutor()
+        try {
+            val config = Config(SqliteStatePreferences(disk, writer))
+            val panel = tamedPanel()
+
+            val result = panel.controller(clear = config::clearHandBackDesiredState).handBack(setOf(launcher, monitor))
+
+            // The clear is what stops the admin-home repair tick and the tame reconciler taking everything
+            // back after a restart; a clear that is not durable must refuse, not hand HOME over.
+            assertEquals(
+                HandBackHomeController.Result.Refused(HandBackHomePolicy.Refusal.OWNERSHIP_UNREADABLE),
+                result,
+            )
+            assertFalse(panel.log.any { it.startsWith("set-home:") || it == "restore-owned" })
+            assertEquals(own, panel.currentHome)
+            // Nothing was published that the disk does not hold.
+            assertEquals(own, config.launcherPackage)
+            assertEquals(listOf(launcher, monitor), config.tameVendorPackages)
+        } finally {
+            writer.shutdownNow()
+        }
+    }
 
     private fun done(result: HandBackHomeController.Result): HandBackHomePolicy.Outcome {
         assertTrue("expected a completed run, got $result", result is HandBackHomeController.Result.Done)

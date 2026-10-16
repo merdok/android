@@ -70,7 +70,7 @@ internal class HaNetworkPathMonitor(
      * passing rather than an event, so a panel whose last probe was the one that has just aged out
      * would otherwise keep a stale native chip on screen while the polled web surfaces — which
      * re-render from each read — had already recovered. Detecting the change here and poking makes
-     * every reader, including the ten-second `/health` poll, correct the push-driven surfaces too.
+     * every reader, including the `/health` subscription, correct the push-driven surfaces too.
      * The poke is fired OUTSIDE the lock and is idempotent: whatever it wakes reads this same
      * snapshot, finds the key unchanged and pokes nothing further.
      */

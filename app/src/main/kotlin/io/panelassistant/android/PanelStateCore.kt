@@ -237,9 +237,10 @@ internal class PanelStateCore(
         }
         channel("navbar") { known(config.navbarMode) }
 
+        // A sensor hidden with its pip is unavailable, so Home Assistant drops the value it last received.
         channel("illuminance") {
             if (config.haExposed("illuminance", true)) lastIlluminance?.let { known(it.toString()) } ?: unknown
-            else unknown
+            else Observation.Unavailable
         }
         channel("proximity") {
             if (learnedProximityEligible() && config.haExposed("proximity", true)) {
@@ -254,11 +255,11 @@ internal class PanelStateCore(
         channel("temperature") {
             if (config.haExposed("temperature", true)) {
                 lastTemperature?.let { known(String.format(java.util.Locale.US, "%.1f", it)) } ?: unknown
-            } else unknown
+            } else Observation.Unavailable
         }
         channel("humidity") {
             if (config.haExposed("humidity", true)) lastHumidity?.let { known(Math.round(it).toString()) } ?: unknown
-            else unknown
+            else Observation.Unavailable
         }
 
         for (key in diagKeys()) channel(key) {
@@ -533,6 +534,12 @@ internal class PanelStateCore(
         dispatchStateWork {
             reconcile("camera_enabled")
         }
+    }
+
+    /** An exposure pip changed: re-report its channel so Panel Assistant drops a hidden value at once. */
+    fun publishExposureChanges(changedKeys: Set<String>) {
+        val channels = changedKeys.mapNotNull { SettingsRegistry.parseExposure(it)?.ha?.channel }
+        if (channels.isNotEmpty()) dispatchStateWork { channels.forEach { reconcile(it) } }
     }
 
     fun publishZigbeeRouterState() {
@@ -954,9 +961,8 @@ internal fun diagnosticObservation(
     exposed: Boolean,
     value: String?,
 ): io.panelassistant.android.state.StateConverger.Observation = when {
-    key in WIFI_DIAGNOSTIC_KEYS && (!exposed || value == null) ->
+    !exposed || (key in WIFI_DIAGNOSTIC_KEYS && value == null) ->
         io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    !exposed -> io.panelassistant.android.state.StateConverger.Observation.Unknown
     else -> io.panelassistant.android.state.StateConverger.Observation.Known(value ?: "unknown")
 }
 

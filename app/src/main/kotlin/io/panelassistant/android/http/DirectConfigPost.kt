@@ -194,10 +194,9 @@ internal class DirectConfigPost(
         if (builtinRendererNeedsConnection(
                 currentPackage = config.dashboardPackage,
                 currentHaUrl = config.haUrl,
+                // The commit clears the stored credentials on an origin change in every security mode.
                 currentHasCredentials = (config.haToken.isNotBlank() || config.haRefreshToken.isNotBlank()) &&
-                    !(config.hardenedSecurityEnabled && p["ha_url"]?.trimEnd('/')?.let {
-                        it != config.haUrl.trimEnd('/')
-                    } == true),
+                    !haOriginChanges(config.haUrl, p["ha_url"]),
                 requestedPackage = dashboardPackage,
                 requestedHaUrl = p["ha_url"],
                 requestHasCredentials = p["ha_token"].orEmpty().isNotBlank() ||
@@ -373,7 +372,8 @@ internal class DirectConfigPost(
                     // the behavioural contract can prove the HA session transitions.
                     credentialsChanged = stageDirectCredentialSettings(config, postedValues).haChanged
 
-                    // Per-row "expose to HA" toggles (ha_expose_<key>=true|false) — take effect on the reconfigure.
+                    // Per-row "expose to HA" toggles (ha_expose_<key>=true|false); a sensor's pip withholds its
+                    // reading, and the reconfigure re-reports that channel.
                     for (name in p.names()) {
                         val exposed = SettingsRegistry.parseExposure(name) ?: continue
                         SettingValue.parseBool(p[name].orEmpty())?.let {

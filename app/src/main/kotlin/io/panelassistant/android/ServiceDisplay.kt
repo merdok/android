@@ -515,7 +515,10 @@ internal class ServiceDisplay(
             config().setPreventIdleDim(true)
             config().preventIdleDim && brightness.applyPreventIdleDim(true, config()).effective
         },
-    )
+    ).also {
+        // The repair may turn prevent_idle_dim on outside the dispatcher; report it now, not at the next audit.
+        runCatching { core.reconcile("prevent_idle_dim") }
+    }
 
     fun ensureScreenExitRecovery(): CompletableFuture<Boolean> {
         screenExitRecoveryOwner.get()?.let { return it }

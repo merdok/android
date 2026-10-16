@@ -281,4 +281,44 @@ internal class KioskLaneTest : PanelRuntimeRig() {
             rig.close()
         }
     }
+
+    /**
+     * The :8888 unlock stores OFF ahead of its command; if the store then refuses the handler's own write,
+     * the stored value and the lock are both OFF, so Home Assistant must be told OFF, not left showing ON.
+     */
+    @Test fun anUnlockWhoseSecondWriteIsRefusedStillReportsTheStoredOff() {
+        val armed = java.util.concurrent.atomic.AtomicBoolean(false)
+        val allowed = java.util.concurrent.atomic.AtomicInteger(0)
+        val rig = rig(
+            kioskApply = { on -> applied += on; true },
+            commitsSucceed = { !armed.get() || allowed.getAndDecrement() > 0 },
+            configure = { assertTrue(it.commitKioskLock(true)) },
+        )
+        val reported = CopyOnWriteArrayList<String>()
+        try {
+            rig.core.addStateSink { channel, observation ->
+                if (channel == "kiosk_lock" && observation is io.panelassistant.android.state.StateConverger.Observation.Known) {
+                    reported += observation.payload
+                }
+            }
+            rig.start()
+            assertTrue(kotlinx.coroutines.runBlocking { rig.core.observeForNativeHello { true } })
+            drainStatePump()
+            assertEquals("ON", reported.lastOrNull())
+
+            // The stored-ahead OFF lands; the handler's own commit is refused.
+            allowed.set(1)
+            armed.set(true)
+            escape(rig)
+            armed.set(false)
+            drainStatePump()
+
+            assertFalse(rig.config.kioskLock)
+            assertEquals(listOf(false), applied.toList())
+            assertEquals("the published lock disagrees with the stored one", "OFF", reported.lastOrNull())
+        } finally {
+            armed.set(false)
+            rig.close()
+        }
+    }
 }

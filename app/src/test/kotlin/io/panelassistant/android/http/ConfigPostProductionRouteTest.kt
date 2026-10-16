@@ -19,6 +19,8 @@ import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.haToken
 import io.panelassistant.android.haUrl
+import io.panelassistant.android.haRefreshToken
+import io.panelassistant.android.setHaRefreshToken
 import io.panelassistant.android.persistence.SqliteStatePreferences
 import io.panelassistant.android.persistence.StateMutation
 import io.panelassistant.android.persistence.StateNamespacePersistence
@@ -208,6 +210,131 @@ class ConfigPostProductionRouteTest {
             }
         }
     }
+
+    @Test fun `configure schema offers the expose pip only where hiding changes what Home Assistant receives`() =
+        withFullReadServer { _, fixture ->
+            testApplication {
+                application { fixture.mount(this) }
+                val response = client.get("/api/v1/config/schema")
+                assertEquals(HttpStatusCode.OK, response.status)
+                val entries = JSONArray(response.bodyAsText())
+                val rows = (0 until entries.length()).map(entries::getJSONObject).associateBy { it.getString("key") }
+                // These settings are Panel Assistant entities that report and take commands whatever the pip
+                // says: the exposure flag reaches neither their channel nor their descriptor. Offering the pip
+                // promises a change in Home Assistant that never happens.
+                val commandable = listOf(
+                    "auto_sleep", "navbar_mode", "wake_on_wave", "kiosk_lock",
+                    "touch_sound", "auto_brightness", "cpu_governor", "network_adb",
+                ).filter(rows::containsKey)
+                assertTrue("auto_sleep" in commandable && "touch_sound" in commandable, "commandable rows are in the schema")
+                for (key in commandable) {
+                    assertFalse(rows.getValue(key).getBoolean("ha"), "$key offers an expose pip that changes nothing")
+                }
+                // Read-only sensors keep the pip, because it withholds their reading from Home Assistant.
+                assertTrue(rows.getValue("diag_cpu").getBoolean("ha"), "a diagnostic sensor keeps its pip")
+                assertTrue(rows.getValue("illuminance").getBoolean("ha"), "a telemetry sensor keeps its pip")
+            }
+        }
+
+    /** A bundle import and a revision restore change the interface language the panel's own screens use at once. */
+    @Test fun `an imported or restored interface language applies the native locale at once`() =
+        withRouteConfig { config, _, server, _ ->
+            // The panel is running in French, as any earlier save would have left it.
+            config.setRaw(requireNotNull(SettingsRegistry.spec("ui_language")), "fr")
+            io.panelassistant.android.NativeLocale.apply("fr")
+            try {
+                testApplication {
+                    application {
+                        paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                            route("/api/v1") { with(server) { installConfigBundleRoutes() } }
+                        }
+                    }
+                    val imported = client.post("/api/v1/config/import") {
+                        header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        setBody(ConfigBundle.fromValues(mapOf("ui_language" to "de")).serialize())
+                    }
+                    assertEquals(HttpStatusCode.OK, imported.status, imported.bodyAsText())
+                    assertEquals("applied", JSONObject(imported.bodyAsText()).getString("status"))
+                    assertEquals("de", config.uiLanguage)
+                    assertEquals(
+                        "de", androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags(),
+                        "an imported language must reach the native locale, not wait for a restart",
+                    )
+
+                    val revisions = JSONArray(client.get("/api/v1/config/revisions").bodyAsText())
+                    val restored = client.post("/api/v1/config/revisions/${revisions.getJSONObject(0).getLong("id")}/restore")
+                    assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
+                    assertEquals("fr", config.uiLanguage)
+                    assertEquals(
+                        "fr", androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags(),
+                        "a restored language must reach the native locale, not wait for a restart",
+                    )
+                }
+            } finally {
+                io.panelassistant.android.NativeLocale.apply("en")
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(
+                    androidx.core.os.LocaleListCompat.getEmptyLocaleList(),
+                )
+            }
+        }
+
+    @Test fun `a lone Home Assistant address change on the built-in renderer is refused instead of signing the panel out`() =
+        withRouteConfig { config, _, server, live ->
+            assertTrue(config.applyBatch {
+                config.setDashboardPackage(SystemController.BUILTIN_DASHBOARD)
+                config.setHaConnection("http://ha.test", "signed-in-token")
+            })
+            assertEquals(Config.SecurityMode.RELAXED, config.securityMode)
+            testApplication {
+                application {
+                    paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                        route("/api/v1") { with(server) { installDirectConfigPostRoute { Capabilities() } } }
+                    }
+                }
+                val moved = client.submitForm("/api/v1/config", Parameters.build {
+                    append("ha_url", "http://ha-moved.test")
+                }) { accept(ContentType.Application.Json) }
+                assertEquals(HttpStatusCode.Conflict, moved.status, moved.bodyAsText())
+                assertEquals("ha-sign-in-required", JSONObject(moved.bodyAsText()).getString("error"))
+                assertEquals("http://ha.test", config.haUrl)
+                assertEquals("signed-in-token", config.haToken)
+                assertTrue(live.isEmpty(), "a refused save must not reconfigure the renderer")
+
+                // The same address (trailing slash only) is not an origin change and stays admissible.
+                val same = client.submitForm("/api/v1/config", Parameters.build {
+                    append("ha_url", "http://ha.test/")
+                    append("friendly_name", "Still signed in")
+                }) { accept(ContentType.Application.Json) }
+                // This rig's renderer stand-in cannot prepare the Built-in renderer, so the save answers with
+                // that effect failed; what matters is that it was admitted and committed.
+                assertTrue(same.status != HttpStatusCode.Conflict, same.bodyAsText())
+                assertEquals("Still signed in", config.friendlyName)
+                assertEquals("signed-in-token", config.haToken)
+            }
+        }
+
+    @Test fun `a first Home Assistant address keeps a credential that arrived before it`() =
+        withRouteConfig { config, _, server, _ ->
+            assertTrue(config.applyBatch {
+                config.setDashboardPackage(SystemController.BUILTIN_DASHBOARD)
+                config.setHaRefreshToken("first-refresh")
+            })
+            testApplication {
+                application {
+                    paneldRoot({ emptySet() }, { false }, { "/setup" }) {
+                        route("/api/v1") { with(server) { installDirectConfigPostRoute { Capabilities() } } }
+                    }
+                }
+                // Configure commits fields one at a time, so a token can be stored before any address.
+                val first = client.submitForm("/api/v1/config", Parameters.build {
+                    append("ha_url", "http://ha.test")
+                }) { accept(ContentType.Application.Json) }
+                // Admitted and committed (this rig's renderer stand-in fails only the Built-in renderer effect).
+                assertTrue(first.status != HttpStatusCode.Conflict, first.bodyAsText())
+                assertEquals("http://ha.test", config.haUrl)
+                assertEquals("first-refresh", config.haRefreshToken)
+            }
+        }
 
     @Test fun `full mount config reads redact secrets preserve source separation and localize schema`() =
         withFullReadServer { config, fixture ->

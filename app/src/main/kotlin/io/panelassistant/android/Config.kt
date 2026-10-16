@@ -505,6 +505,12 @@ class Config private constructor(
         edit { putString("launcher_package", pkg) }
     }
 
+    /** Hand-back: drop the tame blocklist and the launcher choice in one durable write; false publishes neither. */
+    internal fun clearHandBackDesiredState(): Boolean = applyBatch {
+        setTameVendorPackages("")
+        setLauncherPackage("")
+    }
+
     /**
      * Opt-in blocklist of intrusive vendor packages to **tame** on boot (force-stop + disable the
      * boot-relaunch + strip the floating-overlay permission). The non-empty list IS the opt-in — nothing
@@ -567,9 +573,7 @@ class Config private constructor(
     // App watchdog: poll the dashboard app and self-heal it — relaunch if its process dies, and return
     // to it if it's been backgrounded too long. Opt-in (off by default): a stock panel never auto-acts.
     val watchdogEnabled: Boolean get() = boolPref("watchdog_enabled")
-    fun setWatchdogEnabled(on: Boolean) {
-        edit { putBoolean("watchdog_enabled", on) }
-    }
+    fun commitWatchdogEnabled(on: Boolean): Boolean = commitRaw(specOf("watchdog_enabled"), on.toString())
 
     // Touch sound: an audible tap, owned as persisted intent rather than read back from the platform.
     //
@@ -595,11 +599,9 @@ class Config private constructor(
 
     // Camera trial: the master switch and the hard caps that clamp every stream/snapshot request. The
     // HTTP config route persists all five through the registry writer; only the master switch needs a
-    // typed setter.
+    // typed commit, used by the Panel Assistant command before it is acknowledged.
     val cameraEnabled: Boolean get() = boolPref("camera_enabled")
-    fun setCameraEnabled(on: Boolean) {
-        edit { putBoolean("camera_enabled", on) }
-    }
+    fun commitCameraEnabled(on: Boolean): Boolean = commitRaw(specOf("camera_enabled"), on.toString())
     val cameraResolution: CameraResolution
         get() = CameraResolution.parse(enumPref("camera_resolution")) ?: CameraResolution.P720
     val cameraFps: Int get() = intPrefInRange("camera_fps")

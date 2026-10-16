@@ -325,9 +325,10 @@
     }).catch(function () {});
   }
 
-  // Fetched once per page load; a 503 (no Home Assistant connection, or the coordinator lane not wired
-  // up yet) is remembered as false rather than retried on every render, and the picker degrades to the
-  // raw JSON textarea.
+  // Fetched once per Home Assistant connection; a 503 (no Home Assistant connection, or the coordinator
+  // lane not wired up yet) is remembered as false rather than retried on every render, and the picker
+  // degrades to the raw JSON textarea until the connection settings change (refreshDependents in
+  // configure.js fetches it again).
   function loadVoicePipelines() {
     if (cfg.voicePipelinesCatalog !== null) return;
     var request = ++cfg.voicePipelinesRequest;

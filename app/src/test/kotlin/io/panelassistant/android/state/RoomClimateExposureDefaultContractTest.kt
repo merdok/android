@@ -13,7 +13,7 @@ internal class RoomClimateExposureDefaultContractTest : PanelRuntimeRig() {
     @Test fun diagnosticAndRoomClimateRuntimeUsesRegistryExposureDefaults() {
         val rig = rig(hasCht8305 = true)
         val reported = CopyOnWriteArrayList<String>()
-        rig.core.addStateSink { channel, _ -> reported += channel }
+        rig.core.addStateSink { channel, observation -> if (observation is StateConverger.Observation.Known) reported += channel }
         fun reports(key: String): Boolean {
             reported.clear()
             rig.core.reconcile(key)

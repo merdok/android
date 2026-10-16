@@ -157,15 +157,10 @@ internal fun handBackHomeDependencies(
                 ownedMarkers = tame::ownedMarkerSnapshot,
                 packageStates = tame::handBackPackageStates,
                 homeCandidates = tame::handBackHomeCandidates,
-                clearDesiredState = {
-                    // Both keys, and before the role moves: the reconciler re-asserts the desired
-                    // blocklist on every wake, and `launcher_package` naming ha-paneld keeps the
-                    // admin-home repair tick putting the role straight back.
-                    runCatching {
-                        config.setTameVendorPackages("")
-                        config.setLauncherPackage("")
-                    }.isSuccess
-                },
+                // Both keys, before the role moves: the reconciler re-asserts the desired blocklist on
+                // every wake, and `launcher_package` naming ha-paneld keeps the admin-home repair tick
+                // putting the role straight back.
+                clearDesiredState = config::clearHandBackDesiredState,
                 restoreOwned = tame::restoreEveryOwnedPackage,
                 enable = tame::adoptAndEnable,
                 setHome = setHome,

@@ -142,4 +142,20 @@ internal class CommandDoorsTest : PanelRuntimeRig() {
         override fun restore(state: TouchSoundState) = ControlApplyOutcome.APPLIED
         override fun disableConservatively() = ControlApplyOutcome.APPLIED
     }
+
+    /**
+     * A watchdog change Panel Assistant sends must be durable before the panel answers applied, as the HTTP
+     * door already requires: a store that cannot persist it fails the command and leaves the setting where it was.
+     */
+    @Test fun aWatchdogChangeThatCannotBePersistedIsNotAnsweredApplied() {
+        val durable = java.util.concurrent.atomic.AtomicBoolean(true)
+        val rig = rig(deviceSecure = false, commitsSucceed = durable::get).also { it.start(); rigs += it }
+        assertFalse(rig.config.watchdogEnabled)
+
+        durable.set(false)
+        val result = submitNative(rig, "watchdog", "ON")
+        durable.set(true)
+        assertTrue("$result", result is PanelAssistantCommandResult.Failed)
+        assertFalse("an unpersisted watchdog change was reported as the panel's setting", rig.config.watchdogEnabled)
+    }
 }

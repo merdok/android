@@ -177,3 +177,59 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     assert.deepEqual(posts, [{ download: 'nocturna' }, { download: 'hey_donut' }]);
   });
 }
+
+for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
+  browserTest(`Configure fetches the pipeline list again once Home Assistant is connected after it was unavailable in ${engine}`, async (t) => {
+    // The pipeline list comes from Home Assistant. Opened before the panel was signed in, the page is told
+    // the list is unavailable; signing in (here on the panel, delivered through the live config watch)
+    // must bring the picker, not leave "Pipeline list unavailable" until the page is reloaded.
+    let haReady = false;
+    let pipelineReads = 0;
+    const schema = [
+      { key: 'voice_enabled', label: 'Voice assistant', group: 'Voice', type: 'BOOL', available: true },
+      { key: 'voice_wake_words', label: 'Wake words', group: 'Voice', type: 'STRING', picker: 'voice_wake_words', available: true },
+      { key: 'voice_pipelines', label: 'Wake word pipelines', group: 'Voice', type: 'STRING', picker: 'voice_pipelines', available: true },
+    ];
+    const config = () => ({
+      settings: { voice_enabled: 'true', voice_wake_words: '["okay_nabu"]', voice_pipelines: '{}', ha_url: haReady ? 'http://ha.test:8123' : '' },
+      ha_expose: {}, ha_auth: { configured: haReady },
+    });
+    const harness = await startHarness(async (path, request) => {
+      if (path === '/api/v1/config/schema') return json(schema);
+      if (path === '/api/v1/config' || path === '/api/v1/config/values') {
+        if (request.method === 'POST') return json({});
+        return json(config());
+      }
+      if (path === '/api/v1/voice/pipelines') {
+        pipelineReads++;
+        return haReady
+          ? json({ pipelines: [{ id: 'p1', name: 'Kitchen' }] })
+          : json({ error: 'unavailable', reason: 'Home Assistant is not connected' }, 503);
+      }
+      if (path === '/api/v1/voice/wake-words') return json({ wake_words: [{ id: 'okay_nabu', wake_word: 'Okay Nabu', imported: false }] });
+      if (path === '/api/v1/ha/oauth/status') return json({ phase: 'connected', display_name: 'Owner' });
+      if (path === '/api/v1/apps') return json({ apps: [] });
+      if (path === '/api/v1/radio') return json({ present: false });
+      if (path === '/api/v1/proximity') return json({ present: false });
+      if (path === '/health') return { body: 'ok cfg=test' };
+    });
+    const browser = await launcher.launch({ executablePath: engine === 'Chromium' ? chrome : undefined, headless: true });
+    const page = await browser.newPage();
+    page.setDefaultTimeout(1_500);
+    t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+    await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+
+    await assert.doesNotReject(page.locator('.voice-pipelines-picker small', { hasText: 'Pipeline list unavailable' }).waitFor());
+    // Repeat renders may send more than one read before the first refusal lands.
+    const readsWhileUnavailable = pipelineReads;
+    assert.ok(readsWhileUnavailable >= 1);
+
+    haReady = true;
+    // The config watch polls at a 500 ms floor; allow a few rounds.
+    const select = page.locator('.voice-pipeline-row select');
+    await assert.doesNotReject(select.waitFor({ timeout: 5_000 }));
+    assert.deepEqual(await select.locator('option').allTextContents(), ['Preferred pipeline', 'Kitchen']);
+    assert.equal(await page.locator('.voice-pipelines-picker small', { hasText: 'Pipeline list unavailable' }).count(), 0);
+    assert.ok(pipelineReads > readsWhileUnavailable);
+  });
+}

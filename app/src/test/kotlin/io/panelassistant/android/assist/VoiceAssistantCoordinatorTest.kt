@@ -134,11 +134,12 @@ class VoiceAssistantCoordinatorTest {
         maxTurns: Int = 5,
         on: CoroutineScope = scope,
         runner: () -> AssistRunner = { ScriptedRunner().also(runners::add) },
+        from: () -> MicrophoneSource = { sourceRequests += 1; source },
     ) = VoiceAssistantCoordinator(
         scope = on,
         settings = { settings },
         microphone = { presence },
-        source = { sourceRequests += 1; source },
+        source = from,
         engineFactory = engineFactory,
         runnerFactory = runner,
         playback = playback,
@@ -151,6 +152,41 @@ class VoiceAssistantCoordinatorTest {
         checkTimeoutMs = checkTimeoutMs,
         muted = { muteReader?.muted ?: muted },
     )
+
+    @Test
+    fun `an audio source change made while the camera streams applies once the camera lets go`() {
+        var setting = "voice_recognition"
+        val built = CopyOnWriteArrayList<Pair<Int, FakeMicrophoneSource>>()
+        lateinit var c: VoiceAssistantCoordinator
+        val shared = ConfiguredMicrophoneSource(
+            audioSource = { setting },
+            build = { kind -> FakeMicrophoneSource().also { built += kind to it } },
+            scope = scope,
+            onFree = { c.start() },
+        )
+        c = coordinator(from = shared::get)
+        c.start()
+        val first = built.single().second
+        assertEquals(listOf(MicPurpose.WAKE_WORD), first.activeLeases.map { it.purpose })
+
+        // The camera streams room audio from the same shared microphone.
+        val camera = shared.get().lease(MicPurpose.STREAM, consumer = object : PcmConsumer {
+            override fun onFrame(frame: PcmFrame) {}
+        })
+        // The owner picks another audio source; the voice_* listener re-arms the assistant.
+        setting = "mic"
+        c.start()
+        // The camera is not interrupted by the change...
+        assertTrue("the live stream keeps its capture", camera.active)
+
+        // ...and once it stops, the panel listens through the source the owner chose.
+        camera.close()
+        settleUntil { built.size == 2 && built[1].second.activeLeases.isNotEmpty() }
+        assertEquals("the chosen audio source is built", 2, built.size)
+        assertEquals(ConfiguredMicrophoneSource.audioSourceFor("mic"), built[1].first)
+        assertEquals(listOf(MicPurpose.WAKE_WORD), built[1].second.activeLeases.map { it.purpose })
+        assertTrue("nothing still listens through the old source", first.activeLeases.isEmpty())
+    }
 
     @After
     fun tearDown() {

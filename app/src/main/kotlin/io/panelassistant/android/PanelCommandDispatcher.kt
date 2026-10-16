@@ -446,7 +446,7 @@ internal class PanelCommandDispatcher(
     override fun handleWakeOnWave(on: Boolean) {
         if (!hasProximity) {
             Log.w(TAG, "ignoring wake_on_wave command without a proximity source")
-            return
+            throw LiveSettingUnavailableException("wake_on_wave")
         }
         config.setWakeOnWave(on)
         core.reconcile("wake_on_wave")
@@ -477,9 +477,18 @@ internal class PanelCommandDispatcher(
                 "Disable the panel's native screen-timeout guard from Home Assistant",
             )
         }
-        config.setPreventIdleDim(on)
-        brightness.applyPreventIdleDim(on, config)
+        check(config.commitRaw(config.specOf("prevent_idle_dim"), on.toString())) {
+            "prevent_idle_dim intent could not be persisted"
+        }
+        // Durable from here: a failed actuation below must still retire an older queued HTTP value (as touch_sound).
+        externalIntentCommitted.set("prevent_idle_dim")
+        val timeout = brightness.applyPreventIdleDim(on, config)
         core.reconcile("prevent_idle_dim")
+        if (!timeout.effective) {
+            // observedMs < 0: WRITE_SETTINGS denied or the setting is unreadable, so there is no path.
+            if (timeout.observedMs < 0) throw LiveSettingUnavailableException("prevent_idle_dim")
+            error("screen timeout is ${timeout.observedMs}, not ${timeout.targetMs}")
+        }
     }
 
     override fun handleTouchSound(on: Boolean) {
@@ -497,7 +506,7 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleWatchdog(on: Boolean) {
-        config.setWatchdogEnabled(on)
+        check(config.commitWatchdogEnabled(on)) { "watchdog intent could not be persisted" }
         watchdog.apply(on)
         core.reconcile("watchdog")
     }
@@ -550,14 +559,18 @@ internal class PanelCommandDispatcher(
                 always = true,
             )
         }
-        config.setCameraEnabled(on)
+        check(config.commitCameraEnabled(on)) { "camera switch could not be persisted" }
         // The same actuation the HTTP reconfigure path performs, so both routes converge on one owner.
         onCameraEnabledChanged()
         core.reconcile("camera_enabled")
     }
 
     override fun handleSilenceBootChime(on: Boolean) {
-        requireControlApplied("silence_boot_chime", bootChime.apply(on)) { "boot chime transition failed" }
+        val outcome = bootChime.apply(on)
+        // ON is persisted before the hardware write, so once durable it is newer truth than any queued HTTP
+        // value, even when the write fails (as touch_sound).
+        if (bootChime.isEnabled() == on) externalIntentCommitted.set("silence_boot_chime")
+        requireControlApplied("silence_boot_chime", outcome) { "boot chime transition failed" }
         core.reconcile("silence_boot_chime")
     }
 
@@ -710,7 +723,7 @@ internal class PanelCommandDispatcher(
         if (on && config.hardenedSecurityEnabled) {
             throw HardenedModeRefusalException("network ADB cannot be enabled while Hardened mode is active")
         }
-        check(adb.set(on)) { "network adb transition failed" }
+        requireControlApplied("network_adb", adb.set(on)) { "network adb transition failed" }
         core.reconcile("network_adb")
     }
 
@@ -1275,7 +1288,9 @@ internal fun applyAcknowledgedKioskSetting(
         // OFF is fail-safe: persistence failure must never prevent local/persistent cleanup.
         val persisted = runCatching { persist(false) }.getOrDefault(false)
         runCatching { actuate(false) }
-        if (!persisted) return false
+        // Report whatever is stored now: an OFF stored ahead of this command may have landed even if this write did not.
+        runCatching(reconcile)
+        return persisted
     }
     runCatching(reconcile)
     return true

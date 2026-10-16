@@ -104,7 +104,7 @@ class StateConverger {
     fun keys(): Set<String> = channels.keys.toSet()
 
     companion object {
-        /** Protocol §7 channel identity; a colon can never appear, so `http:<key>` keys cannot collide. */
+        /** Protocol §7 channel identity: a lowercase letter, then up to 47 lowercase letters, digits or underscores. */
         val CHANNEL_ID = Regex("^[a-z][a-z0-9_]{0,47}$")
         private val ALWAYS_ADMIT: () -> Boolean = { true }
         private val pumpThread = java.util.concurrent.atomic.AtomicReference<Thread>()

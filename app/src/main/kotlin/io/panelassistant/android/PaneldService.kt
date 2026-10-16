@@ -1140,6 +1140,7 @@ class PaneldService : Service() {
                     ownerRefresh = ownerRefresh,
                     resolveHaLink = desired.haLink != appliedNetworkConfiguration.haLink,
                     cost = operationCost,
+                    changedKeys = changedKeys,
                 )
                 obligationsCompleted = true
                 return
@@ -1183,6 +1184,7 @@ class PaneldService : Service() {
                         ownerRefresh = ownerRefresh,
                         resolveHaLink = false,
                         cost = operationCost,
+                        changedKeys = changedKeys,
                     )
                     Log.i(TAG, "reconfigured: panel=${desired.runtime.panelId}")
                 },
@@ -1276,6 +1278,7 @@ class PaneldService : Service() {
         ownerRefresh: ConfigOwnerRefreshPlan,
         resolveHaLink: Boolean,
         cost: io.panelassistant.android.metrics.FeatureCostRegistry.Span,
+        changedKeys: Set<String>,
     ) {
         if (resolveHaLink) {
             core.maybeResolveHaLink()
@@ -1293,6 +1296,7 @@ class PaneldService : Service() {
         // A camera switch moved on the Configure page, by a bundle import or by provisioning must reach
         // Home Assistant too; otherwise its switch keeps a position the panel has already left.
         if (ownerRefresh.camera) runCatching { core.publishCameraState() }
+        runCatching { core.publishExposureChanges(changedKeys) }
     }
 
     /** Controller reads shared by the dashboard facts, live values and capability projection. */

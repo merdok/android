@@ -102,4 +102,29 @@ internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
         )
         assertEquals(PanelAssistantCommandResult.Failed("failed"), panelAssistantCommandResult(IllegalStateException("x")))
     }
+
+    /** A camera switch the store could not make durable is not answered applied, and the panel keeps reporting what it stored. */
+    @Test fun aCameraSwitchThatCouldNotBeStoredIsNotReportedApplied() {
+        val commits = java.util.concurrent.atomic.AtomicBoolean(true)
+        val rig = rig(
+            hasCamera = true,
+            commitsSucceed = commits::get,
+            configure = { it.setRaw(requireNotNull(io.panelassistant.android.config.SettingsRegistry.spec("camera_enabled")), "true") },
+        )
+        try {
+            rig.start()
+            assertTrue(rig.config.cameraEnabled)
+
+            // Turning the camera off needs no approval. The store refuses the durable write.
+            commits.set(false)
+            val result = submitNative(rig, "camera_enabled", "OFF")
+            commits.set(true)
+            assertTrue("an unstored switch is not answered applied: $result", result is PanelAssistantCommandResult.Failed)
+            assertTrue("the panel still reports what it has stored", rig.config.cameraEnabled)
+
+            // Once storage works, the same command applies and stays applied.
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "camera_enabled", "OFF"))
+            assertFalse(rig.config.cameraEnabled)
+        } finally { commits.set(true); rig.close() }
+    }
 }
