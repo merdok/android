@@ -712,7 +712,7 @@ internal class PanelCommandDispatcher(
         if (on && config.hardenedSecurityEnabled) {
             throw HardenedModeRefusalException("network ADB cannot be enabled while Hardened mode is active")
         }
-        check(adb.set(on)) { "network adb transition failed" }
+        requireControlApplied("network_adb", adb.set(on)) { "network adb transition failed" }
         core.reconcile("network_adb")
     }
 

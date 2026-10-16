@@ -100,18 +100,23 @@ class AdbController internal constructor(
      * intent + brings adb up. OFF clears the intent, and only tears adb down if ha-paneld was the one
      * persisting it — an adb port another mechanism opened is left running.
      */
-    fun set(on: Boolean): Boolean = RemoteDebugSecurityTransitionGate.mutate {
+    internal fun set(on: Boolean): ControlApplyOutcome = RemoteDebugSecurityTransitionGate.mutate {
         if (on) {
             // A marker is a durable OFF instruction, including when its contents are corrupt. Never
             // convert an interrupted teardown into TCP enablement merely because config ownership is
             // still true from the pre-teardown state.
-            if (disableMarker.isPending()) return@mutate false
+            if (disableMarker.isPending()) return@mutate ControlApplyOutcome.FAILED
             // Without root the app cannot open the port, so recording the intent would leave a switch
             // that reads ON over a port the app never owned (and, before OFF learned the same rule, one
-            // it could not turn off).
-            if (!available()) return@mutate false
-            if (!config.setNetworkAdbEnabled(true)) return@mutate false
-            return@mutate apply()
+            // it could not turn off). Only a root process that could not even start is a missing path; a
+            // root manager that said no can say yes later.
+            when (root.runClassified("true")) {
+                RootRunOutcome.NO_LAUNCH -> return@mutate ControlApplyOutcome.UNAVAILABLE
+                RootRunOutcome.RAN_FAILED -> return@mutate ControlApplyOutcome.FAILED
+                RootRunOutcome.RAN_OK -> Unit
+            }
+            if (!config.setNetworkAdbEnabled(true)) return@mutate ControlApplyOutcome.FAILED
+            return@mutate if (apply()) ControlApplyOutcome.APPLIED else ControlApplyOutcome.FAILED
         }
         // This switch is also the explicit admission control for the built-in renderer's DevTools
         // socket. Closing the global WebView debugging surface before the potentially slow root teardown
@@ -119,7 +124,7 @@ class AdbController internal constructor(
         closeWebViewDebugging()
         val complete = completeDisableTransition()
         if (complete) resealHardenedAuthorityIfExact()
-        complete
+        if (complete) ControlApplyOutcome.APPLIED else ControlApplyOutcome.FAILED
     }
 
     /**
