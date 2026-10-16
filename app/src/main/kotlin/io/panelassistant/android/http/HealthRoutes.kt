@@ -49,15 +49,15 @@ internal fun Route.migrationNoticeRoute(config: Config) = ops {
 
 /**
  * The lifecycle suffix on `/health`. Appended rather than given its own endpoint because every page
- * already polls `/health` every ten seconds through `buildwatch.js`, so this needs no new route and
- * no second poll loop. Absent entirely when the panel is not watching, which keeps the line unchanged
+ * already reads `/health` through `buildwatch.js`'s `health` subscription (its cadence is the `health`
+ * family in ManageFamilies), so this needs no new route and no second loop. Absent entirely when the panel is not watching, which keeps the line unchanged
  * for every existing consumer.
  */
 private fun haLifecycleHealthToken(): String =
     haLifecycleHealthToken(HaLifecycleRuntime.watching, HaLifecycleRuntime.snapshot())
 
 /**
- * The network-path tokens ride the same `/health` line and the same ten-second poll as the
+ * The network-path tokens ride the same `/health` line and the same `health` subscription as the
  * lifecycle token, so the banner, the diagnostics row and the native chip all render one
  * observation. Empty while no service owns the monitor or no socket is held.
  */

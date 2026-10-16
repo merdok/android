@@ -92,7 +92,8 @@ internal class DashboardRows(
 
     // The lifecycle state changes DURING an outage, so this row is rendered from the live
     // snapshot rather than the stale-while-revalidate facts cache AND is then kept current by
-    // the same ten-second `/health` poll that drives the banner — one observation feeding every
+    // the same `/health` subscription (buildwatch.js, the `health` family in ManageFamilies) that
+    // drives the banner — one observation feeding every
     // lifecycle surface. A server-rendered advisory banner used to sit alongside it; it was
     // DELETED rather than synchronised, because a one-shot render cannot retract itself and left
     // an outage warning on screen after recovery.
