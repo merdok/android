@@ -103,6 +103,20 @@ class ConfirmedSelfInstallerTest {
         )
     }
 
+    @Test fun aSuccessThatCannotBeVerifiedIsNotASuccess() = runTest {
+        // The installed-version lookup can throw (package manager unavailable); that is not proof of success.
+        val outcome = ConfirmedSelfInstaller.follow(
+            reports(SessionReport(PackageInstaller.STATUS_SUCCESS, null)),
+            showConfirmation = { true },
+            onAwaitingConfirmation = {},
+            successConfirmed = { throw IllegalStateException("package lookup failed") },
+        )
+        assertEquals(
+            "install reported success but the new version is not installed",
+            (outcome as? InstallOutcome.Retryable)?.message,
+        )
+    }
+
     @Test fun aConfirmationOpensOnlyASystemApp() {
         assertTrue(ConfirmedSelfInstaller.mayShowConfirmation(android.content.pm.ApplicationInfo.FLAG_SYSTEM))
         assertEquals(false, ConfirmedSelfInstaller.mayShowConfirmation(0))

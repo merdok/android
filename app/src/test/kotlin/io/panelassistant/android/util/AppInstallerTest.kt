@@ -64,7 +64,7 @@ class AppInstallerTest {
         assertEquals("candidate cannot speak to the running Panel Assistant", refusal(range = 4..5))
         assertEquals("Panel Assistant update policy permits stable builds only", refusal("1.1.0-rc1"))
         assertEquals("panel-app downgrades are not permitted", refusal(code = 99))
-        assertEquals("candidate version ordering could not be proven", refusal(code = 0))
+        assertEquals("panel-app downgrades are not permitted", refusal(code = 0))
     }
 
     @Test fun buildNumberAloneOrdersPanelUpdatesWhateverTheVersionName() {
@@ -213,7 +213,7 @@ class AppInstallerTest {
         }
 
         assertEquals("unreadable candidate APK", unreadable)
-        assertEquals("prepared candidate is not the running package", wrong)
+        assertEquals("candidate is not the running package", wrong)
         assertFalse("neither invalid identity may reach database admission", compatibilityConsulted)
     }
 

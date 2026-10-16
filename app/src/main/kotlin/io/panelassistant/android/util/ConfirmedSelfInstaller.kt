@@ -226,11 +226,9 @@ internal object ConfirmedSelfInstaller {
                 onAwaitingConfirmation = onAwaitingConfirmation,
                 successConfirmed = {
                     @Suppress("DEPRECATION")
-                    val installed = runCatching {
-                        context.packageManager.getPackageInfo(context.packageName, 0).let {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.longVersionCode else it.versionCode.toLong()
-                        }
-                    }.getOrNull()
+                    val installed = context.packageManager.getPackageInfo(context.packageName, 0).let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.longVersionCode else it.versionCode.toLong()
+                    }
                     installedAtLeast(installed, expectedVersionCode)
                 },
             )

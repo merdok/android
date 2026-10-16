@@ -380,7 +380,6 @@ object AppInstaller {
         if (range.first > policy.protocolMax || range.last < policy.protocolMin) {
             return "candidate cannot speak to the running Panel Assistant"
         }
-        if (candidateCode <= 0L) return "candidate version ordering could not be proven"
         if (!policy.prerelease && candidateVersion.contains('-')) {
             return "Panel Assistant update policy permits stable builds only"
         }
@@ -503,7 +502,6 @@ object AppInstaller {
                 info.versionCode, currentCode)?.let { return it }
         }
         if (admittedBoundary != null) {
-            if (info.pkg != runningPackage) return "prepared candidate is not the running package"
             return preparedSelfReplacementRefusal(
                 info,
                 admittedBoundary,
