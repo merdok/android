@@ -1562,6 +1562,33 @@ browserTest('Keyboard activation opens the overlay without injecting a tap', asy
   assert.equal(calls.filter((call) => call.path === '/api/v1/input').length, 0);
 });
 
+// In the sidebar the page has no cached image URL it can load itself (only the transport reaches the panel), so
+// the last capture must come through the transport, or a failed or slow live capture leaves the card empty.
+browserTest('In the sidebar a failed live capture still shows the last capture', async (t) => {
+  const id = 'c'.repeat(64);
+  const calls = [];
+  const harness = await startHarness(screenshotRoutes({
+    calls,
+    screenshot: (path, request) => (new URL(request.url, 'http://panel.test').searchParams.get('cached') === id
+      ? { status: 200, headers: { 'content-type': 'image/png' }, body: initialScreenshot }
+      : { status: 503, headers: { 'content-type': 'text/plain' }, body: 'screenshot-unavailable\n' }),
+  }), () => screenshotFixture()
+    .replace('<body data-hardened="0">', '<body data-hardened="0" data-hydrate="1" data-ui-relay><div id="bannerzone"></div>')
+    .replace('<img src="/initial.png" ', '<img '));
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(3_000);
+  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+  await page.route('**/api/v1/info*', (route) => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ banners: '', cards: {}, controls: '', shot: true, shotCached: `api/v1/screenshot.png?cached=${id}` }) }));
+  await page.goto(harness.url, { waitUntil: 'load', timeout: 5_000 });
+  await page.waitForFunction(() => {
+    const shot = document.querySelector('#shotcard .shot'), image = shot && shot.querySelector('img');
+    return !!(shot && shot.classList.contains('loaded') && image.complete && image.naturalWidth > 0);
+  });
+  assert.ok(calls.some((call) => call.path === '/api/v1/screenshot.png'), 'a live capture was asked for too');
+});
+
 browserTest('Missing, modified and unsupported screenshot activations retain the ordinary link', async (t) => {
   const calls = [];
   const harness = await startHarness(screenshotRoutes({ calls }), () => screenshotFixture({ supported: false }));

@@ -598,8 +598,25 @@ function refreshScreenshot(card){
 }
 function showAndRefreshScreenshot(card,cachedUrl){
  var im=card&&card.querySelector('img');if(!im)return;
- if(!im.getAttribute('src')&&cachedUrl&&!document.body.hasAttribute('data-ui-relay'))im.src=cachedUrl;
+ if(!im.getAttribute('src')&&cachedUrl){if(document.body.hasAttribute('data-ui-relay'))showCachedScreenshot(card,cachedUrl);else im.src=cachedUrl;}
  card.style.display='';refreshScreenshot(card);scheduleDashboardColumnAlignment();
+}
+// In the sidebar only the transport reaches the panel, so the last capture comes through it, by its id, as the
+// placeholder the LAN page shows from its URL: a live capture that fails or is slow then leaves it in place.
+function showCachedScreenshot(card,cachedUrl){
+ var id=/[?&]cached=([0-9a-f]{64})/.exec(cachedUrl),state=screenshotState(card),sc=card.querySelector('.shot'),im=sc&&sc.querySelector('img');
+ if(!id||!im)return;
+ PT.request('screenshot',{cached:id[1]}).then(function(r){
+  if(r.outcome!=='applied'||!(r.result instanceof Blob)||state.objectUrl)return;
+  var url=URL.createObjectURL(r.result),next=new Image();
+  next.onload=function(){
+   // A live capture that arrived first is newer: it stays.
+   if(state.objectUrl){URL.revokeObjectURL(url);return;}
+   state.objectUrl=url;
+   im.onload=function(){sc.classList.remove('failed');sc.classList.add('loaded');};im.src=url;
+  };
+  next.onerror=function(){URL.revokeObjectURL(url);};next.src=url;
+ }).catch(function(){});
 }
 
 // The loaded screenshot opens in a native modal dialog. The original anchor remains the deliberately
