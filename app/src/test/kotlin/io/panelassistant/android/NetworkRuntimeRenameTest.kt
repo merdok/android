@@ -1,10 +1,13 @@
 package io.panelassistant.android
 
 import android.content.ContextWrapper
+import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.util.LatestOperationPolicy
 import io.panelassistant.android.util.LatestOperationTimeoutPolicy
 import io.panelassistant.android.util.RetirableMutationGate
 import io.panelassistant.android.util.ServiceRuntimeOwner
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
@@ -18,7 +21,7 @@ import org.junit.Test
  * starts keeps the running state core and command dispatcher, so nothing queued is cancelled and no
  * state is restored or reported again; only the advertiser is replaced with the new name.
  */
-class NetworkRuntimeRenameTest {
+internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.PanelRuntimeRig() {
     @Test fun aRenamedPanelKeepsItsStateCoreAndDispatcherAndAdvertisesTheNewName() {
         val prefs = fakePreferences(mapOf("panel_id" to PANEL, "friendly_name" to "Old name"))
         val config = Config(prefs.instance)
@@ -76,6 +79,85 @@ class NetworkRuntimeRenameTest {
         } finally {
             owner.shutdown(5_000L) {}
         }
+    }
+
+    /**
+     * Hiding a sensor with its exposure pip on the Configure page must reach Panel Assistant: the reconfigure
+     * the config route requests re-reports the channel, now unavailable, so Home Assistant stops showing the
+     * value it last received.
+     */
+    @Test fun hidingASensorOnTheConfigurePageReportsItUnavailableToPanelAssistant() {
+        val rig = rig(configure = {
+            it.setRaw(requireNotNull(SettingsRegistry.spec("panel_id")), "exposure-test")
+            it.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Exposure test")
+        })
+        // A diagnostic count and room readings, each delivered through its own production path.
+        val channels = listOf("diag_wifi_outages_24h", "illuminance", "temperature", "humidity")
+        val seen = channels.associateWith { CopyOnWriteArrayList<StateConverger.Observation.Reportable>() }
+        rig.core.addStateSink { key, observation -> seen[key]?.add(observation) }
+        val service = PaneldService()
+        fenceProcessExit(service)
+        setField(service, "config", rig.config)
+        setField(service, "liveSettingAuthority", LiveSettingAuthority(emptySet(), bootIdentity = { "boot" }))
+        setField(service, "appliedNetworkConfiguration", call(service, "currentNetworkConfigurationSnapshot"))
+        val owner = runtimeOwner(service, rig.core, rig.commands, rig.config)
+        try {
+            assertTrue(owner.start {}.get(5, TimeUnit.SECONDS))
+            rig.core.reconcile("diag_wifi_outages_24h")
+            rig.core.publishLight(42)
+            rig.core.publishTemperature(21.5f)
+            rig.core.publishHumidity(40f)
+            for (channel in channels) {
+                assertTrue("while exposed $channel is reported", seen.getValue(channel).lastOrNull() is StateConverger.Observation.Known)
+            }
+
+            // What the exposure pips commit, then the reconfigure DirectConfigPost requests for the applied keys.
+            channels.forEach { rig.config.setHaExposed(it, false) }
+            PaneldService::class.java.getDeclaredMethod(
+                "enqueueReconfigure", Set::class.java, Boolean::class.javaPrimitiveType,
+            ).apply { isAccessible = true }.invoke(service, channels.map { "ha_expose_$it" }.toSet(), true)
+
+            awaitCondition {
+                drainStatePump()
+                channels.all { seen.getValue(it).lastOrNull() == StateConverger.Observation.Unavailable }
+            }
+            assertEquals(
+                "Panel Assistant must learn each hidden sensor is unavailable, not keep its last value",
+                channels.associateWith { StateConverger.Observation.Unavailable },
+                channels.associateWith { seen.getValue(it).lastOrNull() },
+            )
+        } finally {
+            owner.shutdown(5_000L) {}
+            rig.close()
+        }
+    }
+
+    /** The service's runtime owner around [core] and [commands], running the real Configure-page reconfigure. */
+    private fun runtimeOwner(
+        service: PaneldService,
+        core: PanelStateCore,
+        commands: PanelCommandDispatcher,
+        config: Config,
+    ): ServiceRuntimeOwner<PaneldService.NetworkRuntime> {
+        val reconfigure = PaneldService::class.java.getDeclaredMethod(
+            "performNetworkReconfigure", ServiceRuntimeOwner.LatestMutation::class.java,
+        ).apply { isAccessible = true }
+        val owner = ServiceRuntimeOwner<PaneldService.NetworkRuntime>(
+            initial = PaneldService.NetworkRuntime(
+                core, commands,
+                MdnsAdvertiser(ContextWrapper(null), config, acquireMulticastLock = { {} }, discoveryId = { null }),
+            ),
+            threadName = "exposure-test-runtime",
+            latestOperation = LatestOperationPolicy(
+                timeout = LatestOperationTimeoutPolicy(
+                    budgetMs = 30_000L, schedule = { _, _ -> true }, cancel = {}, onTimeout = {},
+                ),
+                operation = { reconfigure.invoke(service, this) },
+            ),
+        )
+        setField(service, "runtime", owner)
+        setField(service, "mdnsRuntimeReconciler", MdnsRuntimeReconciler(owner) { _, _ -> })
+        return owner
     }
 
     /** A state core with nothing registered and no Home Assistant address, so a link resolve returns at once. */
