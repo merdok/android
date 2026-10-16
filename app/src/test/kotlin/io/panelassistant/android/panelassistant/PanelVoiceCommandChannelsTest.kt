@@ -43,6 +43,19 @@ internal class PanelVoiceCommandChannelsTest : PanelRuntimeRig() {
         } finally { rig.close() }
     }
 
+    @Test fun aLauncherStartTheHelperRefusesIsReportedAsFailed() {
+        val daemon = FakeDaemon(replies = mapOf("START ${launcher.component}" to "BUSY"))
+        val rig = rig(systemDaemon = daemon, systemEnv = env())
+        try {
+            rig.start()
+            assertEquals(
+                PanelAssistantCommandResult.Failed("hardware_unavailable"),
+                submitNative(rig, "launcher", "PRESS"),
+            )
+            assertEquals(listOf("START ${launcher.component}"), daemon.sent.filter { it.startsWith("START") })
+        } finally { rig.close() }
+    }
+
     @Test fun kioskLockKeepsThePanelOnItsDashboard() {
         val daemon = FakeDaemon(replies = mapOf("START $settings" to "OK", "START ${launcher.component}" to "OK"))
         val rig = rig(systemDaemon = daemon, systemEnv = env(), configure = { it.commitKioskLock(true) })

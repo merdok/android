@@ -215,14 +215,13 @@ class SystemController(
      * pseudo-launcher may be tamed/absent), falls back to our own admin launcher so the Launcher
      * key always lands somewhere; a stale configured package degrades the same way.
      */
-    fun launchLauncher(configuredPkg: String) {
+    fun launchLauncher(configuredPkg: String): Boolean {
         val ri = pickLauncher(configuredPkg)
         if (ri == null) {
             Log.i(TAG, "launcher: none resolvable — opening the admin launcher")
-            launchAdminLauncher()
-            return
+            return launchAdminLauncher()
         }
-        launchComponent(ri.component, "launcher")
+        return launchComponent(ri.component, "launcher")
     }
 
     /** Open Android's Settings app through the same foreground start as the launcher; false when the
@@ -268,9 +267,7 @@ class SystemController(
      * the navbar Launcher button — replaces landing on the vendor pseudo-launcher. Reached by explicit
      * component, so it works even when no other launcher is installed.
      */
-    fun launchAdminLauncher() {
-        launchComponent(adminLauncherActivity().component, "admin launcher")
-    }
+    fun launchAdminLauncher(): Boolean = launchComponent(adminLauncherActivity().component, "admin launcher")
 
     /** True when Launcher app explicitly selects ha-paneld's panel-admin app drawer. */
     fun isAdminLauncherSelection(configuredPkg: String): Boolean = configuredPkg == env.ownPackage
