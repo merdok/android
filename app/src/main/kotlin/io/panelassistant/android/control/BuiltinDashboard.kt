@@ -17,9 +17,14 @@ object BuiltinDashboard {
     private var nextActivityOwner = 0L
     @Volatile private var activityOwner = 0L
 
-    @Synchronized fun acquireActivityOwner(): Long {
+    /** Whether the newest activity came from a HOME intent, so Android keeps it in the HOME task. */
+    @Volatile var ownerLaunchedAsHome = false
+        private set
+
+    @Synchronized fun acquireActivityOwner(launchedAsHome: Boolean = false): Long {
         val owner = ++nextActivityOwner
         activityOwner = owner
+        ownerLaunchedAsHome = launchedAsHome
         authLatched = false
         pendingSettings = null
         return owner

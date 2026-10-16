@@ -142,8 +142,22 @@ class SystemController(
             Log.w(TAG, "builtin renderer crash-latched — refusing automatic relaunch (explicit reload clears it)")
             return false
         }
+        if (builtinInHomeTask() && env.startHome()) {
+            Log.i(TAG, "builtin dashboard -> HOME")
+            return true
+        }
         return launchComponent(AppIdentity.component(env.ownPackage, ".DashboardActivity"), "builtin dashboard")
     }
+
+    /** True while the built-in dashboard lives in Android's HOME task: its activity came from a HOME intent
+     *  and it is still the default HOME. Only a HOME intent reaches that task; a component-explicit start
+     *  opens a second dashboard in a task of its own above it, which stays on "Preparing dashboard…"
+     *  because the renderer belongs to the first. */
+    fun builtinInHomeTask(): Boolean =
+        BuiltinDashboard.ownerLaunchedAsHome && isOwnDashboard(env.defaultHome())
+
+    private fun isOwnDashboard(activity: ActivityRef?): Boolean =
+        activity?.pkg == env.ownPackage && activity.cls.endsWith("DashboardActivity")
 
     /** Configured dashboard package, or the automatic built-in renderer for a blank selection. The
      * sentinel [BUILTIN_DASHBOARD] passes through unchanged. A corrupt non-blank stored value remains
@@ -393,7 +407,7 @@ class SystemController(
      *  from it). A genuinely
      *  third-party launcher the user chose is still left alone. */
     private fun ensureBuiltinHome() {
-        val comp = env.homeActivities().firstOrNull { it.pkg == env.ownPackage && it.cls.endsWith("DashboardActivity") }?.component
+        val comp = env.homeActivities().firstOrNull(::isOwnDashboard)?.component
         if (comp == null) { Log.w(TAG, "ensureHome(builtin): DashboardActivity has no HOME activity"); return }
         val current = env.defaultHome()
         if (current?.component == comp) return                           // already correct

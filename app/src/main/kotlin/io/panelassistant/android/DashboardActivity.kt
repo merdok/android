@@ -389,8 +389,11 @@ class DashboardActivity : AppCompatActivity() {
         })
         // Android 14's HOME role resolves at package granularity when one package exposes multiple HOME
         // activities: set-home-activity can report success for AdminLauncherActivity yet still resolve
-        // DashboardActivity. Route an actual HOME intent according to the explicit Launcher app policy;
-        // service/watchdog starts are component-explicit and therefore continue to foreground the dashboard.
+        // DashboardActivity. Route an actual HOME intent according to the explicit Launcher app policy.
+        // Android keeps an activity created by a HOME intent in the HOME task, which a component-explicit
+        // start never reaches, so the service starts this one with the HOME intent too
+        // (SystemController.builtinInHomeTask). Read before onNewIntent replaces the intent.
+        val launchedAsHome = intent?.hasCategory(Intent.CATEGORY_HOME) == true
         activityScope.launch {
             val config = readActivityStateOffMain {
                 Config(this@DashboardActivity).also { config ->
@@ -406,18 +409,18 @@ class DashboardActivity : AppCompatActivity() {
             if (!destroyed && !isFinishing) {
                 // This visible start avoids arming Oreo's foreground deadline during cold class loading.
                 PaneldService.start(this@DashboardActivity, fromVisibleActivity = true)
-                initializeRenderer(config)
+                initializeRenderer(config, launchedAsHome)
             }
         }
     }
 
-    private suspend fun initializeRenderer(config: Config) {
+    private suspend fun initializeRenderer(config: Config, launchedAsHome: Boolean) {
         if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
             Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
         }
-        activityOwner = BuiltinDashboard.acquireActivityOwner()
+        activityOwner = BuiltinDashboard.acquireActivityOwner(launchedAsHome)
         if (dashboardIsTopResumed) {
             BuiltinDashboard.setActivityForeground(activityOwner, true)
         }

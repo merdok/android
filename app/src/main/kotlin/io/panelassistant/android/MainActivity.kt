@@ -528,9 +528,7 @@ class MainActivity : AppCompatActivity() {
         // automatic relaunch having fired. DashboardActivity's readiness gate routes a URL-without-
         // credentials start to the on-panel Home Assistant login rather than bouncing here.
         val signIn = notice.actions(notice.action(getString(R.string.sign_in_home_assistant)) {
-            runCatching {
-                startActivity(Intent(this, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
+            runCatching { startActivity(builtinDashboardIntent()) }
         }).apply { visibility = View.GONE }
         signInRow = signIn
         surface.setBody(
@@ -575,7 +573,7 @@ class MainActivity : AppCompatActivity() {
             builtinReady = config.builtInRendererReady(),
             isLaunchable = { packageManager.getLaunchIntentForPackage(it) != null },
         )) {
-            RendererTarget.Builtin -> Intent(this, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            RendererTarget.Builtin -> builtinDashboardIntent()
             is RendererTarget.Foreign -> {
                 val home = RendererResolver.companionHomeRoute(target.packageName, config.homeDashboard)
                 val route = home?.let {
@@ -589,6 +587,14 @@ class MainActivity : AppCompatActivity() {
             }
             null -> null
         }
+    }
+
+    /** The built-in dashboard, through the HOME intent while it lives in the HOME task: an explicit start
+     *  would open a second one in this activity's task. */
+    private fun builtinDashboardIntent(): Intent {
+        val env = AndroidSystemEnv(this)
+        val intent = if (SystemController(env).builtinInHomeTask()) env.homeIntent() else Intent(this, DashboardActivity::class.java)
+        return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     private fun dashboardRecoveryState(): PanelStatus.DashboardRecoveryState =

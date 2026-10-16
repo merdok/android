@@ -34,12 +34,16 @@ interface SystemEnv {
 
     /** Whether Android accepted a direct start of [component] ("pkg/cls") — the pre-BAL fallback. */
     fun directStart(component: String): Boolean
+
+    /** Whether Android accepted the HOME intent, which brings the HOME task forward. Android 10+ allows it
+     *  from the background while this process hosts the HOME activity. False keeps the explicit start. */
+    fun startHome(): Boolean = false
 }
 
 /** Real [SystemEnv] over the Android PackageManager + Context. */
 class AndroidSystemEnv(private val context: Context) : SystemEnv {
     private val pm get() = context.packageManager
-    private fun homeIntent() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+    fun homeIntent(): Intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
 
     override val ownPackage: String get() = context.packageName
 
@@ -61,4 +65,7 @@ class AndroidSystemEnv(private val context: Context) : SystemEnv {
             context.startActivity(Intent(Intent.ACTION_MAIN).setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.isSuccess
     }
+
+    override fun startHome(): Boolean =
+        runCatching { context.startActivity(homeIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
 }
