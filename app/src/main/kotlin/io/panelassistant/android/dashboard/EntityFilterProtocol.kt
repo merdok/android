@@ -187,7 +187,7 @@ object EntityFilterProtocol {
                         result.entities=kept;return true;
                       },
                       devices(rows,message){
-                        if(!reachedDevices||!deviceEvents.size||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string')){lastDevices=null;return false}
+                        if(!reachedDevices||!deviceEvents.size||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string'))return false;
                         const keep=keepIds(rows),kept=rows.filter(r=>keep.has(r.id));
                         lastDevices=rows;delivered=new Set(kept.map(r=>r.id));
                         message.result=kept;return true;

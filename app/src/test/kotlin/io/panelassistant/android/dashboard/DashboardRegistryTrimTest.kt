@@ -173,6 +173,17 @@ class DashboardRegistryTrimTest {
         )
     }
 
+    @Test fun anEntityRefreshThatReachesNoWithheldDeviceCausesNoDeviceRefetch() {
+        val out = page(
+            """
+            $connectBatch
+            const before=socket.wire.length;const e2=entityRequest();serve(result(e2,ENTITIES));
+            setTimeout(()=>console.log(JSON.stringify(socket.wire.slice(before).map(w=>JSON.parse(w).type))),20);
+            """.trimIndent(),
+        )
+        assertEquals("""["config/entity_registry/list_for_display"]""", out)
+    }
+
     @Test fun withoutTheFrontendsDeviceSubscriptionDevicesArriveWhole() {
         // Nothing could tell the frontend to refetch a withheld device, so none is withheld.
         val out = page(
