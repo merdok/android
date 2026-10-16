@@ -65,7 +65,7 @@ class KioskSettingApplyTest {
             persist = { events += "persist-$it"; false },
             reconcile = { events += "reconcile" },
         ))
-        assertEquals(listOf("persist-false", "actuate-false"), events)
+        assertEquals(listOf("persist-false", "actuate-false", "reconcile"), events)
     }
 }
 

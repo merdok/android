@@ -1298,7 +1298,9 @@ internal fun applyAcknowledgedKioskSetting(
         // OFF is fail-safe: persistence failure must never prevent local/persistent cleanup.
         val persisted = runCatching { persist(false) }.getOrDefault(false)
         runCatching { actuate(false) }
-        if (!persisted) return false
+        // Report whatever is stored now: an OFF stored ahead of this command may have landed even if this write did not.
+        runCatching(reconcile)
+        return persisted
     }
     runCatching(reconcile)
     return true
