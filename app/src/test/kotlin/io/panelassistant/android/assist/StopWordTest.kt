@@ -12,6 +12,7 @@ import io.panelassistant.android.media.AudioPlaybackRun
 import io.panelassistant.android.media.AudioPlaybackRunFactory
 import io.panelassistant.android.panelassistant.PanelAssistantTransportConnection
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
+import io.panelassistant.android.panelassistant.VoiceTurnEvent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import io.panelassistant.android.panelassistant.VoiceTurnEvent
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -54,9 +54,13 @@ class StopWordTest {
         val reached = CountDownLatch(1)
         private val release = CountDownLatch(1)
 
+        /** True when the held thread gave up waiting, so the race it was held for never happened. */
+        @Volatile var expired = false
+            private set
+
         fun stop() {
             reached.countDown()
-            release.await(2, TimeUnit.SECONDS)
+            if (!release.await(2, TimeUnit.SECONDS)) expired = true
         }
 
         fun go() = release.countDown()
@@ -275,6 +279,7 @@ class StopWordTest {
         hear(100, saying = true)
         play.go()
         assertSilent()
+        assertFalse("the run waited at the reply until the stop was heard", play.expired)
     }
 
     @Test fun `a stop heard while the reply's sound is being submitted still silences it`() {
@@ -295,9 +300,11 @@ class StopWordTest {
         inference.go()
         delivering.join(2_000L)
         score = 0
+        assertFalse("the last frame was delivered", delivering.isAlive)
         assertTrue("the stop was heard while the sound was being submitted", logs.any { it.endsWith("stopping") })
         submission.go()
         assertSilent()
+        assertFalse("each thread waited at its point of the race", inference.expired || submission.expired)
     }
 
     @Test fun `the words of the command never stop the panel`() {
