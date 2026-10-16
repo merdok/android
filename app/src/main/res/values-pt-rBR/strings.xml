@@ -13,8 +13,8 @@
     <string name="config_qr_description">Código QR para %1$s</string>
     <string name="config_activity_label">Configuração do Panel Assistant</string>
     <string name="guard_db_activity_label">Manutenção para recuperação do banco de dados</string>
-    <string name="dashboard_activity_label">Dashboard do HA</string>
-    <string name="admin_launcher_activity_label">Administração do painel</string>
+    <string name="dashboard_activity_label">Dashboard do Home Assistant</string>
+    <string name="admin_launcher_activity_label">Iniciador do painel</string>
     <string name="settings">Configurações</string>
     <string name="back_to_dashboard">Voltar ao dashboard</string>
     <string name="security_mode">Modo de segurança</string>
@@ -79,7 +79,7 @@
     <string name="retry_dashboard">Tentar carregar o dashboard novamente</string>
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Entrar no Home Assistant</string>
-    <string name="panel_admin">Administração do painel</string>
+    <string name="panel_admin">Iniciador do painel</string>
     <string name="panel_admin_summary">Acesso rápido para administrar este painel. O dashboard é a tela inicial do painel.</string>
     <string name="apps">Aplicativos</string>
     <string name="no_launchable_apps">Nenhum aplicativo que possa ser aberto foi encontrado.</string>

@@ -54,7 +54,7 @@ class SettingsRegistryPresentationTest {
     @Test fun launcherHelpExplainsAutomaticAndEnforcedHomeModes() {
         val help = SettingsRegistry.spec("launcher_package")!!.help
         assertTrue(help.contains("Blank auto-picks"))
-        assertTrue(help.contains("Panel admin (Panel Assistant)"))
+        assertTrue(help.contains("Panel launcher (Panel Assistant)"))
         assertTrue(help.contains("Android Home app"))
     }
 

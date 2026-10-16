@@ -13,8 +13,8 @@
     <string name="config_qr_description">QR kód pro %1$s</string>
     <string name="config_activity_label">Panel Assistant konfigurace</string>
     <string name="guard_db_activity_label">Údržba obnovy databáze</string>
-    <string name="dashboard_activity_label">Ovládací panel HA</string>
-    <string name="admin_launcher_activity_label">Správce panelu</string>
+    <string name="dashboard_activity_label">Ovládací panel Home Assistant</string>
+    <string name="admin_launcher_activity_label">Spouštěč panelu</string>
     <string name="settings">Nastavení</string>
     <string name="back_to_dashboard">Zpět na ovládací panel</string>
     <string name="security_mode">Bezpečnostní režim</string>
@@ -79,7 +79,7 @@
     <string name="retry_dashboard">Zkusit znovu načíst ovládací panel</string>
     <string name="dashboard">Ovládací panel</string>
     <string name="sign_in_home_assistant">Přihlásit se do Home Assistant</string>
-    <string name="panel_admin">Správce panelu</string>
+    <string name="panel_admin">Spouštěč panelu</string>
     <string name="panel_admin_summary">Rychlý přístup ke správě tohoto panelu. Ovládací panel je domovskou obrazovkou panelu.</string>
     <string name="apps">Aplikace</string>
     <string name="no_launchable_apps">Nebyly nalezeny žádné spustitelné aplikace.</string>

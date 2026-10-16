@@ -27,7 +27,7 @@ internal fun launchableAppsJson(appContext: Context): String {
             .associate {
                 val pkg = it.packageName
                 val label = if (pkg == appContext.packageName) {
-                    "Panel admin (Panel Assistant)"
+                    "Panel launcher (Panel Assistant)"
                 } else {
                     runCatching { pm.getApplicationLabel(it).toString() }.getOrDefault(pkg)
                 }

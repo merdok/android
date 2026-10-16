@@ -14,8 +14,8 @@
 
     <string name="config_activity_label">Panel Assistant 设置</string>
     <string name="guard_db_activity_label">数据库恢复维护</string>
-    <string name="dashboard_activity_label">HA 仪表盘</string>
-    <string name="admin_launcher_activity_label">面板管理</string>
+    <string name="dashboard_activity_label">Home Assistant 仪表盘</string>
+    <string name="admin_launcher_activity_label">面板启动器</string>
 
     <string name="settings">设置</string>
     <string name="back_to_dashboard">返回仪表盘</string>
@@ -83,7 +83,7 @@
     <string name="dashboard">仪表盘</string>
     <string name="sign_in_home_assistant">登录 Home Assistant</string>
 
-    <string name="panel_admin">面板管理</string>
+    <string name="panel_admin">面板启动器</string>
     <string name="panel_admin_summary">用于管理此面板的快捷入口。仪表盘是面板的主屏幕。</string>
     <string name="apps">应用</string>
     <string name="no_launchable_apps">未找到可启动的应用。</string>

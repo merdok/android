@@ -9474,8 +9474,8 @@
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.help": {
-   "text": "Aplikacja, którą przywołuje przycisk launchera. Puste pole oznacza automatyczny wybór aplikacji. Wybranie opcji Panel admin (Panel Assistant) dodatkowo ustawia Panel Assistant jako aplikację ekranu głównego Android i utrzymuje to ustawienie.",
-   "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
+   "text": "Aplikacja, którą przywołuje przycisk launchera. Puste pole oznacza automatyczny wybór aplikacji. Wybranie opcji Panel launcher (Panel Assistant) dodatkowo ustawia Panel Assistant jako aplikację ekranu głównego Android i utrzymuje to ustawienie.",
+   "sourceHash": "761b2c73b5523b8f4509f393efa23e91405b76552e282cca2d20b9bafd7dc4c9",
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.label": {

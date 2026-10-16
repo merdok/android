@@ -10619,9 +10619,9 @@
       "state": "machine-cross-checked"
     },
     "settings.launcher_package.help": {
-      "sourceHash": "b23bcb07e90ae8fb77cf1020325c4021e2078fe01cf55931c3fb5c12ca3e1a72",
+      "sourceHash": "761b2c73b5523b8f4509f393efa23e91405b76552e282cca2d20b9bafd7dc4c9",
       "state": "machine-cross-checked",
-      "text": "App portata in primo piano dal pulsante di avvio. Se vuoto, ne viene scelta una automaticamente. Selezionando Amministrazione pannello (Panel Assistant), Panel Assistant diventa e resta anche l'app Home di Android."
+      "text": "App portata in primo piano dal pulsante di avvio. Se vuoto, ne viene scelta una automaticamente. Selezionando Launcher del pannello (Panel Assistant), Panel Assistant diventa e resta anche l'app Home di Android."
     },
     "settings.launcher_package.label": {
       "sourceHash": "f97faee7e687e14fb4356160757e11ca90cc6c89b0e2ce2d40e14a3a62ef1bbd",

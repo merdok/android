@@ -413,7 +413,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private suspend fun initializeRenderer(config: Config) {
         if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
-            Log.i(TAG, "HOME invoked with Panel admin selected — opening the admin launcher")
+            Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
         }
@@ -808,7 +808,7 @@ class DashboardActivity : AppCompatActivity() {
         val filterEpoch = entityGate.filterPreparationEpoch
         val config = activityConfig
         if (shouldRouteDashboardHomeToAdmin(config.launcherPackage, packageName, intent?.action, intent?.categories)) {
-            Log.i(TAG, "HOME invoked with Panel admin selected — opening the admin launcher")
+            Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
         }

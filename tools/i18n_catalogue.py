@@ -404,7 +404,7 @@ TARGET_LITERAL_EXCEPTIONS = {
     ("uk", "settings.ha_token_expiry.help"): ("access-token", "access", "refresh"),
     ("uk", "settings.ha_token_expiry.label"): ("access-token",),
     ("uk", "settings.home_dashboard.help"): ("Custom",),
-    ("uk", "settings.launcher_package.help"): ("Blank", "Panel admin"),
+    ("uk", "settings.launcher_package.help"): ("Blank", "Panel launcher"),
     ("uk", "settings.room_temp_offset.help"): ("°C",),
     ("zh-Hans", "install.presentation.status_no_renderer"): ("ℹ",),
     ("zh-Hans", "install.apk.dynamic.paste_url"): ("https://",),

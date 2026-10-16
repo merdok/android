@@ -14,8 +14,8 @@
 
     <string name="config_activity_label">Panel Assistant-Konfiguration</string>
     <string name="guard_db_activity_label">Wartung zur Datenbankwiederherstellung</string>
-    <string name="dashboard_activity_label">HA-Dashboard</string>
-    <string name="admin_launcher_activity_label">Panel-Verwaltung</string>
+    <string name="dashboard_activity_label">Home Assistant-Dashboard</string>
+    <string name="admin_launcher_activity_label">Panel-Launcher</string>
 
     <string name="settings">Einstellungen</string>
     <string name="back_to_dashboard">Zurück zum Dashboard</string>
@@ -83,7 +83,7 @@
     <string name="dashboard">Dashboard</string>
     <string name="sign_in_home_assistant">Bei Home Assistant anmelden</string>
 
-    <string name="panel_admin">Panel-Verwaltung</string>
+    <string name="panel_admin">Panel-Launcher</string>
     <string name="panel_admin_summary">Schnellzugriff zur Verwaltung dieses Panels. Das Dashboard ist der Startbildschirm des Panels.</string>
     <string name="apps">Apps</string>
     <string name="no_launchable_apps">Keine startbaren Apps gefunden.</string>
