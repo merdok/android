@@ -47,6 +47,14 @@ class VoiceStreamPlayerTest {
         @Volatile var destroyed = false
         val destroyedLatch = CountDownLatch(1)
 
+        /**
+         * When set, the library primes as the real one does until it is first told a time: silence into
+         * its ring at twice real time, up to a second, which [read] drains; [primed] counts it.
+         */
+        @Volatile var primeFromNs = 0L
+        val primed = java.util.concurrent.atomic.AtomicLong()
+        private val primeTaken = java.util.concurrent.atomic.AtomicLong()
+
         /** When set, the next read blocks inside the "native" call until this opens. */
         @Volatile var readGate: CountDownLatch? = null
         val readBlocked = CountDownLatch(1)
@@ -80,6 +88,23 @@ class VoiceStreamPlayerTest {
                 readBlocked.countDown()
                 gate.await(10, TimeUnit.SECONDS)
             }
+            if (primeFromNs != 0L) {
+                if (reports.isEmpty()) {
+                    val produced = minOf((System.nanoTime() - primeFromNs) * 2 * RATE / 1_000_000_000L, RATE.toLong())
+                    primed.set(maxOf(primed.get(), produced))
+                }
+                val waiting = primed.get() - primeTaken.get()
+                if (waiting > 0) {
+                    val frames = minOf(waiting, (maxBytes / FRAME_BYTES).toLong()).toInt()
+                    primeTaken.addAndGet(frames.toLong())
+                    buffer.put(0, ByteArray(frames * FRAME_BYTES))
+                    return frames * FRAME_BYTES
+                }
+                if (reports.isEmpty()) {
+                    Thread.sleep(waitMs.toLong())
+                    return 0
+                }
+            }
             val next = pcm.poll()
             if (next == null) {
                 Thread.sleep(waitMs.toLong())
@@ -88,7 +113,11 @@ class VoiceStreamPlayerTest {
             buffer.put(0, next) // as the library does: at the buffer's address, leaving its position
             next.size
         }
+        /** Every played report: (frames, finish time in µs). */
+        val reports = ConcurrentLinkedQueue<Pair<Int, Long>>()
+
         override fun played(handle: Long, frames: Int, finishUs: Long) = native().use {
+            reports += frames to finishUs
             playedFrames.addAndGet(frames)
             Unit
         }
@@ -141,6 +170,66 @@ class VoiceStreamPlayerTest {
         val opened = ConcurrentLinkedQueue<Speaker>()
         val factory: (Int, Int) -> VoiceOutput = { _, _ -> Speaker().also { opened += it } }
         fun only(): Speaker = opened.single()
+    }
+
+    /**
+     * A cold Android output as the panels showed it: no timestamp until its HAL starts, then Android's
+     * placeholder (the current time against a position that has not moved) for a while, then real
+     * timestamps. From the HAL's start it consumes frames at its rate, and presents frame n at
+     * `presentStartNs + n / rate`, its latency later; it holds at most [BUFFER_MS] of audio it has not yet
+     * consumed. Its times come from the production [PresentationClock], as [AudioTrackOutput]'s do.
+     */
+    private class ColdTrack(private val rate: Int) : VoiceOutput {
+        private val clock = PresentationClock(rate)
+        private val accepted = java.util.concurrent.atomic.AtomicLong()
+
+        @Volatile private var startNs = 0L
+        private val halStartNs get() = startNs + HAL_START_NS
+        private val presentStartNs get() = halStartNs + LATENCY_NS
+
+        private fun consumed(nowNs: Long) = ((nowNs - halStartNs) * rate / NANOS).coerceAtLeast(0)
+        private fun presented(nowNs: Long) = ((nowNs - presentStartNs) * rate / NANOS).coerceAtLeast(0)
+
+        private val audio = ByteArrayOutputStream()
+
+        /** Every non-silent byte it accepted, in order. */
+        fun heardAudio(): ByteArray = synchronized(audio) { audio.toByteArray() }.filter { it != 0.toByte() }.toByteArray()
+
+        override fun play() { startNs = System.nanoTime() }
+        override fun write(data: ByteArray, offset: Int, length: Int): Int {
+            val room = consumed(System.nanoTime()) + rate * BUFFER_MS / 1_000 - accepted.get()
+            val frames = minOf(length / FRAME_BYTES.toLong(), room).coerceAtLeast(0)
+            accepted.addAndGet(frames)
+            synchronized(audio) { audio.write(data, offset, frames.toInt() * FRAME_BYTES) }
+            return frames.toInt() * FRAME_BYTES
+        }
+        override fun pause() {}
+        override fun flush() {}
+        override fun stop() {}
+        override fun release() {}
+        override fun playedFrames() = Long.MAX_VALUE
+        override fun finishNs(written: Long, rate: Int): Long? {
+            val now = System.nanoTime()
+            val position = presented(now) / 256 * 256
+            val (frames, at) = when {
+                now < halStartNs -> null to 0L
+                now < halStartNs + PLACEHOLDER_NS -> PLACEHOLDER_FRAMES to now
+                else -> position.takeIf { it > 0 } to presentStartNs + position * NANOS / rate
+            }
+            return clock.finishNs(written, frames, at, consumed(now).coerceAtMost(written), now)
+        }
+
+        /** When the last of [frames] written frames is really presented. */
+        fun presentedAtNs(frames: Long) = presentStartNs + frames * NANOS / rate
+
+        companion object {
+            const val NANOS = 1_000_000_000L
+            const val HAL_START_NS = 40_000_000L
+            const val PLACEHOLDER_NS = 60_000_000L
+            const val PLACEHOLDER_FRAMES = 480L
+            const val LATENCY_NS = 130_000_000L
+            const val BUFFER_MS = 100L
+        }
     }
 
     /** Frames the player sent to the session: (is text, payload). */
@@ -276,6 +365,94 @@ class VoiceStreamPlayerTest {
         speakers.opened.last().heardExactly(chunk(5))
         player.close()
         assertTrue(library.destroyedLatch.await(10, TimeUnit.SECONDS))
+    }
+
+    @Test fun onAColdOutputTheLibraryIsToldOnlyRealPresentationTimesFromTheFirstReport() {
+        val library = Library()
+        val tracks = ConcurrentLinkedQueue<ColdTrack>()
+        val player = VoiceStreamPlayer(
+            stateDir = temp.newFolder(),
+            name = { "Panel" },
+            softwareVersion = "test",
+            native = library,
+            openOutput = { rate, _ -> ColdTrack(rate).also { tracks += it } },
+        )
+        player.open(PanelAssistantVoiceStreamGrant(serverId, ByteArray(32))) { _, _ -> }
+        val chunks = (0 until 30).map(::chunk)
+        library.stream(chunks)
+
+        // The library cuts audio or inserts silence for any error of 5 ms or more, so each time it is told
+        // must be when that audio really plays, from the first report on.
+        val track = tracks.single()
+        var frames = 0L
+        library.reports.forEach { (count, finishUs) ->
+            frames += count
+            val offMs = (finishUs * 1_000L - track.presentedAtNs(frames)) / 1e6
+            assertTrue("the report after $frames frames is %.1f ms off when they play".format(offMs), kotlin.math.abs(offMs) < 1.0)
+        }
+        assertEquals("every frame is reported once", chunks.sumOf { it.size } / FRAME_BYTES.toLong(), frames)
+        player.close()
+        assertTrue(library.destroyedLatch.await(10, TimeUnit.SECONDS))
+    }
+
+    @Test fun primingSilenceSentWhileTheOutputWarmsUpDoesNotQueueAheadOfTheReply() {
+        val library = Library()
+        val tracks = ConcurrentLinkedQueue<ColdTrack>()
+        val player = VoiceStreamPlayer(
+            stateDir = temp.newFolder(),
+            name = { "Panel" },
+            softwareVersion = "test",
+            native = library,
+            openOutput = { rate, _ -> ColdTrack(rate).also { tracks += it } },
+        )
+        player.open(PanelAssistantVoiceStreamGrant(serverId, ByteArray(32))) { _, _ -> }
+        val speech = (0 until 10).map(::chunk)
+        speech.forEach { library.pcm += it }
+        library.primeFromNs = System.nanoTime()
+        library.start()
+        val speechFrames = speech.sumOf { it.size } / FRAME_BYTES
+        await("the reply was consumed") { library.pcm.isEmpty() && library.playedFrames.get() >= library.primed.get() + speechFrames }
+        library.events += SendspinNative.EVENT_STREAM_END
+        await("the stream's writer left") { Thread.getAllStackTraces().keys.none { it.isAlive && it.name == "sendspin-audio" } }
+
+        // The library holds everything it primed but has not been told about as still to play, so its
+        // next audio would be placed that much later: at most what one read can leave behind.
+        val (firstFrames, _) = library.reports.first()
+        val queuedMs = (library.primed.get() - firstFrames) * 1_000.0 / RATE
+        assertTrue("%.1f ms of priming silence still queued ahead of the reply".format(queuedMs), queuedMs < 20.0)
+        val heard = tracks.single().heardAudio()
+        assertArrayEquals("the reply itself is played whole and in order", speech.reduce(ByteArray::plus), heard)
+        player.close()
+        assertTrue(library.destroyedLatch.await(10, TimeUnit.SECONDS))
+    }
+
+    @Test fun aClockTellsNothingUntilTwoTimestampsAgreeThenKeepsToThatTimeline() {
+        val clock = PresentationClock(RATE)
+        val ms = 1_000_000L
+        assertNull("no timestamp yet", clock.finishNs(800, null, 0, 0, 0))
+        assertNull("a placeholder: the position has not moved", clock.finishNs(800, 160, 10 * ms, 0, 10 * ms))
+        assertNull("still the placeholder", clock.finishNs(800, 160, 20 * ms, 0, 20 * ms))
+        assertNull("the first real timestamp disagrees with the placeholder", clock.finishNs(1_600, 320, 5 * ms, 0, 40 * ms))
+        assertEquals("two agreeing timestamps: frame 480 plays at 25 ms", 25 * ms + 1_120 * ms / 8, clock.finishNs(1_600, 480, 25 * ms, 0, 60 * ms))
+        assertEquals(
+            "a reading 10 ms off the timeline is not followed",
+            25 * ms + 1_520 * ms / 8,
+            clock.finishNs(2_000, 800, 75 * ms, 0, 80 * ms),
+        )
+        assertEquals("one reading 30 ms behind is not followed yet", 25 * ms + 1_920 * ms / 8, clock.finishNs(2_400, 1_120, 135 * ms, 0, 120 * ms))
+        assertEquals(
+            "a second agreeing with it (the output really fell behind) moves the timeline",
+            55 * ms + 1_920 * ms / 8,
+            clock.finishNs(2_400, 1_440, 175 * ms, 0, 140 * ms),
+        )
+    }
+
+    @Test fun aClockWithNoAgreeingTimestampsFallsBackToThePlaybackHeadWithinTheLeadSoTheOutputStillPlays() {
+        val clock = PresentationClock(RATE)
+        val ms = 1_000_000L
+        assertNull(clock.finishNs(800, null, 0, 0, 0))
+        assertNull(clock.finishNs(3_200, null, 0, 2_200, 399 * ms))
+        assertEquals("400 ms on: the 1,000 frames not yet consumed play from now", 400 * ms + 125 * ms, clock.finishNs(3_200, null, 0, 2_200, 400 * ms))
     }
 
     @Test fun closingWhileAWriterIsInsideANativeCallDestroysTheClientOnlyAfterTheCallReturns() {
