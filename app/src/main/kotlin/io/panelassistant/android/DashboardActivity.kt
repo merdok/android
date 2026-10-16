@@ -48,7 +48,6 @@ import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.platform.AndroidSystemEnv
-import io.panelassistant.android.platform.EXTRA_DASHBOARD_RETURN
 import io.panelassistant.android.dashboard.InjectionScript
 import io.panelassistant.android.dashboard.EntityLearningProtocol
 import io.panelassistant.android.dashboard.EntityLearningRuntime
@@ -63,21 +62,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-internal fun shouldRouteDashboardHomeToAdmin(
-    configuredLauncherPackage: String,
-    // Nullable as the platform reports it: an activity with no package (only off-device) never routes.
-    ownPackage: String?,
-    action: String?,
-    categories: Set<String>?,
-    // The app's own HOME intent back to this dashboard (EXTRA_DASHBOARD_RETURN) is a return, not a HOME press.
-    dashboardReturn: Boolean,
-): Boolean = configuredLauncherPackage == ownPackage && !dashboardReturn &&
-    action == Intent.ACTION_MAIN && categories?.contains(Intent.CATEGORY_HOME) == true
-
-/** The intent shape Android treats as a HOME launch, so it keeps the activity in the HOME task. */
-internal fun isHomeLaunch(action: String?, categories: Set<String>?, hasDataOrType: Boolean): Boolean =
-    action == Intent.ACTION_MAIN && categories == setOf(Intent.CATEGORY_HOME) && !hasDataOrType
 
 /**
  * Built-in dashboard renderer (experimental): a full-screen WebView onto the configured Home
@@ -387,10 +371,8 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Android keeps an activity a HOME intent created in the HOME task, which a component-explicit start
-        // never reaches, so while one is alive the app returns to it with the HOME intent too
-        // (SystemController.builtinInHomeTask). Counted before any configuration is read.
-        countedInHomeTask = intent?.let { isHomeLaunch(it.action, it.categories, it.data != null || it.type != null) } == true
+        // While a HOME-task dashboard is alive the app returns to it with the HOME intent (builtinInHomeTask).
+        countedInHomeTask = intent.isHomeLaunch()
         if (countedInHomeTask) BuiltinDashboard.homeTaskActivityCreated()
         if (maintenanceFence.stop(this)) return
         // Home stays put on Back: Android 11 finished this task root, dropping the panel onto Shelly's Stargate.
@@ -424,13 +406,8 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun homeRoutesToAdmin(config: Config): Boolean = shouldRouteDashboardHomeToAdmin(
-        config.launcherPackage, packageName, intent?.action, intent?.categories,
-        dashboardReturn = intent?.getBooleanExtra(EXTRA_DASHBOARD_RETURN, false) == true,
-    )
-
     private suspend fun initializeRenderer(config: Config) {
-        if (homeRoutesToAdmin(config)) {
+        if (intent.routesDashboardHomeToAdmin(config.launcherPackage, packageName)) {
             Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
@@ -465,7 +442,7 @@ class DashboardActivity : AppCompatActivity() {
         if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
         // onNewIntent may have arrived while preparation was suspended, before activityConfig existed.
         // Its epoch forced a fresh preparation; honor its latest HOME and readiness state as well.
-        if (homeRoutesToAdmin(config)) {
+        if (intent.routesDashboardHomeToAdmin(config.launcherPackage, packageName)) {
             fallbackToLauncher()
             return
         }
@@ -826,7 +803,7 @@ class DashboardActivity : AppCompatActivity() {
         if (!::activityConfig.isInitialized) return // the changed epoch makes initial preparation repeat
         val filterEpoch = entityGate.filterPreparationEpoch
         val config = activityConfig
-        if (homeRoutesToAdmin(config)) {
+        if (intent.routesDashboardHomeToAdmin(config.launcherPackage, packageName)) {
             Log.i(TAG, "HOME invoked with Panel launcher selected — opening it")
             fallbackToLauncher()
             return
