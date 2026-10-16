@@ -111,10 +111,10 @@ class Config private constructor(
     @Volatile private var logShipAbsentProtocolFallback: String? = null
 
     constructor(context: Context) : this(
-        AppState.preferences(context, "config", "ha-paneld"),
+        AppState.preferences(context, "config"),
         context.applicationContext.contentResolver,
-        AppState.preferences(context, "profile-calibration", PROFILE_CALIBRATION_PREFS),
-        AppState.preferences(context, "power-safety-acknowledgement", POWER_SAFETY_ACKNOWLEDGEMENT_PREFS),
+        AppState.preferences(context, "profile-calibration"),
+        AppState.preferences(context, "power-safety-acknowledgement"),
         context.applicationContext.resources,
     )
 
@@ -1635,12 +1635,9 @@ class Config private constructor(
             "device_local_last_launch_screen_version"
         private const val POWER_SAFETY_ACKNOWLEDGEMENT_PREF =
             "device_local_power_safety_acknowledgement_v1"
-        private const val POWER_SAFETY_ACKNOWLEDGEMENT_PREFS =
-            "ha-paneld-power-safety-acknowledgement"
         internal const val DASHBOARD_ENTITY_INITIAL_ACTIVATION_PENDING_KEY =
             "dashboard_entity_initial_activation_pending"
         private const val PROXIMITY_PROFILE_MIGRATED = "proximity_profile_calibration_migrated"
-        internal const val PROFILE_CALIBRATION_PREFS = "ha-paneld-profile-calibration"
         private val LEGACY_PROXIMITY_KEYS = listOf(
             "prox_near_raw",
             "prox_far_raw",

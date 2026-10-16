@@ -136,7 +136,7 @@ class RuntimeProfileRegistry internal constructor(
     ) : this(
         filesDir = context.applicationContext.filesDir,
         preferences = AndroidProfilePreferences(
-            AppState.preferences(context, "device-profiles", PREFS_NAME),
+            AppState.preferences(context, "device-profiles"),
         ),
         bundledLoader = { bundledAssets(context) },
         facts = facts,
@@ -1455,7 +1455,6 @@ class RuntimeProfileRegistry internal constructor(
                     context.applicationContext.assets.open("$BUNDLED_PROFILE_DIR/$name").bufferedReader().use { it.readText() }
                 }
 
-        private const val PREFS_NAME = "ha-paneld-device-profiles"
         private const val AUTO = "auto"
         private const val KEY_SELECTION = "selection"
         private const val KEY_PHASE = "activation_phase"

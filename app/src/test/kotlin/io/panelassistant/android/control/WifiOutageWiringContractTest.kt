@@ -34,22 +34,6 @@ class WifiOutageWiringContractTest {
         assertTrue(diagKeys.contains("\"diag_wifi_outages_24h\""))
     }
 
-    @Test fun legacyXmlMirrorIsExcludedFromAndroidBackup() {
-        // StateBackupPolicy's DEVICE_LOCAL gates only the app's own sealed restore flow. Android
-        // backup and device-to-device transfer need their own exclusion, or the record migrates to
-        // a different panel and reports the source home's outages as this one's.
-        val working = File(requireNotNull(System.getProperty("user.dir")))
-        // Source-text reason: the shipped backup-rules XML is the Android backup contract, read as data.
-        for ((rules, sections) in listOf("backup_rules.xml" to 1, "data_extraction_rules.xml" to 2)) {
-            val text = TestSources.appFile("src/main/res/xml/$rules").readText()
-            val occurrences = Regex(Regex.escape("""path="ha-paneld-wifi-stability.xml"""")).findAll(text).count()
-            assertTrue(
-                "$rules must exclude the wifi-stability legacy mirror in every section",
-                occurrences >= sections,
-            )
-        }
-    }
-
     private fun source(relative: String): String =
         (TestSources.appFileOrNull("src/main/kotlin/io/panelassistant/android/$relative")
             ?: TestSources.kotlin("control/$relative")).readText()

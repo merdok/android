@@ -492,7 +492,7 @@ class PaneldService : Service() {
     private val restartAfterInternalBoundary = AtomicBoolean(false)
     private var upgradeShutdownClaim: UpgradeShutdownClaim? = null
     private val startupRecoveryPrefs by lazy {
-        AppState.preferences(this, "startup-recovery", "ha-paneld-startup-recovery")
+        AppState.preferences(this, "startup-recovery")
     }
 
     override fun onCreate() {
@@ -582,10 +582,10 @@ class PaneldService : Service() {
             )
             // These controllers are constructed on main below, but each opens its namespace in
             // its constructor. Warm the same AppState cache while still on the service IO lane.
-            AppState.preferences(this@PaneldService, "controller-state", "ha-paneld-controller-state")
-            AppState.preferences(this@PaneldService, "auto-brightness-runtime", "ha-paneld-auto-brightness-runtime")
-            AppState.preferences(this@PaneldService, "auto-sleep-learning", "ha-paneld-auto-sleep-learning")
-            AppState.preferences(this@PaneldService, "startup-recovery", "ha-paneld-startup-recovery")
+            AppState.preferences(this@PaneldService, "controller-state")
+            AppState.preferences(this@PaneldService, "auto-brightness-runtime")
+            AppState.preferences(this@PaneldService, "auto-sleep-learning")
+            AppState.preferences(this@PaneldService, "startup-recovery")
             // Settle privileged startup before controllers cache grants or replay saved settings.
             // An older same-process service must finish teardown before this generation changes them.
             restartLease.awaitPredecessor()
@@ -2029,10 +2029,10 @@ class PaneldService : Service() {
     /**
      * Re-assert the database's view of locale and night mode, now that the service has promoted.
      *
-     * `Application.onCreate` deliberately reads both from the downgrade-compatible XML mirror, because
+     * `Application.onCreate` deliberately reads both from the pre-database settings file, because
      * opening the database there spends the foreground-start deadline (see the comment in
-     * `HaPaneldApp.onCreate`). The database stays authoritative — a restore can write it without
-     * touching the mirror — so the correction happens here instead, where it is off the deadline and
+     * `HaPaneldApp.onCreate`). The database stays authoritative — a failed copy leaves that file
+     * stale — so the correction happens here instead, where it is off the deadline and
      * still before any ha-paneld screen is rendered.
      */
     private fun reconcileNativePresentationAfterPromotion() {

@@ -41,7 +41,7 @@ class TameController(
     // seen on boot). Default no-op so plain construction (tests / non-boot use) is unaffected.
     private val onDefaultHomeDisabled: () -> Unit = {},
 ) {
-    private val state = AppState.preferences(context, "controller-state", STATE_PREFS)
+    private val state = AppState.preferences(context, "controller-state")
     private val desiredStateReconciler = TameDesiredStateReconciler(
         readOwned = ::readOwnedMarkers,
         observePackages = ::observePackages,
@@ -555,7 +555,6 @@ class TameController(
 
     companion object {
         private const val TAG = "ha-paneld/tame"
-        private const val STATE_PREFS = "ha-paneld-controller-state"
 
         // The HA Companion dashboard apps — never offered as tame candidates (this is an HA project; the
         // dashboard is the whole point). Excluded from enumeration/suggestions, not the brick-guard.

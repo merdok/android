@@ -35,7 +35,7 @@ class BootChimeController internal constructor(
         configured = { config.silenceBootChime },
         setConfigured = config::setSilenceBootChime,
         stateStore = AndroidBootChimeStateStore(
-            AppState.preferences(context, "controller-state", STATE_PREFS),
+            AppState.preferences(context, "controller-state"),
         ),
         hardware = AndroidBootChimeHardware(context.applicationContext, root, daemon),
     )
@@ -114,7 +114,6 @@ class BootChimeController internal constructor(
 
     companion object {
         private const val TAG = "ha-paneld/bootchime"
-        private const val STATE_PREFS = "ha-paneld-controller-state"
     }
 }
 

@@ -308,7 +308,6 @@ class PaneldServer internal constructor(
         val prefs = AppState.preferences(
             appContext,
             "performance-binding",
-            "ha-paneld-performance-binding",
         )
         prefs.getString("secret", null)?.takeIf(::validPerformanceDeviceSecret) ?: run {
             val generated = ByteArray(32).also(SecureRandom()::nextBytes)
