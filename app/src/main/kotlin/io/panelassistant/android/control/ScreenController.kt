@@ -385,11 +385,9 @@ class ScreenController(
         }
         if (refusal != null && route != ScreenOff.VENDOR_RPC) return dimToFloor(refusal)
         // Guaranteed locally wakeable: arm the tap, then power the backlight off for real. Every route below
-        // that powers the display off freezes the WebView (no point rendering behind a black backlight). The
-        // brightness fallback (0) is not guaranteed dark on panels that clamp a minimum, so it does NOT
-        // freeze: correctness over the CPU saving. The cost on those panels is that the page runs all
-        // night, so the invisible memory reload at screen-off, the nightly entity-learning maintenance and
-        // the wake-media check never run; memory is shed only by the 26-hour cap.
+        // that powers the display off freezes the WebView. The brightness fallback (0) is not guaranteed dark
+        // on panels that clamp a minimum, so it does NOT freeze; the cost there is a page running all night,
+        // with no quiet memory reload, nightly entity-learning maintenance or wake-media check.
         val poweredOff = when (route) {
             ScreenOff.DAEMON_BLPOWER -> when {
                 daemon.send("SCREEN OFF") == "OK" -> ScreenOff.DAEMON_BLPOWER to REASON_DECLARED
