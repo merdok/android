@@ -823,6 +823,11 @@ class PaneldServer internal constructor(
             val body = withContext(Dispatchers.IO) { statusJson(storageHealth(), homeProofRequested = args.optBoolean("home_proof")) }
             return PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, JSONObject(body))
         }
+        if (op == PanelAssistantTransportProtocol.MANAGE_HA_AREA_REFRESH) {
+            val read = runCatching { haArea.refreshFromHomeAssistant() }.getOrDefault(false)
+            return if (read) PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_APPLIED, null, null)
+            else PanelAssistantManageReply(PanelAssistantTransportProtocol.OUTCOME_FAILED, io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor.CODE_FAILED, null)
+        }
         if (op == PanelAssistantTransportProtocol.MANAGE_BUNDLE) return uploadUiBundle(args, PanelAssistantBlobs(auth), bundleAssets, buildToken(), cacheDir)
         return ControlPlaneSessionOps.request(op, args, controlPlane(), PanelAssistantBlobs(auth)) { operation, payload, summary ->
             authorizeSessionRequest(config.hardenedSecurityEnabled, operation, payload, summary, LocalApprovalBroker.instance, onPending)
