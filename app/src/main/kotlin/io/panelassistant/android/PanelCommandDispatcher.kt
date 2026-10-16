@@ -568,7 +568,11 @@ internal class PanelCommandDispatcher(
     }
 
     override fun handleSilenceBootChime(on: Boolean) {
-        requireControlApplied("silence_boot_chime", bootChime.apply(on)) { "boot chime transition failed" }
+        val outcome = bootChime.apply(on)
+        // ON is persisted before the hardware write, so once durable it is newer truth than any queued HTTP
+        // value, even when the write fails (as touch_sound).
+        if (bootChime.isEnabled() == on) externalIntentCommitted.set("silence_boot_chime")
+        requireControlApplied("silence_boot_chime", outcome) { "boot chime transition failed" }
         core.reconcile("silence_boot_chime")
     }
 

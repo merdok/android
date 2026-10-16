@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.control.BootChimeHardware
+import io.panelassistant.android.control.BootChimeState
 import io.panelassistant.android.control.ControlApplyOutcome
 import io.panelassistant.android.control.NEVER_SCREEN_TIMEOUT_MS
 import io.panelassistant.android.control.ScreenTimeoutController
@@ -167,6 +169,32 @@ internal class TouchSoundExternalSupersessionTest : PanelRuntimeRig() {
             assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "prevent_idle_dim", "ON"))
             assertEquals(NEVER_SCREEN_TIMEOUT_MS, timeout.get())
             assertTrue(rig.config.preventIdleDim)
+        } finally { rig.close() }
+    }
+
+    /**
+     * Boot chime persists ON before it writes the hardware, like touch sound, so a failed silence from Home
+     * Assistant leaves newer durable intent behind. An older queued Configure-page value must be retired, or
+     * its retry commits that older value back over the one the owner just chose.
+     */
+    @Test fun aFailedExternalBootChimeSilenceStillSupersedesTheQueuedValue() {
+        val superseded = CopyOnWriteArrayList<String>()
+        val silenceFails = object : BootChimeHardware {
+            override fun capture() = BootChimeState(5, 5, 5, 5, 5)
+            override fun silence() = ControlApplyOutcome.FAILED
+            override fun restore(state: BootChimeState) = ControlApplyOutcome.APPLIED
+        }
+        val rig = rig(bootChimeHardware = silenceFails, onExternalSettingApplied = { superseded += it; true })
+        try {
+            rig.start()
+            val result = submitNative(rig, "silence_boot_chime", "ON")
+            assertTrue("$result", result is PanelAssistantCommandResult.Failed)
+            assertTrue("the newer intent is durable", rig.config.silenceBootChime)
+            assertEquals(
+                "a failed silence left an older queued value alive to be replayed over the newer ON",
+                listOf("silence_boot_chime"),
+                superseded.toList(),
+            )
         } finally { rig.close() }
     }
 }
