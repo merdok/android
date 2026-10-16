@@ -35,6 +35,12 @@ jobs:
   # runs on Actions-compatible runners that expand job matrices before any job has run and cannot read
   # a matrix or runner list computed at run time. Both jobs share one step list.
   #
+  # Blacksmith trial (2026-10-16): while the Actions variable CI_RUNNER is `blacksmith`, push and
+  # dispatch runs of the heavier jobs in this repository's workflows run on `blacksmith-4vcpu-ubuntu-2404`
+  # instead of `ubuntu-24.04`, and `auto` below sends the Android build there instead of the project
+  # runner. Pull requests, schedules and Dependabot stay GitHub-hosted. Unset the variable to end the
+  # trial; runners without the variable never see it.
+  #
   # CI_ANDROID_RUNNER (repository variable) or the dispatch input selects `hosted`, `self-hosted` or
   # `auto` (the default). `auto` asks the API for an online project runner using RUNNER_ADMIN_TOKEN, a
   # fine-grained token with Administration access to this repository, and falls back to hosted runners
@@ -52,6 +58,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           MODE: ${{ github.event.inputs.android_runner != '' && github.event.inputs.android_runner != 'repository setting' && github.event.inputs.android_runner || vars.CI_ANDROID_RUNNER || 'auto' }}
           RUNNER_STATUS_TOKEN: ${{ github.event_name != 'pull_request' && secrets.RUNNER_ADMIN_TOKEN || '' }}
+          CI_RUNNER: ${{ vars.CI_RUNNER }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -60,7 +67,11 @@ jobs:
             reason="pull requests always build on hosted runners"
           else
             case "$MODE" in
+              auto) [ "$CI_RUNNER" != blacksmith ] || MODE=blacksmith ;;
+            esac
+            case "$MODE" in
               hosted) reason="CI_ANDROID_RUNNER is hosted" ;;
+              blacksmith) reason="CI_RUNNER is blacksmith, so the Android build runs on Blacksmith" ;;
               self-hosted) choice=self-hosted; reason="CI_ANDROID_RUNNER is self-hosted" ;;
               auto)
                 if [ -z "$RUNNER_STATUS_TOKEN" ]; then
@@ -337,7 +348,7 @@ jobs:
     name: Android ${{ matrix.name }}
     needs: android-runner
     if: needs.android-runner.outputs.choice == 'hosted'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -359,7 +370,7 @@ jobs:
     name: Fixture browser tests
     needs: [build-self-hosted, build]
     if: always() && (needs.build.result == 'success' || needs.build-self-hosted.result == 'success')
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -446,7 +457,7 @@ jobs:
     name: Helper units
     needs: changes
     if: needs.changes.outputs.host == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -469,7 +480,7 @@ jobs:
 
   host-contracts:
     name: Host contracts
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -487,7 +498,7 @@ jobs:
 
   dependency-integrity:
     name: Dependency integrity
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
