@@ -9,7 +9,7 @@ import android.webkit.WebViewClient
 /**
  * The client of the bare on-panel Home Assistant sign-in WebView: it keeps the page to the OAuth flow for
  * [haUrl], hands over once the callback reports success, and retries a failed page load quietly before
- * giving the panel's verdict.
+ * giving the panel's verdict after [LOAD_RETRIES_MAX] failures in a row.
  */
 internal class PanelHaSignInClient(private val haUrl: String, private val host: Host) : WebViewClient() {
     interface Host {
@@ -28,13 +28,22 @@ internal class PanelHaSignInClient(private val haUrl: String, private val host: 
 
     private var loadRetries = 0
 
+    /** The current main frame failed. WebView then finishes loading its own error page in its place, so a
+     *  finished page counts as working only when no error came first. */
+    private var loadFailed = false
+
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!host.isCurrent(view)) return true
         return !panelHaOAuthNavigationAllowed(haUrl, request.url.toString())
     }
 
     override fun onPageFinished(view: WebView, url: String) {
-        if (!host.isCurrent(view) || !isPanelHaOAuthCallback(url)) return
+        if (!host.isCurrent(view)) return
+        // A page that loaded restores the budget: it counts failures in a row, not every hiccup of a long
+        // sign-in, whose verdict would throw away what the person had typed.
+        if (!loadFailed) loadRetries = 0
+        loadFailed = false
+        if (!isPanelHaOAuthCallback(url)) return
         view.evaluateJavascript("document.body&&document.body.dataset?document.body.dataset.haOauthStatus:\"\"") { result ->
             if (host.isCurrent(view) && result?.trim('"') == "success") host.onSignedIn(view)
         }
@@ -43,6 +52,7 @@ internal class PanelHaSignInClient(private val haUrl: String, private val host: 
     // The error is never read: which failure it was does not change the retry.
     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError?) {
         if (!host.isCurrent(view) || !request.isForMainFrame) return
+        loadFailed = true
         // A main-frame error here is usually TRANSIENT: the sign-in start page is served by this panel's own
         // local HTTP server, which restarts briefly during a config reconfigure — exactly when a first-run
         // user is mid-setup. On hardware review that produced a terminal "sign-in unavailable" over a sign-in
