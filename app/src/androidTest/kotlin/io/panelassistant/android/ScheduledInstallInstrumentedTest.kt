@@ -29,7 +29,7 @@ import org.junit.runner.RunWith
 class ScheduledInstallInstrumentedTest {
     @Test fun theRealDailyCheckNeverClaimsAnInstallWithLegacyFlagsEnabled() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val preferences = AppState.preferences(context, "config", "ha-paneld")
+        val preferences = AppState.preferences(context, "config")
         val original = (LEGACY_VALUES.keys + "http_port").associateWith { preferences.all[it] }
         val port = 18888
         assertFalse("requires a cold service process", health(port).contains(" pkg=${context.packageName}"))

@@ -44,8 +44,8 @@ class HaPaneldApp : Application() {
         super.onCreate()
         observeWallClockSteps()
         // Guard DB recovery returns before Config may open the protected database. Its UI and foreground
-        // notification still need the last selected language, so restore it from Config's read-only 0.9.x
-        // compatibility mirror before taking that early return.
+        // notification still need the last selected language, so restore it from the pre-database settings
+        // file before taking that early return.
         NativeLocale.applyBeforeDatabase(this)
         // A valid helper-owned transaction takes the maintenance foreground-service route before
         // status reacquisition or the one controlled pending-health database open. Ordinary owners
@@ -72,8 +72,8 @@ class HaPaneldApp : Application() {
         // start with page cache hot: 2.31 s from am_proc_start to the promote. A cold post-install
         // start, where the dex is still interpreted, clears the deadline outright.
         //
-        // `ui_language` is already applied above from the XML mirror, and `dark_mode` is read from that
-        // same mirror. PaneldService.onCreate re-asserts both from the authoritative database, after it
+        // `ui_language` is already applied above from the pre-database settings file, and `dark_mode` is
+        // read from that same file. PaneldService.onCreate re-asserts both from the authoritative database, after it
         // has promoted — see reconcileNativePresentationAfterPromotion there.
         if (Build.VERSION.SDK_INT < 29) {
             AppCompatDelegate.setDefaultNightMode(

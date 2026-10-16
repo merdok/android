@@ -1,30 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Defense in depth if implicit Android backup is ever re-enabled: the main preferences contain
-         Home Assistant credentials and must only leave through the sealed backup flow. -->
-    <exclude domain="sharedpref" path="ha-paneld.xml" />
-    <!-- Enhanced access is approved locally on each panel and must never migrate with app data. -->
-    <exclude domain="sharedpref" path="ha-paneld-shizuku.xml" />
-    <!-- Performance binding contains an installation-local secret and must never migrate. -->
-    <exclude domain="sharedpref" path="ha-paneld-performance-binding.xml" />
-    <!-- Imported profile files may migrate as inactive library content, but activation/LKG state is
-         panel-local. A restored community profile must pass the normal preview + activation flow. -->
-    <exclude domain="sharedpref" path="ha-paneld-device-profiles.xml" />
-    <!-- Physical sensor captures belong to one panel and must not migrate to another device. -->
-    <exclude domain="sharedpref" path="ha-paneld-profile-calibration.xml" />
-    <!-- Exact pre-mutation HOME, app-op and audio state belongs to the source Android install. -->
-    <exclude domain="sharedpref" path="ha-paneld-controller-state.xml" />
-    <exclude domain="sharedpref" path="ha-paneld-power-safety-acknowledgement.xml" />
-    <!-- Wi-Fi outage history describes the source panel's mounting position and network; on any
-         other device it would report another home's outages as this one's. -->
-    <exclude domain="sharedpref" path="ha-paneld-wifi-stability.xml" />
-    <!-- SQLite/XML bridge hashes are install-local migration state, not portable user settings. -->
-    <exclude domain="sharedpref" path="ha-paneld-state-bridge.xml" />
-    <!-- Unified state includes credentials and panel-local recovery/controller state. -->
+    <!-- Unified state includes credentials and panel-local recovery/controller state; it must only leave
+         through the sealed backup flow if implicit Android backup is ever re-enabled. -->
     <exclude domain="database" path="." />
     <exclude domain="database" path="ha-paneld.db" />
-    <!-- Compatibility fallback while the one-time filename migration remains supported. -->
-    <exclude domain="database" path="entity-learning.db" />
     <!-- Screenshots are transient panel observations, not portable application state. -->
     <exclude domain="file" path="panel-screenshots/" />
     <exclude domain="file" path="last-panel-screenshot.png" />

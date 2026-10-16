@@ -387,14 +387,13 @@ internal class LiveSettingAuthority(
          * "waiting to apply".
          */
         internal const val STALL_OBSERVATION_BOOTS = 2
-        private const val JOURNAL = "ha-paneld-live-setting-journal"
 
         fun persistent(
             context: Context,
             supportedKeys: Set<String>,
             onLatePending: (String) -> Unit = {},
         ): LiveSettingAuthority {
-            val preferences = AppState.preferences(context, "live-setting-journal", JOURNAL)
+            val preferences = AppState.preferences(context, "live-setting-journal")
             val store = object : Journal {
                 override fun load(): Map<String, Pending> = preferences.all.mapNotNull { (key, raw) ->
                     (raw as? String)?.let { encoded -> key to decodeJournalEntry(encoded) }

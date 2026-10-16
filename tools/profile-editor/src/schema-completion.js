@@ -1,4 +1,4 @@
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 
 const VALUE_PREFIX = /[A-Za-z0-9_.-]*/;
 const VALID_VALUE = /^[A-Za-z0-9_.-]*$/;
@@ -16,7 +16,8 @@ function scalarText(state, node) {
 }
 
 function nearestValuePair(state, position) {
-  const tree = syntaxTree(state);
+  // A starved process gets only a partial tree from syntaxTree; finish the parse first.
+  const tree = ensureSyntaxTree(state, state.doc.length, 5000) ?? syntaxTree(state);
   const line = state.doc.lineAt(position);
   let anchor = Math.max(0, position - 1);
   while (anchor > line.from && /\s/.test(state.sliceDoc(anchor, anchor + 1))) anchor -= 1;

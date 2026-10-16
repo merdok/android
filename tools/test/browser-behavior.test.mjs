@@ -4096,9 +4096,9 @@ browserTest('Only a typed query moves the Entities page', async (t) => {
   // The positive control: a typed query does move the page, so the negatives are not passing vacuously.
   await page.locator('#entity-search').fill('kitchen');
   await settled(page, () => document.getElementById('entity-search-status').textContent.startsWith('Matches:'));
-  await settled(page, () => window.scrollY > 0);
-  await scrollRest(page);
-  assert.equal(await belowFold(), false, 'a typed query brings Suggested into view');
+  // A smooth scroll can pause longer than scrollRest's 100 ms sample on a loaded runner; wait on the outcome.
+  await settled(page, () => document.querySelector('[data-table="suggested"]').getBoundingClientRect().top < window.innerHeight);
+  await scrollRest(page);   // let the animation land before the next step resets the offset
 
   // Clearing restores the unfiltered lists without chasing anything.
   await page.evaluate(() => window.scrollTo(0, 0));
