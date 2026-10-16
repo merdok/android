@@ -11,7 +11,10 @@ import io.panelassistant.android.builtInRendererReady
 import io.panelassistant.android.media.AudioPlaybackCoordinator
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 
 /** The Home Assistant pipeline catalogue, read through one short-lived authenticated socket per call. */
 internal class HaAssistPipelineDirectory(private val config: Config) : AssistPipelineDirectory {
@@ -65,6 +68,7 @@ internal class AnnouncementLanePlayback(
     }
 
     // The coordinator refuses to cancel any generation but the current one, so a later sound is safe.
+    // Set before [watch] checks for cancellation, which [silence]'s caller sets before reading it.
     @Volatile private var last: Long? = null
 
     override fun silence() {
@@ -78,6 +82,12 @@ internal class AnnouncementLanePlayback(
                 "The announcement coordinator is no longer accepting playback",
             )
         last = generation
+        // A run stopped while this sound was being submitted was silenced by the generation before this
+        // one, so it silences its own. Named first and checked after, one of the two always sees it.
+        if (!currentCoroutineContext().isActive) {
+            audio.cancelGeneration(generation)
+            currentCoroutineContext().ensureActive()
+        }
         onGeneration(generation)
         onStarted()
         while (true) {

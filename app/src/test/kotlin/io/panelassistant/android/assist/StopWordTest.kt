@@ -12,6 +12,7 @@ import io.panelassistant.android.media.AudioPlaybackRun
 import io.panelassistant.android.media.AudioPlaybackRunFactory
 import io.panelassistant.android.panelassistant.PanelAssistantTransportConnection
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
+import io.panelassistant.android.panelassistant.VoiceTurnEvent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * The stop word as the panel runs it: the coordinator, the satellite turn over the Panel Assistant link, the
@@ -45,6 +49,30 @@ class StopWordTest {
     /** The stop model's score for every frame from now on, 0..255. */
     @Volatile private var score = 0
 
+    /** A point a thread waits at until the test lets it on, so a race can be laid out step by step. */
+    private class Hold {
+        val reached = CountDownLatch(1)
+        private val release = CountDownLatch(1)
+
+        /** True when the held thread gave up waiting, so the race it was held for never happened. */
+        @Volatile var expired = false
+            private set
+
+        fun stop() {
+            reached.countDown()
+            if (!release.await(2, TimeUnit.SECONDS)) expired = true
+        }
+
+        fun go() = release.countDown()
+    }
+
+    /** Held once, at the next model inference, the next submission to the speaker, or the next sound to play. */
+    @Volatile private var atInference: Hold? = null
+    @Volatile private var atSubmission: Hold? = null
+    @Volatile private var atPlay: Hold? = null
+
+    private fun take(hold: Hold?, clear: () -> Unit) = hold?.also { clear() }?.stop()
+
     private val stopModel = MicroWakeWordModelConfig(
         id = "stop", wakeWord = "Stop", author = "test", website = null, modelFile = "stop.tflite",
         trainedLanguages = listOf("en"), version = 2, probabilityCutoff = StopWordModel.CUTOFF,
@@ -54,7 +82,10 @@ class StopWordTest {
     private fun model() = LoadedWakeWordModel(
         stopModel,
         object : WakeWordScorer {
-            override fun score(samples: ShortArray, count: Int) = score
+            override fun score(samples: ShortArray, count: Int): Int {
+                take(atInference) { atInference = null }
+                return score
+            }
             override fun reset() = Unit
             override fun close() = Unit
         },
@@ -80,6 +111,8 @@ class StopWordTest {
             }
         },
         Dispatchers.Default,
+        // Inside the submission: the sound has its generation, and the playback has not yet named it.
+        onBusyChanged = { busy -> if (busy) take(atSubmission) { atSubmission = null } },
     )
 
     /** Home Assistant's side of the panel's session. */
@@ -132,7 +165,7 @@ class StopWordTest {
                 override fun close() = Unit
             }
         },
-        runnerFactory = { SatelliteTurnRunner(voice) },
+        runnerFactory = { SatelliteTurnRunner(voice, onEvent = { if (it is VoiceTurnEvent.Play) take(atPlay) { atPlay = null } }) },
         // As the service wires it: the reply plays through the one announcement lane.
         playback = AnnouncementLanePlayback(audio, pollMs = 5L, onStarted = { state.set(VoiceState.RESPONDING) }),
         foregroundMicrophone = { true },
@@ -210,6 +243,15 @@ class StopWordTest {
         assertTrue(logs.any { it.contains("stop word heard") && it.endsWith("stopping") })
     }
 
+    /** The run ended, nothing is left on the speaker, and the wake word listens again. */
+    private fun assertSilent() {
+        eventually("the run ends") { !coordinator.running }
+        eventually("nothing is left playing") { audio.snapshot().state == AudioPlaybackCoordinator.State.IDLE }
+        assertEquals(VoiceState.IDLE, state.current())
+        assertEquals("the wake word hears again", listOf(MicPurpose.WAKE_WORD), mic.activeLeases.map { it.purpose })
+        assertTrue(logs.any { it.contains("stop word heard") && it.endsWith("stopping") })
+    }
+
     private fun assertNotStopped(sound: String) {
         assertTrue(coordinator.running)
         assertFalse("the sound plays on", cancelled.contains(sound))
@@ -223,6 +265,46 @@ class StopWordTest {
         pump()
         assertEquals("Home Assistant hears the reply is over", 1, sentOf(PanelAssistantVoice.COMMAND_VOICE_PLAYED).count { !it.has("announce_id") })
         assertEquals("and cancels the pipeline", runId, sentOf("unsubscribe_events").single().getLong("subscription"))
+    }
+
+    @Test fun `a stop heard as the reply arrives, before its sound is submitted, still silences it`() {
+        val runId = listening()
+        hear(2_000, saying = false)
+        thinking(runId)
+        hear(600, saying = false)
+        val play = Hold().also { atPlay = it }
+        event(runId, "reply", "text" to "It is five o'clock.", "final" to true)
+        event(runId, "play", "url" to REPLY)
+        assertTrue("the run has the reply in hand", play.reached.await(2, TimeUnit.SECONDS))
+        hear(100, saying = true)
+        play.go()
+        assertSilent()
+        assertFalse("the run waited at the reply until the stop was heard", play.expired)
+    }
+
+    @Test fun `a stop heard while the reply's sound is being submitted still silences it`() {
+        val runId = listening()
+        hear(2_000, saying = false)
+        thinking(runId)
+        hear(600, saying = false)
+        // Four inferences toward a stop; the fifth completes it, and is held as it is scored.
+        hear(40, saying = true)
+        val inference = Hold().also { atInference = it }
+        score = LOUD
+        val delivering = thread { mic.pushFrame(ShortArray(MicrophoneSource.SAMPLES_PER_FRAME), timestampNs = clockMs * 1_000_000L) }
+        assertTrue("the last frame is being scored", inference.reached.await(2, TimeUnit.SECONDS))
+        val submission = Hold().also { atSubmission = it }
+        event(runId, "reply", "text" to "It is five o'clock.", "final" to true)
+        event(runId, "play", "url" to REPLY)
+        assertTrue("the reply is being submitted", submission.reached.await(2, TimeUnit.SECONDS))
+        inference.go()
+        delivering.join(2_000L)
+        score = 0
+        assertFalse("the last frame was delivered", delivering.isAlive)
+        assertTrue("the stop was heard while the sound was being submitted", logs.any { it.endsWith("stopping") })
+        submission.go()
+        assertSilent()
+        assertFalse("each thread waited at its point of the race", inference.expired || submission.expired)
     }
 
     @Test fun `the words of the command never stop the panel`() {
