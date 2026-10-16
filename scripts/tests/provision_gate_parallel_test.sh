@@ -262,7 +262,7 @@ host_job="$(awk '/^  host-contracts:$/ { in_job=1 } /^  provisioning:$/ { exit }
 shard_list="$(awk '/^            shards: / { sub(/^            shards: /, ""); print }' <<<"$provisioning_job" | tr ' ' '\n' | sort)"
 expected_shards="$(printf '%s\n' admission read-only helper-recovery uninstall wrapper-inspection | sort)"
 if grep -Fq 'bash scripts/tests/provision_gate_parallel.sh --jobs 3 --output "$results" ${{ matrix.shards }}' <<<"$provisioning_job" &&
-   grep -Fqx "    runs-on: ubuntu-24.04" <<<"$provisioning_job" &&
+   grep -Fqx "    runs-on: \${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.CI_RUNNER == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}" <<<"$provisioning_job" &&
    [ "$shard_list" = "$expected_shards" ] &&
    grep -Fq 'uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' <<<"$provisioning_job" &&
    grep -Fq 'name: provisioning-${{ matrix.group }}' <<<"$provisioning_job" &&
