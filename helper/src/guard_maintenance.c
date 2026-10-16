@@ -2577,7 +2577,6 @@ static int seal_recovery_custody(int custody, const guard_plan *plan,
 
 static int prepare_recovery_custody_intent(int custody, const guard_plan *plan,
                                            guard_journal *journal) {
-    if (journal->phase != GUARD_PHASE_B_HEALTHY) return GUARD_PUBLISH_FAILED;
     int empty_intent = journal->premigrate_bytes == 0 && journal->b_primary_bytes == 0 &&
         strcmp(journal->premigrate_sha, "NONE") == 0 &&
         strcmp(journal->b_primary_sha, "NONE") == 0;
@@ -4317,9 +4316,6 @@ int guard_maintenance_supervisor_tick(void) {
         return stored == 0 ? GUARD_WORK_NONE : -1;
     }
     if (journal.phase == GUARD_PHASE_PREPARED) {
-        if (hash_regular_at(dir, GUARD_B_APK, plan.b.bytes, plan.b.sha) != 0) {
-            close(dir); pthread_mutex_unlock(&guard_lock); return -1;
-        }
         journal.generation++;
         journal.phase = GUARD_PHASE_SUBMITTED_B;
         journal.pm_settled = 0;
@@ -4379,8 +4375,7 @@ int guard_maintenance_supervisor_tick(void) {
         }
         work = GUARD_WORK_INSTALL_A;
     } else if (journal.phase == GUARD_PHASE_ROLLBACK_REQUIRED) {
-        if (!journal.pm_settled || journal.rollback_attempt_consumed ||
-            overall_now >= plan.overall_deadline_ms) {
+        if (!journal.pm_settled || overall_now >= plan.overall_deadline_ms) {
             journal.generation++;
             journal.phase = GUARD_PHASE_AMBIGUOUS;
             journal_clear_role(&journal);
@@ -4440,44 +4435,7 @@ int guard_maintenance_supervisor_tick(void) {
                journal.phase == GUARD_PHASE_SUBMITTED_B ||
                journal.phase == GUARD_PHASE_ROLLBACK_A_SUBMITTED) {
         int active = pm_process_active(&journal);
-        if (active == 0) {
-            int rollback_submit = journal.phase == GUARD_PHASE_ROLLBACK_A_SUBMITTED;
-            const guard_artifact *target = journal.phase == GUARD_PHASE_SUBMITTED_B
-                ? &plan.b : &plan.a;
-            const guard_artifact *incumbent = target == &plan.b ? &plan.a : &plan.b;
-            int target_exact = installed_apk_stable_exact(plan.package, target) == 0;
-            int incumbent_exact = !target_exact && installed_apk_stable_exact(plan.package, incumbent) == 0;
-            journal_clear_pm_process(&journal);
-            journal.pm_settled = 1;
-            if (target_exact && rollback_submit) {
-                journal.generation++;
-                journal.phase = GUARD_PHASE_ROLLBACK_DB_PREPARED;
-                journal.deadline_ms = 0;
-                journal_set_role(&journal, "A", &plan.a);
-                if (store_journal_at(dir, &journal) != GUARD_PUBLISH_COMMITTED) work = -1;
-            } else if (target_exact) {
-                int settled = settle_submitted_locked(
-                    dir, &plan, &journal, "IDENTITY_MISMATCH");
-                if (settled != 1) work = -1;
-                else work = target == &plan.b ? GUARD_WORK_LAUNCH_B : GUARD_WORK_LAUNCH_A;
-            } else if (incumbent_exact && !rollback_submit) {
-                journal.generation++;
-                journal.phase = GUARD_PHASE_ROLLBACK_REQUIRED;
-                journal.deadline_ms = 0;
-                journal_clear_role(&journal);
-                snprintf(journal.error, sizeof journal.error, "PM_REJECTED");
-                if (store_journal_at(dir, &journal) != GUARD_PUBLISH_COMMITTED) work = -1;
-            } else {
-                journal.generation++;
-                journal.phase = GUARD_PHASE_AMBIGUOUS;
-                journal.deadline_ms = 0;
-                journal_clear_role(&journal);
-                snprintf(journal.error, sizeof journal.error,
-                    rollback_submit ? "ROLLBACK_EXECUTOR_LOST" : "PACKAGE_UNKNOWN");
-                snprintf(journal.outcome, sizeof journal.outcome, "AMBIGUOUS");
-                if (store_journal_at(dir, &journal) != GUARD_PUBLISH_COMMITTED) work = -1;
-            }
-        } else if (active < 0) {
+        if (active < 0) {
             int recorded = journal.pm_spawned;
             journal_clear_pm_process(&journal);
             journal.generation++;
@@ -4825,8 +4783,7 @@ void cmd_guardhealth(conn_ctx *ctx, const char *args) {
 
     uint64_t now = monotonic_ms();
     int phase_active = journal.deadline_ms != 0 && now != 0 &&
-        now < journal.deadline_ms && now < plan.overall_deadline_ms &&
-        (artifact != &plan.b || now < plan.forward_deadline_ms);
+        now < journal.deadline_ms && now < plan.overall_deadline_ms;
     int independently_exact = phase_active &&
         installed_apk_stable_exact(plan.package, artifact) == 0 &&
         live_db_semantic_exact(dir, &plan, schema, strcmp(tokens[11], "PRESENT") == 0) == 0 &&
