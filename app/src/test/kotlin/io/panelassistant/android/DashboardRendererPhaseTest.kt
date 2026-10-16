@@ -4,6 +4,7 @@ import io.panelassistant.android.DashboardRendererRig.Companion.HA
 import io.panelassistant.android.control.BuiltinDashboard
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -99,5 +100,53 @@ class DashboardRendererPhaseTest {
 
         assertEquals(RendererPhase.AUTH_LATCHED, rig.phase)
         assertTrue("the health warning still reports the refused login", BuiltinDashboard.authLatched)
+    }
+
+    /**
+     * `resumeTimers()` is process-wide. When Android overlaps two dashboard activities in the dark, the old
+     * one is destroyed after its replacement froze its own page; the old teardown used to unfreeze that page
+     * for the rest of the night.
+     */
+    @Test fun aSupersededTeardownLeavesItsReplacementsTimersAlone() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        val replacement = BuiltinDashboard.acquireActivityOwner()
+        try {
+            rig.call("teardownWeb")
+
+            assertTrue("the old WebView went: ${page.calls}", "destroy" in page.calls)
+            assertFalse("the replacement's frozen page stayed frozen: ${page.calls}", "resumeTimers" in page.calls)
+        } finally {
+            BuiltinDashboard.releaseActivityOwner(replacement)
+        }
+    }
+
+    /** The last renderer still unfreezes on its way out, or the next WebView in this process starts frozen. */
+    @Test fun theLastRenderersTeardownUnfreezesTimers() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        // onDestroy gives up the renderer before it tears the WebView down.
+        BuiltinDashboard.releaseActivityOwner(rig.owner)
+
+        rig.call("teardownWeb")
+
+        assertTrue("timers unfrozen for the next renderer: ${page.calls}", "resumeTimers" in page.calls)
+    }
+
+    /**
+     * With no predecessor left to unfreeze them, a load the new owner starts while the screen is on runs its
+     * own timers: one frozen by the old activity in the dark would otherwise hold the page until a wake that
+     * already happened.
+     */
+    @Test fun anAwakeLoadRunsItsOwnTimers() {
+        val page = RecordingWebView("$HA/lovelace")
+        rig.show(page)
+        rig.phase = RendererPhase.LOADING
+
+        rig.call("onLoadStarted", 25_000L)
+
+        assertTrue("the load's timers run: ${page.calls}", "resumeTimers" in page.calls)
     }
 }

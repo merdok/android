@@ -547,7 +547,8 @@ class DashboardActivity : AppCompatActivity() {
     /** Fully release the WebView so a long-lived process doesn't leak it: stop background loading,
      *  detach the JS bridge, destroy. `resumeTimers()` is process-global and pauseTimers() may have been
      *  called on a screen-off — without this, an activity destroyed while dark would leave JS timers
-     *  frozen for every future WebView in this forever process (a never-blank violation). */
+     *  frozen for every future WebView in this forever process (a never-blank violation). An activity a
+     *  later one has replaced leaves them alone: that one owns them now, and may have frozen its own page. */
     private fun teardownWeb() {
         rendererRoute = null
         signInShownForUrl = null // the sign-in WebView is going away; a later call must rebuild it
@@ -562,7 +563,7 @@ class DashboardActivity : AppCompatActivity() {
         customView = null
         customViewCallback = null
         web?.let { w ->
-            runCatching { w.resumeTimers() }
+            if (!BuiltinDashboard.ownedByAnother(activityOwner)) runCatching { w.resumeTimers() }
             bridge.removeListeners(w)
             runCatching { w.loadUrl("about:blank") }
             (w.parent as? ViewGroup)?.removeView(w)
@@ -1019,7 +1020,12 @@ class DashboardActivity : AppCompatActivity() {
         clearedThisLoad = false
         lastFullLoadAt = SystemClock.elapsedRealtime()
         BuiltinDashboard.recordLoadStart(lastFullLoadAt) // TTI origin (first call since process start = cold)
-        if (screenAwake) { armWatchdog(handshakeMs); return }
+        if (screenAwake) {
+            // The activity this one replaced may have frozen the process's timers in the dark.
+            resumeTimersIfOwner(web)
+            armWatchdog(handshakeMs)
+            return
+        }
         // A load issued while dark (a remote reload, a rebuild) may land in a WebView that an earlier
         // screen-off froze, where it can never connect. Run it live through the settle window instead;
         // the watchdog stays off until the screen wakes, so a dark panel still never reload-loops.
@@ -1029,6 +1035,13 @@ class DashboardActivity : AppCompatActivity() {
         web?.let { it.onResume(); it.resumeTimers() }
         Log.i(TAG, "load started while the screen is dark — running it live for ${DARK_SETTLE_MS}ms")
         scheduleDarkSettle()
+    }
+
+    /** `resumeTimers()` is process-wide, so only the renderer's owner unfreezes: a superseded instance must
+     *  never wake its replacement's dark page. */
+    private fun resumeTimersIfOwner(view: WebView?) {
+        if (destroyed || !BuiltinDashboard.ownsActivity(activityOwner)) return
+        view?.resumeTimers()
     }
 
     private fun armWatchdog(ms: Long) {
@@ -1906,6 +1919,8 @@ class DashboardActivity : AppCompatActivity() {
         statusScreens.clearRerender()
         root = content
         setContentView(content)
+        // The sign-in starts no dashboard load, so it must unfreeze timers an activity it replaced froze itself.
+        resumeTimersIfOwner(view)
         view.loadUrl(panelHaOAuthStartUrl(haUrl))
     }
 

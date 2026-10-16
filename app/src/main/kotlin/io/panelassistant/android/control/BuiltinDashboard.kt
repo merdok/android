@@ -27,6 +27,9 @@ object BuiltinDashboard {
 
     @Synchronized fun ownsActivity(owner: Long): Boolean = owner != 0L && activityOwner == owner
 
+    /** Whether a later activity holds the renderer: unlike `!ownsActivity`, false once the lease is released. */
+    @Synchronized fun ownedByAnother(owner: Long): Boolean = activityOwner != 0L && activityOwner != owner
+
     @Synchronized fun setActivityForeground(owner: Long, value: Boolean) {
         if (activityOwner == owner) foreground = value
     }
