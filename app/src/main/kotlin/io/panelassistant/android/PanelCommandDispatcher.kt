@@ -479,9 +479,18 @@ internal class PanelCommandDispatcher(
                 "Disable the panel's native screen-timeout guard from Home Assistant",
             )
         }
-        config.setPreventIdleDim(on)
-        brightness.applyPreventIdleDim(on, config)
+        check(config.commitRaw(config.specOf("prevent_idle_dim"), on.toString())) {
+            "prevent_idle_dim intent could not be persisted"
+        }
+        // Durable from here: a failed actuation below must still retire an older queued HTTP value (as touch_sound).
+        externalIntentCommitted.set("prevent_idle_dim")
+        val timeout = brightness.applyPreventIdleDim(on, config)
         core.reconcile("prevent_idle_dim")
+        if (!timeout.effective) {
+            // observedMs < 0: WRITE_SETTINGS denied or the setting is unreadable, so there is no path.
+            if (timeout.observedMs < 0) throw LiveSettingUnavailableException("prevent_idle_dim")
+            error("screen timeout is ${timeout.observedMs}, not ${timeout.targetMs}")
+        }
     }
 
     override fun handleTouchSound(on: Boolean) {

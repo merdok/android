@@ -1,10 +1,13 @@
 package io.panelassistant.android
 
 import io.panelassistant.android.control.ControlApplyOutcome
+import io.panelassistant.android.control.NEVER_SCREEN_TIMEOUT_MS
+import io.panelassistant.android.control.ScreenTimeoutController
 import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
 import io.panelassistant.android.testsupport.PanelRuntimeRig
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -126,5 +129,44 @@ internal class TouchSoundExternalSupersessionTest : PanelRuntimeRig() {
 
     private companion object {
         const val KEY = "touch_sound"
+    }
+
+    /**
+     * The panel refused the screen-timeout write, so the guard is not in effect. Panel Assistant must hear
+     * Failed, not Applied. The intent stays durable; the `superseded` assertion pins that the older queued
+     * HTTP value is still retired (it is not what makes this red on the unfixed code).
+     */
+    @Test fun aRefusedScreenTimeoutWriteFailsThePreventIdleDimCommand() {
+        val timeout = AtomicInteger(30_000)
+        val superseded = CopyOnWriteArrayList<String>()
+        val rig = rig(
+            screenOffTimeout = ScreenTimeoutController(read = timeout::get, write = { false }),
+            onExternalSettingApplied = { superseded += it; true },
+            configure = { it.setPreventIdleDim(false) },
+        )
+        try {
+            rig.start()
+            // ON is not a safety reduction, so no local approval is involved.
+            val result = submitNative(rig, "prevent_idle_dim", "ON")
+            assertTrue("a refused timeout write answered $result", result is PanelAssistantCommandResult.Failed)
+            assertEquals("the panel's timeout never moved", 30_000, timeout.get())
+            assertTrue("the newer intent is durable", rig.config.preventIdleDim)
+            assertEquals(listOf("prevent_idle_dim"), superseded.toList())
+        } finally { rig.close() }
+    }
+
+    /** The same command on a panel that accepts the write: applied, and the timeout really is "never". */
+    @Test fun anAcceptedScreenTimeoutWriteAppliesThePreventIdleDimCommand() {
+        val timeout = AtomicInteger(30_000)
+        val rig = rig(
+            screenOffTimeout = ScreenTimeoutController(read = timeout::get, write = { timeout.set(it); true }),
+            configure = { it.setPreventIdleDim(false) },
+        )
+        try {
+            rig.start()
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "prevent_idle_dim", "ON"))
+            assertEquals(NEVER_SCREEN_TIMEOUT_MS, timeout.get())
+            assertTrue(rig.config.preventIdleDim)
+        } finally { rig.close() }
     }
 }
