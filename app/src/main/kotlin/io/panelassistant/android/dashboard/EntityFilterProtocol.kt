@@ -132,8 +132,17 @@ object EntityFilterProtocol {
     /**
      * Document-start wrapper that leaves Chromium's native socket intact and rewrites only an unfiltered
      * subscribe_entities command on the configured HA API socket. Static constants and the native
-     * prototype are preserved so the frontend observes a normal WebSocket; auth and inbound frames never
-     * cross a proxy or JavaScript parser.
+     * prototype are preserved so the frontend observes a normal WebSocket; auth never crosses a proxy.
+     *
+     * It also trims the two registry results the frontend loads for every connection, which take no
+     * filter argument: `config/entity_registry/list_for_display` keeps only the allowed entities' rows,
+     * and `config/device_registry/list` only the devices those rows name plus their parents (the frontend
+     * fills a child device from its parent in the same list). Its message listener is registered before
+     * the frontend's, so it parses only while a registry request is pending and replaces the event's
+     * `data` before the frontend reads it, inside batched array frames as well as single ones. Areas and
+     * floors pass through: they are a few KB, and the admin area picker lists them all. Anything it does
+     * not recognise, a failed result, a malformed or binary frame, is delivered as it arrived. The listener
+     * is added after `send` is replaced, so a failure to add it can never leave the subscription unfiltered.
      */
     fun documentStartScript(
         haUrl: String,
@@ -150,15 +159,34 @@ object EntityFilterProtocol {
               const Native=window.WebSocket;
               if(!Native||Native.__haPaneldEntityFilter)return;
               const targetWsOrigins=$targetWsOrigins,targetWsPath=$targetWsPath,entityIds=$ids,emptySubscriptionEntityId=$emptySubscriptionEntityId,filterKeys=$filterKeys;
+              const allowed=new Set(entityIds),registryCommands={'config/entity_registry/list_for_display':'entities','config/device_registry/list':'devices'};
               function FilteredWebSocket(url,protocols){
                 const socket=protocols===undefined?new Native(url):new Native(url,protocols);
                 try{
                   const u=new URL(String(url),location.href);
                   if(targetWsOrigins.includes(u.origin)&&u.pathname===targetWsPath){
+                    const pending=new Map();let reachedDevices=null;
+                    const trim={
+                      entities(result){
+                        const rows=result&&typeof result==='object'?result.entities:null;
+                        if(!Array.isArray(rows)||!rows.every(r=>r&&typeof r.ei==='string'))return false;
+                        const kept=rows.filter(r=>allowed.has(r.ei));
+                        reachedDevices=new Set(kept.map(r=>r.di).filter(d=>typeof d==='string'));
+                        result.entities=kept;return true;
+                      },
+                      devices(rows,message){
+                        if(!reachedDevices||!Array.isArray(rows)||!rows.every(r=>r&&typeof r.id==='string'))return false;
+                        const keep=new Set(reachedDevices);
+                        for(const r of rows)if(reachedDevices.has(r.id)&&typeof r.parent_device_id==='string')keep.add(r.parent_device_id);
+                        const kept=rows.filter(r=>keep.has(r.id));
+                        message.result=kept;return true;
+                      },
+                    };
                     Object.defineProperty(socket,'send',{configurable:true,writable:true,value:function(data){
                       let outgoing=data;
                       if(typeof data==='string')try{
                         const message=JSON.parse(data);
+                        if(message&&registryCommands[message.type])pending.set(message.id,registryCommands[message.type]);
                         if(message&&message.type==='subscribe_entities'){
                           window.__haPaneldEntitySubscriptionId=message.id;
                           if(!filterKeys.some(key=>Object.prototype.hasOwnProperty.call(message,key))){
@@ -170,6 +198,17 @@ object EntityFilterProtocol {
                       }catch(e){}
                       return Native.prototype.send.call(this,outgoing);
                     }});
+                    socket.addEventListener('message',event=>{
+                      if(!pending.size)return;
+                      let decoded;try{decoded=JSON.parse(event.data)}catch(e){return}
+                      let changed=false;
+                      for(const m of Array.isArray(decoded)?decoded:[decoded]){
+                        if(!m||m.type!=='result'||!pending.has(m.id))continue;
+                        const kind=pending.get(m.id);pending.delete(m.id);
+                        if(trim[kind](m.result,m))changed=true;
+                      }
+                      if(changed)Object.defineProperty(event,'data',{configurable:true,value:JSON.stringify(decoded)});
+                    });
                   }
                 }catch(e){}
                 return socket;
