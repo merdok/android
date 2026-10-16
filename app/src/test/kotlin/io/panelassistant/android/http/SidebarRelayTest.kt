@@ -342,6 +342,27 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
         }
     }
 
+    // Pages replaced quickly join one shared subscription three deep before any read restarts; once every page
+    // has left, no reader may be left polling the panel for nobody.
+    @Test fun subscriptionsJoiningInQuickSuccessionLeaveNoReaderOnceAllHaveLeft() {
+        val reads = AtomicInteger()
+        val table = ManageTable().apply { register("probe", ManageKind.READ) { ManageReply("applied", null, JSONObject().put("v", reads.incrementAndGet())) } }
+        val door = tableDoor(table, families = mapOf("probe" to ManageFamily("probe", 20, listOf("probe"))))
+        Session({ door }).use { session ->
+            repeat(20) { round ->
+                val ids = (1..3).map { "s$round-$it" }
+                ids.forEach { session.deliver(manage(it, "subscribe", JSONObject().put("family", "probe"))) }
+                ids.forEach { session.answer(it) }
+                ids.forEach { session.deliver(manage("u$it", "unsubscribe", JSONObject().put("subscription", it))) }
+                ids.forEach { session.answer("u$it") }
+                Thread.sleep(100)
+                val settled = reads.get()
+                Thread.sleep(200)
+                assertEquals("round $round: every page left, yet the panel is still being read", settled, reads.get())
+            }
+        }
+    }
+
     @Test fun aLargeRelayedResultMovesAsABlobThroughItsTokenAndAnUploadedBodyIsFetchedAndChecked() = testApplication {
         val table = ManageTable()
         val large = "x".repeat(300 * 1024)

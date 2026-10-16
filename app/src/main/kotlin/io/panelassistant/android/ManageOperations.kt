@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -427,8 +426,11 @@ internal class ManageOperations(
         private var last: String? = null
 
         fun start(after: Job? = null) {
+            // The predecessor is cancelled here, not inside the replacement: a replacement cancelled before it
+            // runs (a third subscriber came first) would otherwise never cancel it, leaving a reader nobody owns.
+            after?.cancel()
             worker = scope.launch {
-                after?.cancelAndJoin()
+                after?.join()
                 if (definition.append) followLogs() else poll()
             }
         }
