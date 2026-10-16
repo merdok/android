@@ -68,11 +68,10 @@ internal class DashboardPageHandler(
         val profNote = dashboardProfileNote(profile.profileLinks, strings)
         // A cold shell can safely show the app-private last-successful capture before the capability
         // probes finish. It must not request a new capture until hydration confirms a capture route.
-        // In the sidebar only the transport reaches the panel, so the capture arrives through it, without the placeholder.
-        val cachedShot = if (embed != null) null else screenshots.placeholderUrl()
+        // In the sidebar only the transport reaches the panel, so the placeholder arrives through it too.
         val shotCard = dashboardScreenshotCard(
             s == null, s != null && screenshotReady(s.privilege.rootControlReady),
-            cachedShot, ::screenAspectRatio, strings,
+            screenshots.placeholderUrl(), ::screenAspectRatio, strings, relayed = embed != null,
         )
         val cameraCard = dashboardCameraCard(camera.presentation().state != CameraState.ABSENT, strings)
         val rightControls = dashboardHeaderControls(config, strings)

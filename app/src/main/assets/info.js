@@ -738,7 +738,7 @@ function localizedInfoArgs(){var locale=window.HaI18n&&typeof window.HaI18n.loca
 // cold shell may already show its disk-persisted placeholder, but hydration must confirm capture
 // access before that shell starts a privileged request.
 (function(){var sc=document.getElementById('shotcard');
- if(sc&&sc.style.display!=='none'&&sc.getAttribute('data-capture-ok')==='1')showAndRefreshScreenshot(sc,'');})();
+ if(sc&&sc.style.display!=='none'&&sc.getAttribute('data-capture-ok')==='1')showAndRefreshScreenshot(sc,sc.getAttribute('data-cached-shot')||'');})();
 // Dismiss a component-update banner for its current version (POST the label+version; the server keeps
 // it hidden until a newer release ships — see Config.ignoreUpdate). Removes the banner on success.
 function ignoreUpdate(btn){var b=btn.closest('.notice');if(!b)return;

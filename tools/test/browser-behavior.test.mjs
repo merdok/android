@@ -1589,6 +1589,28 @@ browserTest('In the sidebar a failed live capture still shows the last capture',
   assert.ok(calls.some((call) => call.path === '/api/v1/screenshot.png'), 'a live capture was asked for too');
 });
 
+// A warm render does not hydrate, so in the sidebar the card itself names the last capture.
+browserTest('In the sidebar a warm Dashboard shows the last capture when the live one fails', async (t) => {
+  const id = 'd'.repeat(64);
+  const harness = await startHarness(screenshotRoutes({
+    screenshot: (path, request) => (new URL(request.url, 'http://panel.test').searchParams.get('cached') === id
+      ? { status: 200, headers: { 'content-type': 'image/png' }, body: initialScreenshot }
+      : { status: 503, headers: { 'content-type': 'text/plain' }, body: 'screenshot-unavailable\n' }),
+  }), () => screenshotFixture()
+    .replace('<body data-hardened="0">', '<body data-hardened="0" data-ui-relay>')
+    .replace('data-capture-ok="0">', `data-capture-ok="1" data-cached-shot="api/v1/screenshot.png?cached=${id}">`)
+    .replace('<img src="/initial.png" ', '<img '));
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(3_000);
+  t.after(async () => { await browser.close(); await new Promise((resolve) => harness.server.close(resolve)); });
+  await page.goto(harness.url, { waitUntil: 'load', timeout: 5_000 });
+  await page.waitForFunction(() => {
+    const shot = document.querySelector('#shotcard .shot'), image = shot && shot.querySelector('img');
+    return !!(shot && shot.classList.contains('loaded') && image.complete && image.naturalWidth > 0);
+  });
+});
+
 browserTest('Missing, modified and unsupported screenshot activations retain the ordinary link', async (t) => {
   const calls = [];
   const harness = await startHarness(screenshotRoutes({ calls }), () => screenshotFixture({ supported: false }));
