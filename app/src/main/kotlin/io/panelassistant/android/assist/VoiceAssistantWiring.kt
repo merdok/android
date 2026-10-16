@@ -3,14 +3,17 @@ package io.panelassistant.android.assist
 import android.content.Context
 import android.media.MediaRecorder
 import io.panelassistant.android.Config
-import io.panelassistant.android.audio.AndroidMicrophoneSource
+import io.panelassistant.android.audio.MicPurpose
 import io.panelassistant.android.audio.MicState
-import io.panelassistant.android.audio.MicrophoneAdmission
 import io.panelassistant.android.audio.MicrophoneSource
+import io.panelassistant.android.audio.MicrophoneSourceLifecycle
 import io.panelassistant.android.builtInRendererReady
 import io.panelassistant.android.media.AudioPlaybackCoordinator
 import io.panelassistant.android.panelassistant.PanelAssistantVoice
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -126,31 +129,51 @@ internal class AnnouncementLanePlayback(
  * from a live consumer.
  */
 internal class ConfiguredMicrophoneSource(
-    private val context: Context,
-    private val config: Config,
+    private val audioSource: () -> String?,
+    private val build: (Int) -> MicrophoneSource,
+    private val scope: CoroutineScope,
+    /** Re-applies the setting; called once a stale source is no longer held by the camera stream. */
+    private val onFree: () -> Unit,
 ) {
-    private var current: AndroidMicrophoneSource? = null
+    private var current: MicrophoneSource? = null
     private var currentSource: Int = -1
     private var closed = false
+    private var waiting: Job? = null
 
     @Synchronized
     fun get(): MicrophoneSource {
         check(!closed) { "microphone source is shut down" }
-        val wanted = audioSourceFor(config.voiceAudioSource)
+        val wanted = audioSourceFor(audioSource())
         val existing = current
-        if (existing != null && (currentSource == wanted || existing.state.value !is MicState.Closed)) return existing
-        existing?.close()
-        val built = AndroidMicrophoneSource(context, wanted)
+        if (existing != null && (currentSource == wanted || existing.state.value !is MicState.Closed)) {
+            // A stale source kept for the camera stream: re-apply the setting once the stream lets go.
+            // Voice holders re-apply through the coordinator's own start(), so only a stream holder waits.
+            if (currentSource != wanted && waiting?.isActive != true && existing.state.value.streaming()) {
+                waiting = scope.launch {
+                    existing.state.first { !it.streaming() }
+                    onFree()
+                }
+            }
+            return existing
+        }
+        (existing as? MicrophoneSourceLifecycle)?.close()
+        val built = build(wanted)
         current = built
         currentSource = wanted
-        MicrophoneAdmission.observe(built)
         return built
     }
 
     @Synchronized
     fun shutdown(timeoutMs: Long): Boolean {
         closed = true
-        return current?.shutdown(timeoutMs) ?: true
+        waiting?.cancel()
+        return (current as? MicrophoneSourceLifecycle)?.shutdown(timeoutMs) ?: true
+    }
+
+    private fun MicState.streaming(): Boolean = when (this) {
+        is MicState.Open -> holders.any { it.purpose == MicPurpose.STREAM }
+        is MicState.Error -> holders.any { it.purpose == MicPurpose.STREAM }
+        MicState.Closed -> false
     }
 
     companion object {
