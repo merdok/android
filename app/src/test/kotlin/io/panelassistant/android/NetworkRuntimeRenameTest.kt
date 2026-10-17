@@ -86,7 +86,7 @@ internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.
      * the config route requests re-reports the channel, now unavailable, so Home Assistant stops showing the
      * value it last received.
      */
-    @Test fun hidingASensorOnTheConfigurePageReportsItUnavailableToPanelAssistant() {
+    @Test fun hidingASensorOnTheConfigurePageReportsItNotSharedToPanelAssistant() {
         val rig = rig(configure = {
             it.setRaw(requireNotNull(SettingsRegistry.spec("panel_id")), "exposure-test")
             it.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Exposure test")
@@ -94,6 +94,7 @@ internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.
         // A diagnostic count and room readings, each delivered through its own production path.
         val channels = listOf("diag_wifi_outages_24h", "illuminance", "temperature", "humidity")
         val seen = channels.associateWith { CopyOnWriteArrayList<StateConverger.Observation.Reportable>() }
+        val notShared = StateConverger.Observation.NoReading(StateConverger.NoReadingReason.NOT_SHARED)
         rig.core.addStateSink { key, observation -> seen[key]?.add(observation) }
         val service = PaneldService()
         fenceProcessExit(service)
@@ -119,11 +120,11 @@ internal class NetworkRuntimeRenameTest : io.panelassistant.android.testsupport.
 
             awaitCondition {
                 drainStatePump()
-                channels.all { seen.getValue(it).lastOrNull() == StateConverger.Observation.Unavailable }
+                channels.all { seen.getValue(it).lastOrNull() == notShared }
             }
             assertEquals(
-                "Panel Assistant must learn each hidden sensor is unavailable, not keep its last value",
-                channels.associateWith { StateConverger.Observation.Unavailable },
+                "Panel Assistant must learn each hidden sensor is not shared, not keep its last value",
+                channels.associateWith { notShared },
                 channels.associateWith { seen.getValue(it).lastOrNull() },
             )
         } finally {

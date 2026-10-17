@@ -1,5 +1,6 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.state.StateConverger.Observation
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -15,11 +16,11 @@ class UsbDebuggingObserverTest {
         assertEquals("off", observer.statusText())
         for (unreadable in listOf(null, "", "2", "true")) {
             raw = unreadable
-            assertEquals(Observation.Unavailable, observer.observation())
+            assertEquals(Observation.NoReading(StateConverger.NoReadingReason.NOT_READABLE), observer.observation())
             assertEquals("unknown", observer.statusText())
         }
         val denied = UsbDebuggingObserver(sdkInt = { 29 }, readSetting = { throw SecurityException("denied") })
-        assertEquals(Observation.Unavailable, denied.observation())
+        assertEquals(Observation.NoReading(StateConverger.NoReadingReason.NOT_READABLE), denied.observation())
         assertEquals("unknown", denied.statusText())
     }
 
@@ -28,7 +29,7 @@ class UsbDebuggingObserverTest {
             val observer = UsbDebuggingObserver(
                 sdkInt = { sdk }, previewSdkInt = { preview }, readSetting = { "0" },
             )
-            assertEquals(Observation.Unavailable, observer.observation())
+            assertEquals(Observation.NoReading(StateConverger.NoReadingReason.NOT_READABLE), observer.observation())
             assertEquals("unknown", observer.statusText())
         }
         assertEquals(

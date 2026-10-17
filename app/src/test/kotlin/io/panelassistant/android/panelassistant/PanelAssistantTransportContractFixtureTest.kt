@@ -2,6 +2,7 @@ package io.panelassistant.android.panelassistant
 
 import io.panelassistant.android.testsupport.PanelRuntimeRig
 import io.panelassistant.android.testsupport.TestSources
+import io.panelassistant.android.state.StateConverger
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.launch
@@ -40,6 +41,11 @@ internal class PanelAssistantTransportContractFixtureTest : PanelRuntimeRig() {
                             .put("channel", "relay1")
                             .put("state", PanelAssistantTransportProtocol.STATE_KNOWN)
                             .put("value", true),
+                    ).put(
+                        JSONObject()
+                            .put("channel", "illuminance")
+                            .put("state", PanelAssistantTransportProtocol.STATE_UNKNOWN)
+                            .put("reason", StateConverger.NoReadingReason.WAITING.code),
                     ),
                 ),
             ),

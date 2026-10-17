@@ -13,7 +13,9 @@ internal class RoomClimateExposureDefaultContractTest : PanelRuntimeRig() {
     @Test fun diagnosticAndRoomClimateRuntimeUsesRegistryExposureDefaults() {
         val rig = rig(hasCht8305 = true)
         val reported = CopyOnWriteArrayList<String>()
-        rig.core.addStateSink { channel, observation -> if (observation is StateConverger.Observation.Known) reported += channel }
+        // Hidden is "not shared"; anything else (a value, or no reading with another reason) is the sensor reported.
+        val hidden = StateConverger.Observation.NoReading(StateConverger.NoReadingReason.NOT_SHARED)
+        rig.core.addStateSink { channel, observation -> if (observation != hidden) reported += channel }
         fun reports(key: String): Boolean {
             reported.clear()
             rig.core.reconcile(key)

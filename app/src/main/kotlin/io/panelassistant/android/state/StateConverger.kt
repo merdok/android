@@ -24,6 +24,27 @@ class StateConverger {
         data class Known(val payload: String, val attributes: String? = null) : Reportable
         data object Unknown : Observation
         data object Unavailable : Reportable
+        /**
+         * A sensor the panel serves but has no reading for, and why. Unlike [Unknown] it is reported, so Home
+         * Assistant shows the entity as unknown with [reason] instead of keeping a stale value or going unavailable.
+         */
+        data class NoReading(val reason: NoReadingReason) : Reportable
+    }
+
+    /** Why a sensor has no reading; [code] is the protocol's `reason` (section 7). */
+    enum class NoReadingReason(val code: String) {
+        /** Served, but no reading has arrived yet in this process. */
+        WAITING("waiting"),
+        /** The owner turned this sensor's sharing off in the panel's settings. */
+        NOT_SHARED("not_shared"),
+        /** The panel cannot read it: no root helper, a permission Android withholds, or no readable source. */
+        NOT_READABLE("not_readable"),
+        /** A Wi-Fi measurement on a panel not connected over Wi-Fi. */
+        NOT_ON_WIFI("not_on_wifi"),
+        /** The feature it measures is switched off. */
+        TURNED_OFF("turned_off"),
+        /** The feature is on but has not settled enough to decide. */
+        NOT_READY("not_ready"),
     }
 
     data class Channel(

@@ -26,6 +26,8 @@ data class Snapshot(
     val freqCurMhz: List<Long>,
     val freqMaxMhz: Long,
     val dump: PerfDump?,
+    /** A CPU source answered, so a null [cpuOverall] only means no baseline yet. */
+    val cpuReadable: Boolean = false,
 )
 
 /**
@@ -185,6 +187,7 @@ class PanelMetrics(
             freqCurMhz = freqCurMhz,
             freqMaxMhz = freqMaxMhz,
             dump = ctx.dumpOrNull(),
+            cpuReadable = statLines.isNotEmpty(),
         )
     }
 

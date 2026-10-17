@@ -178,6 +178,12 @@ internal object PanelAssistantTransportProtocol {
      * REST call to this panel, and the grant closes the REST routes ([io.panelassistant.android.Config.uiRoutesClosed]).
      */
     const val CAPABILITY_REST_RETIRED = "rest_retired"
+
+    /**
+     * The integration accepts observation state `unknown` with a `reason` (section 7). Without the grant the panel
+     * sends a sensor with no reading as unavailable, since an older integration refuses the whole `report_state`.
+     */
+    const val CAPABILITY_UNKNOWN_STATE = "unknown_state"
     const val COMMAND_UI_UPDATE = "panel_assistant/ui_update"
     const val MANAGE_BUNDLE = "bundle"
     const val MANAGE_SNAPSHOT = "snapshot"
@@ -199,6 +205,8 @@ internal object PanelAssistantTransportProtocol {
     const val SYNC_FULL_END = "full_end"
     const val STATE_KNOWN = "known"
     const val STATE_UNAVAILABLE = "unavailable"
+    /** A sensor with no reading, sent with its `reason` code only to a session granting [CAPABILITY_UNKNOWN_STATE]. */
+    const val STATE_UNKNOWN = "unknown"
 
     const val CODE_UNKNOWN_COMMAND = "unknown_command"
     const val CODE_UNKNOWN_PANEL = "unknown_panel"
@@ -229,6 +237,7 @@ internal object PanelAssistantTransportProtocol {
             CAPABILITY_UI_SUBSCRIBE,
             CAPABILITY_UI_BUNDLE,
             CAPABILITY_REST_RETIRED,
+            CAPABILITY_UNKNOWN_STATE,
         )
 
     /**
@@ -237,7 +246,7 @@ internal object PanelAssistantTransportProtocol {
      * text, so a change to the handshake vocabulary changes the digest the integration records.
      */
     internal const val CANONICAL_CONTRACT: String =
-        """{"protocol":{"min":5,"max":5},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop","panel_assistant/ui_update"],"capabilities":["state","commands","approval","voice","media","voice_stream_session","management","ui_subscribe","ui_bundle","rest_retired"]}"""
+        """{"protocol":{"min":5,"max":5},"commands":["panel_assistant/hello","panel_assistant/report_state","panel_assistant/command_result","panel_assistant/restart_notice","panel_assistant/voice_configuration","panel_assistant/voice_run","panel_assistant/voice_played","panel_assistant/voice_stream_frame","panel_assistant/voice_stream_stop","panel_assistant/ui_update"],"capabilities":["state","commands","approval","voice","media","voice_stream_session","management","ui_subscribe","ui_bundle","rest_retired","unknown_state"]}"""
 
     val CONTRACT_DIGEST: String = MessageDigest.getInstance("SHA-256")
         .digest(CANONICAL_CONTRACT.toByteArray(Charsets.UTF_8))

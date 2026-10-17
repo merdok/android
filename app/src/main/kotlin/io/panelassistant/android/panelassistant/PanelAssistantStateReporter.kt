@@ -42,6 +42,7 @@ internal class PanelAssistantStateReporter(
     private var lastEventId = 0L
 
     private var retryPhaseAt = 0L
+    @Volatile private var unknownGranted = false
 
     /** Totals for this process, for status and tests. */
     @Volatile var untranslatable = 0L
@@ -152,9 +153,13 @@ internal class PanelAssistantStateReporter(
         return null
     }
 
-    /** Start reporting on an accepted session described by [channels]. */
-    fun open(channels: Collection<PanelAssistantChannelDescriptor>) = synchronized(lock) {
+    /**
+     * Start reporting on an accepted session described by [channels]; [unknownGranted] is whether it granted
+     * capability `unknown_state`.
+     */
+    fun open(channels: Collection<PanelAssistantChannelDescriptor>, unknownGranted: Boolean = false) = synchronized(lock) {
         described = channels.mapTo(HashSet()) { it.channel }
+        this.unknownGranted = unknownGranted
         events.clear()
         outstanding.clear()
         entries.values.forEach {
@@ -205,7 +210,7 @@ internal class PanelAssistantStateReporter(
         val descriptors = describable()
         val (sync, candidates) = synchronized(lock) { plan(now, descriptors) } ?: return null
         val translated = candidates.map { candidate ->
-            candidate to PanelAssistantValueTranslation.translate(candidate.descriptor, candidate.observation)
+            candidate to PanelAssistantValueTranslation.translate(candidate.descriptor, candidate.observation, unknownGranted)
         }
         return synchronized(lock) { commit(id, session, now, sync, translated) }
     }
@@ -279,6 +284,8 @@ internal class PanelAssistantStateReporter(
         val json = JSONObject().put("channel", candidate.wire)
         when (value) {
             PanelAssistantWireValue.Unavailable -> json.put("state", PanelAssistantTransportProtocol.STATE_UNAVAILABLE)
+            is PanelAssistantWireValue.Unknown ->
+                json.put("state", PanelAssistantTransportProtocol.STATE_UNKNOWN).put("reason", value.reason)
             is PanelAssistantWireValue.Known -> {
                 json.put("state", PanelAssistantTransportProtocol.STATE_KNOWN).put("value", value.value)
                 PanelAssistantValueTranslation.attributes(candidate.observation)?.let { json.put("attributes", it) }

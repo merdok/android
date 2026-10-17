@@ -4,9 +4,10 @@ import io.panelassistant.android.state.StateConverger
 import org.json.JSONException
 import org.json.JSONObject
 
-/** One observation as `report_state` carries it: known with a typed value, or unavailable. */
+/** One observation as `report_state` carries it: known with a typed value, unknown with a reason code, or unavailable. */
 internal sealed interface PanelAssistantWireValue {
     data class Known(val value: Any) : PanelAssistantWireValue
+    data class Unknown(val reason: String) : PanelAssistantWireValue
     data object Unavailable : PanelAssistantWireValue
 }
 
@@ -18,18 +19,28 @@ internal sealed interface PanelAssistantWireValue {
 internal object PanelAssistantValueTranslation {
     /** Every non-text platform uses a literal `unknown` for a value the panel cannot currently read. */
     private const val UNKNOWN = "unknown"
+    /** The platforms Home Assistant shows as unknown with a reason; elsewhere no reading stays unavailable. */
+    private val SENSOR_PLATFORMS = setOf("sensor", "binary_sensor")
     private const val MAX_ATTRIBUTES = 32
     private const val MAX_ATTRIBUTE_CHARS = 255
     private val CODE = Regex("^[a-z][a-z0-9_]{0,63}$")
     private val CONTROL = Regex("[\\x00-\\x1f\\x7f]")
 
+    /**
+     * [unknownGranted] is the session's grant of capability `unknown_state`: without it a sensor with no reading
+     * is sent unavailable, the only form an integration that predates the state accepts.
+     */
     fun translate(
         descriptor: PanelAssistantChannelDescriptor,
         observation: StateConverger.Observation.Reportable,
+        unknownGranted: Boolean = false,
     ): PanelAssistantWireValue? {
         if (descriptor.kind == PanelAssistantValueKind.BUTTON || descriptor.kind == PanelAssistantValueKind.EVENT) return null
         val payload = when (observation) {
             StateConverger.Observation.Unavailable -> return PanelAssistantWireValue.Unavailable
+            is StateConverger.Observation.NoReading -> return if (unknownGranted && descriptor.platform in SENSOR_PLATFORMS) {
+                PanelAssistantWireValue.Unknown(observation.reason.code)
+            } else PanelAssistantWireValue.Unavailable
             is StateConverger.Observation.Known -> observation.payload
         }
         if (descriptor.kind != PanelAssistantValueKind.TEXT && (payload == UNKNOWN || payload.isEmpty())) {

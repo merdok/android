@@ -21,6 +21,7 @@ import io.panelassistant.android.control.WifiDiagnosticSnapshot
 import io.panelassistant.android.control.WifiOutageCounts
 import io.panelassistant.android.control.ZigbeeController
 import io.panelassistant.android.control.ZigbeeHealthSnapshot
+import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.hardware.LedController
 import io.panelassistant.android.hardware.NoOpLedController
 import io.panelassistant.android.input.ButtonBus
@@ -29,6 +30,7 @@ import io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog
 import io.panelassistant.android.panelassistant.PanelAssistantChannelShape
 import io.panelassistant.android.sensors.ProximityReportGate
 import io.panelassistant.android.state.StateConverger
+import io.panelassistant.android.state.StateConverger.NoReadingReason
 import io.panelassistant.android.state.StateConverger.Observation
 import io.panelassistant.android.state.StateSink
 import io.panelassistant.android.state.SyncGate
@@ -163,6 +165,7 @@ internal class PanelStateCore(
     private fun createStateConverger(): StateConverger {
         val known = { payload: String -> Observation.Known(payload) }
         val unknown = Observation.Unknown
+        val noReading = { reason: NoReadingReason -> Observation.NoReading(reason) }
         val c = StateConverger()
         fun channel(key: String, observe: () -> Observation) = c.register(StateConverger.Channel(key, observe))
 
@@ -230,42 +233,46 @@ internal class PanelStateCore(
         channel("auto_brightness") { known(if (config.autoBrightness) "ON" else "OFF") }
         channel("camera_enabled") { known(if (config.cameraEnabled) "ON" else "OFF") }
         channel("auto_sleep_activity") {
-            if (!config.haExposed("auto_sleep_activity", true)) return@channel unknown
+            if (!config.haExposed("auto_sleep_activity", true)) return@channel noReading(NoReadingReason.NOT_SHARED)
             val snapshot = autoSleepActivity()
-            if (!config.autoSleep || !snapshot.policyHealthy) Observation.Unavailable
+            if (!config.autoSleep) noReading(NoReadingReason.TURNED_OFF)
+            else if (!snapshot.policyHealthy) noReading(NoReadingReason.NOT_READY)
             else Observation.Known(if (snapshot.holdingAwake) "ON" else "OFF", autoSleepActivityProjection(snapshot).attributes)
         }
         channel("navbar") { known(config.navbarMode) }
 
-        // A sensor hidden with its pip is unavailable, so Home Assistant drops the value it last received.
+        // A sensor with no reading says why, so Home Assistant shows it unknown rather than a stale value.
+        val waiting = noReading(NoReadingReason.WAITING)
+        val notShared = noReading(NoReadingReason.NOT_SHARED)
         channel("illuminance") {
-            if (config.haExposed("illuminance", true)) lastIlluminance?.let { known(it.toString()) } ?: unknown
-            else Observation.Unavailable
+            if (config.haExposed("illuminance", true)) lastIlluminance?.let { known(it.toString()) } ?: waiting
+            else notShared
         }
         channel("proximity") {
-            if (learnedProximityEligible() && config.haExposed("proximity", true)) {
-                proximityPublication.near?.let { known(if (it) "ON" else "OFF") } ?: unknown
-            } else unknown
+            if (!config.haExposed("proximity", true)) notShared
+            else if (learnedProximityEligible()) proximityPublication.near?.let { known(if (it) "ON" else "OFF") } ?: waiting
+            else waiting
         }
         channel("proximity_level") {
-            if (learnedProximityEligible() && config.haExposed("proximity_level", true)) {
-                proximityPublication.level?.let { known(it.toString()) } ?: unknown
-            } else unknown
+            if (!config.haExposed("proximity_level", true)) notShared
+            else if (learnedProximityEligible()) proximityPublication.level?.let { known(it.toString()) } ?: waiting
+            else waiting
         }
         channel("temperature") {
             if (config.haExposed("temperature", true)) {
-                lastTemperature?.let { known(String.format(java.util.Locale.US, "%.1f", it)) } ?: unknown
-            } else Observation.Unavailable
+                lastTemperature?.let { known(String.format(java.util.Locale.US, "%.1f", it)) } ?: waiting
+            } else notShared
         }
         channel("humidity") {
-            if (config.haExposed("humidity", true)) lastHumidity?.let { known(Math.round(it).toString()) } ?: unknown
-            else Observation.Unavailable
+            if (config.haExposed("humidity", true)) lastHumidity?.let { known(Math.round(it).toString()) } ?: waiting
+            else notShared
         }
 
         for (key in diagKeys()) channel(key) {
-            // Transport-dependent Wi-Fi diagnostics are unavailable rather than a literal "unknown".
             val exposedByDefault = requireNotNull(SettingsRegistry.spec(key)).haExposedByDefault
-            val observation = diagnosticObservation(key, config.haExposed(key, exposedByDefault), diagValue(key))
+            val observation = diagnosticObservation(config.haExposed(key, exposedByDefault), diagValue(key)) {
+                diagNoReadingReason(key)
+            }
             // The integer alone cannot say "this is a floor", so the saturation flag rides with it as an
             // attribute; without it Home Assistant records a capped 200 as an exact measurement.
             if (key == "diag_wifi_outages_24h" && observation is Observation.Known) {
@@ -291,7 +298,8 @@ internal class PanelStateCore(
 
     /**
      * The native describe's view of [stateChannelKeys]: a channel whose [hardwareAvailability] is settled
-     * false is stated unsupported instead of described. An unsettled one stays described, or omitted if [PROVEN_ONLY_CHANNELS].
+     * false is stated unsupported instead of described. An unsettled one stays described, and its observer reports no
+     * reading with a reason until it has one, or is omitted if [PROVEN_ONLY_CHANNELS].
      */
     fun nativeChannelShape(): PanelAssistantChannelShape {
         val learned = runCatching(learnedProximityState).getOrNull()
@@ -364,7 +372,13 @@ internal class PanelStateCore(
             }
             if (observation.possible.zigbee) register("zigbee_gateway_health") {
                 if (!capabilityShape.current().live.zigbee) Observation.Unavailable
-                else zigbeeHealth().let { Observation.Known(it.state.wireValue, it.attributesJson()) }
+                else zigbeeHealth().let {
+                    when {
+                        it.state != ZigbeeHealthState.UNKNOWN -> Observation.Known(it.state.wireValue, it.attributesJson())
+                        it.observedAtMs == 0L -> Observation.NoReading(NoReadingReason.WAITING)
+                        else -> Observation.NoReading(NoReadingReason.NOT_READABLE)
+                    }
+                }
             }
             if (observation.possible.cpu) register("cpu_governor") {
                 if (!capabilityShape.current().live.cpu) known("unknown")
@@ -856,6 +870,16 @@ internal class PanelStateCore(
         else -> null
     }
 
+    /** Why diagnostic [key] has no value right now. */
+    private fun diagNoReadingReason(key: String): NoReadingReason = when (key) {
+        // The first tick has no /proc/stat baseline to measure against.
+        "diag_cpu" -> if (PanelMetrics.shared.systemSnapshot().cpuReadable) NoReadingReason.WAITING else NoReadingReason.NOT_READABLE
+        "diag_wifi_ssid", "diag_wifi_rssi" ->
+            if (wifiDiagnostics(WifiDiagnosticDemand()).active) NoReadingReason.NOT_READABLE else NoReadingReason.NOT_ON_WIFI
+        "diag_wifi_outages_24h" -> NoReadingReason.WAITING
+        else -> NoReadingReason.NOT_READABLE
+    }
+
     /** The diagnostic channels this hardware registers. */
     fun diagKeys(): List<String> = if (hasCht8305) DIAG_KEYS + ROOM_KEYS else DIAG_KEYS
 
@@ -897,7 +921,11 @@ internal class PanelStateCore(
         internal const val MEDIA_CHANNEL = "media"
         /** The hardware button event channel: no state, only `report_event`. */
         internal const val BUTTON_EVENT_CHANNEL = "button"
-        /** Described only once proven: a never-reported light sensor creates no entity (maintainer, 2026-10-06). */
+        /**
+         * Described only once proven (maintainer, 2026-10-06): a light sensor that has never reported is left out until its
+         * first reading, because its answer can settle absent seconds after a hello, and describing it first would end that
+         * session and create then remove its entity on every start.
+         */
         private val PROVEN_ONLY_CHANNELS = setOf("illuminance")
         private const val HA_LINK_TTL_MS = 6 * 3_600_000L // re-resolve the "Open in HA" link at most every 6h
         private const val SCREEN_DRIFT = 2   // reconcile threshold (0-255 scale) — ignore rounding jitter
@@ -953,14 +981,15 @@ internal fun storageHealthAttributes(snapshot: StorageHealthSnapshot): String {
         .toString()
 }
 
+/** A diagnostic's observation: its value, or no reading with the reason [noValue] gives for a missing one. */
 internal fun diagnosticObservation(
-    key: String,
     exposed: Boolean,
     value: String?,
+    noValue: () -> NoReadingReason,
 ): io.panelassistant.android.state.StateConverger.Observation = when {
-    !exposed || (key in WIFI_DIAGNOSTIC_KEYS && value == null) ->
-        io.panelassistant.android.state.StateConverger.Observation.Unavailable
-    else -> io.panelassistant.android.state.StateConverger.Observation.Known(value ?: "unknown")
+    !exposed -> io.panelassistant.android.state.StateConverger.Observation.NoReading(NoReadingReason.NOT_SHARED)
+    value == null -> io.panelassistant.android.state.StateConverger.Observation.NoReading(noValue())
+    else -> io.panelassistant.android.state.StateConverger.Observation.Known(value)
 }
 
 internal enum class LearnedProximityRefresh { SKIPPED, ELIGIBLE, INELIGIBLE }

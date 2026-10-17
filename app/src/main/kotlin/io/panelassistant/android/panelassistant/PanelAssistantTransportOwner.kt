@@ -339,7 +339,9 @@ internal class PanelAssistantTransportOwner(
                             when (capability) {
                                 PanelAssistantTransportProtocol.CAPABILITY_STATE -> reporter != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE -> voice?.offered() == true
-                                PanelAssistantTransportProtocol.CAPABILITY_MEDIA -> reporter != null
+                                PanelAssistantTransportProtocol.CAPABILITY_MEDIA,
+                                PanelAssistantTransportProtocol.CAPABILITY_UNKNOWN_STATE,
+                                -> reporter != null
                                 PanelAssistantTransportProtocol.CAPABILITY_VOICE_STREAM_SESSION -> streamClientId != null
                                 // The sidebar relay, its subscriptions and the bundle ride the management requests.
                                 PanelAssistantTransportProtocol.CAPABILITY_MANAGEMENT,
@@ -395,7 +397,10 @@ internal class PanelAssistantTransportOwner(
                                         attemptedRoute = null // a local owner change, not the route's fault
                                         throw PanelAssistantProtocolException("panel state owner changed during hello")
                                     }
-                                    reporting?.open(described)
+                                    reporting?.open(
+                                        described,
+                                        PanelAssistantTransportProtocol.CAPABILITY_UNKNOWN_STATE in outcome.session.capabilities,
+                                    )
                                     speaking?.open(opened, outcome.session.token, session.baseUrl)
                                     holdSession(run, opened, outcome.session, reporting, commanding, speaking, streaming)
                                 } finally {

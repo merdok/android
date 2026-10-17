@@ -3,6 +3,7 @@ package io.panelassistant.android.control
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
+import io.panelassistant.android.state.StateConverger
 import io.panelassistant.android.state.StateConverger.Observation
 
 /** Observes Android's USB debugging setting; it does not control ADB or prove a USB connection. */
@@ -32,7 +33,7 @@ internal class UsbDebuggingObserver(
     fun observation(): Observation.Reportable = when (state()) {
         true -> Observation.Known("ON")
         false -> Observation.Known("OFF")
-        null -> Observation.Unavailable
+        null -> Observation.NoReading(StateConverger.NoReadingReason.NOT_READABLE)
     }
 
     fun statusText(): String = when (state()) {

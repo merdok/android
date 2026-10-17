@@ -749,7 +749,7 @@ class PanelAssistantTransportOwnerTest {
         runCurrent()
 
         val hello = JSONObject(connection.sent.first())
-        assertEquals(listOf("state", "media"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
+        assertEquals(listOf("state", "media", "unknown_state"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
         assertEquals(listOf("relay1", "screen"), hello.getJSONArray("channels").let { (0 until it.length()).map { i -> it.getJSONObject(i).getString("channel") } })
         assertEquals(listOf("panel_assistant/hello", "full_begin", "full_end"), connection.sent.map(::kind))
         assertEquals("opaque-session", JSONObject(connection.sent[1]).getString("session"))
@@ -768,6 +768,29 @@ class PanelAssistantTransportOwnerTest {
         assertEquals((1L..ids.size.toLong()).toList(), ids)
         assertEquals(PanelAssistantTransportPhase.CONNECTED, harness.owner.status.phase)
         harness.owner.close()
+    }
+
+    @Test fun aSensorWithNoReadingIsSentUnknownOnlyToASessionGrantingIt() = runTest {
+        val waiting = io.panelassistant.android.state.StateConverger.Observation.NoReading(
+            io.panelassistant.android.state.StateConverger.NoReadingReason.WAITING,
+        )
+        for ((granted, expected) in listOf(
+            listOf("state", "unknown_state") to JSONObject().put("channel", "illuminance").put("state", "unknown").put("reason", "waiting"),
+            listOf("state") to JSONObject().put("channel", "illuminance").put("state", "unavailable"),
+        )) {
+            val shadow = Shadow(listOf("illuminance"))
+            shadow.sink("illuminance", waiting)
+            val connection = FakeConnection(Ha.accepting(capabilities = granted))
+            val harness = harness(connection, shadow = shadow.reporter)
+            harness.owner.replaceDemand(DEMAND)
+            runCurrent()
+
+            val reported = (1 until connection.sent.size).map { JSONObject(connection.sent[it]) }
+                .flatMap { frame -> frame.optJSONArray("observations")?.let { (0 until it.length()).map(it::getJSONObject) }.orEmpty() }
+                .single { it.getString("channel") == "illuminance" }
+            assertEquals(granted.toString(), expected.toString(), reported.toString())
+            harness.owner.close()
+        }
     }
 
     @Test fun acceptedHelloSamplesStateBeforeFullEnd() = runTest {
@@ -962,7 +985,7 @@ class PanelAssistantTransportOwnerTest {
         runCurrent()
 
         val hello = JSONObject(connection.sent.first())
-        assertEquals(listOf("state", "commands", "approval", "media"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
+        assertEquals(listOf("state", "commands", "approval", "media", "unknown_state"), hello.getJSONArray("capabilities").let { (0 until it.length()).map(it::getString) })
         assertEquals(listOf("panel_assistant/hello", "full_begin", "full_end"), connection.sent.map(::kind))
 
         connection.inbound.trySend(Ha.command("c1", "relay1", true))
@@ -1227,7 +1250,7 @@ class PanelAssistantTransportOwnerTest {
     @Test fun everyHelloOffersExactlyWhatIsWired() = runTest {
         for ((shadow, commands, expected) in listOf(
             Triple(null, null, emptyList()),
-            Triple(Shadow(listOf("relay1")).reporter, null, listOf("state", "media")),
+            Triple(Shadow(listOf("relay1")).reporter, null, listOf("state", "media", "unknown_state")),
             Triple(null, ImmediateSink(), listOf("commands", "approval")),
         )) {
             val connection = FakeConnection(Ha.accepting())
@@ -1525,6 +1548,8 @@ class PanelAssistantTransportOwnerTest {
         private val bound = reporter.bindShape { PanelAssistantChannelShape(keys.toList(), unsupported.toList()) }
 
         fun sink(channel: String, payload: String) = bound(channel, io.panelassistant.android.state.StateConverger.Observation.Known(payload))
+        fun sink(channel: String, observation: io.panelassistant.android.state.StateConverger.Observation.Reportable) =
+            bound(channel, observation)
     }
 
     private class Harness(val owner: PanelAssistantTransportOwner, val connector: FakeConnector, val forces: List<Boolean>) {
