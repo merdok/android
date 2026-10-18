@@ -272,12 +272,33 @@ private fun errorNumber(error: Exception): String? =
  * [fireAndForget] (e.g. `reboot`) and the form probe always use one-shot execs — a `reboot` must not be
  * fed into the shared shell, and the probe is what discovers/caches the form the shell is opened with.
  */
-object Su : RootShell {
-    private const val TAG = "ha-paneld/su"
-    private const val SENTINEL = "__hapaneld_done__"
-    private const val CMD_TIMEOUT_MS = 5000L
-    private const val AVAILABILITY_TTL_MS = 60_000L
-    private const val SKIPPED_EXEC_SIGNATURE = "skipped-exec"
+object Su : RootShell by productionSu {
+    fun availableIsolated(timeoutMs: Long = CMD_TIMEOUT_MS): Boolean = productionSu.availableIsolated(timeoutMs)
+    fun availableCachedIsolated(): Boolean = productionSu.availableCachedIsolated()
+    fun runLong(cmd: String, timeoutMs: Long): Boolean = productionSu.runLong(cmd, timeoutMs)
+    fun runWithStdinLong(cmd: String, input: File, timeoutMs: Long): String? =
+        productionSu.runWithStdinLong(cmd, input, timeoutMs)
+    fun runWithStdinLongChecked(cmd: String, input: File, timeoutMs: Long): String? =
+        productionSu.runWithStdinLongChecked(cmd, input, timeoutMs)
+    fun runOutputLong(cmd: String, timeoutMs: Long): String? = productionSu.runOutputLong(cmd, timeoutMs)
+}
+
+private val productionSu = SuShell()
+
+private const val TAG = "ha-paneld/su"
+private const val SENTINEL = "__hapaneld_done__"
+private const val CMD_TIMEOUT_MS = 5000L
+private const val AVAILABILITY_TTL_MS = 60_000L
+private const val SKIPPED_EXEC_SIGNATURE = "skipped-exec"
+
+/**
+ * [Su]'s machinery, as a class so a test can start `su` through [launch] and read time from [nowMs]:
+ * production passes `Runtime.exec` and the monotonic clock, exactly as the object used to.
+ */
+internal class SuShell(
+    private val launch: (Array<String>) -> Process = { Runtime.getRuntime().exec(it) },
+    private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
+) : RootShell {
 
     // A successful dialect is sticky. NONE_LAST_PROBE records diagnostics only; it must not suppress
     // later one-shot probes because root-manager readiness can change during the process lifetime.
@@ -285,7 +306,7 @@ object Su : RootShell {
 
     private var shell: ShellHandle? = null
     private val execFailureCache = SuExecFailureCache()
-    private val failureLog = SuFailureLogThrottle()
+    private val failureLog = SuFailureLogThrottle(nowMs = nowMs)
     /** Set by any launch in the current [runClassified] call that started no child process. Reset per
      *  call and never latched, so a refusal this boot cannot disable root for the process lifetime. */
     @Volatile private var launchCreatedNoProcess = false
@@ -326,6 +347,7 @@ object Su : RootShell {
     /** Run [cmd] as root, waiting for completion. Returns true on exit 0. */
     @Synchronized
     override fun run(cmd: String): Boolean {
+        if (!rootAnswering()) return false
         piped(cmd)?.let { return it.second == 0 }
         return oneShotRun(cmd)
     }
@@ -344,6 +366,7 @@ object Su : RootShell {
     /** Run [cmd] as root and return its stdout, or null if no su form works / it exits non-zero. */
     @Synchronized
     override fun runOutput(cmd: String): String? {
+        if (!rootAnswering()) return null
         piped(cmd)?.let { return if (it.second == 0) it.first else null }
         return oneShotOutput(cmd)
     }
@@ -377,7 +400,7 @@ object Su : RootShell {
         val forms = formState.candidates()
         for (f in forms) {
             try {
-                Runtime.getRuntime().exec(argvOneShot(f, cmd))
+                launch(argvOneShot(f, cmd))
                 return true
             } catch (e: Exception) {
                 if (logExecFailure("fire form $f", e)) return false
@@ -429,7 +452,8 @@ object Su : RootShell {
     // probe here rather than each layer (formerly the HTTP server) wrapping [availableIsolated] in its
     // own TTL cache. The bounded window avoids repeated expensive probes while allowing readiness changes
     // to be observed; isolated so the probe never waits behind the synchronized persistent control shell.
-    private val availabilityCache = newAvailabilityCache()
+    private val availabilityCache = newAvailabilityCache(nowMs = nowMs, probe = { availableIsolated().also(::noteAnswering) })
+    @Volatile private var lastAnswer: Boolean? = null
 
     internal fun newAvailabilityCache(
         ttlMs: Long = AVAILABILITY_TTL_MS,
@@ -439,6 +463,33 @@ object Su : RootShell {
 
     /** Cached [availableIsolated]: at most one root probe per TTL window, single-flight across callers. */
     fun availableCachedIsolated(): Boolean = availabilityCache.get()
+
+    /**
+     * Whether a [run]/[runOutput] call may start `su` at all. Until this process has proven a su dialect
+     * (boot before the root manager is up, a rootless panel), every call tries, as it always did. Once
+     * one is proven, an open persistent shell is proof of root; without one, the shared probe above
+     * answers, at most once per TTL. A panel whose SuperSU daemon died after that (`su` starts, exits 1,
+     * prints nothing) otherwise opened a shell, logged a stack and forked a one-shot on every call: about
+     * 540 times an hour from the state loop alone on one panel. Now it costs one `su true` a minute, and
+     * the first probe that answers again lets the next call reopen the shell.
+     */
+    private fun rootAnswering(): Boolean {
+        if (!formState.working() || shell?.process?.isAlive == true) return true
+        if (availabilityCache.get()) return true
+        noteSkippedExec()
+        return false
+    }
+
+    /** One line when proven root stops answering and one when it answers again. */
+    private fun noteAnswering(answering: Boolean) {
+        val previous = lastAnswer
+        lastAnswer = answering
+        if (previous != false && !answering && formState.working()) {
+            Log.w(TAG, "su does not answer; root-only operations are skipped and su is re-checked every minute")
+        } else if (previous == false && answering) {
+            Log.i(TAG, "su answers again; root-only operations resume")
+        }
+    }
 
     // --- persistent shell ---
 
@@ -452,6 +503,7 @@ object Su : RootShell {
         } catch (e: Exception) {
             // timeout / EOF / broken pipe / desync — drop the shell; the caller falls back to one-shot.
             Log.d(TAG, "persistent shell transact failed; falling back to one-shot", e)
+            availabilityCache.invalidate()  // a dead shell may mean root has gone; re-prove it before the next shell
             closeShell()
             null
         }
@@ -472,7 +524,7 @@ object Su : RootShell {
             if (!formState.working()) return null
         }
         return try {
-            val p = Runtime.getRuntime().exec(argvShell(formState.current()))
+            val p = launch(argvShell(formState.current()))
             drainStderr(p)
             ShellHandle(
                 process = p,
@@ -530,7 +582,7 @@ object Su : RootShell {
             gate = oneShotLaunchGate,
             launch = {
                 try {
-                    Runtime.getRuntime().exec(argv)
+                    launch(argv)
                 } catch (error: Exception) {
                     logExecFailure("$label exec failed: ${argv.joinToString(" ")}", error)
                     null
