@@ -58,6 +58,7 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 - **Setup follows a panel that changes address.** If the panel's network address changes during setup, its setup QR code and the sign-in address shown for your phone update to match, and a sign-in that was refused is not retried when the network comes back. A freshly installed panel waiting for setup no longer covers its setup code with a notice saying Panel Assistant is required.
 - **Restoring a backup onto a panel without root skips what it cannot apply.** The restore lists the settings that panel cannot apply instead of failing.
 - **Voice settings stay current.** The list of voice pipelines is fetched again when the panel's Home Assistant connection changes, and a new audio source takes effect as soon as the camera stream lets go of the microphone.
+- **The Install page and Panel Assistant's panel-download route find releases again.** Since 0.9.10 the app is published as `panel-assistant-<version>-manual-setup-required.apk.bin`, and the panel looked only for a name ending in `.apk`, so the Install page listed no panel app release and an update Panel Assistant asked the panel to download itself found nothing to install.
 - **Translation corrections** across every shipped language, including the setup screens, the Voice card and the diagnostics page.
 
 ## v0.9.10 - 2026-10-07
