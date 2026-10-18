@@ -5334,7 +5334,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issues.title": {
-      "text": "Compatibilidad de detección de entidades",
+      "text": "Compatibilidad de detección",
       "sourceHash": "eb4e09bf32f157bcec74907fe18323558be077e4b7c7c0ac3a6f3697f2a46abb",
       "state": "machine-cross-checked"
     },
@@ -5799,7 +5799,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.suggested.title": {
-      "text": "Entidades sugeridas del panel de control",
+      "text": "Sugerencias del panel de control",
       "sourceHash": "116d030af30a47c77e4b40b6783fbab3837e71cf38b5c7b3d5408ac7f9cd3831",
       "state": "machine-cross-checked"
     },
