@@ -5531,6 +5531,20 @@
       "softMaxChars": 100,
       "hardMaxChars": 140
     },
+    "configure.voice.import_shared": {
+      "text": "Panel Assistant also installs it on every other panel with a microphone.",
+      "sourceHash": "e8bebf90e50dc037f119d5615c484c66999dc4f65e9c6c0ca5c32425d89ceb87",
+      "surface": "configure",
+      "context": "voice",
+      "risk": "ordinary",
+      "siblings": [],
+      "placeholders": [],
+      "frozen": [
+        "Panel Assistant"
+      ],
+      "softMaxChars": 100,
+      "hardMaxChars": 140
+    },
     "configure.voice.import_wake_word": {
       "text": "Import trained wake word",
       "sourceHash": "67ca4b530450a4ac62a77d2916c15496edc7a423f82f7639dd6ff386eddee540",

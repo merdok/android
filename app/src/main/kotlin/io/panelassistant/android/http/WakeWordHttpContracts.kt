@@ -46,7 +46,7 @@ internal fun wakeWordImportResponse(
     return wakeWordInstalled(catalog.import(name, manifest.toByteArray(Charsets.UTF_8), model), changed)
 }
 
-private fun wakeWordInstalled(
+internal fun wakeWordInstalled(
     result: io.panelassistant.android.assist.wakeword.WakeWordCatalog.ImportResult,
     changed: () -> Unit,
 ): Pair<HttpStatusCode, String> {

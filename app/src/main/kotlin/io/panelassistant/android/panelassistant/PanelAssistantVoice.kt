@@ -17,7 +17,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** One wake word the panel can listen for, as Home Assistant's selector shows it. */
-internal data class PanelAssistantWakeWord(val id: String, val phrase: String, val languages: List<String>)
+internal data class PanelAssistantWakeWord(
+    val id: String,
+    val phrase: String,
+    val languages: List<String>,
+    /** The model's SHA-256 for an imported wake word, so Panel Assistant sees which copy is held; null for a bundled one. */
+    val sha256: String? = null,
+)
 
 /** What the panel hears and which pipeline each wake word runs; its own settings are the one store. */
 internal data class PanelAssistantVoiceConfiguration(
@@ -35,12 +41,13 @@ internal data class PanelAssistantVoiceConfiguration(
             microphone: MicrophoneStatus,
             settings: VoiceSettings,
             models: List<MicroWakeWordModelConfig>,
+            importedSha256: (String) -> String? = { null },
         ): PanelAssistantVoiceConfiguration? {
             if (!microphone.presence.offered) return null
             val ids = models.map { it.id }.toSet()
             return PanelAssistantVoiceConfiguration(
                 enabled = settings.enabled,
-                wakeWords = models.map { PanelAssistantWakeWord(it.id, it.wakeWord, it.trainedLanguages) },
+                wakeWords = models.map { PanelAssistantWakeWord(it.id, it.wakeWord, it.trainedLanguages, importedSha256(it.id)) },
                 active = settings.wakeWords.filter { it in ids },
                 pipelines = settings.pipelines.filterKeys { it in ids },
                 microphone = microphone,
@@ -187,6 +194,7 @@ internal class PanelAssistantVoice(
                             current.wakeWords.map { word ->
                                 JSONObject().put("id", word.id).put("wake_word", word.phrase)
                                     .put("trained_languages", JSONArray(word.languages))
+                                    .apply { word.sha256?.let { put("sha256", it) } }
                             },
                         ),
                     )

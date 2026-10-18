@@ -88,6 +88,21 @@ class ControlPlaneSessionTest {
     private var built: PanelBackup.Artifact? = null
     private val backupRequests = mutableListOf<Pair<CompanionBackupRequest, String>>()
 
+    private val wakeWordDir by lazy { temporary.newFolder("wakeword") }
+    private val wakeWordCatalog by lazy {
+        io.panelassistant.android.assist.wakeword.WakeWordCatalog(
+            bundled = object : io.panelassistant.android.assist.wakeword.WakeWordCatalog.BundledModels {
+                override fun ids() = listOf("okay_nabu")
+                override fun manifest(id: String) = wakeWordManifest("Okay Nabu", "okay_nabu.tflite")
+                override fun model(file: String) = byteArrayOf(1)
+            },
+            importDir = wakeWordDir,
+            accepts = { buffer, _ -> buffer.get(0) != REJECTED_BY_ENGINE },
+        )
+    }
+    private var microphone = true
+    private var wakeWordsChanged = 0
+
     private fun routes() = ControlPlaneRouteDependencies(
         playAudio = { true },
         installComponent = { _, _, _ -> true },
@@ -112,7 +127,25 @@ class ControlPlaneSessionTest {
             maxBytes = 64,
             receiveBody = { input, output, maxBytes -> BoundedStreams.copy(input, output, maxBytes) },
         ),
+        wakeWords = { wakeWordCatalog.takeIf { microphone } },
+        wakeWordsChanged = { wakeWordsChanged++ },
     )
+
+    /** Ask for [model] as Panel Assistant does; the blob view serves [served] (the announced bytes by default). */
+    private fun shareWakeWord(
+        model: ByteArray,
+        token: String,
+        replaces: List<String>? = null,
+        served: ByteArray = model,
+    ): PanelAssistantManageReply? {
+        this.served[token] = served
+        return request(
+            ControlPlaneSessionOps.WAKE_WORD_IMPORT,
+            JSONObject().put("name", "hey_pickle.json").put("manifest", wakeWordManifest("Hey Pickle", "hey_pickle.tflite"))
+                .put("blob", JSONObject().put("url", PanelAssistantBlobs.PATH + token).put("size", model.size).put("sha256", sha256(model)).put("type", "application/octet-stream"))
+                .apply { replaces?.let { put("replaces", org.json.JSONArray(it)) } },
+        )
+    }
 
     private fun request(
         op: String,
@@ -251,6 +284,59 @@ class ControlPlaneSessionTest {
         assertTrue(installed.isEmpty())
     }
 
+    @Test fun aSharedWakeWordIsFetchedCheckedAgainstItsDigestAndBecomesSelectable() {
+        val model = byteArrayOf(7, 7, 7)
+        // Panel Assistant asks again after a lost answer; the second request converges on the same model.
+        repeat(2) { attempt ->
+            val reply = shareWakeWord(model, "wake-word-token-0$attempt")!!
+            assertEquals("applied", reply.outcome)
+            assertEquals("hey_pickle", reply.body!!.getString("id"))
+        }
+        assertEquals(listOf("okay_nabu", "hey_pickle"), wakeWordCatalog.available().map { it.id })
+        assertEquals(sha256(model), wakeWordCatalog.importedSha256("hey_pickle"))
+        assertEquals(2, wakeWordsChanged)
+        assertEquals(listOf("GET wake-word-token-00 Bearer panel-token", "GET wake-word-token-01 Bearer panel-token"), requests)
+    }
+
+    @Test fun aSharedWakeWordWhoseBytesAreNotTheAnnouncedOnesInstallsNothing() {
+        val reply = shareWakeWord(byteArrayOf(7, 7, 7), "wake-word-token-01", served = byteArrayOf(9, 9, 9))!!
+        assertEquals("refused", reply.outcome)
+        assertEquals("invalid_value", reply.code)
+        assertEquals(listOf("okay_nabu"), wakeWordCatalog.available().map { it.id })
+        assertEquals(0, wakeWordsChanged)
+    }
+
+    @Test fun anOwnersOwnModelUnderTheSameNameIsKeptAndOnlyAnEarlierSharedCopyIsReplaced() {
+        val owners = byteArrayOf(3, 3, 3)
+        wakeWordCatalog.import("hey_pickle", wakeWordManifest("Hey Pickle", "hey_pickle.tflite").toByteArray(), owners)
+
+        val refused = shareWakeWord(byteArrayOf(7, 7, 7), "wake-word-token-01")!!
+        assertEquals("refused", refused.outcome)
+        assertEquals("invalid_value", refused.code)
+        assertEquals(sha256(owners), wakeWordCatalog.importedSha256("hey_pickle"))
+
+        // Panel Assistant names the copy it sent before, so its newer model replaces that one.
+        val replaced = shareWakeWord(byteArrayOf(8, 8, 8), "wake-word-token-02", replaces = listOf(sha256(owners)))!!
+        assertEquals("applied", replaced.outcome)
+        assertEquals(sha256(byteArrayOf(8, 8, 8)), wakeWordCatalog.importedSha256("hey_pickle"))
+    }
+
+    @Test fun aSharedWakeWordTheEngineRefusesKeepsTheModelAlreadyHeld() {
+        assertEquals("applied", shareWakeWord(byteArrayOf(7, 7, 7), "wake-word-token-01")!!.outcome)
+        val refused = shareWakeWord(byteArrayOf(REJECTED_BY_ENGINE, 1), "wake-word-token-02", replaces = listOf(sha256(byteArrayOf(7, 7, 7))))!!
+        assertEquals("refused", refused.outcome)
+        assertEquals("invalid_value", refused.code)
+        assertEquals(sha256(byteArrayOf(7, 7, 7)), wakeWordCatalog.importedSha256("hey_pickle"))
+    }
+
+    @Test fun aPanelWithoutAMicrophoneTakesNoSharedWakeWordAndFetchesNothing() {
+        microphone = false
+        val reply = shareWakeWord(byteArrayOf(7, 7, 7), "wake-word-token-01")!!
+        assertEquals("refused", reply.outcome)
+        assertEquals("hardware_unavailable", reply.code)
+        assertTrue(requests.isEmpty())
+    }
+
     @Test fun aNameThisBuildDoesNotServeIsLeftToTheUnknownCommandAnswer() {
         assertNull(request("install.component", JSONObject()))
     }
@@ -289,6 +375,11 @@ class ControlPlaneSessionTest {
 
     private companion object {
         val BACKUP = "PK-backup-archive".toByteArray()
+        const val REJECTED_BY_ENGINE: Byte = 0x55
+
+        fun wakeWordManifest(phrase: String, model: String) =
+            """{"type":"micro","wake_word":"$phrase","author":"me","model":"$model","trained_languages":["en"],"version":2,""" +
+                """"micro":{"probability_cutoff":0.97,"feature_step_size":10,"sliding_window_size":5,"tensor_arena_size":26080}}"""
 
         fun JSONObject.fields(): Map<String, Any?> = keys().asSequence().associateWith { opt(it) }
 
