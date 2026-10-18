@@ -89,6 +89,38 @@ browserTest('Configure offers the wake words as checkboxes and imports a trained
   assert.deepEqual(imported, { name: 'hey_panel.tflite', manifest: '{"wake_word":"Hey Panel"}', model: 'AQID' });
 });
 
+browserTest('An import made from the Panel Assistant sidebar says it goes to every panel; one on the panel itself does not', async (t) => {
+  // Panel Assistant installs a wake word imported through its sidebar on every other panel with a
+  // microphone, so the row says so there, and only there.
+  const schema = [
+    { key: 'voice_enabled', label: 'Voice assistant', group: 'Voice', type: 'BOOL', available: true },
+    { key: 'voice_wake_words', label: 'Wake words', group: 'Voice', type: 'STRING', picker: 'voice_wake_words', available: true },
+  ];
+  const routes = async (path) => {
+    if (path === '/api/v1/config/schema') return json(schema);
+    if (path === '/api/v1/config') return json({ settings: { voice_enabled: 'true', voice_wake_words: '["okay_nabu"]' }, ha_expose: {}, ha_auth: {} });
+    if (path === '/api/v1/voice/wake-words') return json({ wake_words: [{ id: 'okay_nabu', wake_word: 'Okay Nabu', imported: false }] });
+    if (path === '/api/v1/apps') return json({ apps: [] });
+    if (path === '/api/v1/radio') return json({ present: false });
+    if (path === '/api/v1/proximity') return json({ present: false });
+    if (path === '/api/v1/voice/pipelines') return json({ pipelines: [] });
+    if (path === '/health') return { body: 'ok cfg=test' };
+  };
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  const servers = [];
+  t.after(async () => { await browser.close(); await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve)))); });
+  for (const embedded of [false, true]) {
+    const harness = await startHarnessWith(routes, () => fixture().replace('<body>', embedded ? '<body data-embedded>' : '<body>'));
+    servers.push(harness.server);
+    const page = await browser.newPage();
+    page.setDefaultTimeout(1_500);
+    await page.goto(harness.url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
+    await assert.doesNotReject(page.locator('.voice-wake-word-import button').waitFor());
+    const shared = page.locator('.voice-wake-word-import .voice-wake-word-shared');
+    assert.deepEqual(await shared.allTextContents(), embedded ? ['Panel Assistant also installs it on every other panel with a microphone.'] : [], String(embedded));
+  }
+});
+
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   browserTest(`Configure shows a community wake word's author and licence before downloading it in ${engine}`, async (t) => {
     // Nothing is fetched until the owner has seen who made the picked model and under which licence;

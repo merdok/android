@@ -2083,6 +2083,11 @@
       "sourceHash": "4f5fb189552c28937a37b6125ac56114733f4d41c102b12d39ade8ed4dea00ff",
       "state": "machine-cross-checked"
     },
+    "configure.voice.import_shared": {
+      "text": "Panel Assistant installiert es auch auf jedem anderen Panel mit Mikrofon.",
+      "sourceHash": "e8bebf90e50dc037f119d5615c484c66999dc4f65e9c6c0ca5c32425d89ceb87",
+      "state": "machine-cross-checked"
+    },
     "configure.voice.import_wake_word": {
       "text": "Trainiertes Aktivierungswort importieren",
       "sourceHash": "67ca4b530450a4ac62a77d2916c15496edc7a423f82f7639dd6ff386eddee540",

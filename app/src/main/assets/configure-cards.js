@@ -452,6 +452,8 @@
       cfg.el("div", { class: "flabel" }, [
         cfg.el("span", { text: cfg.i18nText("configure.voice.import_wake_word", "Import trained wake word") }),
         cfg.el("small", { text: cfg.i18nText("configure.voice.import_help", "Import a microWakeWord model you trained: its .json manifest and .tflite file.") }),
+        // Opened in the Panel Assistant sidebar, an import goes to every panel (Panel Assistant's wake_words.py).
+        cfg.EMBEDDED ? cfg.el("small", { class: "voice-wake-word-shared", text: cfg.i18nText("configure.voice.import_shared", "Panel Assistant also installs it on every other panel with a microphone.") }) : null,
         cfg.el("small", {}, [cfg.el("a", {
           class: "voice-wake-word-guide", href: WAKE_WORD_GUIDE_URL, target: "_blank", rel: "noopener noreferrer",
           text: cfg.i18nText("configure.voice.import_guide", "How to train your own wake word")
