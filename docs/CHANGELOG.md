@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.0.0-preview1 - 2026-10-19
 
 This is an early preview of the panel app's 1.0, the Android app that Panel Assistant installs on your panels, for people who want to try it before the release candidates and tell me what breaks. It is not a release contender: read the caveats below before you update, expect rough edges, and please open an issue with the panel model and what you saw. The story of 1.0 is that MQTT and the old app are gone for good, so this release only works with panels that Panel Assistant 0.9.0 has already moved. In exchange the panel and Panel Assistant now talk over one connection for everything, including the sidebar, updates and voice, and that is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
 
@@ -59,8 +59,9 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 - **Setup follows a panel that changes address.** If the panel's network address changes during setup, its setup QR code and the sign-in address shown for your phone update to match, and a sign-in that was refused is not retried when the network comes back. A freshly installed panel waiting for setup no longer covers its setup code with a notice saying Panel Assistant is required.
 - **Restoring a backup onto a panel without root skips what it cannot apply.** The restore lists the settings that panel cannot apply instead of failing.
 - **Voice settings stay current.** The list of voice pipelines is fetched again when the panel's Home Assistant connection changes, and a new audio source takes effect as soon as the camera stream lets go of the microphone.
-- **The Install page and Panel Assistant's panel-download route find releases again.** Since 0.9.10 the app is published as `panel-assistant-<version>-manual-setup-required.apk.bin`, and the panel looked only for a name ending in `.apk`, so the Install page listed no panel app release and an update Panel Assistant asked the panel to download itself found nothing to install.
+- **The Install page and updates the panel downloads itself find releases again.** Since 0.9.10 the panel app is published under a file name the panel did not recognise as its own, so the Install page listed no panel app release and an update Panel Assistant asked the panel to download itself found nothing to install.
 - **Translation corrections** across every shipped language, including the setup screens, the Voice card and the diagnostics page.
+
 ## v0.9.11 - 2026-10-08
 
 A small release that finishes moving the app's internal names onto the project's own namespace before 1.0. Update Panel Assistant to 0.9.0 first.
