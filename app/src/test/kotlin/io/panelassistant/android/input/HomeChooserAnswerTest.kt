@@ -182,4 +182,15 @@ class HomeChooserAnswerTest {
         assertEquals(dashboard, portal.home)
         assertEquals(1, portal.homePresses)
     }
+
+    @Test fun aLaterResolverOnTheSameConnectionIsLeftAlone() {
+        val portal = Portal()
+        portal.answer.connected()
+        portal.settle()
+        assertEquals(dashboard, portal.home)
+        val openWith = ChooserWindow("android", "Open with", true, 700 to 600)
+        portal.front = openWith
+        portal.answer.answer()
+        assertEquals(openWith, portal.front)
+    }
 }

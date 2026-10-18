@@ -75,6 +75,9 @@ internal class HomeChooserAnswer(
             }
             HomeChooserPolicy.Step.DISMISS -> log("HOME chooser this service showed is not answered here; dismissed=${dismiss()}")
         }
+        // Once HOME is owned the chooser this service showed has been answered or dismissed, so a later
+        // resolver ("Open with", say) on this connection is not taken for it.
+        if (home?.pkg != "android") shown = false
         if (acted && (retries < RETRIES || taps < TAPS)) answerAgainIn(VERIFY_MS)
     }
 
