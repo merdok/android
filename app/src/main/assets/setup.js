@@ -670,9 +670,9 @@
     // Preselection: an already-configured value wins; else the account default's CONCRETE row; else
     // Overview; else a placeholder that keeps the primary button waiting for a real choice.
     var overview = items.filter(function (d) { return panelTitle(d) && d.path.slice(1) === "home"; })[0];
-    // A blank value is "follow the account's default" only once answered; before that it is just unset.
-    var answeredFollow = typed.home_dashboard === undefined && !current &&
-      !!(journey.home_dashboard && journey.home_dashboard.answered);
+    // A blank value is "follow the account's default" once chosen here or answered; before that it is unset.
+    var answeredFollow = typed.home_dashboard === "" ||
+      (typed.home_dashboard === undefined && !current && !!(journey.home_dashboard && journey.home_dashboard.answered));
     var preselect = current || (def.explicit ? def.path : answeredFollow ? "" : (overview ? overview.path : null));
     // One change handler, attached below once the custom-path controls exist: selecting Custom must
     // never leave the sentinel sitting in the answer, even transiently.

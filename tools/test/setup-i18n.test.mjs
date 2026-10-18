@@ -316,18 +316,22 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
     assert.equal(new URLSearchParams(posts[0].body).get('home_dashboard'), '/home');
   });
 
-  run(`A panel already told to follow the account's default keeps that answer on a revisit in ${engine}`, async (t) => {
+  run(`A panel already told to follow the account's default keeps that answer on a revisit, across a retried list, in ${engine}`, async (t) => {
+    // The first list read fails, as it can right after sign-in; "Try again" repaints the step.
+    let reads = 0;
     const rig = await openRig(t, {
       initialJourney: journey('home_dashboard', { home_dashboard: { value: '', answered: true } }),
       locale: 'en',
       dashboards: {
-        queried: true,
-        items: [{ group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' }],
-        default: { explicit: false, path: '' },
+        toJSON: () => (reads++ === 0
+          ? { queried: false, items: [], default: { explicit: false, path: '' } }
+          : { queried: true, items: [{ group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' }], default: { explicit: false, path: '' } }),
       },
     }, '/', browserType);
     const select = rig.page.locator('#wiz-home_dashboard');
     await select.waitFor();
+    await rig.page.locator('#hd-host a', { hasText: 'Try again' }).click();
+    await select.locator('option[value="/home"]').waitFor({ state: 'attached' });
     assert.equal(await select.inputValue(), '');
     assert.equal(await select.locator('option:checked').textContent(), 'Follow the account’s default');
     assert.equal(await rig.page.locator('button.wiz-primary').isDisabled(), false);
