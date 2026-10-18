@@ -338,6 +338,40 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
   });
 }
 
+for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) {
+  const run = existsSync(browserType === chromium ? chrome : browserType.executablePath()) ? test : test.skip;
+  run(`Visiting the dashboard step twice in one page load keeps and saves a follow-default answer in ${engine}`, async (t) => {
+    const rig = await openRig(t, {
+      initialJourney: journey('entity_filter', {
+        home_dashboard: { value: '', answered: true },
+        statuses: { home_dashboard: { status: 'satisfied' } },
+      }),
+      locale: 'en',
+      dashboards: {
+        queried: true,
+        items: [{ group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' }],
+        default: { explicit: false, path: '' },
+      },
+    }, '/#dash', browserType);
+    const select = rig.page.locator('#wiz-home_dashboard');
+    await select.locator('option[value="/home"]').waitFor({ state: 'attached' });
+    assert.equal(await select.inputValue(), '');
+    await rig.page.evaluate(() => { location.hash = '#optimize'; });
+    await select.waitFor({ state: 'detached' });
+    await rig.page.evaluate(() => { location.hash = '#dash'; });
+    await select.locator('option[value="/home"]').waitFor({ state: 'attached' });
+    assert.equal(await select.inputValue(), '');
+    assert.equal(await select.locator('option:checked').textContent(), 'Follow the account’s default');
+    await rig.page.locator('button.wiz-primary').click();
+    await eventually(
+      () => Promise.resolve(rig.state.requests.filter((request) => request.method === 'POST').length),
+      (count) => count >= 1,
+    );
+    const posted = rig.state.requests.find((request) => request.method === 'POST' && request.path === '/api/v1/config');
+    assert.equal(new URLSearchParams(posted.body).get('home_dashboard'), '');
+  });
+}
+
 browserTest('a Panel Assistant handover answers the filter on before releasing first render', async (t) => {
   const rig = await openRig(t, {
     initialJourney: journey('home_dashboard', {
