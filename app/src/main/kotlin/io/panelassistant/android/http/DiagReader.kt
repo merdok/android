@@ -303,6 +303,8 @@ object DiagReader {
         termuxBridge: TermuxBridgeProbe.State = TermuxBridgeProbe.State.NOT_APPLICABLE,
         /** The `[vendor-service]` line of the live service generation, if it has one. */
         vendorService: String? = null,
+        /** The `[voice]` line ([io.panelassistant.android.http.voiceDiagnosticLine]), if built. */
+        voice: String? = null,
     ): String {
         val deadline = MonotonicDeadline(DUMP_TIMEOUT_MS)
         val routes = privilege
@@ -323,6 +325,7 @@ object DiagReader {
         appendLine()
         appendLine("[build] fingerprint=${Build.FINGERPRINT}")
         appendLine("board=${Build.BOARD} product=${Build.PRODUCT} hardware=${Build.HARDWARE} abis=${Build.SUPPORTED_ABIS.joinToString(",")}")
+        appendLine(profileLine(profile))
         appendLine(bootSecurityLine(SystemProps::get, Build.TYPE))
         val evdev = EvdevButtonClient.snapshot()
         appendLine("[env] selinux=${PanelMetrics.shared.selinuxEnforce() ?: "?"} su=$su write_settings=${Settings.System.canWrite(ctx)} ${io.panelassistant.android.platform.AndroidDeviceName.of(ctx).diagnostic()} a11y=${a11yEnabled(ctx)} daemon=$daemon evdev=${evdev.state.name.lowercase()}/${evdev.mode?.name?.lowercase() ?: "none"} ledjni=${NativeLed.available()}")
@@ -342,6 +345,7 @@ object DiagReader {
         // between the two. Client addresses and raw
         // exception text never enter this line — [CameraPresentation] already excludes them.
         camera?.let { appendLine(it.diagnosticLine()) }
+        voice?.let { appendLine(it) }
         zigbee?.let {
             appendLine(
                 "[zigbee-health] state=${it.state.wireValue} layout=${it.layout} package=${it.packageVersion ?: "-"} " +
@@ -356,7 +360,7 @@ object DiagReader {
             appendLine("[evdev] requested=$requested state=${evdev.state.name.lowercase()} mode=${evdev.mode?.name?.lowercase() ?: "none"} error=${evdev.lastError ?: "-"}")
         }
         appendLine("[sysfs] leds=${listDir("/sys/class/leds")} backlight=${listDir("/sys/class/backlight")} devfreq=${listDir("/sys/class/devfreq")}")
-        appendLine("[labels] ${exec("ls -Zd /sys/class/leds/*/ /sys/class/backlight/*/ /dev/ledjni 2>&1", deadline).replace("\n", " ")}")
+        appendLine(labelsLine(exec("ls -Zd /sys/class/leds/*/ /sys/class/backlight/*/ /dev/ledjni 2>&1", deadline)))
         // Bounded, read-only characterization for an unknown/new panel. These are the high-signal
         // names needed to locate vendor climate sensors, relay controllers and input devices without
         // asking a non-developer reporter to run a long sequence of adb commands. Avoid raw uevent,
@@ -392,6 +396,8 @@ object DiagReader {
             appendLine(vendorTameSummary(TameController(ctx).profileReport(tameCandidates)))
         }
         vendorService?.let { appendLine(it) }
+        // On a Shelly the vendor app's version is the firmware version; Build.DISPLAY does not change.
+        profile.vendorHomePackages.firstOrNull()?.let { appendLine(vendorAppLine(pkgVer(ctx, it))) }
         appendLine("[capabilities] " + capabilityRows.joinToString(" | ") { "${it.name(english)}=${it.status}" })
         val updates = UpdateChecker.current(ctx)   // revalidated: no stale entry for an uninstalled Companion
         if (updates.isNotEmpty()) {
@@ -399,6 +405,20 @@ object DiagReader {
         }
         }
     }
+
+    /** Which profile the panel matched, so a report from an unknown panel shows a generic fallback. */
+    internal fun profileLine(profile: DeviceProfile): String =
+        "[profile] id=${profile.id} revision=${profile.revision.take(12)}"
+
+    /** SELinux labels of the LED and backlight nodes. A node this model lacks is dropped; a denied
+     *  read is kept, because it says the app cannot see nodes that exist. */
+    internal fun labelsLine(raw: String): String =
+        "[labels] " + raw.lines().map { it.trim() }
+            .filter { it.isNotEmpty() && !it.endsWith("No such file or directory") }
+            .joinToString(" ").ifEmpty { "none" }
+
+    /** Version only: a custom profile's package id stays out of the report. */
+    internal fun vendorAppLine(version: String): String = "[vendor-app] version=$version"
 
     internal fun displaySizingLine(evidence: DisplaySizingEvidence, profile: DeviceProfile): String {
         fun dpi(value: Int?) = value?.toString() ?: "?"

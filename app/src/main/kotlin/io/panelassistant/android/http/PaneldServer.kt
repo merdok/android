@@ -703,6 +703,13 @@ class PaneldServer internal constructor(
                 appContext, profile, management, radioStatus(), storageHealth(), powerSafety(),
                 rendererAdmission(appContext, config, autoBrightnessHttpApi), camera.presentation(), termux,
                 catalogueLoader.strings(AppLocale.ENGLISH),
+                voice = voiceDiagnosticLine(
+                    config.voiceEnabled,
+                    voiceMicrophone()
+                        ?: io.panelassistant.android.audio.MicrophoneStatus(liveCapabilities(management.caps).microphone),
+                    config.voiceWakeWords, config.voicePipelines, config.voiceAudioSource,
+                    config.voiceSensitivity, config.voiceMicGainDb, config.voiceStopWord,
+                ),
             )
         },
         scope = scope,
