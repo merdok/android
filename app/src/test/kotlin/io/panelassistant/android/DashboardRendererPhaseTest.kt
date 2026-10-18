@@ -183,4 +183,28 @@ class DashboardRendererPhaseTest {
 
         assertEquals(listOf("reload", "onResume", "resumeTimers"), page.calls)
     }
+
+    /**
+     * The frontend reports connected once its websocket authenticates, before the dashboard has drawn. A dark
+     * load frozen at that moment left the rest of the load to run in plain view at the next wake. It keeps
+     * running until the settle window ends, and the window still freezes it once it has connected.
+     */
+    @Test fun aDarkLoadRunsOnPastConnectingUntilTheSettleWindowFreezesIt() {
+        val page = RecordingWebView("$HA/lovelace/0")
+        rig.show(page)
+        rig.phase = RendererPhase.CONNECTED
+        rig.setPaced("lastFullLoadAt", -(6 * 60 * 60 * 1000L + 1))
+        rig.pace("onScreenChanged", false)
+        val generation = rig.get("rendererGeneration") as Long
+        val session = rig.bridge.beginDocument(page, rig.config, generation)
+
+        rig.call("onConnectionStatus", ExternalBusProtocol.ConnectionEvent.CONNECTED, generation, session)
+
+        val loaded = page.calls.filter { it != "evaluateJavascript" }
+        assertEquals("still live once connected", listOf("reload", "onResume", "resumeTimers"), loaded)
+
+        (DashboardRendererPacer::class.java.getDeclaredField("darkSettle").apply { isAccessible = true }.get(rig.pacer) as Runnable).run()
+
+        assertEquals("the settle window froze it", listOf("onPause", "pauseTimers"), page.calls.filter { it != "evaluateJavascript" }.drop(loaded.size))
+    }
 }

@@ -939,7 +939,6 @@ class DashboardActivity : AppCompatActivity() {
                 runCatching { CookieManager.getInstance().flush() }
             }
             captureDashboardTheme(generation, session)
-            pacer.freezeIfDark()
             Log.i(TAG, "frontend connected")
             bridge.connected(session)
         } else {
