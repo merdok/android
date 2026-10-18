@@ -829,22 +829,22 @@
    "state": "machine-cross-checked"
   },
   "configure.dashboard.group_yours": {
-   "text": "Twoje pulpity nawigacyjne",
+   "text": "Twoje pulpity",
    "sourceHash": "1eae7261ac3538d5d912509465916c3a33d7fad19970a0ce27d53c37ba115203",
    "state": "machine-cross-checked"
   },
   "configure.dashboard.no_default": {
-   "text": "To konto nie ma ustawionego domyślnego pulpitu nawigacyjnego — wybierz pulpit, który ma być wyświetlany w tym panelu.",
+   "text": "To konto nie ma ustawionego domyślnego pulpitu — wybierz pulpit, który ma być wyświetlany na tym panelu.",
    "sourceHash": "d491bed061c60e1745eb3212c40ff7fd554851354c2d8b4d9c8a31b873f65ec8",
    "state": "machine-cross-checked"
   },
   "configure.dashboard.none_accessible": {
-   "text": "To konto nie ma dostępu do żadnych pulpitów nawigacyjnych. Utwórz pulpit lub przyznaj dostęp w Home Assistant.",
+   "text": "To konto nie ma dostępu do żadnych pulpitów. Utwórz pulpit lub przyznaj dostęp w Home Assistant.",
    "sourceHash": "85c12503ff1cc21593b8d6167b5fb834ecf6e1196c0f1d1df74c9397104a7f20",
    "state": "machine-cross-checked"
   },
   "configure.dashboard.path_help": {
-   "text": "Ścieżka w tym systemie Home Assistant, zaczynająca się od pulpitu nawigacyjnego z listy powyżej.",
+   "text": "Ścieżka w tym systemie Home Assistant, zaczynająca się od pulpitu z listy powyżej.",
    "sourceHash": "70983ce0dd46a73e6a903ce96411af18990bab0dfa39e1878a9ae81e91c07689",
    "state": "machine-cross-checked"
   },
@@ -854,12 +854,12 @@
    "state": "machine-cross-checked"
   },
   "configure.dashboard.path_label": {
-   "text": "Ścieżka do pulpitu nawigacyjnego",
+   "text": "Ścieżka do pulpitu",
    "sourceHash": "08e0f39c31b74ee65647b268f819ae96f3669dc62daa2345760e91b396585937",
    "state": "machine-cross-checked"
   },
   "configure.dashboard.path_not_visible": {
-   "text": "{path} nie jest pulpitem nawigacyjnym widocznym dla konta Home Assistant tego panelu — panel wróci do pulpitu domyślnego, dopóki ten pulpit nie zostanie utworzony.",
+   "text": "{path} nie jest pulpitem widocznym dla konta Home Assistant tego panelu — panel wróci do pulpitu domyślnego, dopóki ten pulpit nie zostanie utworzony.",
    "sourceHash": "7464a115e40c5a97c3999bdc9f2dbf984f4298a406b10766470f28e15667bcae",
    "state": "machine-cross-checked"
   },
@@ -954,7 +954,7 @@
    "state": "machine-cross-checked"
   },
   "configure.group.dashboard": {
-   "text": "Pulpit nawigacyjny",
+   "text": "Pulpit",
    "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
    "state": "machine-cross-checked"
   },
@@ -1574,7 +1574,7 @@
    "state": "machine-cross-checked"
   },
   "configure.setup.strategy_allowed.body": {
-   "text": "Home Assistant tworzy pulpit nawigacyjny tego panelu na podstawie strategii, a kontrola wykrywania encji jest dozwolona, więc karty wyświetlają się wyłącznie dla encji objętych subskrypcją.",
+   "text": "Home Assistant tworzy pulpit tego panelu na podstawie strategii, a kontrola wykrywania encji jest dozwolona, więc karty wyświetlają się wyłącznie dla encji objętych subskrypcją.",
    "sourceHash": "775e7bde2d357258f45f814e974079a72d8e907dfd0678208bc0685908dd0cc9",
    "state": "machine-cross-checked"
   },
@@ -1584,7 +1584,7 @@
    "state": "machine-cross-checked"
   },
   "configure.setup.strategy_allowed.title": {
-   "text": "Niektórych kart pulpitu nawigacyjnego może brakować.",
+   "text": "Niektórych kart pulpitu może brakować.",
    "sourceHash": "4eb6bbaee2e66e0cb133be770b21c244e29992602a99e52c62c4848f66dfc315",
    "state": "machine-cross-checked"
   },
@@ -1694,7 +1694,7 @@
    "state": "machine-cross-checked"
   },
   "configure.voice.download_help": {
-   "text": "Modele wyszkolone i opublikowane przez innych. Przed pobraniem proszę sprawdzić, kto jest autorem modelu i jaka jest jego licencja.",
+   "text": "Modele wyszkolone i opublikowane przez innych. Przed pobraniem sprawdź, kto jest autorem modelu i jaka jest jego licencja.",
    "sourceHash": "03db31eb796091dba4fdc509ff632c3440e44a171431312abc903f0966ce0bc7",
    "state": "machine-cross-checked"
   },
@@ -1719,7 +1719,7 @@
    "state": "machine-cross-checked"
   },
   "configure.voice.import_choose_files": {
-   "text": "Proszę najpierw wybrać manifest „.json” oraz model „.tflite”.",
+   "text": "Najpierw wybierz manifest „.json” oraz model „.tflite”.",
    "sourceHash": "fa414a4812d0db87e2bb63ec269b6f25fd0ae7870052984f468c6de6530fc588",
    "state": "machine-cross-checked"
   },
@@ -1734,12 +1734,12 @@
    "state": "english-fallback"
   },
   "configure.voice.import_guide": {
-   "text": "Jak wytrenować własne słowo budzące",
+   "text": "Jak wytrenować własne słowo aktywujące",
    "sourceHash": "5a8bf4330ceea02e5f36f113f6beac65fbf27c8ac589ac557dcfed326d559913",
    "state": "machine-cross-checked"
   },
   "configure.voice.import_help": {
-   "text": "Proszę zaimportować wyszkolony model „microWakeWord”: plik manifestu „.json” oraz plik „.tflite”.",
+   "text": "Zaimportuj wyszkolony przez siebie model „microWakeWord”: plik manifestu „.json” oraz plik „.tflite”.",
    "sourceHash": "4f5fb189552c28937a37b6125ac56114733f4d41c102b12d39ade8ed4dea00ff",
    "state": "machine-cross-checked"
   },
@@ -1924,12 +1924,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.companion_url.summary_many": {
-   "text": "(liczba serwerów: {count}) — pulpit nawigacyjny może się nie załadować z",
+   "text": "(liczba serwerów: {count}) — pulpit może się nie załadować z",
    "sourceHash": "aa53e84cf786b06f13cee6812a280e46bae647fd0290b0849b9a20237e899afe",
    "state": "machine-cross-checked"
   },
   "dashboard.banner.companion_url.summary_one": {
-   "text": "({count} serwer) — pulpit nawigacyjny może się nie załadować z",
+   "text": "({count} serwer) — pulpit może się nie załadować z",
    "sourceHash": "56203c170dac72c1625b265579265ec88a750300873d2accad41690efe1e0a0f",
    "state": "machine-cross-checked"
   },
@@ -1964,7 +1964,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.explanation": {
-   "text": "lub skonfiguruj inny pakiet pulpitu nawigacyjnego. Do tego czasu ten panel nie będzie wyświetlał pulpitu nawigacyjnego.",
+   "text": "lub skonfiguruj inny pakiet pulpitu. Do tego czasu ten panel nie będzie wyświetlał pulpitu.",
    "sourceHash": "5aee351360d4e2deffde50f405e582262d7ac56d4909d5a35be51c8a96123bc3",
    "state": "machine-cross-checked"
   },
@@ -1974,7 +1974,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.title": {
-   "text": "Dalej: wybierz renderer pulpitu nawigacyjnego.",
+   "text": "Dalej: wybierz renderer pulpitu.",
    "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
    "state": "machine-cross-checked"
   },
@@ -2034,7 +2034,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.webview_old.explanation": {
-   "text": "pulpit nawigacyjny Home Assistant może wyświetlać się jako pusty lub uszkodzony.",
+   "text": "pulpit Home Assistant może wyświetlać się jako pusty lub uszkodzony.",
    "sourceHash": "ff191e5d689ffb361fc76cbffb902c16185f7355b227ddccb705d42aed4b54f1",
    "state": "machine-cross-checked"
   },
@@ -2064,7 +2064,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.zoom.explanation": {
-   "text": "(nie 100%) — zwykle przeniesione z ustawienia powiększenia strony w aplikacji Companion. Lepszym sposobem na dopasowanie rozmiaru pulpitu nawigacyjnego jest ustawienie panelu",
+   "text": "(nie 100%) — zwykle przeniesione z ustawienia powiększenia strony w aplikacji Companion. Lepszym sposobem na dopasowanie rozmiaru pulpitu jest ustawienie panelu",
    "sourceHash": "9b8b90e77b2c5fe92483b1773920fc2568273ca3117badb474db74ac7642b72a",
    "state": "machine-cross-checked"
   },
@@ -2109,7 +2109,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.camera.action.wake_panel": {
-   "text": "wybudź panel: sesja kamery może się rozpocząć tylko wtedy, gdy pulpit nawigacyjny jest widoczny",
+   "text": "wybudź panel: sesja kamery może się rozpocząć tylko wtedy, gdy pulpit jest widoczny",
    "sourceHash": "e88ad0895ee4cc2d7f5cd28e848d4c0aedc45e90ae7958a5517605497a6fd85f",
    "state": "machine-cross-checked"
   },
@@ -2679,7 +2679,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.pin_on_wake": {
-   "text": "{route}; ustawiono blokadę ekranu z kodem PIN, więc wybudzenie wymaga tego PIN",
+   "text": "{route}; ustawiono blokadę ekranu z kodem PIN, więc wybudzenie wymaga tego kodu PIN",
    "sourceHash": "4b4ec80d3e0a65dc7ef4148085e9e75ba67c8ecebbba3c7e76217aecae8b46a1",
    "state": "machine-cross-checked"
   },
@@ -2849,12 +2849,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.cause.dashboard_or_state_proxy": {
-   "text": "Ładowanie pulpitu nawigacyjnego lub stanu (pośrednio)",
+   "text": "Ładowanie pulpitu lub stanu (pośrednio)",
    "sourceHash": "425a2c150980fd510bf9ef45900a5091dd5d49faafcdca8e8f8f1ef3bab89bd9",
    "state": "machine-cross-checked"
   },
   "dashboard.cause.dashboard_script": {
-   "text": "JavaScript pulpitu nawigacyjnego/karty",
+   "text": "JavaScript pulpitu/karty",
    "sourceHash": "db93f478db12c742d1a6130f62649e31b5d7b4431cb8a48fc360d8ec73d0de97",
    "state": "machine-cross-checked"
   },
@@ -2939,7 +2939,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.controls.checking_capabilities": {
-   "text": "sprawdzam możliwości…",
+   "text": "sprawdzanie możliwości…",
    "sourceHash": "b50b00a247ff6e21fbb9456e1e8fbe6aa835b0bfda6fc865b0f514f62d236189",
    "state": "machine-cross-checked"
   },
@@ -2984,7 +2984,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.controls.unavailable": {
-   "text": "Niedostępne podczas ładowania pulpitu nawigacyjnego",
+   "text": "Niedostępne podczas ładowania pulpitu",
    "sourceHash": "23b08e93ff70b56bc7f1414f564d98196c64ccf6c6e8d19cdccd3059e21c2f6e",
    "state": "machine-cross-checked"
   },
@@ -3244,7 +3244,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.inspect.enable_in_companion": {
-   "text": "Najpierw włącz tę funkcję w aplikacji Companion na panelu wyświetlającym pulpit nawigacyjny: Companion → Ustawienia → Rozwiązywanie problemów → „Zdalne debugowanie WebView”, a potem uruchom ponownie pulpit nawigacyjny i ponownie naciśnij „Włącz”.",
+   "text": "Najpierw włącz tę funkcję w aplikacji Companion na panelu wyświetlającym pulpit: Companion → Ustawienia → Rozwiązywanie problemów → „Zdalne debugowanie WebView”, a potem uruchom ponownie pulpit i ponownie naciśnij „Włącz”.",
    "sourceHash": "760752b57777587b23fb91a39c73f1865016cc24324d3bf3e64d4d55fb5fcc74",
    "state": "machine-cross-checked"
   },
@@ -3254,7 +3254,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.inspect.instructions": {
-   "text": "Aby przeprowadzić dokładniejszą analizę, otwórz chrome://inspect → Configure…, dodaj {host}, a potem naciśnij „Włącz”. Companion wymaga też włączenia opcji Ustawienia → Rozwiązywanie problemów → Zdalne debugowanie WebView oraz ponownego uruchomienia pulpitu nawigacyjnego. Przekaźnik wymaga uprawnień root.",
+   "text": "Aby przeprowadzić dokładniejszą analizę, otwórz chrome://inspect → Configure…, dodaj {host}, a potem naciśnij „Włącz”. Companion wymaga też włączenia opcji Ustawienia → Rozwiązywanie problemów → Zdalne debugowanie WebView oraz ponownego uruchomienia pulpitu. Przekaźnik wymaga uprawnień root.",
    "sourceHash": "4d4bde17b98b24bd56c637a96ebcb90b9adc7cdfb9a6e43f14eead421735fed7",
    "state": "machine-cross-checked"
   },
@@ -3274,7 +3274,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.inspect.running": {
-   "text": "Przekaźnik włączony. W chrome://inspect pulpit nawigacyjny pojawia się teraz w sekcji „Remote Target” — kliknij „inspect”. Jeśli się nie pojawia, host musi zostać dodany przed włączeniem — dodaj {host} w Configure…, a potem odśwież chrome://inspect. Gdy przekaźnik działa, DevTools są dostępne w sieci LAN; naciśnij „Zatrzymaj”, gdy skończysz.",
+   "text": "Przekaźnik włączony. W chrome://inspect pulpit pojawia się teraz w sekcji „Remote Target” — kliknij „inspect”. Jeśli się nie pojawia, host musi zostać dodany przed włączeniem — dodaj {host} w Configure…, a potem odśwież chrome://inspect. Gdy przekaźnik działa, DevTools są dostępne w sieci LAN; naciśnij „Zatrzymaj”, gdy skończysz.",
    "sourceHash": "2e061fb7d41c99241a10ac0799976d3994087845144cc55526eeb1e3585b8fa6",
    "state": "machine-cross-checked"
   },
@@ -3389,7 +3389,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.performance.waiting_sample": {
-   "text": "czekam na próbkę",
+   "text": "oczekiwanie na próbkę",
    "sourceHash": "dffae8436eb7788dacba3c4da5de726a409d00c04c17b81db67f588ab254c208",
    "state": "machine-cross-checked"
   },
@@ -3454,12 +3454,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.proximity.waiting_movements": {
-   "text": "Wyuczono stan bazowy; czekam na pełne ruchy zbliżenia i oddalenia",
+   "text": "Wyuczono stan bazowy; oczekiwanie na pełne ruchy zbliżenia i oddalenia",
    "sourceHash": "37561a40be70db6f873dad23a1c28094bc4e75e75343da6e517631ffe9d495de",
    "state": "machine-cross-checked"
   },
   "dashboard.proximity.waiting_readings": {
-   "text": "Czekam na wiarygodne odczyty zbliżenia",
+   "text": "Oczekiwanie na wiarygodne odczyty zbliżenia",
    "sourceHash": "b2803f401b72d6508d6f33e032bfaeee7cb22ae465701f8ff614d8dcadf427c9",
    "state": "machine-cross-checked"
   },
@@ -3489,7 +3489,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.renderer.main_thread": {
-   "text": "Główny wątek pulpitu nawigacyjnego",
+   "text": "Główny wątek pulpitu",
    "sourceHash": "88cd2baeff4fc9e88ddf4f6ae14d884e57d5cc91439b491b91998f78562e8fcc",
    "state": "machine-cross-checked"
   },
@@ -3529,7 +3529,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.renderer.reload_to_retry": {
-   "text": "Odśwież wbudowany pulpit nawigacyjny, żeby spróbować ponownie",
+   "text": "Odśwież wbudowany pulpit, żeby spróbować ponownie",
    "sourceHash": "24aba4e861f684023d646a5df22b12afdd988d412cc7046a7a421bccf971e8c0",
    "state": "machine-cross-checked"
   },
@@ -3744,7 +3744,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.camera.stream_url": {
-   "text": "strumień pod adresem {url} (nie dla pulpitu nawigacyjnego tego panelu)",
+   "text": "strumień pod adresem {url} (nie dla pulpitu tego panelu)",
    "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
    "state": "machine-cross-checked"
   },
@@ -3839,7 +3839,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.ha_network_severe": {
-   "text": "znacznie pogorszony; {evidence}",
+   "text": "znaczne pogorszenie; {evidence}",
    "sourceHash": "64f356940f9a3373feecedc98764165f8b1c405307b52a5d1cd7d0e2616e7142",
    "state": "machine-cross-checked"
   },
@@ -3859,12 +3859,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.admitted_cached": {
-   "text": "dopuszczono na podstawie wcześniej zweryfikowanej wersji Home Assistant; pulpit nawigacyjny nie nawiązał połączenia",
+   "text": "dopuszczono na podstawie wcześniej zweryfikowanej wersji Home Assistant; pulpit nie nawiązał połączenia",
    "sourceHash": "7e85c23b29d5ad7c28dabb3f8c4261b86e848c31a64e911bce5b10fa680240bf",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.admitted_waiting": {
-   "text": "dopuszczono; pulpit nawigacyjny jeszcze nie nawiązał połączenia",
+   "text": "dopuszczono; pulpit jeszcze nie nawiązał połączenia",
    "sourceHash": "89c8b01a2e40da3b01620c913744f4c12b8c5669544bf736dc0d73d7b1ca76d7",
    "state": "machine-cross-checked"
   },
@@ -3879,17 +3879,17 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.rendered": {
-   "text": "wyświetlony pulpit nawigacyjny",
+   "text": "wyświetlony pulpit",
    "sourceHash": "364760458d97955decc536899d96d5ec91067e214a8b461675bc0def3e5e3221",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.rendered_cached": {
-   "text": "pulpit nawigacyjny wyświetlony; dopuszczono na podstawie wcześniej zweryfikowanej wersji Home Assistant",
+   "text": "pulpit wyświetlony; dopuszczono na podstawie wcześniej zweryfikowanej wersji Home Assistant",
    "sourceHash": "2077a2931c2fa32a27d8d8a136b7a0e5367c4007d0b7df59b559e10e337235d4",
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.renderer.theme_override_suffix": {
-   "text": "; jawnie ustawiony motyw Home Assistant zastępuje motyw pulpitu nawigacyjnego tego panelu",
+   "text": "; jawnie ustawiony motyw Home Assistant zastępuje motyw pulpitu tego panelu",
    "sourceHash": "48b00c7c6d33ce7186244ebdc2343d2c5d58a9156ebf9276d8c7e3bbbc5cb28a",
    "state": "machine-cross-checked"
   },
@@ -3904,7 +3904,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.security_relaxed": {
-   "text": "Złagodzone",
+   "text": "Tryb Relaxed",
    "sourceHash": "43ddd4ca77f3867dc868038ee29f599d6827cea28b5d00e7ad1827fa9373b76d",
    "state": "machine-cross-checked"
   },
@@ -4149,7 +4149,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.state_stream.state_payload": {
-   "text": "Treść stanu",
+   "text": "Ładunek stanu",
    "sourceHash": "6d08b19b8127d27cd57b98633e33dc18808a81ae770c14e38c3de324d10c5dfa",
    "state": "machine-cross-checked"
   },
@@ -4299,7 +4299,7 @@
    "state": "machine-cross-checked"
   },
   "entities.apply.changed": {
-   "text": "Zastosowano. Subskrypcja na żywo przed: {previous}; po: {current}. Dodano: {added}; usunięto: {removed}. Żądano odświeżenia pulpitu nawigacyjnego.",
+   "text": "Zastosowano. Subskrypcja na żywo przed: {previous}; po: {current}. Dodano: {added}; usunięto: {removed}. Żądano odświeżenia pulpitu.",
    "sourceHash": "e6663a78ebc94de30783b44a3bbc39da17c8f70ac0d46f813b2d4e4176874fe8",
    "state": "machine-cross-checked"
   },
@@ -4314,7 +4314,7 @@
    "state": "machine-cross-checked"
   },
   "entities.apply.replace_confirm": {
-   "text": "Zastąpić bieżący strumień (liczba encji: {current}) zestawem wybranym przez zasady (liczba encji: {desired})? Do dodania: {added}; do usunięcia: {removed}. Spowoduje to ponowne załadowanie pulpitu nawigacyjnego.",
+   "text": "Zastąpić bieżący strumień (liczba encji: {current}) zestawem wybranym przez zasady (liczba encji: {desired})? Do dodania: {added}; do usunięcia: {removed}. Spowoduje to ponowne załadowanie pulpitu.",
    "sourceHash": "770343d8562dc49d471c9d0759a998a6c18ca3f79c9d7d27c24c430ce99e6834",
    "state": "machine-cross-checked"
   },
@@ -4329,12 +4329,12 @@
    "state": "machine-cross-checked"
   },
   "entities.bulk.exclude_all_confirm.one": {
-   "text": "Wykluczyć {count} sugerowaną encję? Może to zepsuć karty pulpitu nawigacyjnego.",
+   "text": "Wykluczyć {count} sugerowaną encję? Może to zepsuć karty pulpitu.",
    "sourceHash": "4ee7872151dc628a5534388bc708bbdaaa3854e51513b745e69be6ce297f1447",
    "state": "machine-cross-checked"
   },
   "entities.bulk.exclude_all_confirm.other": {
-   "text": "Wykluczyć wszystkie sugerowane encje ({count})? Może to zepsuć karty pulpitu nawigacyjnego.",
+   "text": "Wykluczyć wszystkie sugerowane encje ({count})? Może to zepsuć karty pulpitu.",
    "sourceHash": "f71967c93e9b393036ab0e5c4e0d5189d27764b34014e3998bd9d529ca305ae5",
    "state": "machine-cross-checked"
   },
@@ -4344,12 +4344,12 @@
    "state": "machine-cross-checked"
   },
   "entities.bulk.exclude_selected_confirm.one": {
-   "text": "Wykluczyć {count} wybraną encję? Może to zepsuć karty pulpitu nawigacyjnego.",
+   "text": "Wykluczyć {count} wybraną encję? Może to zepsuć karty pulpitu.",
    "sourceHash": "227268d87fbedc2dfd3681cdb64ea4aa08966e03db558c156671e14d22f4e357",
    "state": "machine-cross-checked"
   },
   "entities.bulk.exclude_selected_confirm.other": {
-   "text": "Wykluczyć wybrane encje ({count})? Może to zepsuć karty pulpitu nawigacyjnego.",
+   "text": "Wykluczyć wybrane encje ({count})? Może to zepsuć karty pulpitu.",
    "sourceHash": "a4d9e3e4433232a4693d7b385710a5641b8b1352ea5e80a956edce2e14bd0bba",
    "state": "machine-cross-checked"
   },
@@ -4374,7 +4374,7 @@
    "state": "machine-cross-checked"
   },
   "entities.bulk.pin_selected": {
-   "text": "Przypnij zaznaczone",
+   "text": "Przypnij wybrane",
    "sourceHash": "22e545df141030fca49a2c765d0ce073e24ec243cd67b1f5fe6dba63e26085b2",
    "state": "machine-cross-checked"
   },
@@ -4434,7 +4434,7 @@
    "state": "machine-cross-checked"
   },
   "entities.control.scan": {
-   "text": "Przeskanuj pulpit nawigacyjny teraz",
+   "text": "Przeskanuj pulpit teraz",
    "sourceHash": "8edb4583e8d2ec8d230c75d2bcb7c5d325083faf3be88f8b0b05350bf55b4b21",
    "state": "machine-cross-checked"
   },
@@ -4464,22 +4464,22 @@
    "state": "machine-cross-checked"
   },
   "entities.disabled.body": {
-   "text": "Włącz {setting} w {configure} → {dashboard} przy użyciu wbudowanego renderera.",
+   "text": "Włącz {setting} w {configure} → {dashboard}, gdy używasz wbudowanego renderera.",
    "sourceHash": "8d35d3cde0d347fb97487543bfb8c0c20af1c59d78b670b8f92381860aacdb71",
    "state": "machine-cross-checked"
   },
   "entities.disabled.title": {
-   "text": "Encje pulpitu nawigacyjnego",
+   "text": "Encje pulpitu",
    "sourceHash": "3db0d66bd72cf3128b18ff59bae034b5c0a982d1d78dd696caedb6dfa1edd02a",
    "state": "machine-cross-checked"
   },
   "entities.dynamic.body": {
-   "text": "Te wyrażenia nie są błędami konfiguracji. Wywołaj odpowiedni stan pulpitu nawigacyjnego, aby obserwacja w czasie działania mogła ujawnić konkretne identyfikatory encji. Szablony, które Home Assistant renderuje na serwerze, takie jak {{ ... }} i {% ... %}, są przetwarzane, zanim pulpit nawigacyjny je zobaczy, więc wywoływanie stanów nigdy nie ujawni encji, które odczytują. Nie jest to potrzebne: Home Assistant wysyła wyrenderowany wynik osobną subskrypcją, której ten filtr nie dotyczy, więc te encje nie wymagają żadnych działań. Ręcznie trzeba dodać tylko encję, którą taki szablon zwraca jako odwołanie w karcie.",
+   "text": "Te wyrażenia nie są błędami konfiguracji. Wywołaj odpowiedni stan pulpitu, aby obserwacja w czasie działania mogła ujawnić konkretne identyfikatory encji. Szablony, które Home Assistant renderuje na serwerze, takie jak {{ ... }} i {% ... %}, są przetwarzane, zanim pulpit je zobaczy, więc wywoływanie stanów nigdy nie ujawni encji, które odczytują. Nie jest to potrzebne: Home Assistant wysyła wyrenderowany wynik osobną subskrypcją, której ten filtr nie dotyczy, więc te encje nie wymagają żadnych działań. Ręcznie trzeba dodać tylko encję, którą taki szablon zwraca jako odwołanie w karcie.",
    "sourceHash": "b71078752a0fda1c44508c52871014086acdfd547b2ea28da0bb0be8c02e005f",
    "state": "machine-cross-checked"
   },
   "entities.dynamic.default_dashboard": {
-   "text": "Pulpit nawigacyjny",
+   "text": "Pulpit",
    "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
    "state": "machine-cross-checked"
   },
@@ -4499,7 +4499,7 @@
    "state": "machine-cross-checked"
   },
   "entities.dynamic.unavailable": {
-   "text": "Problemy z konfiguracją pulpitu nawigacyjnego są chwilowo niedostępne.",
+   "text": "Problemy z konfiguracją pulpitu są chwilowo niedostępne.",
    "sourceHash": "97d2f9ead197e0a0f6d72fbc2ec76b03e1b3d7a5f90688459226ab29fc796c7c",
    "state": "machine-cross-checked"
   },
@@ -4539,7 +4539,7 @@
    "state": "machine-cross-checked"
   },
   "entities.filter.scan": {
-   "text": "Przeskanuj pulpit nawigacyjny teraz",
+   "text": "Przeskanuj pulpit teraz",
    "sourceHash": "8edb4583e8d2ec8d230c75d2bcb7c5d325083faf3be88f8b0b05350bf55b4b21",
    "state": "machine-cross-checked"
   },
@@ -4594,12 +4594,12 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.bubble-card-runtime-coverage.summary": {
-   "text": "Wykrywanie encji w Bubble Card zależy od pokrycia pulpitu nawigacyjnego",
+   "text": "Wykrywanie encji w Bubble Card zależy od pokrycia pulpitu",
    "sourceHash": "f52c911e7ffca64cb85a6468cf6781106654795e91c81bf4fe91338c8d94fc1f",
    "state": "machine-cross-checked"
   },
   "entities.issue.button-card-dynamic-features.reason": {
-   "text": "Te funkcje Button Card mogą wprowadzać zależności, które nie występują jako statyczne ID encji w konfiguracji pulpitu nawigacyjnego.",
+   "text": "Te funkcje Button Card mogą wprowadzać zależności, które nie występują jako statyczne ID encji w konfiguracji pulpitu.",
    "sourceHash": "33565213a61df76f36e54baea1a468cf9c5fe5d166311e0b612a27c344b67dba",
    "state": "machine-cross-checked"
   },
@@ -4639,7 +4639,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.dashboard-strategy.summary": {
-   "text": "Strategia pulpitu nawigacyjnego generuje zależności od encji w czasie wykonywania",
+   "text": "Strategia pulpitu generuje zależności od encji w czasie wykonywania",
    "sourceHash": "c2ef5e779dcb1501a2b260488a99ebcd44cc4bef2a10e3f47f5399e9dff8d740",
    "state": "machine-cross-checked"
   },
@@ -4679,7 +4679,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.default_dashboard": {
-   "text": "Pulpit nawigacyjny",
+   "text": "Pulpit",
    "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
    "state": "machine-cross-checked"
   },
@@ -4689,12 +4689,12 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.diagnostic-limit.recommendation": {
-   "text": "Uprość pulpit nawigacyjny lub podziel go na mniejsze pulpity, zanim włączysz automatyczne filtrowanie encji.",
+   "text": "Uprość pulpit lub podziel go na mniejsze pulpity, zanim włączysz automatyczne filtrowanie encji.",
    "sourceHash": "51d9424df4f4bdc068b69d11f6f19e3cd8eaf42bd62d4acba954daf8568d156e",
    "state": "machine-cross-checked"
   },
   "entities.issue.diagnostic-limit.summary": {
-   "text": "Pulpit nawigacyjny ma więcej kontroli bezpieczeństwa, niż da się sprawdzić",
+   "text": "Pulpit ma więcej kontroli bezpieczeństwa, niż da się sprawdzić",
    "sourceHash": "9389720c884f9e7cc15417daa3c982e8083f3ad18bd02b8fb89d06a19fb198dd",
    "state": "machine-cross-checked"
   },
@@ -4704,7 +4704,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.ignore_confirm": {
-   "text": "Chcesz kontynuować, pomijając wszystkie potencjalne encje z tej konfiguracji? Nie dodaje to żadnych encji do subskrypcji. Karty, które od nich zależą, mogą być wyświetlane jako niedostępne, dopóki ręcznie nie przypniesz tych encji, nie zawęzisz pulpitu nawigacyjnego lub ponownie nie włączysz kontroli bezpieczeństwa.",
+   "text": "Chcesz kontynuować, pomijając wszystkie potencjalne encje z tej konfiguracji? Nie dodaje to żadnych encji do subskrypcji. Karty, które od nich zależą, mogą być wyświetlane jako niedostępne, dopóki ręcznie nie przypniesz tych encji, nie zawęzisz pulpitu lub ponownie nie włączysz kontroli bezpieczeństwa.",
    "sourceHash": "67413638e256350b1b2523684e53c746d79e9ca69729a04598065bc78e18d4ce",
    "state": "machine-cross-checked"
   },
@@ -4804,7 +4804,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.selector-total-budget.reason": {
-   "text": "Połączone selektory z ograniczeniami przekraczają limit bezpieczeństwa subskrypcji pulpitu nawigacyjnego.",
+   "text": "Połączone selektory z ograniczeniami przekraczają limit bezpieczeństwa subskrypcji pulpitu.",
    "sourceHash": "8aed88e4dcadaf16d7cdaf424cf672f49063a2514bfdbfb2efdc24da5f914bb6",
    "state": "machine-cross-checked"
   },
@@ -4849,7 +4849,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.strategy_allowed_note": {
-   "text": "Home Assistant tworzy ten pulpit nawigacyjny na podstawie strategii, a strategia tworzy karty tylko dla encji, które widzi. Gdy ta kontrola jest dozwolona, żadna encja spoza subskrypcji nie dostaje tu karty i nie zostanie wykryta przez mechanizm uczenia zależności, więc ta strona nie może pokazać, czego brakuje. Otwórz ten sam pulpit nawigacyjny w Home Assistant na innym urządzeniu i przypnij encję stojącą za każdą kartą, której tu brakuje.",
+   "text": "Home Assistant tworzy ten pulpit na podstawie strategii, a strategia tworzy karty tylko dla encji, które widzi. Gdy ta kontrola jest dozwolona, żadna encja spoza subskrypcji nie dostaje tu karty i nie zostanie wykryta przez mechanizm uczenia zależności, więc ta strona nie może pokazać, czego brakuje. Otwórz ten sam pulpit w Home Assistant na innym urządzeniu i przypnij encję stojącą za każdą kartą, której tu brakuje.",
    "sourceHash": "70b006b69bb10b22043fbe4f51269ef7cd47586b1e0dfa6f5c02be15f119782b",
    "state": "machine-cross-checked"
   },
@@ -4859,7 +4859,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.streamline-runtime-coverage.summary": {
-   "text": "Wykrywanie encji w Streamline zależy od pokrycia pulpitu nawigacyjnego",
+   "text": "Wykrywanie encji w Streamline zależy od pokrycia pulpitu",
    "sourceHash": "37938fd6140133ef9a24e412e7c7d2ab94afaa014b8ba48e9b1a4df9dd66a4c2",
    "state": "machine-cross-checked"
   },
@@ -4889,7 +4889,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issues.checking": {
-   "text": "Sprawdzanie konfiguracji pulpitu nawigacyjnego…",
+   "text": "Sprawdzanie konfiguracji pulpitu…",
    "sourceHash": "79c9c5e94080183d8c7d87f52ce70be165130b5dffe781db9659e31cece0a515",
    "state": "machine-cross-checked"
   },
@@ -4909,22 +4909,22 @@
    "state": "machine-cross-checked"
   },
   "entities.issues.summary.blocking.one": {
-   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count}. Pulpit nawigacyjny i bieżąca subskrypcja nadal działają.",
+   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count}. Pulpit i bieżąca subskrypcja nadal działają.",
    "sourceHash": "1ed24d833a9feffcd89e12012907cfbea22abcb1f3ccfb9245a0257ddc2029e1",
    "state": "machine-cross-checked"
   },
   "entities.issues.summary.blocking.other": {
-   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count}. Pulpit nawigacyjny i bieżąca subskrypcja nadal działają.",
+   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count}. Pulpit i bieżąca subskrypcja nadal działają.",
    "sourceHash": "0e6a436a7951f68a9e48943e5c0fa5174c889d4bbac1b837f8edb99e9bf4a45e",
    "state": "machine-cross-checked"
   },
   "entities.issues.summary.blocking_allowed.one": {
-   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count} · wcześniej dozwolone: {allowed}. Pulpit nawigacyjny i bieżąca subskrypcja nadal działają.",
+   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count} · wcześniej dozwolone: {allowed}. Pulpit i bieżąca subskrypcja nadal działają.",
    "sourceHash": "50df7415c958b6dc777ca19c433e4cfc0bfb40379d9a0e66dd5c757fd459fb87",
    "state": "machine-cross-checked"
   },
   "entities.issues.summary.blocking_allowed.other": {
-   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count} · wcześniej dozwolone: {allowed}. Pulpit nawigacyjny i bieżąca subskrypcja nadal działają.",
+   "text": "Kontrole wymagające przejrzenia, zanim automatyczne aktualizacje będą mogły zmienić subskrypcję encji: {count} · wcześniej dozwolone: {allowed}. Pulpit i bieżąca subskrypcja nadal działają.",
    "sourceHash": "f2a1fd998a48a160086d8fa2e5914f6332e5d946e87caeb217abba365bffada3",
    "state": "machine-cross-checked"
   },
@@ -4949,7 +4949,7 @@
    "state": "machine-cross-checked"
   },
   "entities.override.exclude_confirm": {
-   "text": "Wykluczyć {entity_id}, nawet jeśli pulpit nawigacyjny zależy od tej encji?",
+   "text": "Wykluczyć {entity_id}, nawet jeśli pulpit zależy od tej encji?",
    "sourceHash": "d0ab4e63729c4a23af1b6d0645a61fa9b04070790957b396dea1c56e451ec94b",
    "state": "machine-cross-checked"
   },
@@ -4984,7 +4984,7 @@
    "state": "machine-cross-checked"
   },
   "entities.policy.note": {
-   "text": "Wyłącz dowolne źródło, żeby nadal zbierać z niego dane bez zmiany aktywnej subskrypcji.",
+   "text": "Wyłącz dowolne źródło, żeby nadal zbierać z niego dane bez zmiany subskrypcji na żywo.",
    "sourceHash": "057787a0d21860cbb6efd521e5059d84221464d94381451cd29615f0a7f0c740",
    "state": "machine-cross-checked"
   },
@@ -4994,12 +4994,12 @@
    "state": "machine-cross-checked"
   },
   "entities.policy.static": {
-   "text": "Dodaj encje z konfiguracji pulpitu nawigacyjnego",
+   "text": "Dodaj encje z konfiguracji pulpitu",
    "sourceHash": "ab548e1a8d2f9568a455bfebdc0b65ecd7dd593c4e850ab62116c4d54223c298",
    "state": "machine-cross-checked"
   },
   "entities.reason.config": {
-   "text": "Konfiguracja pulpitu nawigacyjnego",
+   "text": "Konfiguracja pulpitu",
    "sourceHash": "311816e83e03c9f7385ff897bb2ab989cba37bd9d410e78ef8e7ed39b09e8a6c",
    "state": "machine-cross-checked"
   },
@@ -5079,12 +5079,12 @@
    "state": "machine-cross-checked"
   },
   "entities.scan.blocked.one": {
-   "text": "Skanowanie zakończone: liczba kontroli bezpieczeństwa wykrywania encji wymagających wyboru: {blocking}. Home Assistant i pulpit nawigacyjny są nadal dostępne; poprzednia subskrypcja na żywo została zachowana (liczba encji: {stream_count}).",
+   "text": "Skanowanie zakończone: liczba kontroli bezpieczeństwa wykrywania encji wymagających wyboru: {blocking}. Home Assistant i pulpit są nadal dostępne; poprzednia subskrypcja na żywo została zachowana (liczba encji: {stream_count}).",
    "sourceHash": "03419581172c169e5d109b2d8d4a2c95e69c824ee077ae4a678703cad540ef24",
    "state": "machine-cross-checked"
   },
   "entities.scan.blocked.other": {
-   "text": "Skanowanie zakończone: liczba kontroli bezpieczeństwa wykrywania encji wymagających wyboru: {blocking}. Home Assistant i pulpit nawigacyjny są nadal dostępne; poprzednia subskrypcja na żywo została zachowana (liczba encji: {stream_count}).",
+   "text": "Skanowanie zakończone: liczba kontroli bezpieczeństwa wykrywania encji wymagających wyboru: {blocking}. Home Assistant i pulpit są nadal dostępne; poprzednia subskrypcja na żywo została zachowana (liczba encji: {stream_count}).",
    "sourceHash": "c7d400c1aba614c65e828a9c8b803646f29cf74f2475a1258f70874d6f387891",
    "state": "machine-cross-checked"
   },
@@ -5114,7 +5114,7 @@
    "state": "machine-cross-checked"
   },
   "entities.scan.starting": {
-   "text": "Skanowanie katalogu HA i pulpitu nawigacyjnego; subskrypcja na żywo zmienia się tylko wtedy, gdy włączone zasady znajdą inny zestaw.",
+   "text": "Skanowanie katalogu HA i pulpitu; subskrypcja na żywo zmienia się tylko wtedy, gdy włączone zasady znajdą inny zestaw.",
    "sourceHash": "b9d9942984c51d0d893c364fb1e4233d89f172b7edcb4ac83280d055e079cf5d",
    "state": "machine-cross-checked"
   },
@@ -5239,7 +5239,7 @@
    "state": "machine-cross-checked"
   },
   "entities.status.state.active": {
-   "text": "aktywny",
+   "text": "aktywne",
    "sourceHash": "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
    "state": "machine-cross-checked"
   },
@@ -5259,7 +5259,7 @@
    "state": "machine-cross-checked"
   },
   "entities.status.state.learning": {
-   "text": "nauka",
+   "text": "uczenie",
    "sourceHash": "edd95740e339e6aa0a1dab45741b0521185680b051631a7c265b5630da4f2158",
    "state": "machine-cross-checked"
   },
@@ -5379,7 +5379,7 @@
    "state": "machine-cross-checked"
   },
   "entities.table.review.note": {
-   "text": "Encje z bieżącego strumienia, których brakuje w Home Assistant, które otrzymują aktualizacje, choć nie zaobserwowano ich jako zależności pulpitu nawigacyjnego, lub które przypięto ręcznie, choć ten pulpit ich nie używa. Tylko do przeglądu; ręczne przypięcie lub wykluczenie nigdy nie jest usuwane automatycznie — jeśli chcesz usunąć przypięcie, odepnij encję tutaj.",
+   "text": "Encje z bieżącego strumienia, których brakuje w Home Assistant, które otrzymują aktualizacje, choć nie zaobserwowano ich jako zależności pulpitu, lub które przypięto ręcznie, choć ten pulpit ich nie używa. Tylko do przeglądu; ręczne przypięcie lub wykluczenie nigdy nie jest usuwane automatycznie — jeśli chcesz usunąć przypięcie, odepnij encję tutaj.",
    "sourceHash": "96035cee159d53cfff753798302c0d73e6ff3552be2aca08d4003359264efbbe",
    "state": "machine-cross-checked"
   },
@@ -5399,7 +5399,7 @@
    "state": "machine-cross-checked"
   },
   "entities.table.suggested.note": {
-   "text": "Nieprzypięte odwołania z pulpitu nawigacyjnego i odczyty w czasie działania, które nie są obecnie subskrybowane. Wykluczone encje pozostają widoczne, jeśli pulpit nawigacyjny nadal ich używa. Podczas wyszukiwania ta tabela pokazuje też nieprzypięte wyniki z pełnego katalogu Home Assistant.",
+   "text": "Nieprzypięte odwołania z pulpitu i odczyty w czasie działania, które nie są obecnie subskrybowane. Wykluczone encje pozostają widoczne, jeśli pulpit nadal ich używa. Podczas wyszukiwania ta tabela pokazuje też nieprzypięte wyniki z pełnego katalogu Home Assistant.",
    "sourceHash": "8cb1def2d1fb025f4c38cad0b8291d8cdf333f26d5b27ba1e5e723903e3ebc2a",
    "state": "machine-cross-checked"
   },
@@ -5424,7 +5424,7 @@
    "state": "machine-cross-checked"
   },
   "install.apk.dynamic.discard_failed": {
-   "text": "Nie udało się usunąć.",
+   "text": "Nie udało się odrzucić.",
    "sourceHash": "9fd6b197d4bf01eed95b3dc9a3e75eb929d40bf3ce6dfccae02808acb5a7f5c3",
    "state": "machine-cross-checked"
   },
@@ -5434,7 +5434,7 @@
    "state": "machine-cross-checked"
   },
   "install.apk.dynamic.discarded": {
-   "text": "Oczekujące APK odrzucone.",
+   "text": "Oczekujący APK odrzucony.",
    "sourceHash": "143171ae08dadd852e0bdf13743ec6719fd75da928b61a9ba6b0c14ed329eb3e",
    "state": "machine-cross-checked"
   },
@@ -5499,12 +5499,12 @@
    "state": "machine-cross-checked"
   },
   "install.apk.dynamic.pending_changed": {
-   "text": "Oczekujące przesłanie zmieniło się — sprawdzam, co przechowuje panel…",
+   "text": "Oczekujące przesłanie zmieniło się — sprawdzanie, co przechowuje panel…",
    "sourceHash": "94b29c22f81a4fb058f97e6a2ed88e332f6575e69035634cc878135c1b53ad6c",
    "state": "machine-cross-checked"
   },
   "install.apk.dynamic.signer": {
-   "text": "Podpisujący SHA-256",
+   "text": "SHA-256 podpisującego",
    "sourceHash": "6f7e8eaa608ae1f8bb4345f53479c3e7c4cd93a1f9e21ee9be94414af1ec3fb3",
    "state": "machine-cross-checked"
   },
@@ -5769,7 +5769,7 @@
    "state": "machine-cross-checked"
   },
   "install.backup.dynamic.restore_reading": {
-   "text": "Odczytuję podgląd…",
+   "text": "Odczytywanie podglądu…",
    "sourceHash": "3093c9a02caea7f5069c829a24f15ed3d74c906fbee986dbf7f4c95d1de106b5",
    "state": "machine-cross-checked"
   },
@@ -6049,7 +6049,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.companion_relaunch_unconfirmed": {
-   "text": "Pliki zostały przywrócone, ale ponowne uruchomienie aplikacji Companion nie zostało potwierdzone",
+   "text": "pliki zostały przywrócone, ale ponowne uruchomienie aplikacji Companion nie zostało potwierdzone",
    "sourceHash": "bb4c8ff5ebb62321b03ea41dbf1aa8b94324e3b5738861fc414a2605c4db3665",
    "state": "machine-cross-checked"
   },
@@ -6214,7 +6214,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.package_uninstall_failed": {
-   "text": "Odinstalowanie nie powiodło się: {package}",
+   "text": "odinstalowanie nie powiodło się: {package}",
    "sourceHash": "50f8872b441716c5d1cee3fdd6eaad56c75c0509cdf18f1da16110795a15f1ae",
    "state": "machine-cross-checked"
   },
@@ -6234,7 +6234,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_archive_entries_invalid": {
-   "text": "W archiwum kopii zapasowej brakuje plików albo znajdują się w nim nieoczekiwane pliki.",
+   "text": "w archiwum kopii zapasowej brakuje plików albo znajdują się w nim nieoczekiwane pliki",
    "sourceHash": "05160b8fa6ac6f7af161dc55f176491aae6c19ec889c921e906f10882782e671",
    "state": "machine-cross-checked"
   },
@@ -6359,7 +6359,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_builtin_renderer_retries_stopped": {
-   "text": "⛔ Wbudowany renderer przestał ponawiać próby po powtarzających się błędach WebView. Zaktualizuj lub napraw System WebView, a potem użyj „Odśwież pulpit nawigacyjny” na pasku nawigacyjnym panelu lub „Odśwież” na karcie „Pulpit nawigacyjny”.",
+   "text": "⛔ Wbudowany renderer przestał ponawiać próby po powtarzających się błędach WebView. Zaktualizuj lub napraw System WebView, a potem użyj „Odśwież pulpit” na pasku nawigacyjnym panelu lub „Odśwież” na karcie „Pulpit”.",
    "sourceHash": "1b5418807f2f485ae2f516c802d5e0801c94630d573966d230b92d877e08417e",
    "state": "machine-cross-checked"
   },
@@ -6369,12 +6369,12 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_external_renderer_crash_loop": {
-   "text": "⛔ Aplikacja pulpitu nawigacyjnego wpadła w pętlę awarii — mechanizm nadzorujący przestał ją ponownie uruchamiać, aby uniknąć lawiny restartów. Zainstaluj ponownie lub obniż wersję aplikacji pulpitu/Companion albo uruchom ponownie panel.",
+   "text": "⛔ Aplikacja pulpitu wpadła w pętlę awarii — mechanizm nadzorujący przestał ją ponownie uruchamiać, aby uniknąć lawiny restartów. Zainstaluj ponownie lub obniż wersję aplikacji pulpitu/Companion albo uruchom ponownie panel.",
    "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
    "state": "machine-cross-checked"
   },
   "install.presentation.status_no_renderer": {
-   "text": "ℹ Dalej: wybierz renderer pulpitu nawigacyjnego. Wybierz wbudowany renderer Panel Assistant, zainstaluj aplikację Home Assistant Companion lub skonfiguruj inny pakiet pulpitu nawigacyjnego.",
+   "text": "ℹ Dalej: wybierz renderer pulpitu. Wybierz wbudowany renderer Panel Assistant, zainstaluj aplikację Home Assistant Companion lub skonfiguruj inny pakiet pulpitu.",
    "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
    "state": "machine-cross-checked"
   },
@@ -6419,7 +6419,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_webview_old": {
-   "text": "⚠ System WebView jest zbyt stary ({current_engine}) — pulpit nawigacyjny Home Assistant może się wyświetlać pusty. Jak i dlaczego zaktualizować (docelowo Chromium {target_chromium}+).",
+   "text": "⚠ System WebView jest zbyt stary ({current_engine}) — pulpit Home Assistant może się wyświetlać pusty. Jak i dlaczego zaktualizować (docelowo Chromium {target_chromium}+).",
    "sourceHash": "7059a4b3c081fbba7034c06238f4bd8e43158f6258078ac03f3f1a30a8740f83",
    "state": "machine-cross-checked"
   },
@@ -6669,12 +6669,12 @@
    "state": "machine-cross-checked"
   },
   "install.status.companion_url_missing.one": {
-   "text": "⚠ Home Assistant Companion nie ma wewnętrznego adresu URL dla {count} serwera — pulpit nawigacyjny może zgłaszać błąd „Brak nagłówka 'Host'”. Napraw to w zakładce Instalacja.",
+   "text": "⚠ Home Assistant Companion nie ma wewnętrznego adresu URL dla {count} serwera — pulpit może zgłaszać błąd „Brak nagłówka 'Host'”. Napraw to w zakładce Instalacja.",
    "sourceHash": "6ec34cbc2c652fbcf870b2d71fb669d7d4ae9e8d53a769d7d775816ce539c94b",
    "state": "machine-cross-checked"
   },
   "install.status.companion_url_missing.other": {
-   "text": "⚠ Home Assistant Companion nie ma wewnętrznego adresu URL dla serwerów (liczba serwerów: {count}) — pulpit nawigacyjny może zgłaszać błąd „Brak nagłówka 'Host'”. Napraw je w zakładce Instalacja.",
+   "text": "⚠ Home Assistant Companion nie ma wewnętrznego adresu URL dla serwerów (liczba serwerów: {count}) — pulpit może zgłaszać błąd „Brak nagłówka 'Host'”. Napraw je w zakładce Instalacja.",
    "sourceHash": "0e438c28f54290449d21614ea11cf55a5fee35079ca10181de7174535f670dc5",
    "state": "machine-cross-checked"
   },
@@ -6769,7 +6769,7 @@
    "state": "machine-cross-checked"
   },
   "logs.note.sources": {
-   "text": "Aplikacja = dziennik procesu Panel Assistant (root nie jest wymagany). System = pełny logcat urządzenia (root). Konsola przeglądarki = konsola JavaScript pulpitu nawigacyjnego (wymaga skonfigurowanej wysyłki dzienników).",
+   "text": "Aplikacja = dziennik procesu Panel Assistant (root nie jest wymagany). System = pełny logcat urządzenia (root). Konsola przeglądarki = konsola JavaScript pulpitu (wymaga skonfigurowanej wysyłki dzienników).",
    "sourceHash": "bc3fafe4a43cf34de976ae7f51161722867dca7fd1ea468c328e5a47a4043a2d",
    "state": "machine-cross-checked"
   },
@@ -6794,7 +6794,7 @@
    "state": "machine-cross-checked"
   },
   "logs.source.webview_hint": {
-   "text": "Konsola JavaScript pulpitu nawigacyjnego; wymaga skonfigurowanej wysyłki dzienników i działającego przekaźnika DevTools",
+   "text": "Konsola JavaScript pulpitu; wymaga skonfigurowanej wysyłki dzienników i działającego przekaźnika DevTools",
    "sourceHash": "5e04aff148bc43faa3aef257af4b79aae5c01fe4e902c4faa5c3399caac59908",
    "state": "machine-cross-checked"
   },
@@ -6864,7 +6864,7 @@
    "state": "machine-cross-checked"
   },
   "oauth.callback.ambient_warning": {
-   "text": "Home Assistant jest skonfigurowane, ale wybrane źródło pomiaru natężenia oświetlenia wymaga uwagi.",
+   "text": "Home Assistant jest skonfigurowany, ale wybrane źródło pomiaru natężenia oświetlenia wymaga uwagi.",
    "sourceHash": "c78fcf2f6d3db79e150a52552aea094c1fa8af3dad4accfd061ef4a5dc5fa251",
    "state": "machine-cross-checked"
   },
@@ -6879,7 +6879,7 @@
    "state": "machine-cross-checked"
   },
   "oauth.callback.configured": {
-   "text": "Home Assistant jest skonfigurowane.",
+   "text": "Home Assistant jest skonfigurowany.",
    "sourceHash": "2b0d8802f485ff8b0e8f11a506d4eded08ab990ff9c10a4f9b44b7f3bd9973d1",
    "state": "machine-cross-checked"
   },
@@ -6899,7 +6899,7 @@
    "state": "machine-cross-checked"
   },
   "oauth.callback.reload_may_be_needed": {
-   "text": "Może być konieczne ręczne odświeżenie pulpitu nawigacyjnego.",
+   "text": "Może być konieczne ręczne odświeżenie pulpitu.",
    "sourceHash": "4b4b7b8ab047d3e32f58824bb9e92f45928bfdf5a26e9c78615758b7f778d647",
    "state": "machine-cross-checked"
   },
@@ -6909,7 +6909,7 @@
    "state": "machine-cross-checked"
   },
   "oauth.callback.success_heading": {
-   "text": "Home Assistant skonfigurowane",
+   "text": "Home Assistant skonfigurowany",
    "sourceHash": "1f27f6d6853c921607e96982dd0ce5661e0df8d0cdebee3adefa58ec1bc5179d",
    "state": "machine-cross-checked"
   },
@@ -7049,7 +7049,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.bundled_incompatible": {
-   "text": "{name} · W pakiecie · {revision} · niezgodność",
+   "text": "{name} · W pakiecie · {revision} · niezgodny",
    "sourceHash": "5af211d221e803b4d5accebc92cace6ab7887f82ee1dc6d9db9ef8b34f34fb6f",
    "state": "machine-cross-checked"
   },
@@ -7059,22 +7059,22 @@
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.local": {
-   "text": "{name} · Lokalne · {revision}",
+   "text": "{name} · Lokalny · {revision}",
    "sourceHash": "8fb7621488010cee3f989d62ad35efe1142e8f83283be1f3b4a07334dbc24f3f",
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.local_active": {
-   "text": "{name} · Lokalne · {revision} · aktywny",
+   "text": "{name} · Lokalny · {revision} · aktywny",
    "sourceHash": "b28e45fa41be9dca65cd397191e5a31cc8c61b4cff92314d310ba77d32f7d560",
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.local_incompatible": {
-   "text": "{name} · Lokalne · {revision} · niezgodność",
+   "text": "{name} · Lokalny · {revision} · niezgodny",
    "sourceHash": "23af9d85eb19b94121c5487cdd1f3981a47aaefa4331e47ed5b169354f5d1c16",
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.local_selected": {
-   "text": "{name} · Lokalne · {revision} · wybrany",
+   "text": "{name} · Lokalny · {revision} · wybrany",
    "sourceHash": "83a8e2a6543e412563059a4c0ff5d89b16d7238593bec804ae34f8bd9d7e8ab1",
    "state": "machine-cross-checked"
   },
@@ -7319,7 +7319,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.cpu-cluster-count-limit": {
-   "text": "Dozwolone są maksymalnie 8 klastrów rdzeni CPU.",
+   "text": "Dozwolonych jest maksymalnie 8 klastrów rdzeni CPU.",
    "sourceHash": "76e67d73c6c2e084b74aad1aa83d3e85e003aa44b44d471f399c488063132b16",
    "state": "machine-cross-checked"
   },
@@ -7534,12 +7534,12 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.line": {
-   "text": "linia {line}",
+   "text": "wiersz {line}",
    "sourceHash": "29e158eafb9386032b19151dd72505feb54479fbd231f362bb4518e4e9c1ac95",
    "state": "machine-cross-checked"
   },
   "profiles.issue.line_column": {
-   "text": "linia {line}:{column}",
+   "text": "wiersz {line}:{column}",
    "sourceHash": "ed1701a0d37848ab4f471fd58208eeefe901360a74d0007d9ade792ad71dfc7b",
    "state": "machine-cross-checked"
   },
@@ -8494,7 +8494,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.status.draft_copied": {
-   "text": "Szkic skopiowano do nowego, niezapisanego profilu. Rozwiąż wszystkie TODO przed aktywacją.",
+   "text": "Wersję roboczą skopiowano do nowego, niezapisanego profilu. Rozwiąż wszystkie TODO przed aktywacją.",
    "sourceHash": "3d89421ede096b727ad03473c4ac0deaef1dc26580778dd03eab72d11c0c323b",
    "state": "machine-cross-checked"
   },
@@ -8539,7 +8539,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.status.rollback_starting": {
-   "text": "Rozpoczynam cofanie zmian…",
+   "text": "Rozpoczynanie cofania zmian…",
    "sourceHash": "eae5ea3e45366eab4999c68790d0a1eaf14bdb42234f20b2efceed47b40adf03",
    "state": "machine-cross-checked"
   },
@@ -8549,12 +8549,12 @@
    "state": "machine-cross-checked"
   },
   "profiles.status.saving": {
-   "text": "Zapisuję niezmienną wersję…",
+   "text": "Zapisywanie niezmiennej wersji…",
    "sourceHash": "8f24c49de2a7a8e15cb0e529555b2e87d2c33f97b0436901e55742571918b348",
    "state": "machine-cross-checked"
   },
   "profiles.status.selection_saved": {
-   "text": "Wybór zapisany; czekam na ponowne uruchomienie usługi panelu.",
+   "text": "Wybór zapisany; oczekiwanie na ponowne uruchomienie usługi panelu.",
    "sourceHash": "199716428c521ddcaff134cb1c9249987690802e8ce6ad48e1915fc57b684514",
    "state": "machine-cross-checked"
   },
@@ -8779,7 +8779,7 @@
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.repair.refreshing": {
-   "text": "Odświeżam…",
+   "text": "Odświeżanie…",
    "sourceHash": "1c0def7be0607b966b89e4974da38090472d8ada625f5b4c89f25b09d39683bd",
    "state": "machine-cross-checked"
   },
@@ -8804,7 +8804,7 @@
    "state": "machine-cross-checked"
   },
   "runtime.renderer_recovery.builtin": {
-   "text": "Wbudowany renderer przestał ponawiać próby po powtarzających się błędach WebView. Zaktualizuj lub napraw System WebView, a potem użyj „Odśwież pulpit nawigacyjny” na pasku nawigacyjnym panelu lub „Odśwież” na karcie „Pulpit nawigacyjny”.",
+   "text": "Wbudowany renderer przestał ponawiać próby po powtarzających się błędach WebView. Zaktualizuj lub napraw System WebView, a potem użyj „Odśwież pulpit” na pasku nawigacyjnym panelu lub „Odśwież” na karcie „Pulpit”.",
    "sourceHash": "20f93e06aeff7310a8f77b8fa3242cd484ebedb2b1a6242e5aaba65209c4b428",
    "state": "machine-cross-checked"
   },
@@ -9044,7 +9044,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dark_mode.help": {
-   "text": "Nadaje motyw własnym ekranom Panel Assistant i ustawia domyślny schemat kolorów pulpitu nawigacyjnego na panelach bez systemowego ustawienia trybu ciemnego (Android 9 i starsze).\n\nMotyw wybrany w Home Assistant zastępuje ustawienie domyślne pulpitu nawigacyjnego; ten interfejs UI w przeglądarce zawsze stosuje preferencje przeglądarki, w której jest wyświetlany.",
+   "text": "Nadaje motyw własnym ekranom Panel Assistant i ustawia domyślny schemat kolorów pulpitu na panelach bez systemowego ustawienia trybu ciemnego (Android 9 i starsze).\n\nMotyw wybrany w Home Assistant zastępuje ustawienie domyślne pulpitu; ten interfejs UI w przeglądarce zawsze stosuje preferencje przeglądarki, w której jest wyświetlany.",
    "sourceHash": "dcda4e8a160cdb194a9cee3935a90371253c3c2c025a64e8ed23957811d00bee",
    "state": "machine-cross-checked"
   },
@@ -9054,7 +9054,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dark_mode.summary": {
-   "text": "Ciemny motyw dla ekranów serwisu Panel Assistant oraz domyślny motyw pulpitu nawigacyjnego.",
+   "text": "Ciemny motyw dla własnych ekranów Panel Assistant oraz domyślny motyw pulpitu.",
    "sourceHash": "81ad914d6ff0241c84957c90ef6212b0d965e165be49a04c5de163867f57ed93",
    "state": "machine-cross-checked"
   },
@@ -9069,7 +9069,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_entity_auto_static.help": {
-   "text": "Encje znalezione podczas analizy konfiguracji pulpitu nawigacyjnego mogą być dodawane automatycznie. Dowody pozostają widoczne, gdy opcja jest wyłączona.",
+   "text": "Encje znalezione podczas analizy konfiguracji pulpitu mogą być dodawane automatycznie. Dowody pozostają widoczne, gdy opcja jest wyłączona.",
    "sourceHash": "60bbc1556abe2e80db46a3afe4cf8520d5b4d54c0a2a4a93ab5ec783152118ef",
    "state": "machine-cross-checked"
   },
@@ -9079,7 +9079,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_entity_learning.help": {
-   "text": "Wbudowany renderer: ogranicz strumień stanów Home Assistant do encji używanych na pulpicie nawigacyjnym i ucz się zależności w czasie działania. Źródłami i przypięciami zarządzaj w zakładce „Encje”.",
+   "text": "Wbudowany renderer: ogranicz strumień stanów Home Assistant do encji używanych na pulpicie i ucz się zależności w czasie działania. Źródłami i przypięciami zarządzaj w zakładce „Encje”.",
    "sourceHash": "967aefc50fe2b2015a76cc8d98bdb0f06d14d091e1e6381ce472a45a85527cb7",
    "state": "machine-cross-checked"
   },
@@ -9089,7 +9089,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_entity_learning.summary": {
-   "text": "Proszę przesyłać strumieniowo wyłącznie encje wykorzystywane przez ten pulpit nawigacyjny.",
+   "text": "Przesyłaj strumieniowo wyłącznie encje wykorzystywane przez ten pulpit.",
    "sourceHash": "66be8978b2f2634a9b30dc43beeae293aa0d8a0fc4c7c4aa4a8e0186bb9dbf9c",
    "state": "machine-cross-checked"
   },
@@ -9124,7 +9124,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_fullscreen.summary": {
-   "text": "Ukryj pasek stanu i pasek nawigacyjny systemu Android za pulpitem nawigacyjnym.",
+   "text": "Ukryj pasek stanu i pasek nawigacyjny systemu Android za pulpitem.",
    "sourceHash": "c3144c9c243f42a1b24d1ff2eada033dcc3b626c5ec603b00aafc8b2f3b2f63d",
    "state": "machine-cross-checked"
   },
@@ -9139,7 +9139,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_native_kiosk.help": {
-   "text": "Tylko wbudowany renderer. Po połączeniu z Home Assistant 2026.4.2+ prosi jego natywny interfejs o ukrycie nawigacji.\n\nDomyślnie włączone; nieobsługiwane lub nieudane żądanie pozostawia pulpit nawigacyjny bez zmian. Nie blokuje systemu Android ani nie wstrzykuje CSS do pulpitu nawigacyjnego.",
+   "text": "Tylko wbudowany renderer. Po połączeniu z Home Assistant 2026.4.2+ prosi jego natywny interfejs o ukrycie nawigacji.\n\nDomyślnie włączone; nieobsługiwane lub nieudane żądanie pozostawia pulpit bez zmian. Nie blokuje systemu Android ani nie wstrzykuje CSS do pulpitu.",
    "sourceHash": "693cd97f26d4d60d16c4242e8a199bb2fd202edee948efab4880e41313b05e29",
    "state": "machine-cross-checked"
   },
@@ -9149,7 +9149,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_native_kiosk.summary": {
-   "text": "Proszę poprosić Home Assistant o ukrycie własnej nawigacji.",
+   "text": "Poproś Home Assistant o ukrycie własnej nawigacji.",
    "sourceHash": "5fd4788997717aea56fb4c039aa40bcb0cb04c128c7cb5b19fc102b439bf486b",
    "state": "machine-cross-checked"
   },
@@ -9164,7 +9164,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_network_warning.summary": {
-   "text": "Wyświetl ostrzeżenie na pulpicie nawigacyjnym w przypadku utraty połączenia sieciowego.",
+   "text": "Wyświetl ostrzeżenie na pulpicie w przypadku utraty połączenia sieciowego.",
    "sourceHash": "6e23d2793b9b7a2e68007044413a2374d781a7f4fda7b42f665b488ede0c6ef6",
    "state": "machine-cross-checked"
   },
@@ -9209,7 +9209,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_zoom.summary": {
-   "text": "Powiększenie przeglądarki dla pulpitu nawigacyjnego.",
+   "text": "Powiększenie przeglądarki dla pulpitu.",
    "sourceHash": "ffca38a9cb226e6a7726957fdcb1ff0b2999887bed938e40573cdd3abc418106",
    "state": "machine-cross-checked"
   },
@@ -9289,7 +9289,7 @@
    "state": "machine-cross-checked"
   },
   "settings.diag_wifi_outages_24h.summary": {
-   "text": "Krótkie przerwy w działaniu serwisu Wi-Fi w ciągu ostatnich 24 godzin.",
+   "text": "Krótkie przerwy w połączeniu Wi-Fi w ciągu ostatnich 24 godzin.",
    "sourceHash": "f5d1698495507bfc32ba9f00f003aafee8008708a5cef312282931996d3db135",
    "state": "machine-cross-checked"
   },
@@ -9344,7 +9344,7 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_area.summary": {
-   "text": "Home Assistant obszar, do którego należy ten panel.",
+   "text": "Obszar Home Assistant, do którego należy ten panel.",
    "sourceHash": "992b9c57355acf08ce839cbf4c2c66e2652cf5c0597bf380cc777b54e40833ef",
    "state": "machine-cross-checked"
   },
@@ -9494,7 +9494,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_enabled.summary": {
-   "text": "Wyślij dziennik aplikacji „Panel Assistant” do kolektora w Państwa sieci.",
+   "text": "Wyślij własny dziennik Panel Assistant do kolektora w twojej sieci.",
    "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
    "state": "machine-cross-checked"
   },
@@ -9549,7 +9549,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_system_enabled.summary": {
-   "text": "Proszę również przesłać logi systemowe Androida do kolektora.",
+   "text": "Przesyłaj również logi systemowe Androida do kolektora.",
    "sourceHash": "a172f1f97d43da721b10903ca5c2268afbd25f6b77048716ceb1c9526bdf13da",
    "state": "machine-cross-checked"
   },
@@ -9804,7 +9804,7 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_enabled.summary": {
-   "text": "Nasłuchuj słowa aktywującego i wysyłaj mowę na adres Assist.",
+   "text": "Nasłuchuj słowa aktywującego i wysyłaj mowę do Assist.",
    "sourceHash": "d44107963fc54351bd582d47825aad5651566129424d90819e0b7c51a413e4e4",
    "state": "machine-cross-checked"
   },
@@ -9914,7 +9914,7 @@
    "state": "machine-cross-checked"
   },
   "settings.watchdog_enabled.summary": {
-   "text": "Uruchom ponownie pulpit, jeśli ulegnie awarii lub zostanie w tle.",
+   "text": "Uruchom ponownie aplikację pulpitu, jeśli ulegnie awarii lub pozostanie w tle.",
    "sourceHash": "bf85bf3bed1a0bda4d001d6d73a8b2196aec288be92fa7aba1cb27cbd9ccf105",
    "state": "machine-cross-checked"
   },
@@ -9939,7 +9939,7 @@
    "state": "machine-cross-checked"
   },
   "setup.area.admin_help": {
-   "text": "Gdzie znajduje się ten panel. Home Assistant wykorzystuje obszary do automatycznego tworzenia pulpitów nawigacyjnych.",
+   "text": "Gdzie znajduje się ten panel. Home Assistant wykorzystuje obszary do automatycznego tworzenia pulpitów.",
    "sourceHash": "e8def03c2693689cc85bed2fd7666da8ee99749f36848ef921c5d30df1ce8494",
    "state": "machine-cross-checked"
   },
@@ -9969,7 +9969,7 @@
    "state": "machine-cross-checked"
   },
   "setup.attest.lead": {
-   "text": "Aplikacja pulpitu nawigacyjnego sama zarządza swoim połączeniem, więc tylko ty możesz to potwierdzić.",
+   "text": "Aplikacja pulpitu sama zarządza swoim połączeniem, więc tylko ty możesz to potwierdzić.",
    "sourceHash": "1e568c7ed3d6d14ef69f35b5374fffcb203b626b66f22ac1db1731bc1782f830",
    "state": "machine-cross-checked"
   },
@@ -9994,12 +9994,12 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.action.use": {
-   "text": "Użyj tego pulpitu nawigacyjnego",
+   "text": "Użyj tego pulpitu",
    "sourceHash": "d9395d97350965b957bc22b70c2465e8faf01cfbac479a9cc0986da7db0bfda7",
    "state": "machine-cross-checked"
   },
   "setup.dashboard.error.choose_first": {
-   "text": "Najpierw wybierz pulpit nawigacyjny.",
+   "text": "Najpierw wybierz pulpit.",
    "sourceHash": "f96d635d9ea8cdd2ed22f3eb6d2a265459c97fe3d3a08e5df971d119f1205958",
    "state": "machine-cross-checked"
   },
@@ -10034,7 +10034,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.group.user": {
-   "text": "Twoje pulpity nawigacyjne",
+   "text": "Twoje pulpity",
    "sourceHash": "1eae7261ac3538d5d912509465916c3a33d7fad19970a0ce27d53c37ba115203",
    "state": "machine-cross-checked"
   },
@@ -10049,7 +10049,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.none_accessible.explanation": {
-   "text": "Utwórz pulpit nawigacyjny lub nadaj temu kontu dostęp, a potem spróbuj jeszcze raz.",
+   "text": "Utwórz pulpit lub nadaj temu kontu dostęp, a potem spróbuj jeszcze raz.",
    "sourceHash": "c7f65239bab0c1cc6264841d55afb782b46cab2887d5091dbc9fcb36d772bdde",
    "state": "machine-cross-checked"
   },
@@ -10059,7 +10059,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.option.choose": {
-   "text": "Wybierz pulpit nawigacyjny…",
+   "text": "Wybierz pulpit…",
    "sourceHash": "f5b194568dd03790bb8a8b1afdb5d170330c3ebb00148c0250743823a61541c5",
    "state": "machine-cross-checked"
   },
@@ -10104,7 +10104,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.path.label": {
-   "text": "Ścieżka pulpitu nawigacyjnego",
+   "text": "Ścieżka pulpitu",
    "sourceHash": "08e0f39c31b74ee65647b268f819ae96f3669dc62daa2345760e91b396585937",
    "state": "machine-cross-checked"
   },
@@ -10114,7 +10114,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.state.fetching": {
-   "text": "Pobieranie twoich pulpitów nawigacyjnych z Home Assistant…",
+   "text": "Pobieranie twoich pulpitów z Home Assistant…",
    "sourceHash": "50c3dfe6b88d6f9d26ed26df8e21d83ac3f96cc0fbe2b0793341cd8498c81c9b",
    "state": "machine-cross-checked"
   },
@@ -10169,12 +10169,12 @@
    "state": "machine-cross-checked"
   },
   "setup.done.filter_note": {
-   "text": "Filtr encji jest włączony — uczy się, które encje wyświetlać; możesz sprawdzić listę w dowolnym momencie w zakładce „Encje”. Pulpit nawigacyjny panelu może się kilka razy odświeżyć w ciągu pierwszych minut, aż wszystko się ustabilizuje — to nic złego.",
+   "text": "Filtr encji jest włączony — uczy się, które encje wyświetlać; możesz sprawdzić listę w dowolnym momencie w zakładce „Encje”. Pulpit panelu może się kilka razy odświeżyć w ciągu pierwszych minut, aż wszystko się ustabilizuje — to nic złego.",
    "sourceHash": "bb421be7eb8fb60a13c614cf636556c3f10a8f2e43f1f78fff1b89eb5be6c559",
    "state": "machine-cross-checked"
   },
   "setup.done.status.attested": {
-   "text": "Pulpit nawigacyjny potwierdzony przez ciebie.",
+   "text": "Pulpit potwierdzony przez ciebie.",
    "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
    "state": "machine-cross-checked"
   },
@@ -10214,12 +10214,12 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.action.disable": {
-   "text": "Załaduj pulpit nawigacyjny bez filtrowania",
+   "text": "Załaduj pulpit bez filtrowania",
    "sourceHash": "104b78f4c5f5a5e6078e2d76d7dd8f8f55d30190ce2c5d2fc827c403a28305b3",
    "state": "machine-cross-checked"
   },
   "setup.filter.action.enable": {
-   "text": "Włącz filtrowanie i załaduj pulpit nawigacyjny",
+   "text": "Włącz filtrowanie i załaduj pulpit",
    "sourceHash": "971afbafc8f8aa4d42da3bd871a938fb56376601e0685d462133c1abbd925608",
    "state": "machine-cross-checked"
   },
@@ -10229,7 +10229,7 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.action.loading": {
-   "text": "Ładowanie pulpitu nawigacyjnego…",
+   "text": "Ładowanie pulpitu…",
    "sourceHash": "3718517a80b70e19a3975ba60bf6b8d4c11bd0473c47c2763a244ac8cb6b2c37",
    "state": "machine-cross-checked"
   },
@@ -10279,7 +10279,7 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.counting.green": {
-   "text": "Zliczanie, co wysłałby Home Assistant…",
+   "text": "Zliczanie tego, co wysłałby Home Assistant…",
    "sourceHash": "6b5df0b503ba9a5a9be2443bfd8c15bebf38664f295d4efa150caead6abccc22",
    "state": "machine-cross-checked"
   },
@@ -10319,7 +10319,7 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.green.head": {
-   "text": "Twój pulpit nawigacyjny powinien działać poprawnie w obu przypadkach",
+   "text": "Twój pulpit powinien działać poprawnie w obu przypadkach",
    "sourceHash": "54b026a7c1095c33531c0f58da8880a84f960cd881f5b83ced1beb6cb59fd19d",
    "state": "machine-cross-checked"
   },
@@ -10379,7 +10379,7 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.title": {
-   "text": "Jeszcze jedna rzecz, zanim załadujemy twój pulpit nawigacyjny",
+   "text": "Jeszcze jedna rzecz, zanim załadujemy twój pulpit",
    "sourceHash": "61cfd94fb149adcd5e78ab772fa7d11922b55d7b3cc84fe365e202ef242d4d5d",
    "state": "machine-cross-checked"
   },
@@ -10539,7 +10539,7 @@
    "state": "machine-cross-checked"
   },
   "setup.proof.dashboard_help": {
-   "text": "W zakładce „Pulpit nawigacyjny” wyświetlane są wszystkie nieprawidłowości.",
+   "text": "W zakładce „Pulpit” wyświetlane są wszystkie nieprawidłowości.",
    "sourceHash": "099b789842ad17573a047cbd3d877adbf7b84a8d123e9af4507a25dcff19cbff",
    "state": "machine-cross-checked"
   },
@@ -10549,7 +10549,7 @@
    "state": "machine-cross-checked"
   },
   "setup.proof.milestone.apply_pending": {
-   "text": "○ Zastosuj to — pulpit nawigacyjny odświeży się",
+   "text": "○ Zastosuj to — pulpit odświeży się",
    "sourceHash": "c8d99e0e5aeeb53921b05885d5be324571327e1aafe52a5a44ecc35712a2e732",
    "state": "machine-cross-checked"
   },
@@ -10579,7 +10579,7 @@
    "state": "machine-cross-checked"
   },
   "setup.proof.milestone.loading": {
-   "text": "● Ładowanie pulpitu nawigacyjnego — może się jeszcze raz lub dwa razy przeładować, gdy panel będzie się dostosowywał",
+   "text": "● Ładowanie pulpitu — może się jeszcze raz lub dwa razy przeładować, gdy panel będzie się dostosowywał",
    "sourceHash": "10373fe801f25404a411d4f625bc9407b2f57720321b24290fc36e557c27f5e8",
    "state": "machine-cross-checked"
   },
@@ -10609,27 +10609,27 @@
    "state": "machine-cross-checked"
   },
   "setup.renderer.action.open_dashboard_setting": {
-   "text": "Otwórz ustawienia pulpitu nawigacyjnego",
+   "text": "Otwórz ustawienia pulpitu",
    "sourceHash": "c5d268cd415c70ca4aea5846a37468004b27384beabc5f9ca171e7ed1ecb484d",
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.explanation": {
-   "text": "Wybierz wbudowany renderer Panel Assistant (lub inną zainstalowaną aplikację) na karcie Pulpit nawigacyjny w sekcji Wszystkie ustawienia, a potem wróć tutaj.",
+   "text": "Wybierz wbudowany renderer Panel Assistant (lub inną zainstalowaną aplikację) na karcie Pulpit w sekcji Wszystkie ustawienia, a potem wróć tutaj.",
    "sourceHash": "89457edb6167b9b02c6b64d12b9b1816eb9f7fec76ba11facc009ebd59d1d9fa",
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.package_missing": {
-   "text": "„{package}” jest ustawiony jako aplikacja pulpitu nawigacyjnego, ale nie jest zainstalowany na tym panelu.",
+   "text": "„{package}” jest ustawiony jako aplikacja pulpitu, ale nie jest zainstalowany na tym panelu.",
    "sourceHash": "70b629f6057b064596a9a4cb7b121cbb963a31ce656d180885977d33164934a1",
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.title": {
-   "text": "Wybrana aplikacja pulpitu nawigacyjnego jest niedostępna.",
+   "text": "Wybrana aplikacja pulpitu jest niedostępna.",
    "sourceHash": "f124b11bac29595c963cc2bec57abe03fe65161d516c1286e2b3f30659aebfa5",
    "state": "machine-cross-checked"
   },
   "setup.renderer.failure.unresolved": {
-   "text": "Nie udało się znaleźć żadnej aplikacji pulpitu nawigacyjnego dla tego panelu.",
+   "text": "Nie udało się znaleźć żadnej aplikacji pulpitu dla tego panelu.",
    "sourceHash": "7ad3852774eb0101f6c42c6d1e007d4bc14470995d3c423ee636462f1f138429",
    "state": "machine-cross-checked"
   },
@@ -10714,7 +10714,7 @@
    "state": "machine-cross-checked"
   },
   "setup.state.saving": {
-   "text": "Zapisuję…",
+   "text": "Zapisywanie…",
    "sourceHash": "23e39291d6135814ed7c936e278974544b0df5fbf0eb0427b6700979b7472a93",
    "state": "machine-cross-checked"
   },
@@ -10799,7 +10799,7 @@
    "state": "machine-cross-checked"
   },
   "shell.nav.dashboard": {
-   "text": "Pulpit nawigacyjny",
+   "text": "Pulpit",
    "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
    "state": "machine-cross-checked"
   },
@@ -10974,22 +10974,22 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_no_reply_missed": {
-   "text": "brak odpowiedzi, {missCount} z {probeCount} sond pominiętych w ciągu ostatnich 5 minut",
+   "text": "brak odpowiedzi, {missCount} z {probeCount} sond utraconych w ciągu ostatnich 5 minut",
    "sourceHash": "91632b179b17726f8beecc801ba088b2c4a7a243b4aa897260e0705df5e0a1d9",
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_no_reply_no_misses": {
-   "text": "brak odpowiedzi, brak pominięć w ciągu ostatnich 5 minut",
+   "text": "brak odpowiedzi, brak utraconych sond w ciągu ostatnich 5 minut",
    "sourceHash": "fed3de412af67c81a2d9919ce2f95cbe85a66cf5f703cb83f8b57d65ce7d0528",
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_p95_missed": {
-   "text": "p95 {p95Ms} ms, {missCount} z {probeCount} sond pominiętych w ciągu ostatnich 5 min",
+   "text": "p95 {p95Ms} ms, {missCount} z {probeCount} sond utraconych w ciągu ostatnich 5 min",
    "sourceHash": "29a99757d7b4706415aea5c8666e6fdaaee9cc74e7a29e4c9e958572a78c1572",
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_p95_no_misses": {
-   "text": "p95 {p95Ms} ms, brak pominięć w ciągu ostatnich 5 min",
+   "text": "p95 {p95Ms} ms, brak utraconych sond w ciągu ostatnich 5 min",
    "sourceHash": "a08cd2009df8200e13ce7cdb0024bd922a85da3afde81dcc4c13bafa1749ae99",
    "state": "machine-cross-checked"
   },
@@ -11174,7 +11174,7 @@
    "state": "machine-cross-checked"
   },
   "install.apk.description": {
-   "text": "Zainstaluj aplikację (np. renderer pulpitu nawigacyjnego) z pliku na swoim urządzeniu lub z linku https://, który panel pobierze sam — w obu przypadkach przed instalacją zobaczysz jej pakiet, wersję i podpisującego.",
+   "text": "Zainstaluj aplikację (np. renderer pulpitu) z pliku na swoim urządzeniu lub z linku https://, który panel pobierze sam — w obu przypadkach przed instalacją zobaczysz jej pakiet, wersję i podpisującego.",
    "sourceHash": "75dc85bc1ebe01d6dd6a1e7bd4ebefb3b58bbc75b27d134a7d1590f6a9a41055",
    "state": "machine-cross-checked"
   },
@@ -11219,7 +11219,7 @@
    "state": "machine-cross-checked"
   },
   "install.audit.description": {
-   "text": "Sprawdź ponownie ten panel pod kątem problemów, które uniemożliwiają wyświetlanie pulpitu nawigacyjnego — stary WebView, brak aplikacji pulpitu nawigacyjnego, dostępne aktualizacje.",
+   "text": "Sprawdź ponownie ten panel pod kątem problemów, które uniemożliwiają wyświetlanie pulpitu — stary WebView, brak aplikacji pulpitu, dostępne aktualizacje.",
    "sourceHash": "1f0badfb07dade0f2e55b2e777f6b2f670f8fb38c5e9fa1445fed2f0fb5b800e",
    "state": "machine-cross-checked"
   },
@@ -11409,7 +11409,7 @@
    "state": "machine-cross-checked"
   },
   "install.display.description": {
-   "text": "Eksperymentalne / badania i rozwój — właściwe wartości nie są jeszcze dopracowane; eksperymentuj we własnym tempie. Dopasuj rozmiar pulpitu nawigacyjnego HA do przeglądarki na komputerze stacjonarnym. Gęstość skaluje cały układ (niższe dpi = więcej się mieści); rozmiar tekstu skaluje tekst WebView. Oprogramowanie układowe panelu często ma te wartości niedopasowane do fizycznego ekranu. Działa od razu i utrzymuje się po ponownym uruchomieniu; wymaga obsługiwanego uprzywilejowanego dostępu do panelu.",
+   "text": "Eksperymentalne / badania i rozwój — właściwe wartości nie są jeszcze dopracowane; eksperymentuj we własnym tempie. Dopasuj rozmiar pulpitu HA do przeglądarki na komputerze stacjonarnym. Gęstość skaluje cały układ (niższe dpi = więcej się mieści); rozmiar tekstu skaluje tekst WebView. Oprogramowanie układowe panelu często ma te wartości niedopasowane do fizycznego ekranu. Działa od razu i utrzymuje się po ponownym uruchomieniu; wymaga obsługiwanego uprzywilejowanego dostępu do panelu.",
    "sourceHash": "1eb292dfc02940bac236c1e68132d3a14997fb03b39eba6a834066faa93eb703",
    "state": "machine-cross-checked"
   },
@@ -11464,7 +11464,7 @@
    "state": "machine-cross-checked"
   },
   "install.display.root_required": {
-   "text": "Dzięki obsługiwanemu uprzywilejowanemu dostępowi do panelu Panel Assistant może dopasować gęstość i rozmiar tekstu pulpitu nawigacyjnego do fizycznego ekranu.",
+   "text": "Dzięki obsługiwanemu uprzywilejowanemu dostępowi do panelu Panel Assistant może dopasować gęstość i rozmiar tekstu pulpitu do fizycznego ekranu.",
    "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
    "state": "machine-cross-checked"
   },
@@ -11484,7 +11484,7 @@
    "state": "machine-cross-checked"
   },
   "install.lock.root_required": {
-   "text": "Potrzebny jest panel z uprawnieniami administratora — ten nie ma takich uprawnień, więc poniższe opcje są wyłączone. {detail}",
+   "text": "Potrzebny jest zrootowany panel — ten nie ma uprawnień root, więc poniższe opcje są wyłączone. {detail}",
    "sourceHash": "1b85272342ba6c37ff54316c3a29125e382a401aa596d0f37725dce332c48a43",
    "state": "machine-cross-checked"
   },
@@ -11524,7 +11524,7 @@
    "state": "machine-cross-checked"
   },
   "install.radio.title": {
-   "text": "Oprogramowanie sprzętowe radia",
+   "text": "Oprogramowanie układowe radia",
    "sourceHash": "6117cf43d34093b4f6a3d4a7a6f1a085790200d929b26deb6da34afc5060b20a",
    "state": "machine-cross-checked"
   },
@@ -11569,7 +11569,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.description": {
-   "text": "Poskromienie wymusza zatrzymanie aplikacji, blokuje jej ponowne uruchamianie przy starcie i blokuje wyświetlanie jej nad pulpitem nawigacyjnym — działa od razu i przy każdym uruchomieniu. „Włącz ponownie” cofa tę zmianę. Krytyczne aplikacje systemowe nigdy nie są proponowane; nic się nie zmienia, dopóki nie naciśniesz przycisku.",
+   "text": "Poskromienie wymusza zatrzymanie aplikacji, blokuje jej ponowne uruchamianie przy starcie i blokuje wyświetlanie jej nad pulpitem — działa od razu i przy każdym uruchomieniu. „Włącz ponownie” cofa tę zmianę. Krytyczne aplikacje systemowe nigdy nie są proponowane; nic się nie zmienia, dopóki nie naciśniesz przycisku.",
    "sourceHash": "c8e1bf9423f5c649f86cfd13f5ebc7febeb598ec77ded15e361f3ec478710626",
    "state": "machine-cross-checked"
   },
@@ -11679,7 +11679,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.root_required": {
-   "text": "Z uprawnieniami root Panel Assistant może ukryć zbędne elementy dostawcy (narzędzia testowe, launcher dostawcy), dzięki czemu widoczny będzie tylko twój pulpit nawigacyjny.",
+   "text": "Z uprawnieniami root Panel Assistant może ukryć zbędne elementy dostawcy (narzędzia testowe, launcher dostawcy), dzięki czemu widoczny będzie tylko twój pulpit.",
    "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
    "state": "machine-cross-checked"
   },
@@ -12089,7 +12089,7 @@
    "state": "machine-cross-checked"
   },
   "settings.auto_sleep_source.label": {
-   "text": "Źródło aktywności automatycznego usypiania",
+   "text": "Źródło aktywności automatycznego uśpienia",
    "sourceHash": "485e78dd0ccd45757ad048f9805f4fe39b1260890bb7d0364b2c8d07caa926c1",
    "state": "machine-cross-checked"
   },
@@ -12159,7 +12159,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.hand_back.description": {
-   "text": "Spowoduje to ponowne włączenie aplikacji producentów na tym panelu.",
+   "text": "Spowoduje to ponowne włączenie aplikacji dostawców na tym panelu.",
    "sourceHash": "e27d15826d370f6cfd6bc1466f8e32e4d3ad4cba7c9cb667272e159113943990",
    "state": "machine-cross-checked"
   },
@@ -12234,7 +12234,7 @@
    "state": "machine-cross-checked"
   },
   "shell.pickles.back": {
-   "text": "Wróć do pulpitu nawigacyjnego",
+   "text": "Wróć do pulpitu",
    "sourceHash": "97ba1d394fab183d035d1f789a8fac45d0aa61b00fb378dbe152b014df418639",
    "state": "machine-cross-checked"
   },

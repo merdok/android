@@ -68,7 +68,7 @@
     <string name="proximity_wizard_speech_intro_binary">Ten czujnik zgłasza wyłącznie blisko lub wolne, więc odległości wykrywania nie można dostosować. Sprawdzę jego kierunek i niezawodność dla obecności i gestów wybudzania. Dotknij Start, gdy będziesz gotowy.</string>
     <string name="proximity_wizard_speech_clear">Najpierw cofnij się i pozostaw wolną przestrzeń przed panelem. Zachowaj bezruch, gdy zapisuję odczyt wolnej przestrzeni.</string>
     <string name="proximity_wizard_speech_near">Odczyt wolnej przestrzeni został zapisany. Teraz podejdź do panelu i zatrzymaj się tam, gdzie zwykle stoisz, aby go używać. Następnie znieruchom.</string>
-    <string name="proximity_wizard_speech_return_clear">Wykryłem Twoją zwykłą pozycję. Odsuń się ponownie i utrzymuj obszar wolny, gdy potwierdzam, że czujnik się resetuje.</string>
+    <string name="proximity_wizard_speech_return_clear">Wykryłem twoją zwykłą pozycję. Odsuń się ponownie i utrzymuj obszar wolny, gdy potwierdzam, że czujnik się resetuje.</string>
     <string name="proximity_wizard_speech_wave_baseline">Test obecności zakończony. Wróć do swojej zwykłej pozycji, zachowaj bezruch i trzymaj ręce opuszczone, gdy zapisuję wartość początkową.</string>
     <string name="proximity_wizard_speech_wave_single">Gdy odliczanie się zakończy, szybko zbliż jedną rękę do ekranu, jakbyś miał go dotknąć, a następnie odsuń ją.</string>
     <string name="proximity_wizard_speech_wave_double">Gdy odliczanie się zakończy, szybko zbliż jedną rękę do ekranu dwa razy, a następnie odsuń ją.</string>

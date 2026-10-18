@@ -63,7 +63,7 @@
     <string name="open_configuration">Відкрити конфігурацію</string>
     <string name="panel_not_set_up">Ця панель ще не налаштована.</string>
     <string name="panel_not_set_up_hint">Відскануйте код телефоном — це займе близько двох хвилин. Або натисніть %1$s, щоб зробити це на цьому екрані.</string>
-    <string name="browser_engine_too_old">Браузерний движок цієї панелі занадто застарілий.</string>
+    <string name="browser_engine_too_old">Браузерний рушій цієї панелі занадто застарілий.</string>
     <string name="browser_engine_too_old_hint">Інформаційним панелям Home Assistant потрібен новіший рушій. Виправте це на сторінці налаштувань у браузері.</string>
     <string name="choose_dashboard_app">Оберіть застосунок для інформаційної панелі.</string>
     <string name="continue_setup_browser">Продовжуйте на сторінці налаштування в браузері.</string>
@@ -94,9 +94,9 @@
     <string name="network_preparing_connection">Отримано мережеву адресу\nПідготовка до підключення</string>
     <string name="network_opening_ha">Мережа готова\nВідкриття Home Assistant</string>
     <string name="home_assistant_stopped_loading">Завантаження Home Assistant зупинилося</string>
-    <string name="home_assistant_stopped_loading_detail">Веб-переглядач панелі втратив Home Assistant під час переходу між сторінками. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджену.</string>
+    <string name="home_assistant_stopped_loading_detail">Веб-переглядач панелі втратив Home Assistant під час переходу між сторінками. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджений.</string>
     <string name="home_assistant_unresponsive">Home Assistant відкрився, але не відповідає</string>
-    <string name="home_assistant_unresponsive_detail">Сторінка завантажилася, але панель не може нею керувати, тому ніщо на інформаційній панелі не працювало б. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджену.</string>
+    <string name="home_assistant_unresponsive_detail">Сторінка завантажилася, але панель не може нею керувати, тому ніщо на інформаційній панелі не працювало б. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджений.</string>
     <string name="sign_in_rejected_title">Вхід у Home Assistant відхилено</string>
     <string name="sign_in_rejected_terminal_detail">Збережений вхід у Home Assistant перестав працювати, тому панель припинила повторні спроби.</string>
     <string name="sign_in_rejected_fix">Як виправити: відкрийте %1$s → «З’єднання з Home Assistant», потім скористайтеся входом через браузер. Інформаційна панель автоматично перезавантажиться після зміни даних входу.</string>
@@ -136,7 +136,7 @@
     <string name="dashboard_list_unavailable">Список інформаційних панелей Home Assistant недоступний</string>
     <string name="dashboard_list_unavailable_detail">Home Assistant не відповів, коли панель запитала, які інформаційні панелі може відкривати її обліковий запис. Перевірте, чи працює Home Assistant і чи панель досі залишається в системі. Панель продовжує спроби.</string>
     <string name="home_assistant_could_not_open">Не вдалося відкрити Home Assistant</string>
-    <string name="home_assistant_could_not_open_detail">Веб-переглядач панелі не зміг запустити Home Assistant. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджену.</string>
+    <string name="home_assistant_could_not_open_detail">Веб-переглядач панелі не зміг запустити Home Assistant. Панель продовжує спроби. Якщо збій повторюватиметься, веб-переглядач потрібно оновити або відновити; він називається Android System WebView, і перевстановлення тієї самої збірки відновлює пошкоджений.</string>
     <string name="skip_load_dashboard">Пропустити й завантажити інформаційну панель зараз</string>
     <string name="skip_entity_filter_detail">Якщо пропустити, завантажаться всі сутності Home Assistant, а це повільніше на цій панелі. Фільтрування можна ввімкнути пізніше в «Налаштування» → «Інформаційна панель».</string>
     <string name="optimized_subscription_unavailable">Оптимізована підписка інформаційної панелі недоступна</string>

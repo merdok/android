@@ -14,7 +14,7 @@
     <string name="ha_unreachable_retrying">No se puede conectar con Home Assistant</string>
     <string name="ha_until_back">hasta que vuelva Home Assistant</string>
     <string name="ha_past_usual">Más de lo habitual</string>
-    <string name="ha_reloading_detail">Tu panel se está recargando</string>
+    <string name="ha_reloading_detail">Tu panel de control se está recargando</string>
     <string name="ha_usually">%1$s · normalmente %2$s</string>
     <string name="ha_restarted_in">Reiniciado en %1$s</string>
     <string name="ha_exact_seconds">%1$d segundos</string>

@@ -152,7 +152,7 @@
     <string name="entity_filter_webview_too_old">Le navigateur de ce panneau, Android System WebView, est trop ancien pour filtrer ce que Home Assistant envoie. Sa mise à jour devrait résoudre le problème.</string>
     <string name="entity_filter_setup_failed">Le panneau n’a pas pu configurer le filtrage des entités cette fois-ci.</string>
     <string name="too_many_flagged_entities">Home Assistant fonctionne normalement. Trop d’entités ont été signalées pour examen sur le panneau. Ouvrez les paramètres des entités afin de simplifier le tableau de bord ou touchez Désactiver le filtre d’entités.</string>
-    <string name="entity_scan_auth_rejected">Home Assistant a refusé la connexion de ce panneau lorsque celui-ci a demandé quelles entités afficher. Le tableau de bord ne s’est pas ouvert. Configurer ouvre les paramètres de ce panneau, où la rubrique Connexion Home Assistant contient les informations de connexion ; le tableau de bord revient automatiquement dès que la connexion fonctionne.</string>
+    <string name="entity_scan_auth_rejected">Home Assistant a refusé la connexion de ce panneau lorsque celui-ci a demandé quelles entités afficher. Le tableau de bord ne s’est pas ouvert. Configurer ouvre les paramètres de ce panneau, où la rubrique Connexion à Home Assistant contient les informations de connexion ; le tableau de bord revient automatiquement dès que la connexion fonctionne.</string>
     <string name="entity_scan_failed_detail">L’analyse de vos entités n’a pas abouti ; le tableau de bord ne s’est donc pas ouvert. Vérifiez que Home Assistant fonctionne et que le panneau est connecté au réseau, puis réessayez.</string>
     <string name="entity_scan_preparing_detail">Home Assistant s’ouvrira lorsque le premier ensemble filtré d’entités sera prêt.</string>
     <string name="entity_learning_reload_notice">Une fois ouvert, Home Assistant peut se recharger plusieurs fois pendant que le panneau apprend. C’est normal.</string>
@@ -177,14 +177,14 @@
     <string name="nav_volume">Volume audio</string>
 
     <string name="guard_db_intro">Les services normaux du panneau et les processus écrivant dans la base de données sont suspendus. Laissez ce panneau sous tension ; la récupération n’est garantie que pour ce démarrage. N’approuvez que l’étape suivante précise que vous avez demandée.</string>
-    <string name="guard_db_reading_journal">Lecture du journal racine…</string>
-    <string name="guard_db_journal_status">Journal racine : %1$s · génération %2$d</string>
+    <string name="guard_db_reading_journal">Lecture du journal root…</string>
+    <string name="guard_db_journal_status">Journal root : %1$s · génération %2$d</string>
     <string name="guard_db_outcome">" · résultat %1$s"</string>
     <string name="guard_db_deadline">Échéance absolue : %1$d ms écoulées</string>
     <string name="guard_db_forward_deadline">" · progression : %1$d"</string>
-    <string name="guard_db_unreachable">L’assistant racine redémarre ou est inaccessible. Aucune modification n’est autorisée.</string>
-    <string name="guard_db_malformed">La réponse du journal racine est mal formée. La récupération est suspendue.</string>
-    <string name="guard_db_unsupported">L’assistant installé ne peut pas effectuer cette récupération. La récupération est suspendue.</string>
+    <string name="guard_db_unreachable">Le service auxiliaire (root) redémarre ou est inaccessible. Aucune modification n’est autorisée.</string>
+    <string name="guard_db_malformed">La réponse du journal root est mal formée. La récupération est suspendue.</string>
+    <string name="guard_db_unsupported">Le service auxiliaire installé ne peut pas effectuer cette récupération. La récupération est suspendue.</string>
     <string name="no_pending_physical_approval">Aucune approbation physique en attente.</string>
     <string name="pending_physical_approval">Approbation physique en attente</string>
     <string name="approval_exact_detail">Vérifiez l’action et les détails exacts de la requête avant de l’approuver.\n\nDétails de la requête (en anglais) :\n%1$s\n\nRequête précise de %2$s. L’approbation est à usage unique et expire.</string>

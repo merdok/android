@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ha_reason_restart">Home Assistant herstart</string>
+    <string name="ha_reason_restart">Herstart van Home Assistant</string>
     <string name="ha_reason_host_reboot">Herstart van de host</string>
     <string name="ha_reason_core_update">Home Assistant Core-update</string>
     <string name="ha_reason_unknown">Reden onbekend</string>

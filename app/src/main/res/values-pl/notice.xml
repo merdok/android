@@ -4,7 +4,7 @@
     <string name="notice_pill_retrying">Ponawianie</string>
     <string name="notice_pill_action_needed">Wymagane działanie</string>
     <string name="notice_pill_sign_in">Zaloguj</string>
-    <string name="notice_pill_reconnecting">Łączenie ponowne</string>
+    <string name="notice_pill_reconnecting">Ponowne łączenie</string>
     <string name="notice_pill_learning">Uczenie</string>
     <string name="notice_pill_setup">Konfiguracja</string>
     <string name="notice_pill_not_set_up">Nieskonfigurowany</string>
@@ -17,14 +17,14 @@
     <string name="notice_hero_reading">Odczyt</string>
     <string name="notice_hero_almost_there">Prawie gotowe</string>
     <string name="notice_line_ha_compatibility">Zgodność z Home Assistant</string>
-    <string name="notice_line_ha_dashboard">pulpit nawigacyjny Home Assistant</string>
-    <string name="notice_line_reading_entities">Odczyt Twoich encji</string>
+    <string name="notice_line_ha_dashboard">pulpit Home Assistant</string>
+    <string name="notice_line_reading_entities">Odczyt twoich encji</string>
     <string name="notice_line_building_filter">Budowanie przefiltrowanego zbioru</string>
-    <string name="notice_line_entities_need_decision">encji czeka na decyzję, zanim otworzy się pulpit nawigacyjny</string>
+    <string name="notice_line_entities_need_decision">encji czeka na decyzję, zanim otworzy się pulpit</string>
     <string name="notice_line_sign_in_needed">Nic nie może się załadować, dopóki panel nie ma logowania do Home Assistant.</string>
     <string name="notice_line_sign_in_stopped">Zapisane logowanie przestało działać.</string>
     <string name="notice_line_setup_question">W Panel Assistant czeka jedno pytanie konfiguracyjne.</string>
-    <string name="notice_attention_explanation">Z Home Assistant wszystko w porządku. Panel potrzebuje odpowiedzi w sprawie kontroli bezpieczeństwa wykrytych podczas odczytu Twoich encji, zanim będzie mógł otworzyć pulpit nawigacyjny.</string>
+    <string name="notice_attention_explanation">Z Home Assistant wszystko w porządku. Panel potrzebuje odpowiedzi w sprawie kontroli bezpieczeństwa wykrytych podczas odczytu twoich encji, zanim będzie mógł otworzyć pulpit.</string>
     <string name="notice_qr_sign_in">Zeskanuj, aby zalogować się z telefonu</string>
     <string name="notice_qr_sign_in_again">Zeskanuj, aby zalogować się ponownie z telefonu</string>
     <string name="notice_qr_set_up">Zeskanuj, aby skonfigurować ten panel z telefonu</string>
@@ -35,7 +35,7 @@
     <string name="entity_step_filter">Filtr</string>
     <string name="entity_step_open">Otwarcie</string>
     <string name="reload_title">Ponowne ładowanie</string>
-    <string name="reload_applying_changes">Stosowanie Twoich zmian</string>
+    <string name="reload_applying_changes">Stosowanie twoich zmian</string>
     <string name="reload_optimising_entities">Optymalizacja używanych encji; może załadować się ponownie, gdy panel się uczy</string>
     <string name="network_chip_dropping">Sieć gubi pakiety</string>
     <string name="network_chip_failing">Sieć nie działa</string>

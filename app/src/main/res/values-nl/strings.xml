@@ -9,7 +9,7 @@
     <string name="approve">Goedkeuren</string>
     <string name="deny">Weigeren</string>
     <string name="configure">Configureren</string>
-    <string name="try_again">Probeer het nog eens</string>
+    <string name="try_again">Opnieuw proberen</string>
     <string name="config_qr_description">QR-code voor %1$s</string>
     <string name="config_activity_label">Configuratie van Panel Assistant</string>
     <string name="guard_db_activity_label">Onderhoud van databaseherstel</string>
@@ -20,7 +20,7 @@
     <string name="security_mode">Beveiligingsmodus</string>
     <string name="security_mode_hardened_summary">De Hardened-modus staat aan. Verzoeken met grote impact vanuit het netwerk moeten op dit paneel worden goedgekeurd. In behandeling: %1$d.</string>
     <string name="security_mode_relaxed_summary">De Relaxed-modus staat aan. Functies voor een vertrouwd LAN werken zonder goedkeuring op het paneel. De Hardened-modus is optioneel.</string>
-    <string name="use_relaxed_mode">Gebruik de Relaxed-modus</string>
+    <string name="use_relaxed_mode">Relaxed-modus gebruiken</string>
     <string name="enable_hardened_mode">Hardened-modus inschakelen</string>
     <string name="review_approvals">Goedkeuringen controleren</string>
     <string name="unable_stop_remote_debugging">Kan het op afstand debuggen niet stoppen</string>
@@ -64,9 +64,9 @@
     <string name="panel_not_set_up">Dit paneel is nog niet ingesteld.</string>
     <string name="panel_not_set_up_hint">Scan de code met je telefoon — het duurt ongeveer twee minuten. Of tik op %1$s om het op dit scherm te doen.</string>
     <string name="browser_engine_too_old">De browser-engine van dit paneel is te oud.</string>
-    <string name="browser_engine_too_old_hint">Home Assistant-dashboards hebben een nieuwere nodig. Los het op via de instellingenpagina in een browser.</string>
+    <string name="browser_engine_too_old_hint">Home Assistant-dashboards hebben een nieuwere nodig. Los het op via de pagina ‘Instellen’ in een browser.</string>
     <string name="choose_dashboard_app">Kies een dashboard-app.</string>
-    <string name="continue_setup_browser">Ga verder op de instellingenpagina in een browser.</string>
+    <string name="continue_setup_browser">Ga verder op de pagina ‘Instellen’ in een browser.</string>
     <string name="connected_next_ha_address">Verbonden. Volgende stap: het Home Assistant-adres.</string>
     <string name="choose_home_dashboard">Kies het startdashboard van dit paneel.</string>
     <string name="almost_there_sign_in">Je bent er bijna — nog één keer inloggen.</string>
@@ -120,7 +120,7 @@
     <string name="ha_transport_tls_trust">Het servercertificaat kon niet worden vertrouwd. Controleer de certificaatketen en de klok van het paneel.</string>
     <string name="ha_transport_tls_other">De beveiligde verbinding is mislukt. Controleer de TLS-configuratie van de server.</string>
     <string name="ha_transport_dns">De hostnaam van Home Assistant kon niet worden omgezet. Controleer DNS en het geconfigureerde adres.</string>
-    <string name="ha_transport_timeout">Er is een time-out opgetreden voor de verbinding. Controleer de routering, wifi en of Home Assistant reageert.</string>
+    <string name="ha_transport_timeout">Er is een time-out opgetreden voor de verbinding. Controleer de routering, Wi-Fi en of Home Assistant reageert.</string>
     <string name="ha_transport_refused">De host heeft de verbinding geweigerd. Controleer of Home Assistant draait op de geconfigureerde poort.</string>
     <string name="ha_transport_unreachable">Het netwerk heeft geen route naar Home Assistant. Controleer de netwerk- en adresfamilie-instellingen van het paneel.</string>
     <string name="ha_transport_http_status">Home Assistant of een proxy heeft een HTTP-fout geretourneerd in plaats van de configuratie.</string>
@@ -152,7 +152,7 @@
     <string name="entity_scan_preparing_detail">Home Assistant wordt geopend zodra de eerste gefilterde entiteitsset klaar is.</string>
     <string name="entity_learning_reload_notice">Zodra Home Assistant geopend is, kan het een paar keer opnieuw laden terwijl het paneel leert. Dat is normaal.</string>
     <string name="entity_scan_taking_longer">Het duurt langer dan %1$d seconden — het paneel is er nog mee bezig. Als dit niet afloopt, kun je het entiteitsfilter uitschakelen via de instellingen van het paneel.</string>
-    <string name="ignore_flagged_entities">Negeer gemarkeerde entiteiten en ga verder</string>
+    <string name="ignore_flagged_entities">Gemarkeerde entiteiten negeren en doorgaan</string>
     <string name="preparing_dashboard">Dashboard wordt voorbereid…</string>
     <string name="disable_entity_filter">Entiteitsfilter uitschakelen</string>
     <string name="open_entity_settings">Entiteitsinstellingen openen</string>
@@ -175,7 +175,7 @@
     <string name="guard_db_deadline">Strikte deadline: %1$d elapsed-ms</string>
     <string name="guard_db_forward_deadline">" · vooruit: %1$d"</string>
     <string name="guard_db_unreachable">De root-helper wordt opnieuw opgestart of is niet bereikbaar. Er zijn geen wijzigingen toegestaan.</string>
-    <string name="guard_db_malformed">Het antwoord van het root-logboek is onjuist opgebouwd. Het herstel wordt vastgehouden.</string>
+    <string name="guard_db_malformed">Het antwoord van het root-logboek is onjuist opgebouwd. Het herstel wordt uitgesteld.</string>
     <string name="guard_db_unsupported">De geïnstalleerde helper kan dit herstelproces niet uitvoeren. Het herstelproces wordt uitgesteld.</string>
     <string name="no_pending_physical_approval">Geen openstaande fysieke goedkeuring.</string>
     <string name="pending_physical_approval">Openstaande fysieke goedkeuring</string>

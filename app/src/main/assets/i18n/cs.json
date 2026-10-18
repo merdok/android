@@ -64,7 +64,7 @@
       "state": "machine-cross-checked"
     },
     "configure.action.working": {
-      "text": "Pracuji…",
+      "text": "Pracuje se…",
       "sourceHash": "5474eef8d0f179c707cf418e2bbb468c77cc24edc5e9f5f4e137e85e06a8eea0",
       "state": "machine-cross-checked"
     },
@@ -174,7 +174,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.calculated_summary": {
-      "text": "Vypočítané automatické uspání: udržet v bdělém stavu {awake}, povolit uspání {sleep}, zakázáno {inhibited}.",
+      "text": "Vypočítané automatické uspání: zůstat v aktivním stavu {awake}, povolit spánek {sleep}, blokováno {inhibited}.",
       "sourceHash": "67a577299abe6083e8e087e7fd70e777a25f82c49c471640e3f32ad59b19440a",
       "state": "machine-cross-checked"
     },
@@ -224,7 +224,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.discovery_failed": {
-      "text": "Vyhledání zdroje funkce Auto-sleep selhalo. Zkontrolujte připojení Home Assistant.",
+      "text": "Vyhledání zdrojů automatického uspání selhalo. Zkontrolujte připojení k Home Assistant.",
       "sourceHash": "9066469a0ddc43c8cdc410748859602153c4579f0e155dc085e733b9444ded5c",
       "state": "machine-cross-checked"
     },
@@ -289,7 +289,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.history_unavailable": {
-      "text": "Historie aktivity funkce Auto-sleep není k dispozici.",
+      "text": "Historie aktivity automatického uspání není k dispozici.",
       "sourceHash": "5aaf10839ba6548520e231457a3d610731375f0c03eb5fb668a82656ff0949de",
       "state": "machine-cross-checked"
     },
@@ -454,7 +454,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.summary_accessible": {
-      "text": "Oblast Home Assistant: {area} · Fáze: {phase} · Důvod: {reason} · Naučené zpoždění: {delay} · Zdroje: {count} · Ruční nastavení obrazovky: {state}",
+      "text": "Oblast v Home Assistant: {area} · Fáze: {phase} · Důvod: {reason} · Naučené zpoždění: {delay} · Zdroje: {count} · Ruční přepsání obrazovky: {state}",
       "sourceHash": "f1dcfd36e4d02143027d8dcafd61b6aa90e72aaed405edabe9fbee6599149de6",
       "state": "machine-cross-checked"
     },
@@ -524,7 +524,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.value.lease_expired": {
-      "text": "Platnost pronájmu vypršela",
+      "text": "Doba platnosti vypršela",
       "sourceHash": "5cb259acb0d490eee8a52312868848492ced856e24a4d26b07f238aed5d5d9a4",
       "state": "machine-cross-checked"
     },
@@ -1284,7 +1284,7 @@
       "state": "machine-cross-checked"
     },
     "configure.oauth.link_ready": {
-      "text": "Odkaz pro přihlášení je připraven. Otevřete jej běžným způsobem nebo jej zkopírujte do anonymního okna.",
+      "text": "Odkaz pro přihlášení je připraven. Otevřete jej běžným způsobem nebo jej zkopírujte do soukromého okna.",
       "sourceHash": "397769cfb1f6d746cc9632dbcaecbdba2d8fdc2ab5ef18aada605c50ae56c306",
       "state": "machine-cross-checked"
     },
@@ -1689,7 +1689,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.setup.ready": {
-      "text": "Systém blízkosti je připraven",
+      "text": "Detekce přiblížení je připravena",
       "sourceHash": "04c0b7d2c142ac192b0217e7c7581ec1709282a8e6bd5548ff8606c955026d7a",
       "state": "machine-cross-checked"
     },
@@ -1799,7 +1799,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.setup.unavailable": {
-      "text": "Zdroj blízkosti není k dispozici",
+      "text": "Zdroj detekce přiblížení není k dispozici",
       "sourceHash": "a39446a3ec289ecf6c55b4f5e6cc9b28ee5985bd07dafd53cbfa33d6e3c5c60c",
       "state": "machine-cross-checked"
     },
@@ -1904,7 +1904,7 @@
       "state": "machine-cross-checked"
     },
     "configure.setup.explanation": {
-      "text": "prochází to krok za krokem. Tato stránka obsahuje všechna nastavení najednou.",
+      "text": "vás tím provede krok za krokem. Tato stránka obsahuje všechna nastavení najednou.",
       "sourceHash": "06f97d616bdc1eb895f8ae22cd297c486eda4a15e5915f73eb92c9d73a71187b",
       "state": "machine-cross-checked"
     },
@@ -1919,7 +1919,7 @@
       "state": "machine-cross-checked"
     },
     "configure.setup.strategy_allowed.body": {
-      "text": "Home Assistant vytváří ovládací panel tohoto zařízení ze strategie a jeho kontrola vyhledávání entit je povolena, takže se karty zobrazují jen pro odebírané entity.",
+      "text": "Home Assistant vytváří ovládací panel tohoto panelu ze strategie a jeho kontrola vyhledávání entit je povolena, takže se karty zobrazují jen pro odebírané entity.",
       "sourceHash": "775e7bde2d357258f45f814e974079a72d8e907dfd0678208bc0685908dd0cc9",
       "state": "machine-cross-checked"
     },
@@ -1929,7 +1929,7 @@
       "state": "machine-cross-checked"
     },
     "configure.setup.strategy_allowed.title": {
-      "text": "Některé karty na řídicím panelu mohou chybět.",
+      "text": "Některé karty na ovládacím panelu mohou chybět.",
       "sourceHash": "4eb6bbaee2e66e0cb133be770b21c244e29992602a99e52c62c4848f66dfc315",
       "state": "machine-cross-checked"
     },
@@ -2169,7 +2169,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.actions.approve_on_panel": {
-      "text": "Schvalte tuto žádost v panelu a poté ji zkuste znovu.",
+      "text": "Schvalte tuto žádost na panelu a poté ji zkuste znovu.",
       "sourceHash": "be7545a353d7b786a59ce8893679e105d9fe23794cee284b5127c4037408f353",
       "state": "machine-cross-checked"
     },
@@ -2274,7 +2274,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.manage_install": {
-      "text": "Spravujte na kartě Instalace →",
+      "text": "Spravovat na kartě Instalace →",
       "sourceHash": "3a44b8764e7cc637360c1249abf2574724b61a152b99714fd55f09cdccd6999a",
       "state": "machine-cross-checked"
     },
@@ -2394,7 +2394,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.zoom.title": {
-      "text": "Přiblížení na řídicím panelu je {zoom}%",
+      "text": "Přiblížení ovládacího panelu je {zoom}%",
       "sourceHash": "7c420345226ec705034cdbc69b791fd059d1bfea7736e944fa5bbe605667795a",
       "state": "machine-cross-checked"
     },
@@ -2559,12 +2559,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.configure": {
-      "text": "Selhala konfigurace kamery",
+      "text": "selhala konfigurace kamery",
       "sourceHash": "3ef2a58a429f53dcfbdbc571ef6a2ee3c1ecc925678f2a6411d66f54b7b692dc",
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.device_error": {
-      "text": "Chyba zařízení kamery",
+      "text": "chyba zařízení kamery",
       "sourceHash": "e5ecf72d7e2a39287d656367e5a357a4861b865c59870afaa5097d5fa7a503a7",
       "state": "machine-cross-checked"
     },
@@ -2574,17 +2574,17 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.encode": {
-      "text": "Selhalo kódování snímku",
+      "text": "selhalo kódování snímku",
       "sourceHash": "54274a8a62fbbb757df1686604a6f2220be75671ff26a7753dfc8c9e710ea8d8",
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.foreground": {
-      "text": "Služba na popředí odmítnuta",
+      "text": "služba na popředí odmítnuta",
       "sourceHash": "b08e73f27623e299432281a9a7e16f1d174b10048cfe2efecb9040d0d0ab53f3",
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.indication": {
-      "text": "Selhání indikace použití kamery",
+      "text": "selhání indikace použití kamery",
       "sourceHash": "ce7ed97611a2429091a87b70434de24f04c56fdd61a2985ac5f3e6223ac03ba9",
       "state": "machine-cross-checked"
     },
@@ -2604,7 +2604,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.fault.stream_encoder": {
-      "text": "Selhal kodér datového proudu",
+      "text": "selhal kodér datového proudu",
       "sourceHash": "5215cc3544b062d51644fdec7db0c1db9dce1f6f4f9e529d728136d4b7031c49",
       "state": "machine-cross-checked"
     },
@@ -2729,7 +2729,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.session.permission_needed": {
-      "text": "čekání na oprávnění k přístupu ke kameře „Android“",
+      "text": "čekání na oprávnění systému Android ke kameře",
       "sourceHash": "7ea470b0d8640309098903185d11079abba3a23e7ce0d8b740769207a7514736",
       "state": "machine-cross-checked"
     },
@@ -2864,7 +2864,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.brightness_helper": {
-      "text": "ovládání podsvícení prostřednictvím pomocného démona; nastavení „Android“ zůstává beze změny",
+      "text": "ovládání podsvícení prostřednictvím pomocného démona; nastavení systému Android zůstává beze změny",
       "sourceHash": "adb57c0744977c72e567539d3337098a0e19eea90d77390beb3ceaf66dcb78a5",
       "state": "machine-cross-checked"
     },
@@ -3129,7 +3129,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.card.profile": {
-      "text": "Panel Assistant profil",
+      "text": "Profil Panel Assistant",
       "sourceHash": "25eb49e5a8715f10064a3b714e53b6aad67aecc85032bdda976e82fafa90d458",
       "state": "machine-cross-checked"
     },
@@ -3204,7 +3204,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.cause.state_stream": {
-      "text": "Zátěž proudu stavů",
+      "text": "Zátěž streamu stavů",
       "sourceHash": "a49a99c4222cc71e7ceb9984723d26580817796a9cc8bfe95cb5a8ad630bd831",
       "state": "machine-cross-checked"
     },
@@ -3299,12 +3299,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.controls.reload": {
-      "text": "Nově načíst",
+      "text": "Znovu načíst",
       "sourceHash": "bdc090ec61e3fcfc65f469951dfe00f3f2ecfc6003c44deac8e05b7237092de6",
       "state": "machine-cross-checked"
     },
     "dashboard.controls.root_required": {
-      "text": "Vyžaduje panel upravený pomocí root",
+      "text": "Vyžaduje panel s oprávněním root",
       "sourceHash": "d298b76947c6260dab6cc80b19856c12dac0b1fe9f3382804fc254fb3d5946b1",
       "state": "machine-cross-checked"
     },
@@ -3404,12 +3404,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.fact.ha_lifecycle": {
-      "text": "HA životní cyklus",
+      "text": "Životní cyklus HA",
       "sourceHash": "49e67338e36425bd16f3dd557c9f814fbf6a8398b6aee904473891029642fcfa",
       "state": "machine-cross-checked"
     },
     "dashboard.fact.ha_network_path": {
-      "text": "HA síťová cesta",
+      "text": "Síťová cesta HA",
       "sourceHash": "3c86761b01aa8d00f6f4c44d82ffc8de5230e998c6a223e86cee9e724b628c06",
       "state": "machine-cross-checked"
     },
@@ -3604,7 +3604,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.inspect.start_failed": {
-      "text": "Nedařilo se spustit relé.",
+      "text": "Nepodařilo se spustit přemostění.",
       "sourceHash": "6d35dd65046d7633824867470f051411b6013e6a7be45a3677d6f2e4862b4cfd",
       "state": "machine-cross-checked"
     },
@@ -3654,12 +3654,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.networking.warning_guidance": {
-      "text": "Síťové varování kontroluje, jak spolehlivě tento panel dosahuje na adresu Home Assistant; neidentifikuje však příčinu. Zkontrolujte signál panelu „Wi-Fi“, přístupový bod a zatížení hostitele Home Assistant.",
+      "text": "Síťové varování kontroluje, jak spolehlivě tento panel dosahuje na adresu Home Assistant; neidentifikuje však příčinu. Zkontrolujte signál Wi-Fi panelu, přístupový bod a zatížení hostitele Home Assistant.",
       "sourceHash": "65ebf087852150d6ad87e5cb5b182d4271170d680c65f12156025885fe9565eb",
       "state": "machine-cross-checked"
     },
     "dashboard.noisy.aggregate_only": {
-      "text": "Pouze agregace — povolit automatické učení entit k identifikaci přispěvatelů",
+      "text": "Pouze agregace — povolte automatické učení entit k identifikaci přispěvatelů",
       "sourceHash": "f774453f78cf65bf8e652f1c7a59ef1e7d41c40e99af8e5a796dc35780f3cf92",
       "state": "machine-cross-checked"
     },
@@ -3709,7 +3709,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.performance.samples_note": {
-      "text": "Vzorky pouze při otevřené této stránce.",
+      "text": "Vzorkuje se pouze tehdy, když je tato stránka otevřená.",
       "sourceHash": "df85a9a8e2c841f096ebb91613aef0a0c812609d2534a6256da3402fb372dd9e",
       "state": "machine-cross-checked"
     },
@@ -3789,7 +3789,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.proximity.waiting_readings": {
-      "text": "Čekání na důvěryhodné údaje o blízkosti",
+      "text": "Čekání na důvěryhodné údaje o přiblížení",
       "sourceHash": "b2803f401b72d6508d6f33e032bfaeee7cb22ae465701f8ff614d8dcadf427c9",
       "state": "machine-cross-checked"
     },
@@ -3819,7 +3819,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.renderer.main_thread": {
-      "text": "Hlavní vlákno řídicího panelu",
+      "text": "Hlavní vlákno ovládacího panelu",
       "sourceHash": "88cd2baeff4fc9e88ddf4f6ae14d884e57d5cc91439b491b91998f78562e8fcc",
       "state": "machine-cross-checked"
     },
@@ -3834,7 +3834,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.renderer.needs_root": {
-      "text": "Proxy externího rendereru vyžaduje přístup s oprávněním „root“ / „helper“",
+      "text": "Proxy externího rendereru vyžaduje přístup přes root nebo pomocného démona",
       "sourceHash": "0dc334c498e2303d2b20e5ab15cae1132dfc68f974d4776c5e0b37a6fbcde8c7",
       "state": "machine-cross-checked"
     },
@@ -3874,7 +3874,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.renderer.saturated": {
-      "text": "· 100 % znamená, že vlákno vykreslovače je plně vytížené",
+      "text": "· 100 % znamená, že vlákno rendereru je plně vytížené",
       "sourceHash": "a96f97026f374598dc5b4aacedeb71dd4aada7a5f542f85bea88b82473f5888b",
       "state": "machine-cross-checked"
     },
@@ -3909,7 +3909,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.responsiveness.interact_to_measure": {
-      "text": "interakce s řídicím panelem za účelem měření",
+      "text": "pro měření interagujte s ovládacím panelem",
       "sourceHash": "1df8b14402ffb0eed977a5e266230137209f970a710064dfa25ece185d32e357",
       "state": "machine-cross-checked"
     },
@@ -3949,7 +3949,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.responsiveness.renderer_reloads": {
-      "text": "Obnovení vykreslovače (24 h)",
+      "text": "Obnovení rendereru (24 h)",
       "sourceHash": "6de68adfd9cd8d609e785bb92ce376b13cc94c28eb884e377cf56003c3619f22",
       "state": "machine-cross-checked"
     },
@@ -3999,7 +3999,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.audio_failed_detail": {
-      "text": "neúspěšné · {detail}",
+      "text": "selhalo · {detail}",
       "sourceHash": "8ee1e374afa8721ba99fc4a562e3cca69e0f97cae7c7a9729c45a48a7f008356",
       "state": "machine-cross-checked"
     },
@@ -4054,7 +4054,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.camera.permission_needed": {
-      "text": "kamera je zapnutá, ale služba Android neudělila oprávnění",
+      "text": "kamera je zapnutá, ale systém Android neudělil oprávnění",
       "sourceHash": "37df57d9ed8efdbd533eb9c3462692cfd2694a5e1af230434a548ff55bea397a",
       "state": "machine-cross-checked"
     },
@@ -4159,17 +4159,17 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.ha_network_latency_warning": {
-      "text": "pomalý",
+      "text": "pomalé",
       "sourceHash": "5e0cf7bd1dfa3831788b0cf6dedcdd228fba6f34dc238d371e746567e80bc7b6",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.ha_network_latency_warning_response_slow": {
-      "text": "pomalý; Home Assistant odpovídá pomalu",
+      "text": "pomalé; Home Assistant odpovídá pomalu",
       "sourceHash": "056de773c4208b770839fdd87e4055ff7d09d8cb61df76abe340c9d6c5f8e164",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.ha_network_latency_warning_response_very_slow": {
-      "text": "pomalý; Home Assistant odpovídá velmi pomalu",
+      "text": "pomalé; Home Assistant odpovídá velmi pomalu",
       "sourceHash": "f2b75a04d3d45878a4e623d21335863f509a6e7c279abfa60d96ebeeecd89072",
       "state": "machine-cross-checked"
     },
@@ -4199,7 +4199,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.ha_network_severe": {
-      "text": "výrazně zhoršený; {evidence}",
+      "text": "výrazně zhoršené; {evidence}",
       "sourceHash": "64f356940f9a3373feecedc98764165f8b1c405307b52a5d1cd7d0e2616e7142",
       "state": "machine-cross-checked"
     },
@@ -4244,27 +4244,27 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.rendered_cached": {
-      "text": "ovládací panel vykreslen; povolen na dříve ověřené verzi Home Assistant",
+      "text": "ovládací panel vykreslen; přijato na dříve ověřené verzi Home Assistant",
       "sourceHash": "2077a2931c2fa32a27d8d8a136b7a0e5367c4007d0b7df59b559e10e337235d4",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.theme_override_suffix": {
-      "text": "; explicitní téma Home Assistant přepisuje téma řídicího panelu tohoto panelu",
+      "text": "; explicitní téma Home Assistant přepisuje téma ovládacího panelu tohoto panelu",
       "sourceHash": "48b00c7c6d33ce7186244ebdc2343d2c5d58a9156ebf9276d8c7e3bbbc5cb28a",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.unobserved": {
-      "text": "u aktuálního rendereru nebylo zaznamenáno schválení",
+      "text": "u aktuálního rendereru nebylo zaznamenáno přijetí",
       "sourceHash": "b65f8770c0d567f700d2f20e7e522d6afeb982ebe8210b632c41f937c7f5d599",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.security_hardened": {
-      "text": "Zabezpečené · vzdálené akce s významným dopadem vyžadují fyzické schválení na panelu",
+      "text": "Režim Hardened · vzdálené akce s významným dopadem vyžadují fyzické schválení na panelu",
       "sourceHash": "b227adf21bf39d75dc6caf09d98bb407d924a63fb17dfc7c83d9e1bcba6aaaa6",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.security_relaxed": {
-      "text": "Uvolněné",
+      "text": "Režim Relaxed",
       "sourceHash": "43ddd4ca77f3867dc868038ee29f599d6827cea28b5d00e7ad1827fa9373b76d",
       "state": "machine-cross-checked"
     },
@@ -4409,7 +4409,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.sensors.minutes_ago": {
-      "text": "· před {count}m",
+      "text": "· před {count} min",
       "sourceHash": "4317533e1ee80cdeb4a67e7623460cb07e4a970bca0ba2a11c245da5626e1bdd",
       "state": "machine-cross-checked"
     },
@@ -4459,7 +4459,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.sensors.proximity": {
-      "text": "Blízkost",
+      "text": "Přiblížení",
       "sourceHash": "101194f3e33d01133851120bc7bab9967d2d8988266a7c07ae800f7127e7e3e2",
       "state": "machine-cross-checked"
     },
@@ -4514,7 +4514,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.state_stream.payload_detail": {
-      "text": "· p95 {rate} · nekomprimované JSON",
+      "text": "· p95 {rate} · nekomprimovaný JSON",
       "sourceHash": "841536c8b8d08e76127c038503d850bba320577da2c429c887e0787c993cf196",
       "state": "machine-cross-checked"
     },
@@ -4524,7 +4524,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.state_stream.state_stream": {
-      "text": "Proud stavů",
+      "text": "Stream stavů",
       "sourceHash": "84c5f165f02fcf3f32b29c5326e1d5c7e369e29e6144a75d4be90564b5f7ac2a",
       "state": "machine-cross-checked"
     },
@@ -4564,7 +4564,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.status.top_processes": {
-      "text": "nejvytíženější procesy…",
+      "text": "nejnáročnější procesy…",
       "sourceHash": "cb97b7329a26177bdaed6abd2e9b2f4953f1772b48e2141a5515819fd0d31f25",
       "state": "machine-cross-checked"
     },
@@ -4599,7 +4599,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.value.builtin_renderer": {
-      "text": "Vestavěný vykreslovač",
+      "text": "Vestavěný renderer",
       "sourceHash": "fd2cabcaf7c75b86391a94759b420c6b375a163b555506bd675acbeb1f73dd53",
       "state": "machine-cross-checked"
     },
@@ -4649,7 +4649,7 @@
       "state": "machine-cross-checked"
     },
     "entities.age.minutes": {
-      "text": "před {count} m",
+      "text": "před {count} min",
       "sourceHash": "0a03167c208c5cd797a7fe6736e89a7fafe9ff5ed5b671bf33797f7fd715b35f",
       "state": "machine-cross-checked"
     },
@@ -4674,7 +4674,7 @@
       "state": "machine-cross-checked"
     },
     "entities.apply.enable_confirm": {
-      "text": "Zachovat aktuální proud (počet entit: {current}) a povolit budoucí automatické aktualizace zásad?",
+      "text": "Zachovat aktuální stream (počet entit: {current}) a povolit budoucí automatické aktualizace zásad?",
       "sourceHash": "bac6011889095102b94474f07be420771d6019f85ae6145be6e969f509525ecc",
       "state": "machine-cross-checked"
     },
@@ -4684,7 +4684,7 @@
       "state": "machine-cross-checked"
     },
     "entities.apply.replace_confirm": {
-      "text": "Nahradit aktuální proud (počet entit: {current}) sadou vybranou podle zásad (počet entit: {desired})? Přidáno: {added}; odstraněno: {removed}. Tím se znovu načte ovládací panel.",
+      "text": "Nahradit aktuální stream (počet entit: {current}) sadou vybranou podle zásad (počet entit: {desired})? Přidáno: {added}; odstraněno: {removed}. Tím se znovu načte ovládací panel.",
       "sourceHash": "770343d8562dc49d471c9d0759a998a6c18ca3f79c9d7d27c24c430ce99e6834",
       "state": "machine-cross-checked"
     },
@@ -4879,7 +4879,7 @@
       "state": "machine-cross-checked"
     },
     "entities.error.request_unavailable": {
-      "text": "žádost není k dispozici",
+      "text": "požadavek není k dispozici",
       "sourceHash": "1234cb6dc3fca8e3ddb2ad853b786605838aa96fdd7405bdd2d0f2c6697a4d02",
       "state": "machine-cross-checked"
     },
@@ -4919,7 +4919,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.allow_note": {
-      "text": "Povolení této kontroly nikdy nepřidá žádné entity. Umožňuje pouze pokračování automatických aktualizací bez nich. Chcete-li se k některé přihlásit, vyhledejte ji pomocí vyhledávání v katalogu v horní části této stránky a nastavte ji na „{pinned}“; ruční připnutí zůstane zachováno, dokud jej neodstraníte.",
+      "text": "Povolení této kontroly nikdy nepřidá žádné entity. Umožňuje pouze pokračování automatických aktualizací bez nich. Chcete-li některou z nich odebírat, vyhledejte ji pomocí vyhledávání v katalogu v horní části této stránky a nastavte ji na „{pinned}“; ruční připnutí zůstane zachováno, dokud jej neodstraníte.",
       "sourceHash": "d3c4b6d2399ff0b190f6ccafb3bb888b75db62d7a682cd5a5c06dbe91a24df72",
       "state": "machine-cross-checked"
     },
@@ -5004,7 +5004,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.card.kiosk_mode_configuration": {
-      "text": "HACS Kiosk Mode konfigurace",
+      "text": "Konfigurace HACS Kiosk Mode",
       "sourceHash": "d28f78f8972124e7e87f6c382f784c0590692ce3b63f8b1eeae5f0d6a693013d",
       "state": "machine-cross-checked"
     },
@@ -5164,12 +5164,12 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.selector-missing-include.summary": {
-      "text": "Neomezený výběr entit",
+      "text": "Neomezený selektor entit",
       "sourceHash": "13b952c306bef29e900e2340a09367e3814afc02bf9311f02a5e4a060c6fcb2a",
       "state": "machine-cross-checked"
     },
     "entities.issue.selector-registry-incomplete.summary": {
-      "text": "Výběr entit vyžaduje neúplná metadata registru",
+      "text": "Selektor entit vyžaduje neúplná metadata registru",
       "sourceHash": "1660048cec84e73c46fb601b775b6d846b48ca9c8eb24814e284160122d69420",
       "state": "machine-cross-checked"
     },
@@ -5204,7 +5204,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.severity.note": {
-      "text": "Poznámka k kompatibilitě",
+      "text": "Poznámka ke kompatibilitě",
       "sourceHash": "3db29fb719427bdcb84598bba17dee215653716af1eb3f417823809126b048dc",
       "state": "machine-cross-checked"
     },
@@ -5249,7 +5249,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.template-selector.summary": {
-      "text": "Neomezený výběr entit šablony",
+      "text": "Neomezený selektor entit šablony",
       "sourceHash": "77922d0110ae843152f8e1cdc92a41f6c88e478f06bbc0f0468702219af5efd7",
       "state": "machine-cross-checked"
     },
@@ -5439,7 +5439,7 @@
       "state": "machine-cross-checked"
     },
     "entities.row.select": {
-      "text": "Vyberte „{entity_id}“",
+      "text": "Vybrat {entity_id}",
       "sourceHash": "72bed5ac0bae357fad13ad21f77d72249dba49aefb972e7e131c55751fb827a9",
       "state": "machine-cross-checked"
     },
@@ -5534,22 +5534,22 @@
       "state": "machine-cross-checked"
     },
     "entities.search.section.review.one": {
-      "text": "Zastaralé nebo hlučné: {count}",
+      "text": "Zastaralé nebo rušivé: {count}",
       "sourceHash": "eac19c77161713b1492321e03c87ee4fb7c6454630bf1c9c750f4a493877e672",
       "state": "machine-cross-checked"
     },
     "entities.search.section.review.other": {
-      "text": "Zastaralé nebo hlučné: {count}",
+      "text": "Zastaralé nebo rušivé: {count}",
       "sourceHash": "eac19c77161713b1492321e03c87ee4fb7c6454630bf1c9c750f4a493877e672",
       "state": "machine-cross-checked"
     },
     "entities.search.section.suggested.one": {
-      "text": "Doporučeno: {count}",
+      "text": "Navrhované: {count}",
       "sourceHash": "4da5692994ee5ab2bba5a0f6577aead078a33e0e7a651f20ad010440427bca1e",
       "state": "machine-cross-checked"
     },
     "entities.search.section.suggested.other": {
-      "text": "Doporučeno: {count}",
+      "text": "Navrhované: {count}",
       "sourceHash": "4da5692994ee5ab2bba5a0f6577aead078a33e0e7a651f20ad010440427bca1e",
       "state": "machine-cross-checked"
     },
@@ -5619,7 +5619,7 @@
       "state": "machine-cross-checked"
     },
     "entities.status.state.degraded": {
-      "text": "degradovaný",
+      "text": "degradováno",
       "sourceHash": "3c8cab8b47d6d0ac0e1bb0a3c209b836f5cf1a61e851626dc7a5d7f011a7e5dd",
       "state": "machine-cross-checked"
     },
@@ -5764,7 +5764,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.select_page": {
-      "text": "Vyberte tuto stránku",
+      "text": "Vybrat tuto stránku",
       "sourceHash": "80796358926c43086751a9de59ca57f9060de6678bf656840aed33656a6a8cba",
       "state": "machine-cross-checked"
     },
@@ -5839,7 +5839,7 @@
       "state": "machine-cross-checked"
     },
     "install.apk.dynamic.install": {
-      "text": "Instalace {package}",
+      "text": "Nainstalovat {package}",
       "sourceHash": "5c4b130ef23462a8a2a79d7025971e93ba0e5f07908818d2aa65e4d34863dd0a",
       "state": "machine-cross-checked"
     },
@@ -6114,12 +6114,12 @@
       "state": "machine-cross-checked"
     },
     "install.backup.description.config_only": {
-      "text": "Balíček konfigurace Panel Assistant tohoto panelu. Zálohy obsahují přihlašovací údaje a ve výchozím nastavení jsou šifrovány vaší heslovou frází; při ztrátě ji nelze obnovit.",
+      "text": "Balíček konfigurace Panel Assistant tohoto panelu. Zálohy obsahují přihlašovací údaje a ve výchozím nastavení jsou šifrovány vaším heslem; při ztrátě ho nelze obnovit.",
       "sourceHash": "207a767ba27bc28c2683b818d4eb867435fa2c20f2c6e699a65ee9232ba71aa6",
       "state": "machine-cross-checked"
     },
     "install.backup.description.with_companion": {
-      "text": "Balíček konfigurace Panel Assistant tohoto panelu a přihlášení aplikace HA Companion. Zálohy obsahují přihlašovací údaje a ve výchozím nastavení jsou šifrovány vaší heslovou frází; při ztrátě ji nelze obnovit.",
+      "text": "Balíček konfigurace Panel Assistant tohoto panelu a přihlášení aplikace HA Companion. Zálohy obsahují přihlašovací údaje a ve výchozím nastavení jsou šifrovány vaším heslem; při ztrátě ho nelze obnovit.",
       "sourceHash": "b88b35b77dcf3f735c462a265bae8493c5b5bdbed8ff59e4a4f3d5b8a36f726d",
       "state": "machine-cross-checked"
     },
@@ -6144,7 +6144,7 @@
       "state": "machine-cross-checked"
     },
     "install.backup.dynamic.downloaded_encrypted": {
-      "text": "Záloha stažena (šifrovaná) — uchovejte si přístupovou frázi.",
+      "text": "Záloha stažena (šifrovaná) — uchovejte si heslo.",
       "sourceHash": "273aa9b4b0de3263dd02476c261e8834dc306ebf2c1ef30b92fa6d6590b92084",
       "state": "machine-cross-checked"
     },
@@ -6314,7 +6314,7 @@
       "state": "machine-cross-checked"
     },
     "install.backup.restore.choose": {
-      "text": "Vyberte zálohu (.hpb nebo .zip)…",
+      "text": "Vybrat zálohu (.hpb nebo .zip)…",
       "sourceHash": "7ed32bfa384f70542e477b92902d8175f30a7db3c151c4cf734a94463c1e7942",
       "state": "machine-cross-checked"
     },
@@ -6344,7 +6344,7 @@
       "state": "machine-cross-checked"
     },
     "install.card.vendor_packages": {
-      "text": "Balíčky dodavatelů",
+      "text": "Balíčky výrobce",
       "sourceHash": "0af09e08ca5f84e613df530b47ad19993710e6110e46f0a601f743a4f0b3cc0b",
       "state": "machine-cross-checked"
     },
@@ -6599,7 +6599,7 @@
       "state": "machine-cross-checked"
     },
     "install.display.return": {
-      "text": "Návrat k nastavení velikosti displeje",
+      "text": "Vrátit se k nastavení velikosti displeje",
       "sourceHash": "88aa2e92a88a0d5331f35eb6ce94045526e6806b2cd908dbb316c3807c8b631b",
       "state": "machine-cross-checked"
     },
@@ -6704,12 +6704,12 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.companion_helper_busy": {
-      "text": "Pomocný program Companion je zaneprázdněn",
+      "text": "Pomocník Companion je zaneprázdněn",
       "sourceHash": "bd72fd8b3124959c616cb91ed361f86344f27fdf37bc90faf023768f701dac29",
       "state": "machine-cross-checked"
     },
     "install.presentation.companion_helper_unavailable": {
-      "text": "Pomocný program Companion není k dispozici",
+      "text": "Pomocník Companion není k dispozici",
       "sourceHash": "7ff8ce015e30889d9cc37648e0f3cf6e03b100156bed873f69993b5339e18cca",
       "state": "machine-cross-checked"
     },
@@ -6939,7 +6939,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.restore_companion_helper_required": {
-      "text": "Obnova Companion vyžaduje aktuální pomocný program Panel Assistant",
+      "text": "Obnova Companion vyžaduje aktuálního pomocníka Panel Assistant",
       "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
       "state": "machine-cross-checked"
     },
@@ -7004,7 +7004,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.restore_passphrase_or_bundle_invalid": {
-      "text": "nesprávná přístupová fráze nebo poškozený balíček",
+      "text": "nesprávné heslo nebo poškozený balíček",
       "sourceHash": "f5e093d1a2d72e397d77e02e1264afc864939df6842fd0c26a616c3d02f71fe5",
       "state": "machine-cross-checked"
     },
@@ -7059,7 +7059,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_builtin_renderer_retries_stopped": {
-      "text": "⛔ Vestavěný renderer přestal opakovat pokusy po opakovaných selháních WebView. Aktualizujte nebo opravte System WebView a poté nově načtěte ovládací panel z navigační lišty panelu nebo z karty řídicího panelu.",
+      "text": "⛔ Vestavěný renderer přestal opakovat pokusy po opakovaných selháních WebView. Aktualizujte nebo opravte System WebView a poté znovu načtěte ovládací panel z navigační lišty panelu nebo z karty Ovládací panel.",
       "sourceHash": "1b5418807f2f485ae2f516c802d5e0801c94630d573966d230b92d877e08417e",
       "state": "machine-cross-checked"
     },
@@ -7069,7 +7069,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_external_renderer_crash_loop": {
-      "text": "⛔ Aplikace Dashboard se neustále zhroutí a opakuje cyklus — hlídací program přestal aplikaci znovu spouštět, aby zabránil záplavě restartů. Přeinstalujte nebo přejděte na starší verzi aplikace Dashboard/Companion, případně restartujte panel.",
+      "text": "⛔ Aplikace ovládacího panelu opakovaně padá — hlídací program přestal aplikaci znovu spouštět, aby zabránil záplavě restartů. Přeinstalujte nebo přejděte na starší verzi aplikace ovládacího panelu/Companion, případně restartujte panel.",
       "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
       "state": "machine-cross-checked"
     },
@@ -7094,7 +7094,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_schema_rollback": {
-      "text": "⚠ Novější databáze zachována po downgradu verze ({from_schema} → {to_schema}) — tato verze otevřela nové úložiště stavů, protože její schéma je starší; některá nastavení se mohla resetovat. Předchozí databáze je na panelu zachována pro případ obnovy. Zkontrolujte Konfiguraci nebo obnovte zálohu.",
+      "text": "⚠ Novější databáze zachována po přechodu na starší verzi ({from_schema} → {to_schema}) — tato verze otevřela nové úložiště stavů, protože její schéma je starší; některá nastavení se mohla resetovat. Předchozí databáze je na panelu zachována pro případ obnovy. Zkontrolujte Konfiguraci nebo obnovte zálohu.",
       "sourceHash": "ff545e82f7b3e9d88e6e9660d1be124df64ff521098d5cbfe7290f766b84be88",
       "state": "machine-cross-checked"
     },
@@ -7134,12 +7134,12 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_zigbee_high_cpu": {
-      "text": "⚠ Připojená brána Zigbee vykazuje trvale vysokou hodnotu CPU — zůstává v provozu, protože připojené směrovače mají status pouze varovný.",
+      "text": "⚠ Připojená brána Zigbee vykazuje trvale vysoké využití CPU — zůstává v provozu, protože u připojených routerů se pouze varuje.",
       "sourceHash": "fb0d9f1ae1e44847a3da28752f6aae197cb7932443060bb89d57cd90e25e9f7e",
       "state": "machine-cross-checked"
     },
     "install.presentation.status_zigbee_legacy_watchdog": {
-      "text": "⚠ Zjištěna chyba hlídacího modulu (watchdog) v rámci staršího skriptu „Zigbee“ — je zde přítomno přesné rekurzivní přiřazení proměnné LD_LIBRARY_PATH. Nástroj „Panel Assistant“ skript výrobce automaticky neupraví.",
+      "text": "⚠ Zjištěna chyba staršího hlídacího modulu (watchdog) Zigbee — je zde přítomno přesné rekurzivní přiřazení proměnné LD_LIBRARY_PATH. Panel Assistant skript výrobce automaticky neupraví.",
       "sourceHash": "6abc75262af7807330939d0b7370ce47040682e61d387578b8adc9c96fcb2706",
       "state": "machine-cross-checked"
     },
@@ -7229,7 +7229,7 @@
       "state": "machine-cross-checked"
     },
     "install.progress.lost_contact_reload": {
-      "text": "Ztracený kontakt — znovu načíst a zkontrolovat.",
+      "text": "Spojení ztraceno — pro kontrolu načtěte stránku znovu.",
       "sourceHash": "01a4ff5d87ed48050e644839b4a4f605a5e38cb16e9efd286fe4aa633e68618e",
       "state": "machine-cross-checked"
     },
@@ -7429,7 +7429,7 @@
       "state": "machine-cross-checked"
     },
     "install.tame.action.tame": {
-      "text": "Zkrotit",
+      "text": "Omezit",
       "sourceHash": "c85a15907c0bd6abe4808730c7d422f32a57b8247f11402e47f72ef842b049ed",
       "state": "machine-cross-checked"
     },
@@ -7439,7 +7439,7 @@
       "state": "machine-cross-checked"
     },
     "install.tame.approval.recommended": {
-      "text": "Zkrotit balíčky výrobce doporučené profilem",
+      "text": "Omezit balíčky výrobce doporučené profilem",
       "sourceHash": "3a77da60cbcfc809f72b7fd8d18d38f88119734d8ec517da65b2653c1bdcc833",
       "state": "machine-cross-checked"
     },
@@ -7449,7 +7449,7 @@
       "state": "machine-cross-checked"
     },
     "install.tame.description": {
-      "text": "Funkce „Zkrotit“ vynutí zastavení aplikace, zabrání jejímu spuštění při startu systému a zablokuje její překrývání ovládacího panelu — platí okamžitě a při každém startu. „Znovu povolit“ změny vrátí. Kritické systémové aplikace se nikdy nenabízejí; nic se nezmění, dokud nestisknete tlačítko.",
+      "text": "Funkce „Omezit“ vynutí zastavení aplikace, zabrání jejímu spuštění při startu systému a zablokuje její překrývání ovládacího panelu — platí okamžitě a při každém startu. „Znovu povolit“ změny vrátí. Kritické systémové aplikace se nikdy nenabízejí; nic se nezmění, dokud nestisknete tlačítko.",
       "sourceHash": "c8e1bf9423f5c649f86cfd13f5ebc7febeb598ec77ded15e361f3ec478710626",
       "state": "machine-cross-checked"
     },
@@ -7469,7 +7469,7 @@
       "state": "machine-cross-checked"
     },
     "install.tame.empty": {
-      "text": "Zatím není zkrocena žádná aplikace. Stiskněte „Najít balíček…“ a zobrazte obsah tohoto panelu.",
+      "text": "Zatím není omezena žádná aplikace. Stiskněte „Najít balíček…“ a zobrazte obsah tohoto panelu.",
       "sourceHash": "a981e300306491f64f11d63e52e6717d9f2fc3b9b8504f73e980ed3de78a031c",
       "state": "machine-cross-checked"
     },
@@ -7659,7 +7659,7 @@
       "state": "machine-cross-checked"
     },
     "install.uninstall.description_prefix": {
-      "text": "Odstranění nainstalované aplikace. Jsou uvedeny pouze odstranitelné (aplikace třetích stran / aktualizované) aplikace — aplikace typu „Panel Assistant“ a systémové aplikace jsou vyloučeny. Chcete-li pouze skrýt aplikaci dodavatele,",
+      "text": "Odstranění nainstalované aplikace. Jsou uvedeny pouze odstranitelné (aplikace třetích stran / aktualizované) aplikace — Panel Assistant a systémové aplikace jsou vyloučeny. Chcete-li pouze skrýt aplikaci výrobce,",
       "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
       "state": "machine-cross-checked"
     },
@@ -7709,7 +7709,7 @@
       "state": "machine-cross-checked"
     },
     "install.warning.no_renderer.install_companion": {
-      "text": "Nainstalujte HA Companion",
+      "text": "Nainstalovat HA Companion",
       "sourceHash": "0117aa1b31dd5f775fd4a3a105fbed38418eb5f679289dfc65c49ca56fa99084",
       "state": "machine-cross-checked"
     },
@@ -7864,7 +7864,7 @@
       "state": "machine-cross-checked"
     },
     "oauth.callback.action.back_to_configure": {
-      "text": "Zpět na Nastavení",
+      "text": "Zpět na kartu Konfigurovat",
       "sourceHash": "a0f4256308c84cf409a7cb89b9e26df1dfd97c0ca01d8ecca683942416b7d2d3",
       "state": "machine-cross-checked"
     },
@@ -7914,7 +7914,7 @@
       "state": "machine-cross-checked"
     },
     "oauth.callback.reload_may_be_needed": {
-      "text": "Možná bude nutné řídicí panel ručně znovu načíst.",
+      "text": "Možná bude nutné ovládací panel ručně znovu načíst.",
       "sourceHash": "4b4b7b8ab047d3e32f58824bb9e92f45928bfdf5a26e9c78615758b7f778d647",
       "state": "machine-cross-checked"
     },
@@ -8079,17 +8079,17 @@
       "state": "machine-cross-checked"
     },
     "profiles.catalog.option.local_active": {
-      "text": "{name} · Lokální · {revision} · aktivní",
+      "text": "{name} · Místní · {revision} · aktivní",
       "sourceHash": "b28e45fa41be9dca65cd397191e5a31cc8c61b4cff92314d310ba77d32f7d560",
       "state": "machine-cross-checked"
     },
     "profiles.catalog.option.local_incompatible": {
-      "text": "{name} · Lokální · {revision} · nekompatibilní",
+      "text": "{name} · Místní · {revision} · nekompatibilní",
       "sourceHash": "23af9d85eb19b94121c5487cdd1f3981a47aaefa4331e47ed5b169354f5d1c16",
       "state": "machine-cross-checked"
     },
     "profiles.catalog.option.local_selected": {
-      "text": "{name} · Místní · {revision} · vybrané",
+      "text": "{name} · Místní · {revision} · vybráno",
       "sourceHash": "83a8e2a6543e412563059a4c0ff5d89b16d7238593bec804ae34f8bd9d7e8ab1",
       "state": "machine-cross-checked"
     },
@@ -8464,7 +8464,7 @@
       "state": "machine-cross-checked"
     },
     "profiles.issue.cpu-cluster-count-limit": {
-      "text": "Je povoleno maximálně 8 jádrových klastrů typu „CPU“.",
+      "text": "Je povoleno maximálně 8 klastrů jader CPU.",
       "sourceHash": "76e67d73c6c2e084b74aad1aa83d3e85e003aa44b44d471f399c488063132b16",
       "state": "machine-cross-checked"
     },
@@ -8539,7 +8539,7 @@
       "state": "machine-cross-checked"
     },
     "profiles.issue.emergency-profile-in-use": {
-      "text": "Používá se nouzový profil bez schopností, protože dodané záložní řešení není k dispozici.",
+      "text": "Používá se nouzový profil bez funkcí, protože přibalený záložní profil není k dispozici.",
       "sourceHash": "500a169e514dacb40d8c8aadf58c1b678790fa4df713d3ef2b3e4f2ecdfeb2a9",
       "state": "machine-cross-checked"
     },
@@ -9474,7 +9474,7 @@
       "state": "machine-cross-checked"
     },
     "profiles.risk.package_disable_recommendations": {
-      "text": "Doporučení pro deaktivaci balíčků",
+      "text": "doporučení pro deaktivaci balíčků",
       "sourceHash": "d2c652d89c00a5cd2f5b46ecb8337ff2ce195b5316b1883ed9b4776875e7b98d",
       "state": "machine-cross-checked"
     },
@@ -9914,12 +9914,12 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.repair.failed_no_reboot": {
-      "text": "Oprava zabezpečení napájení selhala; nebyl proveden žádný pokus o restart.",
+      "text": "Oprava bezpečnosti napájení selhala; nebyl proveden žádný pokus o restart.",
       "sourceHash": "4f9550b9a3f819c26ddf0f94f0c843cc6f752c35deec4dba4831c46ade784a16",
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.repair.partial": {
-      "text": "Oprava zabezpečení napájení byla částečná. Nebyl proveden žádný pokus o restart.",
+      "text": "Oprava bezpečnosti napájení byla částečná. Nebyl proveden žádný pokus o restart.",
       "sourceHash": "bb01ca3de49cb0c0aaa0b86eda7c04f16fe98dddeceaefaea5934fe75b07d374",
       "state": "machine-cross-checked"
     },
@@ -9949,7 +9949,7 @@
       "state": "machine-cross-checked"
     },
     "runtime.renderer_recovery.builtin": {
-      "text": "Vestavěný renderer po opakovaných selháních WebView přestal opakovat pokusy. Aktualizujte nebo opravte System WebView a pak použijte „Znovu načíst ovládací panel“ z navigační lišty panelu nebo karty přehledu.",
+      "text": "Vestavěný renderer po opakovaných selháních WebView přestal opakovat pokusy. Aktualizujte nebo opravte System WebView a pak použijte „Znovu načíst ovládací panel“ z navigační lišty panelu nebo karty Ovládací panel.",
       "sourceHash": "20f93e06aeff7310a8f77b8fa3242cd484ebedb2b1a6242e5aaba65209c4b428",
       "state": "machine-cross-checked"
     },
@@ -10109,12 +10109,12 @@
       "state": "machine-cross-checked"
     },
     "settings.auto_sleep_source.summary": {
-      "text": "Co se považuje za přítomnost: snímač přiblížení, oblast nebo dotyk.",
+      "text": "Co se považuje za přítomnost: senzor přiblížení, oblast nebo dotyk.",
       "sourceHash": "010e147baf066c010fda07e439cca24c3f59a22a7564b8450354fa5e8f716b33",
       "state": "machine-cross-checked"
     },
     "settings.auto_sleep_touch_delay_seconds.help": {
-      "text": "Je-li vybrána možnost Nečinnost při nedotýkání se, obrazovka se po uplynutí tohoto počtu sekund bez dotyku zcela vypne.",
+      "text": "Je-li vybrána možnost Nečinnost dotykového ovládání, obrazovka se po uplynutí tohoto počtu sekund bez dotyku zcela vypne.",
       "sourceHash": "2859a764da776afae021acb6fc0c9719b3c9b382f0a2e10d3d9031eaa4a1409c",
       "state": "machine-cross-checked"
     },
@@ -10254,7 +10254,7 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_entity_learning.help": {
-      "text": "Vestavěný vykreslovač: omezí proud stavů z Home Assistant na entity používané ovládacím panelem a naučí se závislosti za běhu. Zdroje a připnutí spravujte v části Entity.",
+      "text": "Vestavěný renderer: omezí proud stavů z Home Assistant na entity používané ovládacím panelem a naučí se závislosti za běhu. Zdroje a připnutí spravujte v části Entity.",
       "sourceHash": "967aefc50fe2b2015a76cc8d98bdb0f06d14d091e1e6381ce472a45a85527cb7",
       "state": "machine-cross-checked"
     },
@@ -10319,7 +10319,7 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_native_kiosk.label": {
-      "text": "Skrýt navigaci „Home Assistant“ (nativní)",
+      "text": "Skrýt navigaci Home Assistant (nativní)",
       "sourceHash": "a305339fcfa063612b7ae7bbb7369fec0ca25ee457ccfcb3df53c9b52060b106",
       "state": "machine-cross-checked"
     },
@@ -10329,7 +10329,7 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_network_warning.help": {
-      "text": "Zobrazit varování o síťovém připojení na ovládacím panelu tohoto zařízení. Kontroly sítě a stav zůstávají k dispozici, i když je tato funkce vypnutá.",
+      "text": "Zobrazit varování o síťovém připojení na ovládacím panelu tohoto panelu. Kontroly sítě a stav zůstávají k dispozici, i když je tato funkce vypnutá.",
       "sourceHash": "12b2dd909289df4b3fbfde774673197f8ac3bee049b45b35456ea11e1fc2eaf7",
       "state": "machine-cross-checked"
     },
@@ -10384,7 +10384,7 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_zoom.summary": {
-      "text": "Měřítko prohlížeče pro ovládací panel.",
+      "text": "Přiblížení v prohlížeči pro ovládací panel.",
       "sourceHash": "ffca38a9cb226e6a7726957fdcb1ff0b2999887bed938e40573cdd3abc418106",
       "state": "machine-cross-checked"
     },
@@ -10454,7 +10454,7 @@
       "state": "machine-cross-checked"
     },
     "settings.diag_wifi_outages_24h.help": {
-      "text": "Počet krátkých výpadků Wi-Fi za posledních 24 hodin. Počítá se pouze ztráta aktivního připojení panelu Wi-Fi — výpadky Home Assistant se nikdy nepočítají. Pokud panel musel omezit množství uložených dat, atribut senzoru is_lower_bound udává, že daná hodnota je minimální.",
+      "text": "Počet krátkých výpadků Wi-Fi za posledních 24 hodin. Počítá se pouze ztráta aktivního připojení Wi-Fi panelu — výpadky Home Assistant se nikdy nepočítají. Pokud panel musel omezit množství uložených dat, atribut senzoru is_lower_bound udává, že daná hodnota je dolní mez.",
       "sourceHash": "783f18ddfc10e7afa41fb5c6334d880121993421496923fcff2c7663363c73ed",
       "state": "machine-cross-checked"
     },
@@ -10669,7 +10669,7 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_enabled.summary": {
-      "text": "Odesílejte vlastní protokoly služby „Panel Assistant“ do sběrače ve vaší síti.",
+      "text": "Odesílejte vlastní protokoly Panel Assistant do sběrače ve vaší síti.",
       "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
       "state": "machine-cross-checked"
     },
@@ -10679,7 +10679,7 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_host.label": {
-      "text": "Hostitel přijímacího serveru",
+      "text": "Hostitel sběrače",
       "sourceHash": "039db9e5488a4a6ca3e58775a250f2d2183ac1156d5721fdd37c520a605c6bb3",
       "state": "machine-cross-checked"
     },
@@ -10689,7 +10689,7 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_port.label": {
-      "text": "Port přijímače",
+      "text": "Port sběrače",
       "sourceHash": "7bc8673ba2ab424916e4f1189b75faf4b4c9af8ef0d731852c09e6a660e77cd3",
       "state": "machine-cross-checked"
     },
@@ -10699,7 +10699,7 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_protocol.help": {
-      "text": "TCP je výchozí volbou, protože hlásí přijímací bod, který odmítá nebo je nedostupný; volba „UDP“ to nedokáže, takže nesprávné nastavení zde selže bez upozornění. Port 514 slouží pro obě funkce.",
+      "text": "TCP je výchozí volbou, protože hlásí přijímací bod, který odmítá nebo je nedostupný; volba „UDP“ to nedokáže, takže nesprávné nastavení zde selže bez upozornění. Port 514 slouží pro oba protokoly.",
       "sourceHash": "8721aa729601cd5bf1612b97a578b3a1ef385564447d250f440e162c7dbf2bfb",
       "state": "machine-cross-checked"
     },
@@ -10719,7 +10719,7 @@
       "state": "machine-cross-checked"
     },
     "settings.log_ship_system_enabled.label": {
-      "text": "Odeslat systémové protokoly",
+      "text": "Odesílat systémové protokoly",
       "sourceHash": "a70c0a4788dfe35c2e82417373e842d10e46c33ac5754a61f524905a418470d6",
       "state": "machine-cross-checked"
     },
@@ -10739,7 +10739,7 @@
       "state": "machine-cross-checked"
     },
     "settings.manufacturer.summary": {
-      "text": "Přepsání nastavení výrobce na kartě zařízení „Home Assistant“.",
+      "text": "Přepsání nastavení výrobce na kartě zařízení v Home Assistant.",
       "sourceHash": "3228d0bdc49534bc5cb89d049c2c41fd1a0015338b353ca03a442f71fa7a33f6",
       "state": "machine-cross-checked"
     },
@@ -10754,7 +10754,7 @@
       "state": "machine-cross-checked"
     },
     "settings.model.summary": {
-      "text": "Přepsání modelu na kartě zařízení „Home Assistant“.",
+      "text": "Přepsání modelu na kartě zařízení v Home Assistant.",
       "sourceHash": "ca6b303ae590f03bc698654dc1506b6ab7ae9ace6609b91d5f37a427f69d985f",
       "state": "machine-cross-checked"
     },
@@ -11104,7 +11104,7 @@
       "state": "machine-cross-checked"
     },
     "setup.action.panel_dashboard": {
-      "text": "Přehled panelu",
+      "text": "Ovládací panel panelu",
       "sourceHash": "3db3c314463f71ee6dfd052b3b46cdd2851593ad49f19dcac17289eae7969c00",
       "state": "machine-cross-checked"
     },
@@ -11119,7 +11119,7 @@
       "state": "machine-cross-checked"
     },
     "setup.area.label": {
-      "text": "Nastavte oblast „HA“, ve které se váš panel nachází",
+      "text": "Nastavte oblast HA, ve které se váš panel nachází",
       "sourceHash": "4e7a4dcffefda5ae807e8f0bd8f42e71f78354cdd1ad7f9ce2eb3530c5d0d12e",
       "state": "machine-cross-checked"
     },
@@ -11169,7 +11169,7 @@
       "state": "machine-cross-checked"
     },
     "setup.dashboard.action.use": {
-      "text": "Použijte tento ovládací panel",
+      "text": "Použít tento ovládací panel",
       "sourceHash": "d9395d97350965b957bc22b70c2465e8faf01cfbac479a9cc0986da7db0bfda7",
       "state": "machine-cross-checked"
     },
@@ -11219,7 +11219,7 @@
       "state": "machine-cross-checked"
     },
     "setup.dashboard.no_default": {
-      "text": "Tento účet nemá nastavený výchozí ovládací panel — vyberte ovládací panel, který má toto zařízení zobrazovat.",
+      "text": "Tento účet nemá nastavený výchozí ovládací panel — vyberte ovládací panel, který má tento panel zobrazovat.",
       "sourceHash": "d491bed061c60e1745eb3212c40ff7fd554851354c2d8b4d9c8a31b873f65ec8",
       "state": "machine-cross-checked"
     },
@@ -11229,7 +11229,7 @@
       "state": "machine-cross-checked"
     },
     "setup.dashboard.none_accessible.title": {
-      "text": "Tento účet nemá přístup k žádným řídicím panelům Home Assistant.",
+      "text": "Tento účet nemá přístup k žádným ovládacím panelům Home Assistant.",
       "sourceHash": "ebfd039978b9ba39ae291eb2cde865e667caca70c22ebc63eefeb788d129e86d",
       "state": "machine-cross-checked"
     },
@@ -11284,7 +11284,7 @@
       "state": "machine-cross-checked"
     },
     "setup.dashboard.path.unknown": {
-      "text": "{root} není ovládací panel, který tento účet může vidět — zařízení použije svůj výchozí ovládací panel, dokud daný ovládací panel nebude existovat.",
+      "text": "{root} není ovládací panel, který tento účet může vidět — panel použije svůj výchozí ovládací panel, dokud daný ovládací panel nebude existovat.",
       "sourceHash": "e371a4824fa6f48df44ac47f2b2a6d4b9f7e16cffb36ccb5fe803d6dfe1dd816",
       "state": "machine-cross-checked"
     },
@@ -11294,7 +11294,7 @@
       "state": "machine-cross-checked"
     },
     "setup.dashboard.title": {
-      "text": "Vyberte ovládací panel HA pro toto zařízení",
+      "text": "Vyberte ovládací panel HA pro tento panel",
       "sourceHash": "6ce8c026eddc7e15e707af0a65d3f2873d4e78e98cec7b4c8a0c7630a27139e1",
       "state": "machine-cross-checked"
     },
@@ -11329,12 +11329,12 @@
       "state": "machine-cross-checked"
     },
     "setup.done.action.configure": {
-      "text": "Nakonfigurujte panel",
+      "text": "Nakonfigurovat panel",
       "sourceHash": "2fd565639231606a819c15ed7c1f9c2cfae635bb48c2b38a3fa9e57cc282a857",
       "state": "machine-cross-checked"
     },
     "setup.done.action.dashboard": {
-      "text": "Přehled panelu",
+      "text": "Ovládací panel panelu",
       "sourceHash": "3db3c314463f71ee6dfd052b3b46cdd2851593ad49f19dcac17289eae7969c00",
       "state": "machine-cross-checked"
     },
@@ -11389,12 +11389,12 @@
       "state": "machine-cross-checked"
     },
     "setup.filter.action.disable": {
-      "text": "Načíst řídicí panel bez filtrování",
+      "text": "Načíst ovládací panel bez filtrování",
       "sourceHash": "104b78f4c5f5a5e6078e2d76d7dd8f8f55d30190ce2c5d2fc827c403a28305b3",
       "state": "machine-cross-checked"
     },
     "setup.filter.action.enable": {
-      "text": "Zapněte filtrování a načtěte řídicí panel",
+      "text": "Zapnout filtrování a načíst ovládací panel",
       "sourceHash": "971afbafc8f8aa4d42da3bd871a938fb56376601e0685d462133c1abbd925608",
       "state": "machine-cross-checked"
     },
@@ -11404,7 +11404,7 @@
       "state": "machine-cross-checked"
     },
     "setup.filter.action.loading": {
-      "text": "Načítání řídicího panelu…",
+      "text": "Načítání ovládacího panelu…",
       "sourceHash": "3718517a80b70e19a3975ba60bf6b8d4c11bd0473c47c2763a244ac8cb6b2c37",
       "state": "machine-cross-checked"
     },
@@ -11694,7 +11694,7 @@
       "state": "machine-cross-checked"
     },
     "setup.progress.name": {
-      "text": "Jméno",
+      "text": "Název",
       "sourceHash": "dcd1d5223f73b3a965c07e3ff5dbee3eedcfedb806686a05b9b3868a2c3d6d50",
       "state": "machine-cross-checked"
     },
@@ -11714,7 +11714,7 @@
       "state": "machine-cross-checked"
     },
     "setup.proof.dashboard_help": {
-      "text": "Na kartě Řídicí panel se zobrazuje seznam všech nesrovnalostí.",
+      "text": "Na kartě Ovládací panel se zobrazuje seznam všech nesrovnalostí.",
       "sourceHash": "099b789842ad17573a047cbd3d877adbf7b84a8d123e9af4507a25dcff19cbff",
       "state": "machine-cross-checked"
     },
@@ -11759,12 +11759,12 @@
       "state": "machine-cross-checked"
     },
     "setup.proof.milestone.reading.one": {
-      "text": "● Čtení vašich entit — {count} zatím",
+      "text": "● Čtení vašich entit — zatím {count}",
       "sourceHash": "0011d951542a81e43c8ad7173cf89c470caa42b2bbded3b697decd6b5c6cc856",
       "state": "machine-cross-checked"
     },
     "setup.proof.milestone.reading.other": {
-      "text": "● Čtení vašich entit — {count} zatím",
+      "text": "● Čtení vašich entit — zatím {count}",
       "sourceHash": "0011d951542a81e43c8ad7173cf89c470caa42b2bbded3b697decd6b5c6cc856",
       "state": "machine-cross-checked"
     },
@@ -11784,12 +11784,12 @@
       "state": "machine-cross-checked"
     },
     "setup.renderer.action.open_dashboard_setting": {
-      "text": "Otevřít nastavení Dashboard",
+      "text": "Otevřít nastavení ovládacího panelu",
       "sourceHash": "c5d268cd415c70ca4aea5846a37468004b27384beabc5f9ca171e7ed1ecb484d",
       "state": "machine-cross-checked"
     },
     "setup.renderer.failure.explanation": {
-      "text": "Na kartě „Ovládací panel“ v části Všechna nastavení vyberte vestavěný vykreslovač Panel Assistant (nebo jinou nainstalovanou aplikaci) a poté se sem vraťte.",
+      "text": "Na kartě „Ovládací panel“ v části Všechna nastavení vyberte vestavěný renderer Panel Assistant (nebo jinou nainstalovanou aplikaci) a poté se sem vraťte.",
       "sourceHash": "89457edb6167b9b02c6b64d12b9b1816eb9f7fec76ba11facc009ebd59d1d9fa",
       "state": "machine-cross-checked"
     },
@@ -11839,7 +11839,7 @@
       "state": "machine-cross-checked"
     },
     "setup.sign_in.browser.action": {
-      "text": "Přihlaste se z tohoto prohlížeče",
+      "text": "Přihlásit se z tohoto prohlížeče",
       "sourceHash": "2156d3d0ffec67754113b031381746b97f114d4f288f7ef1440cca95d4de94ad",
       "state": "machine-cross-checked"
     },
@@ -11964,7 +11964,7 @@
       "state": "machine-cross-checked"
     },
     "shell.nav.dashboard": {
-      "text": "Řídicí panel",
+      "text": "Ovládací panel",
       "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
       "state": "machine-cross-checked"
     },
@@ -12099,7 +12099,7 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network.banner_warning": {
-      "text": "Ztrácejí se dotazy na Home Assistant: {evidence}. Pakety neprocházejí. Než budete vinit panel, zkontrolujte trasu Wi-Fi mezi tímto panelem a Home Assistant.",
+      "text": "Ztrácejí se sondy na Home Assistant: {evidence}. Pakety neprocházejí. Než budete vinit panel, zkontrolujte cestu Wi-Fi mezi tímto panelem a Home Assistant.",
       "sourceHash": "fb7cc6147f03ef52ad2f09f02f66dc4980cec9d33e72ed47df1251d72d8ebfed",
       "state": "machine-cross-checked"
     },
@@ -12114,7 +12114,7 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network_evidence_no_reply_missed": {
-      "text": "žádná odpověď, v posledních 5 minutách chybělo {missCount} z {probeCount} dotazů",
+      "text": "žádná odpověď, v posledních 5 minutách chybělo {missCount} z {probeCount} sond",
       "sourceHash": "91632b179b17726f8beecc801ba088b2c4a7a243b4aa897260e0705df5e0a1d9",
       "state": "machine-cross-checked"
     },

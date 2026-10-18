@@ -6,7 +6,7 @@
     <string name="notice_pill_sign_in">登录</string>
     <string name="notice_pill_reconnecting">重新连接中</string>
     <string name="notice_pill_learning">学习中</string>
-    <string name="notice_pill_setup">设置</string>
+    <string name="notice_pill_setup">初始设置</string>
     <string name="notice_pill_not_set_up">未设置</string>
     <string name="notice_hero_version_check">版本检查</string>
     <string name="notice_hero_finding_dashboards">查找仪表盘</string>

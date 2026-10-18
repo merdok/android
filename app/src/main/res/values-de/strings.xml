@@ -125,7 +125,7 @@
     <string name="ha_transport_tls_trust">Dem Serverzertifikat konnte nicht vertraut werden. Prüfe die Zertifikatskette und die Uhrzeit des Panels.</string>
     <string name="ha_transport_tls_other">Die sichere Verbindung ist fehlgeschlagen. Prüfe die TLS-Konfiguration des Servers.</string>
     <string name="ha_transport_dns">Der Home Assistant-Hostname konnte nicht aufgelöst werden. Prüfe DNS und die konfigurierte Adresse.</string>
-    <string name="ha_transport_timeout">Zeitüberschreitung bei der Verbindung. Prüfe Routing, WLAN und ob Home Assistant antwortet.</string>
+    <string name="ha_transport_timeout">Zeitüberschreitung bei der Verbindung. Prüfe Routing, Wi-Fi und ob Home Assistant antwortet.</string>
     <string name="ha_transport_refused">Der Host hat die Verbindung abgelehnt. Prüfe, ob Home Assistant am konfigurierten Port läuft.</string>
     <string name="ha_transport_unreachable">Es gibt keine Netzwerkroute zu Home Assistant. Prüfe das Netzwerk des Panels und die Adressfamilien-Einstellungen.</string>
     <string name="ha_transport_http_status">Home Assistant oder ein Proxy hat statt seiner Konfiguration einen HTTP-Fehler zurückgegeben.</string>
