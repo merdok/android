@@ -62,7 +62,7 @@
     <string name="set_up">Konfiguracja</string>
     <string name="open_configuration">Otwórz konfigurację</string>
     <string name="panel_not_set_up">Ten panel nie został jeszcze skonfigurowany.</string>
-    <string name="panel_not_set_up_hint">Zeskanuj kod telefonem – zajmie to około dwóch minut. Albo dotknij %1$s, aby zrobić to na tym ekranie.</string>
+    <string name="panel_not_set_up_hint">Zeskanuj kod lub otwórz poniższy adres na telefonie lub laptopie – zajmie to około dwóch minut. Albo dotknij %1$s, aby zrobić to na tym ekranie.</string>
     <string name="browser_engine_too_old">Silnik przeglądarki tego panelu jest zbyt stary.</string>
     <string name="browser_engine_too_old_hint">Pulpity nawigacyjne Home Assistant wymagają nowszego silnika. Napraw to na stronie konfiguracji w przeglądarce.</string>
     <string name="choose_dashboard_app">Wybierz aplikację do pulpitu nawigacyjnego.</string>

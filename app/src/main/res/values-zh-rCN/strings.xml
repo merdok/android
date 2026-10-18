@@ -65,7 +65,7 @@
     <string name="set_up">初始设置</string>
     <string name="open_configuration">打开设置</string>
     <string name="panel_not_set_up">此面板尚未设置。</string>
-    <string name="panel_not_set_up_hint">用手机扫描二维码——大约需要两分钟。也可以点按%1$s，在此屏幕上进行设置。</string>
+    <string name="panel_not_set_up_hint">用手机或笔记本电脑扫描二维码或打开下面的地址——大约需要两分钟。也可以点按%1$s，在此屏幕上进行设置。</string>
     <string name="browser_engine_too_old">此面板的浏览器引擎版本过旧。</string>
     <string name="browser_engine_too_old_hint">Home Assistant 仪表盘需要更新的版本。请在浏览器中打开面板设置页面进行修复。</string>
     <string name="choose_dashboard_app">选择仪表盘应用。</string>

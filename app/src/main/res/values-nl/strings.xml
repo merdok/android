@@ -62,7 +62,7 @@
     <string name="set_up">Instellen</string>
     <string name="open_configuration">Configuratie openen</string>
     <string name="panel_not_set_up">Dit paneel is nog niet ingesteld.</string>
-    <string name="panel_not_set_up_hint">Scan de code met je telefoon — het duurt ongeveer twee minuten. Of tik op %1$s om het op dit scherm te doen.</string>
+    <string name="panel_not_set_up_hint">Scan de code of open het onderstaande adres op je telefoon of laptop — het duurt ongeveer twee minuten. Of tik op %1$s om het op dit scherm te doen.</string>
     <string name="browser_engine_too_old">De browser-engine van dit paneel is te oud.</string>
     <string name="browser_engine_too_old_hint">Home Assistant-dashboards hebben een nieuwere nodig. Los het op via de instellingenpagina in een browser.</string>
     <string name="choose_dashboard_app">Kies een dashboard-app.</string>

@@ -11203,6 +11203,16 @@
       "state": "machine-cross-checked",
       "text": "Esta cuenta no puede acceder a ningún panel de control de Home Assistant."
     },
+    "setup.dashboard.option.auto_default": {
+      "sourceHash": "b049c63a3b2b17956fa93993993be49fef42b7b5be21a0272ee5fa4c2a8f1eef",
+      "state": "machine-cross-checked",
+      "text": "Automático: usar el predeterminado de la cuenta"
+    },
+    "setup.dashboard.option.auto_none": {
+      "sourceHash": "7b82f22b1413e07c8671b4d4a7b847856157697f2b735396d3b9af343799326c",
+      "state": "machine-cross-checked",
+      "text": "Automático: la cuenta no tiene panel de control predeterminado"
+    },
     "setup.dashboard.option.choose": {
       "sourceHash": "f5b194568dd03790bb8a8b1afdb5d170330c3ebb00148c0250743823a61541c5",
       "state": "machine-cross-checked",
@@ -11212,36 +11222,6 @@
       "sourceHash": "354213584eda4f955950c5954d8ffd233f23e57b87147153f0c369d21d2390f4",
       "state": "machine-cross-checked",
       "text": "Personalizado: introduce una ruta de panel de control…"
-    },
-    "setup.dashboard.panel.climate": {
-      "text": "Climatización",
-      "sourceHash": "b56901697f36e27829d5e45ca29a8ade5d34323ed0fdc2ae7fd061da2a2b16fa",
-      "state": "machine-cross-checked"
-    },
-    "setup.dashboard.panel.energy": {
-      "text": "Energía",
-      "sourceHash": "f2fcd3f7dccadd194c4c5a54a5102c9559487743ac236a6236301e4418d0dd7c",
-      "state": "machine-cross-checked"
-    },
-    "setup.dashboard.panel.home": {
-      "text": "Vista general",
-      "sourceHash": "d4b1ea5708dd532930a85188b45aff6f0a3ed458500c7577e0127a538eb0d100",
-      "state": "machine-cross-checked"
-    },
-    "setup.dashboard.panel.light": {
-      "text": "Luces",
-      "sourceHash": "18786940ec538ef1c78ee325f06b25dd4de63b135f4050ac39319462c2cb49f5",
-      "state": "machine-cross-checked"
-    },
-    "setup.dashboard.panel.maintenance": {
-      "text": "Mantenimiento",
-      "sourceHash": "17ccfa5b681e3e7b293165981520187dfe2c3d5d610669735da1c9ea0421d55d",
-      "state": "machine-cross-checked"
-    },
-    "setup.dashboard.panel.security": {
-      "text": "Seguridad",
-      "sourceHash": "8f6fb4eb7f42c0e245e29e63f5b82cc3ba19852681d1ed9aed291f59cf75ec0e",
-      "state": "machine-cross-checked"
     },
     "setup.dashboard.path.help": {
       "sourceHash": "031e231cf22729051dca86224a935cc74e6f20675d88ce414ce2b3fe2cefa899",

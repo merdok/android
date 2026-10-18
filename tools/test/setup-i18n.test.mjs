@@ -278,62 +278,6 @@ browserTest('Setup renders translated markup as text and keeps package, dashboar
   assert.equal(await rig.page.locator('#wiz-step img').count(), 0);
 });
 
-for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) {
-  const run = existsSync(browserType === chromium ? chrome : browserType.executablePath()) ? test : test.skip;
-  run(`An account with no default dashboard starts on Home Assistant's Overview, by name, ready to save in ${engine}`, async (t) => {
-    // What the panel reads from a fresh Home Assistant: get_panels titles are translation keys, and the
-    // built-in Overview is the `home` panel. No user or system default_panel is set.
-    const rig = await openRig(t, {
-      initialJourney: journey('home_dashboard'),
-      locale: 'en',
-      dashboards: {
-        queried: true,
-        items: [
-          { group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' },
-          { group: 'panel', path: '/light', title: 'light', icon: '' },
-          { group: 'dashboard', path: '/map', title: 'Map', icon: 'mdi:map' },
-        ],
-        default: { explicit: false, path: '' },
-      },
-    }, '/', browserType);
-    const select = rig.page.locator('#wiz-home_dashboard');
-    await select.waitFor();
-    assert.equal(await select.inputValue(), '/home');
-    assert.equal(await select.locator('option:checked').textContent(), 'Overview');
-    assert.equal(await select.locator('option[value="/light"]').textContent(), 'Lights');
-    const optionTexts = await select.locator('option').allTextContents();
-    assert.ok(!optionTexts.some((text) => text.startsWith('Auto')), `no option says Auto: ${optionTexts.join(' | ')}`);
-    assert.equal(await rig.page.locator('#hd-host .wiz-consequence').count(), 0, 'no "pick a dashboard" nudge over a made choice');
-    const button = rig.page.locator('button.wiz-primary');
-    assert.equal(await button.isDisabled(), false);
-    await button.click();
-    await eventually(
-      () => Promise.resolve(rig.state.requests.filter((request) => request.method === 'POST').length),
-      (count) => count >= 2,
-    );
-    const posts = rig.state.requests.filter((request) => request.method === 'POST');
-    assert.equal(posts[0].path, '/api/v1/config');
-    assert.equal(new URLSearchParams(posts[0].body).get('home_dashboard'), '/home');
-  });
-
-  run(`A panel already told to follow the account's default keeps that answer on a revisit in ${engine}`, async (t) => {
-    const rig = await openRig(t, {
-      initialJourney: journey('home_dashboard', { home_dashboard: { value: '', answered: true } }),
-      locale: 'en',
-      dashboards: {
-        queried: true,
-        items: [{ group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' }],
-        default: { explicit: false, path: '' },
-      },
-    }, '/', browserType);
-    const select = rig.page.locator('#wiz-home_dashboard');
-    await select.waitFor();
-    assert.equal(await select.inputValue(), '');
-    assert.equal(await select.locator('option:checked').textContent(), 'Follow the account’s default');
-    assert.equal(await rig.page.locator('button.wiz-primary').isDisabled(), false);
-  });
-}
-
 browserTest('a Panel Assistant handover answers the filter on before releasing first render', async (t) => {
   const rig = await openRig(t, {
     initialJourney: journey('home_dashboard', {

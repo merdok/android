@@ -65,7 +65,7 @@
     <string name="set_up">Mise en route</string>
     <string name="open_configuration">Ouvrir la configuration</string>
     <string name="panel_not_set_up">Ce panneau n’est pas encore configuré.</string>
-    <string name="panel_not_set_up_hint">Scannez le code avec votre téléphone — cela prend environ deux minutes. Vous pouvez aussi toucher %1$s pour le faire sur cet écran.</string>
+    <string name="panel_not_set_up_hint">Scannez le code ou ouvrez l’adresse ci-dessous sur votre téléphone ou ordinateur portable — cela prend environ deux minutes. Vous pouvez aussi toucher %1$s pour le faire sur cet écran.</string>
     <string name="browser_engine_too_old">Le moteur de navigateur de ce panneau est trop ancien.</string>
     <string name="browser_engine_too_old_hint">Les tableaux de bord Home Assistant en nécessitent un plus récent. Corrigez cela sur la page de configuration dans un navigateur.</string>
     <string name="choose_dashboard_app">Choisissez une application de tableau de bord.</string>

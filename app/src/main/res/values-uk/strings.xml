@@ -62,7 +62,7 @@
     <string name="set_up">Налаштувати</string>
     <string name="open_configuration">Відкрити конфігурацію</string>
     <string name="panel_not_set_up">Ця панель ще не налаштована.</string>
-    <string name="panel_not_set_up_hint">Відскануйте код телефоном — це займе близько двох хвилин. Або натисніть %1$s, щоб зробити це на цьому екрані.</string>
+    <string name="panel_not_set_up_hint">Відскануйте код або відкрийте наведену нижче адресу на своєму телефоні чи ноутбуці — це займе близько двох хвилин. Або натисніть %1$s, щоб зробити це на цьому екрані.</string>
     <string name="browser_engine_too_old">Браузерний движок цієї панелі занадто застарілий.</string>
     <string name="browser_engine_too_old_hint">Інформаційним панелям Home Assistant потрібен новіший рушій. Виправте це на сторінці налаштувань у браузері.</string>
     <string name="choose_dashboard_app">Оберіть застосунок для інформаційної панелі.</string>

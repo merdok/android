@@ -65,7 +65,7 @@
     <string name="set_up">Configurar</string>
     <string name="open_configuration">Abrir configuración</string>
     <string name="panel_not_set_up">Este panel aún no está configurado.</string>
-    <string name="panel_not_set_up_hint">Escanea el código con tu teléfono; tardarás unos dos minutos. También puedes tocar %1$s para hacerlo en esta pantalla.</string>
+    <string name="panel_not_set_up_hint">Escanea el código o abre la dirección de abajo en tu teléfono u ordenador portátil; tardarás unos dos minutos. También puedes tocar %1$s para hacerlo en esta pantalla.</string>
     <string name="browser_engine_too_old">El motor del navegador de este panel es demasiado antiguo.</string>
     <string name="browser_engine_too_old_hint">Los paneles de control de Home Assistant necesitan uno más reciente. Corrígelo en la página de configuración desde un navegador.</string>
     <string name="choose_dashboard_app">Elige una aplicación de panel de control.</string>

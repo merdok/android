@@ -33729,7 +33729,7 @@
       "text": "Follow the account’s default",
       "sourceHash": "6c6cfb2c5bf349ea601bc08b9f6737cd027a15697c3e5012db95d114b8bff1a8",
       "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard or area step; action label, and the selection option that follows the account default.",
+      "context": "Setup wizard Home Assistant dashboard or area step; action label.",
       "risk": "setup",
       "siblings": [
         "setup.dashboard.action.use"
@@ -33939,6 +33939,38 @@
       "softMaxChars": 100,
       "hardMaxChars": 140
     },
+    "setup.dashboard.option.auto_default": {
+      "text": "Auto — follow this account’s default",
+      "sourceHash": "b049c63a3b2b17956fa93993993be49fef42b7b5be21a0272ee5fa4c2a8f1eef",
+      "surface": "setup",
+      "context": "Setup wizard Home Assistant dashboard or area step; selection option.",
+      "risk": "setup",
+      "siblings": [
+        "setup.dashboard.option.auto_none",
+        "setup.dashboard.option.choose",
+        "setup.dashboard.option.custom"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 62,
+      "hardMaxChars": 89
+    },
+    "setup.dashboard.option.auto_none": {
+      "text": "Auto — no default set for this account",
+      "sourceHash": "7b82f22b1413e07c8671b4d4a7b847856157697f2b735396d3b9af343799326c",
+      "surface": "setup",
+      "context": "Setup wizard Home Assistant dashboard or area step; selection option.",
+      "risk": "setup",
+      "siblings": [
+        "setup.dashboard.option.auto_default",
+        "setup.dashboard.option.choose",
+        "setup.dashboard.option.custom"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 62,
+      "hardMaxChars": 89
+    },
     "setup.dashboard.option.choose": {
       "text": "Choose a dashboard…",
       "sourceHash": "f5b194568dd03790bb8a8b1afdb5d170330c3ebb00148c0250743823a61541c5",
@@ -33946,6 +33978,8 @@
       "context": "Setup wizard Home Assistant dashboard or area step; selection option.",
       "risk": "setup",
       "siblings": [
+        "setup.dashboard.option.auto_default",
+        "setup.dashboard.option.auto_none",
         "setup.dashboard.option.custom"
       ],
       "placeholders": [],
@@ -33960,120 +33994,14 @@
       "context": "Setup wizard Home Assistant dashboard or area step; selection option.",
       "risk": "setup",
       "siblings": [
+        "setup.dashboard.option.auto_default",
+        "setup.dashboard.option.auto_none",
         "setup.dashboard.option.choose"
       ],
       "placeholders": [],
       "frozen": [],
       "softMaxChars": 62,
       "hardMaxChars": 89
-    },
-    "setup.dashboard.panel.climate": {
-      "text": "Climate",
-      "sourceHash": "b56901697f36e27829d5e45ca29a8ade5d34323ed0fdc2ae7fd061da2a2b16fa",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in climate dashboard exactly as Home Assistant names it (frontend translation panel.climate).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.energy",
-        "setup.dashboard.panel.home",
-        "setup.dashboard.panel.light",
-        "setup.dashboard.panel.maintenance",
-        "setup.dashboard.panel.security"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.dashboard.panel.energy": {
-      "text": "Energy",
-      "sourceHash": "f2fcd3f7dccadd194c4c5a54a5102c9559487743ac236a6236301e4418d0dd7c",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in energy dashboard exactly as Home Assistant names it (frontend translation panel.energy).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.climate",
-        "setup.dashboard.panel.home",
-        "setup.dashboard.panel.light",
-        "setup.dashboard.panel.maintenance",
-        "setup.dashboard.panel.security"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.dashboard.panel.home": {
-      "text": "Overview",
-      "sourceHash": "d4b1ea5708dd532930a85188b45aff6f0a3ed458500c7577e0127a538eb0d100",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in home dashboard exactly as Home Assistant names it (frontend translation panel.home).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.climate",
-        "setup.dashboard.panel.energy",
-        "setup.dashboard.panel.light",
-        "setup.dashboard.panel.maintenance",
-        "setup.dashboard.panel.security"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.dashboard.panel.light": {
-      "text": "Lights",
-      "sourceHash": "18786940ec538ef1c78ee325f06b25dd4de63b135f4050ac39319462c2cb49f5",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in light dashboard exactly as Home Assistant names it (frontend translation panel.light).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.climate",
-        "setup.dashboard.panel.energy",
-        "setup.dashboard.panel.home",
-        "setup.dashboard.panel.maintenance",
-        "setup.dashboard.panel.security"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.dashboard.panel.maintenance": {
-      "text": "Maintenance",
-      "sourceHash": "17ccfa5b681e3e7b293165981520187dfe2c3d5d610669735da1c9ea0421d55d",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in maintenance dashboard exactly as Home Assistant names it (frontend translation panel.maintenance).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.climate",
-        "setup.dashboard.panel.energy",
-        "setup.dashboard.panel.home",
-        "setup.dashboard.panel.light",
-        "setup.dashboard.panel.security"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
-    },
-    "setup.dashboard.panel.security": {
-      "text": "Security",
-      "sourceHash": "8f6fb4eb7f42c0e245e29e63f5b82cc3ba19852681d1ed9aed291f59cf75ec0e",
-      "surface": "setup",
-      "context": "Setup wizard Home Assistant dashboard step; selection option naming Home Assistant's built-in security dashboard exactly as Home Assistant names it (frontend translation panel.security).",
-      "risk": "setup",
-      "siblings": [
-        "setup.dashboard.panel.climate",
-        "setup.dashboard.panel.energy",
-        "setup.dashboard.panel.home",
-        "setup.dashboard.panel.light",
-        "setup.dashboard.panel.maintenance"
-      ],
-      "placeholders": [],
-      "frozen": [],
-      "softMaxChars": 40,
-      "hardMaxChars": 64
     },
     "setup.dashboard.path.help": {
       "text": "A path on this Home Assistant, starting with a dashboard from the list.",

@@ -181,7 +181,6 @@ UNCHANGED_TARGET_EXCEPTIONS = {
     ("fr", "entities.issue.source"): "Source",
     ("fr", "entities.row.option.auto"): "Auto",
     ("fr", "install.shared.version"): "Version",
-    ("fr", "setup.dashboard.panel.maintenance"): "Maintenance",
     ("fr", "profiles.editor.codemirror.diagnostics"): "Diagnostics",
     ("fr", "profiles.section.validation"): "Validation",
     ("fr", "shell.runtime.duration_minutes"): "{count} min",
