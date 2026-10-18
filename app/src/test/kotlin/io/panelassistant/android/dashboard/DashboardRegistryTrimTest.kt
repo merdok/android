@@ -42,7 +42,7 @@ class DashboardRegistryTrimTest {
             globalThis.document={querySelector(){return null}};
             globalThis.setInterval=()=>0;
             class Native extends EventTarget{
-              constructor(url){super();this.url=String(url);this.wire=[];}
+              constructor(url){super();this.url=String(url);this.wire=[];this.readyState=1;}
               send(data){this.wire.push(data);}
               serve(data){this.dispatchEvent(new MessageEvent('message',{data}));}
             }
@@ -301,11 +301,14 @@ class DashboardRegistryTrimTest {
             const s=subscribeStateEvents();
             const noData=JSON.stringify({id:s,type:'event',event:{event_type:'state_changed'}});
             serve('['+[JSON.stringify(result(s,null)),stateChanged(s,'switch.garage'),stateChanged(s,'light.kitchen'),STATE_EVENT,noData,stateChanged(s,'sensor.loft')].join(',')+']');
-            const frames=JSON.parse(delivered[0]).map(JSON.stringify);
-            console.log(JSON.stringify([seen,frames.length,frames[0]===JSON.stringify(result(s,null)),frames[1]===stateChanged(s,'light.kitchen'),frames[2]===STATE_EVENT,frames[3]===noData]));
+            // The allowed entity's event follows in its own frame on the next task.
+            setTimeout(()=>{
+              const frames=delivered.map(f=>JSON.parse(f).map(JSON.stringify));
+              console.log(JSON.stringify([seen,frames.map(f=>f.length),frames[0][0]===JSON.stringify(result(s,null)),frames[0][1]===STATE_EVENT,frames[0][2]===noData,(frames[1]||[])[0]===stateChanged(s,'light.kitchen')]));
+            },20);
             """.trimIndent(),
         )
-        assertEquals("""[["light.kitchen",null],4,true,true,true,true]""", out)
+        assertEquals("""[[null,"light.kitchen"],[3,1],true,true,true,true]""", out)
     }
 
     @Test fun aStateChangedFrameForAnotherEntityReachesNoSubscriberAndTheStreamGoesOn() {
@@ -337,5 +340,46 @@ class DashboardRegistryTrimTest {
             """.trimIndent(),
         )
         assertEquals("[true,true,true,true]", out)
+    }
+
+    @Test fun aHeaderCardRefreshedByAnAllowedEventShowsTheStateItsFrameCarried() {
+        // lovelace-header-cards hands its cards the frontend's published states on each state_changed event.
+        // Home Assistant can put an entity's state update and its event in one frame, and the frontend
+        // publishes the update a microtask later; the events now dropped used to refresh the cards after it.
+        val out = page(
+            """
+            let published='off',header='off';
+            events.set(subId,()=>queueMicrotask(()=>{published='on'}));
+            const s=subscribeEvents('state_changed',()=>{header=published});
+            serve('['+STATE_EVENT+','+stateChanged(s,'light.kitchen')+']');
+            Promise.resolve().then(()=>serve(stateChanged(s,'switch.garage')));
+            setTimeout(()=>console.log(JSON.stringify([published,header])),20);
+            """.trimIndent(),
+        )
+        assertEquals("""["on","on"]""", out)
+    }
+
+    @Test fun anAllowedEventArrivingWhileOthersWaitIsHandedOnAfterThem() {
+        val out = page(
+            """
+            const order=[];const s=subscribeEvents('state_changed',e=>order.push(e.data.new_state.state));
+            const changed=(state)=>({id:s,type:'event',event:{event_type:'state_changed',data:{entity_id:'light.kitchen',new_state:{state}}}});
+            serve('['+STATE_EVENT+','+JSON.stringify(changed('first'))+']');serve(changed('second'));
+            setTimeout(()=>console.log(JSON.stringify(order)),20);
+            """.trimIndent(),
+        )
+        assertEquals("""["first","second"]""", out)
+    }
+
+    @Test fun aHeldEventIsNotHandedOnAfterTheSocketCloses() {
+        // After a close the frontend reuses subscription ids on its next socket.
+        val out = page(
+            """
+            const s=subscribeStateEvents();
+            serve('['+STATE_EVENT+','+stateChanged(s,'light.kitchen')+']');socket.readyState=3;
+            setTimeout(()=>console.log(JSON.stringify([seen,delivered.length])),20);
+            """.trimIndent(),
+        )
+        assertEquals("""[[],1]""", out)
     }
 }
