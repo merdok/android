@@ -1,6 +1,6 @@
 schema: 2
 id: smt1019
-version: 3.0.1
+version: 3.0.2
 display_name: ZHICAI SMT1019
 soc_class: rk3576
 soc:
@@ -20,10 +20,10 @@ metadata:
   license: Apache-2.0
   maturity: experimental
   tested_firmware:
-    - SMT1019 Android 14 stock firmware (GitHub #8)
+    - ZX-SMT1019-R157-V1.0A stock firmware (GitHub #8)
+    - ZX-SMT1019-R157-V2.0 supplier userdebug firmware (GitHub #106)
   limitations:
     - Stock firmware has no su; RGB LED control needs a separately installed root helper.
-    - The pinned WebView build still needs live-hardware verification.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
@@ -31,7 +31,6 @@ requires:
     - screen.daemon-blpower
     - sensor.cht8305-daemon
     - sensor.vi530x-daemon
-    - update.webview
 match:
   # Match values come from observed SMT1019/RK3576 build properties.
   priority: 500
@@ -82,9 +81,7 @@ input:
 cpu: {}
 display: {}
 provisioning:
-  software:
-    webview:
-      artifact: lineageos-150-arm64
+  software: {}
   display: {}
   packages:
   - package: com.elc.smt_test
