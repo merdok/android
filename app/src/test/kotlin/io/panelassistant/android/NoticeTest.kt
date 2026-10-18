@@ -305,7 +305,7 @@ class NoticeTest {
             "values-pt-rBR" to "endereço", "values-uk" to "адрес", "values-zh-rCN" to "地址",
         )
         // Source-text reason: plain JVM tests have no resource table, so the shipped strings are read as data.
-        val shipped = java.io.File("src/main/res").listFiles { file -> file.name.startsWith("values") }.orEmpty()
+        val shipped = java.io.File("src/main/res").listFiles { file -> file.resolve("strings.xml").isFile }.orEmpty()
         assertEquals(addressWords.keys, shipped.map { it.name }.toSet())
         for ((directory, word) in addressWords) {
             val text = Regex("""<string name="$name">(.*?)</string>""")
