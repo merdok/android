@@ -16,7 +16,8 @@ class HomeChooserPolicyTest {
         title: String? = "Use Panel Assistant as Home",
         enabled: Boolean? = true,
         shown: Boolean = false,
-    ) = HomeChooserPolicy.next(home, window, title, enabled, "Panel Assistant", shown)
+        setup: Boolean? = true,
+    ) = HomeChooserPolicy.next(home, window, title, enabled, "Panel Assistant", shown, setup)
 
     @Test fun tapsAlwaysWhenAndroidsChooserOffersThisApp() {
         assertEquals(HomeChooserPolicy.Step.TAP_ALWAYS, step())
@@ -35,6 +36,24 @@ class HomeChooserPolicyTest {
         assertEquals(HomeChooserPolicy.Step.SHOW_CHOOSER, step(window = "io.panelassistant.android"))
         assertEquals(HomeChooserPolicy.Step.SHOW_CHOOSER, step(window = null))
         assertEquals(HomeChooserPolicy.Step.NONE, step(window = "io.panelassistant.android", shown = true))
+    }
+
+    @Test fun leavesAnUnownedHomeToTheInstallerBeforeFirstSetup() {
+        assertEquals(HomeChooserPolicy.Step.LEAVE_TO_INSTALLER, step(window = "io.panelassistant.android", setup = false))
+        assertEquals(HomeChooserPolicy.Step.LEAVE_TO_INSTALLER, step(window = "cloud.shelly.stargate", setup = null))
+        assertEquals(HomeChooserPolicy.Step.NONE, step(window = "io.panelassistant.android", shown = true, setup = false))
+        // A chooser already in front is answered as before: Always for this app is what the installer wants too.
+        assertEquals(HomeChooserPolicy.Step.TAP_ALWAYS, step(setup = false))
+        assertEquals(HomeChooserPolicy.Step.NONE, step(title = "Use Shelly Stargate as Home", setup = false))
+    }
+
+    @Test fun dismissesAChooserItShowedThatIsStillInFrontOnceHomeIsOwned() {
+        val vendor = "Use Shelly Stargate as Home"
+        assertEquals(HomeChooserPolicy.Step.DISMISS, step(home = dashboard, title = vendor, shown = true))
+        assertEquals(HomeChooserPolicy.Step.DISMISS, step(home = dashboard, shown = true))
+        assertEquals(HomeChooserPolicy.Step.NONE, step(home = dashboard, title = vendor))
+        assertEquals(HomeChooserPolicy.Step.NONE, step(home = dashboard, window = "io.panelassistant.android", shown = true))
+        assertEquals(HomeChooserPolicy.Step.NONE, step(home = dashboard, title = null, enabled = null, shown = true))
     }
 
     @Test fun neverTapsForAnotherAppAndDismissesOnlyAChooserItShowed() {

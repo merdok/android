@@ -18,6 +18,12 @@ class HomeChooserAnswerTest {
     private inner class Portal {
         var home = resolver
         var front = dashboardWindow
+        /** Whether the panel has ever been set up; null while the service is still reading it. */
+        var setupDone: Boolean? = true
+        /** The chooser HOME shows while unowned; Android names the app it last chose in its title. */
+        var offered = chooser
+        /** An installer sets HOME over ADB straight after the chooser is shown, before it is answered. */
+        var claimedAfterShow = false
         /** The start-up's dashboard launches arriving while a tap is on its way, one per tap. */
         var coveringStarts = 0
         /** The start-up's dashboard launches arriving before a chooser just shown is answered. */
@@ -32,10 +38,12 @@ class HomeChooserAnswerTest {
         val answer = HomeChooserAnswer(
             appName = "Panel Assistant",
             defaultHome = { home },
+            setupEverCompleted = { setupDone },
             activeWindow = { front },
             showChooser = {
                 homePresses++
-                if (home == resolver) front = chooser
+                if (home == resolver) front = offered
+                if (claimedAfterShow) home = dashboard
                 if (coveredShows > 0) { coveredShows--; front = dashboardWindow }
                 true
             },
@@ -44,7 +52,7 @@ class HomeChooserAnswerTest {
                 taps++
                 if (!ignoredTaps) {
                     if (coveringStarts > 0) { coveringStarts--; front = dashboardWindow }
-                    if (front == chooser && x to y == chooser.alwaysCentre) { home = dashboard; front = dashboardWindow }
+                    if (front == offered && x to y == offered.alwaysCentre) { home = dashboard; front = dashboardWindow }
                 }
                 true
             },
@@ -58,7 +66,7 @@ class HomeChooserAnswerTest {
             repeat(20) {
                 when {
                     due != null -> { due = null; answer.answer() }
-                    front == chooser && !ignoredTaps -> answer.answer()
+                    front == offered && !ignoredTaps -> answer.answer()
                     else -> return
                 }
             }
@@ -134,5 +142,44 @@ class HomeChooserAnswerTest {
         portal.settle()
         assertEquals(0, portal.homePresses)
         assertEquals(emptyList<String>(), portal.log)
+    }
+
+    private val standingScreen = ChooserWindow("io.panelassistant.android", "Not set up", null, null)
+    private val vendorChooser = chooser.copy(title = "Use Shelly Stargate as Home")
+
+    @Test fun aFreshInstallLeavesHomeToTheInstaller() {
+        // Shelly X2i, 2026-10-15: the service bound 4 s after the installer started the app, while HOME was
+        // unowned and before the installer set it, and its press showed a chooser offering the vendor launcher.
+        val panel = Portal().apply { setupDone = false; front = standingScreen; offered = vendorChooser }
+        panel.answer.connected()
+        panel.settle()
+        assertEquals(0, panel.homePresses)
+        assertEquals(standingScreen, panel.front)
+        assertEquals(listOf("HOME is unowned before first setup; leaving it to the installer"), panel.log)
+        panel.home = dashboard // the installer's set-home-activity
+        panel.settle()
+        assertEquals(0, panel.homePresses)
+        assertEquals(standingScreen, panel.front)
+    }
+
+    @Test fun aChooserItShowedIsDismissedOnceHomeIsOwned() {
+        // Connect, the chooser is shown, an installer makes the dashboard HOME before it is answered.
+        val panel = Portal().apply { offered = vendorChooser; claimedAfterShow = true }
+        panel.answer.connected()
+        panel.settle()
+        assertEquals(1, panel.homePresses)
+        assertEquals(dashboard, panel.home)
+        assertEquals(dashboardWindow, panel.front)
+    }
+
+    @Test fun anUpdateWhoseSetupStateIsStillBeingReadIsAnsweredOnceItIsRead() {
+        val portal = Portal().apply { setupDone = null }
+        portal.answer.connected()
+        portal.settle()
+        assertEquals(0, portal.homePresses)
+        portal.setupDone = true // the read lands and the service answers again
+        portal.settle()
+        assertEquals(dashboard, portal.home)
+        assertEquals(1, portal.homePresses)
     }
 }

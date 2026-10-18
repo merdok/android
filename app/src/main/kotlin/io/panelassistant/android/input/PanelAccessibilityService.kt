@@ -16,8 +16,10 @@ import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import io.panelassistant.android.Config
 import io.panelassistant.android.PaneldService
 import io.panelassistant.android.R
+import io.panelassistant.android.setupEverCompleted
 import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.accessibilityScreenshotGranted
 import io.panelassistant.android.platform.AndroidSystemEnv
@@ -52,7 +54,26 @@ class PanelAccessibilityService : AccessibilityService() {
         homeChooser.connected()
         if (rebindForWindowContent()) return
         // After an in-place update the chooser is already showing when Android binds the service again.
-        scheduleHomeChooserAnswer()
+        answerOnceSetupStateIsRead()
+    }
+
+    /**
+     * Whether the panel has ever finished setup ([HomeChooserPolicy.next]), read once per connection off
+     * the main thread: the settings store can hold a first read while it is restored or migrated, as it
+     * may be straight after the update this answer exists for. Until the read lands the chooser is not
+     * shown; when it does, the chooser is answered.
+     */
+    @Volatile private var setupEverCompleted: Boolean? = null
+
+    private fun answerOnceSetupStateIsRead() {
+        setupEverCompleted = null
+        Thread {
+            val done = runCatching { Config(this).setupEverCompleted }
+                .onFailure { Log.w(TAG, "could not read whether setup ever completed", it) }
+                .getOrNull() ?: return@Thread
+            setupEverCompleted = done
+            mainHandler.post { if (instance === this) scheduleHomeChooserAnswer() }
+        }.start()
     }
 
     /**
@@ -115,6 +136,7 @@ class PanelAccessibilityService : AccessibilityService() {
     private val homeChooser: HomeChooserAnswer by lazy { HomeChooserAnswer(
         appName = getString(R.string.app_name),
         defaultHome = { AndroidSystemEnv(this).defaultHome() },
+        setupEverCompleted = { setupEverCompleted },
         activeWindow = {
             rootInActiveWindow?.let { root ->
                 val always = root.findAccessibilityNodeInfosByViewId(HomeChooserPolicy.ALWAYS_ID)?.singleOrNull()

@@ -23,6 +23,7 @@ internal data class ChooserWindow(
 internal class HomeChooserAnswer(
     private val appName: String,
     private val defaultHome: () -> ActivityRef?,
+    private val setupEverCompleted: () -> Boolean?,
     private val activeWindow: () -> ChooserWindow?,
     private val showChooser: () -> Boolean,
     private val dismiss: () -> Boolean,
@@ -34,12 +35,14 @@ internal class HomeChooserAnswer(
     private var acted = false
     private var retries = 0
     private var taps = 0
+    private var leftToInstaller = false
 
     fun connected() {
         shown = false
         acted = false
         retries = 0
         taps = 0
+        leftToInstaller = false
     }
 
     fun answer() {
@@ -51,7 +54,7 @@ internal class HomeChooserAnswer(
         }
         acted = false
         val step = HomeChooserPolicy.next(
-            home, window?.packageName, window?.title, window?.alwaysEnabled, appName, shown,
+            home, window?.packageName, window?.title, window?.alwaysEnabled, appName, shown, setupEverCompleted(),
         )
         when (step) {
             HomeChooserPolicy.Step.NONE -> Unit
@@ -60,13 +63,17 @@ internal class HomeChooserAnswer(
                 acted = showChooser()
                 log("HOME is unowned; showing the chooser=$acted")
             }
+            HomeChooserPolicy.Step.LEAVE_TO_INSTALLER -> if (!leftToInstaller) {
+                leftToInstaller = true
+                log("HOME is unowned before first setup; leaving it to the installer")
+            }
             HomeChooserPolicy.Step.TAP_ALWAYS -> if (taps < TAPS) {
                 taps++
                 val centre = window?.alwaysCentre
                 acted = centre != null && tap(centre.first, centre.second)
                 log("HOME chooser offers this app; tapped Always=$acted")
             }
-            HomeChooserPolicy.Step.DISMISS -> log("HOME chooser offers another app; dismissed=${dismiss()}")
+            HomeChooserPolicy.Step.DISMISS -> log("HOME chooser this service showed is not answered here; dismissed=${dismiss()}")
         }
         if (acted && (retries < RETRIES || taps < TAPS)) answerAgainIn(VERIFY_MS)
     }
@@ -85,20 +92,26 @@ internal class HomeChooserAnswer(
  * which is the setup the owner already chose (maintainer, 2026-10-12).
  *
  * The rule is Panel Assistant's ADB `home_chooser.py`, ported: while HOME is unowned, show the chooser
- * if another window covers it, tap Always only when its title names this app (the app name is not
- * translated, so this matches in any language), and dismiss a chooser it showed itself that offers
- * another app. A chooser that appeared on its own and offers another app is left alone.
+ * if another window covers it (only once the panel has been set up, because before that the installer
+ * is claiming HOME), tap Always only when its title names this app (the app name is not translated, so
+ * this matches in any language), and dismiss a chooser it showed itself that offers another app or
+ * that is still in front once HOME is owned. A chooser that appeared on its own and offers another app
+ * is left alone.
  */
 internal object HomeChooserPolicy {
     const val ALWAYS_ID = "android:id/button_always"
     const val TITLE_ID = "android:id/title"
 
-    enum class Step { NONE, SHOW_CHOOSER, TAP_ALWAYS, DISMISS }
+    enum class Step { NONE, SHOW_CHOOSER, LEAVE_TO_INSTALLER, TAP_ALWAYS, DISMISS }
 
     /**
      * What to do with the active window. [alwaysEnabled] is null when the window has no Always button.
      * [shown] is whether this connection already pressed HOME to show the chooser: once per connection,
      * because the app's own start-up brings the dashboard over a chooser that appeared during an update.
+     * [setupEverCompleted] is false until the panel's first setup, and null while it is still being read.
+     * Until then the installer is claiming HOME: on a fresh install HOME is unowned from the moment the
+     * app is installed until the installer sets it, and a chooser shown in between offers the vendor
+     * launcher to whoever is at the panel (Shelly X2i, 2026-10-15). Nothing is shown before that.
      */
     fun next(
         home: ActivityRef?,
@@ -107,10 +120,16 @@ internal object HomeChooserPolicy {
         alwaysEnabled: Boolean?,
         appName: String,
         shown: Boolean,
+        setupEverCompleted: Boolean?,
     ): Step = when {
         // Owned HOME resolves to an app; unowned HOME resolves to the chooser itself, `android/…ResolverActivity`.
-        home?.pkg != "android" -> Step.NONE
-        windowPackage != "android" -> if (shown) Step.NONE else Step.SHOW_CHOOSER
+        // A chooser this connection showed is not left in front once something else made HOME owned.
+        home?.pkg != "android" -> if (shown && windowPackage == "android" && alwaysEnabled != null) Step.DISMISS else Step.NONE
+        windowPackage != "android" -> when {
+            shown -> Step.NONE
+            setupEverCompleted != true -> Step.LEAVE_TO_INSTALLER
+            else -> Step.SHOW_CHOOSER
+        }
         alwaysEnabled == null -> Step.NONE
         alwaysEnabled && title?.contains(appName) == true -> Step.TAP_ALWAYS
         shown -> Step.DISMISS
