@@ -9,7 +9,8 @@
     try{
       const u=new URL(String(url),location.href);
       if(targetWsOrigins.includes(u.origin)&&u.pathname===targetWsPath){
-        const pending=new Map(),deviceEvents=new Set();let reachedDevices=null,lastDevices=null,delivered=null;
+        const pending=new Map(),deviceEvents=new Set(),stateEvents=new Set();let reachedDevices=null,lastDevices=null,delivered=null,held=null;
+        const release=()=>{const m=held;held=null;if(socket.readyState===Native.OPEN)socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify(m)}))};
         const keepIds=rows=>{
           const keep=new Set(reachedDevices);
           for(const r of rows)if(reachedDevices.has(r.id)&&typeof r.parent_device_id==='string')keep.add(r.parent_device_id);
@@ -40,6 +41,7 @@
             const message=JSON.parse(data);
             if(message&&registryCommands[message.type])pending.set(message.id,registryCommands[message.type]);
             if(message&&message.type==='subscribe_events'&&message.event_type==='device_registry_updated')deviceEvents.add(message.id);
+            if(message&&message.type==='subscribe_events'&&message.event_type==='state_changed')stateEvents.add(message.id);
             if(message&&message.type==='subscribe_entities'){
               window.__haPaneldEntitySubscriptionId=message.id;
               if(!filterKeys.some(key=>Object.prototype.hasOwnProperty.call(message,key))){
@@ -52,10 +54,22 @@
           return Native.prototype.send.call(this,outgoing);
         }});
         socket.addEventListener('message',event=>{
-          if(!pending.size)return;
+          const states=typeof event.data==='string'&&event.data.includes('state_changed');
+          if(!pending.size&&!states)return;
           let decoded;try{decoded=JSON.parse(event.data)}catch(e){return}
-          let changed=false;
-          for(const m of Array.isArray(decoded)?decoded:[decoded]){
+          let changed=false,messages=Array.isArray(decoded)?decoded:[decoded];
+          if(states){
+            const ids=messages.map(m=>stateEvents.has(m.id)&&m.event&&m.event.data&&m.event.data.entity_id),hold=held||ids.some(id=>typeof id!=='string');
+            const kept=messages.filter((m,i)=>{
+              if(typeof ids[i]!=='string')return true;
+              if(!allowed.has(ids[i]))return false;
+              if(!hold)return true;
+              if(!held){held=[];setTimeout(release,0)}
+              held.push(m);return false;
+            });
+            if(kept.length<messages.length){decoded=messages=kept;changed=true}
+          }
+          for(const m of messages){
             if(!m||m.type!=='result'||!pending.has(m.id))continue;
             const kind=pending.get(m.id);pending.delete(m.id);
             if(trim[kind](m.result,m))changed=true;
