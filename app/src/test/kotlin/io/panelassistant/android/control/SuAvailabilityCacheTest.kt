@@ -15,7 +15,7 @@ class SuAvailabilityCacheTest {
     @Test fun cachedProbeRunsAtMostOnceWithinTheTtlWindow() {
         val probes = AtomicInteger()
         var now = 1_000L
-        val cache = Su.newAvailabilityCache(ttlMs = 60_000L, nowMs = { now }) {
+        val cache = SuShell().newAvailabilityCache(ttlMs = 60_000L, nowMs = { now }) {
             probes.incrementAndGet(); true
         }
 
@@ -29,7 +29,7 @@ class SuAvailabilityCacheTest {
     @Test fun cachedProbeReprobesAfterTheTtlExpires() {
         val probes = AtomicInteger()
         var now = 0L
-        val cache = Su.newAvailabilityCache(ttlMs = 60_000L, nowMs = { now }) {
+        val cache = SuShell().newAvailabilityCache(ttlMs = 60_000L, nowMs = { now }) {
             probes.incrementAndGet() > 1   // flips result so a re-probe is observable
         }
 
@@ -42,7 +42,7 @@ class SuAvailabilityCacheTest {
     @Test fun defaultWindowMatchesTheMigratedSixtySecondTtl() {
         val probes = AtomicInteger()
         var now = 0L
-        val cache = Su.newAvailabilityCache(nowMs = { now }) { probes.incrementAndGet(); true }
+        val cache = SuShell().newAvailabilityCache(nowMs = { now }) { probes.incrementAndGet(); true }
 
         assertTrue(cache.get())
         now = 59_999L
