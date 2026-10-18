@@ -59,6 +59,7 @@ jobs:
           MODE: ${{ github.event.inputs.android_runner != '' && github.event.inputs.android_runner != 'repository setting' && github.event.inputs.android_runner || vars.CI_ANDROID_RUNNER || 'auto' }}
           RUNNER_STATUS_TOKEN: ${{ github.event_name != 'pull_request' && secrets.RUNNER_ADMIN_TOKEN || '' }}
           CI_RUNNER: ${{ vars.CI_RUNNER }}
+          ACTOR: ${{ github.actor }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -67,7 +68,7 @@ jobs:
             reason="pull requests always build on hosted runners"
           else
             case "$MODE" in
-              auto) [ "$CI_RUNNER" != blacksmith ] || MODE=blacksmith ;;
+              auto) if [ "$CI_RUNNER" = blacksmith ] && [ "$ACTOR" != 'dependabot[bot]' ]; then MODE=blacksmith; fi ;;
             esac
             case "$MODE" in
               hosted) reason="CI_ANDROID_RUNNER is hosted" ;;
@@ -348,7 +349,10 @@ jobs:
     name: Android ${{ matrix.name }}
     needs: android-runner
     if: needs.android-runner.outputs.choice == 'hosted'
-    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.actor != 'dependabot[bot]' && vars.CI_RUNNER == 'blacksmith' && vars.CI_ANDROID_RUNNER != 'hosted' && github.event.inputs.android_runner != 'hosted' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+    # The runner here repeats the selector's choice: Blacksmith only when its MODE resolves to auto (dispatch
+    # input first, then CI_ANDROID_RUNNER) and CI_RUNNER is blacksmith. A runs-on cannot read the selector's
+    # output on runners that expand jobs before any job runs, so the precedence is restated, not shared.
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.actor != 'dependabot[bot]' && vars.CI_RUNNER == 'blacksmith' && (github.event.inputs.android_runner != '' && github.event.inputs.android_runner != 'repository setting' && github.event.inputs.android_runner || vars.CI_ANDROID_RUNNER || 'auto') == 'auto' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
