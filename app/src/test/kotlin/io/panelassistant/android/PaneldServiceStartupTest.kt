@@ -150,9 +150,9 @@ class PaneldServiceStartupTest {
     }
 
     @Test fun unrelatedConfigChangesDoNotRefreshAutoSleepOrOtherLiveOwners() {
-        listOf(emptySet(), setOf("touch_sound"), setOf("friendly_name"), setOf("ha_expose_touch_sound")).forEach { keys ->
+        listOf(emptySet(), setOf("touch_sound"), setOf("ha_expose_touch_sound")).forEach { keys ->
             assertEquals(
-                ConfigOwnerRefreshPlan(false, false, false, false, false, false, false, false),
+                ConfigOwnerRefreshPlan(false, false, false, false, false, false, false, false, false),
                 configOwnerRefreshPlan(keys),
             )
         }
@@ -160,11 +160,11 @@ class PaneldServiceStartupTest {
 
     @Test fun configOwnerRefreshesAreExplicitlyKeyed() {
         assertEquals(
-            ConfigOwnerRefreshPlan(true, true, false, false, true, true, false, true),
+            ConfigOwnerRefreshPlan(true, true, false, false, true, true, false, true, false),
             configOwnerRefreshPlan(setOf("ha_url")),
         )
         assertEquals(
-            ConfigOwnerRefreshPlan(false, false, true, true, false, false, false, false),
+            ConfigOwnerRefreshPlan(false, false, true, true, false, false, false, false, false),
             configOwnerRefreshPlan(setOf("log_ship_host", "keep_awake")),
         )
         assertTrue(configOwnerRefreshPlan(setOf("panel_id")).autoSleep)
@@ -172,6 +172,10 @@ class PaneldServiceStartupTest {
         assertTrue(configOwnerRefreshPlan(setOf("auto_sleep_touch_delay_seconds")).autoSleep)
         assertTrue(configOwnerRefreshPlan(setOf("log_ship_system_enabled")).logShipping)
         assertTrue(configOwnerRefreshPlan(setOf("dashboard_package")).rendererTarget)
+        assertEquals(
+            ConfigOwnerRefreshPlan(false, false, false, false, false, false, false, false, true),
+            configOwnerRefreshPlan(setOf("friendly_name")),
+        )
     }
 
     @Test fun liveSettingRetryBudgetIsBounded() {

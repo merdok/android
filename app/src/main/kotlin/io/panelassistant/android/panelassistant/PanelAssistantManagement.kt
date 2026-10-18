@@ -70,7 +70,8 @@ internal data class PanelAssistantManageReply(val outcome: String, val code: Str
  */
 internal object PanelAssistantManagedSettings {
     // voice_enabled: enabling the panel's Assist satellite entity in Home Assistant turns voice on.
-    val KEYS: Set<String> = setOf("voice_enabled", "voice_wake_words")
+    // friendly_name: renaming the panel's device in Home Assistant renames the panel.
+    val KEYS: Set<String> = setOf("voice_enabled", "voice_wake_words", "friendly_name")
 
     /**
      * [validate] is the Configure page's own admission, returning the normalized values or null when it
