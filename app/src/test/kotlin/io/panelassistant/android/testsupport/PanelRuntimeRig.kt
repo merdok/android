@@ -21,6 +21,7 @@ import io.panelassistant.android.control.ControlApplyOutcome
 import io.panelassistant.android.control.CpuController
 import io.panelassistant.android.control.FakeBacklight
 import io.panelassistant.android.control.FakeDaemon
+import io.panelassistant.android.platform.DaemonLongResult
 import io.panelassistant.android.control.FakeRootShell
 import io.panelassistant.android.control.FakeScreenPower
 import io.panelassistant.android.control.FakeSystemEnv
@@ -190,7 +191,8 @@ internal abstract class PanelRuntimeRig {
         manageTable: io.panelassistant.android.ManageTable = io.panelassistant.android.ManageTable(),
         manageFamilies: Map<String, io.panelassistant.android.ManageFamily> = io.panelassistant.android.ManageFamilies.DEFAULT,
         approvalPollMs: Long = 1_000,
-        /** Whether the privileged reboot route succeeds. */
+        /** Whether the reboot takes the panel down: the helper's REBOOT AWAIT ends without an answer, as on a
+         *  panel going down. Otherwise it falls to root, which a JVM cannot reboot. */
         rebootSucceeds: Boolean = true,
         /** Whether the panel has a lock credential, which refuses every reboot. */
         deviceSecure: Boolean = true,
@@ -209,7 +211,10 @@ internal abstract class PanelRuntimeRig {
         adbRoot: RootShell? = null,
         wifiOutages: () -> WifiOutageCounts? = { WifiOutageCounts(last24h = 3) },
         /** The helper the system controller sends reload and reboot to; a test reads what it was sent. */
-        systemDaemon: FakeDaemon = FakeDaemon(replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK")),
+        systemDaemon: FakeDaemon = FakeDaemon(
+            replies = mapOf("RELOAD io.homeassistant.companion.android.minimal" to "OK"),
+            longOutcomes = if (rebootSucceeds) mapOf("REBOOT AWAIT" to DaemonLongResult.Indeterminate) else emptyMap(),
+        ),
         /** The packages and activities the system controller resolves starts against. */
         systemEnv: FakeSystemEnv = FakeSystemEnv(),
         onZigbeeExplicitRetry: () -> Unit = {},
@@ -466,7 +471,6 @@ internal abstract class PanelRuntimeRig {
         override fun run(cmd: String) = true
         override fun runOutput(cmd: String): String? = null
         override fun runBytes(cmd: String): ByteArray? = null
-        override fun fireAndForget(cmd: String) = true
         override fun listSysfs(path: String): String? = if (path == RELAY_BASE) "relay1 relay2" else null
         override fun readSysfs(path: String): String? = nodes[path]
         override fun prepareOutputGpio(gpio: Int) = true

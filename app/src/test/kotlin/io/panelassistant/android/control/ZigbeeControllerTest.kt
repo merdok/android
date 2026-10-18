@@ -420,6 +420,5 @@ class ZigbeeControllerTest {
             return if (cmd.contains("HAPANELD_ZIGBEE_V1")) metadata else null
         }
         override fun runBytes(cmd: String): ByteArray? = null
-        override fun fireAndForget(cmd: String) = true
     }
 }

@@ -33,7 +33,6 @@ class InteractiveControllerTest {
             calls += "su-bytes:$cmd"
             return if (bytes.isEmpty()) null else bytes.removeAt(0)
         }
-        override fun fireAndForget(cmd: String) = false
     }
 
     private class Helper(
@@ -150,7 +149,6 @@ class InteractiveControllerTest {
                 release.await(2, TimeUnit.SECONDS)
                 return byteArrayOf(1, 2, 3)
             }
-            override fun fireAndForget(cmd: String) = false
         }
         val controller = InteractiveController(
             canSu = true,
@@ -184,7 +182,6 @@ class InteractiveControllerTest {
                 }
                 return byteArrayOf(invocation.toByte())
             }
-            override fun fireAndForget(cmd: String) = false
         }
         val controller = InteractiveController(
             canSu = true,

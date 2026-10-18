@@ -53,7 +53,7 @@ fun fakeProfile(
 
 /**
  * Fake [RootShell]. [outputs] maps a command substring to the stdout [runOutput] returns (the longest
- * matching key wins, so a specific path beats a generic one); [run]/[fireAndForget] record the command
+ * matching key wins, so a specific path beats a generic one); [run] records the command
  * in [ran] and report [runResult]. No real process is ever spawned.
  */
 class FakeRootShell(
@@ -90,7 +90,6 @@ class FakeRootShell(
             ?.value?.takeIf { it.toByteArray().size.toLong() <= maxBytes }
     }
     override fun runBytes(cmd: String): ByteArray? = null
-    override fun fireAndForget(cmd: String): Boolean { ran += cmd; return runResult }
 }
 
 /** Fake [MetricSource] for controllers that read through [io.panelassistant.android.metrics.PanelMetrics]

@@ -258,6 +258,55 @@ class SystemControllerTest {
         assertTrue("a proven-failed helper reboot falls through to su", root.ran.contains("reboot"))
     }
 
+    /** A root process for the reboot tests: exits with [rc] at once, or with [rc] null runs until destroyed. */
+    private class RootProcess(private val rc: Int?) : Process() {
+        private val ended = java.util.concurrent.CountDownLatch(if (rc == null) 1 else 0)
+        var destroyed = false
+        override fun getOutputStream(): java.io.OutputStream = java.io.OutputStream.nullOutputStream()
+        override fun getInputStream(): java.io.InputStream = java.io.InputStream.nullInputStream()
+        override fun getErrorStream(): java.io.InputStream = java.io.InputStream.nullInputStream()
+        override fun waitFor(): Int { ended.await(); return rc ?: 137 }
+        override fun exitValue(): Int = rc ?: 137
+        override fun destroy() { destroyed = true; ended.countDown() }
+    }
+
+    /** No helper, the real SuShell, and a root command per [rc] (`true` answers, so su itself works). */
+    private fun suRebootController(rc: (String) -> Int?): Pair<SystemController, MutableList<Pair<String, RootProcess>>> {
+        val launched = mutableListOf<Pair<String, RootProcess>>()
+        val su = SuShell(launch = { argv ->
+            val cmd = argv.last()
+            RootProcess(if (cmd == "true") 0 else rc(cmd)).also { synchronized(launched) { launched += cmd to it } }
+        })
+        val controller = SystemController(
+            FakeSystemEnv(), su, FakeDaemon(available = false),
+            builtinForeground = { false }, isDeviceSecure = { false }, rebootWindowMs = 200L,
+        )
+        return controller to launched
+    }
+
+    /** Root ran every mechanism and the app is still running, so the panel did not go down: a launched
+     *  `reboot` that came straight back must not be reported as applied. */
+    @Test fun aSuRebootThatLeavesThePanelUpIsReportedAsFailedAfterEveryMechanism() {
+        val (controller, launched) = suRebootController { 1 }
+
+        assertFalse("the panel stayed up", controller.reboot())
+        assertEquals(
+            listOf("reboot", "svc power reboot", "setprop sys.powerctl reboot"),
+            launched.map { it.first }.filter { it != "true" },
+        )
+    }
+
+    /** A su that never returns is destroyed at its deadline and counts as the panel still up. */
+    @Test fun aHungSuRebootIsDestroyedAndTheNextMechanismTried() {
+        val (controller, launched) = suRebootController { cmd -> if (cmd == "reboot") null else 1 }
+
+        assertFalse("a hung su is not a reboot", controller.reboot())
+        val (first, hung) = launched.first { it.first != "true" }
+        assertEquals("reboot", first)
+        assertTrue("the hung su was destroyed", hung.destroyed)
+        assertEquals("the next mechanism was tried", "svc power reboot", launched.map { it.first }.filter { it != "true" }.getOrNull(1))
+    }
+
     /** A helper predating AWAIT ignores the argument and accepts immediately; that is the best
      *  evidence it can give, so it must still count as a reboot rather than losing one. */
     @Test fun rebootAcceptsAnOlderHelperThatAnswersImmediately() {

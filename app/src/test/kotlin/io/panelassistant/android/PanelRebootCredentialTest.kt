@@ -50,7 +50,10 @@ internal class PanelRebootCredentialTest : PanelRuntimeRig() {
                 assertTrue("no su reboot", root.ran.isEmpty())
                 assertEquals(approvalsBefore, broker.pending().map { it.id }.toSet())
             } else {
-                assertEquals(PanelAssistantCommandResult.Applied, result)
+                // Root that returns at all left the panel up: no JVM reboot ever takes it down.
+                val expected = if (helper) PanelAssistantCommandResult.Applied
+                else PanelAssistantCommandResult.Failed(PanelAssistantCommandProcessor.CODE_HARDWARE_UNAVAILABLE)
+                assertEquals(expected, result)
                 assertEquals(listOf("reboot"), notices)
                 assertEquals(helper, "REBOOT AWAIT" in daemon.sent && "reboot" !in root.ran)
                 assertEquals(!helper, "reboot" in root.ran)

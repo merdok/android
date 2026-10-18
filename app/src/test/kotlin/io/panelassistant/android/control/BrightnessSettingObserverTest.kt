@@ -100,7 +100,6 @@ class BrightnessSettingObserverTest {
             return if ("bl_power" in cmd) blPower else null
         }
         override fun runBytes(cmd: String): ByteArray? = null
-        override fun fireAndForget(cmd: String) = true
     }
 
     private companion object {

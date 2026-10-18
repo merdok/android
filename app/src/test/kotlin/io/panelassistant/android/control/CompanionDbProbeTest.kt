@@ -30,7 +30,6 @@ class CompanionDbProbeTest {
         override fun available() = true
         override fun run(cmd: String) = runOutput(cmd) != null
         override fun runBytes(cmd: String): ByteArray? = runOutput(cmd)?.toByteArray()
-        override fun fireAndForget(cmd: String) = false
         override fun runOutput(cmd: String): String? {
             val p = ProcessBuilder("/bin/sh", "-c", cmd).apply { environment()["PATH"] = bin.path }.start()
             val out = p.inputStream.bufferedReader().readText()

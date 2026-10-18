@@ -54,6 +54,7 @@ class SystemController(
     // The service supplies ScreenPower.isDeviceSecure; missing observation must never permit a reboot.
     private val isDeviceSecure: () -> Boolean = { true },
     private val sdkInt: Int = Build.VERSION.SDK_INT,
+    private val rebootWindowMs: Long = REBOOT_SU_WINDOW_MS,
 ) {
 
     // Native descriptor checks run on every live transport wake. Reuse one bounded observation of the
@@ -536,14 +537,23 @@ class SystemController(
                     DaemonLongResult.NotSubmitted -> false
                 }
             },
-            EffectAttempt(PrivilegeRoute.SU) { root.fireAndForget("reboot") },
+            EffectAttempt(PrivilegeRoute.SU) { rebootViaSu() },
         )
-        when (route) {
-            PrivilegeRoute.DAEMON -> Log.i(TAG, "reboot via daemon")
-            PrivilegeRoute.SU -> Log.i(TAG, "reboot via su fallback")
-            else -> Log.w(TAG, "reboot: helper and su both unavailable, or neither could reboot the panel")
-        }
+        if (route == PrivilegeRoute.DAEMON) Log.i(TAG, "reboot via daemon")
+        else Log.w(TAG, "reboot: helper and su both unavailable, or neither could reboot the panel")
         return route != null
+    }
+
+    /**
+     * Each mechanism gets a bounded window through su, as the helper's REBOOT AWAIT does: a root command's
+     * exit status is no proof the panel is going down, so a reboot that works never returns from here, and
+     * reaching the end means the panel is still up. A hung su is destroyed at its deadline and counts as
+     * still up.
+     */
+    private fun rebootViaSu(): Boolean {
+        val outcomes = REBOOT_SU_MECHANISMS.map { cmd -> "$cmd: ${root.runWindowed(cmd, rebootWindowMs) ?: "not started"}" }
+        Log.w(TAG, "reboot via su did not take the panel down (${outcomes.joinToString("; ")})")
+        return false
     }
 
     companion object {
@@ -553,6 +563,11 @@ class SystemController(
         /** Must exceed the helper's whole bounded escalation, or a still-escalating daemon would be
          *  mistaken for one that already went down. */
         private const val REBOOT_AWAIT_TIMEOUT_MS = 15_000L
+
+        /** Three windows after a helper that already answered ERR (its own 6 s + 4 s) stay inside Panel
+         *  Assistant's 30 s command timeout. */
+        private const val REBOOT_SU_WINDOW_MS = 4_000L
+        private val REBOOT_SU_MECHANISMS = listOf("reboot", "svc power reboot", "setprop sys.powerctl reboot")
 
         /** Sentinel `dashboard_package` value selecting ha-paneld's own built-in WebView renderer
          *  ([io.panelassistant.android.DashboardActivity]) instead of a foreign dashboard app.
