@@ -72,6 +72,7 @@ class PanelAccessibilityService : AccessibilityService() {
                 .onFailure { Log.w(TAG, "could not read whether setup ever completed", it) }
                 .getOrNull() ?: return@Thread
             setupEverCompleted = done
+            Log.i(TAG, "HOME chooser answer: setup ever completed=$done")
             mainHandler.post { if (instance === this) scheduleHomeChooserAnswer() }
         }.start()
     }
