@@ -30,7 +30,7 @@ internal object PanelReleaseMetadata {
         if (asset.protocol != "https" || asset.host != "github.com" || !asset.path.startsWith(prefix) ||
             asset.query != null || asset.ref != null) return null
         val filename = asset.path.removePrefix(prefix)
-        if (!Regex("[A-Za-z0-9._-]+\\.apk").matches(filename)) return null
+        if (!Regex("[A-Za-z0-9._-]+\\.apk\\.bin").matches(filename)) return null
         val release = "https://github.com/panel-assistant/android/releases/download/$tag/ha-paneld-$tag"
         val checksum = authenticatedFetch("$apkUrl.sha256", remainingMs) ?: return null
         val protocol = authenticatedFetch("$release-protocol.json", remainingMs) ?: return null

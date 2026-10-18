@@ -14,7 +14,6 @@ import io.panelassistant.android.device.profile.ProfileAdmin
 import io.panelassistant.android.persistence.ConfigVault
 import io.panelassistant.android.persistence.StateArchiveSection
 import io.panelassistant.android.persistence.BackupIdentity
-import io.panelassistant.android.persistence.RawPreferenceBackup
 import io.panelassistant.android.persistence.CatalogProximityCalibrationCustody
 import io.panelassistant.android.persistence.ProximityCalibrationBackup
 import io.panelassistant.android.persistence.ProximityCalibrationCustody
@@ -246,11 +245,6 @@ internal class PanelBackupBuilder(
                 .append(",\"revision\":").append(Json.str(it.revision)).append('}')
         }
         sb.append(ignoredIssues)
-        sb.append(
-            RawPreferenceBackup.manifestFragment { store ->
-                appContext.getSharedPreferences(store, android.content.Context.MODE_PRIVATE).all
-            },
-        )
         sb.append(",\"config\":{").append(listOf(cfg, exposures).filter { it.isNotEmpty() }.joinToString(",")).append("}")
         sb.append(",\"entity_state\":").append(entityBackupArchiveJson(entity, filterBytes, overrideBytes))
         if (profileBytes != null) {

@@ -22,9 +22,9 @@ object SelfUpdater {
     private const val TAG = "ha-paneld/selfupdate"
     const val RELEASES_URL = "https://github.com/panel-assistant/android/releases"
 
-    /** This app's APK in a release is named `panel-assistant-*.apk`; any other `.apk` is not this app. */
+    /** This app's APK in a release is named `panel-assistant-*.apk.bin`; anything else is not this app. */
     internal fun isOwnAsset(name: String): Boolean =
-        name.startsWith("panel-assistant-", ignoreCase = true) && name.endsWith(".apk", ignoreCase = true)
+        name.startsWith("panel-assistant-", ignoreCase = true) && name.endsWith(".apk.bin", ignoreCase = true)
 
 
     /** Up to [limit] recent versions on [channel] for the Install-tab picker (version + release-notes URL). */

@@ -127,6 +127,18 @@ class ReleaseCatalogTest {
         assertTrue(versions.all { !it.installable && it.apkUrl == null })
     }
 
+    @Test fun aReleaseAsPublishedSince0910OffersItsApkBin() {
+        val release = org.json.JSONObject(
+            """{"tag_name":"v1.0.0","assets":[""" +
+                """{"name":"panel-assistant-v1.0.0-manual-setup-required.apk.bin.idsig","browser_download_url":"idsig"},""" +
+                """{"name":"panel-assistant-v1.0.0-manual-setup-required.apk.bin.sha256","browser_download_url":"sha"},""" +
+                """{"name":"panel-assistant-v1.0.0-manual-setup-required.apk.bin","browser_download_url":"apk"}]}""",
+        )
+        val versions = ReleaseCatalog.select(listOf(ReleaseCatalog.raw(release, SelfUpdater::isOwnAsset)), "stable", 10, strip)
+        assertEquals("apk", versions.single().apkUrl)
+        assertTrue(versions.single().installable)
+    }
+
     private fun assertThrowsByteLimit(block: () -> Unit) {
         try {
             block()
