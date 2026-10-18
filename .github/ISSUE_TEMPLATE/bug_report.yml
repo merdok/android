@@ -1,30 +1,34 @@
 name: Bug report
-description: Report a problem with ha-paneld
+description: Report a problem with the panel app
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting. The **diagnostic dump** below is the most useful thing you can include —
-        it captures the panel hardware, the capability matrix (what works / is degraded on *this*
-        firmware) and the running config, and saves a lot of back-and-forth.
+        Thanks for reporting. The **diagnostics dump** below is the most useful thing you can include:
+        it records the panel hardware, the matched profile, what works or is degraded on *this*
+        firmware, and the panel's settings, and saves a lot of back-and-forth.
+
+        A problem installing, updating or connecting a panel through Panel Assistant, or a Repair in
+        Home Assistant, belongs in the [Panel Assistant issues](https://github.com/panel-assistant/ha-integration/issues/new/choose) instead.
   - type: input
     id: version
     attributes:
-      label: ha-paneld version
-      description: Shown on the panel info page `http://<panel-ip>:8888/` and in `/health`.
-      placeholder: e.g. 0.6.2
+      label: Panel app version
+      description: The first line of the diagnostics dump, also shown on the panel's page at `http://<panel-ip>:8888/`.
+      placeholder: e.g. 1.0.0-preview1 (2048)
     validations:
       required: true
   - type: dropdown
     id: panel
     attributes:
       label: Panel hardware
-      description: See the [hardware references](https://panel-assistant.io/go/docs?page=hardware/readme) if unsure. The `/diag` output below includes the detected profile, which can help confirm the model.
+      description: See the [hardware references](https://panel-assistant.io/go/docs?page=hardware/readme) if unsure. The diagnostics dump below names the profile the panel matched.
       options:
         - Sonoff NSPanel Pro (86P / 120P, PX30 / rk3326)
         - Tuya TPA10 (rk3566)
         - Electron / ELCLCD WF1589T (rk3576)
+        - Meta Portal (Portal, Portal+, Portal Mini, Portal 10" 2nd gen)
         - ZHICAI SMT1019 / WF2489T
         - ZX-SMT156 / RK3566_T (rk3566 / arm64)
         - Smatek S9E
@@ -52,27 +56,32 @@ body:
   - type: textarea
     id: diag
     attributes:
-      label: Diagnostic dump (`/diag`)
+      label: Diagnostics dump
       description: |
-        Paste the panel's diagnostic dump. From any machine on the same LAN:
+        On the panel's page at `http://<panel-ip>:8888/`, choose **Diagnostics dump** and paste the file here, or from any machine on the same network:
 
         ```
         curl http://<panel-ip>:8888/api/v1/diag
         ```
 
-        (Or open `http://<panel-ip>:8888/` and copy the **diagnostics / capabilities** section.)
-        It contains no secrets or credentials.
+        It leaves out passwords, tokens, your Home Assistant address and your Wi-Fi network name. It does include the panel's name and hardware details, so look it over before posting.
       render: text
     validations:
       required: true
+  - type: textarea
+    id: panel_assistant
+    attributes:
+      label: Panel Assistant diagnostics
+      description: |
+        If the panel uses Panel Assistant: in Home Assistant go to **Settings → Devices & services → Panel Assistant**, open the panel's **⋮** menu, choose **Download diagnostics** and attach the file. If Home Assistant shows a Repair for the panel, open it, choose **Support report** and paste the report here.
   - type: input
     id: ha
     attributes:
-      label: Home Assistant version
-      placeholder: e.g. 2026.6.0
+      label: Home Assistant and Panel Assistant versions
+      placeholder: e.g. Home Assistant 2026.10.1, Panel Assistant 1.0.0-preview1
   - type: textarea
     id: logs
     attributes:
       label: Relevant logs
-      description: "`adb logcat` lines tagged `ha-paneld/*`, or Home Assistant log entries, if any."
+      description: "Home Assistant log entries mentioning `panel_assistant`, or `adb logcat` lines tagged `ha-paneld/*`, if you have them."
       render: shell

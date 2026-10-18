@@ -23,6 +23,7 @@ internal fun managementDiagnosticReport(
     camera: CameraPresentation,
     termux: () -> TermuxBridgeProbe.State,
     english: AppStrings,
+    voice: String? = null,
 ): String =
     DiagReader.dump(
         appContext,
@@ -46,4 +47,5 @@ internal fun managementDiagnosticReport(
         haPathProbe = PathProbeRuntime.diagnosticLine(),
         termuxBridge = termux(),
         vendorService = io.panelassistant.android.control.VendorServiceStarter.diagnosticLine(),
+        voice = voice,
     )

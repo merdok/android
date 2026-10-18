@@ -388,4 +388,48 @@ class DiagCapabilityPolicyTest {
         assertFalse(line.contains(packageName))
         assertFalse(line.contains("private.example"))
     }
+
+    /** A report from an unknown panel must show it fell back to the generic profile. */
+    @Test fun theReportNamesTheMatchedProfile() {
+        val line = DiagReader.profileLine(nspanel)
+        assertEquals("[profile] id=nspanel-pro revision=${nspanel.revision.take(12)}", line)
+        assertTrue(DiagReader.profileLine(fallback).startsWith("[profile] id=${fallback.id} "))
+    }
+
+    /** Output captured on a TPA10: the missing nodes go, the denied read stays. */
+    @Test fun labelsDropNodesTheModelLacksButKeepADeniedRead() {
+        val tpa10 = "ls: /sys/class/leds/*/: Permission denied\n" +
+            "ls: /sys/class/backlight/*/: No such file or directory\n" +
+            "ls: /dev/ledjni: No such file or directory\n"
+        assertEquals("[labels] ls: /sys/class/leds/*/: Permission denied", DiagReader.labelsLine(tpa10))
+        val nspanel = "ls: /sys/class/leds/*/: No such file or directory\n" +
+            "ls: /dev/ledjni: No such file or directory\n" +
+            "u:object_r:sysfs:s0 /sys/class/backlight/backlight/\n"
+        assertEquals("[labels] u:object_r:sysfs:s0 /sys/class/backlight/backlight/", DiagReader.labelsLine(nspanel))
+        assertEquals("[labels] none", DiagReader.labelsLine("ls: /dev/ledjni: No such file or directory\n"))
+    }
+
+    @Test fun theVendorAppLineCarriesTheVersionButNotThePackage() {
+        assertEquals("[vendor-app] version=2.8.0", DiagReader.vendorAppLine("2.8.0"))
+    }
+
+    @Test fun theVoiceLineSaysWhyAPanelDoesNotHear() {
+        val line = voiceDiagnosticLine(
+            enabled = true,
+            microphone = io.panelassistant.android.audio.MicrophoneStatus(
+                io.panelassistant.android.audio.MicrophonePresence.UNPROVEN,
+                io.panelassistant.android.audio.MicrophoneCheck.NO_AUDIO,
+                detail = "read returned 0",
+            ),
+            wakeWords = "[\"okay_nabu\"]",
+            pipelines = "",
+            audioSource = "voice_recognition",
+            sensitivity = "default",
+            micGainDb = 6,
+            stopWord = false,
+        )
+        assertTrue(line, line.startsWith("[voice] enabled=true microphone=unproven check=no_audio muted=false "))
+        assertTrue(line, line.contains("detail=\"read returned 0\" wake_words=[\"okay_nabu\"] pipelines=- "))
+        assertTrue(line, line.endsWith("source=voice_recognition sensitivity=default gain_db=6 stop_word=false"))
+    }
 }

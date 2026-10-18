@@ -26,6 +26,24 @@ internal fun voiceMicrophoneJson(status: io.panelassistant.android.audio.Microph
     "{\"presence\":${Json.str(status.presence.wireValue)},\"check\":${Json.str(status.check.wireValue)}," +
         "\"detail\":${status.detail?.let(Json::str) ?: "null"},\"muted\":${status.muted}}"
 
+/** The `/diag` voice line: what a report needs to say why a panel does not hear or answer. Settings and
+ *  the microphone check only; no audio or transcript is ever kept to put here. */
+internal fun voiceDiagnosticLine(
+    enabled: Boolean,
+    microphone: io.panelassistant.android.audio.MicrophoneStatus,
+    wakeWords: String,
+    pipelines: String,
+    audioSource: String,
+    sensitivity: String,
+    micGainDb: Int,
+    stopWord: Boolean,
+): String =
+    "[voice] enabled=$enabled microphone=${microphone.presence.wireValue} check=${microphone.check.wireValue} " +
+        "muted=${microphone.muted} detail=${microphone.detail?.let(Json::str) ?: "-"} " +
+        "wake_words=${wakeWords.ifBlank { "-" }} pipelines=${pipelines.ifBlank { "-" }} " +
+        "source=${audioSource.ifBlank { "-" }} sensitivity=${sensitivity.ifBlank { "-" }} " +
+        "gain_db=$micGainDb stop_word=$stopWord"
+
 /** Refuses `POST /api/v1/voice/test` before the trigger is ever called — returns the 409 reason, or
  *  null to proceed. Checked ahead of [io.panelassistant.android.assist.VoiceTestTrigger] so a disabled
  *  or capability-less panel never depends on whether the coordinator lane happens to be wired up. */
