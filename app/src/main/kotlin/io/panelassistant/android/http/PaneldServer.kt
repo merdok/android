@@ -475,7 +475,6 @@ class PaneldServer internal constructor(
                         )
                     } ?: unavailableProfileRoutes()
                     healthRoute(config, appContext.packageName, ::buildToken, ::renderConfigConcurrencyHash) { panelAssistantTransport?.restartHealthToken().orEmpty() }
-                    migrationNoticeRoute(config)
                     configReadRoutes(
                         config = config,
                         values = ::configValues,

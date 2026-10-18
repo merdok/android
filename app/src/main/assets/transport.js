@@ -87,7 +87,6 @@
     "install.apk.pending": "GET install/apk/pending", "install.status": "GET install/status",
     "install.component": "POST install/component", "install.versions": "GET install/versions",
     "logs.stream": "GET logs/stream",
-    "migration_notice.dismiss": "POST migration-notice/dismiss",
     "peers": "GET peers",
     "perf": "GET perf", "perf.binding": "GET perf/binding",
     "power_safety": "GET power-safety", "power_safety.acknowledge": ["POST power-safety/acknowledge", { H: JSON_ANSWER }],

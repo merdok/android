@@ -128,7 +128,7 @@ class LocalAdminEndpointTest {
             // The network suffix with every count at a size a week of probing could reach.
             " ha_net=critical ha_net_cause=latency ha_resp=critical ha_net_p95=9999999 ha_net_n=9999999" +
             " ha_net_miss=9999999 ha_net_age=9999999999" +
-            " pa_restarting=panel,recovery,999999 pa_notice=1\n"
+            " pa_restarting=panel,recovery,999999\n"
         assertTrue("worst line is ${worst.length} bytes", worst.length < LocalAdminReadiness.MAX_HEALTH_RESPONSE_BYTES - 200)
         val tooLong = "ha-paneld 1.0.0 panel=p " + "x".repeat(LocalAdminReadiness.MAX_HEALTH_RESPONSE_BYTES.toInt()) + "\n"
         val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)

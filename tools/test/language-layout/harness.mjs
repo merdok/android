@@ -160,7 +160,6 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
   const tab = (id, path, key) => `<a href="${href(path)}"${id === active ? ' class="active"' : ''}>${s.t(key)}</a>`;
   const nav = `<div class="nav">${setupTab ? tab('setup', 'setup', 'shell.nav.setup') : ''}${tab('dashboard', './', 'shell.nav.dashboard')}${tab('configure', 'configure', 'shell.nav.configure')}${tab('profiles', 'profiles', 'shell.nav.profile')}${tab('entities', 'entities', 'shell.nav.entities')}${tab('install', 'install', 'shell.nav.install')}${tab('logs', 'logs', 'shell.nav.logs')}<a href="${href('api')}">API</a></div>`;
   const notice = (attrs, severity, title, detail, action) => noticeRow(s, severity, title, detail, action, attrs);
-  const migration = notice(' id="migrationbar"', 'warning', s.t('shell.migration.title'), `${s.t('shell.migration.body')} <a href="https://example.invalid/migration" target="_blank" rel="noopener">https://example.invalid/migration</a>`, `<button id="migration-dismiss" class="pbtn" type="button">${s.t('shell.migration.dismiss')}</button>`);
   return `<!doctype html><html lang="${escapeHtml(locale)}"${themeAttr}><head><base href="/"><meta charset="utf-8">
 <script>/* ?theme=light|dark pins the UI theme for testing (else the browser preference rules) */
 (function(){var m=location.search.match(/[?&]theme=(dark|light)\\b/);if(m)document.documentElement.setAttribute("data-theme",m[1])})();</script>
@@ -174,7 +173,6 @@ export function shellHtml({ s, catalogues, locale, theme, embed, active, section
 <div class="topbar">${header}${nav}</div>
 ${switcher}<div id="halifebar" class="notice" style="display:none"></div>
 <div id="hanetbar" class="notice" style="display:none"></div>
-${migration}
 ${notice(' id="verbar" style="display:none"', 'update', s.t('shell.new_version.installed'), '', `<a href="#" onclick="location.reload();return false">${s.t('shell.action.reload')}</a>`)}
 ${body}
 ${extraScripts}<script src="assets/power-safety.js"></script>

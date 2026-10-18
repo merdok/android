@@ -36,7 +36,7 @@ class HealthRoutesHttpTest {
                 assertTrue(line, line.startsWith("ha-paneld ${Config.VERSION} panel=contract-panel build=${Config.VERSION} cfg="))
                 assertTrue(line, Regex(" cfg=[0-9a-f]{8} ").containsMatchIn(line))
                 assertTrue(line, line.contains(" pkg=io.github.maxlyth.hapaneld vc=${BuildConfig.VERSION_CODE} proto=5-5 "))
-                assertTrue(line, line.endsWith(" pa_restarting=app,settings,29000 pa_notice=0\n"))
+                assertTrue(line, line.endsWith(" pa_restarting=app,settings,29000\n"))
                 val refused = direct.get("/health") { header(HttpHeaders.Host, "elsewhere.example") }
                 assertEquals(HttpStatusCode.Forbidden, refused.status)
                 assertEquals("host not allowed\n", refused.bodyAsText())
@@ -44,66 +44,22 @@ class HealthRoutesHttpTest {
         }
     }
 
-    @Test fun `only a broker-era upgrade that never met Panel Assistant reports the migration notice`() {
-        fun notice(stored: Map<String, Any?>): List<String> = PaneldServerHttpFixture().use { fixture ->
-            fixture.values.putAll(stored)
-            initializeHealth(fixture)
-            var lines = emptyList<String>()
-            testApplication {
-                application { fixture.mount(this) }
-                // Two startups: the second must not turn a fresh store into an upgraded one.
-                lines = List(2) {
-                    assertTrue(fixture.config.migrateLiveStore())
-                    client.get("/health").bodyAsText().substringAfter(" pa_notice=").trim()
-                }
-            }
-            lines
-        }
-        assertEquals("fresh install waiting for setup", listOf("0", "0"), notice(emptyMap()))
-        assertEquals("0.9 upgrade never connected", listOf("1", "1"), notice(BROKER_ERA_STORE))
-        assertEquals(
-            "0.9 upgrade Panel Assistant already managed",
-            listOf("0", "0"),
-            notice(BROKER_ERA_STORE + ("panel_assistant_authority" to "native")),
-        )
-    }
-
-    @Test fun `an upgraded panel's notice clears on its first Panel Assistant session`() {
+    @Test fun `a broker-era upgrade that never met Panel Assistant gets no notice on its pages or health`() {
         PaneldServerHttpFixture().use { fixture ->
             fixture.values.putAll(BROKER_ERA_STORE)
             initializeHealth(fixture)
+            fixture.enablePages()
             assertTrue(fixture.config.migrateLiveStore())
             testApplication {
                 application { fixture.mount(this) }
-                assertTrue(client.get("/health").bodyAsText().endsWith(" pa_notice=1\n"))
-                fixture.config.markPanelAssistantConnected()
-                assertTrue(client.get("/health").bodyAsText().endsWith(" pa_notice=0\n"))
-            }
-        }
-    }
-
-    @Test fun `migration dismissal is origin guarded durable and reflected on both health routes`() {
-        PaneldServerHttpFixture().use { fixture ->
-            fixture.values.putAll(BROKER_ERA_STORE)
-            initializeHealth(fixture)
-            assertTrue(fixture.config.migrateLiveStore())
-            testApplication {
-                application { fixture.mount(this) }
-                val refused = client.post("/api/v1/migration-notice/dismiss") {
-                    header(HttpHeaders.Origin, "http://elsewhere.example")
-                }
-                assertEquals(HttpStatusCode.Forbidden, refused.status)
-                assertTrue(fixture.config.migrationNoticeVisible())
-                repeat(2) {
-                    val dismissed = client.post("/api/v1/migration-notice/dismiss")
-                    assertEquals(HttpStatusCode.OK, dismissed.status)
-                    assertEquals("application/json", dismissed.headers[HttpHeaders.ContentType]?.substringBefore(';'))
-                    assertEquals("{\"ok\":true}", dismissed.bodyAsText())
-                    assertFalse(fixture.config.migrationNoticeVisible())
-                }
                 for (path in listOf("/health", "/api/v1/health")) {
-                    assertTrue(client.get(path).bodyAsText().endsWith(" pa_notice=0\n"))
+                    val line = client.get(path).bodyAsText()
+                    assertFalse(line, line.contains("pa_notice"))
                 }
+                val page = client.get("/configure?lang=en") { header(HttpHeaders.Cookie, "wiz_escape=1") }.bodyAsText()
+                assertFalse(page.contains("migrationbar"))
+                assertFalse(page.contains("go/migration"))
+                assertEquals(HttpStatusCode.NotFound, client.post("/api/v1/migration-notice/dismiss").status)
             }
         }
     }

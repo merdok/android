@@ -34,18 +34,7 @@ internal fun healthLine(
     renderConfigConcurrencyHash: () -> String,
     panelAssistantRestartHealth: () -> String,
 ): String =
-    "ha-paneld ${Config.VERSION} panel=${config.panelId} build=${buildToken()} cfg=${renderConfigConcurrencyHash()}${panelAssistantDiscoveryHealthToken(config.deviceUid, config.androidId)}${packageHealthToken(packageName)}${versionCodeHealthToken(BuildConfig.VERSION_CODE)}${protocolHealthToken()}${haLifecycleHealthToken()}${haNetworkHealthToken()}${panelAssistantRestartHealth()} pa_notice=${if (config.migrationNoticeVisible()) 1 else 0}\n"
-
-internal fun Route.migrationNoticeRoute(config: Config) = ops {
-    post("/migration-notice/dismiss") {
-        val persisted = config.dismissMigrationNotice()
-        call.respondText(
-            """{"ok":$persisted}""",
-            ContentType.Application.Json,
-            if (persisted) HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable,
-        )
-    }
-}
+    "ha-paneld ${Config.VERSION} panel=${config.panelId} build=${buildToken()} cfg=${renderConfigConcurrencyHash()}${panelAssistantDiscoveryHealthToken(config.deviceUid, config.androidId)}${packageHealthToken(packageName)}${versionCodeHealthToken(BuildConfig.VERSION_CODE)}${protocolHealthToken()}${haLifecycleHealthToken()}${haNetworkHealthToken()}${panelAssistantRestartHealth()}\n"
 
 /**
  * The lifecycle suffix on `/health`. Appended rather than given its own endpoint because every page
