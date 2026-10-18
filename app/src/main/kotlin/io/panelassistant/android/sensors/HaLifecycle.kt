@@ -71,6 +71,9 @@ internal class HaLifecycle(
     private var notice: HaLifecycleNotice? = null
     private var noticeReceivedMs = 0L
 
+    /** When Panel Assistant's ready notice last ended a restart or outage, on this machine's clock, or null. */
+    private var readyAtMs: Long? = null
+
     /**
      * Everything a consumer's rendering can depend on, captured under ONE lock acquisition, with the
      * revision that produced it. Reading the parts separately allows a torn tuple — a state from one
@@ -92,6 +95,13 @@ internal class HaLifecycle(
         val reason: HaLifecycleReason = HaLifecycleReason.UNKNOWN,
         val elapsedMs: Long? = null,
         val expectedMs: Long? = null,
+        /**
+         * How long ago Panel Assistant's ready notice last ended a restart or outage, or null if none has. A
+         * duration rather than a time, because the dashboard stamps its own drops on another clock: a
+         * dashboard drop older than this happened before Home Assistant was ready, so the restart explains it.
+         * Every hello also carries a ready notice; only one that ends an outage counts here.
+         */
+        val readyAgoMs: Long? = null,
     )
 
     fun snapshot(nowMs: Long): Snapshot = synchronized(lock) {
@@ -102,7 +112,8 @@ internal class HaLifecycle(
                 val advance = (nowMs - noticeReceivedMs).coerceAtLeast(0L)
                 if (advance > Long.MAX_VALUE - elapsed) Long.MAX_VALUE else elapsed + advance
             },
-            notice?.expectedMs)
+            notice?.expectedMs,
+            readyAtMs?.let { (nowMs - it).coerceAtLeast(0L) })
     }
 
     private fun remainingLocked(nowMs: Long): Long {
@@ -223,6 +234,7 @@ internal class HaLifecycle(
         recoveryAnnouncedEpisode = episode
         current = HaLifecycleState.BACK_ONLINE
         backOnlineSinceMs = nowMs
+        readyAtMs = nowMs
         revision++
     }
 
@@ -238,6 +250,13 @@ internal class HaLifecycle(
 
         /** How long a connection may stay down before the panel calls it an outage: long enough for an ordinary reconnect. */
         const val OFFLINE_GRACE_MS = 10_000L
+
+        /**
+         * How long after a restart's ready notice its dashboard drop stays explained: one handshake watchdog
+         * retry (a 25 s handshake, then the reload it starts gets 25 s more). A dashboard still not connected
+         * after that is an outage again.
+         */
+        const val RESTART_RELOAD_MS = 60_000L
     }
 }
 

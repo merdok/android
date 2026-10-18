@@ -15,9 +15,14 @@ import io.panelassistant.android.sensors.HaLifecycleReason
 import io.panelassistant.android.sensors.HaLifecycleRuntime
 import io.panelassistant.android.sensors.HaLifecycleState
 
-/** How long this panel's dashboard has been disconnected from Home Assistant, or null while it is not. */
-internal fun haDashboardLostMs(renderer: RendererAdmissionRuntime.Live?, nowMs: Long): Long? =
+/**
+ * How long this panel's dashboard has been disconnected from Home Assistant, or null while it is not, or
+ * when the drop came before a restart's ready notice ([snap]) under [HaLifecycle.RESTART_RELOAD_MS] ago:
+ * that restart explains it, and the dashboard is simply reloading after it.
+ */
+internal fun haDashboardLostMs(snap: HaLifecycle.Snapshot?, renderer: RendererAdmissionRuntime.Live?, nowMs: Long): Long? =
     renderer?.takeIf { !it.frontendConnected }?.frontendLostAtMs?.let { (nowMs - it).coerceAtLeast(0L) }
+        ?.takeUnless { lost -> snap?.readyAgoMs?.let { lost >= it && it < HaLifecycle.RESTART_RELOAD_MS } == true }
 
 /**
  * Select the notice shown over the dashboard from the current owners' observations.
@@ -39,7 +44,7 @@ internal fun haLifecycleNoticeState(
     // The last step lasts while the dashboard reloads and ends the moment it reconnects: a connected
     // dashboard is usable, and a card still covering it would be Panel Assistant getting in the way.
     snap?.state == HaLifecycleState.BACK_ONLINE && renderer?.frontendConnected != true -> snap.state
-    (haDashboardLostMs(renderer, nowMs) ?: 0L) >= HaLifecycle.OFFLINE_GRACE_MS -> HaLifecycleState.CONNECTION_LOST
+    (haDashboardLostMs(snap, renderer, nowMs) ?: 0L) >= HaLifecycle.OFFLINE_GRACE_MS -> HaLifecycleState.CONNECTION_LOST
     else -> null
 }
 
@@ -224,7 +229,7 @@ internal class HaLifecycleBar private constructor(
         val renderer = renderer()
         val now = SystemClock.elapsedRealtime()
         val state = haLifecycleNoticeState(snap, renderer, now)
-        val dashboardLost = haDashboardLostMs(renderer, now)
+        val dashboardLost = haDashboardLostMs(snap, renderer, now)
         if (state == null || state == HaLifecycleState.NORMAL) {
             segmentAnimator?.cancel()
             shownStep = null

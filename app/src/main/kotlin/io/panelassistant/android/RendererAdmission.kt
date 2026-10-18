@@ -107,7 +107,8 @@ internal object RendererAdmissionRuntime {
         val effectiveDark: Boolean? = null,
         /**
          * When a connected frontend last dropped (`elapsedRealtime`), or null while it is connected or has
-         * not connected yet in this generation. A first load that has not connected is not an outage.
+         * not connected yet in this generation. A first load that has not connected is not an outage, and
+         * neither is a teardown or reload the app started itself.
          */
         val frontendLostAtMs: Long? = null,
     )
@@ -149,14 +150,24 @@ internal object RendererAdmissionRuntime {
      * Publish whether the Home Assistant frontend is connected. Called from the renderer's own
      * `frontendConnected` setter, so every assignment reaches here and none can be forgotten — the
      * list of sites is DERIVED from the property rather than hand-maintained beside it.
+     *
+     * [cause] is the renderer event behind the change. Only a drop the page itself reported (a disconnect
+     * or a failed main-frame load) counts as losing Home Assistant; a teardown, reload or refused login the
+     * app caused leaves the drop time as it was, so its own reconnect is never shown as an outage.
      */
-    fun setFrontendConnected(owner: Long, connected: Boolean, nowElapsedMs: Long = SystemClock.elapsedRealtime()): Boolean {
+    fun setFrontendConnected(
+        owner: Long,
+        connected: Boolean,
+        cause: RendererEvent,
+        nowElapsedMs: Long = SystemClock.elapsedRealtime(),
+    ): Boolean {
         if (!BuiltinDashboard.ownsActivity(owner)) return false
         synchronized(lock) {
             val previous = live?.takeIf { it.owner == owner }
             val lostAt = when {
                 connected -> null
-                previous?.frontendConnected == true -> nowElapsedMs
+                previous?.frontendConnected == true &&
+                    (cause == RendererEvent.DISCONNECTED || cause == RendererEvent.MAIN_FRAME_FAILED) -> nowElapsedMs
                 else -> previous?.frontendLostAtMs
             }
             // A disconnected page renders nothing current, so its last observed scheme goes with it
