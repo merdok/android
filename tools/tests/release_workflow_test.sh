@@ -160,7 +160,7 @@ expected_body="$TMP/expected-release-body.md"
 cat > "$expected_body" <<'BODY'
 ## Installation
 
-Install and update ha-paneld through the [Panel Assistant integration](https://github.com/panel-assistant/ha-integration) for Home Assistant: add a panel from Settings, Devices & services, and Panel Assistant installs the right app for it. The files attached to this release are for Panel Assistant to use; they are not meant to be installed by hand.
+Install and update the panel app through the [Panel Assistant integration](https://github.com/panel-assistant/ha-integration) for Home Assistant: add a panel from Settings, Devices & services, and Panel Assistant installs the right app for it. The files attached to this release are for Panel Assistant to use; they are not meant to be installed by hand.
 
 
 Stable release notes.
