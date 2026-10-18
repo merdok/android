@@ -65,7 +65,7 @@
     <string name="set_up">Configura</string>
     <string name="open_configuration">Apri configurazione</string>
     <string name="panel_not_set_up">Questo pannello non è ancora configurato.</string>
-    <string name="panel_not_set_up_hint">Scansiona il codice o apri l’indirizzo seguente sul telefono o sul portatile: richiede circa due minuti. In alternativa, tocca %1$s per farlo su questo schermo.</string>
+    <string name="panel_not_set_up_hint">Scansiona il codice con il telefono: richiede circa due minuti. In alternativa, tocca %1$s per farlo su questo schermo.</string>
     <string name="browser_engine_too_old">Il motore del browser di questo pannello è troppo vecchio.</string>
     <string name="browser_engine_too_old_hint">Le dashboard di Home Assistant ne richiedono uno più recente. Risolvi il problema nella pagina di configurazione in un browser.</string>
     <string name="choose_dashboard_app">Scegli un’app per la dashboard.</string>
