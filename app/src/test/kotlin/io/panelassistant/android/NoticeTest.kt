@@ -289,6 +289,33 @@ class NoticeTest {
         assertEquals(R.string.notice_pill_setup, pillFor(journey, everCompleted = false))
     }
 
+    /**
+     * The standing screen of a panel that is not set up prints no address (only the QR code and the Set up
+     * button), so its one line must not send anyone to one, in any language the panel ships.
+     */
+    @Test
+    fun aPanelThatIsNotSetUpNamesOnlyWhatItsStandingScreenShows() {
+        val journey = SetupJourney.evaluate(configuredInputs().copy(identityConfirmed = false))
+        assertEquals(SetupJourney.Stage.IDENTITY, journey.next)
+        val hint = checkNotNull(stageFor(journey)).hint
+        val name = R.string::class.java.fields.single { it.getInt(null) == hint }.name
+        val addressWords = mapOf(
+            "values" to "address", "values-cs" to "adres", "values-de" to "adresse", "values-es" to "dirección",
+            "values-fr" to "adresse", "values-it" to "indirizzo", "values-nl" to "adres", "values-pl" to "adres",
+            "values-pt-rBR" to "endereço", "values-uk" to "адрес", "values-zh-rCN" to "地址",
+        )
+        // Source-text reason: plain JVM tests have no resource table, so the shipped strings are read as data.
+        val shipped = java.io.File("src/main/res").listFiles { file -> file.name.startsWith("values") }.orEmpty()
+        assertEquals(addressWords.keys, shipped.map { it.name }.toSet())
+        for ((directory, word) in addressWords) {
+            val text = Regex("""<string name="$name">(.*?)</string>""")
+                .find(java.io.File("src/main/res/$directory/strings.xml").readText())?.groupValues?.get(1)
+            assertNotNull("$directory has no $name", text)
+            assertTrue("$directory $name keeps the Set up button's label: $text", text!!.contains("%1\$s"))
+            assertTrue("$directory $name points at an address the screen does not show: $text", !text.lowercase().contains(word))
+        }
+    }
+
     @Test
     fun everyStageOfAnUnfinishedSetupHasAStandingLine() {
         for (stage in SetupJourney.Stage.entries) {

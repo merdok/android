@@ -62,7 +62,7 @@
     <string name="set_up">Configurar</string>
     <string name="open_configuration">Abrir configuração</string>
     <string name="panel_not_set_up">Este painel ainda não está configurado.</string>
-    <string name="panel_not_set_up_hint">Leia o código ou abra o endereço abaixo no celular ou notebook — leva cerca de dois minutos. Ou toque em %1$s para configurar nesta tela.</string>
+    <string name="panel_not_set_up_hint">Leia o código com o celular — leva cerca de dois minutos. Ou toque em %1$s para configurar nesta tela.</string>
     <string name="browser_engine_too_old">O mecanismo de navegação deste painel é antigo demais.</string>
     <string name="browser_engine_too_old_hint">Os dashboards do Home Assistant precisam de um mais recente. Resolva isso na página de configuração em um navegador.</string>
     <string name="choose_dashboard_app">Escolha um aplicativo de dashboard.</string>
