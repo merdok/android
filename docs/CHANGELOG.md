@@ -61,6 +61,32 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 - **Voice settings stay current.** The list of voice pipelines is fetched again when the panel's Home Assistant connection changes, and a new audio source takes effect as soon as the camera stream lets go of the microphone.
 - **The Install page and Panel Assistant's panel-download route find releases again.** Since 0.9.10 the app is published as `panel-assistant-<version>-manual-setup-required.apk.bin`, and the panel looked only for a name ending in `.apk`, so the Install page listed no panel app release and an update Panel Assistant asked the panel to download itself found nothing to install.
 - **Translation corrections** across every shipped language, including the setup screens, the Voice card and the diagnostics page.
+## v0.9.11 - 2026-10-08
+
+A small release that finishes moving the app's internal names onto the project's own namespace before 1.0. Update Panel Assistant to 0.9.0 first.
+
+Pairs with Panel Assistant 0.9.0.
+
+### Update Panel Assistant first
+
+**Update Panel Assistant to 0.9.0 before, or together with, your panels.** A panel on an older Panel Assistant isn't offered v0.9.11 and stays on v0.9.10.
+
+### New
+
+- **Announcements play in step** across panels with Panel Assistant 0.9.0.
+- **Everything MQTT used to report now has a native route**, so with Panel Assistant 0.9.0 panels move off MQTT keeping their entities.
+- **Czech and Brazilian Portuguese** (early translations).
+
+### Changed
+
+- **The app's internal names finished their move** to the project's own namespace.
+- **Shizuku is no longer needed.** Panel Assistant now does everything Shizuku was used for, so the app no longer supports it and Enhanced access is gone from Configure. You can uninstall the Shizuku app if nothing else uses it.
+- **Old short web addresses from before v0.8.5 are retired**; use the `/api/v1/` versions.
+
+### Fixed
+
+- **No more "isn't responding" message** on slower panels after an update.
+- **The button backlight survives a restart** on panels without MQTT.
 
 ## v0.9.10 - 2026-10-07
 
