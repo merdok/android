@@ -15,7 +15,7 @@ class PanelReleaseMetadataTest {
     private val hash = "a".repeat(64)
     private val version = "1.1.0"
     private val tag = "v$version"
-    private val filename = "panel-assistant-$tag-manual-setup-required.apk"
+    private val filename = "panel-assistant-$tag-manual-setup-required.apk.bin"
     private fun descriptor() = JSONObject()
         .put("schema", "io.panelassistant.android.install.v1")
         .put("apkName", filename).put("apkSha256", hash).put("releaseTag", tag)
@@ -86,7 +86,7 @@ class PanelReleaseMetadataTest {
     private class ReleasePair(val version: String, range: IntRange = 1..3) {
         val tag = "v$version"
         val release = "https://github.com/panel-assistant/android/releases/download/$tag/ha-paneld-$tag"
-        val ownName = "panel-assistant-$tag-manual-setup-required.apk"
+        val ownName = "panel-assistant-$tag-manual-setup-required.apk.bin"
         val ownHash = "b".repeat(64)
         val ownCode = BuildConfig.VERSION_CODE.toLong() + 20
         val descriptorUrl = "$release-install.json"

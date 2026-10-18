@@ -1,6 +1,6 @@
 # Releasing ha-paneld
 
-A release is cut by pushing a `vX.Y.Z` tag; the [Release workflow](../.github/workflows/release.yml) then verifies the already-green exact source, builds, signs and publishes the application APK and both supported root-helper binaries, taking the human-readable notes from the matching `docs/CHANGELOG.md` section. Run this checklist **before** tagging.
+A release is cut by pushing a `vX.Y.Z` tag; the [Release workflow](../.github/workflows/release.yml) then verifies the already-green exact source, builds, signs and publishes the single application APK, which carries both root-helper binaries inside it, taking the human-readable notes from the matching `docs/CHANGELOG.md` section. Run this checklist **before** tagging.
 
 > [!IMPORTANT]
 > **Releases are contenders until approved.** Pushing a tag starts the public Release workflow and publishes the resulting GitHub release if its gates pass, so prepare and verify a release *before* tagging and **tag only on explicit approval**. Pushing dev commits to `main` is fine; the **tag push is the gate**. Don't eager-tag and then force-move the tag to absorb late fixes — fold late changes into the still-untagged contender instead. (Force-moving a published tag rewrites a release others may have pulled.)
