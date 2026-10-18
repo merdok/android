@@ -216,32 +216,33 @@ class DashboardActivity : AppCompatActivity() {
     /**
      * The renderer's phase ([RendererPhase]); every change goes through [on].
      *
-     * The setter is the one place the phase is published: whether the frontend is connected to
-     * [RendererAdmissionRuntime] (so `/api/v1/status`, `/api/v1/diag` and the info card learn it), a refused
+     * [on] is the one place the phase is published, with the event that moved it: whether the frontend is
+     * connected to [RendererAdmissionRuntime] (so `/api/v1/status`, `/api/v1/diag`, the info card and the
+     * cannot-reach notice learn it, and whether a drop was the page's own or one the app caused), a refused
      * login to [BuiltinDashboard] (the `:8888` health warning), and the cover, which stands only while the
-     * phase is reconnecting or latched. The property initializer assigns the backing field directly, so the
-     * pre-`onCreate` value never publishes against an unacquired lease.
+     * phase is reconnecting or latched. The initial value is never published, so the pre-`onCreate` phase
+     * never publishes against an unacquired lease.
      */
-    private var themeObservationEpoch = 0L
     private var phase = RendererPhase.NONE
-        set(value) {
-            val was = field
-            // A pending evaluateJavascript callback belongs to the connection that started it. A
-            // disconnect, page replacement or teardown must invalidate that callback before the
-            // runtime clears its effective-theme observation, or the stale result can republish it.
-            if (value != RendererPhase.CONNECTED) themeObservationEpoch++
-            field = value
-            if (RendererAdmissionRuntime.setFrontendConnected(activityOwner, value == RendererPhase.CONNECTED) && !destroyed) {
-                redrawLifecycleBar()
-            }
-            if ((was == RendererPhase.AUTH_LATCHED) != (value == RendererPhase.AUTH_LATCHED)) {
-                BuiltinDashboard.setActivityAuthLatched(activityOwner, value == RendererPhase.AUTH_LATCHED)
-                if (value != RendererPhase.AUTH_LATCHED) statusScreens.stopSignInAddressWatch()
-            }
-            if (value != RendererPhase.RECONNECTING) reconnectingSinceMs = 0L
-            if (value != RendererPhase.RECONNECTING && value != RendererPhase.AUTH_LATCHED) webCover.hide()
+    private var themeObservationEpoch = 0L
+    private fun on(event: RendererEvent) {
+        val was = phase
+        val value = was.after(event)
+        // A pending evaluateJavascript callback belongs to the connection that started it. A
+        // disconnect, page replacement or teardown must invalidate that callback before the
+        // runtime clears its effective-theme observation, or the stale result can republish it.
+        if (value != RendererPhase.CONNECTED) themeObservationEpoch++
+        phase = value
+        if (RendererAdmissionRuntime.setFrontendConnected(activityOwner, value == RendererPhase.CONNECTED, event) && !destroyed) {
+            redrawLifecycleBar()
         }
-    private fun on(event: RendererEvent) { phase = phase.after(event) }
+        if ((was == RendererPhase.AUTH_LATCHED) != (value == RendererPhase.AUTH_LATCHED)) {
+            BuiltinDashboard.setActivityAuthLatched(activityOwner, value == RendererPhase.AUTH_LATCHED)
+            if (value != RendererPhase.AUTH_LATCHED) statusScreens.stopSignInAddressWatch()
+        }
+        if (value != RendererPhase.RECONNECTING) reconnectingSinceMs = 0L
+        if (value != RendererPhase.RECONNECTING && value != RendererPhase.AUTH_LATCHED) webCover.hide()
+    }
     private val frontendConnected get() = phase == RendererPhase.CONNECTED
     private val interstitialShown get() = phase == RendererPhase.RECONNECTING
     private val authLatched get() = phase == RendererPhase.AUTH_LATCHED

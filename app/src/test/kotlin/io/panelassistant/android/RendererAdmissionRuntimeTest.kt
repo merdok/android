@@ -80,7 +80,7 @@ class RendererAdmissionRuntimeTest {
     }
 
     @Test fun theConnectionFlagAndTheVerdictStayOneValue() {
-        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true))
+        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED))
         assertTrue(
             RendererAdmissionRuntime.record(
                 owner = owner,
@@ -99,17 +99,17 @@ class RendererAdmissionRuntimeTest {
         assertEquals(RendererAdmissionState.ADMITTED, live.record?.state)
 
         // The converse: a later disconnection must not discard the verdict it belongs to.
-        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, false))
+        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, false, RendererEvent.DISCONNECTED))
         val after = RendererAdmissionRuntime.current()!!
         assertFalse(after.frontendConnected)
         assertEquals(RendererAdmissionState.ADMITTED, after.record?.state)
     }
 
     @Test fun aSupersededGenerationCannotPublishAConnection() {
-        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true))
+        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED))
         val successor = BuiltinDashboard.acquireActivityOwner()
         try {
-            assertFalse(RendererAdmissionRuntime.setFrontendConnected(owner, true))
+            assertFalse(RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED))
             // The successor has connected nothing yet, so nothing claims it has.
             assertNull(RendererAdmissionRuntime.current())
         } finally {
@@ -118,7 +118,7 @@ class RendererAdmissionRuntimeTest {
     }
 
     @Test fun aReplacementStartsFromNothingRatherThanInheriting() {
-        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true))
+        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED))
         assertTrue(blocked(owner))
         val successor = BuiltinDashboard.acquireActivityOwner()
         try {
@@ -142,7 +142,7 @@ class RendererAdmissionRuntimeTest {
 
     @Test fun anUnacquiredLeaseCannotWrite() {
         // The renderer's `frontendConnected` field is initialised before `onCreate` takes a lease.
-        assertFalse(RendererAdmissionRuntime.setFrontendConnected(0L, true))
+        assertFalse(RendererAdmissionRuntime.setFrontendConnected(0L, true, RendererEvent.CONNECTED))
         assertFalse(blocked(0L))
         assertNull(RendererAdmissionRuntime.current())
     }
@@ -156,15 +156,15 @@ class RendererAdmissionRuntimeTest {
         // different paths at different moments and both describe the same page.
         assertTrue(RendererAdmissionRuntime.record(owner, RendererAdmissionState.ADMITTED, 2_000L))
         assertEquals(false, RendererAdmissionRuntime.current()!!.effectiveDark)
-        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true))
+        assertTrue(RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED))
         assertEquals(false, RendererAdmissionRuntime.current()!!.effectiveDark)
     }
 
     @Test fun aDisconnectClearsTheEffectiveThemeSoAStaleSchemeIsNeverReported() {
-        RendererAdmissionRuntime.setFrontendConnected(owner, true)
+        RendererAdmissionRuntime.setFrontendConnected(owner, true, RendererEvent.CONNECTED)
         RendererAdmissionRuntime.setEffectiveTheme(owner, true)
         assertEquals(true, RendererAdmissionRuntime.current()!!.effectiveDark)
-        RendererAdmissionRuntime.setFrontendConnected(owner, false)
+        RendererAdmissionRuntime.setFrontendConnected(owner, false, RendererEvent.DISCONNECTED)
         assertNull(RendererAdmissionRuntime.current()!!.effectiveDark)
     }
 
