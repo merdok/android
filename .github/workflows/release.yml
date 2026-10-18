@@ -336,7 +336,7 @@ jobs:
           cat > release-input/release-body.md <<EOF
           ## Installation
 
-          Install and update ha-paneld through the [Panel Assistant integration](https://github.com/panel-assistant/ha-integration) for Home Assistant: add a panel from Settings, Devices & services, and Panel Assistant installs the right app for it. The files attached to this release are for Panel Assistant to use; they are not meant to be installed by hand.
+          Install and update the panel app through the [Panel Assistant integration](https://github.com/panel-assistant/ha-integration) for Home Assistant: add a panel from Settings, Devices & services, and Panel Assistant installs the right app for it. The files attached to this release are for Panel Assistant to use; they are not meant to be installed by hand.
 
           EOF
           cat "$changelog_body" >> release-input/release-body.md
