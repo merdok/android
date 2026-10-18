@@ -1,6 +1,6 @@
 schema: 2
 id: s9e
-version: 2.0.2
+version: 2.0.3
 display_name: Smatek S9E
 soc_class: rk3566
 soc:
@@ -23,8 +23,8 @@ metadata:
     - S9_Android_1.0.2 firmware image
     - S9_Android_1.1.0 firmware image
   limitations:
-    - Relay and WebView behavior remain unverified on live hardware.
-    - Normal-app su access is inferred from vendor behavior, not confirmed.
+    - Relays, button LEDs and normal-app su access are reported working by an owner on S9_Android_1.1.0; the 1.0.2 st_relay path is unverified on live hardware.
+    - The WebView replacement is unverified on live hardware.
 requires:
   min_core_version: 0.9.5-rc1
   drivers:
@@ -64,7 +64,7 @@ match:
           values:
             - s9
 platform:
-  # Privilege form is inferred from vendor behavior; normal-app access still needs live confirmation.
+  # Normal-app su access is reported working by an owner on S9_Android_1.1.0.
   su_form: android
   app_can_su: true
   has_recents: true
@@ -97,7 +97,7 @@ display: {}
 provisioning:
   software:
     webview:
-      artifact: lineageos-150-arm
+      artifact: lineageos-150-arm64
   display: {}
   packages: []
   recipes: []
