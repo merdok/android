@@ -15,6 +15,8 @@ import org.junit.Test
  * one batched array frame among other messages, the device list is fetched again on every
  * `device_registry_updated`, and a child device takes its manufacturer from its parent in the same list
  * and its area when it has none. What the owner sees is what the frontend holds: names, devices and areas.
+ * A dashboard resource's own `state_changed` subscription (lovelace-header-cards subscribes at module load)
+ * is modelled by `subscribeStateEvents`, which records the entity of every event its callback is handed.
  */
 class DashboardRegistryTrimTest {
 
@@ -69,6 +71,10 @@ class DashboardRegistryTrimTest {
             const subId=nextId++;socket.send(JSON.stringify({type:'subscribe_entities',id:subId}));
             // ws-device_registry: every device_registry_updated refetches the whole device list.
             const subscribeDeviceEvents=()=>{const id=nextId++;events.set(id,()=>deviceRequest());socket.send(JSON.stringify({type:'subscribe_events',event_type:'device_registry_updated',id}))};
+            const seen=[];
+            const subscribeEvents=(eventType,cb)=>{const id=nextId++;events.set(id,cb);socket.send(JSON.stringify({type:'subscribe_events',event_type:eventType,id}));return id};
+            const subscribeStateEvents=()=>subscribeEvents('state_changed',e=>seen.push(e.data&&e.data.entity_id));
+            const stateChanged=(id,entityId)=>JSON.stringify({id,type:'event',event:{event_type:'state_changed',data:{entity_id:entityId,old_state:null,new_state:{entity_id:entityId,state:'on',attributes:{}}}}});
             const lastRequest=type=>socket.wire.map(w=>JSON.parse(w)).filter(m=>m.type===type).pop().id;
             const serve=frame=>socket.serve(typeof frame==='string'?frame:JSON.stringify(frame));
             const result=(id,value)=>({id,type:'result',success:true,result:value});
@@ -286,5 +292,50 @@ class DashboardRegistryTrimTest {
             """.trimIndent(),
         )
         assertEquals("[true]", out)
+    }
+
+    @Test fun aResourcesStateChangedSubscriptionIsHandedOnlyAllowedEntitiesInABatchedFrame() {
+        val out = page(
+            """
+            // The subscription's own result and an event without data stay next to the dropped events.
+            const s=subscribeStateEvents();
+            const noData=JSON.stringify({id:s,type:'event',event:{event_type:'state_changed'}});
+            serve('['+[JSON.stringify(result(s,null)),stateChanged(s,'switch.garage'),stateChanged(s,'light.kitchen'),STATE_EVENT,noData,stateChanged(s,'sensor.loft')].join(',')+']');
+            const frames=JSON.parse(delivered[0]).map(JSON.stringify);
+            console.log(JSON.stringify([seen,frames.length,frames[0]===JSON.stringify(result(s,null)),frames[1]===stateChanged(s,'light.kitchen'),frames[2]===STATE_EVENT,frames[3]===noData]));
+            """.trimIndent(),
+        )
+        assertEquals("""[["light.kitchen",null],4,true,true,true,true]""", out)
+    }
+
+    @Test fun aStateChangedFrameForAnotherEntityReachesNoSubscriberAndTheStreamGoesOn() {
+        val out = page(
+            """
+            const s=subscribeStateEvents();
+            serve(stateChanged(s,'switch.garage'));serve(stateChanged(s,'sensor.hall_temperature'));
+            console.log(JSON.stringify(seen));
+            """.trimIndent(),
+        )
+        assertEquals("""["sensor.hall_temperature"]""", out)
+    }
+
+    @Test fun stateChangedFramesWithNothingToDropArriveUnchanged() {
+        // An allowed entity's event (Home Assistant writes 21.0, which a re-encode would turn into 21), another
+        // event type's subscription naming an entity, an event that does not say state_changed, and a binary
+        // frame all arrive as Home Assistant sent them.
+        val out = page(
+            """
+            const s=subscribeStateEvents(),other=subscribeEvents('call_service',()=>{});
+            const frames=[
+              '[{"id":'+s+',"type":"event","event":{"event_type":"state_changed","data":{"entity_id":"sensor.hall_temperature","new_state":{"state":"21.0","attributes":{"t":21.0}}}}}]',
+              JSON.stringify({id:other,type:'event',event:{event_type:'call_service',data:{entity_id:'switch.garage',note:'state_changed'}}}),
+              JSON.stringify({id:s,type:'event',event:{data:{entity_id:'switch.garage'}}}),
+              new Uint8Array([0x5b,0x5d]).buffer,
+            ];
+            frames.forEach(f=>socket.serve(f));
+            console.log(JSON.stringify(delivered.map((f,i)=>f===frames[i])));
+            """.trimIndent(),
+        )
+        assertEquals("[true,true,true,true]", out)
     }
 }
