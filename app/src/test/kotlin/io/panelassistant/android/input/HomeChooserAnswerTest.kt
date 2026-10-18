@@ -166,7 +166,9 @@ class HomeChooserAnswerTest {
         // Connect, the chooser is shown, an installer makes the dashboard HOME before it is answered.
         val panel = Portal().apply { offered = vendorChooser; claimedAfterShow = true }
         panel.answer.connected()
-        panel.settle()
+        panel.answer.answer() // on connect: shows the chooser
+        assertEquals(vendorChooser, panel.front)
+        panel.answer.answer() // the recheck VERIFY_MS later
         assertEquals(1, panel.homePresses)
         assertEquals(dashboard, panel.home)
         assertEquals(dashboardWindow, panel.front)
