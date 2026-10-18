@@ -400,6 +400,10 @@ object DiagReader {
         }
     }
 
+    /** The last Companion servers read's `sqlite3` failure, if it failed. */
+    internal fun companionDbLine(observation: io.panelassistant.android.control.CompanionDb.ServerObservation?): String? =
+        observation?.failure?.let { "[companion-db] read failed: $it" }
+
     internal fun displaySizingLine(evidence: DisplaySizingEvidence, profile: DeviceProfile): String {
         fun dpi(value: Int?) = value?.toString() ?: "?"
         fun scale(value: Float?) = value?.toString() ?: "none"

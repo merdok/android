@@ -64,6 +64,8 @@ object CompanionDb {
         val probe: Probe,
         val preferredUrl: String?,
         val status: UrlStatus,
+        /** Why `sqlite3` failed (exit code, database path, first stderr line), when it ran and failed. */
+        val failure: String? = null,
     ) {
         val probeSucceeded: Boolean get() = probe == Probe.SUCCEEDED
 
@@ -219,18 +221,32 @@ object CompanionDb {
     }
 
     private fun readServers(pkg: String, root: RootShell): List<ServerRow>? =
-        readServersOutput(pkg, root)?.takeUnless { it.trim() == SQLITE3_ABSENT }?.let(::parseServers)
+        readServersOutput(pkg, root)?.takeUnless { it.trim() == SQLITE3_ABSENT || sqliteFailure(it) != null }
+            ?.let(::parseServers)
 
     // Printed instead of rows when `sqlite3` is not on the root PATH, so a missing tool (exit 127) is not
     // confused with a read that ran and failed (non-zero, runOutput null). `echo` is a shell builtin; the
     // toybox `printf` is not, and must not be what reports a missing binary.
     internal const val SQLITE3_ABSENT = "ha-paneld:sqlite3-absent"
 
-    // Same root read as before, guarded in the same shell. No `exit`: this runs in Su's persistent shell.
+    // Printed instead of rows when `sqlite3` ran and failed, with its exit code, the database and its
+    // stderr, which is what tells a missing database, a hidden data directory and an unreadable schema apart.
+    private const val SQLITE3_FAILED = "ha-paneld:sqlite3-failed"
+    private const val FAILURE_MAX_CHARS = 300
+
+    private fun sqliteFailure(out: String): String? =
+        out.lineSequence().firstOrNull { it.startsWith(SQLITE3_FAILED) }
+            ?.removePrefix(SQLITE3_FAILED)?.trim()?.take(FAILURE_MAX_CHARS)
+
+    // Stdout carries only rows; stderr is captured apart and reported only on failure. No `exit`, and
+    // prefixed variable names: this runs in Su's persistent shell.
     private fun readServersOutput(pkg: String, root: RootShell): String? {
         val db = dbPath(pkg)
         return root.runOutput(
-            """if command -v sqlite3 >/dev/null 2>&1; then sqlite3 "file:$db?immutable=1" "$DUMP_SQL" 2>/dev/null; """ +
+            """if command -v sqlite3 >/dev/null 2>&1; then """ +
+                """{ hapaneld_cdb_err=$(sqlite3 "file:$db?immutable=1" "$DUMP_SQL" 2>&1 1>&3 3>&-); hapaneld_cdb_rc=$?; } 3>&1; """ +
+                """[ "${'$'}hapaneld_cdb_rc" -eq 0 ] || echo "$SQLITE3_FAILED rc=${'$'}hapaneld_cdb_rc db=$db: ${'$'}hapaneld_cdb_err"; """ +
+                """unset hapaneld_cdb_err hapaneld_cdb_rc; """ +
                 """else echo $SQLITE3_ABSENT; fi""",
         )
     }
@@ -247,8 +263,12 @@ object CompanionDb {
             }
             return ServerObservation.TOOL_ABSENT
         }
-        if (out == null) Log.w(TAG, "Companion servers table read failed")
-        return observeServers(out?.let(::parseServers))
+        val failure = out?.let(::sqliteFailure)
+        if (out == null || failure != null) {
+            Log.w(TAG, "Companion servers table read failed" + (failure?.let { ": $it" } ?: ""))
+            return ServerObservation.UNKNOWN.copy(failure = failure)
+        }
+        return observeServers(parseServers(out))
     }
 
     internal fun observeServers(rows: List<ServerRow>?): ServerObservation {
@@ -272,7 +292,7 @@ object CompanionDb {
     ): ServerObservation = when {
         observed.probeSucceeded -> observed
         previous == null -> observed
-        else -> previous.copy(probe = observed.probe)
+        else -> previous.copy(probe = observed.probe, failure = observed.failure)
     }
 
     /**

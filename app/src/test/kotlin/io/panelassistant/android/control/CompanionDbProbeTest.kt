@@ -2,6 +2,7 @@ package io.panelassistant.android.control
 
 import io.panelassistant.android.testsupport.scratchDirectory
 
+import io.panelassistant.android.http.DiagReader
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.util.CompanionInstaller
 import org.junit.After
@@ -57,13 +58,25 @@ class CompanionDbProbeTest {
         assertFalse(observed.status.needsRepair)
     }
 
-    @Test fun failedReadStillRaisesTheProbeBanner() {
-        sqlite3("exit 1")
+    /** A failed read keeps what sqlite3 said, so the diagnostics can tell a missing database, a hidden
+     *  data directory and an unreadable schema apart; the banner is unchanged. */
+    @Test fun failedReadRaisesTheProbeBannerAndReportsWhy() {
+        sqlite3("echo 'Error: in prepare, no such table: servers' >&2\nexit 1")
 
         val observed = CompanionDb.observeServers(pkg, shell)
 
-        assertEquals(CompanionDb.ServerObservation.UNKNOWN, observed)
+        assertEquals(CompanionDb.Probe.FAILED, observed.probe)
+        assertNull("stderr never becomes a row", observed.preferredUrl)
         assertEquals(CompanionDb.Warning.ProbeFailed, CompanionDb.warning(pkg, observed, directSuReady = true))
+        val expected = listOf(
+            "rc=1",
+            "/data/data/io.homeassistant.companion.android.minimal/databases/HomeAssistantDB",
+            "Error: in prepare, no such table: servers",
+        )
+        val failure = observed.failure.orEmpty()
+        val line = DiagReader.companionDbLine(observed).orEmpty()
+        assertTrue("the failure says why: $failure", expected.all { it in failure })
+        assertTrue("the diagnostics line says why: $line", expected.all { it in line })
     }
 
     @Test fun successfulReadReportsRowsAndNoProbeBanner() {
