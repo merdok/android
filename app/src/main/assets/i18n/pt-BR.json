@@ -524,7 +524,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.value.lease_expired": {
-      "text": "Concessão expirada",
+      "text": "Prazo expirado",
       "sourceHash": "5cb259acb0d490eee8a52312868848492ced856e24a4d26b07f238aed5d5d9a4",
       "state": "machine-cross-checked"
     },
@@ -2224,12 +2224,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.actions.hardened_approval": {
-      "text": "O modo Hardened exige aprovação física neste painel; a aprovação remota não é possível.",
+      "text": "O modo Reforçado exige aprovação física neste painel; a aprovação remota não é possível.",
       "sourceHash": "7cebbbb063c4ee4afd81e5f244967f8c1c8d281e01b51785e00b8e97f7618d4e",
       "state": "machine-cross-checked"
     },
     "dashboard.actions.remote_input_disabled": {
-      "text": "A entrada por toque remoto está desabilitada para clientes de rede no modo Hardened.",
+      "text": "A entrada por toque remoto está desabilitada para clientes de rede no modo Reforçado.",
       "sourceHash": "3aaa115bb156e96c5f3b2f9a1daa5d19806a92e5f1a47f6cd80066b36cc9e209",
       "state": "machine-cross-checked"
     },
@@ -2239,7 +2239,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.explanation": {
-      "text": "as configurações de login salvas foram rejeitadas, então o dashboard parou de tentar (ele mostra instruções de correção no painel). Use o login pelo navegador em",
+      "text": "as configurações de login salvas foram rejeitadas, então o dashboard parou de tentar (ele mostra instruções de correção no painel). Use a opção Entrar pelo navegador em",
       "sourceHash": "e414f00aea1c8c8d9ac8a59a1fa6902c8fca809a1ad9990d1bed61898c4d8e96",
       "state": "machine-cross-checked"
     },
@@ -2344,7 +2344,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.proximity_learning.title": {
-      "text": "Despertar ao acenar indisponível",
+      "text": "Despertar por aceno indisponível",
       "sourceHash": "13fee9fb24fd087f47f147bc51dec39d5c598dd73006d3c8417b837a5128ca7f",
       "state": "machine-cross-checked"
     },
@@ -3304,7 +3304,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.controls.dashboard": {
-      "text": "Painel de controle",
+      "text": "Abrir dashboard",
       "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
       "state": "machine-cross-checked"
     },
@@ -3314,7 +3314,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.controls.launcher": {
-      "text": "Tela inicial",
+      "text": "Iniciador",
       "sourceHash": "22614ace1aef7766b6d6a7e29da0f3da734999bd0b87dc07f54d5b14c23f3748",
       "state": "machine-cross-checked"
     },
@@ -6249,7 +6249,7 @@
       "state": "machine-cross-checked"
     },
     "install.backup.dynamic.import_summary": {
-      "text": "Importação {status} · aplicadas {applied}, ignoradas {skipped}",
+      "text": "Importação: {status} · aplicadas {applied}, ignoradas {skipped}",
       "sourceHash": "8874d556b53bc527d77eb5b2d74f22038b2907ebf044efa961a5e96428a10190",
       "state": "machine-cross-checked"
     },
@@ -7119,7 +7119,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.status_power_caution": {
-      "text": "⚠ Segurança de energia do painel: atenção — a acessibilidade do painel depende atualmente de uma única proteção de energia observada.",
+      "text": "⚠ Segurança de energia do painel: atenção — o acesso ao painel depende atualmente de uma única proteção de energia observada.",
       "sourceHash": "273989e72a98d72372d95ba1d2feaf622938b7d790190778fe97601d39eb31f2",
       "state": "machine-cross-checked"
     },
@@ -9679,7 +9679,7 @@
       "state": "machine-cross-checked"
     },
     "profiles.status.editing_fork": {
-      "text": "Editando uma cópia local autossuficiente. A revisão empacotada não mudará.",
+      "text": "Editando uma cópia local autossuficiente. A revisão incluída no app não mudará.",
       "sourceHash": "93181d80b2c7ba8be6d49f80d3bd6714e274805c789481b92f47488c198eb826",
       "state": "machine-cross-checked"
     },
@@ -10134,7 +10134,7 @@
       "state": "machine-cross-checked"
     },
     "settings.auto_sleep_source.help": {
-      "text": "Use o sensor de proximidade calibrado do painel, dispositivos da área do Home Assistant ou inatividade por toque.\n\n- Os modos de presença pausam se a fonte estiver indisponível.\n- A inatividade por toque dispensa a configuração de presença.",
+      "text": "Use o sensor de proximidade calibrado do painel, dispositivos da Área do Home Assistant ou inatividade por toque.\n\n- Os modos de presença pausam se a fonte estiver indisponível.\n- A inatividade por toque dispensa a configuração de presença.",
       "sourceHash": "b6ae4c9d0c2cbf29bbffafdd847901cea10c18e91e16d77c7716ae108fb0284d",
       "state": "machine-cross-checked"
     },
@@ -10799,7 +10799,7 @@
       "state": "machine-cross-checked"
     },
     "settings.network_address_family.label": {
-      "text": "Família de endereços Home Assistant WebSocket",
+      "text": "Família de endereços do WebSocket do Home Assistant",
       "sourceHash": "f97bb46f422f8778630da01f9363dde4bf1455af861d866b28d87e329a4bdd98",
       "state": "machine-cross-checked"
     },
@@ -10984,7 +10984,7 @@
       "state": "machine-cross-checked"
     },
     "settings.ui_language.help": {
-      "text": "Idioma usado pela interface do Panel Assistant.\n\n**Automático** prioriza uma substituição explícita na página. Rótulos e ajuda da configuração podem então seguir o idioma do usuário conectado ao Home Assistant; navegador, dispositivo e inglês são as demais alternativas.",
+      "text": "Idioma usado pela interface do Panel Assistant.\n\n**Automático** prioriza uma substituição explícita na página. Os rótulos e a ajuda das configurações em Configurar podem então seguir o idioma do usuário conectado ao Home Assistant; navegador, dispositivo e inglês são as demais alternativas.",
       "sourceHash": "e0bdd025cead6749d2c8c925f5edf94a92459654d3b6432f25da08a1d6cd8722",
       "state": "machine-cross-checked"
     },

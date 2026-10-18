@@ -67,9 +67,9 @@
     <string name="panel_not_set_up">此面板尚未设置。</string>
     <string name="panel_not_set_up_hint">用手机扫描二维码——大约需要两分钟。也可以点按%1$s，在此屏幕上进行设置。</string>
     <string name="browser_engine_too_old">此面板的浏览器引擎版本过旧。</string>
-    <string name="browser_engine_too_old_hint">Home Assistant 仪表盘需要更新的版本。请在浏览器中打开面板设置页面进行修复。</string>
+    <string name="browser_engine_too_old_hint">Home Assistant 仪表盘需要更新的版本。请在浏览器中打开面板的初始设置页面进行修复。</string>
     <string name="choose_dashboard_app">选择仪表盘应用。</string>
-    <string name="continue_setup_browser">请在浏览器的设置页面中继续。</string>
+    <string name="continue_setup_browser">请在浏览器的初始设置页面中继续。</string>
     <string name="connected_next_ha_address">已连接。下一步：Home Assistant 地址。</string>
     <string name="choose_home_dashboard">为此面板选择主仪表盘。</string>
     <string name="almost_there_sign_in">即将完成——只需再登录一次。</string>

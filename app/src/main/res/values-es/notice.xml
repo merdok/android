@@ -9,7 +9,7 @@
     <string name="notice_pill_setup">Configuración</string>
     <string name="notice_pill_not_set_up">Sin configurar</string>
     <string name="notice_hero_version_check">Control de versión</string>
-    <string name="notice_hero_finding_dashboards">Buscando paneles</string>
+    <string name="notice_hero_finding_dashboards">Buscando paneles de control</string>
     <string name="notice_hero_upgrade_ha">Actualizar HA</string>
     <string name="notice_hero_ancient_webview">Webview vetusto</string>
     <string name="notice_hero_filter_failed">Filtro fallido</string>

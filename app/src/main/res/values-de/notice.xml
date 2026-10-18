@@ -16,12 +16,12 @@
     <string name="notice_hero_filter_refused">Filter abgelehnt</string>
     <string name="notice_hero_reading">Lesen</string>
     <string name="notice_hero_almost_there">Fast fertig</string>
-    <string name="notice_line_ha_compatibility">Home-Assistant-Kompatibilität</string>
-    <string name="notice_line_ha_dashboard">das Home-Assistant-Dashboard</string>
+    <string name="notice_line_ha_compatibility">Home Assistant-Kompatibilität</string>
+    <string name="notice_line_ha_dashboard">das Home Assistant-Dashboard</string>
     <string name="notice_line_reading_entities">Deine Entitäten werden gelesen</string>
     <string name="notice_line_building_filter">Gefilterte Menge wird erstellt</string>
     <string name="notice_line_entities_need_decision">Entitäten brauchen eine Entscheidung, bevor sich das Dashboard öffnet</string>
-    <string name="notice_line_sign_in_needed">Nichts kann laden, bis das Panel eine Home-Assistant-Anmeldung hat.</string>
+    <string name="notice_line_sign_in_needed">Nichts kann laden, bis das Panel eine Home Assistant-Anmeldung hat.</string>
     <string name="notice_line_sign_in_stopped">Die gespeicherte Anmeldung funktioniert nicht mehr.</string>
     <string name="notice_line_setup_question">In Panel Assistant wartet eine Einrichtungsfrage.</string>
     <string name="notice_attention_explanation">Mit Home Assistant ist alles in Ordnung. Das Panel braucht eine Antwort zu Sicherheitsprüfungen, die beim Lesen deiner Entitäten gefunden wurden, bevor es das Dashboard öffnen kann.</string>

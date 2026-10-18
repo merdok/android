@@ -404,7 +404,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.source_ha": {
-      "text": "Appareils de la zone Home Assistant",
+      "text": "Appareils de la pièce Home Assistant",
       "sourceHash": "16b74be3e8e11ec69dd90f2975d97e8028a6a43cf1bf0381c1b3291c974b8c01",
       "state": "machine-cross-checked"
     },
@@ -934,7 +934,7 @@
       "state": "machine-cross-checked"
     },
     "configure.empty": {
-      "text": "Aucun réglage dans cette vue.",
+      "text": "Aucun paramètre dans cette vue.",
       "sourceHash": "98d6ce0ae7ddc3af8406b87feaba58535a5f45b9a47286fa83adcc6db2df7808",
       "state": "machine-cross-checked"
     },
@@ -1184,7 +1184,7 @@
       "state": "machine-cross-checked"
     },
     "configure.hardened.setting_approval": {
-      "text": "La modification de ce réglage peut nécessiter une approbation physique sur le panneau lorsque le mode renforcé est activé.",
+      "text": "La modification de ce paramètre peut nécessiter une approbation physique sur le panneau lorsque le mode renforcé est activé.",
       "sourceHash": "945c00063ff9caeec6ab547988a7285b401de138fdd0090be0531f103d74f5f9",
       "state": "machine-cross-checked"
     },
@@ -1209,7 +1209,7 @@
       "state": "machine-cross-checked"
     },
     "configure.load_failed": {
-      "text": "Impossible de charger les réglages ({error}).",
+      "text": "Impossible de charger les paramètres ({error}).",
       "sourceHash": "c2f0b0f12e2b21748d5a23f46604652f1dce8c71799052d73de2533abfa63f81",
       "state": "machine-cross-checked"
     },
@@ -1384,12 +1384,12 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.confirm.forget": {
-      "text": "Éloignez-vous du panneau, puis confirmez la suppression de l’historique de proximité appris pour ce capteur. Le toucher pour réveiller reste disponible pendant le réapprentissage.",
+      "text": "Éloignez-vous du panneau, puis confirmez la suppression de l’historique de proximité appris pour ce capteur. Le réveil par toucher reste disponible pendant le réapprentissage.",
       "sourceHash": "e4ed73da8434174e02d6aa4413c24c088aad8fc6b39f214146bc5f74813288e5",
       "state": "machine-cross-checked"
     },
     "configure.proximity.detail.local": {
-      "text": "L’apprentissage s’effectue localement. Le toucher pour réveiller reste disponible pendant l’apprentissage.",
+      "text": "L’apprentissage s’effectue localement. Le réveil par toucher reste disponible pendant l’apprentissage.",
       "sourceHash": "ff3e4e04eb0ec954515fa15931aa7054f7e9b9506c9319cb3cf03544822ac207",
       "state": "machine-cross-checked"
     },
@@ -1594,7 +1594,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.no_source.detail": {
-      "text": "Le réveil par geste est indisponible ; le toucher pour réveiller reste inchangé.",
+      "text": "Le réveil par geste est indisponible ; le réveil par toucher reste inchangé.",
       "sourceHash": "99d78923cc8f2ddc3779dc461178e7979607ef37b34afe5d1e18e3d27166e4c0",
       "state": "machine-cross-checked"
     },
@@ -1674,7 +1674,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.setup.no_source": {
-      "text": "Le réveil en agitant la main est indisponible. Le réveil au toucher reste disponible.",
+      "text": "Le réveil par geste est indisponible. Le réveil par toucher reste disponible.",
       "sourceHash": "3289aebbf56f13839cce39ea69f9f957ef682f9a52b1b92d1b2513ad36a74748",
       "state": "machine-cross-checked"
     },
@@ -1884,7 +1884,7 @@
       "state": "machine-cross-checked"
     },
     "configure.save.hardware_unavailable": {
-      "text": "Enregistré. Ce panneau ne peut pas encore appliquer ce réglage ; il sera appliqué dès que ce sera possible.",
+      "text": "Enregistré. Ce panneau ne peut pas encore appliquer ce paramètre ; il sera appliqué dès que ce sera possible.",
       "sourceHash": "67b5afeafe3ae46c4d5fe55a308ba88d39ff45f61c663e5fae47d17317334f3b",
       "state": "machine-cross-checked"
     },
@@ -1899,7 +1899,7 @@
       "state": "machine-cross-checked"
     },
     "configure.setup.explanation": {
-      "text": "vous guide étape par étape. Cette page affiche tous les réglages à la fois.",
+      "text": "vous guide étape par étape. Cette page affiche tous les paramètres à la fois.",
       "sourceHash": "06f97d616bdc1eb895f8ae22cd297c486eda4a15e5915f73eb92c9d73a71187b",
       "state": "machine-cross-checked"
     },
@@ -1949,7 +1949,7 @@
       "state": "machine-cross-checked"
     },
     "configure.status.loading": {
-      "text": "Chargement des réglages…",
+      "text": "Chargement des paramètres…",
       "sourceHash": "e71a13459ccdcc885ea1f141d67fe1a6a6fd78e70d584abdf05324561b2b4309",
       "state": "machine-cross-checked"
     },
@@ -2334,7 +2334,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.proximity_learning.touch_available": {
-      "text": "Le réveil tactile reste disponible.",
+      "text": "Le réveil par toucher reste disponible.",
       "sourceHash": "903915dd8ee56238ac39ddd50edf407ff66796e29173afbeb3da700f6838c234",
       "state": "machine-cross-checked"
     },
@@ -2344,7 +2344,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.banner.schema_rollback.explanation": {
-      "text": "cette version a créé un nouvel espace d’état car son schéma est plus ancien ; certains réglages ont pu être réinitialisés. La base de données précédente est conservée sur le panneau pour permettre sa récupération.",
+      "text": "cette version a créé un nouvel espace d’état car son schéma est plus ancien ; certains paramètres ont pu être réinitialisés. La base de données précédente est conservée sur le panneau pour permettre sa récupération.",
       "sourceHash": "046030ae07aa906959b9ee562f63453ce1906dfa2607da9e06d030d1dfa5fb94",
       "state": "machine-cross-checked"
     },
@@ -2429,7 +2429,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.action.enable": {
-      "text": "activez le réglage de la caméra pour fournir des instantanés et un flux",
+      "text": "activez le paramètre de la caméra pour fournir des instantanés et un flux",
       "sourceHash": "b5ba02397f9882f0957226dffeb565fed6081c3851f010523f56a31b0c5608f0",
       "state": "machine-cross-checked"
     },
@@ -2754,7 +2754,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.session.stopping": {
-      "text": "arrêt…",
+      "text": "arrêt en cours",
       "sourceHash": "9ea90488b5c8219acc0b2eb36f115242abdbc865d061c24f2c8dfc0c9b57efab",
       "state": "machine-cross-checked"
     },
@@ -2879,7 +2879,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.capability.note.backlight_off_vendor": {
-      "text": "extinction réelle du rétroéclairage via le RPC local du fabricant ; mise en veille de l'écran d'Android si le fabricant ne répond pas",
+      "text": "extinction réelle du rétroéclairage via le RPC local du fabricant ; délai d’extinction de l’écran d’Android si le fabricant ne répond pas",
       "sourceHash": "434633258d878806e8247af65c5f621380c9ddbd29de7c4d265699aea3287aee",
       "state": "machine-cross-checked"
     },
@@ -3284,7 +3284,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.controls.checking_capabilities": {
-      "text": "vérification des capacités…",
+      "text": "vérification des fonctionnalités…",
       "sourceHash": "b50b00a247ff6e21fbb9456e1e8fbe6aa835b0bfda6fc865b0f514f62d236189",
       "state": "machine-cross-checked"
     },
@@ -3334,7 +3334,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.diagnostics_dump.explanation": {
-      "text": "un rapport à copier-coller regroupant le matériel, le firmware, SELinux, su et les sondes de nœud de ce panneau pour les rapports de bugs.",
+      "text": "un rapport à copier-coller regroupant le matériel, le micrologiciel, SELinux, su et les sondes de nœud de ce panneau pour les rapports de bugs.",
       "sourceHash": "d6301b1bff4840ec7fc5c53bd52cff5bcbd29b94cae72db0d4500e9e96639efc",
       "state": "machine-cross-checked"
     },
@@ -4439,7 +4439,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.sensors.no_reading": {
-      "text": "aucune mesure",
+      "text": "aucune mesure pour l’instant",
       "sourceHash": "fb743d5508a7e6c20756b229d69a3453eb8fd3c53539bb504cb4e1f60949b09c",
       "state": "machine-cross-checked"
     },
@@ -5084,7 +5084,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.diagnostic-limit.summary": {
-      "text": "Le tableau de bord comporte trop de vérifications de sécurité pour être examiné",
+      "text": "Le tableau de bord comporte plus de vérifications de sécurité qu’il n’est possible d’en examiner",
       "sourceHash": "9389720c884f9e7cc15417daa3c982e8083f3ad18bd02b8fb89d06a19fb198dd",
       "state": "machine-cross-checked"
     },
@@ -5334,7 +5334,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issues.title": {
-      "text": "Compatibilité de la découverte",
+      "text": "Compatibilité de la découverte d’entités",
       "sourceHash": "eb4e09bf32f157bcec74907fe18323558be077e4b7c7c0ac3a6f3697f2a46abb",
       "state": "machine-cross-checked"
     },
@@ -5379,7 +5379,7 @@
       "state": "machine-cross-checked"
     },
     "entities.policy.runtime": {
-      "text": "Ajouter les entités manquantes auxquelles hass.states accède",
+      "text": "Ajouter les entités manquantes consultées via hass.states",
       "sourceHash": "6451de60e846286045878311b2bdaedeb2d3cc35eaa12e47daa449d547f2f383",
       "state": "machine-cross-checked"
     },
@@ -5664,7 +5664,7 @@
       "state": "machine-cross-checked"
     },
     "entities.status.strategy_allowed": {
-      "text": "Tableau de bord de la stratégie : les entités hors abonnement n’ont pas de cartes",
+      "text": "Tableau de bord généré par une stratégie : les entités hors abonnement n’ont pas de cartes",
       "sourceHash": "7dd9184b9ea1dd56153da981907ac50a2a063e2cec62c51674c3a25fd465a1f4",
       "state": "machine-cross-checked"
     },
@@ -5769,7 +5769,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.review.note": {
-      "text": "Entités du flux actuel absentes de Home Assistant, recevant des mises à jour sans avoir été observées comme dépendances du tableau de bord ou épinglées manuellement sans être utilisées par ce tableau de bord. À examiner uniquement ; un épinglage ou une exclusion manuels ne sont jamais supprimés automatiquement — annulez l’épinglage ici lorsque vous souhaitez supprimer l’entité.",
+      "text": "Entités du flux actuel qui sont absentes de Home Assistant, qui reçoivent des mises à jour sans avoir été observées comme dépendances du tableau de bord, ou qui ont été épinglées manuellement sans être utilisées par ce tableau de bord. À examiner uniquement ; un épinglage ou une exclusion manuels ne sont jamais supprimés automatiquement — annulez l’épinglage ici lorsque vous souhaitez retirer l’entité.",
       "sourceHash": "96035cee159d53cfff753798302c0d73e6ff3552be2aca08d4003359264efbbe",
       "state": "machine-cross-checked"
     },
@@ -5799,7 +5799,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.suggested.title": {
-      "text": "Suggestions du tableau de bord",
+      "text": "Entités suggérées du tableau de bord",
       "sourceHash": "116d030af30a47c77e4b40b6783fbab3837e71cf38b5c7b3d5408ac7f9cd3831",
       "state": "machine-cross-checked"
     },
@@ -5809,9 +5809,9 @@
       "text": "Choisir un APK…"
     },
     "install.apk.description": {
+      "text": "Installez une application (par exemple un moteur de rendu de tableau de bord) depuis un fichier sur votre appareil ou un lien https:// que le panneau téléchargera lui-même. Dans les deux cas, vous verrez son paquet, sa version et son signataire avant l’installation.",
       "sourceHash": "75dc85bc1ebe01d6dd6a1e7bd4ebefb3b58bbc75b27d134a7d1590f6a9a41055",
-      "state": "machine-cross-checked",
-      "text": "Installez une application (par exemple un moteur d’affichage de tableau de bord) depuis un fichier sur votre appareil ou un lien https:// que le panneau téléchargera lui-même. Dans les deux cas, vous verrez son paquet, sa version et son signataire avant l’installation."
+      "state": "machine-cross-checked"
     },
     "install.apk.dynamic.cancel": {
       "text": "Annuler",
@@ -6224,12 +6224,12 @@
       "state": "machine-cross-checked"
     },
     "install.backup.dynamic.import_changed": {
-      "text": "Importation non appliquée : les réglages du panneau ont changé depuis l’aperçu. Prévisualisez de nouveau le fichier.",
+      "text": "Importation non appliquée : les paramètres du panneau ont changé depuis l’aperçu. Prévisualisez de nouveau le fichier.",
       "sourceHash": "32278e4a67374659ec954df5b64136502a99a4b380bc0af724744f9233f11b1b",
       "state": "machine-cross-checked"
     },
     "install.backup.dynamic.import_reloading": {
-      "text": "Rechargement pour afficher les réglages importés…",
+      "text": "Rechargement pour afficher les paramètres importés…",
       "sourceHash": "46da33cca444867c597c3c3aca9966107a8c42fd187e8a5ddf9468ddc948a66f",
       "state": "machine-cross-checked"
     },
@@ -6644,12 +6644,12 @@
       "state": "machine-cross-checked"
     },
     "install.import.changed.one": {
-      "text": "L’importation modifiera {count} réglage :",
+      "text": "L’importation modifiera {count} paramètre :",
       "sourceHash": "526f8b685ef0423fe8d4ab2fad93c35d538506d2f1ae8ff3f868e9a46d6dc433",
       "state": "machine-cross-checked"
     },
     "install.import.changed.other": {
-      "text": "L’importation modifiera {count} réglages :",
+      "text": "L’importation modifiera {count} paramètres :",
       "sourceHash": "f64d6122a6863eeb7e92750b10ec10aa95bbd839ce976fe59ee4ec41fec7aca7",
       "state": "machine-cross-checked"
     },
@@ -7434,7 +7434,7 @@
       "state": "machine-cross-checked"
     },
     "install.status.companion_url_missing.one": {
-      "text": "⚠ Home Assistant Companion n’a pas d’URL interne pour {count} serveur — le tableau de bord peut échouer avec « Missing 'Host' header ». Réparez-la dans l’onglet Installer.",
+      "text": "⚠ Home Assistant Companion n’a pas d’URL interne pour {count} serveur — le tableau de bord peut échouer avec « Missing 'Host' header ». Corrigez-la dans l’onglet Installer.",
       "sourceHash": "6ec34cbc2c652fbcf870b2d71fb669d7d4ae9e8d53a769d7d775816ce539c94b",
       "state": "machine-cross-checked"
     },
@@ -7644,9 +7644,9 @@
       "text": "Désinstaller"
     },
     "install.uninstall.description_prefix": {
+      "text": "Supprimez une application installée. Seules les applications désinstallables (tierces ou mises à jour) sont répertoriées ; Panel Assistant et les applications système d’origine sont exclues. Pour simplement masquer une application fournisseur,",
       "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
-      "state": "machine-cross-checked",
-      "text": "Supprimez une application installée. Seules les applications amovibles (tierces ou mises à jour) sont répertoriées ; Panel Assistant et les applications système d’origine sont exclues. Pour simplement masquer une application fournisseur,"
+      "state": "machine-cross-checked"
     },
     "install.uninstall.description_suffix": {
       "sourceHash": "1462a8fa2c5b0daa167e77a39e18f19c323d99aab25200867a59af48ea5b344b",
@@ -9819,7 +9819,7 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.action.acknowledged": {
-      "text": "Cet avertissement inchangé est reconnu dans les pages web du panneau ; l’API, les diagnostics et les contrôles du programme d’installation continuent de le signaler.",
+      "text": "Cet avertissement inchangé est acquitté dans les pages web du panneau ; l’API, les diagnostics et les contrôles du programme d’installation continuent de le signaler.",
       "sourceHash": "4f5c25820fd583ab50f8057662be99abef99e2a3ed6af5e21cc96a817e31316f",
       "state": "machine-cross-checked"
     },

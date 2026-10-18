@@ -839,69 +839,69 @@
       "state": "machine-cross-checked"
     },
     "configure.dashboard.auto_account_default": {
+      "text": "自动 — 跟随此账号的默认仪表盘",
       "sourceHash": "b049c63a3b2b17956fa93993993be49fef42b7b5be21a0272ee5fa4c2a8f1eef",
-      "state": "machine-cross-checked",
-      "text": "自动 — 跟随此账号的默认仪表板"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.auto_list_unavailable": {
+      "text": "自动 — 仪表盘列表不可用",
       "sourceHash": "b8950035556b06dd31f443be97d7c771e32d031b44fbfe548e3cd54c4f668efc",
-      "state": "machine-cross-checked",
-      "text": "自动 — 仪表板列表不可用"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.auto_no_default": {
+      "text": "自动 — 此账号未设置默认仪表盘",
       "sourceHash": "7b82f22b1413e07c8671b4d4a7b847856157697f2b735396d3b9af343799326c",
-      "state": "machine-cross-checked",
-      "text": "自动 — 此账号未设置默认仪表板"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.custom": {
+      "text": "自定义 — 输入仪表盘路径…",
       "sourceHash": "354213584eda4f955950c5954d8ffd233f23e57b87147153f0c369d21d2390f4",
-      "state": "machine-cross-checked",
-      "text": "自定义 — 输入仪表板路径…"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.fetch_failed": {
+      "text": "暂时无法从 Home Assistant 获取此账号的仪表盘列表。请在连接恢复后重试。",
       "sourceHash": "34f5a5ab707babb51ca05d6f7504708ce34846cfe9f4ec3c45ba2d2c27c7238c",
-      "state": "machine-cross-checked",
-      "text": "暂时无法从 Home Assistant 获取此账号的仪表板列表。请在连接恢复后重试。"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.group_ha": {
+      "text": "Home Assistant 仪表盘",
       "sourceHash": "3fc2a7583aa9e04b174dc19dc792089a3bd00e4e1d1081077f2a2904f566462b",
-      "state": "machine-cross-checked",
-      "text": "Home Assistant 仪表板"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.group_yours": {
+      "text": "您的仪表盘",
       "sourceHash": "1eae7261ac3538d5d912509465916c3a33d7fad19970a0ce27d53c37ba115203",
-      "state": "machine-cross-checked",
-      "text": "你的仪表板"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.no_default": {
+      "text": "此账号未设置默认仪表盘 — 请选择此面板要显示的仪表盘。",
       "sourceHash": "d491bed061c60e1745eb3212c40ff7fd554851354c2d8b4d9c8a31b873f65ec8",
-      "state": "machine-cross-checked",
-      "text": "此账号未设置默认仪表板 — 请选择此面板要显示的仪表板。"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.none_accessible": {
+      "text": "此账号无法访问任何仪表盘。请在 Home Assistant 中创建仪表盘或授予访问权限。",
       "sourceHash": "85c12503ff1cc21593b8d6167b5fb834ecf6e1196c0f1d1df74c9397104a7f20",
-      "state": "machine-cross-checked",
-      "text": "此账号无法访问任何仪表板。请在 Home Assistant 中创建仪表板或授予访问权限。"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_help": {
+      "text": "此 Home Assistant 上的路径，应以以上列表中的某个仪表盘开头。",
       "sourceHash": "70983ce0dd46a73e6a903ce96411af18990bab0dfa39e1878a9ae81e91c07689",
-      "state": "machine-cross-checked",
-      "text": "此 Home Assistant 上的路径，应以以上列表中的某个仪表板开头。"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_invalid": {
+      "text": "请输入仪表盘路径，例如 /dashboard-name/tab-name。",
       "sourceHash": "44e97a76f2ba646917a08ea5e9b8ea2a25029bb30b73d0d9094d201f49d8afdc",
-      "state": "machine-cross-checked",
-      "text": "请输入仪表板路径，例如 /dashboard-name/tab-name。"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_label": {
+      "text": "仪表盘路径",
       "sourceHash": "08e0f39c31b74ee65647b268f819ae96f3669dc62daa2345760e91b396585937",
-      "state": "machine-cross-checked",
-      "text": "仪表板路径"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_not_visible": {
+      "text": "此面板的 Home Assistant 账号看不到 {path} 对应的仪表盘 — 在该仪表盘存在之前，面板将回退到默认仪表盘。",
       "sourceHash": "7464a115e40c5a97c3999bdc9f2dbf984f4298a406b10766470f28e15667bcae",
-      "state": "machine-cross-checked",
-      "text": "此面板的 Home Assistant 账号看不到 {path} 对应的仪表板 — 在该仪表板存在之前，面板将回退到默认仪表板。"
+      "state": "machine-cross-checked"
     },
     "configure.descriptions": {
       "text": "说明",
@@ -1299,7 +1299,7 @@
       "text": "打开登录页面"
     },
     "configure.oauth.panel_reachability": {
-      "text": "要完成登录，此浏览器必须能访问面板的地址。如果无法访问，请从面板所在网络打开“配置”，或直接在面板上登录。",
+      "text": "要完成登录，此浏览器必须能访问面板的地址。如果无法访问，请从面板所在网络打开“设置”，或直接在面板上登录。",
       "sourceHash": "f7ee3e4333f5fae799f75a5610c7c5841932d0a5a5b3bd32f19183136611ce89",
       "state": "machine-cross-checked"
     },
@@ -1819,7 +1819,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.status.waiting_one": {
-      "text": "正在等待挥手…",
+      "text": "正在等待一次挥手…",
       "sourceHash": "0f6151ff6e1a70b753564d84e87d83a3cc92ca37344925348e302b01d60d5f8b",
       "state": "machine-cross-checked"
     },
@@ -1849,9 +1849,9 @@
       "text": "清除渲染器存储"
     },
     "configure.renderer.clear_storage_help": {
+      "text": "清除缓存的仪表盘数据，但保留登录信息。",
       "sourceHash": "de5965dc388b46e57b80e0069a3ab9883397d841ca82c47787e9107978378b3b",
-      "state": "machine-cross-checked",
-      "text": "清除缓存的仪表板数据，但保留登录信息。"
+      "state": "machine-cross-checked"
     },
     "configure.renderer.clearing": {
       "sourceHash": "9a81378b00d70e669413ed91a709d5b23dd10a3f2d38cb15243bdc97dccb2ac6",
@@ -1869,9 +1869,9 @@
       "text": "{package} · 已配置外部渲染器"
     },
     "configure.renderer.pending": {
+      "text": "已保存；仪表盘上尚未显示。",
       "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
-      "state": "machine-cross-checked",
-      "text": "已保存；仪表板上尚未显示。"
+      "state": "machine-cross-checked"
     },
     "configure.renderer.storage": {
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
@@ -2224,14 +2224,14 @@
       "text": "设置 → Home Assistant 连接"
     },
     "dashboard.banner.auth_rejected.explanation": {
+      "text": "已保存的登录设置被拒绝，因此仪表盘已停止重试（面板上会显示修复说明）。如需使用浏览器登录，请打开",
       "sourceHash": "e414f00aea1c8c8d9ac8a59a1fa6902c8fca809a1ad9990d1bed61898c4d8e96",
-      "state": "machine-cross-checked",
-      "text": "已保存的登录设置被拒绝，因此仪表板已停止重试（面板上会显示修复说明）。如需使用浏览器登录，请打开"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.reload_suffix": {
+      "text": "凭据更改后，仪表盘会自动重载。",
       "sourceHash": "ac2f4f87a33bda1c9d97387ce8d5ba0f27926025bd37ca5ce0a7d396fc5008c0",
-      "state": "machine-cross-checked",
-      "text": "凭据更改后，仪表板会自动重载。"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.title": {
       "sourceHash": "9fb8291c15b7f5ed04e8c99d9c63419c732ec377adf5f7bdad4ea59f85170b78",
@@ -2264,14 +2264,14 @@
       "text": "修复内部网址"
     },
     "dashboard.banner.companion_url.summary_many": {
+      "text": "（{count} 台服务器）— 仪表盘可能会加载失败并显示",
       "sourceHash": "aa53e84cf786b06f13cee6812a280e46bae647fd0290b0849b9a20237e899afe",
-      "state": "machine-cross-checked",
-      "text": "（{count} 台服务器）— 仪表板可能会加载失败并显示"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.summary_one": {
+      "text": "（{count} 台服务器）— 仪表盘可能会加载失败并显示",
       "sourceHash": "56203c170dac72c1625b265579265ec88a750300873d2accad41690efe1e0a0f",
-      "state": "machine-cross-checked",
-      "text": "（{count} 台服务器）— 仪表板可能会加载失败并显示"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.title": {
       "sourceHash": "c919755118a3442bc3fed461d142cd7e575a4289d3a5c9f8a044e7a679044c86",
@@ -2899,19 +2899,19 @@
       "text": "已启用无障碍按键捕获"
     },
     "dashboard.capability.note.buttons_accessibility_not_verified": {
+      "text": "无障碍按键捕获功能正常；设备配置文件中的 {count} 个实体按键尚未通过验证（{detail}）",
       "sourceHash": "2366eae11f0e73209eaa8b91085c954f0589c330a03adb4f65f21c0e28834267",
-      "state": "machine-cross-checked",
-      "text": "无障碍按键捕获功能正常；设备配置方案中的 {count} 个实体按键尚未通过验证（{detail}）"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.buttons_accessibility_unverified_stream": {
+      "text": "无障碍按键捕获可用，另有设备配置文件中的 {count} 个实体按键使用未经验证的数据流（{detail}）",
       "sourceHash": "8f449ea1b2498436029c2ffd0a3f0b3ef1a1cf854ea8abce1dc3dd71ca6311dd",
-      "state": "machine-cross-checked",
-      "text": "无障碍按键捕获可用，另有设备配置方案中的 {count} 个实体按键使用未经验证的数据流（{detail}）"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.buttons_accessibility_verified": {
+      "text": "无障碍按键捕获可用，另有设备配置文件中的 {count} 个实体按键使用已验证的辅助守护进程数据流",
       "sourceHash": "8118541dec6bfaa414789c7f81da23fcdf1f47996565b62c7aaf5e349e0456b9",
-      "state": "machine-cross-checked",
-      "text": "无障碍按键捕获可用，另有设备配置方案中的 {count} 个实体按键使用已验证的辅助守护进程数据流"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.buttons_enable_no_root": {
       "sourceHash": "291011f6218668e232f4c777286046293eab5e67959dd8fc4d0c4474caabd79d",
@@ -2919,19 +2919,19 @@
       "text": "启用（无需超级用户权限）：{command}"
     },
     "dashboard.capability.note.buttons_not_verified": {
+      "text": "设备配置文件中的 {count} 个实体按键尚未通过验证（{detail}）",
       "sourceHash": "43215aff70fa1552c1f2d2c6d918f774b03e249d6a705129691ff14c5e398f23",
-      "state": "machine-cross-checked",
-      "text": "设备配置方案中的 {count} 个实体按键尚未通过验证（{detail}）"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.buttons_unverified_stream": {
+      "text": "设备配置文件中的 {count} 个实体按键正在传输事件，但数据流未经验证（{detail}）",
       "sourceHash": "add3e029da3ad0f8711b007609a85cd7e021c34138e92ae08beae79caf523c4b",
-      "state": "machine-cross-checked",
-      "text": "设备配置方案中的 {count} 个实体按键正在传输事件，但数据流未经验证（{detail}）"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.buttons_verified": {
+      "text": "设备配置文件中的 {count} 个实体按键使用已验证的辅助守护进程数据流",
       "sourceHash": "8addd3febfb811d8b7faf754ff7066df1e7636619c137d891440e97ef17c4d1e",
-      "state": "machine-cross-checked",
-      "text": "设备配置方案中的 {count} 个实体按键使用已验证的辅助守护进程数据流"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.daemon_button_backlight": {
       "sourceHash": "e03349a8e83008eccd77a5f30569dd960728b633b96dc891a77a8b4b08058c8a",
@@ -3589,9 +3589,9 @@
       "text": "上方性能卡片直接使用内置监测机制，无需 DevTools。"
     },
     "dashboard.inspect.enable_in_companion": {
+      "text": "请先在仪表盘中启用：配套应用 → 设置 → 故障排除 →“WebView 远程调试”，然后重新启动仪表盘并再次按“启用”。",
       "sourceHash": "760752b57777587b23fb91a39c73f1865016cc24324d3bf3e64d4d55fb5fcc74",
-      "state": "machine-cross-checked",
-      "text": "请先在仪表板中启用：伴侣应用 → 设置 → 故障排除 →“WebView 远程调试”，然后重新启动仪表板并再次按“启用”。"
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.hardened_disabled": {
       "sourceHash": "ee70f4d65d45904d8878a2146235add5ac0fc61183d50fc2d7c7369eb52b0970",
@@ -3599,9 +3599,9 @@
       "text": "强化模式启用时不可用。请先切换到宽松模式，再向 LAN 开放 WebView 开发者工具。"
     },
     "dashboard.inspect.instructions": {
+      "text": "如需深入检查，请打开 chrome://inspect → Configure…，添加 {host}，然后按“启用”。配套应用还需启用“设置 → 故障排除 → WebView 远程调试”，并重新启动仪表盘。中继需要 root 权限。",
       "sourceHash": "4d4bde17b98b24bd56c637a96ebcb90b9adc7cdfb9a6e43f14eead421735fed7",
-      "state": "machine-cross-checked",
-      "text": "如需深入检查，请打开 chrome://inspect → Configure…，添加 {host}，然后按“启用”。伴侣应用还需启用“设置 → 故障排除 → WebView 远程调试”，并重新启动仪表板。中继需要 root 权限。"
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.needs_root": {
       "sourceHash": "97722572b041c17d0e55845458ee601cb669d501205f260efbac337ece6d7e35",
@@ -3619,9 +3619,9 @@
       "text": "· 已开启"
     },
     "dashboard.inspect.running": {
+      "text": "中继已开启。仪表盘现在会显示在 chrome://inspect 的“远程目标”下，请点击“检查”。如果未显示，须先添加主机再启用：在 Configure… 中添加 {host}，然后刷新 chrome://inspect。开启期间会向 LAN 开放 DevTools；完成后请按“停止”。",
       "sourceHash": "2e061fb7d41c99241a10ac0799976d3994087845144cc55526eeb1e3585b8fa6",
-      "state": "machine-cross-checked",
-      "text": "中继已开启。仪表板现在会显示在 chrome://inspect 的“远程目标”下，请点击“检查”。如果未显示，须先添加主机再启用：在 Configure… 中添加 {host}，然后刷新 chrome://inspect。开启期间会向 LAN 开放 DevTools；完成后请按“停止”。"
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.start_failed": {
       "sourceHash": "6d35dd65046d7633824867470f051411b6013e6a7be45a3677d6f2e4862b4cfd",
@@ -4094,7 +4094,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.camera.stream_url": {
-      "text": "视频流地址：{url}（不供此面板自身的仪表板使用）",
+      "text": "视频流地址：{url}（不供此面板自身的仪表盘使用）",
       "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
       "state": "machine-cross-checked"
     },
@@ -4239,12 +4239,12 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.admitted_cached": {
-      "text": "已基于先前验证的 Home Assistant 版本获准；仪表板尚未连接",
+      "text": "已基于先前验证的 Home Assistant 版本获准；仪表盘尚未连接",
       "sourceHash": "7e85c23b29d5ad7c28dabb3f8c4261b86e848c31a64e911bce5b10fa680240bf",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.admitted_waiting": {
-      "text": "已获准；仪表板尚未连接",
+      "text": "已获准；仪表盘尚未连接",
       "sourceHash": "89c8b01a2e40da3b01620c913744f4c12b8c5669544bf736dc0d73d7b1ca76d7",
       "state": "machine-cross-checked"
     },
@@ -4259,17 +4259,17 @@
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.rendered": {
-      "text": "仪表板已渲染",
+      "text": "仪表盘已渲染",
       "sourceHash": "364760458d97955decc536899d96d5ec91067e214a8b461675bc0def3e5e3221",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.rendered_cached": {
-      "text": "仪表板已渲染；基于先前验证的 Home Assistant 版本获准",
+      "text": "仪表盘已渲染；基于先前验证的 Home Assistant 版本获准",
       "sourceHash": "2077a2931c2fa32a27d8d8a136b7a0e5367c4007d0b7df59b559e10e337235d4",
       "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.theme_override_suffix": {
-      "text": "；Home Assistant 中明确选择的主题正在覆盖此面板的仪表板主题",
+      "text": "；Home Assistant 中明确选择的主题正在覆盖此面板的仪表盘主题",
       "sourceHash": "48b00c7c6d33ce7186244ebdc2343d2c5d58a9156ebf9276d8c7e3bbbc5cb28a",
       "state": "machine-cross-checked"
     },
@@ -5809,9 +5809,9 @@
       "text": "选择 APK…"
     },
     "install.apk.description": {
+      "text": "从设备上的文件侧载应用（例如仪表盘渲染器），或提供 https:// 链接由面板自行下载——无论哪种方式，安装前都会显示其软件包、版本和签名者。",
       "sourceHash": "75dc85bc1ebe01d6dd6a1e7bd4ebefb3b58bbc75b27d134a7d1590f6a9a41055",
-      "state": "machine-cross-checked",
-      "text": "从设备上的文件侧载应用（例如仪表板渲染器），或提供 https:// 链接由面板自行下载——无论哪种方式，安装前都会显示其软件包、版本和签名者。"
+      "state": "machine-cross-checked"
     },
     "install.apk.dynamic.cancel": {
       "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
@@ -6074,9 +6074,9 @@
       "text": "该文件超过面板接受的大小上限"
     },
     "install.audit.description": {
+      "text": "重新检查此面板是否存在阻止仪表盘正常呈现的问题——WebView 过旧、没有仪表盘应用、有可用更新。",
       "sourceHash": "1f0badfb07dade0f2e55b2e777f6b2f670f8fb38c5e9fa1445fed2f0fb5b800e",
-      "state": "machine-cross-checked",
-      "text": "重新检查此面板是否存在阻止仪表板正常呈现的问题——WebView 过旧、没有仪表板应用、有可用更新。"
+      "state": "machine-cross-checked"
     },
     "install.audit.diagnostics": {
       "sourceHash": "85529ca4d488e68a812c6db33828b13074ccd77bea93f820363dc3ef6060410a",
@@ -6099,9 +6099,9 @@
       "text": "健康检查"
     },
     "install.backup.companion.helper_required": {
+      "text": "HA Companion 登录备份需要当前版本的 Panel Assistant 辅助程序。请更新此具备超级用户权限的面板或重新进行预配置以启用此功能。",
       "sourceHash": "85b4160dad92a2df9525c996031cf0e71ed3f731359463b55e6189927d77977c",
-      "state": "machine-cross-checked",
-      "text": "HA Companion 登录备份需要当前版本的 Panel Assistant 辅助程序。请更新此已取得根权限的面板或重新进行预配置以启用此功能。"
+      "state": "machine-cross-checked"
     },
     "install.backup.companion.include_login": {
       "sourceHash": "68a40664db6b16ee69214a3af245fb6e43dca89c26430278b7d88047bb5e1ff9",
@@ -6569,9 +6569,9 @@
       "text": "默认值 1.0"
     },
     "install.display.description": {
+      "text": "实验性/研发功能——合适的数值尚未调校完成；您可以按自己的节奏尝试。让 HA 仪表盘的尺寸与桌面浏览器相符。密度会缩放整个布局（dpi 越低，能显示的内容越多）；文字大小会缩放 WebView 文本。面板固件附带的设置往往与物理屏幕不匹配。更改会即时生效并在重启后保留；需要受支持的面板特权访问。",
       "sourceHash": "1eb292dfc02940bac236c1e68132d3a14997fb03b39eba6a834066faa93eb703",
-      "state": "machine-cross-checked",
-      "text": "实验性/研发功能——合适的数值尚未调校完成；您可以按自己的节奏尝试。让 HA 仪表板的尺寸与桌面浏览器相符。密度会缩放整个布局（dpi 越低，能显示的内容越多）；文字大小会缩放 WebView 文本。面板固件附带的设置往往与物理屏幕不匹配。更改会即时生效并在重启后保留；需要受支持的面板特权访问。"
+      "state": "machine-cross-checked"
     },
     "install.display.firmware_default": {
       "sourceHash": "49268b9bbeb39f9441dc4a28b46199dcb9f20572b8ca02a97c714be9e6396311",
@@ -6624,9 +6624,9 @@
       "text": "返回“显示尺寸”"
     },
     "install.display.root_required": {
+      "text": "在支持特权访问的面板上，Panel Assistant 可使仪表盘的密度和文字大小与物理屏幕相匹配。",
       "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
-      "state": "machine-cross-checked",
-      "text": "在支持特权访问的面板上，Panel Assistant 可使仪表板的密度和文字大小与物理屏幕相匹配。"
+      "state": "machine-cross-checked"
     },
     "install.display.text_size": {
       "sourceHash": "d68761cc1eb296478531e007ff1fda9252fb7be5d24429a97eb05765211dafe5",
@@ -7079,9 +7079,9 @@
       "text": "状态对象无效"
     },
     "install.presentation.status_builtin_renderer_retries_stopped": {
+      "text": "⛔ 内置渲染器在 WebView 反复失败后已停止重试。请更新或修复 System WebView，然后从面板导航栏或“仪表盘”标签页选择“重新加载仪表盘”。",
       "sourceHash": "1b5418807f2f485ae2f516c802d5e0801c94630d573966d230b92d877e08417e",
-      "state": "machine-cross-checked",
-      "text": "⛔ 内置渲染器在 WebView 反复失败后已停止重试。请更新或修复 System WebView，然后从面板导航栏或“仪表板”标签页选择“重新加载仪表板”。"
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_companion_probe_failed": {
       "sourceHash": "d568a904ee6683b88e612118bd29ef49ffdfe30ed6ecbcffcfe90193ceb77b14",
@@ -7089,9 +7089,9 @@
       "text": "⚠ 无法检查 Home Assistant 配套应用设置；Panel Assistant 将保留最近一次已知结果并自动重试。"
     },
     "install.presentation.status_external_renderer_crash_loop": {
+      "text": "⛔ 仪表盘应用反复崩溃 — 为避免不断重启，监控程序已停止重新启动它。请重新安装或降级仪表盘/配套应用，或重启面板。",
       "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
-      "state": "machine-cross-checked",
-      "text": "⛔ 仪表板应用反复崩溃 — 为避免不断重启，监控程序已停止重新启动它。请重新安装或降级仪表板/配套应用，或重启面板。"
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_no_renderer": {
       "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
@@ -7139,9 +7139,9 @@
       "text": "⬆ {component} {latest} 已可用（已安装 {current}）— 下载：{release_url}"
     },
     "install.presentation.status_webview_old": {
+      "text": "⚠ System WebView 版本过旧（{current_engine}）— Home Assistant 仪表盘可能显示空白。查看更新方法和原因（目标 Chromium {target_chromium}+）。",
       "sourceHash": "7059a4b3c081fbba7034c06238f4bd8e43158f6258078ac03f3f1a30a8740f83",
-      "state": "machine-cross-checked",
-      "text": "⚠ System WebView 版本过旧（{current_engine}）— Home Assistant 仪表板可能显示空白。查看更新方法和原因（目标 Chromium {target_chromium}+）。"
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_zigbee_contained": {
       "sourceHash": "927191599be07c441b61433ce2c9b4abed9d77c01da01bd861df7ac5cc5b84f3",
@@ -7284,9 +7284,9 @@
       "text": "{component}：处理中…"
     },
     "install.radio.configure_join": {
+      "text": "设置 → 加入 Zigbee 网络",
       "sourceHash": "843846f36311ad7aba87d1c8536aa89c973a28e63d593e45550d9b1c83f175d2",
-      "state": "machine-cross-checked",
-      "text": "配置 → 加入 Zigbee 网络"
+      "state": "machine-cross-checked"
     },
     "install.radio.efr32": {
       "sourceHash": "dde87983949635a3374006302e8fcaf3acba9420496567a0810f4f699f9e679c",
@@ -7434,14 +7434,14 @@
       "text": "版本"
     },
     "install.status.companion_url_missing.one": {
+      "text": "⚠ Home Assistant 配套应用有 {count} 台服务器未设置内部 URL — 仪表盘可能会加载失败并提示“缺少主机标头”。请在“安装”标签页中修复。",
       "sourceHash": "6ec34cbc2c652fbcf870b2d71fb669d7d4ae9e8d53a769d7d775816ce539c94b",
-      "state": "machine-cross-checked",
-      "text": "⚠ Home Assistant 配套应用有 {count} 台服务器未设置内部 URL — 仪表板可能会加载失败并提示“缺少主机标头”。请在“安装”标签页中修复。"
+      "state": "machine-cross-checked"
     },
     "install.status.companion_url_missing.other": {
+      "text": "⚠ Home Assistant 配套应用有 {count} 台服务器未设置内部 URL — 仪表盘可能会加载失败并提示“缺少主机标头”。请在“安装”标签页中修复。",
       "sourceHash": "0e438c28f54290449d21614ea11cf55a5fee35079ca10181de7174535f670dc5",
-      "state": "machine-cross-checked",
-      "text": "⚠ Home Assistant 配套应用有 {count} 台服务器未设置内部 URL — 仪表板可能会加载失败并提示“缺少主机标头”。请在“安装”标签页中修复。"
+      "state": "machine-cross-checked"
     },
     "install.tame.action.reenable": {
       "sourceHash": "63de421725fe824d9997872b1130d48e684b08da4b2784054049002f95684303",
@@ -7469,9 +7469,9 @@
       "text": "推荐"
     },
     "install.tame.description": {
+      "text": "“停用”会强制停止应用，阻止其开机自启，并阻止其覆盖仪表盘；操作会立即应用，并在每次开机时再次应用。“重新启用”可撤销这些操作。绝不会提供关键系统应用；只有按下按钮后才会进行更改。",
       "sourceHash": "c8e1bf9423f5c649f86cfd13f5ebc7febeb598ec77ded15e361f3ec478710626",
-      "state": "machine-cross-checked",
-      "text": "“停用”会强制停止应用，阻止其开机自启，并阻止其覆盖仪表板；操作会立即应用，并在每次开机时再次应用。“重新启用”可撤销这些操作。绝不会提供关键系统应用；只有按下按钮后才会进行更改。"
+      "state": "machine-cross-checked"
     },
     "install.tame.dialog.description": {
       "sourceHash": "90509ec5716b821b042c4dec4152d4a11a6b254973eda945231926b965d1d16b",
@@ -7579,9 +7579,9 @@
       "text": "正在停用 {package}。"
     },
     "install.tame.root_required": {
+      "text": "有了 root，Panel Assistant 可以隐藏厂商杂项应用（测试工具、厂商启动器），只显示您的仪表盘。",
       "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
-      "state": "machine-cross-checked",
-      "text": "有了 root，Panel Assistant 可以隐藏厂商杂项应用（测试工具、厂商启动器），只显示您的仪表板。"
+      "state": "machine-cross-checked"
     },
     "install.tame.state.active": {
       "sourceHash": "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
@@ -9814,7 +9814,7 @@
       "text": "正在保存确认…"
     },
     "runtime.power_safety.action.acknowledgeable": {
-      "text": "应用的 CPU/Wi-Fi 锁和无限超时已启用，但无法通过此面板的当前通道更改 Android 保持唤醒和 Doze 设置。你可以隐藏这一特定注意事项；如果证据或功能发生变化，它将重新出现。",
+      "text": "应用的 CPU/Wi-Fi 锁和无限超时已启用，但无法通过此面板的当前通道更改 Android 保持唤醒和 Doze 设置。可以隐藏这一特定注意事项；如果证据或功能发生变化，它将重新出现。",
       "sourceHash": "54602ea6c3a55fe72a8109d82bb47beaad03647a29f9a4e04449c1d2b8e223fa",
       "state": "machine-cross-checked"
     },
@@ -9849,14 +9849,14 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.hide": {
+      "text": "隐藏此注意事项",
       "sourceHash": "65150e117bf29d5f27999ac819fbee19c26f1709364a6873d7a8519e4c4fe04c",
-      "state": "machine-cross-checked",
-      "text": "隐藏此警告"
+      "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.hide_title": {
+      "text": "在面板网页中隐藏此项未变化的注意事项；Hardened 模式需要在面板上亲自批准",
       "sourceHash": "b813ee640e36ac9f14fe39e0c557cae18c1b9fbc1daed8a0d5aea590d20c1a84",
-      "state": "machine-cross-checked",
-      "text": "在面板网页中隐藏此项未变化的警告；Hardened 模式需要在设备上批准"
+      "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.repair": {
       "text": "修复电源安全",
@@ -9934,12 +9934,12 @@
       "state": "machine-cross-checked"
     },
     "runtime.renderer_recovery.builtin": {
-      "text": "内置渲染器在 WebView 反复失败后已停止重试。请更新或修复 System WebView，然后从面板导航栏或“仪表板”标签页选择“重新加载仪表板”。",
+      "text": "内置渲染器在 WebView 反复失败后已停止重试。请更新或修复 System WebView，然后从面板导航栏或“仪表盘”标签页选择“重新加载仪表盘”。",
       "sourceHash": "20f93e06aeff7310a8f77b8fa3242cd484ebedb2b1a6242e5aaba65209c4b428",
       "state": "machine-cross-checked"
     },
     "runtime.renderer_recovery.external": {
-      "text": "仪表板应用反复崩溃 — 为避免不断重启，监控程序已停止重新启动它。请重新安装或降级仪表板/Companion 应用，或重启面板。",
+      "text": "仪表盘应用反复崩溃 — 为避免不断重启，监控程序已停止重新启动它。请重新安装或降级仪表盘/Companion 应用，或重启面板。",
       "sourceHash": "065bba7b903c3f1072e1c3d3008b809f3147884454fd6a7cfc657adf334d3f0e",
       "state": "machine-cross-checked"
     },
@@ -9954,7 +9954,7 @@
       "state": "machine-cross-checked"
     },
     "runtime.zigbee.warning.degraded_high_cpu": {
-      "text": "已入网的 Zigbee 网关持续高 CPU 占用 — 由于已入网的路由器仅发出警告，因此它仍在运行。",
+      "text": "已入网的 Zigbee 网关持续高 CPU 占用 — 由于对已入网的路由器仅发出警告，因此它仍在运行。",
       "sourceHash": "53a2652fe79d1c63c6d65c8a486a25f656878dace5b7c7c8b213300618542d71",
       "state": "machine-cross-checked"
     },
@@ -10114,9 +10114,9 @@
       "state": "machine-cross-checked"
     },
     "settings.camera_exposure.help": {
+      "text": "曝光补偿，以档（EV）为单位，用于校正把房间拍得比实际所见更暗或更亮的摄像头。设为 0 时保持摄像头自身的自动曝光不变；面板会将该值限制在传感器实际支持的范围内。",
       "sourceHash": "d4e4bf5fd6847ee7dd6f270be1d2caebac7f390231c8208ac96f2f43cb921169",
-      "state": "machine-cross-checked",
-      "text": "曝光补偿，以档（EV）为单位，用于校正把房间拍得比实际所见更暗或更亮的相机。设为 0 时保持相机自身的自动曝光不变；面板会将该值限制在传感器实际支持的范围内。"
+      "state": "machine-cross-checked"
     },
     "settings.camera_exposure.label": {
       "sourceHash": "cc5454a4b7ce211370dcd2aa0ae58d6b564eee7940b42de516d05f5b269c414b",
@@ -10174,9 +10174,9 @@
       "state": "machine-cross-checked"
     },
     "settings.cpu_governor.help": {
+      "text": "重启前生效的实时 CPU 调频方案；自动表示使用 SoC 动态调频策略。",
       "sourceHash": "44ede54df63e6b90033e3356275332934cdd2b19bf681ea7d3b65fd69a333aa9",
-      "state": "machine-cross-checked",
-      "text": "重启前生效的实时 CPU 调频方案；自动表示使用 SoC 动态调速器。"
+      "state": "machine-cross-checked"
     },
     "settings.cpu_governor.label": {
       "sourceHash": "004574377e217b06381bc71633aca50cbb8494c95d2b638920bea8ffb7464280",
@@ -10699,9 +10699,9 @@
       "state": "machine-cross-checked"
     },
     "settings.manufacturer.help": {
+      "text": "覆盖 HA 设备卡片中的制造商（留空表示使用配置文件或自动值）。",
       "sourceHash": "8bc18ea3fa4542ad27907e0ee82537e8430e18693d4465fa6021b045b19e5a6f",
-      "state": "machine-cross-checked",
-      "text": "覆盖 HA 设备卡片中的制造商（留空表示使用配置方案或自动值）。"
+      "state": "machine-cross-checked"
     },
     "settings.manufacturer.label": {
       "sourceHash": "1af384c577f294d4164a7ea49f3021259e2b92802eac577722d14066b2bbd5ce",
@@ -10714,9 +10714,9 @@
       "state": "machine-cross-checked"
     },
     "settings.model.help": {
+      "text": "覆盖 HA 设备卡片中的型号（留空表示使用配置文件或自动值）。",
       "sourceHash": "50dab8203d43b63ace9d3f98dc51ab87d675f41a61746e4b00fadf216b5d56ec",
-      "state": "machine-cross-checked",
-      "text": "覆盖 HA 设备卡片中的型号（留空表示使用配置方案或自动值）。"
+      "state": "machine-cross-checked"
     },
     "settings.model.label": {
       "sourceHash": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",
@@ -10944,9 +10944,9 @@
       "state": "machine-cross-checked"
     },
     "settings.voice_enabled.label": {
+      "text": "语音助手",
       "sourceHash": "290b79b6acea4aeba750f9bbe47409feb5ebad3516fb66d4532e577d4d9ae40f",
-      "state": "machine-cross-checked",
-      "text": "语音助理"
+      "state": "machine-cross-checked"
     },
     "settings.voice_enabled.summary": {
       "text": "监听唤醒词并将语音发送至 Assist。",
@@ -11099,9 +11099,9 @@
       "text": "此面板已注册到 Home Assistant，因此只有 HA 管理员能在那里更改其区域；面板会采用那里的设置。"
     },
     "setup.area.non_admin_help": {
+      "text": "此面板所在的位置。您的选择会保存，并在面板注册时或 Home Assistant 管理员下次登录时生效。",
       "sourceHash": "a1a82f6c7a40fc0939b547dd53868e25454b5b5ced02fc1ccfbe97283d33f168",
-      "state": "machine-cross-checked",
-      "text": "此面板所在的位置。你的选择会保存，并在面板注册时或 Home Assistant 管理员下次登录时生效。"
+      "state": "machine-cross-checked"
     },
     "setup.area.none": {
       "sourceHash": "3fd59f11b54e96933a2b02aa304ac4702497072e362651bddfe49cffc8ba393d",
@@ -11114,9 +11114,9 @@
       "text": "尚未设置区域——请选择"
     },
     "setup.attest.lead": {
+      "text": "仪表盘应用会自行管理连接，因此只有您能确认这一点。",
       "sourceHash": "1e568c7ed3d6d14ef69f35b5374fffcb203b626b66f22ac1db1731bc1782f830",
-      "state": "machine-cross-checked",
-      "text": "仪表盘应用会自行管理连接，因此只有你能确认这一点。"
+      "state": "machine-cross-checked"
     },
     "setup.attest.no": {
       "sourceHash": "ef3c7d7d0f3d50f8afa0b6ec09fb18e59dcce91bbcb4dbb96cf461cfee792c7d",
@@ -11179,9 +11179,9 @@
       "text": "Home Assistant 仪表盘"
     },
     "setup.dashboard.group.user": {
+      "text": "您的仪表盘",
       "sourceHash": "1eae7261ac3538d5d912509465916c3a33d7fad19970a0ce27d53c37ba115203",
-      "state": "machine-cross-checked",
-      "text": "你的仪表盘"
+      "state": "machine-cross-checked"
     },
     "setup.dashboard.lead": {
       "sourceHash": "a704ac0a80953f11601df013cacc7a9b2d6669530a77eb7d8820817644d3099f",
@@ -11259,9 +11259,9 @@
       "text": "此账号看不到仪表盘 {root}——在该仪表盘创建之前，面板会回退到默认仪表盘。"
     },
     "setup.dashboard.state.fetching": {
+      "text": "正在从 Home Assistant 获取您的仪表盘…",
       "sourceHash": "50c3dfe6b88d6f9d26ed26df8e21d83ac3f96cc0fbe2b0793341cd8498c81c9b",
-      "state": "machine-cross-checked",
-      "text": "正在从 Home Assistant 获取你的仪表盘…"
+      "state": "machine-cross-checked"
     },
     "setup.dashboard.title": {
       "sourceHash": "6ce8c026eddc7e15e707af0a65d3f2873d4e78e98cec7b4c8a0c7630a27139e1",
@@ -11269,9 +11269,9 @@
       "text": "选择此面板的 HA 仪表盘"
     },
     "setup.discovery.found": {
+      "text": "在您的网络中找到：{value}。如果不正确，请修改。",
       "sourceHash": "1bd3ae94a54c3e9446bb243cd96b0f3e7858f8eac7a9b3900fd7314c90d0627c",
-      "state": "machine-cross-checked",
-      "text": "在你的网络中找到：{value}。如果不正确，请修改。"
+      "state": "machine-cross-checked"
     },
     "setup.discovery.unavailable.error": {
       "sourceHash": "7b47377022930368a5a4c581149b3b9edc3f717bf9d85f617183030d78cf3f68",
@@ -11309,19 +11309,19 @@
       "text": "面板仪表盘"
     },
     "setup.done.configure_note": {
+      "text": "亮度、休眠、声音和行为等其余设置都在“设置”选项卡中。默认设置很合理，您无需更改任何内容。",
       "sourceHash": "757739c4bc0ae5e756963d2084fb258949f4e865524355a5bd8482da6a1b1ed6",
-      "state": "machine-cross-checked",
-      "text": "亮度、休眠、声音和行为等其余设置都在“配置”选项卡中。默认设置很合理，你无需更改任何内容。"
+      "state": "machine-cross-checked"
     },
     "setup.done.filter_note": {
+      "text": "实体筛选已开启——系统正在学习要显示哪些实体；您可以随时在“实体”选项卡中查看列表。在最初几分钟内，面板的仪表盘可能会重新加载几次，这是正常现象。",
       "sourceHash": "bb421be7eb8fb60a13c614cf636556c3f10a8f2e43f1f78fff1b89eb5be6c559",
-      "state": "machine-cross-checked",
-      "text": "实体筛选已开启——系统正在学习要显示哪些实体；你可以随时在“实体”选项卡中查看列表。在最初几分钟内，面板的仪表盘可能会重新加载几次，这是正常现象。"
+      "state": "machine-cross-checked"
     },
     "setup.done.status.attested": {
+      "text": "仪表盘已由您确认。",
       "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
-      "state": "machine-cross-checked",
-      "text": "仪表盘已由你确认。"
+      "state": "machine-cross-checked"
     },
     "setup.done.status.rendering": {
       "sourceHash": "dcd8160cc85f6016d90daf4256a58f4434aa6b9718c3fa0f258323b3d9fa2234",
@@ -11379,9 +11379,9 @@
       "text": "正在加载仪表盘…"
     },
     "setup.filter.amber.consequence": {
+      "text": "不筛选时，面板会持续处理屏幕上未显示实体的更新。以后可以在“设置”选项卡中更改此设置。",
       "sourceHash": "cf4d2d14f40cccfc2e0408e9e8971d30671ce568c0376bd9bf8fb5c1a208b5cc",
-      "state": "machine-cross-checked",
-      "text": "不筛选时，面板会持续处理屏幕上未显示实体的更新。以后可以在“配置”选项卡中更改此设置。"
+      "state": "machine-cross-checked"
     },
     "setup.filter.amber.estimated": {
       "sourceHash": "f698d9140d4b65655b852cdc2eeb0d7b867ed446f72b8c3e6bc621e467b85e23",
@@ -11434,9 +11434,9 @@
       "text": "数量正在超过此面板的处理能力"
     },
     "setup.filter.details.body": {
+      "text": "面板会向 Home Assistant 请求指定实体列表的更新，而非所有实体。它通过读取您的仪表盘来建立该列表，并在运行时加入仪表盘访问到的其他实体。不会对您隐藏任何内容——完整列表位于“实体”选项卡。",
       "sourceHash": "c4b530aa8cc08488adebe2f92f8fc727337c654dacbc938cd6f4ca76a133f530",
-      "state": "machine-cross-checked",
-      "text": "面板会向 Home Assistant 请求指定实体列表的更新，而非所有实体。它通过读取你的仪表盘来建立该列表，并在运行时加入仪表盘访问到的其他实体。不会对你隐藏任何内容——完整列表位于“实体”选项卡。"
+      "state": "machine-cross-checked"
     },
     "setup.filter.details.title": {
       "sourceHash": "9b2736049ff9acab153954b360afe3987fa67e89b9661da42476e5ec4231dbd8",
@@ -11454,9 +11454,9 @@
       "text": "此面板"
     },
     "setup.filter.green.consequence": {
+      "text": "仍然值得开启筛选——随着系统扩展，它能保持流畅；以后也可在“设置”选项卡中更改。",
       "sourceHash": "67d02e994972201b5c55e28b3edba21ffb3384ea23c04611b4eb69b9b2ce2a79",
-      "state": "machine-cross-checked",
-      "text": "仍然值得开启筛选——随着系统扩展，它能保持流畅；以后也可在“配置”选项卡中更改。"
+      "state": "machine-cross-checked"
     },
     "setup.filter.green.estimated": {
       "sourceHash": "6f9cf269ad55c0089d9f96f723416c2b00ee3de7c320bad14c7c24735d4857e8",
@@ -11549,9 +11549,9 @@
       "text": "URL 必须以 http:// 或 https:// 开头。"
     },
     "setup.ha_url.help": {
+      "text": "您用于打开 Home Assistant 的地址，例如 http://homeassistant.local:8123。",
       "sourceHash": "c236973b764d018af53248ebd56203ba203f9a875bd7d42418df34aa8bb51570",
-      "state": "machine-cross-checked",
-      "text": "你用于打开 Home Assistant 的地址，例如 http://homeassistant.local:8123。"
+      "state": "machine-cross-checked"
     },
     "setup.ha_url.handover.title": {
       "text": "从本面板无法通过 Home Assistant 提供的地址连接",
@@ -11799,14 +11799,14 @@
       "text": "继续设置 →"
     },
     "setup.revisit.notice": {
+      "text": "您正在重新查看之前的步骤。",
       "sourceHash": "1eda0d6d519704cf03777c93baa662b2346af8223bd8f4e19da72b0297b938b0",
-      "state": "machine-cross-checked",
-      "text": "你正在重新查看之前的步骤。"
+      "state": "machine-cross-checked"
     },
     "setup.sign_in.browser.account_note": {
+      "text": "如果此浏览器已登录 Home Assistant，面板可能会以您的账号连接。若要让面板使用它自己的账号，请在出现登录页面时登录该账号。",
       "sourceHash": "c21e7c5554bc9af38c7d63cc4e03ff6c1e810f9196a2deeee327be571239ff30",
-      "state": "machine-cross-checked",
-      "text": "如果此浏览器已登录 Home Assistant，面板可能会以你的账号连接。若要让面板使用它自己的账号，请在出现登录页面时登录该账号。"
+      "state": "machine-cross-checked"
     },
     "setup.sign_in.browser.action": {
       "sourceHash": "2156d3d0ffec67754113b031381746b97f114d4f288f7ef1440cca95d4de94ad",
@@ -11814,9 +11814,9 @@
       "text": "从此浏览器登录"
     },
     "setup.sign_in.browser.explanation": {
+      "text": "此处会显示 Home Assistant 登录页面——请登录您希望面板使用的账号。您会离开此页面，随后自动返回。",
       "sourceHash": "b232e258d00a920f5a7c26708084cd52f240d4fa2af1d7453a71f0c05f7448c1",
-      "state": "machine-cross-checked",
-      "text": "此处会显示 Home Assistant 登录页面——请登录你希望面板使用的账号。你会离开此页面，随后自动返回。"
+      "state": "machine-cross-checked"
     },
     "setup.sign_in.browser.title": {
       "sourceHash": "2156d3d0ffec67754113b031381746b97f114d4f288f7ef1440cca95d4de94ad",
@@ -11824,9 +11824,9 @@
       "text": "从此浏览器登录"
     },
     "setup.sign_in.lead": {
+      "text": "内置仪表盘需要读取您的 Home Assistant 的权限。",
       "sourceHash": "088032bf3fc995e05ac29732a9b253cb50aa22702caa3b62d039b28e3d9bdda4",
-      "state": "machine-cross-checked",
-      "text": "内置仪表盘需要读取你的 Home Assistant 的权限。"
+      "state": "machine-cross-checked"
     },
     "setup.sign_in.panel.explanation": {
       "sourceHash": "054bf5b81047b2c639b8ef4dacb8c87dca5d459fbdfc40335b90887774e243f8",
@@ -12254,7 +12254,7 @@
       "state": "machine-cross-checked"
     },
     "shell.dashboard_substitute.title": {
-      "text": "未找到仪表板",
+      "text": "未找到仪表盘",
       "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
       "state": "machine-cross-checked"
     }

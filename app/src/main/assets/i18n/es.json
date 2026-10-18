@@ -369,7 +369,7 @@
       "text": "Ha cambiado la conexión del panel. Reconectando el historial de actividad…"
     },
     "configure.auto_sleep.panel_setup_help": {
-      "text": "Usa la detección de presencia calibrada de este panel. Configure primero la proximidad; el reposo automático se pausa si el sensor no está disponible.",
+      "text": "Usa la detección de presencia calibrada de este panel. Configura primero la proximidad; la suspensión automática se pausa si el sensor no está disponible.",
       "sourceHash": "ea85622f28796597982364529b4fd1ad3fdff8f7e2b5419a7f06105b99aed523",
       "state": "machine-cross-checked"
     },
@@ -819,12 +819,12 @@
       "text": "Esperando una lectura válida de luz ambiental."
     },
     "configure.camera.not_enumerated": {
-      "text": "Este panel no informa de ninguna cámara. Si tiene una, declare hardware.camera en su perfil de dispositivo, junto con un LED que el panel pueda encender mientras la cámara está abierta.",
+      "text": "Este panel no informa de ninguna cámara. Si tiene una, declara hardware.camera en su perfil de dispositivo, junto con un LED que el panel pueda encender mientras la cámara está abierta.",
       "sourceHash": "331f1ddebf379a9351bf10e42bf20b13e6cb055eca836a67be47d20c0dd65c5e",
       "state": "machine-cross-checked"
     },
     "configure.camera.suppressed": {
-      "text": "El perfil de dispositivo de este panel establece hardware.camera en false, por lo que no se ofrece la cámara. Edite el perfil para ofrecerla.",
+      "text": "El perfil de dispositivo de este panel establece hardware.camera en false, por lo que no se ofrece la cámara. Edita el perfil para ofrecerla.",
       "sourceHash": "7d9630a0bbdfc2c972fd1a2b6febfabdf62ce5e8e00a0b9bc98660a725a7460e",
       "state": "machine-cross-checked"
     },
@@ -1494,7 +1494,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.normalized_learning": {
-      "text": "La presencia está normalizada para HA. Unos pocos gestos completos más activarán el despertar por gesto.",
+      "text": "La presencia está normalizada para HA. Unos pocos gestos completos más habilitarán la activación por gesto.",
       "sourceHash": "cd5edcc884a4c9c5bbcd0832097bf37d0afd916b21fe33f450b3d6ffb1675deb",
       "state": "machine-cross-checked"
     },
@@ -1674,7 +1674,7 @@
       "text": "La configuración opcional se realiza en el panel. La activación por toque sigue disponible."
     },
     "configure.proximity.setup.no_source": {
-      "text": "La activación al agitar la mano no está disponible. La activación al tocar sigue disponible.",
+      "text": "La activación por gesto no está disponible. La activación por toque sigue disponible.",
       "sourceHash": "3289aebbf56f13839cce39ea69f9f957ef682f9a52b1b92d1b2513ad36a74748",
       "state": "machine-cross-checked"
     },
@@ -1859,7 +1859,7 @@
       "text": "Borrando…"
     },
     "configure.renderer.companion_launcher_hint": {
-      "text": "Activa la opción de lanzador de la aplicación Companion para que pueda tomar Inicio.",
+      "text": "Activa la opción de lanzador de la aplicación Companion para que pueda actuar como pantalla de inicio.",
       "sourceHash": "70b247a18a32a3d19356d5e1ec79d06525e2ccc9bb331d4c7db7f644c929a5b6",
       "state": "machine-cross-checked"
     },
@@ -1874,9 +1874,9 @@
       "text": "Guardado; aún no está en el panel de control."
     },
     "configure.renderer.storage": {
+      "text": "Almacenamiento del renderizador",
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
-      "state": "machine-cross-checked",
-      "text": "Datos del renderizador"
+      "state": "machine-cross-checked"
     },
     "configure.save.hardware_pending": {
       "sourceHash": "9bd2748bda208a2e6c2bac42067692436f2f9189a3f7e197e5b338bdba1c44ef",
@@ -2224,9 +2224,9 @@
       "text": "Configurar → Conexión con Home Assistant"
     },
     "dashboard.banner.auth_rejected.explanation": {
+      "text": "se rechazaron los datos de acceso guardados, por lo que el panel de control dejó de reintentarlo (muestra instrucciones para corregirlo en el panel). Usa Inicio de sesión en el navegador en",
       "sourceHash": "e414f00aea1c8c8d9ac8a59a1fa6902c8fca809a1ad9990d1bed61898c4d8e96",
-      "state": "machine-cross-checked",
-      "text": "se rechazaron los datos de acceso guardados, por lo que el panel de control dejó de reintentarlo (muestra instrucciones para corregirlo en el panel). Usa Inicio de sesión en navegador en"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.reload_suffix": {
       "sourceHash": "ac2f4f87a33bda1c9d97387ce8d5ba0f27926025bd37ca5ce0a7d396fc5008c0",
@@ -2329,14 +2329,14 @@
       "text": "Abrir configuración de proximidad"
     },
     "dashboard.banner.proximity_learning.title": {
+      "text": "Activación por gesto no disponible",
       "sourceHash": "13fee9fb24fd087f47f147bc51dec39d5c598dd73006d3c8417b837a5128ca7f",
-      "state": "machine-cross-checked",
-      "text": "Activación al agitar la mano no disponible"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.proximity_learning.touch_available": {
+      "text": "La activación por toque sigue disponible.",
       "sourceHash": "903915dd8ee56238ac39ddd50edf407ff66796e29173afbeb3da700f6838c234",
-      "state": "machine-cross-checked",
-      "text": "La activación táctil sigue disponible."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.schema_rollback.configure_action": {
       "sourceHash": "d8ec542d4afb557de9d173fa65c10ad47c3b9357a741084ceb548c815c8df1af",
@@ -2419,7 +2419,7 @@
       "text": "El zoom del panel de control es del {zoom} %"
     },
     "dashboard.camera.action.check_hardware": {
-      "text": "compruebe el hardware de la cámara; un nuevo cliente tras la espera lo reintenta",
+      "text": "comprueba el hardware de la cámara; un nuevo cliente tras la espera lo reintenta",
       "sourceHash": "090d1ef719dc1159410c638eac487771bb3151e5dfe1deebeaa9b19e0d6ce11f",
       "state": "machine-cross-checked"
     },
@@ -2444,7 +2444,7 @@
       "text": "concede el permiso de cámara en el panel cuando se solicite"
     },
     "dashboard.camera.action.misdeclared_profile": {
-      "text": "el perfil declara una cámara que esta placa no expone; corrija hardware.camera en el perfil",
+      "text": "el perfil declara una cámara que esta placa no expone; corrige hardware.camera en el perfil",
       "sourceHash": "a21c61954e1a191d0d9a3e4864a132a68878650930555cc74a9e99653099bd48",
       "state": "machine-cross-checked"
     },
@@ -3304,9 +3304,9 @@
       "text": "Iniciador"
     },
     "dashboard.controls.no_separate_launcher": {
+      "text": "Este panel no tiene un iniciador independiente: equivale a Iniciador de administración",
       "sourceHash": "a0116188ce3a91b305615048528239170e2e9c75bac41e89dc3d0da3b369403c",
-      "state": "machine-cross-checked",
-      "text": "Este panel no tiene un lanzador independiente: equivale a Iniciador de administración"
+      "state": "machine-cross-checked"
     },
     "dashboard.controls.reboot": {
       "sourceHash": "fba023ca78ebb022146bbfe95e638d252b0727075bff6b4661f26dbe1e1a8fd0",
@@ -3619,9 +3619,9 @@
       "text": "· encendido"
     },
     "dashboard.inspect.running": {
+      "text": "Relé activo. En chrome://inspect, el panel de control aparece ahora en Remote Target: haz clic en inspect. Si no aparece, debes añadir el host antes de habilitarlo: añade {host} en Configure… y actualiza chrome://inspect. Mientras esté activo, expone DevTools a la LAN; pulsa Detener al terminar.",
       "sourceHash": "2e061fb7d41c99241a10ac0799976d3994087845144cc55526eeb1e3585b8fa6",
-      "state": "machine-cross-checked",
-      "text": "Relé activo. En chrome://inspect, el panel de control aparece ahora en Destino remoto: haz clic en Inspeccionar. Si no aparece, debes añadir el host antes de habilitarlo: añade {host} en Configure… y actualiza chrome://inspect. Mientras esté activo, expone DevTools a la LAN; pulsa Detener al terminar."
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.start_failed": {
       "sourceHash": "6d35dd65046d7633824867470f051411b6013e6a7be45a3677d6f2e4862b4cfd",
@@ -4094,9 +4094,9 @@
       "text": "transmisión disponible en el puerto {port}"
     },
     "dashboard.runtime.camera.stream_url": {
+      "text": "transmisión en {url} (no es para el panel de control de este panel)",
       "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
-      "state": "machine-cross-checked",
-      "text": "transmisión en {url} (no es para el panel de control de este dispositivo)"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.database.on_disk": {
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",
@@ -4269,9 +4269,9 @@
       "text": "panel de control renderizado; admitido con una versión de Home Assistant verificada anteriormente"
     },
     "dashboard.runtime.renderer.theme_override_suffix": {
+      "text": "; un tema explícito de Home Assistant prevalece sobre el tema del panel de control de este panel",
       "sourceHash": "48b00c7c6d33ce7186244ebdc2343d2c5d58a9156ebf9276d8c7e3bbbc5cb28a",
-      "state": "machine-cross-checked",
-      "text": "; un tema explícito de Home Assistant prevalece sobre el tema del panel de control de este dispositivo"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.unobserved": {
       "sourceHash": "b65f8770c0d567f700d2f20e7e522d6afeb982ebe8210b632c41f937c7f5d599",
@@ -5079,7 +5079,7 @@
       "state": "machine-cross-checked"
     },
     "entities.issue.diagnostic-limit.recommendation": {
-      "text": "Simplifica el panel de control o divídelo en paneles más pequeños antes de activar el filtrado automático de entidades.",
+      "text": "Simplifica el panel de control o divídelo en paneles de control más pequeños antes de activar el filtrado automático de entidades.",
       "sourceHash": "51d9424df4f4bdc068b69d11f6f19e3cd8eaf42bd62d4acba954daf8568d156e",
       "state": "machine-cross-checked"
     },
@@ -5769,7 +5769,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.review.note": {
-      "text": "Entidades del flujo actual que no aparecen en Home Assistant, que reciben actualizaciones sin haberse observado como dependencias del panel de control o que se anclaron manualmente aunque este panel no las use. Solo para revisión: ni los anclajes ni las exclusiones manuales se eliminan automáticamente. Desancla aquí la entidad cuando quieras quitarla.",
+      "text": "Entidades del flujo actual que no aparecen en Home Assistant, que reciben actualizaciones sin haberse observado como dependencias del panel de control o que se anclaron manualmente aunque este panel de control no las use. Solo para revisión: ni los anclajes ni las exclusiones manuales se eliminan automáticamente. Desancla aquí la entidad cuando quieras quitarla.",
       "sourceHash": "96035cee159d53cfff753798302c0d73e6ff3552be2aca08d4003359264efbbe",
       "state": "machine-cross-checked"
     },
@@ -5809,9 +5809,9 @@
       "text": "Elegir APK…"
     },
     "install.apk.description": {
+      "text": "Instala una aplicación (p. ej., un renderizador de panel de control) desde un archivo del dispositivo o desde un enlace https:// que el panel descargará por sí mismo. En ambos casos, verás el paquete, la versión y el firmante antes de instalarla.",
       "sourceHash": "75dc85bc1ebe01d6dd6a1e7bd4ebefb3b58bbc75b27d134a7d1590f6a9a41055",
-      "state": "machine-cross-checked",
-      "text": "Instala una aplicación (p. ej., un visor de paneles) desde un archivo del dispositivo o desde un enlace https:// que el panel descargará por sí mismo. En ambos casos, verás el paquete, la versión y el firmante antes de instalarla."
+      "state": "machine-cross-checked"
     },
     "install.apk.dynamic.cancel": {
       "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
@@ -5959,9 +5959,9 @@
       "text": "O descargar desde un enlace"
     },
     "install.apk.root_unavailable": {
+      "text": "La instalación de cualquier APK requiere acceso root o el demonio auxiliar, que no están disponibles en este panel.",
       "sourceHash": "12253abdd5c23f5aa5f4fab0e662da4ee9d6ac2716392c0e7e95b205a51a5f04",
-      "state": "machine-cross-checked",
-      "text": "La instalación de cualquier APK requiere acceso root o el daemon auxiliar, que no están disponibles en este panel."
+      "state": "machine-cross-checked"
     },
     "install.apk.security_future_auth": {
       "sourceHash": "56e615ce71344c71a91105c99eb7f66925d8af8316ec1938f60eba17238be309",
@@ -6244,9 +6244,9 @@
       "text": "Introduce una frase de contraseña o confirma explícitamente el ZIP en texto plano sin cifrar."
     },
     "install.backup.dynamic.preview_companion": {
+      "text": "Inicio de sesión de Companion",
       "sourceHash": "a3fc55b59be7ed4d1208fe616ca1405b7326170db3d881d724f9c8c52e583327",
-      "state": "machine-cross-checked",
-      "text": "Acceso de Companion"
+      "state": "machine-cross-checked"
     },
     "install.backup.dynamic.preview_config_keys": {
       "sourceHash": "361f87bb7c897517e80d6140d0e91e9a57893b3366d7a94533f63ba019293a8f",
@@ -6959,9 +6959,9 @@
       "text": "metadatos del archivo de copia de seguridad no válidos"
     },
     "install.presentation.restore_companion_helper_required": {
+      "text": "La restauración de Companion necesita el auxiliar actual de Panel Assistant",
       "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
-      "state": "machine-cross-checked",
-      "text": "La restauración de Companion necesita el auxiliar Panel Assistant actual"
+      "state": "machine-cross-checked"
     },
     "install.presentation.restore_companion_section_invalid": {
       "sourceHash": "92ffed6f90cd1201a409dab6021ac415ef2910d8d9760e68e9c27597483b472a",
@@ -7299,9 +7299,9 @@
       "text": "Estado de la puerta de enlace"
     },
     "install.radio.note_prefix": {
+      "text": "Puerta de enlace Zigbee en el chip Silicon Labs EFR32 de este panel. Habilita o vuelve a intentar la unión desde",
       "sourceHash": "9826954ce0ab47870f4e5026c43631c629d449185c859ca06e12bdab31d2b929",
-      "state": "machine-cross-checked",
-      "text": "Puerta de enlace Zigbee en el dispositivo Silicon Labs EFR32 de este panel. Habilita o vuelve a intentar la conexión desde"
+      "state": "machine-cross-checked"
     },
     "install.radio.thread_planned": {
       "sourceHash": "7891edb2cba374dfaf02489aff727159d6ab084079c75383abaccf4b0cad8192",
@@ -7539,9 +7539,9 @@
       "text": "Recomendadas para este panel"
     },
     "install.tame.group.recommended_hint": {
+      "text": "Aplicaciones intrusivas conocidas del firmware de tu hardware: opciones iniciales seguras.",
       "sourceHash": "ec79e0601b3e0d3e9f7717f6804c7d573c31063d5b87aa073ff074cf96e94cff",
-      "state": "machine-cross-checked",
-      "text": "Aplicaciones intrusivas conocidas del firmware de tu dispositivo: opciones iniciales seguras."
+      "state": "machine-cross-checked"
     },
     "install.tame.locked_empty": {
       "sourceHash": "f638c4792f18277b2fda27370331e5e442a456222176012a8fedcf1b0cb20b46",
@@ -7644,9 +7644,9 @@
       "text": "Desinstalar"
     },
     "install.uninstall.description_prefix": {
+      "text": "Elimina una aplicación instalada. Solo se muestran las aplicaciones que se pueden desinstalar (de terceros o actualizadas); se excluyen Panel Assistant y las aplicaciones del sistema incluidas de fábrica. Si solo quieres ocultar una aplicación del fabricante,",
       "sourceHash": "79c449af384e00f3e24c16346f64baaabad0a7ec83802889a46fdffbb523d4a7",
-      "state": "machine-cross-checked",
-      "text": "Elimina una aplicación instalada. Solo se muestran las aplicaciones extraíbles (de terceros o actualizadas); se excluyen Panel Assistant y las aplicaciones del sistema incluidas de fábrica. Si solo quieres ocultar una aplicación del fabricante,"
+      "state": "machine-cross-checked"
     },
     "install.uninstall.description_suffix": {
       "sourceHash": "1462a8fa2c5b0daa167e77a39e18f19c323d99aab25200867a59af48ea5b344b",
@@ -8434,9 +8434,9 @@
       "text": "Falta el perfil genérico de reserva incluido."
     },
     "profiles.issue.capability-driver-required": {
+      "text": "La capacidad requiere el controlador interno '{value}'.",
       "sourceHash": "3ff0a52ca2217daa24abe939e76b9ff53b3cad8e4f26ffa806024a89951f4b75",
-      "state": "machine-cross-checked",
-      "text": "La capacidad requiere el controlador interno de ha-paneld '{value}'."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.catalog-fallback-invalid-emergency-used": {
       "sourceHash": "7956b121f11112bebb98fee152debc5f1ad804cb336313b30034782411bd1a37",
@@ -8739,9 +8739,9 @@
       "text": "El PPI físico debe estar entre 50 y 1000."
     },
     "profiles.issue.pinned-revision-incompatible": {
+      "text": "La revisión fijada es incompatible con esta versión de la aplicación.",
       "sourceHash": "0410f495d48a580480d26a8778ccb36869804742bfbf4811a9ed28138a5e8f93",
-      "state": "machine-cross-checked",
-      "text": "La revisión fijada es incompatible con esta versión de ha-paneld."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.pinned-revision-missing": {
       "sourceHash": "1756c919586b8a1c906460f9e59129e2646995c1d8f553fe5e81f7f617882976",
@@ -8864,29 +8864,29 @@
       "text": "No debe contener controles de formato Unicode."
     },
     "profiles.issue.unknown-core-driver": {
+      "text": "El controlador interno '{value}' es desconocido.",
       "sourceHash": "1042e5e95b0698609f7977c22305ffe39a6056ec3bc16e684870f88ff2a7fd12",
-      "state": "machine-cross-checked",
-      "text": "El controlador interno de ha-paneld '{value}' es desconocido."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unknown-core-recipe": {
+      "text": "Se desconoce la receta interna '{value}'.",
       "sourceHash": "6532c70c4c95f0652f13a6f11489585aab37dbfff72a3f00f66583783116b309",
-      "state": "machine-cross-checked",
-      "text": "Se desconoce la receta interna de ha-paneld '{value}'."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unknown-core-strategy": {
+      "text": "Se desconoce la estrategia interna.",
       "sourceHash": "98e4f9a758e61cdac9a2fab4aa0c0a67128541abcda250390e2a099a236ba391",
-      "state": "machine-cross-checked",
-      "text": "Se desconoce la estrategia interna de ha-paneld."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unknown-core-strategy-value": {
+      "text": "Se desconoce la estrategia interna '{value}'.",
       "sourceHash": "5c27683a05fe3646ecbecd345f8acbd8726c6ea32dd2554d7ee81b7d326d4a63",
-      "state": "machine-cross-checked",
-      "text": "Se desconoce la estrategia interna de ha-paneld '{value}'."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unknown-core-transfer": {
+      "text": "Se desconoce la función de transferencia interna '{value}'.",
       "sourceHash": "2832e210726cd7645445f526c1ff62970c8aee6026347dcb155cc327ce3b521c",
-      "state": "machine-cross-checked",
-      "text": "Se desconoce la función de transferencia interna de ha-paneld '{value}'."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unknown-field": {
       "sourceHash": "3840899c04d884ec5c1ce68ae92936057e0c7a2f0cf311b3dbef2e71e50512b0",
@@ -8919,9 +8919,9 @@
       "text": "Valor desconocido '{value}'."
     },
     "profiles.issue.unknown-webview-artifact": {
+      "text": "Se desconoce el artefacto WebView gestionado internamente '{value}'.",
       "sourceHash": "1a67a91f0321c4116b700359d695c791bdca0d48886e05f1ef2a1d21bf08972b",
-      "state": "machine-cross-checked",
-      "text": "Se desconoce el artefacto WebView gestionado por ha-paneld '{value}'."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.unsupported-privileged-path": {
       "sourceHash": "c21981ce1dbdc3efe069b1a9dad326646bca62e09cf9c41294eb29a160ee0213",
@@ -9234,9 +9234,9 @@
       "text": "Selección preparada; es necesario reiniciar."
     },
     "profiles.result.activation-rolled-back-incompatible": {
+      "text": "El perfil activo pasó a ser incompatible tras un cambio en la aplicación; se restauró la última selección válida conocida.",
       "sourceHash": "f693f5afa79729e2869e2eba6e2bc2ef5745b7602b47d89becba4dd10a7257cc",
-      "state": "machine-cross-checked",
-      "text": "El perfil activo pasó a ser incompatible tras un cambio en ha-paneld; se restauró la última selección válida conocida."
+      "state": "machine-cross-checked"
     },
     "profiles.result.activation-rolled-back-unhealthy-auto": {
       "sourceHash": "5ce98d100de2c6f69c59ec8254a4f99dfcbdaf70b7fb7146c2a50b3d17156831",
@@ -9374,9 +9374,9 @@
       "text": "Se ha importado {display_name} {version}."
     },
     "profiles.result.profile-incompatible": {
+      "text": "La revisión del perfil no es compatible con esta versión de la aplicación.",
       "sourceHash": "9699ce8f86c496618c872c877ca3419ebc8b7f0a9889e7e656b52e3c835eb872",
-      "state": "machine-cross-checked",
-      "text": "La revisión del perfil no es compatible con esta versión de ha-paneld."
+      "state": "machine-cross-checked"
     },
     "profiles.result.profile-ref-both-forms-supplied": {
       "sourceHash": "0c32e9917057f109b9650810ff1ed7a1723ef944d39ec79b5aacaf4b03fcd848",
@@ -9484,9 +9484,9 @@
       "text": "Ruta de LED integrada."
     },
     "profiles.schema.description.led_transfer": {
+      "text": "Función de transferencia del LED gestionada internamente; el valor predeterminado es «identity».",
       "sourceHash": "990306bef8439dcc883229290f1c706a70e1c6e3f6142352cbb2ad7b4a804473",
-      "state": "machine-cross-checked",
-      "text": "Función de transferencia del LED gestionada por ha-paneld; el valor predeterminado es «identity»."
+      "state": "machine-cross-checked"
     },
     "profiles.schema.description.match_field": {
       "sourceHash": "533e58fbf16df9ea4854c44acf81d2a5658c3ffa159cd340cb515462608163de",
@@ -9504,9 +9504,9 @@
       "text": "Nivel de madurez que declara el autor para la evidencia; no es un indicador de procedencia ni de confianza."
     },
     "profiles.schema.description.model_label_strategy": {
+      "text": "Estrategia local de etiquetado gestionada internamente.",
       "sourceHash": "7136f1a6d0605edafec45bba2994d73e2d1a1627348c1fccf1b12be4a00acc63",
-      "state": "machine-cross-checked",
-      "text": "Estrategia local de etiquetado gestionada por ha-paneld."
+      "state": "machine-cross-checked"
     },
     "profiles.schema.description.package_desired_state": {
       "sourceHash": "b79f5d18c9b084a444ec1972767a095bb8e90ada19a2b9a27ec79eadf8ab425e",
@@ -9519,9 +9519,9 @@
       "text": "Solo prioridad de presentación."
     },
     "profiles.schema.description.recipe_id": {
+      "text": "Identificador de receta de aprovisionamiento gestionado internamente; sin argumentos ni comandos.",
       "sourceHash": "c9dacf1be7b297f1cf8c67a170111e44e2839741f5e08c1de01342445fb77380",
-      "state": "machine-cross-checked",
-      "text": "Identificador de receta de aprovisionamiento gestionado por ha-paneld; sin argumentos ni comandos."
+      "state": "machine-cross-checked"
     },
     "profiles.schema.description.screen_off": {
       "sourceHash": "752e7c9a135d7bda6a4bfc06731d3c40ac02d235ecc292c564571ef5a0641272",
@@ -9534,9 +9534,9 @@
       "text": "Convención compatible para invocar su."
     },
     "profiles.schema.description.webview_artifact": {
+      "text": "Artefacto APK y raíz de confianza del firmante gestionados internamente.",
       "sourceHash": "139ebdeeda56385d56e264d1551ba06f4a507eb4ffefba9056b927362fc7d1a1",
-      "state": "machine-cross-checked",
-      "text": "Artefacto APK y raíz de confianza del firmante gestionados por ha-paneld."
+      "state": "machine-cross-checked"
     },
     "profiles.section.catalog_runtime": {
       "sourceHash": "f6935b911b686f274dca1971e421494b5b95001dfb521d625a35aeb099c39d60",
@@ -9994,9 +9994,9 @@
       "state": "machine-cross-checked"
     },
     "settings.auto_brightness_ha_entity.help": {
+      "text": "Si se deja en blanco, se usa el sensor de luz del panel. Selecciona un sensor de iluminancia de Home Assistant si el panel no dispone de uno adecuado.",
       "sourceHash": "6880e1fea6dee81c8f92542ee7bca6f70b62aecb909cf29b8b43fc5843fb5f9d",
-      "state": "machine-cross-checked",
-      "text": "Si se deja en blanco, se usa el sensor de luz del panel. Seleccione un sensor de iluminancia de Home Assistant si el panel no dispone de uno adecuado."
+      "state": "machine-cross-checked"
     },
     "settings.auto_brightness_ha_entity.label": {
       "sourceHash": "6d14150bee5d9bdc380ca70414b5d8690a2f65b9563e2e0cf7b8ecd08821882c",
@@ -10209,9 +10209,9 @@
       "text": "Las entidades ausentes consultadas mediante hass.states pueden añadirse automáticamente. Las evidencias siguen visibles cuando está desactivado."
     },
     "settings.dashboard_entity_auto_runtime.label": {
+      "text": "Suscribir accesos en tiempo de ejecución automáticamente",
       "sourceHash": "68b4661ad2eb34df5ca22139493298593ed19db51cea6f8a9f6b99512b54606e",
-      "state": "machine-cross-checked",
-      "text": "Autosuscribir accesos en tiempo de ejecución"
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_entity_auto_static.help": {
       "sourceHash": "60bbc1556abe2e80db46a3afe4cf8520d5b4d54c0a2a4a93ab5ec783152118ef",
@@ -10224,9 +10224,9 @@
       "text": "Suscribir referencias del panel de control automáticamente"
     },
     "settings.dashboard_entity_learning.help": {
+      "text": "Renderizador integrado: limita el flujo de estados de Home Assistant a las entidades usadas por el panel de control y aprende las dependencias en tiempo de ejecución. Gestiona las fuentes y los anclajes en Entidades.",
       "sourceHash": "967aefc50fe2b2015a76cc8d98bdb0f06d14d091e1e6381ce472a45a85527cb7",
-      "state": "machine-cross-checked",
-      "text": "Renderizador integrado: limita el flujo de estados de Home Assistant a las entidades usadas por el panel de control y aprende las dependencias en tiempo de ejecución. Gestione las fuentes y los anclajes en Entidades."
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_entity_learning.label": {
       "sourceHash": "c7b44faea3e443cbf5556ef11f22c84c864d8000ca1cbc2643d511cd6e1c218c",
@@ -10259,7 +10259,7 @@
       "text": "Excepciones del filtro de entidades"
     },
     "settings.dashboard_fullscreen.help": {
-      "text": "Solo para el renderizador integrado. Oculta las barras de estado y navegación de Android mientras el panel de control está en primer plano; deslice desde un borde para mostrarlas temporalmente.\n\nNo bloquea el panel ni oculta la navegación de Home Assistant.",
+      "text": "Solo para el renderizador integrado. Oculta las barras de estado y navegación de Android mientras el panel de control está en primer plano; desliza desde un borde para mostrarlas temporalmente.\n\nNo bloquea el panel ni oculta la navegación de Home Assistant.",
       "sourceHash": "c410a8d3eb3474145a680214c11fac9bb2e096eeae2742daf1e0fbdd74726f8e",
       "state": "machine-cross-checked"
     },
@@ -10324,7 +10324,7 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_theme.help": {
-      "text": "Solo para el renderizador integrado.\n\n- **Seguir Home Assistant** deja que Home Assistant elija el modo claro u oscuro del panel de control; el ajuste Modo oscuro proporciona el valor predeterminado de esa elección.\n- **Oscuro** y **Claro** fijan el modo en este panel cuando Home Assistant está configurado como Automático, para un panel de control en modo quiosco sin barra lateral desde la que acceder a la página de perfil de Home Assistant.\n- **Ambiente** elige Oscuro o Claro según la luz de la habitación medida por el modelo de brillo automático y solo cambia después de que la habitación se haya mantenido más oscura o más clara durante un minuto; requiere que Brillo automático esté activado y sigue Home Assistant hasta obtener una lectura.\n\nUna elección explícita de Claro u Oscuro en Home Assistant sigue teniendo prioridad; use Automático o un usuario independiente para el panel. Al volver a Seguir Home Assistant, la elección se devuelve exactamente tal como se encontró.",
+      "text": "Solo para el renderizador integrado.\n\n- **Seguir Home Assistant** deja que Home Assistant elija el modo claro u oscuro del panel de control; el ajuste Modo oscuro proporciona el valor predeterminado de esa elección.\n- **Oscuro** y **Claro** fijan el modo en este panel cuando Home Assistant está configurado como Automático, para un panel de control en modo quiosco sin barra lateral desde la que acceder a la página de perfil de Home Assistant.\n- **Ambiente** elige Oscuro o Claro según la luz de la habitación medida por el modelo de brillo automático y solo cambia después de que la habitación se haya mantenido más oscura o más clara durante un minuto; requiere que Brillo automático esté activado y sigue Home Assistant hasta obtener una lectura.\n\nUna elección explícita de Claro u Oscuro en Home Assistant sigue teniendo prioridad; usa Automático o un usuario independiente para el panel. Al volver a Seguir Home Assistant, la elección se devuelve exactamente tal como se encontró.",
       "sourceHash": "a50cd5d79a729b0c1fb8d39afa1f2cd03b65577d0d206cdc95b79e2a3512c08a",
       "state": "machine-cross-checked"
     },
@@ -10479,9 +10479,9 @@
       "state": "machine-cross-checked"
     },
     "settings.ha_area.help": {
+      "text": "Ubicación de este panel, indicada por el nombre del área de Home Assistant. Solo puede cambiarse en Panel Assistant si tu usuario de HA tiene permisos de administrador; de lo contrario, cámbiala en tu dispositivo desde HA.",
       "sourceHash": "511bca0d9133ce234fcc2592eacd03cfca60155df52a3f747e904d6ad1d95885",
-      "state": "machine-cross-checked",
-      "text": "Ubicación de este panel, indicada por el nombre del área de Home Assistant. Solo puede cambiarse en Panel Assistant si su usuario de HA tiene permisos de administrador; de lo contrario, cámbiela en su dispositivo desde HA."
+      "state": "machine-cross-checked"
     },
     "settings.ha_area.label": {
       "sourceHash": "df4a2a5c31455ff3f9226ec4e43b6fc965fc5aa1b12539b97c2282ba3174bce1",
@@ -10514,9 +10514,9 @@
       "text": "Token de actualización de HA"
     },
     "settings.ha_token.help": {
+      "text": "Usa el inicio de sesión en el navegador siempre que sea posible. Esta alternativa puede crearse en tu perfil de usuario de Home Assistant.",
       "sourceHash": "2a751871e7f1239703cb7b4c6b11ec965ebcff7f5b208e61824d91d3fd7be35f",
-      "state": "machine-cross-checked",
-      "text": "Use el inicio de sesión en el navegador siempre que sea posible. Esta alternativa puede crearse en su perfil de usuario de Home Assistant."
+      "state": "machine-cross-checked"
     },
     "settings.ha_token.label": {
       "sourceHash": "764baf10051fe1cd66c024f9ae090ad0eb54f33b4880951fb0df0fb56fc31c41",
@@ -10564,7 +10564,7 @@
       "text": "Panel de control de inicio"
     },
     "settings.home_dashboard.summary": {
-      "text": "Panel de control abierto al recargar y al volver de la inactividad.",
+      "text": "Panel de control abierto al recargar y al volver por inactividad.",
       "sourceHash": "e35d791d1aa6593172cf8dc764b108664089dcd6688eb60a7dd551543fbb272c",
       "state": "machine-cross-checked"
     },
@@ -10699,9 +10699,9 @@
       "state": "machine-cross-checked"
     },
     "settings.manufacturer.help": {
+      "text": "Sustitución del fabricante en la ficha del dispositivo de HA (en blanco = perfil/automático).",
       "sourceHash": "8bc18ea3fa4542ad27907e0ee82537e8430e18693d4465fa6021b045b19e5a6f",
-      "state": "machine-cross-checked",
-      "text": "Sustitución del fabricante en la tarjeta del dispositivo de HA (en blanco = perfil/automático)."
+      "state": "machine-cross-checked"
     },
     "settings.manufacturer.label": {
       "sourceHash": "1af384c577f294d4164a7ea49f3021259e2b92802eac577722d14066b2bbd5ce",
@@ -10714,9 +10714,9 @@
       "state": "machine-cross-checked"
     },
     "settings.model.help": {
+      "text": "Sustitución del modelo en la ficha del dispositivo de HA (en blanco = perfil/automático).",
       "sourceHash": "50dab8203d43b63ace9d3f98dc51ab87d675f41a61746e4b00fadf216b5d56ec",
-      "state": "machine-cross-checked",
-      "text": "Sustitución del modelo en la tarjeta del dispositivo de HA (en blanco = perfil/automático)."
+      "state": "machine-cross-checked"
     },
     "settings.model.label": {
       "sourceHash": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",
@@ -10759,7 +10759,7 @@
       "state": "machine-cross-checked"
     },
     "settings.network_adb.help": {
-      "text": "**Riesgo de seguridad:** mantiene ADB clásico escuchando en el puerto TCP 5555 tras reinicios y reconexiones.\n\nActívelo solo durante tareas de mantenimiento en una red de confianza. Si ADB se activó fuera de Panel Assistant, también debe desactivarse allí.",
+      "text": "**Riesgo de seguridad:** mantiene ADB clásico escuchando en el puerto TCP 5555 tras reinicios y reconexiones.\n\nActívalo solo durante tareas de mantenimiento en una red de confianza. Si ADB se activó fuera de Panel Assistant, también debe desactivarse allí.",
       "sourceHash": "2c85de428894551b75bb23c876b221c5a6f0b78a4c7c65ca9d60356d820010d6",
       "state": "machine-cross-checked"
     },
@@ -10954,7 +10954,7 @@
       "state": "machine-cross-checked"
     },
     "settings.voice_mic_gain_db.help": {
-      "text": "Amplifica el audio enviado a Home Assistant para transcribirlo.\n\nEstos paneles no ofrecen supresión de ruido a nivel de plataforma ni control automático de ganancia, por lo que un panel puede detectar con fiabilidad la palabra de activación desde el otro lado de la habitación y aun así transcribir mal: la detección de la palabra de activación se adapta por sí sola a una señal débil, pero la conversión de voz a texto no.\n\n**Auméntelo** si se pierden comandos o se transcriben mal mientras la palabra de activación funciona. La detección de la palabra de activación usa deliberadamente la señal sin amplificar.",
+      "text": "Amplifica el audio enviado a Home Assistant para transcribirlo.\n\nEstos paneles no ofrecen supresión de ruido a nivel de plataforma ni control automático de ganancia, por lo que un panel puede detectar con fiabilidad la palabra de activación desde el otro lado de la habitación y aun así transcribir mal: la detección de la palabra de activación se adapta por sí sola a una señal débil, pero la conversión de voz a texto no.\n\n**Auméntalo** si se pierden comandos o se transcriben mal mientras la palabra de activación funciona. La detección de la palabra de activación usa deliberadamente la señal sin amplificar.",
       "sourceHash": "11daf40ebcb01e6a2b996011eb081e6f150b1e83d5d4aa877ba1c3fc3b089312",
       "state": "machine-cross-checked"
     },
@@ -11304,9 +11304,9 @@
       "text": "Configurar el panel"
     },
     "setup.done.action.dashboard": {
+      "text": "Panel de control del panel",
       "sourceHash": "3db3c314463f71ee6dfd052b3b46cdd2851593ad49f19dcac17289eae7969c00",
-      "state": "machine-cross-checked",
-      "text": "Panel de control"
+      "state": "machine-cross-checked"
     },
     "setup.done.configure_note": {
       "sourceHash": "757739c4bc0ae5e756963d2084fb258949f4e865524355a5bd8482da6a1b1ed6",
@@ -12184,14 +12184,14 @@
       "state": "machine-cross-checked"
     },
     "install.tame.hand_back.action": {
+      "text": "Restaurar la pantalla de inicio",
       "sourceHash": "2009690e210a7c546d780f1ed3f4eea8c67399962047667d76cbaf5f4b96f559",
-      "state": "machine-cross-checked",
-      "text": "Restablecer pantalla de inicio"
+      "state": "machine-cross-checked"
     },
     "install.tame.hand_back.description": {
+      "text": "Esto vuelve a habilitar las aplicaciones del fabricante en este panel.",
       "sourceHash": "e27d15826d370f6cfd6bc1466f8e32e4d3ad4cba7c9cb667272e159113943990",
-      "state": "machine-cross-checked",
-      "text": "Vuelve a habilitar las apps de los proveedores en este panel."
+      "state": "machine-cross-checked"
     },
     "install.tame.hand_back.done": {
       "sourceHash": "362b1c0da01d39ea0820b7492fbb8e590d4b2e0577e99bd193c2a5e83135ccb7",
@@ -12199,9 +12199,9 @@
       "text": "Listo. Este panel vuelve a tener su propia pantalla de inicio."
     },
     "install.tame.hand_back.failed": {
+      "text": "La pantalla de inicio no se ha restaurado. No se ha cambiado nada.",
       "sourceHash": "6c9f87a31f1499cbf6a865211a7ee725207affa224f4257af92b067cbeab8118",
-      "state": "machine-cross-checked",
-      "text": "La pantalla de inicio no se ha restablecido. No se ha cambiado nada."
+      "state": "machine-cross-checked"
     },
     "install.tame.hand_back.scope": {
       "sourceHash": "b9cb065b203403ed171a476f9f380cbd0a71dfc58adf14536b66ca4c3cd75d7d",
@@ -12214,9 +12214,9 @@
       "text": "Restaurar la pantalla de inicio de este panel"
     },
     "install.tame.hand_back.warning": {
+      "text": "Haz esto antes de eliminar Panel Assistant. Si no, el panel se quedará sin pantalla de inicio.",
       "sourceHash": "8b16c4d51ccdd47fca4d075d3bd39208e6edb450a07bec2cd4c90dbfea65b867",
-      "state": "machine-cross-checked",
-      "text": "Haz esto antes de eliminar «Panel Assistant». Si no, el panel se quedará sin pantalla de inicio."
+      "state": "machine-cross-checked"
     },
     "configure.auto_sleep.fixed_delay": {
       "text": "Apagar la pantalla tras {count} segundos sin tocarla.",

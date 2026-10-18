@@ -9,7 +9,7 @@
     <string name="notice_pill_setup">Nastavení</string>
     <string name="notice_pill_not_set_up">Nenastaveno</string>
     <string name="notice_hero_version_check">Kontrola verze</string>
-    <string name="notice_hero_finding_dashboards">Hledání panelů</string>
+    <string name="notice_hero_finding_dashboards">Hledání ovládacích panelů</string>
     <string name="notice_hero_upgrade_ha">Aktualizovat HA</string>
     <string name="notice_hero_ancient_webview">Prastarý Webview</string>
     <string name="notice_hero_filter_failed">Filtr selhal</string>
@@ -34,7 +34,7 @@
     <string name="entity_step_read">Čtení</string>
     <string name="entity_step_filter">Filtr</string>
     <string name="entity_step_open">Otevření</string>
-    <string name="reload_title">Načítání</string>
+    <string name="reload_title">Opětovné načítání</string>
     <string name="reload_applying_changes">Použití vašich změn</string>
     <string name="reload_optimising_entities">Optimalizace použitých entit; při učení panelu se může načíst znovu</string>
     <string name="network_chip_dropping">Síť ztrácí pakety</string>

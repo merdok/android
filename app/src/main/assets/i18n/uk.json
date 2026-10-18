@@ -134,7 +134,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.area": {
-   "text": "Область у Home Assistant: {area}",
+   "text": "Приміщення в Home Assistant: {area}",
    "sourceHash": "76850c88ad8d53557f8e9ad10f4ada48dc749cfaf894a52bd6a2e64b473f582a",
    "state": "machine-cross-checked"
   },
@@ -169,7 +169,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.calculated_label": {
-   "text": "Розрахований режим авто-сну",
+   "text": "Розрахований режим автосну",
    "sourceHash": "4e919f2b5d40923075154273f3945e1ec070d911faa2ae450fdc2d925fec8bec",
    "state": "machine-cross-checked"
   },
@@ -424,7 +424,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.summary_accessible": {
-   "text": "Область у Home Assistant: {area} · Фаза: {phase} · Причина: {reason} · Вивчена затримка: {delay} · Джерела: {count} · Ручне перевизначення екрана: {state}",
+   "text": "Приміщення в Home Assistant: {area} · Фаза: {phase} · Причина: {reason} · Вивчена затримка: {delay} · Джерела: {count} · Ручне перевизначення екрана: {state}",
    "sourceHash": "f1dcfd36e4d02143027d8dcafd61b6aa90e72aaed405edabe9fbee6599149de6",
    "state": "machine-cross-checked"
   },
@@ -559,7 +559,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.value.touch_activity": {
-   "text": "Активність сенсорного екрану",
+   "text": "Активність сенсорного екрана",
    "sourceHash": "2021e9e69b91a0fde92240dae2ebfdce639c9988929625a92edf8e2d3cd419c0",
    "state": "machine-cross-checked"
   },
@@ -674,7 +674,7 @@
    "state": "machine-cross-checked"
   },
   "configure.brightness.runtime_unavailable": {
-   "text": "Функція адаптивної яскравості під час роботи недоступна.",
+   "text": "Середовище виконання адаптивної яскравості недоступне.",
    "sourceHash": "ff261271c47217afa1f2616da075c1c72d5551b8750ffbd17ce8acdaabf041d5",
    "state": "machine-cross-checked"
   },
@@ -879,7 +879,7 @@
    "state": "machine-cross-checked"
   },
   "configure.display.sizing": {
-   "text": "Розмір екрану",
+   "text": "Розмір екрана",
    "sourceHash": "fe67dda7f8deb07ddda67fa64e03fa32e44e164b089056bd990b1a8a5014cfa3",
    "state": "machine-cross-checked"
   },
@@ -1614,7 +1614,7 @@
    "state": "machine-cross-checked"
   },
   "configure.tab.advanced": {
-   "text": "Додаткові налаштування",
+   "text": "Розширені",
    "sourceHash": "9f088dbebd6c3c70a5ddbc2c943b11e4ca9acea5757b0b4f2b32479f0dbb747e",
    "state": "machine-cross-checked"
   },
@@ -1669,7 +1669,7 @@
    "state": "machine-cross-checked"
   },
   "configure.voice.configure_wake_word_first": {
-   "text": "Спочатку налаштуйте слово пробудження вище.",
+   "text": "Спочатку налаштуйте слово активації вище.",
    "sourceHash": "29db9e0656abb9d76014f07d2f3faac2ece244b4b3e8c217ae984de03ab4aff8",
    "state": "machine-cross-checked"
   },
@@ -1704,7 +1704,7 @@
    "state": "machine-cross-checked"
   },
   "configure.voice.download_wake_word": {
-   "text": "Завантажити слово-активатор від спільноти",
+   "text": "Завантажити слово активації від спільноти",
    "sourceHash": "ea004f814363c9d3dda271e678c42465cef574f6c505263e5e43547a3ea5d2ba",
    "state": "machine-cross-checked"
   },
@@ -1744,7 +1744,7 @@
    "state": "machine-cross-checked"
   },
   "configure.voice.import_wake_word": {
-   "text": "Імпортувати навчене слово-активатор",
+   "text": "Імпортувати навчене слово активації",
    "sourceHash": "67ca4b530450a4ac62a77d2916c15496edc7a423f82f7639dd6ff386eddee540",
    "state": "machine-cross-checked"
   },
@@ -2964,7 +2964,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.controls.reboot": {
-   "text": "Перезавантаження",
+   "text": "Перезавантажити",
    "sourceHash": "fba023ca78ebb022146bbfe95e638d252b0727075bff6b4661f26dbe1e1a8fd0",
    "state": "machine-cross-checked"
   },
@@ -3404,7 +3404,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.profile_note.prefix": {
-   "text": "Значення, оголошені для цієї панелі; див.",
+   "text": "Значення, які для цієї панелі оголошує",
    "sourceHash": "6c19166398f5f8511969fe7145afb7da147b9c1a60194b35013e4dcf789606c1",
    "state": "machine-cross-checked"
   },
@@ -3649,7 +3649,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.reveal.title": {
-   "text": "Показати/приховати розмиті значення для редагування — вони розмиті за замовчуванням, щоб їх не було видно на скріншотах",
+   "text": "Показати/приховати розмиті значення для редагування — вони розмиті за замовчуванням, щоб їх не було видно на знімках екрана",
    "sourceHash": "b6976c2d96968d679b621136f2b8b300db6db5d6fadfaa0961e2bad94841fb4b",
    "state": "machine-cross-checked"
   },
@@ -3764,7 +3764,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.runtime.disabled": {
-   "text": "відключено",
+   "text": "вимкнено",
    "sourceHash": "17eb3c0168d0d7b21ede5481150f17233427d89833ec121b4dbc4fb96cfab71e",
    "state": "machine-cross-checked"
   },
@@ -3969,7 +3969,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.remote_input_disabled": {
-   "text": "У режимі Hardened віддалене введення даних вимкнено.",
+   "text": "У режимі «Hardened» віддалене введення даних вимкнено.",
    "sourceHash": "5d609daee3c51423c9b0ebb999e71eed684b12917155d781cab803d35bfefda9",
    "state": "machine-cross-checked"
   },
@@ -4129,7 +4129,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.state_stream.main_thread_detail": {
-   "text": "· p95 {p95} ms/s · найдовше {longest} ms",
+   "text": "· p95 {p95} ms/s · найдовше {longest} мс",
    "sourceHash": "88561aad61d8d51078c746b73558fd8263598877644e97a81cafa3a9067169e8",
    "state": "machine-cross-checked"
   },
@@ -4254,7 +4254,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.value.on": {
-   "text": "увімк.",
+   "text": "увімкнено",
    "sourceHash": "b8d31e852725afb1e26d53bab6095b2bff1749c9275be13ed1c05a56ed31ec09",
    "state": "machine-cross-checked"
   },
@@ -4374,7 +4374,7 @@
    "state": "machine-cross-checked"
   },
   "entities.bulk.pin_selected": {
-   "text": "Закріпити виділене",
+   "text": "Закріпити вибране",
    "sourceHash": "22e545df141030fca49a2c765d0ce073e24ec243cd67b1f5fe6dba63e26085b2",
    "state": "machine-cross-checked"
   },
@@ -4464,7 +4464,7 @@
    "state": "machine-cross-checked"
   },
   "entities.disabled.body": {
-   "text": "Увімкніть {setting} у {configure} → {dashboard}, коли використовуєте вбудований рендерер.",
+   "text": "Увімкніть {setting} у розділі {configure} → {dashboard}, коли використовуєте вбудований рендерер.",
    "sourceHash": "8d35d3cde0d347fb97487543bfb8c0c20af1c59d78b670b8f92381860aacdb71",
    "state": "machine-cross-checked"
   },
@@ -5339,7 +5339,7 @@
    "state": "machine-cross-checked"
   },
   "entities.table.current.short": {
-   "text": "Поточний",
+   "text": "Поточні",
    "sourceHash": "e0d1b68224bf0b31ef16b206c65b5f8f6b89d18161f4a7cdcb8d0ac8d952549a",
    "state": "machine-cross-checked"
   },
@@ -5884,7 +5884,7 @@
    "state": "machine-cross-checked"
   },
   "install.config_import_status.database_compatibility_refused": {
-   "text": "Перевірка сумісності баз даних відхилила імпорт",
+   "text": "перевірка сумісності баз даних відхилила імпорт",
    "sourceHash": "20a539acc8bf064780369707ca97f27d6c613a8f87503bbdc4dca72a55d3379a",
    "state": "machine-cross-checked"
   },
@@ -5924,7 +5924,7 @@
    "state": "machine-cross-checked"
   },
   "install.config_import_status.timeout": {
-   "text": "Час очікування запиту вичерпано",
+   "text": "час очікування запиту вичерпано",
    "sourceHash": "93deb3798f1b6a3ee1a01f97dd9a20c5c28a42a29504b25612525876c282bf4a",
    "state": "machine-cross-checked"
   },
@@ -5954,7 +5954,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.apk_pending_lost": {
-   "text": "Це APK було замінено або термін його дії закінчився — виберіть його або завантажте знову.",
+   "text": "Цей APK було замінено або термін його дії закінчився — виберіть його або завантажте знову.",
    "sourceHash": "3af6c7bf18bf62cb45bc6d3b0edfb340dc24f09ab9a89263156556259e24dbb1",
    "state": "machine-cross-checked"
   },
@@ -6549,7 +6549,7 @@
    "state": "machine-cross-checked"
   },
   "install.progress.start_failed": {
-   "text": "Не вдалося запустити — перевірте root/daemon.",
+   "text": "Не вдалося запустити — перевірте root/демон.",
    "sourceHash": "9103311cc720bc97d955427612ff27b35a1f903804906cd576e5bd7155170d8d",
    "state": "machine-cross-checked"
   },
@@ -7039,12 +7039,12 @@
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.bundled": {
-   "text": "{name} · У комплекті · {revision}",
+   "text": "{name} · Вбудований · {revision}",
    "sourceHash": "974d26d6979cf8f927f7bfedc571a6762397de407c9a0644a05d570accdea6da",
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.bundled_active": {
-   "text": "{name} · У комплекті · {revision} · активний",
+   "text": "{name} · Вбудований · {revision} · активний",
    "sourceHash": "e40f9da453bd6281cbc8d80f4d030b5dbe70d6eebbb4823adbb57df335295043",
    "state": "machine-cross-checked"
   },
@@ -7054,7 +7054,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.catalog.option.bundled_selected": {
-   "text": "{name} · У комплекті · {revision} · вибрано",
+   "text": "{name} · Вбудований · {revision} · вибрано",
    "sourceHash": "3b29302ce7b3d2320c8d7af86962c2e88b23ef1343392d09cbf82bad1774f623",
    "state": "machine-cross-checked"
   },
@@ -8719,7 +8719,7 @@
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.button.hide": {
-   "text": "Приховати це застереження",
+   "text": "Приховати це попередження",
    "sourceHash": "65150e117bf29d5f27999ac819fbee19c26f1709364a6873d7a8519e4c4fe04c",
    "state": "machine-cross-checked"
   },
@@ -8874,7 +8874,7 @@
    "state": "machine-cross-checked"
   },
   "settings.auto_brightness_ha_entity.summary": {
-   "text": "Використовуйте датчик освітленості «Home Assistant» замість вбудованого в панель.",
+   "text": "Використовувати датчик освітленості Home Assistant замість вбудованого в панель.",
    "sourceHash": "703710414afe74c55e969564e23cc7c7f0647d059ffa3237463fa03739902567",
    "state": "machine-cross-checked"
   },
@@ -8949,7 +8949,7 @@
    "state": "machine-cross-checked"
   },
   "settings.auto_sleep_activity.summary": {
-   "text": "Чи утримує функція автоматичного переходу в режим сну панель у активному стані.",
+   "text": "Чи утримує функція автоматичного сну панель в активному стані.",
    "sourceHash": "505de923eb7e143bb6607cc1871c1616f853d12d28fc40a81d3198e0c6477af3",
    "state": "machine-cross-checked"
   },
@@ -8979,7 +8979,7 @@
    "state": "machine-cross-checked"
   },
   "settings.camera_exposure.summary": {
-   "text": "Зсув експозиції в стопах. Значення 0 залишає автоматичну експозицію без змін.",
+   "text": "Зсув експозиції в ступенях. Значення 0 залишає автоматичну експозицію без змін.",
    "sourceHash": "7c89abca8ecf2cddbc62fe9d25eb4bae95570852ed99f39254e2d008a17f0e5a",
    "state": "machine-cross-checked"
   },
@@ -9124,7 +9124,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_fullscreen.summary": {
-   "text": "Приховати системні панелі стану та навігації за панеллю приладів.",
+   "text": "Приховати системні панелі стану та навігації за інформаційною панеллю.",
    "sourceHash": "c3144c9c243f42a1b24d1ff2eada033dcc3b626c5ec603b00aafc8b2f3b2f63d",
    "state": "machine-cross-checked"
   },
@@ -9159,7 +9159,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_network_warning.label": {
-   "text": "Показувати мережеве попередження на панелі",
+   "text": "Показувати мережеве попередження на інформаційній панелі",
    "sourceHash": "32464638ee22325ad7545e8b02b7b906d678e9445591ec9b2989adcbb479b034",
    "state": "machine-cross-checked"
   },
@@ -9174,7 +9174,7 @@
    "state": "machine-cross-checked"
   },
   "settings.dashboard_package.summary": {
-   "text": "Застосунок, що показує панель приладів. Порожнє поле — вбудований рендерер.",
+   "text": "Застосунок, що показує інформаційну панель. Порожнє поле — вбудований рендерер.",
    "sourceHash": "968f7a73a5e8876febb8b8f254404f502bedf77b3df100cb14a52a40dc823a6e",
    "state": "machine-cross-checked"
   },
@@ -9249,7 +9249,7 @@
    "state": "machine-cross-checked"
   },
   "settings.diag_ip.summary": {
-   "text": "Локальна адреса цієї панелі: IPv4.",
+   "text": "Локальна IPv4-адреса цієї панелі.",
    "sourceHash": "ac85e3cacaf4ac9f078b4db44ddb318ba6582381943ae732afcfd33459315a9c",
    "state": "machine-cross-checked"
   },
@@ -9304,7 +9304,7 @@
    "state": "machine-cross-checked"
   },
   "settings.diag_wifi_rssi.summary": {
-   "text": "Поточна сила сигналу «Wi-Fi».",
+   "text": "Поточний рівень сигналу Wi-Fi.",
    "sourceHash": "8fb8466dfbc5f1f6fa620e4c7775d8e07e4087bb47bbbd22f9ffc523fa0546d6",
    "state": "machine-cross-checked"
   },
@@ -9344,7 +9344,7 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_area.summary": {
-   "text": "Home Assistant Область, до якої належить ця панель.",
+   "text": "Приміщення в Home Assistant, до якого належить ця панель.",
    "sourceHash": "992b9c57355acf08ce839cbf4c2c66e2652cf5c0597bf380cc777b54e40833ef",
    "state": "machine-cross-checked"
   },
@@ -9464,7 +9464,7 @@
    "state": "machine-cross-checked"
   },
   "settings.kiosk_lock.summary": {
-   "text": "Лише для суперкористувача. Повернути панель приладів після відкриття іншого застосунку.",
+   "text": "Лише для суперкористувача. Повернути інформаційну панель після запуску іншого застосунку.",
    "sourceHash": "e9055e43b4f6a114f2d4e789b65ea17fc24fecfbc2b5fb1417b1ba9e54f628fd",
    "state": "machine-cross-checked"
   },
@@ -9804,7 +9804,7 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_enabled.summary": {
-   "text": "Слухайте слово-активатор і надсилайте мовлення на Assist.",
+   "text": "Слухайте слово активації і надсилайте мовлення на Assist.",
    "sourceHash": "d44107963fc54351bd582d47825aad5651566129424d90819e0b7c51a413e4e4",
    "state": "machine-cross-checked"
   },
@@ -9834,12 +9834,12 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_pipelines.summary": {
-   "text": "Який конвеєр «Assist» запускає кожне слово-активатор.",
+   "text": "Який конвеєр Assist запускає кожне слово активації.",
    "sourceHash": "e37ef99d1d4df2fb268353f7f179ee12d4802df0a4993748331b6d83a91dcde4",
    "state": "machine-cross-checked"
   },
   "settings.voice_sensitivity.help": {
-   "text": "Поріг детектора активаційного слова, що застосовується як зміщення до порогового балу моделі.\n\n- **Низька** вимагає чіткішого збігу: менше помилкових активацій, більша ймовірність пропустити тихий або віддалений виклик.\n- **Нормальна** не застосовує жодного зміщення.\n- **Висока** легше приймає збіг: швидше пробудження, більше помилкових спрацьовувань.",
+   "text": "Поріг детектора слова активації, що застосовується як зміщення до порогового балу моделі.\n\n- **Низька** вимагає чіткішого збігу: менше помилкових активацій, більша ймовірність пропустити тихий або віддалений виклик.\n- **Нормальна** не застосовує жодного зміщення.\n- **Висока** легше приймає збіг: швидше пробудження, більше помилкових спрацьовувань.",
    "sourceHash": "af00b05309556a3c5631dfe2830065406d0db55c255a8fd1819e6657623235c9",
    "state": "machine-cross-checked"
   },
@@ -9849,7 +9849,7 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_sensitivity.summary": {
-   "text": "Наскільки легко спрацьовує слово-активатор.",
+   "text": "Наскільки легко спрацьовує слово активації.",
    "sourceHash": "0fa08145c04a8e1391ac642c5536fa2f26f69556c521db192e7f9d7fafe11538",
    "state": "machine-cross-checked"
   },
@@ -9874,7 +9874,7 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_wake_words.summary": {
-   "text": "Слова-активатори, на які слід звертати увагу.",
+   "text": "Слова активації, які слухає панель.",
    "sourceHash": "d1d5a37611625d7925ca3e794540612919d66f7a7e37a748fa1f6c235a8e75ff",
    "state": "machine-cross-checked"
   },
@@ -10384,7 +10384,7 @@
    "state": "machine-cross-checked"
   },
   "setup.frame.loading": {
-   "text": "Завантаження налаштувань…",
+   "text": "Завантаження майстра налаштування…",
    "sourceHash": "f0e4e00078be3f48ea68569a89f1abfed01ba10f4f6090cce5f58f2611619e14",
    "state": "machine-cross-checked"
   },
@@ -10514,7 +10514,7 @@
    "state": "machine-cross-checked"
   },
   "setup.progress.dashboard": {
-   "text": "Панель HA",
+   "text": "Інформаційна панель HA",
    "sourceHash": "f4e60256299043246476ebc93bb0a35f178a41494faee700dcfcd2a94e211011",
    "state": "machine-cross-checked"
   },
@@ -11309,7 +11309,7 @@
    "state": "machine-cross-checked"
   },
   "install.backup.restore.choose": {
-   "text": "Виберіть резервну копію (.hpb або .zip)…",
+   "text": "Вибрати резервну копію (.hpb або .zip)…",
    "sourceHash": "7ed32bfa384f70542e477b92902d8175f30a7db3c151c4cf734a94463c1e7942",
    "state": "machine-cross-checked"
   },
@@ -11359,7 +11359,7 @@
    "state": "machine-cross-checked"
   },
   "install.components.play_managed": {
-   "text": "Управління від Play — оновлення через Play Store",
+   "text": "Керується Play — оновлення через Play Store",
    "sourceHash": "9914a6bf26bd266b5e3e76c4d16283698ba10c6774ed7cca99a27e32ebd9df6e",
    "state": "machine-cross-checked"
   },
@@ -11454,7 +11454,7 @@
    "state": "machine-cross-checked"
   },
   "install.display.result.failed": {
-   "text": "Масштаб відображення не застосовано; привілейована команда відображення завершилася помилкою або не було запитано жодної дійсної зміни.",
+   "text": "Розмір екрана не застосовано; привілейована команда відображення завершилася помилкою або не було запитано жодної дійсної зміни.",
    "sourceHash": "9085a4a51781ac21a82a34b13505d3e35804e0f4f70796c3f7a3dac6db41224a",
    "state": "machine-cross-checked"
   },
@@ -11559,7 +11559,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.approval.recommended": {
-   "text": "Обмежити пакети постачальника, рекомендовані профілем",
+   "text": "Приборкати пакети постачальника, рекомендовані профілем",
    "sourceHash": "3a77da60cbcfc809f72b7fd8d18d38f88119734d8ec517da65b2653c1bdcc833",
    "state": "machine-cross-checked"
   },
@@ -11644,7 +11644,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.locked_empty": {
-   "text": "Тут буде наведено перелік додатків постачальників, які ця панель може приховати.",
+   "text": "Тут було б наведено перелік додатків постачальника, які ця панель могла б приховати.",
    "sourceHash": "f638c4792f18277b2fda27370331e5e442a456222176012a8fedcf1b0cb20b46",
    "state": "machine-cross-checked"
   },
@@ -12159,7 +12159,7 @@
    "state": "machine-cross-checked"
   },
   "install.tame.hand_back.description": {
-   "text": "Це знову вмикає додатки виробників на цій панелі.",
+   "text": "Це знову вмикає додатки постачальника на цій панелі.",
    "sourceHash": "e27d15826d370f6cfd6bc1466f8e32e4d3ad4cba7c9cb667272e159113943990",
    "state": "machine-cross-checked"
   },

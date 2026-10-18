@@ -174,9 +174,9 @@
       "text": "Sospensione automatica calcolata"
     },
     "configure.auto_sleep.calculated_summary": {
+      "text": "Sospensione automatica calcolata: mantieni attivo {awake}, consenti sospensione {sleep}, inibita {inhibited}.",
       "sourceHash": "67a577299abe6083e8e087e7fd70e777a25f82c49c471640e3f32ad59b19440a",
-      "state": "machine-cross-checked",
-      "text": "Sospensione automatica calcolata: resta attivo {awake}, consenti sospensione {sleep}, inibita {inhibited}."
+      "state": "machine-cross-checked"
     },
     "configure.auto_sleep.clear": {
       "sourceHash": "83b12c2216efb4fdc924e1deb5182e905e4926ed0c1c324d467107f46d5a26a9",
@@ -404,7 +404,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.source_ha": {
-      "text": "Dispositivi dell’area Home Assistant",
+      "text": "Dispositivi dell’Area Home Assistant",
       "sourceHash": "16b74be3e8e11ec69dd90f2975d97e8028a6a43cf1bf0381c1b3291c974b8c01",
       "state": "machine-cross-checked"
     },
@@ -554,14 +554,14 @@
       "text": "Riconnessione in corso"
     },
     "configure.auto_sleep.value.source_active": {
+      "text": "Fonte attiva",
       "sourceHash": "3cf692cffb7214057f5c017549507d3e467026f6860f1a03925d962290fcb899",
-      "state": "machine-cross-checked",
-      "text": "Sorgente attiva"
+      "state": "machine-cross-checked"
     },
     "configure.auto_sleep.value.source_activity_lease": {
+      "text": "Durata attività della fonte",
       "sourceHash": "93f2b55eedc32def17bde4d6e631e57bd3406c63aec017be0327130d7fd57cc6",
-      "state": "machine-cross-checked",
-      "text": "Durata attività sorgente"
+      "state": "machine-cross-checked"
     },
     "configure.auto_sleep.value.source_loss_wake": {
       "text": "Riattivato per perdita delle fonti",
@@ -749,9 +749,9 @@
       "text": "Aggiornamento sorgente luce ambientale… · Sorgente: {source}"
     },
     "configure.brightness.sources_available": {
+      "text": "Sono disponibili {count} sorgenti di illuminamento. Se vuoto, usa il sensore del pannello.",
       "sourceHash": "fe7de22f40d775fb2cd572245be9319f093b17dba2fd588af64bfed7faa1caa5",
-      "state": "machine-cross-checked",
-      "text": "Sono disponibili {count} fonti di illuminamento. Se vuoto, usa il sensore del pannello."
+      "state": "machine-cross-checked"
     },
     "configure.brightness.sources_load_failed": {
       "sourceHash": "c7968b3a9d9a13e3abc244c1404692d1359fed376b56f61f5a53005127b7bd29",
@@ -844,9 +844,9 @@
       "text": "Auto — usa la predefinita dell'account"
     },
     "configure.dashboard.auto_list_unavailable": {
+      "text": "Auto — elenco plance non disponibile",
       "sourceHash": "b8950035556b06dd31f443be97d7c771e32d031b44fbfe548e3cd54c4f668efc",
-      "state": "machine-cross-checked",
-      "text": "Auto — elenco dashboard non disponibile"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.auto_no_default": {
       "sourceHash": "7b82f22b1413e07c8671b4d4a7b847856157697f2b735396d3b9af343799326c",
@@ -859,49 +859,49 @@
       "text": "Personalizzata — inserisci un percorso…"
     },
     "configure.dashboard.fetch_failed": {
+      "text": "Non è ancora stato possibile recuperare da Home Assistant l'elenco delle plance dell'account. Riprova quando la connessione sarà ripristinata.",
       "sourceHash": "34f5a5ab707babb51ca05d6f7504708ce34846cfe9f4ec3c45ba2d2c27c7238c",
-      "state": "machine-cross-checked",
-      "text": "Non è ancora stato possibile recuperare da Home Assistant l'elenco delle dashboard dell'account. Riprova quando la connessione sarà ripristinata."
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.group_ha": {
+      "text": "Plance di Home Assistant",
       "sourceHash": "3fc2a7583aa9e04b174dc19dc792089a3bd00e4e1d1081077f2a2904f566462b",
-      "state": "machine-cross-checked",
-      "text": "Dashboard di Home Assistant"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.group_yours": {
+      "text": "Le tue plance",
       "sourceHash": "1eae7261ac3538d5d912509465916c3a33d7fad19970a0ce27d53c37ba115203",
-      "state": "machine-cross-checked",
-      "text": "Le tue dashboard"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.no_default": {
+      "text": "Questo account non ha una plancia predefinita: scegli la plancia da mostrare sul pannello.",
       "sourceHash": "d491bed061c60e1745eb3212c40ff7fd554851354c2d8b4d9c8a31b873f65ec8",
-      "state": "machine-cross-checked",
-      "text": "Questo account non ha una dashboard predefinita: scegli la dashboard da mostrare sul pannello."
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.none_accessible": {
+      "text": "Questo account non può accedere ad alcuna plancia. Creane una o concedi l'accesso in Home Assistant.",
       "sourceHash": "85c12503ff1cc21593b8d6167b5fb834ecf6e1196c0f1d1df74c9397104a7f20",
-      "state": "machine-cross-checked",
-      "text": "Questo account non può accedere ad alcuna dashboard. Creane una o concedi l'accesso in Home Assistant."
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_help": {
+      "text": "Un percorso in questo Home Assistant, che inizi con una plancia dell'elenco precedente.",
       "sourceHash": "70983ce0dd46a73e6a903ce96411af18990bab0dfa39e1878a9ae81e91c07689",
-      "state": "machine-cross-checked",
-      "text": "Un percorso in questo Home Assistant, che inizi con una dashboard dell'elenco precedente."
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_invalid": {
+      "text": "Inserisci un percorso della plancia, ad esempio /dashboard-name/tab-name.",
       "sourceHash": "44e97a76f2ba646917a08ea5e9b8ea2a25029bb30b73d0d9094d201f49d8afdc",
-      "state": "machine-cross-checked",
-      "text": "Inserisci un percorso dashboard, ad esempio /dashboard-name/tab-name."
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_label": {
+      "text": "Percorso della plancia",
       "sourceHash": "08e0f39c31b74ee65647b268f819ae96f3669dc62daa2345760e91b396585937",
-      "state": "machine-cross-checked",
-      "text": "Percorso dashboard"
+      "state": "machine-cross-checked"
     },
     "configure.dashboard.path_not_visible": {
+      "text": "{path} non è una plancia visibile all'account Home Assistant del pannello: il pannello userà quella predefinita finché la plancia non sarà disponibile.",
       "sourceHash": "7464a115e40c5a97c3999bdc9f2dbf984f4298a406b10766470f28e15667bcae",
-      "state": "machine-cross-checked",
-      "text": "{path} non è una dashboard visibile all'account Home Assistant del pannello: il pannello userà quella predefinita finché la dashboard non sarà disponibile."
+      "state": "machine-cross-checked"
     },
     "configure.descriptions": {
       "text": "Descrizioni",
@@ -1079,9 +1079,9 @@
       "text": "Operazione non riuscita (rete)"
     },
     "configure.exposure.expose_title": {
+      "text": "Nascosto a Home Assistant — fai clic per esporre",
       "sourceHash": "b08fdfe608433be2531aaf092763f77ca8a2a26ba55a018ced56a51d98f2c821",
-      "state": "machine-cross-checked",
-      "text": "Nascosto da Home Assistant — fai clic per esporre"
+      "state": "machine-cross-checked"
     },
     "configure.exposure.exposed": {
       "sourceHash": "7e8cc952097b411c9cee8ee9dec2beb2432d1aa78d3a81abab4d4f13485bad72",
@@ -1089,9 +1089,9 @@
       "text": "Esposto a Home Assistant"
     },
     "configure.exposure.hidden": {
+      "text": "Nascosto a Home Assistant",
       "sourceHash": "0f75fa073e40f7e53dca80d45f440f414483e9b08065923db4e5d9118c2073d1",
-      "state": "machine-cross-checked",
-      "text": "Nascosto da Home Assistant"
+      "state": "machine-cross-checked"
     },
     "configure.exposure.hide_title": {
       "sourceHash": "17c904c6124636a4c4eb0337c86bc636e15e675e2256ec752dc8cb918b58c01c",
@@ -1479,7 +1479,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.learning_clear_baseline": {
-      "text": "Non serve alcuna configurazione. Mantieni brevemente libera l’area affinché il pannello impari il valore di riferimento.",
+      "text": "Non serve alcuna configurazione. Mantieni brevemente libero lo spazio affinché il pannello impari il valore di riferimento.",
       "sourceHash": "f14cf2497d96832b03c9b3442247990bf8e72648d8802d9c50cdb4d375a08455",
       "state": "machine-cross-checked"
     },
@@ -1519,7 +1519,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.teach_instruction": {
-      "text": "Lascia brevemente libera l’area, esegui un gesto deliberato e allontanati di nuovo.",
+      "text": "Lascia brevemente libero lo spazio, esegui un gesto deliberato e allontanati di nuovo.",
       "sourceHash": "4ff0bd8149854f23a250825b02589c3e2b8dc2e22e573e020e925a01d85b69ec",
       "state": "machine-cross-checked"
     },
@@ -1669,12 +1669,12 @@
       "text": "Segui le istruzioni sul pannello. Tieni aperta la scheda del browser fino al termine della configurazione; puoi lasciarla in secondo piano."
     },
     "configure.proximity.setup.local": {
+      "text": "La configurazione facoltativa si svolge sul pannello. Il tocco per riattivare resta disponibile.",
       "sourceHash": "8f6597024bf8630ed4a363b1614be8f5feb965be8e1b86ff1b7b6569710454b7",
-      "state": "machine-cross-checked",
-      "text": "La configurazione facoltativa si svolge sul pannello. Il risveglio al tocco resta disponibile."
+      "state": "machine-cross-checked"
     },
     "configure.proximity.setup.no_source": {
-      "text": "Il risveglio agitando la mano non è disponibile. Il risveglio al tocco resta disponibile.",
+      "text": "La riattivazione con gesto non è disponibile. Il tocco per riattivare resta disponibile.",
       "sourceHash": "3289aebbf56f13839cce39ea69f9f957ef682f9a52b1b92d1b2513ad36a74748",
       "state": "machine-cross-checked"
     },
@@ -1849,9 +1849,9 @@
       "text": "Cancella i dati del renderer"
     },
     "configure.renderer.clear_storage_help": {
+      "text": "Cancella i dati della plancia in cache. L’accesso resta attivo.",
       "sourceHash": "de5965dc388b46e57b80e0069a3ab9883397d841ca82c47787e9107978378b3b",
-      "state": "machine-cross-checked",
-      "text": "Cancella i dati dashboard in cache. L’accesso resta attivo."
+      "state": "machine-cross-checked"
     },
     "configure.renderer.clearing": {
       "sourceHash": "9a81378b00d70e669413ed91a709d5b23dd10a3f2d38cb15243bdc97dccb2ac6",
@@ -1869,9 +1869,9 @@
       "text": "{package} · renderer esterno configurato"
     },
     "configure.renderer.pending": {
+      "text": "Salvata; non ancora nella plancia.",
       "sourceHash": "44013c8871c7f55df0a65f5c8d41f6f23b275a63586cc1091488eaad2e84b82b",
-      "state": "machine-cross-checked",
-      "text": "Salvata; non ancora nella dashboard."
+      "state": "machine-cross-checked"
     },
     "configure.renderer.storage": {
       "sourceHash": "eec803f81f175fae9289185d372068eea10fdbc5e058e893315528c337abdd1e",
@@ -1914,7 +1914,7 @@
       "text": "Devi ancora configurare questo pannello?"
     },
     "configure.setup.strategy_allowed.body": {
-      "text": "Home Assistant crea la dashboard di questo pannello in base a una strategia, e la verifica di rilevamento delle entità è consentita, quindi le schede compaiono solo per le entità incluse nella sottoscrizione.",
+      "text": "Home Assistant crea la plancia di questo pannello in base a una strategia, e la verifica di rilevamento delle entità è consentita, quindi le schede compaiono solo per le entità incluse nella sottoscrizione.",
       "sourceHash": "775e7bde2d357258f45f814e974079a72d8e907dfd0678208bc0685908dd0cc9",
       "state": "machine-cross-checked"
     },
@@ -1924,7 +1924,7 @@
       "state": "machine-cross-checked"
     },
     "configure.setup.strategy_allowed.title": {
-      "text": "Alcune schede della dashboard potrebbero mancare.",
+      "text": "Alcune schede della plancia potrebbero mancare.",
       "sourceHash": "4eb6bbaee2e66e0cb133be770b21c244e29992602a99e52c62c4848f66dfc315",
       "state": "machine-cross-checked"
     },
@@ -2029,7 +2029,7 @@
       "state": "machine-cross-checked"
     },
     "configure.voice.download_failed": {
-      "text": "Download fallito: {reason}",
+      "text": "Download non riuscito: {reason}",
       "sourceHash": "a9cba27e078073edbace171f6262b4e66249bd4e1e0936ec33dfd8be9824cd94",
       "state": "machine-cross-checked"
     },
@@ -2069,7 +2069,7 @@
       "state": "machine-cross-checked"
     },
     "configure.voice.import_failed": {
-      "text": "Importazione fallita: {reason}",
+      "text": "Importazione non riuscita: {reason}",
       "sourceHash": "9660b716434b0e4fe2e4aead3463c5084fffbaba0a243f5ce8ddd02bc6a50964",
       "state": "machine-cross-checked"
     },
@@ -2224,14 +2224,14 @@
       "text": "Configura → Connessione a Home Assistant"
     },
     "dashboard.banner.auth_rejected.explanation": {
+      "text": "le impostazioni di accesso salvate sono state rifiutate, quindi la plancia ha smesso di riprovare (le istruzioni per risolvere il problema sono mostrate sul pannello). Usa l’accesso dal browser in",
       "sourceHash": "e414f00aea1c8c8d9ac8a59a1fa6902c8fca809a1ad9990d1bed61898c4d8e96",
-      "state": "machine-cross-checked",
-      "text": "le impostazioni di accesso salvate sono state rifiutate, quindi la dashboard ha smesso di riprovare (le istruzioni per risolvere il problema sono mostrate sul pannello). Usa l’accesso dal browser in"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.reload_suffix": {
+      "text": "la plancia si ricarica automaticamente quando cambiano le credenziali.",
       "sourceHash": "ac2f4f87a33bda1c9d97387ce8d5ba0f27926025bd37ca5ce0a7d396fc5008c0",
-      "state": "machine-cross-checked",
-      "text": "la dashboard si ricarica automaticamente quando cambiano le credenziali."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.auth_rejected.title": {
       "sourceHash": "9fb8291c15b7f5ed04e8c99d9c63419c732ec377adf5f7bdad4ea59f85170b78",
@@ -2249,9 +2249,9 @@
       "text": "Impossibile verificare le impostazioni dell’app Companion di Home Assistant"
     },
     "dashboard.banner.companion_url.explanation": {
+      "text": "La riparazione imposta l’URL interno uguale all’URL esterno.",
       "sourceHash": "1fc0536e933993621bd1b791bad1196de804ee4c31783a6fade2011d34bd0c73",
-      "state": "machine-cross-checked",
-      "text": "La riparazione imposta la URL interna uguale alla URL esterna."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.install_action": {
       "sourceHash": "d36d81e74fe3a959a745f091134741be7a6fdf8eaaa9a09835c19cd8c219b6d3",
@@ -2259,24 +2259,24 @@
       "text": "Ripara nella scheda Installa →"
     },
     "dashboard.banner.companion_url.repair": {
+      "text": "Ripara URL interno",
       "sourceHash": "8192fbd2559223b9ded4b9199b6c9f54622863f4151afb5c292fe902fe350c25",
-      "state": "machine-cross-checked",
-      "text": "Ripara URL interna"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.summary_many": {
+      "text": "({count} server) — la plancia potrebbe non caricarsi con",
       "sourceHash": "aa53e84cf786b06f13cee6812a280e46bae647fd0290b0849b9a20237e899afe",
-      "state": "machine-cross-checked",
-      "text": "({count} server) — la dashboard potrebbe non caricarsi con"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.summary_one": {
+      "text": "({count} server) — la plancia potrebbe non caricarsi con",
       "sourceHash": "56203c170dac72c1625b265579265ec88a750300873d2accad41690efe1e0a0f",
-      "state": "machine-cross-checked",
-      "text": "({count} server) — la dashboard potrebbe non caricarsi con"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.companion_url.title": {
+      "text": "L’app Companion di Home Assistant non ha un URL interno",
       "sourceHash": "c919755118a3442bc3fed461d142cd7e575a4289d3a5c9f8a044e7a679044c86",
-      "state": "machine-cross-checked",
-      "text": "L’app Companion di Home Assistant non ha una URL interna"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.ha_sign_in.action": {
       "sourceHash": "b9ce2f85fea6f8548721dc2e95170eb6501d1cb71444f211656d9aa22f968553",
@@ -2304,9 +2304,9 @@
       "text": "Seleziona il Renderer integrato di Panel Assistant in"
     },
     "dashboard.banner.no_renderer.explanation": {
+      "text": "oppure configura un altro pacchetto per la plancia. Fino ad allora, questo pannello non mostrerà alcuna plancia.",
       "sourceHash": "5aee351360d4e2deffde50f405e582262d7ac56d4909d5a35be51c8a96123bc3",
-      "state": "machine-cross-checked",
-      "text": "oppure configura un altro pacchetto per la dashboard. Fino ad allora, questo pannello non mostrerà alcuna dashboard."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.no_renderer.note": {
       "sourceHash": "679bfa171a077cdbe425b11cc5244f97e63558f81ccd1e187ca91782ec765016",
@@ -2314,9 +2314,9 @@
       "text": "(Panel Assistant funziona correttamente anche senza.)"
     },
     "dashboard.banner.no_renderer.title": {
+      "text": "Ora scegli un renderer per la plancia.",
       "sourceHash": "24902b84c7258c68268c292d74ae609f87c4567ae4b1ab633c50ca4c10a186ef",
-      "state": "machine-cross-checked",
-      "text": "Ora scegli un renderer per la dashboard."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.panel_bridge_running": {
       "text": "Su questo pannello è in esecuzione un bridge Zigbee in Termux. Potrebbe interferire con il gateway Zigbee del pannello. Controlla il bridge di Termux prima di attivare le funzioni del gateway Zigbee.",
@@ -2329,14 +2329,14 @@
       "text": "Apri configurazione di prossimità"
     },
     "dashboard.banner.proximity_learning.title": {
+      "text": "Riattivazione con gesto non disponibile",
       "sourceHash": "13fee9fb24fd087f47f147bc51dec39d5c598dd73006d3c8417b837a5128ca7f",
-      "state": "machine-cross-checked",
-      "text": "Risveglio con gesto non disponibile"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.proximity_learning.touch_available": {
+      "text": "Il tocco per riattivare resta disponibile.",
       "sourceHash": "903915dd8ee56238ac39ddd50edf407ff66796e29173afbeb3da700f6838c234",
-      "state": "machine-cross-checked",
-      "text": "L’attivazione al tocco resta disponibile."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.schema_rollback.configure_action": {
       "sourceHash": "d8ec542d4afb557de9d173fa65c10ad47c3b9357a741084ceb548c815c8df1af",
@@ -2374,9 +2374,9 @@
       "text": "Verificato rispetto alla versione reale del motore (dalla WebView UA), non solo alla versione indicata del pacchetto — quindi un Cromite/LineageOS SystemWebView non attiverà l’avviso."
     },
     "dashboard.banner.webview_old.explanation": {
+      "text": "la plancia di Home Assistant potrebbe apparire vuota o non funzionare.",
       "sourceHash": "ff191e5d689ffb361fc76cbffb902c16185f7355b227ddccb705d42aed4b54f1",
-      "state": "machine-cross-checked",
-      "text": "la dashboard di Home Assistant potrebbe apparire vuota o non funzionare."
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.webview_old.target": {
       "sourceHash": "d145b2299c214056f667aaa46ed712ccad5275e9e75eb57223bde1ff2ca7b21d",
@@ -2404,9 +2404,9 @@
       "text": "densità dello schermo"
     },
     "dashboard.banner.zoom.explanation": {
+      "text": "(non 100%) — in genere ereditato dallo zoom pagina dell’app Companion. Il modo migliore per ridimensionare una plancia è modificare la",
       "sourceHash": "9b8b90e77b2c5fe92483b1773920fc2568273ca3117badb474db74ac7642b72a",
-      "state": "machine-cross-checked",
-      "text": "(non 100%) — in genere ereditato dallo zoom pagina dell’app Companion. Il modo migliore per ridimensionare una dashboard è modificare la"
+      "state": "machine-cross-checked"
     },
     "dashboard.banner.zoom.reset": {
       "sourceHash": "39cdc8918f48e707c7dcbee5f5d331d7ef1c1265c875ac17181073e46ca7d135",
@@ -2414,9 +2414,9 @@
       "text": "Reimposta lo zoom al 100%"
     },
     "dashboard.banner.zoom.title": {
+      "text": "Lo zoom della plancia è {zoom}%",
       "sourceHash": "7c420345226ec705034cdbc69b791fd059d1bfea7736e944fa5bbe605667795a",
-      "state": "machine-cross-checked",
-      "text": "Lo zoom della dashboard è {zoom}%"
+      "state": "machine-cross-checked"
     },
     "dashboard.camera.action.check_hardware": {
       "text": "controlla l'hardware della fotocamera; un nuovo client dopo l'attesa riprova",
@@ -2454,9 +2454,9 @@
       "text": "la fotocamera fornisce fotogrammi, ma non è stato possibile codificarli; segnala il problema allegando la diagnostica del pannello"
     },
     "dashboard.camera.action.wake_panel": {
+      "text": "riattiva il pannello: una sessione della fotocamera può iniziare solo mentre la plancia è visibile",
       "sourceHash": "e88ad0895ee4cc2d7f5cd28e848d4c0aedc45e90ae7958a5517605497a6fd85f",
-      "state": "machine-cross-checked",
-      "text": "riattiva il pannello: una sessione della fotocamera può iniziare solo mentre la dashboard è visibile"
+      "state": "machine-cross-checked"
     },
     "dashboard.camera.bitrate.cap": {
       "sourceHash": "747e84d559f969df60a9060b54e4ac8d3beca53410849ce9034c246f8e2ea08a",
@@ -2989,9 +2989,9 @@
       "text": "il profilo di questo pannello seleziona la modalità a luminosità zero, che non spegne mai la retroilluminazione"
     },
     "dashboard.capability.note.dim_keycode_sleep": {
+      "text": "richiede su o il daemon helper per inviare KEYCODE_SLEEP",
       "sourceHash": "fdfbf3af9f2f97c4f37fbd64d08b71e7fd876dee7d4e57a7ea780dc9e6030878",
-      "state": "machine-cross-checked",
-      "text": "richiede su o il daemon ausiliario per inviare KEYCODE_SLEEP"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.dim_only": {
       "sourceHash": "566087c8cb755bd8c6f4af9d07008a957ecf50a377eb32e5b851bbf81cf3de3c",
@@ -2999,9 +2999,9 @@
       "text": "Modalità DIM ONLY — {reason}"
     },
     "dashboard.capability.note.helper_routed": {
+      "text": "non disponibile direttamente per Panel Assistant — le azioni privilegiate passano tramite il daemon helper",
       "sourceHash": "43516d445b467b00c7a6d5bdea7988277be756766499ad5b90f86bec252ed1d4",
-      "state": "machine-cross-checked",
-      "text": "non disponibile direttamente per Panel Assistant — le azioni privilegiate passano tramite il daemon ausiliario"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.led_unreachable": {
       "sourceHash": "6c32a3e8242a947d1c8e684587cfa1b63bfdb3c63e108a985bc724f272df055d",
@@ -3014,9 +3014,9 @@
       "text": "richiede un accesso privilegiato supportato al pannello"
     },
     "dashboard.capability.note.needs_su_or_helper": {
+      "text": "richiede su o il daemon helper",
       "sourceHash": "4e9c9b45a00e9db3c69382330e119f40fa835bd7898b1abb0b3077df5ac65e0f",
-      "state": "machine-cross-checked",
-      "text": "richiede su o il daemon ausiliario"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.needs_write_settings": {
       "sourceHash": "5356e1ca4a3a487fb59a9181ed108a1077e53887e3a521aec59c47c3f89da8ef",
@@ -3034,14 +3034,14 @@
       "text": "Rockchip /dev/ledjni (diretto dall'app, senza root)"
     },
     "dashboard.capability.note.rockchip_led_helper": {
+      "text": "ioctl su Rockchip /dev/ledjni tramite il daemon helper (root)",
       "sourceHash": "26abef3a1d288f74a47761063b7232101264d83a0e850dbcab576de17dd1e7e8",
-      "state": "machine-cross-checked",
-      "text": "ioctl su Rockchip /dev/ledjni tramite il daemon ausiliario (root)"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.root_or_helper": {
+      "text": "disponibile tramite root o il daemon helper",
       "sourceHash": "165f7476c83ccff55a53fe81df2bb7213eb58cc7dc042802bf754fc9a75d8acc",
-      "state": "machine-cross-checked",
-      "text": "disponibile tramite root o il daemon ausiliario"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.su_direct": {
       "sourceHash": "7fab146e5b37b4d07a9636d9917ad40f327d1fd8d302535de31e60505e1f7efd",
@@ -3054,9 +3054,9 @@
       "text": "non disponibile direttamente per Panel Assistant — consulta le singole righe delle funzionalità qui sotto"
     },
     "dashboard.capability.note.sysfs_led_helper": {
+      "text": "LED sysfs tramite il daemon helper",
       "sourceHash": "6e48992050b0bb9ef7ad7b482b89a339b779873721ede294ffb3929ccb77e7d8",
-      "state": "machine-cross-checked",
-      "text": "LED sysfs tramite il daemon ausiliario"
+      "state": "machine-cross-checked"
     },
     "dashboard.capability.note.write_settings_granted": {
       "sourceHash": "2cc506ffccedc8432c430164530ff4fd2501d7e3a5a0a0fc91a494facb15adac",
@@ -3159,9 +3159,9 @@
       "text": "Debug remoto WebView"
     },
     "dashboard.card.responsiveness": {
+      "text": "Reattività della plancia",
       "sourceHash": "c3a5b81b72c2839068f12c59c5bc192d061aa12064c6e890effa27893c402bf5",
-      "state": "machine-cross-checked",
-      "text": "Reattività della dashboard"
+      "state": "machine-cross-checked"
     },
     "dashboard.card.runtime_diagnostics": {
       "sourceHash": "892e412d7f3914a78a8a068b04f376a4665dfc2126be339ab00c056ae0df8621",
@@ -3194,14 +3194,14 @@
       "text": "Raccolta dati diagnostici"
     },
     "dashboard.cause.dashboard_or_state_proxy": {
+      "text": "Carico della plancia o dello stato (proxy)",
       "sourceHash": "425a2c150980fd510bf9ef45900a5091dd5d49faafcdca8e8f8f1ef3bab89bd9",
-      "state": "machine-cross-checked",
-      "text": "Carico della dashboard o dello stato (proxy)"
+      "state": "machine-cross-checked"
     },
     "dashboard.cause.dashboard_script": {
+      "text": "JavaScript di plancia/scheda",
       "sourceHash": "db93f478db12c742d1a6130f62649e31b5d7b4431cb8a48fc360d8ec73d0de97",
-      "state": "machine-cross-checked",
-      "text": "JavaScript di dashboard/scheda"
+      "state": "machine-cross-checked"
     },
     "dashboard.cause.ha_network_path": {
       "sourceHash": "a45cf48d0f0710629bbf9b548c33ca8d9ecad5ddc51f9566d13756d166bcde9b",
@@ -3329,9 +3329,9 @@
       "text": "Richiede un pannello con root"
     },
     "dashboard.controls.unavailable": {
+      "text": "Non disponibile durante il caricamento della plancia",
       "sourceHash": "23b08e93ff70b56bc7f1414f564d98196c64ccf6c6e8d19cdccd3059e21c2f6e",
-      "state": "machine-cross-checked",
-      "text": "Non disponibile durante il caricamento della dashboard"
+      "state": "machine-cross-checked"
     },
     "dashboard.diagnostics_dump.explanation": {
       "sourceHash": "d6301b1bff4840ec7fc5c53bd52cff5bcbd29b94cae72db0d4500e9e96639efc",
@@ -3589,9 +3589,9 @@
       "text": "Le schede delle prestazioni sopra usano la strumentazione integrata diretta senza DevTools."
     },
     "dashboard.inspect.enable_in_companion": {
+      "text": "Attivala prima nella plancia: Companion → Impostazioni → Risoluzione dei problemi → «Debug remoto WebView», poi riapri la plancia e premi di nuovo Attiva.",
       "sourceHash": "760752b57777587b23fb91a39c73f1865016cc24324d3bf3e64d4d55fb5fcc74",
-      "state": "machine-cross-checked",
-      "text": "Attivala prima nella dashboard: Companion → Impostazioni → Risoluzione dei problemi → «Debug remoto WebView», poi riapri la dashboard e premi di nuovo Attiva."
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.hardened_disabled": {
       "sourceHash": "ee70f4d65d45904d8878a2146235add5ac0fc61183d50fc2d7c7369eb52b0970",
@@ -3599,9 +3599,9 @@
       "text": "Non disponibile con la modalità protetta attiva. Passa alla modalità permissiva prima di esporre alla LAN gli strumenti di sviluppo WebView."
     },
     "dashboard.inspect.instructions": {
+      "text": "Per un'analisi più approfondita, apri chrome://inspect → Configure…, aggiungi {host}, poi premi Attiva. Companion richiede anche Impostazioni → Risoluzione dei problemi → debug remoto WebView e la riapertura della plancia. L'inoltro richiede root.",
       "sourceHash": "4d4bde17b98b24bd56c637a96ebcb90b9adc7cdfb9a6e43f14eead421735fed7",
-      "state": "machine-cross-checked",
-      "text": "Per un'analisi più approfondita, apri chrome://inspect → Configure…, aggiungi {host}, poi premi Attiva. Companion richiede anche Impostazioni → Risoluzione dei problemi → debug remoto WebView e la riapertura della dashboard. L'inoltro richiede root."
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.needs_root": {
       "sourceHash": "97722572b041c17d0e55845458ee601cb669d501205f260efbac337ece6d7e35",
@@ -3619,9 +3619,9 @@
       "text": "· attivo"
     },
     "dashboard.inspect.running": {
+      "text": "Inoltro attivo. In chrome://inspect la plancia appare ora sotto Remote Target: fai clic su Ispeziona. Se non compare, aggiungi l'host prima dell'attivazione: inserisci {host} in Configure…, poi aggiorna chrome://inspect. Finché è attivo espone DevTools alla LAN; al termine premi Arresta.",
       "sourceHash": "2e061fb7d41c99241a10ac0799976d3994087845144cc55526eeb1e3585b8fa6",
-      "state": "machine-cross-checked",
-      "text": "Inoltro attivo. In chrome://inspect la dashboard appare ora sotto Remote Target: fai clic su Ispeziona. Se non compare, aggiungi l'host prima dell'attivazione: inserisci {host} in Configure…, poi aggiorna chrome://inspect. Finché è attivo espone DevTools alla LAN; al termine premi Arresta."
+      "state": "machine-cross-checked"
     },
     "dashboard.inspect.start_failed": {
       "sourceHash": "6d35dd65046d7633824867470f051411b6013e6a7be45a3677d6f2e4862b4cfd",
@@ -3724,9 +3724,9 @@
       "text": "Carico medio"
     },
     "dashboard.performance.peak_core": {
+      "text": "picco core {percent}%",
       "sourceHash": "0f520be08837255e92703ad37a957c7f2f582b4ac22156400a7c3b48853b6020",
-      "state": "machine-cross-checked",
-      "text": "picco nucleo {percent}%"
+      "state": "machine-cross-checked"
     },
     "dashboard.performance.samples_note": {
       "sourceHash": "df85a9a8e2c841f096ebb91613aef0a0c812609d2534a6256da3402fb372dd9e",
@@ -3759,14 +3759,14 @@
       "text": "Valori dichiarati dal"
     },
     "dashboard.proximity.adapting": {
+      "text": "Adattamento sicuro al segnale di prossimità cambiato",
       "sourceHash": "5ca43fc74da45ad9124fbe82cb4e5c83990e956de60ab7d6e7aa63d370f7ee9a",
-      "state": "machine-cross-checked",
-      "text": "Adattamento sicuro al segnale di Prossimità cambiato"
+      "state": "machine-cross-checked"
     },
     "dashboard.proximity.checking_previous_range": {
+      "text": "Confronto dell’intervallo appreso in precedenza con le letture in tempo reale",
       "sourceHash": "8d149efcb95a9578c5e158fd8a4d47127baa8205ce8152bc0e3e4c44d0aad38f",
-      "state": "machine-cross-checked",
-      "text": "Confronto dell’intervallo appreso con le letture in tempo reale"
+      "state": "machine-cross-checked"
     },
     "dashboard.proximity.learning_baseline": {
       "sourceHash": "594eb724417419650ee78b54e4ec36f2f63982f7d3ed747dd4779caa2821584b",
@@ -3839,9 +3839,9 @@
       "text": "{percent}% scatti"
     },
     "dashboard.renderer.main_thread": {
+      "text": "Thread principale della plancia",
       "sourceHash": "88cd2baeff4fc9e88ddf4f6ae14d884e57d5cc91439b491b91998f78562e8fcc",
-      "state": "machine-cross-checked",
-      "text": "Thread principale dashboard"
+      "state": "machine-cross-checked"
     },
     "dashboard.renderer.measurement_mode": {
       "sourceHash": "b842361bbe8802dfd47d23606d2c8d08ecc7a9201e7bd70e5cce3fe1fe4936dc",
@@ -3879,9 +3879,9 @@
       "text": "Il Renderer integrato è attivo senza l’osservatore live del browser"
     },
     "dashboard.renderer.reload_to_retry": {
+      "text": "ricarica la plancia integrata per riprovare",
       "sourceHash": "24aba4e861f684023d646a5df22b12afdd988d412cc7046a7a421bccf971e8c0",
-      "state": "machine-cross-checked",
-      "text": "ricarica la dashboard integrata per riprovare"
+      "state": "machine-cross-checked"
     },
     "dashboard.renderer.rendering_proxy": {
       "sourceHash": "696607e035ec0df4c41b9db11b9935bb9187ddc4192ba3971e679125cd492737",
@@ -3929,9 +3929,9 @@
       "text": "· variazioni heap/OOM"
     },
     "dashboard.responsiveness.interact_to_measure": {
+      "text": "interagisci con la plancia per misurare",
       "sourceHash": "1df8b14402ffb0eed977a5e266230137209f970a710064dfa25ece185d32e357",
-      "state": "machine-cross-checked",
-      "text": "interagisci con la dashboard per misurare"
+      "state": "machine-cross-checked"
     },
     "dashboard.responsiveness.interaction": {
       "sourceHash": "167d4b09d014f218c42abf5ebb397a2fc819401fe709223fbd729f1f8e9e790e",
@@ -3939,9 +3939,9 @@
       "text": "interazione"
     },
     "dashboard.responsiveness.launch_ready": {
+      "text": "· avvio → plancia pronta",
       "sourceHash": "8d1041b457f9c11bd8a8635d0b643fb818596c93a80412a87ce677ab109f01c4",
-      "state": "machine-cross-checked",
-      "text": "· avvio → dashboard pronta"
+      "state": "machine-cross-checked"
     },
     "dashboard.responsiveness.likely_cause": {
       "sourceHash": "37df288399804af4406547013dfc6e21fb1db3a675036b45bc6dd21883b73449",
@@ -4084,19 +4084,19 @@
       "text": "arresto fotocamera"
     },
     "dashboard.runtime.camera.stream_not_listening": {
+      "text": "flusso non in ascolto",
       "sourceHash": "e3a40cd0634618399becf4bea497de031a554cc4e1db0324c6af3e5e3092e0d8",
-      "state": "machine-cross-checked",
-      "text": "stream non in ascolto"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.camera.stream_port": {
+      "text": "flusso in ascolto sulla porta {port}",
       "sourceHash": "83c1bf9b7ba534ecc1a6dbea0551e81ffd3a09abdb1ec9e48b9eac9f4a7511ab",
-      "state": "machine-cross-checked",
-      "text": "stream in ascolto sulla porta {port}"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.camera.stream_url": {
+      "text": "flusso su {url} (non per la plancia di questo pannello)",
       "sourceHash": "d3f3db923f7d17d1a473967e4cf23654596c890df0926f8f8fff90363e68dffd",
-      "state": "machine-cross-checked",
-      "text": "stream su {url} (non per la dashboard di questo pannello)"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.database.on_disk": {
       "sourceHash": "76ece6574f88f5736843495cc337b68ae23178a21b35fbe4fb8810470bd85081",
@@ -4239,14 +4239,14 @@
       "text": "{status} · ammesso {age} fa"
     },
     "dashboard.runtime.renderer.admitted_cached": {
+      "text": "ammesso con una versione di Home Assistant verificata in precedenza; la plancia non si è connessa",
       "sourceHash": "7e85c23b29d5ad7c28dabb3f8c4261b86e848c31a64e911bce5b10fa680240bf",
-      "state": "machine-cross-checked",
-      "text": "ammesso con una versione di Home Assistant verificata in precedenza; la dashboard non si è connessa"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.admitted_waiting": {
+      "text": "ammesso; la plancia non si è ancora connessa",
       "sourceHash": "89c8b01a2e40da3b01620c913744f4c12b8c5669544bf736dc0d73d7b1ca76d7",
-      "state": "machine-cross-checked",
-      "text": "ammesso; la dashboard non si è ancora connessa"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.builtin": {
       "sourceHash": "700d74f3da30748668edfc3425baf5195000846b62bc7b57ee43d32b254af6fd",
@@ -4259,19 +4259,19 @@
       "text": "verifica compatibilità con Home Assistant"
     },
     "dashboard.runtime.renderer.rendered": {
+      "text": "plancia visualizzata",
       "sourceHash": "364760458d97955decc536899d96d5ec91067e214a8b461675bc0def3e5e3221",
-      "state": "machine-cross-checked",
-      "text": "dashboard visualizzata"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.rendered_cached": {
+      "text": "plancia visualizzata; renderer ammesso con una versione di Home Assistant verificata in precedenza",
       "sourceHash": "2077a2931c2fa32a27d8d8a136b7a0e5367c4007d0b7df59b559e10e337235d4",
-      "state": "machine-cross-checked",
-      "text": "dashboard visualizzata; renderer ammesso con una versione di Home Assistant verificata in precedenza"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.theme_override_suffix": {
+      "text": "; un tema di Home Assistant impostato esplicitamente sostituisce il tema della plancia di questo pannello",
       "sourceHash": "48b00c7c6d33ce7186244ebdc2343d2c5d58a9156ebf9276d8c7e3bbbc5cb28a",
-      "state": "machine-cross-checked",
-      "text": "; un tema di Home Assistant impostato esplicitamente sostituisce il tema della dashboard di questo pannello"
+      "state": "machine-cross-checked"
     },
     "dashboard.runtime.renderer.unobserved": {
       "sourceHash": "b65f8770c0d567f700d2f20e7e522d6afeb982ebe8210b632c41f937c7f5d599",
@@ -4689,9 +4689,9 @@
       "text": "Applicazione della sottoscrizione selezionata dai criteri…"
     },
     "entities.apply.changed": {
+      "text": "Applicazione completata. Sottoscrizione attiva precedente: {previous}; successiva: {current}. Aggiunte: {added}; rimosse: {removed}. Richiesto il ricaricamento della plancia.",
       "sourceHash": "e6663a78ebc94de30783b44a3bbc39da17c8f70ac0d46f813b2d4e4176874fe8",
-      "state": "machine-cross-checked",
-      "text": "Applicazione completata. Sottoscrizione attiva precedente: {previous}; successiva: {current}. Aggiunte: {added}; rimosse: {removed}. Richiesto il ricaricamento della dashboard."
+      "state": "machine-cross-checked"
     },
     "entities.apply.enable_confirm": {
       "sourceHash": "bac6011889095102b94474f07be420771d6019f85ae6145be6e969f509525ecc",
@@ -4704,9 +4704,9 @@
       "text": "Applicazione non riuscita."
     },
     "entities.apply.replace_confirm": {
+      "text": "Sostituire il flusso attuale (numero di entità: {current}) con l'insieme selezionato dai criteri (numero di entità: {desired})? Aggiunte: {added}; rimosse: {removed}. La plancia verrà ricaricata.",
       "sourceHash": "770343d8562dc49d471c9d0759a998a6c18ca3f79c9d7d27c24c430ce99e6834",
-      "state": "machine-cross-checked",
-      "text": "Sostituire il flusso attuale (numero di entità: {current}) con l'insieme selezionato dai criteri (numero di entità: {desired})? Aggiunte: {added}; rimosse: {removed}. La dashboard verrà ricaricata."
+      "state": "machine-cross-checked"
     },
     "entities.apply.unchanged": {
       "sourceHash": "ba66ce74d616e1093eba2ca1c87586fea5146ef115e5b6affadf6d75056db70f",
@@ -4719,14 +4719,14 @@
       "text": "Imposta selezionate su Automatico"
     },
     "entities.bulk.exclude_all_confirm.one": {
+      "text": "Escludere {count} entità suggerita? Le schede della plancia potrebbero smettere di funzionare.",
       "sourceHash": "4ee7872151dc628a5534388bc708bbdaaa3854e51513b745e69be6ce297f1447",
-      "state": "machine-cross-checked",
-      "text": "Escludere {count} entità suggerita? Le schede della dashboard potrebbero smettere di funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.bulk.exclude_all_confirm.other": {
+      "text": "Escludere tutte le {count} entità suggerite? Le schede della plancia potrebbero smettere di funzionare.",
       "sourceHash": "f71967c93e9b393036ab0e5c4e0d5189d27764b34014e3998bd9d529ca305ae5",
-      "state": "machine-cross-checked",
-      "text": "Escludere tutte le {count} entità suggerite? Le schede della dashboard potrebbero smettere di funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.bulk.exclude_selected": {
       "sourceHash": "2748363ffa4124f831a4e5f7b381251e76cec4593ac9864f1bd53f501e56c932",
@@ -4734,14 +4734,14 @@
       "text": "Escludi selezionate"
     },
     "entities.bulk.exclude_selected_confirm.one": {
+      "text": "Escludere {count} entità selezionata? Le schede della plancia potrebbero smettere di funzionare.",
       "sourceHash": "227268d87fbedc2dfd3681cdb64ea4aa08966e03db558c156671e14d22f4e357",
-      "state": "machine-cross-checked",
-      "text": "Escludere {count} entità selezionata? Le schede della dashboard potrebbero smettere di funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.bulk.exclude_selected_confirm.other": {
+      "text": "Escludere {count} entità selezionate? Le schede della plancia potrebbero smettere di funzionare.",
       "sourceHash": "a4d9e3e4433232a4693d7b385710a5641b8b1352ea5e80a956edce2e14bd0bba",
-      "state": "machine-cross-checked",
-      "text": "Escludere {count} entità selezionate? Le schede della dashboard potrebbero smettere di funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.bulk.failed": {
       "sourceHash": "36941e6910702fea428a60ceeeed35583842648c0bba0264ae63a77bcfec913f",
@@ -4824,9 +4824,9 @@
       "text": "Reimpostazione…"
     },
     "entities.control.scan": {
+      "text": "Esegui ora la scansione della plancia",
       "sourceHash": "8edb4583e8d2ec8d230c75d2bcb7c5d325083faf3be88f8b0b05350bf55b4b21",
-      "state": "machine-cross-checked",
-      "text": "Esegui ora la scansione della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.control.scan_in_progress": {
       "sourceHash": "c19b8ea94d1d20590e8f1e4a1f486865cdc0d6db3fca68c91da1331005d26ebe",
@@ -4859,14 +4859,14 @@
       "text": "Abilita {setting} in {configure} → {dashboard} mentre usi il renderer integrato."
     },
     "entities.disabled.title": {
+      "text": "Entità della plancia",
       "sourceHash": "3db0d66bd72cf3128b18ff59bae034b5c0a982d1d78dd696caedb6dfa1edd02a",
-      "state": "machine-cross-checked",
-      "text": "Entità della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.dynamic.body": {
+      "text": "Queste espressioni non sono errori di configurazione. Interagisci con la plancia e attiva tutti gli stati pertinenti, affinché l'osservazione durante l'esecuzione possa rilevare ID entità concreti. I modelli elaborati da Home Assistant sul server, come {{ ... }} e {% ... %}, vengono valutati prima di raggiungere la plancia; perciò queste interazioni non riveleranno mai le entità lette dai modelli. Non è necessario rilevarle: Home Assistant invia il risultato elaborato tramite una sottoscrizione separata, non interessata da questo filtro, quindi non occorre fare nulla per tali entità. Deve essere aggiunta manualmente soltanto un'entità che il modello produce come riferimento a una scheda.",
       "sourceHash": "b71078752a0fda1c44508c52871014086acdfd547b2ea28da0bb0be8c02e005f",
-      "state": "machine-cross-checked",
-      "text": "Queste espressioni non sono errori di configurazione. Interagisci con la dashboard e attiva tutti gli stati pertinenti, affinché l'osservazione durante l'esecuzione possa rilevare ID entità concreti. I modelli elaborati da Home Assistant sul server, come {{ ... }} e {% ... %}, vengono valutati prima di raggiungere la dashboard; perciò queste interazioni non riveleranno mai le entità lette dai modelli. Non è necessario rilevarle: Home Assistant invia il risultato elaborato tramite una sottoscrizione separata, non interessata da questo filtro, quindi non occorre fare nulla per tali entità. Deve essere aggiunta manualmente soltanto un'entità che il modello produce come riferimento a una scheda."
+      "state": "machine-cross-checked"
     },
     "entities.dynamic.default_dashboard": {
       "sourceHash": "67b696468610b879ed7f224dbf6b0861f27e39d20454cb9d7af1ec52d3e5eeaa",
@@ -4889,9 +4889,9 @@
       "text": "Espressione abbreviata per la diagnostica."
     },
     "entities.dynamic.unavailable": {
+      "text": "I problemi di configurazione della plancia sono temporaneamente indisponibili.",
       "sourceHash": "97d2f9ead197e0a0f6d72fbc2ec76b03e1b3d7a5f90688459226ab29fc796c7c",
-      "state": "machine-cross-checked",
-      "text": "I problemi di configurazione della dashboard sono temporaneamente indisponibili."
+      "state": "machine-cross-checked"
     },
     "entities.error.mutation_ownership_changed": {
       "sourceHash": "51a27bda55e91fb4c7c10831f0361f218210190aac463b96faec5b7b76d7b90f",
@@ -4929,9 +4929,9 @@
       "text": "Reimposta dati appresi"
     },
     "entities.filter.scan": {
+      "text": "Esegui ora la scansione della plancia",
       "sourceHash": "8edb4583e8d2ec8d230c75d2bcb7c5d325083faf3be88f8b0b05350bf55b4b21",
-      "state": "machine-cross-checked",
-      "text": "Esegui ora la scansione della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.filter.title": {
       "sourceHash": "553c1e39d186ac8c3979ba327a650e28d17b9e3d1d00e1025c4a6a5071bae9d6",
@@ -4984,14 +4984,14 @@
       "text": "Gli ID entità statici vengono rilevati immediatamente. Le altre dipendenze dirette da hass.states nelle finestre popup, negli stili, nei pulsanti secondari e nei moduli di Bubble Card vengono apprese automaticamente durante l'esecuzione; l'elenco delle entità rilevate può quindi restare incompleto finché non siano stati attivati tutti i popup e gli stati condizionali pertinenti e non siano stati eseguiti tutti i percorsi dei moduli e tutte le interazioni pertinenti."
     },
     "entities.issue.bubble-card-runtime-coverage.summary": {
+      "text": "Il rilevamento delle entità di Bubble Card dipende dall'esplorazione della plancia",
       "sourceHash": "f52c911e7ffca64cb85a6468cf6781106654795e91c81bf4fe91338c8d94fc1f",
-      "state": "machine-cross-checked",
-      "text": "Il rilevamento delle entità di Bubble Card dipende dall'esplorazione della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.issue.button-card-dynamic-features.reason": {
+      "text": "Queste funzionalità di Button Card possono introdurre dipendenze che non sono presenti come ID entità statici nella configurazione della plancia.",
       "sourceHash": "33565213a61df76f36e54baea1a468cf9c5fe5d166311e0b612a27c344b67dba",
-      "state": "machine-cross-checked",
-      "text": "Queste funzionalità di Button Card possono introdurre dipendenze che non sono presenti come ID entità statici nella configurazione della dashboard."
+      "state": "machine-cross-checked"
     },
     "entities.issue.button-card-dynamic-features.recommendation": {
       "sourceHash": "aa0acc67b2b36ac03142f453db84a32bcb5e617f8e83e6ff83902d3c55560f6e",
@@ -5029,9 +5029,9 @@
       "text": "Configurazione HACS Kiosk Mode"
     },
     "entities.issue.dashboard-strategy.summary": {
+      "text": "La strategia della plancia genera dipendenze da entità in fase di esecuzione",
       "sourceHash": "c2ef5e779dcb1501a2b260488a99ebcd44cc4bef2a10e3f47f5399e9dff8d740",
-      "state": "machine-cross-checked",
-      "text": "La strategia della dashboard genera dipendenze da entità in fase di esecuzione"
+      "state": "machine-cross-checked"
     },
     "entities.issue.decluttering-template-expansion.reason": {
       "sourceHash": "6afdd9a4bbd534c4428d39590daed384b4fdf03273386f1175cca946167c9c5d",
@@ -5079,14 +5079,14 @@
       "text": "Sono state rilevate più di 64 verifiche di blocco distinte."
     },
     "entities.issue.diagnostic-limit.recommendation": {
+      "text": "Semplifica la plancia o suddividila in plance più piccole prima di abilitare il filtro automatico delle entità.",
       "sourceHash": "51d9424df4f4bdc068b69d11f6f19e3cd8eaf42bd62d4acba954daf8568d156e",
-      "state": "machine-cross-checked",
-      "text": "Semplifica la dashboard o suddividila in dashboard più piccole prima di abilitare il filtro automatico delle entità."
+      "state": "machine-cross-checked"
     },
     "entities.issue.diagnostic-limit.summary": {
+      "text": "La plancia contiene più verifiche di sicurezza di quante sia possibile esaminare",
       "sourceHash": "9389720c884f9e7cc15417daa3c982e8083f3ad18bd02b8fb89d06a19fb198dd",
-      "state": "machine-cross-checked",
-      "text": "La dashboard contiene più verifiche di sicurezza di quante sia possibile esaminare"
+      "state": "machine-cross-checked"
     },
     "entities.issue.ignore": {
       "sourceHash": "ce23f81f852dcb0da169baedd751ff559b6aa05f9f40ff83b5e431d389361844",
@@ -5094,9 +5094,9 @@
       "text": "Ignora le potenziali entità e continua"
     },
     "entities.issue.ignore_confirm": {
+      "text": "Continuare omettendo tutte le potenziali entità di questa configurazione? Nessuna entità verrà aggiunta alla sottoscrizione. Le schede che dipendono da tali entità potrebbero risultare non disponibili finché non le fisserai manualmente, non restringerai la plancia o non riabiliterai la verifica di sicurezza.",
       "sourceHash": "67413638e256350b1b2523684e53c746d79e9ca69729a04598065bc78e18d4ce",
-      "state": "machine-cross-checked",
-      "text": "Continuare omettendo tutte le potenziali entità di questa configurazione? Nessuna entità verrà aggiunta alla sottoscrizione. Le schede che dipendono da tali entità potrebbero risultare non disponibili finché non le fisserai manualmente, non restringerai la dashboard o non riabiliterai la verifica di sicurezza."
+      "state": "machine-cross-checked"
     },
     "entities.issue.kiosk-mode-dynamic-javascript.reason": {
       "sourceHash": "848d2c9cb3f62b9ce9bafee07f503cb464e1f9e902cebb6e7bfe064cc443f3a6",
@@ -5194,14 +5194,14 @@
       "text": "Il selettore di entità richiede metadati del registro incompleti"
     },
     "entities.issue.selector-total-budget.reason": {
+      "text": "Nel complesso, i selettori limitati superano il limite di sicurezza della sottoscrizione della plancia.",
       "sourceHash": "8aed88e4dcadaf16d7cdaf424cf672f49063a2514bfdbfb2efdc24da5f914bb6",
-      "state": "machine-cross-checked",
-      "text": "Nel complesso, i selettori limitati superano il limite di sicurezza della sottoscrizione della dashboard."
+      "state": "machine-cross-checked"
     },
     "entities.issue.selector-total-budget.recommendation": {
+      "text": "Restringi i selettori della plancia affinché il loro insieme combinato di entità rimanga entro il limite.",
       "sourceHash": "6d361987a0367d900941e123f4c0dba8d970f90f042d6cb79d77367364f5ba44",
-      "state": "machine-cross-checked",
-      "text": "Restringi i selettori della dashboard affinché il loro insieme combinato di entità rimanga entro il limite."
+      "state": "machine-cross-checked"
     },
     "entities.issue.selector-total-budget.summary": {
       "sourceHash": "b9b9031818790fa57e332221654ebb7128f3110f15825ee9040bdd50153d8446",
@@ -5239,7 +5239,7 @@
       "text": "Origine"
     },
     "entities.issue.strategy_allowed_note": {
-      "text": "Home Assistant crea questa dashboard in base a una strategia, e una strategia crea schede solo per le entità che riesce a vedere. Se questa verifica è consentita, qualsiasi entità al di fuori della sottoscrizione non avrà qui una scheda e non verrà mai appresa, quindi questa pagina non può elencare ciò che manca. Apri la stessa dashboard su Home Assistant da un altro dispositivo e fissa l'entità dietro ogni scheda che qui manca.",
+      "text": "Home Assistant crea questa plancia in base a una strategia, e una strategia crea schede solo per le entità che riesce a vedere. Se questa verifica è consentita, qualsiasi entità al di fuori della sottoscrizione non avrà qui una scheda e non verrà mai appresa, quindi questa pagina non può elencare ciò che manca. Apri la stessa plancia su Home Assistant da un altro dispositivo e fissa l'entità dietro ogni scheda che qui manca.",
       "sourceHash": "70b006b69bb10b22043fbe4f51269ef7cd47586b1e0dfa6f5c02be15f119782b",
       "state": "machine-cross-checked"
     },
@@ -5249,9 +5249,9 @@
       "text": "Gli ID entità statici vengono rilevati immediatamente. Le altre dipendenze dirette da hass.states vengono apprese automaticamente durante l'esecuzione dei modelli Streamline, quindi l'elenco delle entità rilevate può rimanere incompleto finché non siano state visitate tutte le viste pertinenti, attivati tutti gli stati condizionali e i popup pertinenti ed eseguite tutte le interazioni pertinenti."
     },
     "entities.issue.streamline-runtime-coverage.summary": {
+      "text": "Il rilevamento delle entità di Streamline dipende dall'esplorazione della plancia",
       "sourceHash": "37938fd6140133ef9a24e412e7c7d2ab94afaa014b8ba48e9b1a4df9dd66a4c2",
-      "state": "machine-cross-checked",
-      "text": "Il rilevamento delle entità di Streamline dipende dall'esplorazione della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.issue.suggested_edit": {
       "sourceHash": "17f08ab889b9f97f3633228988c4e1d939458e52a181d5cc4f9f78475ce13d70",
@@ -5279,14 +5279,14 @@
       "text": "Vista {index}"
     },
     "entities.issues.checking": {
+      "text": "Verifica della configurazione della plancia…",
       "sourceHash": "79c9c5e94080183d8c7d87f52ce70be165130b5dffe781db9659e31cece0a515",
-      "state": "machine-cross-checked",
-      "text": "Verifica della configurazione della dashboard…"
+      "state": "machine-cross-checked"
     },
     "entities.issues.rescan": {
+      "text": "Riscansiona dopo le modifiche alla plancia",
       "sourceHash": "a6373efa0c0388c76fbfaff8c85718c444fd22dd8cc9667c3cd02aabc7f84786",
-      "state": "machine-cross-checked",
-      "text": "Riscansiona dopo le modifiche alla dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.issues.summary.allowed.one": {
       "sourceHash": "0fc5ba0d68061746d736429945aa2cb8c7ec0f63fc715d220ff9e4618a369cca",
@@ -5299,24 +5299,24 @@
       "text": "{count} controlli consentiti in precedenza. Il rilevamento delle entità è attivo; non è richiesto alcun intervento."
     },
     "entities.issues.summary.blocking.one": {
+      "text": "{count} controllo richiede una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità. La plancia e la sottoscrizione attuale continuano a funzionare.",
       "sourceHash": "1ed24d833a9feffcd89e12012907cfbea22abcb1f3ccfb9245a0257ddc2029e1",
-      "state": "machine-cross-checked",
-      "text": "{count} controllo richiede una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità. La dashboard e la sottoscrizione attuale continuano a funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.issues.summary.blocking.other": {
+      "text": "{count} controlli richiedono una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità. La plancia e la sottoscrizione attuale continuano a funzionare.",
       "sourceHash": "0e6a436a7951f68a9e48943e5c0fa5174c889d4bbac1b837f8edb99e9bf4a45e",
-      "state": "machine-cross-checked",
-      "text": "{count} controlli richiedono una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità. La dashboard e la sottoscrizione attuale continuano a funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.issues.summary.blocking_allowed.one": {
+      "text": "{count} controllo richiede una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità · consentiti in precedenza: {allowed}. La plancia e la sottoscrizione attuale continuano a funzionare.",
       "sourceHash": "50df7415c958b6dc777ca19c433e4cfc0bfb40379d9a0e66dd5c757fd459fb87",
-      "state": "machine-cross-checked",
-      "text": "{count} controllo richiede una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità · {allowed} consentito in precedenza. La dashboard e la sottoscrizione attuale continuano a funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.issues.summary.blocking_allowed.other": {
+      "text": "{count} controlli richiedono una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità · consentiti in precedenza: {allowed}. La plancia e la sottoscrizione attuale continuano a funzionare.",
       "sourceHash": "f2a1fd998a48a160086d8fa2e5914f6332e5d946e87caeb217abba365bffada3",
-      "state": "machine-cross-checked",
-      "text": "{count} controlli richiedono una verifica prima che gli aggiornamenti automatici possano modificare la sottoscrizione delle entità · {allowed} consentiti in precedenza. La dashboard e la sottoscrizione attuale continuano a funzionare."
+      "state": "machine-cross-checked"
     },
     "entities.issues.summary.none": {
       "sourceHash": "05a5b6f12c6303c5122d17dc97804b4228a70a7a6555cd25d60b1cc1eb81b2da",
@@ -5339,9 +5339,9 @@
       "text": "Compatibilità del rilevamento"
     },
     "entities.override.exclude_confirm": {
+      "text": "Escludere {entity_id} anche se la plancia ne dipende?",
       "sourceHash": "d0ab4e63729c4a23af1b6d0645a61fa9b04070790957b396dea1c56e451ec94b",
-      "state": "machine-cross-checked",
-      "text": "Escludere {entity_id} anche se la dashboard ne dipende?"
+      "state": "machine-cross-checked"
     },
     "entities.override.failed": {
       "sourceHash": "b42ba8ad55e097922c0c1b5bb2122a798ffa01e071c205d78086dc166c3e8347",
@@ -5389,9 +5389,9 @@
       "text": "Aggiungi le entità configurate nella dashboard"
     },
     "entities.reason.config": {
+      "text": "Configurazione della plancia",
       "sourceHash": "311816e83e03c9f7385ff897bb2ab989cba37bd9d410e78ef8e7ed39b09e8a6c",
-      "state": "machine-cross-checked",
-      "text": "Configurazione della dashboard"
+      "state": "machine-cross-checked"
     },
     "entities.reason.excluded": {
       "sourceHash": "9f4bdac47fa754937eb5f19eefba0569a835ee83e7b721eb6ebd76577cf1011b",
@@ -5469,14 +5469,14 @@
       "text": "Visualizzazione di {start}–{end} su {total}"
     },
     "entities.scan.blocked.one": {
+      "text": "Scansione completata: {blocking} controllo di sicurezza del rilevamento delle entità richiede una scelta. Home Assistant e la plancia sono ancora disponibili; è stata mantenuta la sottoscrizione attiva precedente (numero di entità: {stream_count}).",
       "sourceHash": "03419581172c169e5d109b2d8d4a2c95e69c824ee077ae4a678703cad540ef24",
-      "state": "machine-cross-checked",
-      "text": "Scansione completata: {blocking} controllo di sicurezza del rilevamento delle entità richiede una scelta. Home Assistant e la dashboard sono ancora disponibili; è stata mantenuta la sottoscrizione attiva precedente (numero di entità: {stream_count})."
+      "state": "machine-cross-checked"
     },
     "entities.scan.blocked.other": {
+      "text": "Scansione completata: {blocking} controlli di sicurezza del rilevamento delle entità richiedono una scelta. Home Assistant e la plancia sono ancora disponibili; è stata mantenuta la sottoscrizione attiva precedente (numero di entità: {stream_count}).",
       "sourceHash": "c7d400c1aba614c65e828a9c8b803646f29cf74f2475a1258f70874d6f387891",
-      "state": "machine-cross-checked",
-      "text": "Scansione completata: {blocking} controlli di sicurezza del rilevamento delle entità richiedono una scelta. Home Assistant e la dashboard sono ancora disponibili; è stata mantenuta la sottoscrizione attiva precedente (numero di entità: {stream_count})."
+      "state": "machine-cross-checked"
     },
     "entities.scan.complete_changed": {
       "sourceHash": "ad27263e800e049ae4fc87cb4a2b4236c6bdc217d5dc695e9df392566c25ee40",
@@ -5504,9 +5504,9 @@
       "text": "Avvio della scansione non riuscito."
     },
     "entities.scan.starting": {
+      "text": "Scansione del catalogo HA e della plancia; la sottoscrizione attiva cambia solo se i criteri abilitati individuano un insieme diverso.",
       "sourceHash": "b9d9942984c51d0d893c364fb1e4233d89f172b7edcb4ac83280d055e079cf5d",
-      "state": "machine-cross-checked",
-      "text": "Scansione del catalogo HA e della dashboard; la sottoscrizione attiva cambia solo se i criteri abilitati individuano un insieme diverso."
+      "state": "machine-cross-checked"
     },
     "entities.scan.status_unavailable": {
       "sourceHash": "c3fa6d30fee125868b8fd0827d7c8bf632a2f7cb4320f4c4e81e2182f4ffc1e4",
@@ -5664,7 +5664,7 @@
       "text": "sincronizzazione in corso"
     },
     "entities.status.strategy_allowed": {
-      "text": "dashboard della strategia: le entità al di fuori della sottoscrizione non hanno schede",
+      "text": "plancia generata da una strategia: le entità al di fuori della sottoscrizione non hanno schede",
       "sourceHash": "7dd9184b9ea1dd56153da981907ac50a2a063e2cec62c51674c3a25fd465a1f4",
       "state": "machine-cross-checked"
     },
@@ -5709,9 +5709,9 @@
       "text": "{count} espressioni dinamiche non risolvibili staticamente"
     },
     "entities.status.unresolved_help": {
+      "text": "La scansione statica non ha potuto associare questi modelli dinamici o le espressioni delle schede personalizzate a ID entità esatti. Gli ID concreti osservati successivamente durante l'esecuzione vengono salvati e poi sottoscritti automaticamente o mostrati in Suggerite, in base ai criteri di promozione in fase di esecuzione. Questo numero descrive le espressioni di origine e non diminuisce man mano che gli ID vengono osservati.",
       "sourceHash": "f6b1ac744a4fa93aa65ce3bbc3642a8f702205578cd332e0abee79505c11dbe7",
-      "state": "machine-cross-checked",
-      "text": "La scansione statica non ha potuto associare questi modelli dinamici o le espressioni delle schede personalizzate a ID entità esatti. Gli ID concreti osservati successivamente durante l'esecuzione vengono salvati e poi sottoscritti automaticamente o mostrati tra i suggerimenti, in base ai criteri di promozione in fase di esecuzione. Questo numero descrive le espressioni di origine e non diminuisce man mano che gli ID vengono osservati."
+      "state": "machine-cross-checked"
     },
     "entities.table.accesses": {
       "sourceHash": "7d4a688a59a544ddd7d6c707c7502e4ab269c827a8ac6356ec17eb85ec9c843a",
@@ -5769,9 +5769,9 @@
       "text": "Motivo"
     },
     "entities.table.review.note": {
+      "text": "Entità del flusso attuale assenti da Home Assistant, che ricevono aggiornamenti senza essere state osservate come dipendenze della plancia oppure fissate manualmente senza essere usate da questa plancia. Solo per verifica: una forzatura manuale, sia di inclusione sia di esclusione, non viene mai rimossa automaticamente. Rimuovi qui la forzatura quando non la vuoi più.",
       "sourceHash": "96035cee159d53cfff753798302c0d73e6ff3552be2aca08d4003359264efbbe",
-      "state": "machine-cross-checked",
-      "text": "Entità del flusso attuale assenti da Home Assistant, che ricevono aggiornamenti senza essere state osservate come dipendenze della dashboard oppure fissate manualmente senza essere usate da questa dashboard. Solo per verifica: una forzatura manuale, sia di inclusione sia di esclusione, non viene mai rimossa automaticamente. Rimuovi qui la forzatura quando non la vuoi più."
+      "state": "machine-cross-checked"
     },
     "entities.table.review.short": {
       "sourceHash": "b6ebdcc3e50028da6dcfbf35b31253230c1c685e4ec86caa2219cd8672a6b0d9",
@@ -5789,9 +5789,9 @@
       "text": "Seleziona questa pagina"
     },
     "entities.table.suggested.note": {
+      "text": "Riferimenti della plancia non fissati e accessi in fase di esecuzione che non sono attualmente sottoscritti. Le entità escluse rimangono visibili quando la plancia continua a usarle. Durante la ricerca, questa tabella mostra anche le corrispondenze non fissate dell'intero catalogo di Home Assistant.",
       "sourceHash": "8cb1def2d1fb025f4c38cad0b8291d8cdf333f26d5b27ba1e5e723903e3ebc2a",
-      "state": "machine-cross-checked",
-      "text": "Riferimenti della dashboard non fissati e accessi in fase di esecuzione che non sono attualmente sottoscritti. Le entità escluse rimangono visibili quando la dashboard continua a usarle. Durante la ricerca, questa tabella mostra anche le corrispondenze non fissate dell'intero catalogo di Home Assistant."
+      "state": "machine-cross-checked"
     },
     "entities.table.suggested.short": {
       "sourceHash": "93b63bab4c3a28d73a8bb83bcdfdcc5f6ddecfc8fc702296ca159d94c5dc6e53",
@@ -5799,9 +5799,9 @@
       "text": "Suggerite"
     },
     "entities.table.suggested.title": {
+      "text": "Entità della plancia suggerite",
       "sourceHash": "116d030af30a47c77e4b40b6783fbab3837e71cf38b5c7b3d5408ac7f9cd3831",
-      "state": "machine-cross-checked",
-      "text": "Entità della dashboard suggerite"
+      "state": "machine-cross-checked"
     },
     "install.apk.choose": {
       "sourceHash": "93bc2050724e81c543daf449e7bac462859143e1c137bbc254b2660661e4d9dc",
@@ -5809,9 +5809,9 @@
       "text": "Scegli APK…"
     },
     "install.apk.description": {
+      "text": "Installa manualmente un’app (ad es. un renderer per la plancia) da un file sul dispositivo o da un link https:// che il pannello scarica autonomamente; in entrambi i casi, prima dell’installazione vedrai pacchetto, versione e firmatario.",
       "sourceHash": "75dc85bc1ebe01d6dd6a1e7bd4ebefb3b58bbc75b27d134a7d1590f6a9a41055",
-      "state": "machine-cross-checked",
-      "text": "Installa manualmente un’app (ad es. un renderer per dashboard) da un file sul dispositivo o da un link https:// che il pannello scarica autonomamente; in entrambi i casi, prima dell’installazione vedrai pacchetto, versione e firmatario."
+      "state": "machine-cross-checked"
     },
     "install.apk.dynamic.cancel": {
       "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
@@ -6024,9 +6024,9 @@
       "text": "il pannello ha rifiutato questo identificatore di richiesta"
     },
     "install.apk_status.invalid_url": {
+      "text": "non è un link https:// valido",
       "sourceHash": "5eb237ea5f1be950341465cf5f0c7314d0464884c3b95bdafb75124d48949a51",
-      "state": "machine-cross-checked",
-      "text": "Non è un link https:// valido"
+      "state": "machine-cross-checked"
     },
     "install.apk_status.no_root": {
       "sourceHash": "ccacf47c8e35732eeb3c5a32f4bb40643b3bcaf95b27c22a8e5b39134e10412d",
@@ -6074,9 +6074,9 @@
       "text": "il file supera le dimensioni accettate dal pannello"
     },
     "install.audit.description": {
+      "text": "Controlla nuovamente se nel pannello sono presenti problemi che impediscono il rendering della plancia, ad esempio un WebView obsoleto, l’assenza di un’app per la plancia o aggiornamenti disponibili.",
       "sourceHash": "1f0badfb07dade0f2e55b2e777f6b2f670f8fb38c5e9fa1445fed2f0fb5b800e",
-      "state": "machine-cross-checked",
-      "text": "Controlla nuovamente se nel pannello sono presenti problemi che impediscono il rendering della dashboard, ad esempio un WebView obsoleto, l’assenza di un’app per la dashboard o aggiornamenti disponibili."
+      "state": "machine-cross-checked"
     },
     "install.audit.diagnostics": {
       "sourceHash": "85529ca4d488e68a812c6db33828b13074ccd77bea93f820363dc3ef6060410a",
@@ -6569,9 +6569,9 @@
       "text": "predefinito 1.0"
     },
     "install.display.description": {
+      "text": "Sperimentale / R&S: i valori corretti non sono ancora definitivi; sperimenta liberamente. Adatta le dimensioni di una plancia HA a quelle di un browser desktop. La densità ridimensiona l’intero layout (dpi inferiori = più contenuti visibili); le dimensioni del testo ridimensionano il testo di WebView. Il firmware del pannello spesso fornisce valori non adatti allo schermo fisico. Le modifiche vengono applicate immediatamente, persistono dopo il riavvio e richiedono un accesso privilegiato supportato al pannello.",
       "sourceHash": "1eb292dfc02940bac236c1e68132d3a14997fb03b39eba6a834066faa93eb703",
-      "state": "machine-cross-checked",
-      "text": "Sperimentale / R&S: i valori corretti non sono ancora definitivi; sperimenta liberamente. Adatta le dimensioni di una dashboard HA a quelle di un browser desktop. La densità ridimensiona l’intero layout (dpi inferiori = più contenuti visibili); le dimensioni del testo ridimensionano il testo di WebView. Il firmware del pannello spesso fornisce valori non adatti allo schermo fisico. Le modifiche vengono applicate immediatamente, persistono dopo il riavvio e richiedono un accesso privilegiato supportato al pannello."
+      "state": "machine-cross-checked"
     },
     "install.display.firmware_default": {
       "sourceHash": "49268b9bbeb39f9441dc4a28b46199dcb9f20572b8ca02a97c714be9e6396311",
@@ -6624,9 +6624,9 @@
       "text": "Torna a Dimensioni dello schermo"
     },
     "install.display.root_required": {
+      "text": "Con un accesso privilegiato supportato al pannello, Panel Assistant può adattare la densità e le dimensioni del testo della plancia allo schermo fisico.",
       "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
-      "state": "machine-cross-checked",
-      "text": "Con un accesso privilegiato supportato al pannello, Panel Assistant può adattare la densità e le dimensioni del testo della dashboard allo schermo fisico."
+      "state": "machine-cross-checked"
     },
     "install.display.text_size": {
       "sourceHash": "d68761cc1eb296478531e007ff1fda9252fb7be5d24429a97eb05765211dafe5",
@@ -7079,9 +7079,9 @@
       "text": "oggetto state non valido"
     },
     "install.presentation.status_builtin_renderer_retries_stopped": {
+      "text": "⛔ Il renderer integrato ha smesso di riprovare dopo ripetuti errori di WebView. Aggiorna o ripara System WebView, quindi usa Ricarica plancia dalla barra di navigazione del pannello o dalla scheda Dashboard.",
       "sourceHash": "1b5418807f2f485ae2f516c802d5e0801c94630d573966d230b92d877e08417e",
-      "state": "machine-cross-checked",
-      "text": "⛔ Il renderer integrato ha smesso di riprovare dopo ripetuti errori di WebView. Aggiorna o ripara System WebView, quindi usa Ricarica dashboard dalla barra di navigazione del pannello o dalla scheda Dashboard."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_companion_probe_failed": {
       "sourceHash": "d568a904ee6683b88e612118bd29ef49ffdfe30ed6ecbcffcfe90193ceb77b14",
@@ -7089,29 +7089,29 @@
       "text": "⚠ Impossibile controllare le impostazioni di Home Assistant Companion; Panel Assistant manterrà l’ultimo risultato noto e riproverà automaticamente."
     },
     "install.presentation.status_external_renderer_crash_loop": {
+      "text": "⛔ L’app della plancia continua ad arrestarsi in modo anomalo — il watchdog ha smesso di riavviarla per evitare una sequenza continua di riavvii. Reinstalla o esegui il downgrade dell’app della plancia/Companion oppure riavvia il pannello.",
       "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
-      "state": "machine-cross-checked",
-      "text": "⛔ L’app della dashboard continua ad arrestarsi in modo anomalo — il watchdog ha smesso di riavviarla per evitare una sequenza continua di riavvii. Reinstalla o esegui il downgrade dell’app dashboard/Companion oppure riavvia il pannello."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_no_renderer": {
+      "text": "ℹ Passaggio successivo: scegli un renderer per la plancia. Seleziona il renderer integrato di Panel Assistant, installa l’app Home Assistant Companion oppure configura un altro pacchetto per la plancia.",
       "sourceHash": "44a5d66a4b690d54991c04796dc9988317c6cb239f200bd59f42f02c429d2073",
-      "state": "machine-cross-checked",
-      "text": "ℹ Passaggio successivo: scegli un renderer per la dashboard. Seleziona il renderer integrato di Panel Assistant, installa l’app Home Assistant Companion oppure configura un altro pacchetto per la dashboard."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_power_at_risk": {
+      "text": "⛔ Sicurezza dell’alimentazione del pannello: a rischio — il pannello può sospendersi o entrare in modalità Doze dopo lo spegnimento dello schermo, rendendo irraggiungibili HTTP e le attività in background.",
       "sourceHash": "a3f8aaaa456a60f075bd44a1ac2c962af937b55eb11d342f58f97d3b1142ea53",
-      "state": "machine-cross-checked",
-      "text": "⛔ Sicurezza energetica del pannello: a rischio — il pannello può sospendersi o entrare in modalità Doze dopo lo spegnimento dello schermo, rendendo irraggiungibili HTTP e le attività in background."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_power_caution": {
+      "text": "⚠ Sicurezza dell’alimentazione del pannello: attenzione — la raggiungibilità del pannello dipende attualmente da un solo meccanismo di protezione dell’alimentazione rilevato.",
       "sourceHash": "273989e72a98d72372d95ba1d2feaf622938b7d790190778fe97601d39eb31f2",
-      "state": "machine-cross-checked",
-      "text": "⚠ Sicurezza energetica del pannello: attenzione — la raggiungibilità del pannello dipende attualmente da un solo meccanismo di protezione energetica rilevato."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_power_unknown": {
+      "text": "⚠ Sicurezza dell’alimentazione del pannello: sconosciuta — impossibile stabilirla perché una o più verifiche dell’alimentazione Android non erano disponibili o erano ambigue.",
       "sourceHash": "4860f8deecc3d0e600a76ea9939ee63a388c57f725018c5fdcef7e2a4d102a94",
-      "state": "machine-cross-checked",
-      "text": "⚠ Sicurezza energetica del pannello: sconosciuta — impossibile stabilirla perché una o più verifiche dell’alimentazione Android non erano disponibili o erano ambigue."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_schema_rollback": {
       "sourceHash": "ff545e82f7b3e9d88e6e9660d1be124df64ff521098d5cbfe7290f766b84be88",
@@ -7139,9 +7139,9 @@
       "text": "⬆ È disponibile {component} {latest} (versione installata {current}) — download: {release_url}"
     },
     "install.presentation.status_webview_old": {
+      "text": "⚠ System WebView è troppo vecchio ({current_engine}) — la plancia di Home Assistant potrebbe apparire vuota. Come e perché aggiornarlo (versione di destinazione: Chromium {target_chromium}+).",
       "sourceHash": "7059a4b3c081fbba7034c06238f4bd8e43158f6258078ac03f3f1a30a8740f83",
-      "state": "machine-cross-checked",
-      "text": "⚠ System WebView è troppo vecchio ({current_engine}) — la dashboard di Home Assistant potrebbe apparire vuota. Come e perché aggiornarlo (versione di destinazione: Chromium {target_chromium}+)."
+      "state": "machine-cross-checked"
     },
     "install.presentation.status_zigbee_contained": {
       "sourceHash": "927191599be07c441b61433ce2c9b4abed9d77c01da01bd861df7ac5cc5b84f3",
@@ -7434,14 +7434,14 @@
       "text": "Versione"
     },
     "install.status.companion_url_missing.one": {
+      "text": "⚠ Home Assistant Companion non dispone di un URL interno per {count} server — la plancia potrebbe non funzionare e mostrare “Missing 'Host' header”. Riparalo nella scheda Installa.",
       "sourceHash": "6ec34cbc2c652fbcf870b2d71fb669d7d4ae9e8d53a769d7d775816ce539c94b",
-      "state": "machine-cross-checked",
-      "text": "⚠ Home Assistant Companion non dispone di un URL interno per {count} server — la dashboard potrebbe non funzionare e mostrare “Missing 'Host' header”. Riparalo nella scheda Installa."
+      "state": "machine-cross-checked"
     },
     "install.status.companion_url_missing.other": {
+      "text": "⚠ Home Assistant Companion non dispone di un URL interno per {count} server — la plancia potrebbe non funzionare e mostrare “Missing 'Host' header”. Riparali nella scheda Installa.",
       "sourceHash": "0e438c28f54290449d21614ea11cf55a5fee35079ca10181de7174535f670dc5",
-      "state": "machine-cross-checked",
-      "text": "⚠ Home Assistant Companion non dispone di un URL interno per {count} server — la dashboard potrebbe non funzionare e mostrare “Missing 'Host' header”. Riparali nella scheda Installa."
+      "state": "machine-cross-checked"
     },
     "install.tame.action.reenable": {
       "sourceHash": "63de421725fe824d9997872b1130d48e684b08da4b2784054049002f95684303",
@@ -7469,9 +7469,9 @@
       "text": "consigliato"
     },
     "install.tame.description": {
+      "text": "Il controllo arresta forzatamente un’app, ne impedisce il riavvio all’avvio e le vieta di sovrapporsi alla plancia; viene applicato subito e a ogni avvio. La riabilitazione annulla queste modifiche. Le app di sistema essenziali non vengono mai proposte e nulla cambia finché non premi un pulsante.",
       "sourceHash": "c8e1bf9423f5c649f86cfd13f5ebc7febeb598ec77ded15e361f3ec478710626",
-      "state": "machine-cross-checked",
-      "text": "Il controllo arresta forzatamente un’app, ne impedisce il riavvio all’avvio e le vieta di sovrapporsi alla dashboard; viene applicato subito e a ogni avvio. La riabilitazione annulla queste modifiche. Le app di sistema essenziali non vengono mai proposte e nulla cambia finché non premi un pulsante."
+      "state": "machine-cross-checked"
     },
     "install.tame.dialog.description": {
       "sourceHash": "90509ec5716b821b042c4dec4152d4a11a6b254973eda945231926b965d1d16b",
@@ -7579,9 +7579,9 @@
       "text": "Controllo di {package}."
     },
     "install.tame.root_required": {
+      "text": "Con root, Panel Assistant può nascondere gli elementi superflui del produttore (strumenti di test e launcher del produttore) affinché venga mostrata solo la tua plancia.",
       "sourceHash": "beec08d4e831661d466c2de38648af1ffc80c35dcdea16d10494c01a3e75cb55",
-      "state": "machine-cross-checked",
-      "text": "Con root, Panel Assistant può nascondere gli elementi superflui del produttore (strumenti di test e launcher del produttore) affinché venga mostrata solo la dashboard."
+      "state": "machine-cross-checked"
     },
     "install.tame.state.active": {
       "sourceHash": "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
@@ -8649,9 +8649,9 @@
       "text": "Deve essere un URL HTTPS assoluto senza informazioni utente e contenere al massimo 500 caratteri."
     },
     "profiles.issue.keycode-format-invalid": {
+      "text": "Usa KEYCODE_ seguito da lettere maiuscole, cifre o trattini bassi, fino a un massimo di 64 caratteri.",
       "sourceHash": "2d0e78b815ce92ba923d64367689394f0a7eb258ad87e21ca297b912f336749b",
-      "state": "machine-cross-checked",
-      "text": "Usare KEYCODE_ seguito da lettere maiuscole, cifre o trattini bassi, fino a un massimo di 64 caratteri."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.license-expression-invalid": {
       "sourceHash": "aafed991ae300ed702ee5fe2dcbb9549e51135fd8a44745b17d761e11e27478b",
@@ -8659,9 +8659,9 @@
       "text": "È richiesta un'espressione di licenza in stile SPDX entro i limiti consentiti."
     },
     "profiles.issue.limitations-bounds": {
+      "text": "Usa al massimo 32 voci non vuote di non più di 500 caratteri ciascuna.",
       "sourceHash": "f856db07f091a0cf444865064363bfc86e453f11b85a420eabbde071fb22b1bf",
-      "state": "machine-cross-checked",
-      "text": "Usare al massimo 32 voci non vuote di non più di 500 caratteri ciascuna."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.line": {
       "sourceHash": "29e158eafb9386032b19151dd72505feb54479fbd231f362bb4518e4e9c1ac95",
@@ -8714,9 +8714,9 @@
       "text": "I valori devono essere stringhe non vuote in minuscolo, senza caratteri di controllo e lunghe al massimo 100 caratteri."
     },
     "profiles.issue.match-values-count-range": {
+      "text": "Fornisci da 1 a 32 valori.",
       "sourceHash": "c083a0d95c329b0420949afdbc34a126802c2c86496c20e56c9bcf77974abebe",
-      "state": "machine-cross-checked",
-      "text": "Fornire da 1 a 32 valori."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.package-count-limit": {
       "sourceHash": "870cb3ba46285022d36f8f8c0cfb9521f1f3b62e3788658d3c854a04b239a8bb",
@@ -8729,9 +8729,9 @@
       "text": "La nota non deve superare 500 caratteri."
     },
     "profiles.issue.package-tag-bounds": {
+      "text": "Usa al massimo 8 tag in minuscolo di non più di 24 caratteri ciascuno.",
       "sourceHash": "e8ddb87f342f6191d79477057a94a0c44ef0dc4910d69863abe9b3709402fe71",
-      "state": "machine-cross-checked",
-      "text": "Usare al massimo 8 tag in minuscolo di non più di 24 caratteri ciascuno."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.physical-ppi-range": {
       "sourceHash": "acb105ce000f923c4b962599719e02613b68b65a2848be62ca8ef148d271656a",
@@ -8759,9 +8759,9 @@
       "text": "Il profilo fissato '{id}' resta alla revisione {retired_revision}; la revisione integrata corrente {current_revision} non viene applicata automaticamente. Selezionala per adottarla."
     },
     "profiles.issue.profile-id-invalid": {
+      "text": "Usa da 1 a 128 lettere minuscole o cifre, con punti e trattini interni; non sono consentiti punti consecutivi.",
       "sourceHash": "fe2bfc9d7a2fdbdd95efaca295b352df9910db9c46f887965657ffc0fbe3bb03",
-      "state": "machine-cross-checked",
-      "text": "Usare da 1 a 128 lettere minuscole o cifre, con punti e trattini interni; non sono consentiti punti consecutivi."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.profile-link-count-limit": {
       "sourceHash": "a5301f134d7bb24cf1b3858006224a4f2c5316fc954521764d2c0100dff97f00",
@@ -8849,9 +8849,9 @@
       "text": "su-blpower richiede app_can_su: true."
     },
     "profiles.issue.tested-firmware-bounds": {
+      "text": "Usa al massimo 32 voci non vuote di non più di 120 caratteri ciascuna.",
       "sourceHash": "15b7e628d569e6c2ca36579b5b46b7ab61f3c1f85a0769adb55747d2c3411ad8",
-      "state": "machine-cross-checked",
-      "text": "Usare al massimo 32 voci non vuote di non più di 120 caratteri ciascuna."
+      "state": "machine-cross-checked"
     },
     "profiles.issue.touch-click-gain-range": {
       "sourceHash": "b4a5b05d432cde12ec8243281a3511cb6915ca450ec7f3e5eafd448ac7732cc3",
@@ -9264,9 +9264,9 @@
       "text": "Impossibile riservare la modifica del catalogo."
     },
     "profiles.result.catalog-stale": {
+      "text": "Il catalogo è cambiato; ricarica e riprova con la revisione corrente.",
       "sourceHash": "014eafc6e3523ed2ff1319e0f26b1c01ffdab9c5b9f8d5805a3ca4149dd47735",
-      "state": "machine-cross-checked",
-      "text": "Il catalogo è cambiato; ricaricare e riprovare con la revisione corrente."
+      "state": "machine-cross-checked"
     },
     "profiles.result.destructive-operation-in-progress": {
       "sourceHash": "358ffb5e6d4003b76ec8953d1f30de939ef8a81ccea330528e7e20265b5fe53b",
@@ -9379,9 +9379,9 @@
       "text": "La revisione del profilo non è compatibile con questo core."
     },
     "profiles.result.profile-ref-both-forms-supplied": {
+      "text": "La richiesta fornisce sia un riferimento piatto al profilo sia uno annidato. Usane solo uno.",
       "sourceHash": "0c32e9917057f109b9650810ff1ed7a1723ef944d39ec79b5aacaf4b03fcd848",
-      "state": "machine-cross-checked",
-      "text": "La richiesta fornisce sia un riferimento al profilo piatto che uno annidato. Usane solo uno."
+      "state": "machine-cross-checked"
     },
     "profiles.result.profile-restart-unavailable": {
       "sourceHash": "c99af13857c3c56eaf384f110113a0ac5e393e44b6d9197b209412f089d1b339",
@@ -9799,9 +9799,9 @@
       "text": "⚠ Il rilevamento dei pannelli (mDNS) non risponde — il recupero automatico si è fermato dopo {attempts} tentativi ({reason_code}). Riconnetti il pannello alla rete o riavvia Panel Assistant."
     },
     "runtime.power_safety.ack.endpoint_failed": {
+      "text": "Impossibile salvare la conferma; l’avvertenza resta visibile.",
       "sourceHash": "8db0a9affb0f9ccc6412f17d2e0e8a38c47fd0f4ba8e7692b3031b628a68a4e2",
-      "state": "machine-cross-checked",
-      "text": "Impossibile salvare la conferma; l’avviso resta visibile."
+      "state": "machine-cross-checked"
     },
     "runtime.power_safety.ack.not_hidden": {
       "text": "L’avvertenza non è stata nascosta.",
@@ -9849,14 +9849,14 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.hide": {
+      "text": "Nascondi questa avvertenza",
       "sourceHash": "65150e117bf29d5f27999ac819fbee19c26f1709364a6873d7a8519e4c4fe04c",
-      "state": "machine-cross-checked",
-      "text": "Nascondi questo avviso"
+      "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.hide_title": {
+      "text": "Nascondi questa avvertenza invariata nelle pagine web del pannello; la modalità Hardened richiede l’approvazione fisica",
       "sourceHash": "b813ee640e36ac9f14fe39e0c557cae18c1b9fbc1daed8a0d5aea590d20c1a84",
-      "state": "machine-cross-checked",
-      "text": "Nascondi questo avviso invariato nelle pagine web del pannello; la modalità Hardened richiede l’approvazione fisica"
+      "state": "machine-cross-checked"
     },
     "runtime.power_safety.button.repair": {
       "text": "Ripara sicurezza dell’alimentazione",
@@ -9939,7 +9939,7 @@
       "state": "machine-cross-checked"
     },
     "runtime.renderer_recovery.external": {
-      "text": "L’app della dashboard continua ad arrestarsi in modo anomalo — il watchdog ha smesso di riavviarla per evitare una sequenza continua di riavvii. Reinstalla o esegui il downgrade dell’app dashboard/Companion oppure riavvia il pannello.",
+      "text": "L’app della plancia continua ad arrestarsi in modo anomalo — il watchdog ha smesso di riavviarla per evitare una sequenza continua di riavvii. Reinstalla o esegui il downgrade dell’app della plancia/Companion oppure riavvia il pannello.",
       "sourceHash": "065bba7b903c3f1072e1c3d3008b809f3147884454fd6a7cfc657adf334d3f0e",
       "state": "machine-cross-checked"
     },
@@ -10114,9 +10114,9 @@
       "state": "machine-cross-checked"
     },
     "settings.camera_exposure.help": {
+      "text": "Compensazione dell’esposizione in stop, per una videocamera che rileva una stanza più scura o più chiara di quanto appaia. 0 lascia invariata l’esposizione automatica della videocamera; il pannello limita il valore all’intervallo effettivamente supportato dal sensore.",
       "sourceHash": "d4e4bf5fd6847ee7dd6f270be1d2caebac7f390231c8208ac96f2f43cb921169",
-      "state": "machine-cross-checked",
-      "text": "Compensazione dell’esposizione in stop, per una fotocamera che rileva una stanza più scura o più chiara di quanto appaia. 0 lascia invariata l’esposizione automatica della fotocamera; il pannello limita il valore all’intervallo effettivamente supportato dal sensore."
+      "state": "machine-cross-checked"
     },
     "settings.camera_exposure.label": {
       "sourceHash": "cc5454a4b7ce211370dcd2aa0ae58d6b564eee7940b42de516d05f5b269c414b",
@@ -10154,7 +10154,7 @@
       "text": "Bitrate (kbps)"
     },
     "settings.camera_kbps.summary": {
-      "text": "Bitrate predefinito; l'URL dello stream può sovrascriverlo.",
+      "text": "Bitrate predefinito; l'URL di un flusso può sovrascriverlo.",
       "sourceHash": "ea235ad59bb583ce8b30cb510f4e2d8661a304e9ba6cddd0e2943032d618c971",
       "state": "machine-cross-checked"
     },
@@ -10169,7 +10169,7 @@
       "text": "Risoluzione"
     },
     "settings.camera_resolution.summary": {
-      "text": "Risoluzione stream predefinita; l'URL dello stream può sovrascriverla.",
+      "text": "Risoluzione predefinita del flusso; l'URL di un flusso può sovrascriverla.",
       "sourceHash": "19aa707dbde995ad2e9c0df8b6f2e62cf34c781b108671b611e395a9b4d8c9f4",
       "state": "machine-cross-checked"
     },
@@ -10199,7 +10199,7 @@
       "text": "Modalità scura"
     },
     "settings.dark_mode.summary": {
-      "text": "Tema scuro per le schermate di Panel Assistant e predefinito della dashboard.",
+      "text": "Tema scuro per le schermate di Panel Assistant e predefinito della plancia.",
       "sourceHash": "81ad914d6ff0241c84957c90ef6212b0d965e165be49a04c5de163867f57ed93",
       "state": "machine-cross-checked"
     },
@@ -10224,9 +10224,9 @@
       "text": "Sottoscrivi riferimenti plancia automaticamente"
     },
     "settings.dashboard_entity_learning.help": {
+      "text": "Renderer integrato: limita il flusso degli stati di Home Assistant alle entità usate dalla plancia e apprende le dipendenze in fase di esecuzione. Gestisci sorgenti ed entità fissate in Entità.",
       "sourceHash": "967aefc50fe2b2015a76cc8d98bdb0f06d14d091e1e6381ce472a45a85527cb7",
-      "state": "machine-cross-checked",
-      "text": "Renderer integrato: limita il flusso degli stati di Home Assistant alle entità usate dalla dashboard e apprende le dipendenze in fase di esecuzione. Gestisci sorgenti ed entità fissate in Entità."
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_entity_learning.label": {
       "sourceHash": "c7b44faea3e443cbf5556ef11f22c84c864d8000ca1cbc2643d511cd6e1c218c",
@@ -10234,7 +10234,7 @@
       "text": "Filtro entità"
     },
     "settings.dashboard_entity_learning.summary": {
-      "text": "Trasmetti solo le entità che questa dashboard usa.",
+      "text": "Trasmetti solo le entità che questa plancia usa.",
       "sourceHash": "66be8978b2f2634a9b30dc43beeae293aa0d8a0fc4c7c4aa4a8e0186bb9dbf9c",
       "state": "machine-cross-checked"
     },
@@ -10269,7 +10269,7 @@
       "text": "Nascondi barre di sistema Android"
     },
     "settings.dashboard_fullscreen.summary": {
-      "text": "Nascondi le barre di stato e navigazione Android dietro la dashboard.",
+      "text": "Nascondi le barre di stato e navigazione Android dietro la plancia.",
       "sourceHash": "c3144c9c243f42a1b24d1ff2eada033dcc3b626c5ec603b00aafc8b2f3b2f63d",
       "state": "machine-cross-checked"
     },
@@ -10299,27 +10299,27 @@
       "state": "machine-cross-checked"
     },
     "settings.dashboard_network_warning.help": {
+      "text": "Mostra l’avviso di connessione di rete sulla plancia di questo pannello. I controlli e lo stato della rete restano disponibili anche quando l’opzione è disattivata.",
       "sourceHash": "12b2dd909289df4b3fbfde774673197f8ac3bee049b45b35456ea11e1fc2eaf7",
-      "state": "machine-cross-checked",
-      "text": "Mostra l’avviso di connessione di rete sulla dashboard di questo pannello. I controlli e lo stato della rete restano disponibili anche quando l’opzione è disattivata."
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_network_warning.label": {
+      "text": "Mostra avviso di rete sulla plancia",
       "sourceHash": "32464638ee22325ad7545e8b02b7b906d678e9445591ec9b2989adcbb479b034",
-      "state": "machine-cross-checked",
-      "text": "Mostra avviso di rete sulla dashboard"
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_network_warning.summary": {
-      "text": "Avvisa sulla dashboard quando la connessione di rete si interrompe.",
+      "text": "Avvisa sulla plancia quando la connessione di rete si interrompe.",
       "sourceHash": "6e23d2793b9b7a2e68007044413a2374d781a7f4fda7b42f665b488ede0c6ef6",
       "state": "machine-cross-checked"
     },
     "settings.dashboard_package.label": {
+      "text": "App della plancia",
       "sourceHash": "e70b7822979e8c3a5f86cd4250e7fd878f8c78e14b5d46cf1ce959e1dd8d6f75",
-      "state": "machine-cross-checked",
-      "text": "App della dashboard"
+      "state": "machine-cross-checked"
     },
     "settings.dashboard_package.summary": {
-      "text": "App che mostra la dashboard. Se vuoto, usa il renderer integrato.",
+      "text": "App che mostra la plancia. Se vuoto, usa il renderer integrato.",
       "sourceHash": "968f7a73a5e8876febb8b8f254404f502bedf77b3df100cb14a52a40dc823a6e",
       "state": "machine-cross-checked"
     },
@@ -10349,12 +10349,12 @@
       "text": "Zoom (%)"
     },
     "settings.dashboard_zoom.promoted_help": {
-      "text": "Come ridimensioni il dashboard su questo pannello a densità di visualizzazione fissa. Riduci per vederne di più; aumenta per ingrandire.",
+      "text": "Come ridimensioni la plancia su questo pannello a densità di visualizzazione fissa. Riduci per vederne di più; aumenta per ingrandire.",
       "sourceHash": "60fde4ecb0300f4e39d073c0ed282652965ca6e4803dbbe47e5a08917352afdd",
       "state": "machine-cross-checked"
     },
     "settings.dashboard_zoom.summary": {
-      "text": "Zoom del browser per la dashboard.",
+      "text": "Zoom del browser per la plancia.",
       "sourceHash": "ffca38a9cb226e6a7726957fdcb1ff0b2999887bed938e40573cdd3abc418106",
       "state": "machine-cross-checked"
     },
@@ -10609,7 +10609,7 @@
       "text": "Blocca Android sulla plancia (sperimentale)"
     },
     "settings.kiosk_lock.summary": {
-      "text": "Solo con root. Torna alla plancia quando si apre un'altra app.",
+      "text": "Solo con root. Riporta in primo piano la plancia quando si apre un'altra app.",
       "sourceHash": "e9055e43b4f6a114f2d4e789b65ea17fc24fecfbc2b5fb1417b1ba9e54f628fd",
       "state": "machine-cross-checked"
     },
@@ -11259,14 +11259,14 @@
       "text": "{root} non è una plancia visibile a questo account; il pannello userà quella predefinita finché tale plancia non esisterà."
     },
     "setup.dashboard.state.fetching": {
+      "text": "Recupero delle plance da Home Assistant…",
       "sourceHash": "50c3dfe6b88d6f9d26ed26df8e21d83ac3f96cc0fbe2b0793341cd8498c81c9b",
-      "state": "machine-cross-checked",
-      "text": "Recupero delle dashboard da Home Assistant…"
+      "state": "machine-cross-checked"
     },
     "setup.dashboard.title": {
+      "text": "Seleziona la plancia HA per questo pannello",
       "sourceHash": "6ce8c026eddc7e15e707af0a65d3f2873d4e78e98cec7b4c8a0c7630a27139e1",
-      "state": "machine-cross-checked",
-      "text": "Seleziona la dashboard HA per questo pannello"
+      "state": "machine-cross-checked"
     },
     "setup.discovery.found": {
       "sourceHash": "1bd3ae94a54c3e9446bb243cd96b0f3e7858f8eac7a9b3900fd7314c90d0627c",
@@ -11304,9 +11304,9 @@
       "text": "Configura il pannello"
     },
     "setup.done.action.dashboard": {
+      "text": "Plancia del pannello",
       "sourceHash": "3db3c314463f71ee6dfd052b3b46cdd2851593ad49f19dcac17289eae7969c00",
-      "state": "machine-cross-checked",
-      "text": "Dashboard del pannello"
+      "state": "machine-cross-checked"
     },
     "setup.done.configure_note": {
       "sourceHash": "757739c4bc0ae5e756963d2084fb258949f4e865524355a5bd8482da6a1b1ed6",
@@ -11314,14 +11314,14 @@
       "text": "Tutto il resto — luminosità, sospensione, suoni e comportamento — è nella scheda Configura. Le impostazioni predefinite sono ragionevoli, quindi non devi modificare nulla."
     },
     "setup.done.filter_note": {
+      "text": "Il filtro entità è attivo e sta imparando quali entità mostrare; puoi controllare l’elenco in qualsiasi momento nella scheda Entità. Nei primi minuti, mentre si assesta, la plancia del pannello potrebbe ricaricarsi alcune volte: è normale.",
       "sourceHash": "bb421be7eb8fb60a13c614cf636556c3f10a8f2e43f1f78fff1b89eb5be6c559",
-      "state": "machine-cross-checked",
-      "text": "Il filtro entità è attivo e sta imparando quali entità mostrare; puoi controllare l’elenco in qualsiasi momento nella scheda Entità. Nei primi minuti, mentre si assesta, la dashboard del pannello potrebbe ricaricarsi alcune volte: è normale."
+      "state": "machine-cross-checked"
     },
     "setup.done.status.attested": {
+      "text": "Plancia confermata da te.",
       "sourceHash": "ba90b9105459a9d9d2fb652b2358f0f42af7732d1f1cafe7cdf64e1e0e8bd879",
-      "state": "machine-cross-checked",
-      "text": "Dashboard confermata da te."
+      "state": "machine-cross-checked"
     },
     "setup.done.status.rendering": {
       "sourceHash": "dcd8160cc85f6016d90daf4256a58f4434aa6b9718c3fa0f258323b3d9fa2234",
@@ -11329,9 +11329,9 @@
       "text": "Home Assistant è visualizzato sul pannello."
     },
     "setup.done.taming_intro": {
+      "text": "Facoltativo: i pannelli spesso includono app del produttore che compaiono sopra la plancia. Panel Assistant può renderle meno invasive.",
       "sourceHash": "6d14294f68aa2357c0ed5e750772feae399b94b436e5c6604dd0d5e25a4d7a52",
-      "state": "machine-cross-checked",
-      "text": "Facoltativo: i pannelli spesso includono app del produttore che compaiono sopra la dashboard. Panel Assistant può renderle meno invasive."
+      "state": "machine-cross-checked"
     },
     "setup.done.taming_link": {
       "sourceHash": "956a23e9e8dd79a2ed5b094a9725e0ac7d1dbaccd3ca53d7c5389c8faaaaaa89",
@@ -11374,9 +11374,9 @@
       "text": "Attivazione del filtro…"
     },
     "setup.filter.action.loading": {
+      "text": "Caricamento della plancia…",
       "sourceHash": "3718517a80b70e19a3975ba60bf6b8d4c11bd0473c47c2763a244ac8cb6b2c37",
-      "state": "machine-cross-checked",
-      "text": "Caricamento della dashboard…"
+      "state": "machine-cross-checked"
     },
     "setup.filter.amber.consequence": {
       "sourceHash": "cf4d2d14f40cccfc2e0408e9e8971d30671ce568c0376bd9bf8fb5c1a208b5cc",
@@ -11434,9 +11434,9 @@
       "text": "Superamento della capacità del pannello"
     },
     "setup.filter.details.body": {
+      "text": "Il pannello chiede a Home Assistant gli aggiornamenti per un elenco specifico di entità anziché per tutte. Crea l’elenco leggendo la plancia, poi aggiunge ciò che la plancia usa durante l’esecuzione. Non viene nascosto nulla: l’elenco completo è nella scheda Entità.",
       "sourceHash": "c4b530aa8cc08488adebe2f92f8fc727337c654dacbc938cd6f4ca76a133f530",
-      "state": "machine-cross-checked",
-      "text": "Il pannello chiede a Home Assistant gli aggiornamenti per un elenco specifico di entità anziché per tutte. Crea l’elenco leggendo la dashboard, poi aggiunge ciò che la dashboard usa durante l’esecuzione. Non viene nascosto nulla: l’elenco completo è nella scheda Entità."
+      "state": "machine-cross-checked"
     },
     "setup.filter.details.title": {
       "sourceHash": "9b2736049ff9acab153954b360afe3987fa67e89b9661da42476e5ec4231dbd8",
@@ -11464,9 +11464,9 @@
       "text": "Il carico sembra agevole per il pannello, considerando hardware e numero di entità."
     },
     "setup.filter.green.head": {
+      "text": "La plancia dovrebbe essere fluida in entrambi i casi",
       "sourceHash": "54b026a7c1095c33531c0f58da8880a84f960cd881f5b83ced1beb6cb59fd19d",
-      "state": "machine-cross-checked",
-      "text": "La dashboard dovrebbe essere fluida in entrambi i casi"
+      "state": "machine-cross-checked"
     },
     "setup.filter.green.measured": {
       "sourceHash": "d11fd9feb324056b792ba839b42d4c2adf15a6c6d8c0f413cc2a7350a587685d",
@@ -11474,9 +11474,9 @@
       "text": "Un pannello con questo chip gestisce senza problemi questo numero di entità: lo abbiamo misurato con un carico simile."
     },
     "setup.filter.lead": {
+      "text": "Home Assistant invierà a questo pannello un aggiornamento in tempo reale per ogni entità che riesce a vedere. Il filtro riduce gli aggiornamenti alle sole entità effettivamente usate dalla plancia.",
       "sourceHash": "841a7559f79cb96311a9c33f2e42e34ec4bedb184b281785573bdfa134243366",
-      "state": "machine-cross-checked",
-      "text": "Home Assistant invierà a questo pannello un aggiornamento in tempo reale per ogni entità che riesce a vedere. Il filtro riduce gli aggiornamenti alle sole entità effettivamente usate dalla dashboard."
+      "state": "machine-cross-checked"
     },
     "setup.filter.red.consequence": {
       "sourceHash": "b25e0b2f36ae4dff1d5921b7a9720527a6b5abf33138ab6c17d57e6c6af4d8f0",
@@ -11494,9 +11494,9 @@
       "text": "Attiva il filtro: senza, il pannello sarà in difficoltà"
     },
     "setup.filter.red.measured": {
+      "text": "Abbiamo testato lo stesso chip con circa questo numero di entità. Senza filtro, il componente che disegna la plancia era occupato per l’81% del tempo anziché il 6% e impiegava circa il 60% in più a rispondere a un tocco.",
       "sourceHash": "7878b513a5c08ab953c30dd50e2cb8d4ec9e39dc3642e450882b53e9809d65f6",
-      "state": "machine-cross-checked",
-      "text": "Abbiamo testato lo stesso chip con circa questo numero di entità. Senza filtro, il componente che disegna la dashboard era occupato per l’81% del tempo anziché il 6% e impiegava circa il 60% in più a rispondere a un tocco."
+      "state": "machine-cross-checked"
     },
     "setup.filter.state.still_counting": {
       "sourceHash": "2f9d1dd836a60e47f175e9820a5fbb45bb7c3e865d090917ffa2442a57ba26bf",
@@ -11524,9 +11524,9 @@
       "text": "Questo pannello"
     },
     "setup.filter.title": {
+      "text": "Ancora una cosa prima di caricare la plancia",
       "sourceHash": "61cfd94fb149adcd5e78ab772fa7d11922b55d7b3cc84fe365e202ef242d4d5d",
-      "state": "machine-cross-checked",
-      "text": "Ancora una cosa prima di caricare la dashboard"
+      "state": "machine-cross-checked"
     },
     "setup.frame.loading": {
       "sourceHash": "f0e4e00078be3f48ea68569a89f1abfed01ba10f4f6090cce5f58f2611619e14",
@@ -11659,9 +11659,9 @@
       "text": "Dai un nome al pannello"
     },
     "setup.progress.dashboard": {
+      "text": "Plancia HA",
       "sourceHash": "f4e60256299043246476ebc93bb0a35f178a41494faee700dcfcd2a94e211011",
-      "state": "machine-cross-checked",
-      "text": "Dashboard HA"
+      "state": "machine-cross-checked"
     },
     "setup.progress.name": {
       "sourceHash": "dcd1d5223f73b3a965c07e3ff5dbee3eedcfedb806686a05b9b3868a2c3d6d50",
@@ -11694,9 +11694,9 @@
       "text": "✓ Set filtrato applicato"
     },
     "setup.proof.milestone.apply_pending": {
+      "text": "○ Applica il set: la plancia verrà ricaricata",
       "sourceHash": "c8d99e0e5aeeb53921b05885d5be324571327e1aafe52a5a44ecc35712a2e732",
-      "state": "machine-cross-checked",
-      "text": "○ Applica il set: la dashboard verrà ricaricata"
+      "state": "machine-cross-checked"
     },
     "setup.proof.milestone.build_pending": {
       "sourceHash": "efcd854ff336f043f61a4fd7fd722c46939e8d092f7a9de511013966fecd0d77",
@@ -11724,9 +11724,9 @@
       "text": "✓ Entità lette ({count})"
     },
     "setup.proof.milestone.loading": {
+      "text": "● Caricamento della plancia: potrebbe ricaricarsi ancora una o due volte mentre il pannello esegue le ultime ottimizzazioni",
       "sourceHash": "10373fe801f25404a411d4f625bc9407b2f57720321b24290fc36e557c27f5e8",
-      "state": "machine-cross-checked",
-      "text": "● Caricamento della dashboard: potrebbe ricaricarsi ancora una o due volte mentre il pannello esegue le ultime ottimizzazioni"
+      "state": "machine-cross-checked"
     },
     "setup.proof.milestone.reading.one": {
       "sourceHash": "0011d951542a81e43c8ad7173cf89c470caa42b2bbded3b697decd6b5c6cc856",
@@ -11744,9 +11744,9 @@
       "text": "Ci sta mettendo troppo?"
     },
     "setup.proof.state": {
+      "text": "Il pannello dovrebbe star configurando la plancia in questo momento. Questa pagina confermerà quando Home Assistant sarà visualizzato.",
       "sourceHash": "b615c935f105b2be8bd5823406f7dc98af95d833c436b1903f77dbdde1442727",
-      "state": "machine-cross-checked",
-      "text": "Il pannello dovrebbe star configurando la dashboard in questo momento. Questa pagina confermerà quando Home Assistant sarà visualizzato."
+      "state": "machine-cross-checked"
     },
     "setup.proof.title": {
       "sourceHash": "750a358a4affcdd22d5a3a8fa8dae764132b73e8a95ff2be408fe71907aefb8b",
@@ -12189,9 +12189,9 @@
       "text": "Ripristina la schermata iniziale"
     },
     "install.tame.hand_back.description": {
+      "text": "Riattiva le app del produttore su questo pannello.",
       "sourceHash": "e27d15826d370f6cfd6bc1466f8e32e4d3ad4cba7c9cb667272e159113943990",
-      "state": "machine-cross-checked",
-      "text": "Riattiva le app dei fornitori su questo pannello."
+      "state": "machine-cross-checked"
     },
     "install.tame.hand_back.done": {
       "sourceHash": "362b1c0da01d39ea0820b7492fbb8e590d4b2e0577e99bd193c2a5e83135ccb7",
@@ -12219,7 +12219,7 @@
       "text": "Fallo prima di rimuovere Panel Assistant. Altrimenti il pannello non avrà una schermata iniziale."
     },
     "configure.auto_sleep.fixed_delay": {
-      "text": "Spegni lo schermo dopo {count} secondi senza tocchi.",
+      "text": "Lo schermo si spegne dopo {count} secondi senza tocchi.",
       "sourceHash": "f82a99e3e874380f49c82b78bf86d1e250c487c51272babc74ab2a7b64d16965",
       "state": "machine-cross-checked"
     },
@@ -12254,7 +12254,7 @@
       "state": "machine-cross-checked"
     },
     "shell.dashboard_substitute.title": {
-      "text": "Dashboard non trovata",
+      "text": "Plancia non trovata",
       "sourceHash": "c947e038fffab8a5ec7abf38c5198354fe76061a2d636673487d485d7172730a",
       "state": "machine-cross-checked"
     }

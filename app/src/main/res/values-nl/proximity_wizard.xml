@@ -76,7 +76,7 @@
     <string name="proximity_wizard_speech_wave_count">Goed. Ik heb controle %1$d van %2$d gedetecteerd. Beweeg je hand weg en herhaal.</string>
     <string name="proximity_wizard_speech_review_both">Aanwezigheid en wek-gebaar zijn beide geverifieerd. Kies Opslaan om deze metingen te gebruiken, of Annuleren om je vorige instellingen te behouden.</string>
     <string name="proximity_wizard_speech_review_presence">Aanwezigheid is geverifieerd, maar een apart wek-gebaar niet. Kies Opslaan om aanwezigheidsdetectie te gebruiken, of Annuleren om je vorige instellingen te behouden.</string>
-    <string name="proximity_wizard_speech_review_wave">Het wek-gebaar is geverifieerd, maar normale aanwezigheid niet. Kies Opslaan om wake on wave te gebruiken, of Annuleren om je vorige instellingen te behouden.</string>
+    <string name="proximity_wizard_speech_review_wave">Het wek-gebaar is geverifieerd, maar normale aanwezigheid niet. Kies Opslaan om wekken door zwaaien te gebruiken, of Annuleren om je vorige instellingen te behouden.</string>
     <string name="proximity_wizard_speech_review_neither">Ik kon geen betrouwbare aanwezigheid of wek-gebaren verifiëren. Je vorige instellingen blijven behouden.</string>
     <string name="proximity_wizard_speech_saved_both">Je nabijheidsinstellingen zijn opgeslagen. Aanwezigheid en wekken door zwaaien kunnen nu deze metingen gebruiken. Aanraken om te wekken blijft beschikbaar.</string>
     <string name="proximity_wizard_speech_saved_presence">Je aanwezigheidsinstellingen zijn opgeslagen. Een apart wek-gebaar was niet beschikbaar. Aanraken om te wekken blijft beschikbaar.</string>

@@ -104,7 +104,7 @@
    "state": "machine-cross-checked"
   },
   "configure.area.none": {
-   "text": "Geen gebied",
+   "text": "Geen ruimte",
    "sourceHash": "3fd59f11b54e96933a2b02aa304ac4702497072e362651bddfe49cffc8ba393d",
    "state": "machine-cross-checked"
   },
@@ -134,7 +134,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.area": {
-   "text": "Home Assistant-gebied: {area}",
+   "text": "Home Assistant-ruimte: {area}",
    "sourceHash": "76850c88ad8d53557f8e9ad10f4ada48dc749cfaf894a52bd6a2e64b473f582a",
    "state": "machine-cross-checked"
   },
@@ -144,12 +144,12 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.area_checking": {
-   "text": "Home Assistant-gebied van dit paneel controleren…",
+   "text": "Home Assistant-ruimte van dit paneel controleren…",
    "sourceHash": "9bc464eac5f6f3930514030210d900555c8c0fe883fa5096071cee9f5083d21a",
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.assign_area_first": {
-   "text": "Wijs dit paneel toe aan een Home Assistant-gebied voordat je Automatische slaapstand inschakelt.",
+   "text": "Wijs dit paneel toe aan een Home Assistant-ruimte voordat je Automatische slaapstand inschakelt.",
    "sourceHash": "342775e1e3b7adb8d31beda3b9f7a3dbb61d6b0d579c090aaa1e10d744ccb47a",
    "state": "machine-cross-checked"
   },
@@ -264,7 +264,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.history_requires_area": {
-   "text": "Wijs dit paneel toe aan een Home Assistant-gebied om de activiteitsgeschiedenis te berekenen.",
+   "text": "Wijs dit paneel toe aan een Home Assistant-ruimte om de activiteitsgeschiedenis te berekenen.",
    "sourceHash": "2646ef9893147b68d18075d2b4ee801bfebb93c0356136e948471539d47a6874",
    "state": "machine-cross-checked"
   },
@@ -319,7 +319,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.insufficient_history": {
-   "text": "De activiteitssensoren van dit gebied hebben te weinig bruikbare geschiedenis of zijn niet beschikbaar.",
+   "text": "De activiteitssensoren van deze ruimte hebben te weinig bruikbare geschiedenis of zijn niet beschikbaar.",
    "sourceHash": "a597055604b131dde0d5ef789cae122fb0cd1f7a42449e14733cc4e8c0656fdb",
    "state": "machine-cross-checked"
   },
@@ -339,12 +339,12 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.no_credible_sources": {
-   "text": "Er is geen betrouwbare, door een apparaat ondersteunde activiteitsbron beschikbaar in dit gebied.",
+   "text": "Er is geen betrouwbare, door een apparaat ondersteunde activiteitsbron beschikbaar in deze ruimte.",
    "sourceHash": "1fafdf61adcae38c76552e518a2883c4dc158891ef5ac59ef17f4d51af719158",
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.no_device_source": {
-   "text": "Dit gebied heeft geen binaire sensor voor beweging, bezetting of aanwezigheid uit een apparaatintegratie.",
+   "text": "Deze ruimte heeft geen binaire sensor voor beweging, bezetting of aanwezigheid uit een apparaatintegratie.",
    "sourceHash": "d693f089f0719dc40b248a657c8f2cc9c2ba3ee13f347ec8eda03dee650f1b18",
    "state": "machine-cross-checked"
   },
@@ -424,7 +424,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.summary_accessible": {
-   "text": "Home Assistant-gebied: {area} · Fase: {phase} · Reden: {reason} · Geleerde vertraging: {delay} · Bronnen: {count} · Handmatige schermoverschrijving: {state}",
+   "text": "Home Assistant-ruimte: {area} · Fase: {phase} · Reden: {reason} · Geleerde vertraging: {delay} · Bronnen: {count} · Handmatige schermoverschrijving: {state}",
    "sourceHash": "f1dcfd36e4d02143027d8dcafd61b6aa90e72aaed405edabe9fbee6599149de6",
    "state": "machine-cross-checked"
   },
@@ -439,7 +439,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.timestamps_unreadable": {
-   "text": "Home Assistant er zijn tijdstempels van activiteiten teruggestuurd die dit paneel niet kon lezen.",
+   "text": "Home Assistant heeft tijdstempels van activiteiten teruggestuurd die dit paneel niet kon lezen.",
    "sourceHash": "e92b03d3c12c9ff62897a7e3b1bff6466f8c0a2b9ac1fd0a6e1dce3133a1b080",
    "state": "machine-cross-checked"
   },
@@ -474,7 +474,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.value.discovering": {
-   "text": "Ontdekken",
+   "text": "Detecteren",
    "sourceHash": "4fc48cfcb124c2853a41563f456e6cea9eff6bdf6c0eaec492de45af85da1d85",
    "state": "machine-cross-checked"
   },
@@ -499,7 +499,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.value.no_area": {
-   "text": "Geen gebied",
+   "text": "Geen ruimte",
    "sourceHash": "3fd59f11b54e96933a2b02aa304ac4702497072e362651bddfe49cffc8ba393d",
    "state": "machine-cross-checked"
   },
@@ -834,7 +834,7 @@
    "state": "machine-cross-checked"
   },
   "configure.dashboard.no_default": {
-   "text": "Voor dit account is er geen standaarddashboard ingesteld — kies het dashboard dat in dit paneel moet worden weergegeven.",
+   "text": "Voor dit account is er geen standaarddashboard ingesteld — kies het dashboard dat op dit paneel moet worden weergegeven.",
    "sourceHash": "d491bed061c60e1745eb3212c40ff7fd554851354c2d8b4d9c8a31b873f65ec8",
    "state": "machine-cross-checked"
   },
@@ -1124,7 +1124,7 @@
    "state": "machine-cross-checked"
   },
   "configure.oauth.panel_reachability": {
-   "text": "Om het aanmelden te voltooien, moet deze browser het adres van het paneel kunnen bereiken. Lukt dat niet, open Configureer dan vanaf het netwerk van het paneel of meld je aan op het paneel.",
+   "text": "Om het inloggen te voltooien, moet deze browser het adres van het paneel kunnen bereiken. Lukt dat niet, open dan Configureren vanaf het netwerk van het paneel of log in op het paneel.",
    "sourceHash": "f7ee3e4333f5fae799f75a5610c7c5841932d0a5a5b3bd32f19183136611ce89",
    "state": "machine-cross-checked"
   },
@@ -1134,7 +1134,7 @@
    "state": "machine-cross-checked"
   },
   "configure.oauth.rejected": {
-   "text": "Aanmelding geweigerd — maak opnieuw verbinding met Home Assistant",
+   "text": "Inloggen geweigerd — maak opnieuw verbinding met Home Assistant",
    "sourceHash": "5c0f79bb1a6969fa6c1381b5d93fe5e65d64a67861291a34d108ff459c79ae0e",
    "state": "machine-cross-checked"
   },
@@ -1564,7 +1564,7 @@
    "state": "machine-cross-checked"
   },
   "configure.setup.link": {
-   "text": "Begeleide installatie",
+   "text": "Begeleid instellen",
    "sourceHash": "8ef7823ca89be62373c9a695bd093d6bf0b16744b7302d44447084f39faa0c87",
    "state": "machine-cross-checked"
   },
@@ -1814,7 +1814,7 @@
    "state": "machine-cross-checked"
   },
   "configure.zigbee.recent_request": {
-   "text": "Er is onlangs een verzoek tot toetreding verstuurd.",
+   "text": "Er is onlangs een koppelverzoek verstuurd.",
    "sourceHash": "88d1d3505eed700f3c3c3ebadd49c0c17aa14de1f60dd3b292fdf63dc53ce313",
    "state": "machine-cross-checked"
   },
@@ -1824,7 +1824,7 @@
    "state": "machine-cross-checked"
   },
   "configure.zigbee.request_join": {
-   "text": "Aansluiting aanvragen",
+   "text": "Koppelen aanvragen",
    "sourceHash": "d92dd6e9ae2daa457a2a9db8d42aa03fe2d722761b0c2936a65bda785bdc9e76",
    "state": "machine-cross-checked"
   },
@@ -1964,7 +1964,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.no_renderer.explanation": {
-   "text": "of stel een ander dashboardpakket in. Tot die tijd wordt er in dit paneel geen dashboard weergegeven.",
+   "text": "of stel een ander dashboardpakket in. Tot die tijd wordt er op dit paneel geen dashboard weergegeven.",
    "sourceHash": "5aee351360d4e2deffde50f405e582262d7ac56d4909d5a35be51c8a96123bc3",
    "state": "machine-cross-checked"
   },
@@ -2024,7 +2024,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.banner.update.ignore": {
-   "text": "Negeer deze versie",
+   "text": "Deze versie negeren",
    "sourceHash": "72d0f08eee13ed1268875490b1f5cdc24e103edcb2a16d55862ace2c9223aa63",
    "state": "machine-cross-checked"
   },
@@ -2094,7 +2094,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.camera.action.encoder_unavailable": {
-   "text": "geen hardware-H.264-encoder past binnen de bitratelimiet van de camera; snapshots werken nog steeds, streamen niet",
+   "text": "geen hardware-H.264-encoder past binnen de bitratelimiet van de camera; momentopnames werken nog steeds, streamen niet",
    "sourceHash": "62374b18e506772270e18c91afafca04ccb240b69e763ad83de6b8350a21f082",
    "state": "machine-cross-checked"
   },
@@ -2464,7 +2464,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.helper_daemon": {
-   "text": "Hulpdaemon",
+   "text": "Helper-daemon",
    "sourceHash": "69751952a2f35b1eb2a5741d3dc93ed9e6e8e2f278fea5da3a3a7fc5c862dd19",
    "state": "machine-cross-checked"
   },
@@ -2594,7 +2594,7 @@
    "state": "machine-cross-checked"
   },
   "dashboard.capability.note.daemon_buttons": {
-   "text": "vereist voor {count} geprofileerde fysieke knop(pen), ook al kunnen gewone bevoegdheidsacties gebruikmaken van su",
+   "text": "vereist voor {count} geprofileerde fysieke knop(pen), ook al kunnen gewone bevoorrechte acties gebruikmaken van su",
    "sourceHash": "44768533635d18567cff1ab8a36a728ad147f2eeebb91209b2bad9057f3a4220",
    "state": "machine-cross-checked"
   },
@@ -3914,12 +3914,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.capture_title": {
-   "text": "Maak een nieuwe schermafbeelding",
+   "text": "Maak een nieuwe screenshot",
    "sourceHash": "a2ac11d561b3a135e493d0fd108c0a6115d94c5d8e927b282bebd43b88420d21",
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.click_to_tap": {
-   "text": "Klik op de schermafbeelding om op het paneel te tikken.",
+   "text": "Klik op de screenshot om op het paneel te tikken.",
    "sourceHash": "798d2b91efcce21e384905f590c17f91f0f161eda13d1ef0ab00ba17803cc964",
    "state": "machine-cross-checked"
   },
@@ -3949,12 +3949,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.outcome_unknown_refreshed": {
-   "text": "Resultaat van tik onbekend; huidige schermafbeelding vernieuwd.",
+   "text": "Resultaat van tik onbekend; huidige screenshot vernieuwd.",
    "sourceHash": "68460677644442f623eb295699778d16b0d26c48ac03daec2b0017fe85e1cfce",
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.outcome_unknown_update_failed": {
-   "text": "Resultaat van de tik onbekend; de schermafbeelding kon niet worden bijgewerkt.",
+   "text": "Resultaat van de tik onbekend; de screenshot kon niet worden bijgewerkt.",
    "sourceHash": "c363b9fdf8b38dca2adf9a9b62aee33a355abb8b1e2f247c429918eb7db0e931",
    "state": "machine-cross-checked"
   },
@@ -3979,12 +3979,12 @@
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.tap_completed_capturing": {
-   "text": "Tik voltooid; er wordt een nieuwe schermafbeelding gemaakt…",
+   "text": "Tik voltooid; er wordt een nieuwe screenshot gemaakt…",
    "sourceHash": "08b636edf865023b936211d78b6f3ac24e1910c899049181c150e2e364291e88",
    "state": "machine-cross-checked"
   },
   "dashboard.screenshot.tap_completed_update_failed": {
-   "text": "Het tikken is voltooid, maar de schermafbeelding kon niet worden bijgewerkt.",
+   "text": "Het tikken is voltooid, maar de screenshot kon niet worden bijgewerkt.",
    "sourceHash": "9f8839beda97ba714d5e68159fd1c769ac8bfb6679c30d382ab68b89942a535d",
    "state": "machine-cross-checked"
   },
@@ -4404,7 +4404,7 @@
    "state": "machine-cross-checked"
   },
   "entities.control.choose_checks": {
-   "text": "Kies hoe je de controles voor het opsporen van entiteiten wilt afhandelen",
+   "text": "Kies hoe je de controles voor entiteitsdetectie wilt afhandelen",
    "sourceHash": "2aa77c0f827a8c7d7ea3293581d5185ed0f24881a47fa0b8eeacce79f1df78ec",
    "state": "machine-cross-checked"
   },
@@ -4474,7 +4474,7 @@
    "state": "machine-cross-checked"
   },
   "entities.dynamic.body": {
-   "text": "Deze expressies zijn geen configuratiefouten. Doorloop de betreffende dashboardstatus, zodat observatie tijdens de uitvoering concrete entiteits-ID’s kan onthullen. Sjablonen die Home Assistant op de server rendert, zoals {{ ... }} en {% ... %}, worden geëvalueerd voordat het dashboard ze ziet, dus het doorlopen onthult nooit de entiteiten die ze lezen. Dat hoeft ook niet: Home Assistant stuurt het gerenderde resultaat via een apart abonnement waar dit filter niet aan komt, dus die entiteiten hebben niets nodig. Alleen een entiteit die zo’n sjabloon als kaartreferentie oplevert, moet met de hand worden toegevoegd.",
+   "text": "Deze uitdrukkingen zijn geen configuratiefouten. Doorloop de betreffende dashboardstatus, zodat observatie tijdens de uitvoering concrete entiteits-ID’s kan onthullen. Sjablonen die Home Assistant op de server rendert, zoals {{ ... }} en {% ... %}, worden geëvalueerd voordat het dashboard ze ziet, dus het doorlopen onthult nooit de entiteiten die ze lezen. Dat hoeft ook niet: Home Assistant stuurt het gerenderde resultaat via een apart abonnement waar dit filter niet aan komt, dus die entiteiten hebben niets nodig. Alleen een entiteit die zo’n sjabloon als kaartreferentie oplevert, moet met de hand worden toegevoegd.",
    "sourceHash": "b71078752a0fda1c44508c52871014086acdfd547b2ea28da0bb0be8c02e005f",
    "state": "machine-cross-checked"
   },
@@ -4624,7 +4624,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.button-card-limited-support.summary": {
-   "text": "Button Card heeft beperkte ondersteuning voor het vinden van entiteiten",
+   "text": "Button Card heeft beperkte ondersteuning voor entiteitsdetectie",
    "sourceHash": "284123b501316e60e92ab480b8f99d6e935936c8235a9faf60605b14d0e5f7a2",
    "state": "machine-cross-checked"
   },
@@ -4654,7 +4654,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.decluttering-template-expansion.summary": {
-   "text": "Decluttering Card heeft beperkte ondersteuning voor het vinden van entiteiten",
+   "text": "Decluttering Card heeft beperkte ondersteuning voor entiteitsdetectie",
    "sourceHash": "577c853d33d7495cf113c9e8813b28b4763746cff05da594189337eabb46e66c",
    "state": "machine-cross-checked"
   },
@@ -4699,7 +4699,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.ignore": {
-   "text": "Negeer mogelijke entiteiten en ga verder",
+   "text": "Mogelijke entiteiten negeren en doorgaan",
    "sourceHash": "ce23f81f852dcb0da169baedd751ff559b6aa05f9f40ff83b5e431d389361844",
    "state": "machine-cross-checked"
   },
@@ -4734,7 +4734,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issue.kiosk-mode-limited-support.summary": {
-   "text": "HACS Kiosk Mode JavaScript heeft beperkte ondersteuning voor het vinden van entiteiten",
+   "text": "HACS Kiosk Mode JavaScript heeft beperkte ondersteuning voor entiteitsdetectie",
    "sourceHash": "c9e5190b8c38b4b229b6d2daab82903f342aa822d7e708f4d835fc5e17172c32",
    "state": "machine-cross-checked"
   },
@@ -4944,7 +4944,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issues.title": {
-   "text": "Compatibiliteit van detectie",
+   "text": "Compatibiliteit van entiteitsdetectie",
    "sourceHash": "eb4e09bf32f157bcec74907fe18323558be077e4b7c7c0ac3a6f3697f2a46abb",
    "state": "machine-cross-checked"
   },
@@ -5209,12 +5209,12 @@
    "state": "machine-cross-checked"
   },
   "entities.status.catalogued.one": {
-   "text": "{count} geïndexeerde entiteit",
+   "text": "{count} gecatalogiseerde entiteit",
    "sourceHash": "f017981ee76a4067b833de4fc9743c4e2335a6f272e9fbb674dab295ad4906d2",
    "state": "machine-cross-checked"
   },
   "entities.status.catalogued.other": {
-   "text": "{count} geïndexeerde entiteiten",
+   "text": "{count} gecatalogiseerde entiteiten",
    "sourceHash": "beb4ecc4010756bf5df4da04a2dedafeec7bea7be812c94d9919f568b74b6856",
    "state": "machine-cross-checked"
   },
@@ -5729,7 +5729,7 @@
    "state": "machine-cross-checked"
   },
   "install.backup.dynamic.preview_companion": {
-   "text": "Companion-aanmelding",
+   "text": "Companion-login",
    "sourceHash": "a3fc55b59be7ed4d1208fe616ca1405b7326170db3d881d724f9c8c52e583327",
    "state": "machine-cross-checked"
   },
@@ -5764,7 +5764,7 @@
    "state": "machine-cross-checked"
   },
   "install.backup.dynamic.restore_now": {
-   "text": "Herstel deze bundel nu",
+   "text": "Deze bundel nu herstellen",
    "sourceHash": "983de6dbc369f41533a600215dd40dee2eaf2504071f7a7e9653650213ee4aa4",
    "state": "machine-cross-checked"
   },
@@ -6004,7 +6004,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.backup_staging_retained": {
-   "text": "Gevoelige tijdelijke back-upgegevens konden niet worden verwijderd. Controleer de opslag van het paneel op achtergebleven gegevens en probeer het opnieuw; er is geen back-up gedownload.",
+   "text": "Gevoelige tijdelijke back-upgegevens konden niet worden verwijderd. Controleer de opslag van het paneel en probeer het daarna opnieuw; er is geen back-up gedownload.",
    "sourceHash": "ac442bd0592e6dc5bdd5116ed7abb908d496d12e7cd1ae6a15ff94234dfb7945",
    "state": "machine-cross-checked"
   },
@@ -6294,7 +6294,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.restore_not_panel_backup": {
-   "text": "geen Panel Assistant back-up",
+   "text": "geen Panel Assistant-back-up",
    "sourceHash": "7313852704afc4845abafd318f383a45c58eff9fed5030b676e5dac8cdb2be66",
    "state": "machine-cross-checked"
   },
@@ -6369,7 +6369,7 @@
    "state": "machine-cross-checked"
   },
   "install.presentation.status_external_renderer_crash_loop": {
-   "text": "⛔ De Dashboard-app loopt vast in een crash-lus — de watchdog is gestopt met het opnieuw opstarten ervan om een storm van herstarts te voorkomen. Installeer de Dashboard-/Companion-app opnieuw of ga terug naar een eerdere versie, of start het paneel opnieuw op.",
+   "text": "⛔ De dashboard-app loopt vast in een crash-lus — de watchdog is gestopt met het opnieuw opstarten ervan om een storm van herstarts te voorkomen. Installeer de dashboard-/Companion-app opnieuw of ga terug naar een eerdere versie, of start het paneel opnieuw op.",
    "sourceHash": "42858bae496ba84d6e265afb20e07fe3adedbe091111df9daa5cc5537be88c5a",
    "state": "machine-cross-checked"
   },
@@ -7109,7 +7109,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.editor.title": {
-   "text": "Profiel YAML",
+   "text": "Profiel-YAML",
    "sourceHash": "a9bdf306d886599f44b06558ebb6b7b7a1920018d6ce9e943a13994faad4501d",
    "state": "machine-cross-checked"
   },
@@ -7324,7 +7324,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.cpu-core-count-range": {
-   "text": "Moet tussen 1 en 128 cores liggen.",
+   "text": "Moet tussen 1 en 128 kernen liggen.",
    "sourceHash": "fdc2c1cbe01dfe2409cf8cd0393acb03f797bfb2c432fd68df266dcf96c1f1f7",
    "state": "machine-cross-checked"
   },
@@ -7454,7 +7454,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.generic-fallback-only": {
-   "text": "Alleen het meegeleverde generieke profiel mag als fallback dienen.",
+   "text": "Alleen het gebundelde generieke profiel mag als fallback dienen.",
    "sourceHash": "a96ce38fd13cc1b58dfdf2c02c1f3c3c76f26e2d606b089db14aadfaa1f34b51",
    "state": "machine-cross-checked"
   },
@@ -7809,7 +7809,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.issue.unused-driver-declared": {
-   "text": "Driver '{value}' is gedeclareerd, maar wordt momenteel door geen enkel veld gebruikt.",
+   "text": "Stuurprogramma '{value}' is gedeclareerd, maar wordt momenteel door geen enkel veld gebruikt.",
    "sourceHash": "f62eb8449947a2711017af61d1cc770143878420395ece9b6494c76e2cd4a867",
    "state": "machine-cross-checked"
   },
@@ -8109,7 +8109,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.result.activation-rolled-back-unhealthy-auto": {
-   "text": "De vorige activering meldde geen goede status; teruggedraaid naar automatische toewijzing.",
+   "text": "De vorige activering meldde geen goede status; teruggedraaid naar automatische matching.",
    "sourceHash": "5ce98d100de2c6f69c59ec8254a4f99dfcbdaf70b7fb7146c2a50b3d17156831",
    "state": "machine-cross-checked"
   },
@@ -8209,7 +8209,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.result.preview-token-required": {
-   "text": "Controleer het profiel voordat je het opslaat.",
+   "text": "Valideer het profiel voordat je het opslaat.",
    "sourceHash": "46bfda5a67a75f1b29d4e6604b0d17ca709fb634df0daad528d4c901b88ceb35",
    "state": "machine-cross-checked"
   },
@@ -8529,7 +8529,7 @@
    "state": "machine-cross-checked"
   },
   "profiles.status.new_unsaved": {
-   "text": "Nieuw, nog niet opgeslagen profiel. Controleer het voordat je het opslaat.",
+   "text": "Nieuw, nog niet opgeslagen profiel. Valideer het voordat je het opslaat.",
    "sourceHash": "ed81016cef96137e8cd53beeb3083b40b72d54300e2f79ba0164a90e3ccea49f",
    "state": "machine-cross-checked"
   },
@@ -8719,7 +8719,7 @@
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.button.hide": {
-   "text": "Verberg deze waarschuwing",
+   "text": "Deze waarschuwing verbergen",
    "sourceHash": "65150e117bf29d5f27999ac819fbee19c26f1709364a6873d7a8519e4c4fe04c",
    "state": "machine-cross-checked"
   },
@@ -8784,7 +8784,7 @@
    "state": "machine-cross-checked"
   },
   "runtime.power_safety.repair.repaired": {
-   "text": "Stroombeveiliging gerepareerd en gecontroleerd.",
+   "text": "Stroombeveiliging hersteld en gecontroleerd.",
    "sourceHash": "e96151cbf938def9ee3a9b159eb38a398799e3eb0291c17382549d06407373c1",
    "state": "machine-cross-checked"
   },
@@ -8864,7 +8864,7 @@
    "state": "machine-cross-checked"
   },
   "settings.auto_brightness_ha_entity.help": {
-   "text": "Leeg laten gebruikt de lichtsensor van het paneel. Selecteer een lichtsterktesensor uit Home Assistant als het paneel geen geschikte sensor heeft.",
+   "text": "Als je dit leeg laat, wordt de lichtsensor van het paneel gebruikt. Selecteer een lichtsterktesensor uit Home Assistant als het paneel geen geschikte sensor heeft.",
    "sourceHash": "6880e1fea6dee81c8f92542ee7bca6f70b62aecb909cf29b8b43fc5843fb5f9d",
    "state": "machine-cross-checked"
   },
@@ -9334,17 +9334,17 @@
    "state": "machine-cross-checked"
   },
   "settings.ha_area.help": {
-   "text": "Waar dit paneel zich bevindt, op basis van de gebiedsnaam in Home Assistant. Dit kan alleen in Panel Assistant worden gewijzigd als je HA-gebruiker beheerdersrechten heeft; wijzig het anders bij je apparaat in HA.",
+   "text": "Waar dit paneel zich bevindt, op basis van de ruimtenaam in Home Assistant. Dit kan alleen in Panel Assistant worden gewijzigd als je HA-gebruiker beheerdersrechten heeft; wijzig het anders bij je apparaat in HA.",
    "sourceHash": "511bca0d9133ce234fcc2592eacd03cfca60155df52a3f747e904d6ad1d95885",
    "state": "machine-cross-checked"
   },
   "settings.ha_area.label": {
-   "text": "Gebied in Home Assistant",
+   "text": "Ruimte in Home Assistant",
    "sourceHash": "df4a2a5c31455ff3f9226ec4e43b6fc965fc5aa1b12539b97c2282ba3174bce1",
    "state": "machine-cross-checked"
   },
   "settings.ha_area.summary": {
-   "text": "Home Assistant gebied waartoe dit paneel behoort.",
+   "text": "Home Assistant-ruimte waartoe dit paneel behoort.",
    "sourceHash": "992b9c57355acf08ce839cbf4c2c66e2652cf5c0597bf380cc777b54e40833ef",
    "state": "machine-cross-checked"
   },
@@ -9479,7 +9479,7 @@
    "state": "machine-cross-checked"
   },
   "settings.launcher_package.summary": {
-   "text": "De Launcher-knop opent de app.",
+   "text": "App die de Launcher-knop opent.",
    "sourceHash": "b2dadcf62b45755d46bca03a6522073177068495b10956c04c39699194956d04",
    "state": "machine-cross-checked"
   },
@@ -9494,7 +9494,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_enabled.summary": {
-   "text": "Verzend het logboek van de 'Panel Assistant' naar een collector op je netwerk.",
+   "text": "Verzend het eigen logboek van Panel Assistant naar een collector op je netwerk.",
    "sourceHash": "29c261aab6016eeed9cb01834c51e09ad646b4f4bbf315c70e9f3bb8feb556e1",
    "state": "machine-cross-checked"
   },
@@ -9509,7 +9509,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_host.summary": {
-   "text": "Adres van de logverzamelaar. Als je dit leeg laat, wordt het verzenden uitgeschakeld.",
+   "text": "Adres van de log-collector. Als je dit leeg laat, wordt het verzenden uitgeschakeld.",
    "sourceHash": "2de7304ca6cbdb82707a94e19b7e94df4ae18b8d408730c04fe716f554625fba",
    "state": "machine-cross-checked"
   },
@@ -9519,7 +9519,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_port.summary": {
-   "text": "Poort van de logverzamelaar.",
+   "text": "Poort van de log-collector.",
    "sourceHash": "4cf403c3eedb4aae0bc497387596f2a6d1bcc5908d9b883f821e381e733cc4a3",
    "state": "machine-cross-checked"
   },
@@ -9539,7 +9539,7 @@
    "state": "machine-cross-checked"
   },
   "settings.log_ship_system_enabled.help": {
-   "text": "Stuur Android-systeemlogs naar dezelfde ontvanger door wanneer 'Logs doorsturen' aan staat.\n\n- Standaard uit.\n- Vereist TCP of HTTP en root of de geïnstalleerde helper.\n- Gevoelige gegevens worden afgeschermd; bij veel logverkeer kunnen vermeldingen wegvallen.",
+   "text": "Stuur Android-systeemlogs naar dezelfde sink door wanneer 'Logs doorsturen' aan staat.\n\n- Standaard uit.\n- Vereist TCP of HTTP en root of de geïnstalleerde helper.\n- Gevoelige gegevens worden afgeschermd; bij veel logverkeer kunnen vermeldingen wegvallen.",
    "sourceHash": "bfc7f5d141f83c2cf7f2c168f8e492af3f7fe3b50efff70a0435d15bb0524fa2",
    "state": "machine-cross-checked"
   },
@@ -9589,7 +9589,7 @@
    "state": "machine-cross-checked"
   },
   "settings.network_address_family.label": {
-   "text": "Home Assistant WebSocket adresfamilie",
+   "text": "WebSocket-adresfamilie voor Home Assistant",
    "sourceHash": "f97bb46f422f8778630da01f9363dde4bf1455af861d866b28d87e329a4bdd98",
    "state": "machine-cross-checked"
   },
@@ -9834,7 +9834,7 @@
    "state": "machine-cross-checked"
   },
   "settings.voice_pipelines.summary": {
-   "text": "Welke Assist-pijplijn wordt door elk activeringswoord uitgevoerd.",
+   "text": "Welke Assist-pipeline wordt door elk activeringswoord uitgevoerd.",
    "sourceHash": "e37ef99d1d4df2fb268353f7f179ee12d4802df0a4993748331b6d83a91dcde4",
    "state": "machine-cross-checked"
   },
@@ -10019,7 +10019,7 @@
    "state": "machine-cross-checked"
   },
   "setup.dashboard.fetch_failed.retry": {
-   "text": "Probeer het nog eens",
+   "text": "Opnieuw proberen",
    "sourceHash": "d8b8392e2c542950ca64867168e4ef87d4ad606882d5898f826b51c6d553988f",
    "state": "machine-cross-checked"
   },
@@ -10154,12 +10154,12 @@
    "state": "machine-cross-checked"
   },
   "setup.done.action.configure": {
-   "text": "Configureer het paneel",
+   "text": "Paneel configureren",
    "sourceHash": "2fd565639231606a819c15ed7c1f9c2cfae635bb48c2b38a3fa9e57cc282a857",
    "state": "machine-cross-checked"
   },
   "setup.done.action.dashboard": {
-   "text": "Dashboard van het paneel",
+   "text": "Paneeldashboard",
    "sourceHash": "3db3c314463f71ee6dfd052b3b46cdd2851593ad49f19dcac17289eae7969c00",
    "state": "machine-cross-checked"
   },
@@ -10214,12 +10214,12 @@
    "state": "machine-cross-checked"
   },
   "setup.filter.action.disable": {
-   "text": "Laad het dashboard zonder filter",
+   "text": "Dashboard zonder filter laden",
    "sourceHash": "104b78f4c5f5a5e6078e2d76d7dd8f8f55d30190ce2c5d2fc827c403a28305b3",
    "state": "machine-cross-checked"
   },
   "setup.filter.action.enable": {
-   "text": "Schakel filteren in en laad het dashboard",
+   "text": "Filteren inschakelen en dashboard laden",
    "sourceHash": "971afbafc8f8aa4d42da3bd871a938fb56376601e0685d462133c1abbd925608",
    "state": "machine-cross-checked"
   },
@@ -10609,7 +10609,7 @@
    "state": "machine-cross-checked"
   },
   "setup.renderer.action.open_dashboard_setting": {
-   "text": "Open de instelling ‘Dashboard’",
+   "text": "De instelling ‘Dashboard’ openen",
    "sourceHash": "c5d268cd415c70ca4aea5846a37468004b27384beabc5f9ca171e7ed1ecb484d",
    "state": "machine-cross-checked"
   },
@@ -10944,7 +10944,7 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_lifecycle.step_starting": {
-   "text": "Opstarten",
+   "text": "Starten",
    "sourceHash": "aeed4d26bb5f0c312bc8a9ee9ce362899252110089263414690ae7b5d6625427",
    "state": "machine-cross-checked"
   },
@@ -10974,7 +10974,7 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_no_reply_missed": {
-   "text": "geen antwoord, {missCount} van {probeCount} gemiste probes in de afgelopen 5 minuten",
+   "text": "geen antwoord, {missCount} van {probeCount} probes gemist in de afgelopen 5 minuten",
    "sourceHash": "91632b179b17726f8beecc801ba088b2c4a7a243b4aa897260e0705df5e0a1d9",
    "state": "machine-cross-checked"
   },
@@ -10984,7 +10984,7 @@
    "state": "machine-cross-checked"
   },
   "shell.runtime.ha_network_evidence_p95_missed": {
-   "text": "p95 {p95Ms} ms, {missCount} van {probeCount} gemiste probes in de afgelopen 5 minuten",
+   "text": "p95 {p95Ms} ms, {missCount} van {probeCount} probes gemist in de afgelopen 5 minuten",
    "sourceHash": "29a99757d7b4706415aea5c8666e6fdaaee9cc74e7a29e4c9e958572a78c1572",
    "state": "machine-cross-checked"
   },
@@ -11034,7 +11034,7 @@
    "state": "machine-cross-checked"
   },
   "configure.enum.dashboard_theme.follow_home_assistant": {
-   "text": "Volg Home Assistant",
+   "text": "Home Assistant volgen",
    "sourceHash": "354c65fd389c33e3365c65df36b59f5d05509a6f1a8305920453ccf0cc3cd2e4",
    "state": "machine-cross-checked"
   },
@@ -11064,7 +11064,7 @@
    "state": "machine-cross-checked"
   },
   "configure.enum.network_address_family.force_ipv4": {
-   "text": "Forceer IPv4",
+   "text": "IPv4 forceren",
    "sourceHash": "e4194f462f23b9aaa2a7a012aa6777724da24e9803959e7733be55448d99afb7",
    "state": "machine-cross-checked"
   },
@@ -11314,7 +11314,7 @@
    "state": "machine-cross-checked"
   },
   "install.backup.restore.description.config_only": {
-   "text": "Dit overschrijft de configuratie van dit paneel — je ziet een voorbeeld van de inhoud van de bundel voordat deze wordt toegepast.",
+   "text": "overschrijft de configuratie van dit paneel — je ziet een voorbeeld van de inhoud van de bundel voordat deze wordt toegepast.",
    "sourceHash": "179a9889a2016aaba29633013b5b7209063b1891b1614fee38ae14a28e916d1e",
    "state": "machine-cross-checked"
   },
@@ -11554,12 +11554,12 @@
    "state": "machine-cross-checked"
   },
   "install.tame.approval.package": {
-   "text": "{action} leverancierspakket {package}",
+   "text": "{action}: leverancierspakket {package}",
    "sourceHash": "699fa472f4a1b392599fc62e2cbbd912a7658ef16b5276c0d156da5090153d15",
    "state": "machine-cross-checked"
   },
   "install.tame.approval.recommended": {
-   "text": "Tem de aanbevolen leverancierspakketten van het profiel",
+   "text": "De aanbevolen leverancierspakketten van het profiel temmen",
    "sourceHash": "3a77da60cbcfc809f72b7fd8d18d38f88119734d8ec517da65b2653c1bdcc833",
    "state": "machine-cross-checked"
   },
@@ -11649,12 +11649,12 @@
    "state": "machine-cross-checked"
   },
   "install.tame.package_hint": {
-   "text": "Gebruik de Android pakket-id, bijvoorbeeld io.example.app.",
+   "text": "Gebruik de Android-pakket-id, bijvoorbeeld io.example.app.",
    "sourceHash": "e6fdbaa3a572da4f8b627fcb2e82fe254256874683df190fca4bf589cf6605da",
    "state": "machine-cross-checked"
   },
   "install.tame.package_name": {
-   "text": "Android pakketnaam",
+   "text": "Android-pakketnaam",
    "sourceHash": "b2435d15ef23feed93deb1f778db35b57a28affcfbc1f87a3ca70ca9958aff12",
    "state": "machine-cross-checked"
   },
@@ -11994,7 +11994,7 @@
    "state": "machine-cross-checked"
   },
   "configure.camera.suppressed": {
-   "text": "Het apparaatprofiel van dit paneel zet hardware.camera op false, dus de camera wordt niet aangeboden. Bewerk het profiel om dit aan te bieden.",
+   "text": "Het apparaatprofiel van dit paneel zet hardware.camera op false, dus de camera wordt niet aangeboden. Bewerk het profiel om de camera aan te bieden.",
    "sourceHash": "7d9630a0bbdfc2c972fd1a2b6febfabdf62ce5e8e00a0b9bc98660a725a7460e",
    "state": "machine-cross-checked"
   },
@@ -12064,7 +12064,7 @@
    "state": "machine-cross-checked"
   },
   "configure.auto_sleep.source_ha": {
-   "text": "Home Assistant-gebiedsapparaten",
+   "text": "Apparaten in de Home Assistant-ruimte",
    "sourceHash": "16b74be3e8e11ec69dd90f2975d97e8028a6a43cf1bf0381c1b3291c974b8c01",
    "state": "machine-cross-checked"
   },
@@ -12094,7 +12094,7 @@
    "state": "machine-cross-checked"
   },
   "settings.auto_sleep_source.summary": {
-   "text": "Wat telt als aanwezigheid: nabijheidssensor, gebied of aanraking.",
+   "text": "Wat telt als aanwezigheid: nabijheidssensor, ruimte of aanraking.",
    "sourceHash": "010e147baf066c010fda07e439cca24c3f59a22a7564b8450354fa5e8f716b33",
    "state": "machine-cross-checked"
   },

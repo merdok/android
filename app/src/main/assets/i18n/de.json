@@ -494,7 +494,7 @@
       "state": "machine-cross-checked"
     },
     "configure.auto_sleep.value.discovering": {
-      "text": "Suche läuft",
+      "text": "Ermittlung läuft",
       "sourceHash": "4fc48cfcb124c2853a41563f456e6cea9eff6bdf6c0eaec492de45af85da1d85",
       "state": "machine-cross-checked"
     },
@@ -819,12 +819,12 @@
       "state": "machine-cross-checked"
     },
     "configure.camera.not_enumerated": {
-      "text": "Dieses Panel meldet keine Kamera. Falls es eine hat, deklarieren Sie hardware.camera im Geräteprofil, zusammen mit einer LED, die das Panel bei geöffneter Kamera leuchten lassen kann.",
+      "text": "Dieses Panel meldet keine Kamera. Falls es eine hat, deklariere hardware.camera im Geräteprofil, zusammen mit einer LED, die das Panel bei geöffneter Kamera leuchten lassen kann.",
       "sourceHash": "331f1ddebf379a9351bf10e42bf20b13e6cb055eca836a67be47d20c0dd65c5e",
       "state": "machine-cross-checked"
     },
     "configure.camera.suppressed": {
-      "text": "Das Geräteprofil dieses Panels setzt hardware.camera auf false, daher wird die Kamera nicht angeboten. Bearbeiten Sie das Profil, um sie anzubieten.",
+      "text": "Das Geräteprofil dieses Panels setzt hardware.camera auf false, daher wird die Kamera nicht angeboten. Bearbeite das Profil, um sie anzubieten.",
       "sourceHash": "7d9630a0bbdfc2c972fd1a2b6febfabdf62ce5e8e00a0b9bc98660a725a7460e",
       "state": "machine-cross-checked"
     },
@@ -1114,7 +1114,7 @@
       "state": "machine-cross-checked"
     },
     "configure.group.auto_sleep": {
-      "text": "Automatischer Ruhezustand",
+      "text": "Automatischer Ruhemodus",
       "sourceHash": "ffa395b8fc89398516172e390d9e37039d65a7421abeeafd6d7c1931dbaaa084",
       "state": "machine-cross-checked"
     },
@@ -1384,7 +1384,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.confirm.forget": {
-      "text": "Gehen Sie vom Panel weg und löschen Sie dann den gelernten Näherungsverlauf für diesen Sensor? Tippen zum Aufwecken bleibt während des erneuten Lernens verfügbar.",
+      "text": "Vom Panel weggehen und dann den gelernten Näherungsverlauf für diesen Sensor löschen? Tippen zum Aufwecken bleibt während des erneuten Lernens verfügbar.",
       "sourceHash": "e4ed73da8434174e02d6aa4413c24c088aad8fc6b39f214146bc5f74813288e5",
       "state": "machine-cross-checked"
     },
@@ -1479,7 +1479,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.learning_clear_baseline": {
-      "text": "Keine Einrichtung erforderlich. Halten Sie den Bereich kurz frei, damit das Panel seinen Ausgangswert lernen kann.",
+      "text": "Keine Einrichtung erforderlich. Halte den Bereich kurz frei, damit das Panel seinen Ausgangswert lernen kann.",
       "sourceHash": "f14cf2497d96832b03c9b3442247990bf8e72648d8802d9c50cdb4d375a08455",
       "state": "machine-cross-checked"
     },
@@ -1489,7 +1489,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.movement_partial": {
-      "text": "Bewegung erkannt, aber sie war unvollständig, zu schnell oder zu lang. Gehen Sie weg, warten Sie zwei Sekunden und versuchen Sie es erneut.",
+      "text": "Bewegung erkannt, aber sie war unvollständig, zu schnell oder zu lang. Geh weg, warte zwei Sekunden und versuche es erneut.",
       "sourceHash": "6c7ba25eae4f8647f7344ba8032612f69b0196d51e1d7595122f45ffe105fd49",
       "state": "machine-cross-checked"
     },
@@ -1514,12 +1514,12 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.signal_changed_restart": {
-      "text": "Das Näherungssignal hat sich geändert. Gehen Sie kurz weg und starten Sie dann die bewussten Winkgesten neu.",
+      "text": "Das Näherungssignal hat sich geändert. Geh kurz weg und starte dann die bewussten Winkgesten neu.",
       "sourceHash": "d8a9caf85e0e234df680e0b9ea81a471baadef083322a0d1dd2367d0c48b22d2",
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.teach_instruction": {
-      "text": "Halten Sie den Bereich kurz frei, führen Sie dann eine bewusste Winkbewegung aus und gehen Sie wieder weg.",
+      "text": "Halte den Bereich kurz frei, führe dann eine bewusste Winkbewegung aus und geh wieder weg.",
       "sourceHash": "4ff0bd8149854f23a250825b02589c3e2b8dc2e22e573e020e925a01d85b69ec",
       "state": "machine-cross-checked"
     },
@@ -1534,7 +1534,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.teaching_timed_out": {
-      "text": "Zeitüberschreitung beim Anlernen. Es wurde nichts Unsicheres aktiviert; versuchen Sie es bei Gelegenheit erneut.",
+      "text": "Zeitüberschreitung beim Anlernen. Es wurde nichts Unsicheres aktiviert; versuche es bei Gelegenheit erneut.",
       "sourceHash": "a2cfd8723f61c19910f98c5ffaa1787877ae669073a39d7528777073eee854af",
       "state": "machine-cross-checked"
     },
@@ -1544,7 +1544,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.test_instruction": {
-      "text": "Gehen Sie zwei Sekunden weg, führen Sie dann eine Winkbewegung aus und gehen Sie wieder weg.",
+      "text": "Geh zwei Sekunden weg, führe dann eine Winkbewegung aus und geh wieder weg.",
       "sourceHash": "5693506fc01c3d423c82245de21ec2bd42dff5f3e85309ae2be4dd29d8f754c6",
       "state": "machine-cross-checked"
     },
@@ -1554,12 +1554,12 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.touch_until_ready": {
-      "text": "Keine Einrichtung erforderlich. Tippen Sie zum Aufwecken auf den Bildschirm, bis das Lernen abgeschlossen ist.",
+      "text": "Keine Einrichtung erforderlich. Tippe zum Aufwecken auf den Bildschirm, bis das Lernen abgeschlossen ist.",
       "sourceHash": "4f35417beb53edd5c6cf243e99715270cd1b458e0f0c5fbd8c92db6377409d07",
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.use_normally": {
-      "text": "Verwenden Sie das Panel normal oder wählen Sie „Eine Winkgeste anlernen“, um schneller fertig zu werden.",
+      "text": "Verwende das Panel normal oder wähle „Eine Winkgeste anlernen“, um schneller fertig zu werden.",
       "sourceHash": "b9c3c88a57c501beb1bf93674a1ead5fcb42df0b3b7e8cb1095c7c3e5ded34a5",
       "state": "machine-cross-checked"
     },
@@ -1569,7 +1569,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.message.wave_accepted": {
-      "text": "Winkgeste akzeptiert ({seen}/{required}). Gehen Sie weg, warten Sie zwei Sekunden und führen Sie erneut eine Winkbewegung aus.",
+      "text": "Winkgeste akzeptiert ({seen}/{required}). Geh weg, warte zwei Sekunden und führe erneut eine Winkbewegung aus.",
       "sourceHash": "013f7396cc1d09581949a6c69cd3195b348af4a5e33a04710d1a284f017fa076",
       "state": "machine-cross-checked"
     },
@@ -1664,7 +1664,7 @@
       "state": "machine-cross-checked"
     },
     "configure.proximity.setup.follow": {
-      "text": "Folgen Sie den Anweisungen auf dem Panel. Lassen Sie den Browser-Tab bis zum Abschluss geöffnet; er kann im Hintergrund bleiben.",
+      "text": "Folge den Anweisungen auf dem Panel. Lass den Browser-Tab bis zum Abschluss geöffnet; er kann im Hintergrund bleiben.",
       "sourceHash": "5617ef29cda6cf1af481ca3fdc7ef3c37b65981f0dcb67f0d58fd4e81e76eb18",
       "state": "machine-cross-checked"
     },
@@ -2099,12 +2099,12 @@
       "state": "machine-cross-checked"
     },
     "configure.voice.microphone_no_audio": {
-      "text": "Das Mikrofon hat bei der Prüfung durch das Panel kein Audio geliefert, daher hört das Panel nicht zu. Schalten Sie den Sprachassistenten aus und wieder ein, um erneut zu prüfen.",
+      "text": "Das Mikrofon hat bei der Prüfung durch das Panel kein Audio geliefert, daher hört das Panel nicht zu. Schalte den Sprachassistenten aus und wieder ein, um erneut zu prüfen.",
       "sourceHash": "161b1ad1b64eeb61758adf95b0fafe1e88965b0998c4623c18514b349a24c533",
       "state": "machine-cross-checked"
     },
     "configure.voice.microphone_silent": {
-      "text": "Das Mikrofon hat bei der Prüfung durch das Panel nur Stille aufgenommen, daher hört das Panel nicht zu. Versuchen Sie eine andere Audioquelle, oder schalten Sie den Sprachassistenten aus und wieder ein, um erneut zu prüfen.",
+      "text": "Das Mikrofon hat bei der Prüfung durch das Panel nur Stille aufgenommen, daher hört das Panel nicht zu. Versuche eine andere Audioquelle oder schalte den Sprachassistenten aus und wieder ein, um erneut zu prüfen.",
       "sourceHash": "f199f52a53f3d02c180b4cdb110fc6809a2b599f8f6de24003d3fd97bbec60ce",
       "state": "machine-cross-checked"
     },
@@ -2444,7 +2444,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.camera.action.misdeclared_profile": {
-      "text": "das Profil deklariert eine Kamera, die diese Platine nicht bereitstellt; korrigieren Sie hardware.camera im Profil",
+      "text": "das Profil deklariert eine Kamera, die diese Platine nicht bereitstellt; korrigiere hardware.camera im Profil",
       "sourceHash": "a21c61954e1a191d0d9a3e4864a132a68878650930555cc74a9e99653099bd48",
       "state": "machine-cross-checked"
     },
@@ -3119,7 +3119,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.card.ha_state_stream": {
-      "text": "Home Assistant-Statusdatenstrom",
+      "text": "Home Assistant-Zustandsdatenstrom",
       "sourceHash": "5c4837d3937413e5f3ea56b3d901abe57d6272c4d1f6fb7dc9ff565d4c5dfaf3",
       "state": "machine-cross-checked"
     },
@@ -3224,7 +3224,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.cause.state_stream": {
-      "text": "Belastung durch Statusdatenstrom",
+      "text": "Belastung durch Zustandsdatenstrom",
       "sourceHash": "a49a99c4222cc71e7ceb9984723d26580817796a9cc8bfe95cb5a8ad630bd831",
       "state": "machine-cross-checked"
     },
@@ -3239,7 +3239,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.chart.main_thread_blocking": {
-      "text": "Blockierung des Haupt-Threads",
+      "text": "Blockierung des Hauptthreads",
       "sourceHash": "aac003a3e9708c8686eb682f6b1f22b76779ae43621d83e907ee66b054c161de",
       "state": "machine-cross-checked"
     },
@@ -3249,7 +3249,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.chart.state_updates": {
-      "text": "Statusaktualisierungen",
+      "text": "Zustandsaktualisierungen",
       "sourceHash": "772d0aa06c819550996c834f637c629220ac691a64791fb8a03a06e98b3f0034",
       "state": "machine-cross-checked"
     },
@@ -3974,7 +3974,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.responsiveness.state_updates": {
-      "text": "Statusaktualisierungen",
+      "text": "Zustandsaktualisierungen",
       "sourceHash": "772d0aa06c819550996c834f637c629220ac691a64791fb8a03a06e98b3f0034",
       "state": "machine-cross-checked"
     },
@@ -4549,7 +4549,7 @@
       "state": "machine-cross-checked"
     },
     "dashboard.state_stream.state_updates": {
-      "text": "Zustandsupdates",
+      "text": "Zustandsaktualisierungen",
       "sourceHash": "a15928ad4aed0de25b5ed2b4a81279cd8ad0f8b6e865e5da8ed581f7da981e72",
       "state": "machine-cross-checked"
     },
@@ -4864,7 +4864,7 @@
       "state": "machine-cross-checked"
     },
     "entities.dynamic.body": {
-      "text": "Diese Ausdrücke sind keine Konfigurationsfehler. Führe den relevanten Dashboard-Zustand aus, damit die Laufzeitbeobachtung konkrete Entitäts-IDs erkennen kann. Vorlagen, die Home Assistant auf dem Server rendert, etwa {{ ... }} und {% ... %}, werden ausgewertet, bevor das Dashboard sie erhält. Durch Ausführen lassen sich die von ihnen gelesenen Entitäten daher nie erkennen. Das ist auch nicht nötig: Home Assistant sendet das gerenderte Ergebnis über ein separates Abonnement, das dieser Filter nicht berührt, sodass für diese Entitäten nichts zu tun ist. Nur eine Entität, die eine solche Vorlage als Kartenreferenz erzeugt, muss manuell hinzugefügt werden.",
+      "text": "Diese Ausdrücke sind keine Konfigurationsfehler. Bringe das Dashboard in den relevanten Zustand, damit die Laufzeitbeobachtung konkrete Entitäts-IDs erkennen kann. Vorlagen, die Home Assistant auf dem Server rendert, etwa {{ ... }} und {% ... %}, werden ausgewertet, bevor das Dashboard sie erhält. Durch das Bedienen des Dashboards lassen sich die von ihnen gelesenen Entitäten daher nie erkennen. Das ist auch nicht nötig: Home Assistant sendet das gerenderte Ergebnis über ein separates Abonnement, das dieser Filter nicht berührt, sodass für diese Entitäten nichts zu tun ist. Nur eine Entität, die eine solche Vorlage als Kartenreferenz erzeugt, muss manuell hinzugefügt werden.",
       "sourceHash": "b71078752a0fda1c44508c52871014086acdfd547b2ea28da0bb0be8c02e005f",
       "state": "machine-cross-checked"
     },
@@ -5334,12 +5334,12 @@
       "state": "machine-cross-checked"
     },
     "entities.issues.title": {
-      "text": "Kompatibilität der Erkennung",
+      "text": "Kompatibilität der Entitätserkennung",
       "sourceHash": "eb4e09bf32f157bcec74907fe18323558be077e4b7c7c0ac3a6f3697f2a46abb",
       "state": "machine-cross-checked"
     },
     "entities.override.exclude_confirm": {
-      "text": "{entity_id} ausschließen, obwohl das Dashboard davon abhängt?",
+      "text": "{entity_id} ausschließen, auch wenn das Dashboard davon abhängt?",
       "sourceHash": "d0ab4e63729c4a23af1b6d0645a61fa9b04070790957b396dea1c56e451ec94b",
       "state": "machine-cross-checked"
     },
@@ -5659,7 +5659,7 @@
       "state": "machine-cross-checked"
     },
     "entities.status.state.synchronizing": {
-      "text": "synchronisiert",
+      "text": "wird synchronisiert",
       "sourceHash": "644b72e97de001b8a0e917dde5dc058c35ccf9657b728560604cbcca6ab4f2b4",
       "state": "machine-cross-checked"
     },
@@ -5769,7 +5769,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.review.note": {
-      "text": "Entitäten im aktuellen Datenstrom, die in Home Assistant fehlen, Aktualisierungen erhalten, ohne als Dashboard-Abhängigkeiten beobachtet zu werden, oder manuell angeheftet wurden, obwohl dieses Dashboard sie nicht verwendet. Nur zur Überprüfung; eine manuelle Anheftung oder ein Ausschluss wird niemals automatisch entfernt – hebe die Anheftung hier auf, wenn du die Entität entfernen möchtest.",
+      "text": "Entitäten im aktuellen Datenstrom, die in Home Assistant fehlen, Aktualisierungen erhalten, ohne als Dashboard-Abhängigkeiten beobachtet zu werden, oder manuell angeheftet wurden, obwohl dieses Dashboard sie nicht verwendet. Nur zur Überprüfung; eine manuelle Anheftung oder ein Ausschluss wird niemals automatisch entfernt – hebe die Anheftung hier auf, wenn du sie nicht mehr möchtest.",
       "sourceHash": "96035cee159d53cfff753798302c0d73e6ff3552be2aca08d4003359264efbbe",
       "state": "machine-cross-checked"
     },
@@ -5799,7 +5799,7 @@
       "state": "machine-cross-checked"
     },
     "entities.table.suggested.title": {
-      "text": "Empfohlene Dashboard-Entitäten",
+      "text": "Vorgeschlagene Dashboard-Entitäten",
       "sourceHash": "116d030af30a47c77e4b40b6783fbab3837e71cf38b5c7b3d5408ac7f9cd3831",
       "state": "machine-cross-checked"
     },
@@ -5984,7 +5984,7 @@
       "text": "APK installieren"
     },
     "install.apk_status.busy": {
-      "text": "beschäftigt",
+      "text": "ausgelastet",
       "sourceHash": "c9bc072f4fa8189466c2a8f2c36a56a4ef1e60a2ffa4986ba2f155cd176c128b",
       "state": "machine-cross-checked"
     },
@@ -6319,9 +6319,9 @@
       "text": "Passphrase (für verschlüsselte Sicherung erforderlich)"
     },
     "install.backup.plaintext_zip": {
+      "text": "Stattdessen eine unverschlüsselte ZIP erstellen (enthält Zugangsdaten)",
       "sourceHash": "10683becdcd51177371bbb7dc6e59d3867fe28461c903e261c4258d7db617b34",
-      "state": "machine-cross-checked",
-      "text": "Stattdessen ein unverschlüsseltes ZIP erstellen (enthält Zugangsdaten)"
+      "state": "machine-cross-checked"
     },
     "install.backup.preview_files.one": {
       "text": "{package} ({count} Datei)",
@@ -6459,9 +6459,9 @@
       "text": "Vorabversion"
     },
     "install.components.privileged_unavailable": {
+      "text": "Zum Installieren oder Aktualisieren ist ein unterstützter privilegierter Panelzugriff erforderlich, der auf diesem Panel nicht verfügbar ist.",
       "sourceHash": "c580f4004f76a4e5ba9b1d0efa0c7c6717c74299399f703ecb017e83bf90282d",
-      "state": "machine-cross-checked",
-      "text": "Zum Installieren oder Aktualisieren ist ein vom Projekt supportierter privilegierter Panelzugriff erforderlich, der auf diesem Panel nicht verfügbar ist."
+      "state": "machine-cross-checked"
     },
     "install.components.release_notes": {
       "sourceHash": "2d3813e25ffaf552dffc724814881a1e40138bab741d700e95ffc5cac29e726d",
@@ -6569,9 +6569,9 @@
       "text": "Standard 1,0"
     },
     "install.display.description": {
+      "text": "Experimentell / F&E – die richtigen Werte sind noch nicht abschließend bestimmt; probiere sie in deinem eigenen Tempo aus. Passe die Größe eines HA-Dashboards an einen Desktopbrowser an. Die Dichte skaliert das gesamte Layout (niedrigere dpi = mehr Inhalt); die Textgröße skaliert den WebView-Text. In der Panel-Firmware sind diese Werte oft nicht auf den physischen Bildschirm abgestimmt. Änderungen werden sofort angewendet und bleiben nach einem Neustart erhalten; ein unterstützter privilegierter Panelzugriff ist erforderlich.",
       "sourceHash": "1eb292dfc02940bac236c1e68132d3a14997fb03b39eba6a834066faa93eb703",
-      "state": "machine-cross-checked",
-      "text": "Experimentell / F&E – die richtigen Werte sind noch nicht abschließend bestimmt; probiere sie in deinem eigenen Tempo aus. Passe die Größe eines HA-Dashboards an einen Desktopbrowser an. Die Dichte skaliert das gesamte Layout (niedrigere dpi = mehr Inhalt); die Textgröße skaliert den WebView-Text. In der Panel-Firmware sind diese Werte oft nicht auf den physischen Bildschirm abgestimmt. Änderungen werden sofort angewendet und bleiben nach einem Neustart erhalten; ein vom Projekt supportierter privilegierter Panelzugriff ist erforderlich."
+      "state": "machine-cross-checked"
     },
     "install.display.firmware_default": {
       "sourceHash": "49268b9bbeb39f9441dc4a28b46199dcb9f20572b8ca02a97c714be9e6396311",
@@ -6624,9 +6624,9 @@
       "text": "Zurück zur Anzeigegröße"
     },
     "install.display.root_required": {
+      "text": "Mit einem unterstützten privilegierten Panelzugriff kann Panel Assistant Dichte und Textgröße des Dashboards an den physischen Bildschirm anpassen.",
       "sourceHash": "c7cbe5ddae98756af77ce7de2595741e2cd96a5a4c64edefce284991e5d19ca6",
-      "state": "machine-cross-checked",
-      "text": "Mit einem vom Projekt supportierten privilegierten Panelzugriff kann Panel Assistant Dichte und Textgröße des Dashboards an den physischen Bildschirm anpassen."
+      "state": "machine-cross-checked"
     },
     "install.display.text_size": {
       "sourceHash": "d68761cc1eb296478531e007ff1fda9252fb7be5d24429a97eb05765211dafe5",
@@ -6959,7 +6959,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.restore_companion_helper_required": {
-      "text": "Für die Companion-Wiederherstellung ist der aktuelle Panel Assistant-Helper erforderlich",
+      "text": "Für die Companion-Wiederherstellung ist der aktuelle Panel Assistant-Hilfsdienst erforderlich",
       "sourceHash": "059d2f9018d81fa44f7358fa5978fae6adc6ea999eee6658be8e0cfab1aaf23f",
       "state": "machine-cross-checked"
     },
@@ -7179,7 +7179,7 @@
       "state": "machine-cross-checked"
     },
     "install.presentation.version_install": {
-      "text": "Installation",
+      "text": "Installieren",
       "sourceHash": "569ca49f4aaf7846e952c1d4aeca72febd0b79fa1c4f9db08fd3127551218572",
       "state": "machine-cross-checked"
     },
@@ -7284,9 +7284,9 @@
       "state": "machine-cross-checked"
     },
     "install.radio.configure_join": {
+      "text": "Konfiguration → Zigbee-Netzwerk beitreten",
       "sourceHash": "843846f36311ad7aba87d1c8536aa89c973a28e63d593e45550d9b1c83f175d2",
-      "state": "machine-cross-checked",
-      "text": "Konfigurieren → Zigbee-Netzwerk beitreten"
+      "state": "machine-cross-checked"
     },
     "install.radio.efr32": {
       "sourceHash": "dde87983949635a3374006302e8fcaf3acba9420496567a0810f4f699f9e679c",
@@ -9869,17 +9869,17 @@
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.level.at_risk": {
-      "text": "Energiesparschutz des Panels: gefährdet",
+      "text": "Energieschutz des Panels: gefährdet",
       "sourceHash": "842fd08f4027cba9a129fea89e2be31a821bf016a5d307c35bd20212bb9cca2b",
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.level.caution": {
-      "text": "Energiesparschutz des Panels: Vorsicht",
+      "text": "Energieschutz des Panels: Vorsicht",
       "sourceHash": "1b4a977ac895145657b74b05e3d7b4be0f28479237055bcf2abd21e047ffd802",
       "state": "machine-cross-checked"
     },
     "runtime.power_safety.level.unknown": {
-      "text": "Energiesparschutz des Panels: unbekannt",
+      "text": "Energieschutz des Panels: unbekannt",
       "sourceHash": "67ee8951bafa1e1eac7dfc24b25a8700a3f0d9124472cf3d84a7fa167a1e2519",
       "state": "machine-cross-checked"
     },
@@ -10029,12 +10029,12 @@
       "text": "Niedrigste automatische Bildschirmhelligkeit in Prozent. Die vorgeschlagenen Werte liegen zwischen Minimum und Maximum; manuell kann die Helligkeit weiterhin niedriger eingestellt werden."
     },
     "settings.auto_brightness_minimum_percent.label": {
+      "text": "Minimaler Wert",
       "sourceHash": "b7bfe49aa148fc0b3b356e5a96f8227b2f9fec03c55364bda8724496fa699791",
-      "state": "machine-cross-checked",
-      "text": "Mindesthelligkeit"
+      "state": "machine-cross-checked"
     },
     "settings.auto_brightness_minimum_percent.summary": {
-      "text": "Niedrigste Stufe, die die Auto-Helligkeit wählt.",
+      "text": "Niedrigster Wert, den die automatische Helligkeit wählt.",
       "sourceHash": "766c3d61ea08f66c252698b4d3b14f05cde1e4a97c64e8c4fc112b23557a8fb5",
       "state": "machine-cross-checked"
     },
@@ -10084,12 +10084,12 @@
       "state": "machine-cross-checked"
     },
     "settings.auto_sleep_source.help": {
-      "text": "Den kalibrierten Näherungssensor des Panels, Geräte in einem Home Assistant-Bereich oder Touch-Inaktivität verwenden.\n\n- Anwesenheitsmodi pausieren, wenn ihre Quelle nicht verfügbar ist.\n- Touch-Inaktivität benötigt keine Anwesenheitseinrichtung.",
+      "text": "Den kalibrierten Näherungssensor des Panels, Geräte in einem Home Assistant-Bereich oder Berührungsinaktivität verwenden.\n\n- Anwesenheitsmodi pausieren, wenn ihre Quelle nicht verfügbar ist.\n- Berührungsinaktivität benötigt keine Anwesenheitseinrichtung.",
       "sourceHash": "b6ae4c9d0c2cbf29bbffafdd847901cea10c18e91e16d77c7716ae108fb0284d",
       "state": "machine-cross-checked"
     },
     "settings.auto_sleep_source.label": {
-      "text": "Aktivitätsquelle für automatischen Ruhezustand",
+      "text": "Aktivitätsquelle für den automatischen Ruhemodus",
       "sourceHash": "485e78dd0ccd45757ad048f9805f4fe39b1260890bb7d0364b2c8d07caa926c1",
       "state": "machine-cross-checked"
     },
@@ -10349,7 +10349,7 @@
       "text": "Zoomstufe (%)"
     },
     "settings.dashboard_zoom.promoted_help": {
-      "text": "So skalierst du das Dashboard auf diesem Panel, dessen Anzeigedichte nicht änderbar ist. Verringere für mehr Inhalt; erhöhe zum Vergrößern.",
+      "text": "So skalierst du das Dashboard auf diesem Panel, dessen Anzeigedichte nicht änderbar ist. Verringere den Zoom für mehr Inhalt; erhöhe ihn zum Vergrößern.",
       "sourceHash": "60fde4ecb0300f4e39d073c0ed282652965ca6e4803dbbe47e5a08917352afdd",
       "state": "machine-cross-checked"
     },
@@ -10574,7 +10574,7 @@
       "text": "Luftfeuchtigkeit"
     },
     "settings.humidity.summary": {
-      "text": "Luftfeuchtigkeit vom Panelsensor unter Android.",
+      "text": "Luftfeuchtigkeit vom Panel-Sensor unter Android.",
       "sourceHash": "0b5d5be5c4ed42841da9bf3c30f05726024a6e48db0a691a9fbaea66c7e94304",
       "state": "machine-cross-checked"
     },
@@ -10584,7 +10584,7 @@
       "text": "Umgebungslicht"
     },
     "settings.illuminance.summary": {
-      "text": "Umgebungslicht vom Panelsensor.",
+      "text": "Umgebungslicht vom Panel-Sensor.",
       "sourceHash": "79e3ea29041e2856688dc831cb91286fc59489365697bd191b407647eeccac5a",
       "state": "machine-cross-checked"
     },
@@ -11039,7 +11039,7 @@
       "state": "machine-cross-checked"
     },
     "settings.wake_on_wave.help": {
-      "text": "Aufwecken nach einer kalibrierten Handbewegung: frei → nah → frei. Richten Sie die Näherung auf dem Panel ein; Aufwecken durch Berührung bleibt verfügbar.",
+      "text": "Aufwecken nach einer kalibrierten Handbewegung: frei → nah → frei. Richte die Näherung auf dem Panel ein; Aufwecken durch Berührung bleibt verfügbar.",
       "sourceHash": "71dd28fb047a8aae73292b1975f5d7b6cbe3ccf7ec49d6c32bc992e4b7596bf7",
       "state": "machine-cross-checked"
     },
@@ -11314,7 +11314,7 @@
       "state": "machine-cross-checked"
     },
     "setup.done.filter_note": {
-      "text": "Der Entitätenfilter ist aktiv und lernt, welche Entitäten angezeigt werden sollen. Die Liste kannst du jederzeit auf dem Tab Entitäten prüfen. Währenddessen wird das Dashboard des Panels in den ersten Minuten möglicherweise mehrmals neu geladen — das ist normal.",
+      "text": "Der Entitätsfilter ist aktiv und lernt, welche Entitäten angezeigt werden sollen. Die Liste kannst du jederzeit auf dem Tab Entitäten prüfen. Währenddessen wird das Dashboard des Panels in den ersten Minuten möglicherweise mehrmals neu geladen — das ist normal.",
       "sourceHash": "bb421be7eb8fb60a13c614cf636556c3f10a8f2e43f1f78fff1b89eb5be6c559",
       "state": "machine-cross-checked"
     },
@@ -11484,7 +11484,7 @@
       "state": "machine-cross-checked"
     },
     "setup.filter.red.estimated": {
-      "text": "Nach Hardware und Entitätenzahl zu urteilen, sind das deutlich mehr Updates, als dieser Chip voraussichtlich bewältigen kann.",
+      "text": "Nach Hardware und Entitätenzahl zu urteilen, sind das deutlich mehr Aktualisierungen, als dieser Chip voraussichtlich bewältigen kann.",
       "sourceHash": "3eb153c16c649dab20b33bad67490c249062482521d65fe873d61b11a28a9367",
       "state": "machine-cross-checked"
     },
@@ -11684,7 +11684,7 @@
       "state": "machine-cross-checked"
     },
     "setup.proof.dashboard_help": {
-      "text": "Der Tab „Dashboard“ zeigt, falls etwas nicht stimmt.",
+      "text": "Der Tab „Dashboard“ listet alles auf, was nicht stimmt.",
       "sourceHash": "099b789842ad17573a047cbd3d877adbf7b84a8d123e9af4507a25dcff19cbff",
       "state": "machine-cross-checked"
     },
@@ -12134,22 +12134,22 @@
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network.banner_latency_severe": {
-      "text": "Der Netzwerkpfad zu Home Assistant ist sehr langsam. Jede Aktion wartet auf diesen Pfad. Er wird auf Netzwerkebene gemessen; daher sind weder das Panel noch Home Assistant langsam – prüfen Sie Wi-Fi oder die Verbindung zwischen beiden.",
+      "text": "Der Netzwerkpfad zu Home Assistant ist sehr langsam. Jede Aktion wartet auf diesen Pfad. Er wird auf Netzwerkebene gemessen; daher sind weder das Panel noch Home Assistant langsam – prüfe Wi-Fi oder die Verbindung zwischen beiden.",
       "sourceHash": "6a6d84abadf8da8dfe107a419223e113570115808c8b3cd7d21dc53d11c93d9a",
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network.banner_latency_warning": {
-      "text": "Der Netzwerkpfad zu Home Assistant ist langsam. Jede Aktion wartet auf diesen Pfad. Er wird auf Netzwerkebene gemessen; daher sind weder das Panel noch Home Assistant langsam – prüfen Sie Wi-Fi oder die Verbindung zwischen beiden.",
+      "text": "Der Netzwerkpfad zu Home Assistant ist langsam. Jede Aktion wartet auf diesen Pfad. Er wird auf Netzwerkebene gemessen; daher sind weder das Panel noch Home Assistant langsam – prüfe Wi-Fi oder die Verbindung zwischen beiden.",
       "sourceHash": "fd5ccd80b1d2ac8253830913ea3dc551a4568be7f34de58807723b1cf9e6d733",
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network.banner_severe": {
-      "text": "Der Netzwerkpfad zu Home Assistant fällt aus: {evidence}. Pakete kommen nicht durch. Prüfen Sie den Wi-Fi-Pfad zwischen diesem Panel und Home Assistant, bevor Sie einen Fehler am Panel vermuten.",
+      "text": "Der Netzwerkpfad zu Home Assistant fällt aus: {evidence}. Pakete kommen nicht durch. Prüfe den Wi-Fi-Pfad zwischen diesem Panel und Home Assistant, bevor du einen Fehler am Panel vermutest.",
       "sourceHash": "a0604e58e3dc82e450c3d696c5cae33f4449228cf6246c592677dd3743c9e1dc",
       "state": "machine-cross-checked"
     },
     "shell.runtime.ha_network.banner_warning": {
-      "text": "Abfragen an Home Assistant gehen verloren: {evidence}. Pakete kommen nicht durch. Prüfen Sie den Wi-Fi-Pfad zwischen diesem Panel und Home Assistant, bevor Sie einen Fehler am Panel vermuten.",
+      "text": "Abfragen an Home Assistant gehen verloren: {evidence}. Pakete kommen nicht durch. Prüfe den Wi-Fi-Pfad zwischen diesem Panel und Home Assistant, bevor du einen Fehler am Panel vermutest.",
       "sourceHash": "fb7cc6147f03ef52ad2f09f02f66dc4980cec9d33e72ed47df1251d72d8ebfed",
       "state": "machine-cross-checked"
     },
@@ -12184,7 +12184,7 @@
       "state": "machine-cross-checked"
     },
     "install.tame.hand_back.action": {
-      "text": "Startseite wiederherstellen",
+      "text": "Startbildschirm wiederherstellen",
       "sourceHash": "2009690e210a7c546d780f1ed3f4eea8c67399962047667d76cbaf5f4b96f559",
       "state": "machine-cross-checked"
     },

@@ -9,7 +9,7 @@
     <string name="notice_pill_setup">Налаштування</string>
     <string name="notice_pill_not_set_up">Не налаштовано</string>
     <string name="notice_hero_version_check">Перевірка версії</string>
-    <string name="notice_hero_finding_dashboards">Пошук панелей</string>
+    <string name="notice_hero_finding_dashboards">Пошук інформаційних панелей</string>
     <string name="notice_hero_upgrade_ha">Оновіть HA</string>
     <string name="notice_hero_ancient_webview">Прадавній Webview</string>
     <string name="notice_hero_filter_failed">Фільтр не вдався</string>
@@ -36,7 +36,7 @@
     <string name="entity_step_open">Відкриття</string>
     <string name="reload_title">Перезавантаження</string>
     <string name="reload_applying_changes">Застосування ваших змін</string>
-    <string name="reload_optimising_entities">Оптимізація використовуваних сутностей; панель може перезавантажитися ще раз, поки вчиться</string>
+    <string name="reload_optimising_entities">Оптимізація використовуваних сутностей; інформаційна панель може перезавантажитися ще раз, поки панель навчається</string>
     <string name="network_chip_dropping">Мережа втрачає пакети</string>
     <string name="network_chip_failing">Мережа не працює</string>
     <string name="network_chip_high_latency">Висока затримка</string>
