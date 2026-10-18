@@ -303,6 +303,7 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
     assert.equal(await select.locator('option[value="/light"]').textContent(), 'Lights');
     const optionTexts = await select.locator('option').allTextContents();
     assert.ok(!optionTexts.some((text) => text.startsWith('Auto')), `no option says Auto: ${optionTexts.join(' | ')}`);
+    assert.equal(await rig.page.locator('#hd-host .wiz-consequence').count(), 0, 'no "pick a dashboard" nudge over a made choice');
     const button = rig.page.locator('button.wiz-primary');
     assert.equal(await button.isDisabled(), false);
     await button.click();
@@ -313,6 +314,23 @@ for (const [engine, browserType] of [['Chromium', chromium], ['WebKit', webkit]]
     const posts = rig.state.requests.filter((request) => request.method === 'POST');
     assert.equal(posts[0].path, '/api/v1/config');
     assert.equal(new URLSearchParams(posts[0].body).get('home_dashboard'), '/home');
+  });
+
+  run(`A panel already told to follow the account's default keeps that answer on a revisit in ${engine}`, async (t) => {
+    const rig = await openRig(t, {
+      initialJourney: journey('home_dashboard', { home_dashboard: { value: '', answered: true } }),
+      locale: 'en',
+      dashboards: {
+        queried: true,
+        items: [{ group: 'panel', path: '/home', title: 'home', icon: 'mdi:home' }],
+        default: { explicit: false, path: '' },
+      },
+    }, '/', browserType);
+    const select = rig.page.locator('#wiz-home_dashboard');
+    await select.waitFor();
+    assert.equal(await select.inputValue(), '');
+    assert.equal(await select.locator('option:checked').textContent(), 'Follow the account’s default');
+    assert.equal(await rig.page.locator('button.wiz-primary').isDisabled(), false);
   });
 }
 

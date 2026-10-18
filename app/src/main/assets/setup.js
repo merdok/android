@@ -629,14 +629,18 @@
   }
 
   // Home Assistant's built-in dashboards arrive titled by their frontend translation key (`home`,
-  // `light`, …); show the names Home Assistant itself shows for them.
+  // `light`, …); show the names Home Assistant itself shows for them. Keyed by panel, not path.
+  function panelTitle(d) {
+    var key = String(d.path || "").slice(1);
+    return d.group === "panel" && Object.prototype.hasOwnProperty.call(PANEL_TITLES, key) ? PANEL_TITLES[key] : "";
+  }
   var PANEL_TITLES = {
-    "/home": i18nText("setup.dashboard.panel.home", "Overview"),
-    "/light": i18nText("setup.dashboard.panel.light", "Lights"),
-    "/security": i18nText("setup.dashboard.panel.security", "Security"),
-    "/climate": i18nText("setup.dashboard.panel.climate", "Climate"),
-    "/energy": i18nText("setup.dashboard.panel.energy", "Energy"),
-    "/maintenance": i18nText("setup.dashboard.panel.maintenance", "Maintenance"),
+    home: i18nText("setup.dashboard.panel.home", "Overview"),
+    light: i18nText("setup.dashboard.panel.light", "Lights"),
+    security: i18nText("setup.dashboard.panel.security", "Security"),
+    climate: i18nText("setup.dashboard.panel.climate", "Climate"),
+    energy: i18nText("setup.dashboard.panel.energy", "Energy"),
+    maintenance: i18nText("setup.dashboard.panel.maintenance", "Maintenance"),
   };
 
   function paintHomeDashboards() {
@@ -665,8 +669,11 @@
       : (journey.home_dashboard && journey.home_dashboard.value || "");
     // Preselection: an already-configured value wins; else the account default's CONCRETE row; else
     // Overview; else a placeholder that keeps the primary button waiting for a real choice.
-    var overview = items.filter(function (d) { return d.group === "panel" && d.path === "/home"; })[0];
-    var preselect = current || (def.explicit ? def.path : (overview ? overview.path : null));
+    var overview = items.filter(function (d) { return panelTitle(d) && d.path.slice(1) === "home"; })[0];
+    // A blank value is "follow the account's default" only once answered; before that it is just unset.
+    var answeredFollow = typed.home_dashboard === undefined && !current &&
+      !!(journey.home_dashboard && journey.home_dashboard.answered);
+    var preselect = current || (def.explicit ? def.path : answeredFollow ? "" : (overview ? overview.path : null));
     // One change handler, attached below once the custom-path controls exist: selecting Custom must
     // never leave the sentinel sitting in the answer, even transiently.
     var sel = el("select", { id: "wiz-home_dashboard" });
@@ -676,7 +683,7 @@
       sel.appendChild(ph);
     }
     var auto = el("option", { value: "", text: i18nText("setup.dashboard.action.follow_default", "Follow the account’s default") });
-    if (preselect === "") auto.selected = true;
+    if (preselect === "") { auto.selected = true; typed.home_dashboard = ""; }
     sel.appendChild(auto);
     var seen = { "": true };
     ["panel", "dashboard"].forEach(function (group) {
@@ -686,7 +693,7 @@
       members.forEach(function (d) {
         if (!d.path || seen[d.path]) return;
         seen[d.path] = true;
-        var o = el("option", { value: d.path, text: group === "panel" && PANEL_TITLES[d.path] || d.title });
+        var o = el("option", { value: d.path, text: panelTitle(d) || d.title });
         if (d.path === preselect) { o.selected = true; typed.home_dashboard = d.path; }
         og.appendChild(o);
       });
@@ -700,7 +707,7 @@
     sel.appendChild(el("option", { value: CUSTOM_DASHBOARD, text: i18nText("setup.dashboard.option.custom", "Custom — enter a dashboard path…") }));
     if (customActive) { hdCustom = true; typed.home_dashboard = preselect; }
     if (hdCustom) sel.value = CUSTOM_DASHBOARD;
-    if (!def.explicit && !current) {
+    if (preselect === null) {
       host.appendChild(el("p", { class: "wiz-consequence", text: i18nText("setup.dashboard.no_default", "This account has no default dashboard set — pick the dashboard this panel should show.") }));
     }
     host.appendChild(sel);
