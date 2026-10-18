@@ -7,7 +7,10 @@ import io.panelassistant.android.panelassistant.PanelAssistantCommandProcessor
 import io.panelassistant.android.panelassistant.PanelAssistantManageReply
 import io.panelassistant.android.panelassistant.PanelAssistantTransportProtocol
 import io.panelassistant.android.security.SensitiveOperation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 
 /**
  * The update and backup routes Panel Assistant asks for over its session (protocol section 20.3, Epic E
@@ -20,6 +23,8 @@ internal object ControlPlaneSessionOps {
     const val INSTALL_APK = "install.apk"
     const val INSTALL_APK_COMMIT = "install.apk.commit"
     const val INSTALL_APK_DISCARD = "install.apk.discard"
+    /** A wake-word model Panel Assistant installs on every panel: the manifest inline, the model as a blob. */
+    const val WAKE_WORD_IMPORT = "voice.wake_words.import"
 
     /** Null when [op] is not one of these names. */
     suspend fun request(
@@ -37,7 +42,48 @@ internal object ControlPlaneSessionOps {
                 ?.let(::refused) ?: reply(startApkCommit(routes, commit))
         }
         BACKUP -> backup(args, routes, blobs, authorize)
+        WAKE_WORD_IMPORT -> reply(importWakeWord(routes, args, blobs))
         else -> null
+    }
+
+    /**
+     * Fetch the model the blob names, which must match its size and SHA-256, and install it as the
+     * Configure import does, except that a model the owner imported here under the same id is kept
+     * ([io.panelassistant.android.assist.wakeword.WakeWordCatalog.importShared]). No approval: the
+     * model changes only what the panel can listen for, never what it runs, and the engine checks it.
+     */
+    private suspend fun importWakeWord(routes: ControlPlaneRouteDependencies, args: JSONObject, blobs: PanelAssistantBlobs): ControlPlaneAnswer {
+        val catalog = routes.wakeWords()
+            ?: return ControlPlaneAnswer(HttpStatusCode.ServiceUnavailable, """{"error":"unavailable"}""")
+        val name = args.opt("name") as? String
+        val manifest = args.opt("manifest") as? String
+        val reference = PanelAssistantBlobs.reference(
+            args.optJSONObject("blob"),
+            io.panelassistant.android.assist.wakeword.WakeWordCatalog.MAX_MODEL_BYTES.toLong(),
+        )
+        val replaces = args.optJSONArray("replaces")?.let { list -> (0 until list.length()).mapNotNull { list.opt(it) as? String } }
+        if (name == null || manifest == null || reference == null) {
+            return ControlPlaneAnswer(HttpStatusCode.BadRequest, """{"error":"invalid-request"}""")
+        }
+        val model = withContext(Dispatchers.IO) { File.createTempFile("wake-word-", ".tflite") }
+        try {
+            when (blobs.download(reference, model)) {
+                PanelAssistantBlobs.Fetched.WRITTEN -> Unit
+                PanelAssistantBlobs.Fetched.MISMATCH ->
+                    return ControlPlaneAnswer(HttpStatusCode.UnprocessableEntity, """{"error":"the model does not match its SHA-256"}""")
+                PanelAssistantBlobs.Fetched.UNAVAILABLE ->
+                    return ControlPlaneAnswer(HttpStatusCode.BadGateway, """{"error":"blob-unavailable"}""")
+            }
+            val (status, body) = withContext(Dispatchers.IO) {
+                wakeWordInstalled(
+                    catalog.importShared(name, manifest.toByteArray(Charsets.UTF_8), model.readBytes(), replaces.orEmpty().toSet()),
+                    routes.wakeWordsChanged,
+                )
+            }
+            return ControlPlaneAnswer(status, body)
+        } finally {
+            model.delete()
+        }
     }
 
     private suspend fun stageFromBlob(

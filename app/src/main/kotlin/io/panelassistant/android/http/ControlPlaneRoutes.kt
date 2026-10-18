@@ -75,6 +75,10 @@ internal data class ControlPlaneRouteDependencies(
     val backupFileStem: () -> String,
     val apkUpload: ApkUploadRouteDependencies,
     val authorize: suspend (OpCall, SensitiveOperation, String, String) -> Boolean = { _, _, _, _ -> true },
+    /** The wake-word catalogue Panel Assistant installs a shared model into; null without a microphone. */
+    val wakeWords: () -> io.panelassistant.android.assist.wakeword.WakeWordCatalog? = { null },
+    /** Rearms the listener and tells Home Assistant after a model is installed. */
+    val wakeWordsChanged: () -> Unit = {},
 )
 
 internal data class ApkUploadRouteDependencies(

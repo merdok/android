@@ -152,6 +152,28 @@ class WakeWordCatalog(
         return ImportResult.Imported(config)
     }
 
+    /** The SHA-256 of the model held under the imported id [id], or null when none is held under it. */
+    fun importedSha256(id: String): String? = runCatching {
+        if (!ID.matches(id) || id in bundled.ids()) return null
+        val config = synchronized(this) { recover(); importedConfig(id) }
+        sha256(File(File(importDir, id), config.modelFile).readBytes())
+    }.getOrNull()
+
+    /**
+     * [import] a model Panel Assistant sends to every panel. A model this panel holds under the same id is
+     * replaced only when it is one of [replaces] (an earlier copy Panel Assistant sent) or already this one,
+     * so a model the owner imported here is never overwritten; checked under the same lock as the swap.
+     */
+    @Synchronized
+    fun importShared(name: String, manifest: ByteArray, model: ByteArray, replaces: Set<String>): ImportResult {
+        val id = idFor(name)
+        val held = id?.let(::importedSha256)
+        if (id != null && held != null && held != sha256(model) && held !in replaces) {
+            return ImportResult.Refused(ownImportReason(id))
+        }
+        return import(name, manifest, model)
+    }
+
     /** The models this panel may download, except any that would take a bundled wake word's id. */
     fun downloadable(): List<DownloadableWakeWord> {
         val entries = runCatching { DownloadableWakeWord.parseAll(bundled.downloads()) }.getOrDefault(emptyList())

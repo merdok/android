@@ -380,6 +380,9 @@ class PaneldServer internal constructor(
         playAudio, onInstallComponent,
         buildBackupArtifact = ::buildBackupArtifact,
         authorizeSensitive = ::authorizeSensitive,
+    ).copy(
+        wakeWords = { wakeWords.takeIf { liveCapabilities(managementObservations.snapStaleOk().caps).microphone.offered } },
+        wakeWordsChanged = onWakeWordsChanged,
     )
     private val guardDbStaging = guardDbAppStaging(appContext)
 

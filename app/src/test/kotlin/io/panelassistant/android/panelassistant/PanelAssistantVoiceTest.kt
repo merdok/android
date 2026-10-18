@@ -47,6 +47,41 @@ class PanelAssistantVoiceTest {
         assertEquals("Hey Jarvis", word.getString("wake_word"))
     }
 
+    @Test fun `an imported wake word is reported with the SHA-256 of the model the panel holds`() = runTest {
+        val dir = kotlin.io.path.createTempDirectory("wakeword").toFile()
+        try {
+            val manifest = { phrase: String, model: String ->
+                """{"type":"micro","wake_word":"$phrase","model":"$model","micro":{"probability_cutoff":0.9,"feature_step_size":10,"sliding_window_size":5}}"""
+            }
+            val catalog = io.panelassistant.android.assist.wakeword.WakeWordCatalog(
+                bundled = object : io.panelassistant.android.assist.wakeword.WakeWordCatalog.BundledModels {
+                    override fun ids() = listOf("okay_nabu")
+                    override fun manifest(id: String) = manifest("Okay Nabu", "okay_nabu.tflite")
+                    override fun model(file: String) = byteArrayOf(1)
+                },
+                importDir = dir,
+                accepts = { _, _ -> true },
+            )
+            val model = byteArrayOf(7, 7, 7)
+            catalog.import("hey_pickle", manifest("Hey Pickle", "hey_pickle.tflite").toByteArray(), model)
+            val settings = VoiceSettings(enabled = true, wakeWords = listOf("okay_nabu"), pipelines = emptyMap())
+            val rig = rig(
+                configuration = PanelAssistantVoiceConfiguration.of(
+                    MicrophoneStatus(MicrophonePresence.PROVEN), settings, catalog.available(), catalog::importedSha256,
+                ),
+            )
+            val words = rig.connection.sentOfType(PanelAssistantVoice.COMMAND_VOICE_CONFIGURATION).single().getJSONArray("wake_words")
+            assertFalse(words.getJSONObject(0).has("sha256"))
+            assertEquals("hey_pickle", words.getJSONObject(1).getString("id"))
+            assertEquals(
+                java.security.MessageDigest.getInstance("SHA-256").digest(model).joinToString("") { "%02x".format(it) },
+                words.getJSONObject(1).getString("sha256"),
+            )
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun `a panel with nothing to configure offers no voice`() = runTest {
         val rig = rig(configuration = null)
         val hello = JSONObject(rig.connection.sent.first())

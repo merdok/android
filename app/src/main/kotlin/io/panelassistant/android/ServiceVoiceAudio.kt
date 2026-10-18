@@ -79,6 +79,7 @@ internal class ServiceVoiceAudio(
             else io.panelassistant.android.audio.MicrophoneStatus(microphonePresence()),
             io.panelassistant.android.assist.VoiceSettings.parse(config().voiceEnabled, config().voiceWakeWords, config().voicePipelines),
             wakeWordCatalog.available(),
+            wakeWordCatalog::importedSha256,
         )
     /** The one place the profile's microphone declaration meets Android's report. */
     fun microphonePresence(of: DeviceProfile = profile()) =
