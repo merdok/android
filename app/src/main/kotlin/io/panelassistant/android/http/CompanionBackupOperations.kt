@@ -1,6 +1,7 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
+import io.panelassistant.android.backup.CompanionDatabasePreparation
 import io.panelassistant.android.backup.CompanionRestore
 import io.panelassistant.android.control.CompanionDataLease
 import io.panelassistant.android.control.CompanionDataOperationGate
@@ -9,7 +10,9 @@ import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.util.AndroidInput
 import io.panelassistant.android.util.CompanionInstaller
 import io.panelassistant.android.util.CompanionHelperProtocol
+import io.panelassistant.android.util.CompanionOperationStatus
 import io.panelassistant.android.util.HelperClient
+import io.panelassistant.android.util.InstallOperationResult
 import io.panelassistant.android.util.InstallPresentation
 import io.panelassistant.android.util.InstallProgress
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +28,9 @@ internal class CompanionBackupOperations(
     private val scope: CoroutineScope,
     private val config: Config,
     private val system: SystemController,
+    private val helper: CompanionDataHelper = CompanionDataHelper.Root,
+    private val database: CompanionDatabaseWork = CompanionDatabaseWork.Platform,
+    private val statusPollMs: Long = COMPANION_STATUS_POLL_MS,
 ) {
     /** Capture descriptor-opened raw files, then checkpoint only the private-cache SQLite copy. */
     fun capture(): CapturedCompanion {
@@ -49,18 +55,18 @@ internal class CompanionBackupOperations(
             CompanionDataLease.Acquisition.MarkerFailed ->
                 throw CompanionBackupUnavailable("Companion operation safety marker could not be persisted")
         }
+        // Until the helper replies, assume it may still hold Companion data.
+        var backup: CompanionHelperProtocol.BackupResult = CompanionHelperProtocol.BackupResult.Indeterminate
         var helperCapture: CompanionHelperProtocol.Capture? = null
         var needsCompanionRecovery = false
         try {
-            val result = HelperClient.backupCompanion(pkg, cacheDir)
-            val capture = when (result) {
+            backup = helper.backup(pkg, cacheDir)
+            val capture = when (val result = backup) {
                 is CompanionHelperProtocol.BackupResult.Success -> result.capture.also {
                     needsCompanionRecovery = !it.relaunched
                 }
-                CompanionHelperProtocol.BackupResult.Busy -> {
-                    lease.settle(possiblyInFlight = true) {}
+                CompanionHelperProtocol.BackupResult.Busy ->
                     throw CompanionBackupUnavailable("Companion helper is busy")
-                }
                 CompanionHelperProtocol.BackupResult.NotSubmitted ->
                     throw CompanionBackupUnavailable("Companion helper is unavailable")
                 is CompanionHelperProtocol.BackupResult.Failed -> {
@@ -70,25 +76,15 @@ internal class CompanionBackupOperations(
                         else "Companion capture failed",
                     )
                 }
-                CompanionHelperProtocol.BackupResult.Indeterminate -> {
-                    lease.settle(possiblyInFlight = true) {
-                        system.launchHome(pkg)
-                        if (system.resolveDashboard(config.dashboardPackage) != pkg) {
-                            system.launchHome(config.dashboardPackage)
-                        }
-                    }
+                CompanionHelperProtocol.BackupResult.Indeterminate ->
                     throw CompanionBackupUnavailable("Companion capture result was indeterminate")
-                }
             }
             helperCapture = capture
             val database = capture.files[CompanionRestore.DATABASE_FILE]
                 ?: throw CompanionBackupUnavailable("Companion login database was not captured")
-            if (!io.panelassistant.android.backup.CompanionDatabasePreparation.checkpointCapturedDatabase(
-                    database,
-                    capture.files[CompanionHelperProtocol.DATABASE_WAL_FILE],
-                    capture.files[CompanionHelperProtocol.DATABASE_SHM_FILE],
-                )
-            ) throw CompanionBackupUnavailable("Companion login database could not be checkpointed safely")
+            if (!checkpoint(capture, database)) {
+                throw CompanionBackupUnavailable("Companion login database could not be checkpointed safely")
+            }
 
             val captured = CompanionRestore.ALLOWED_FILES.mapNotNull { relative ->
                 capture.files[relative]?.let { CapturedCompanionFile(relative, it) }
@@ -104,13 +100,14 @@ internal class CompanionBackupOperations(
             helperCapture = null
             return CapturedCompanion(pkg, captured, capture)
         } finally {
-            lease.settle(possiblyInFlight = false) {
+            lease.settle(possiblyInFlight = backup.mayStillHoldData()) {
+                if (backup == CompanionHelperProtocol.BackupResult.Busy) return@settle
                 // The helper always launches Companion to clear Android's stopped state. Restore the
                 // configured dashboard after releasing suppression when Companion is not it.
-                if (needsCompanionRecovery) system.launchHome(pkg)
-                if (system.resolveDashboard(config.dashboardPackage) != pkg) {
-                    system.launchHome(config.dashboardPackage)
+                if (needsCompanionRecovery || backup == CompanionHelperProtocol.BackupResult.Indeterminate) {
+                    system.launchHome(pkg)
                 }
+                returnToDashboard(pkg)
             }
             helperCapture?.close()
         }
@@ -128,7 +125,7 @@ internal class CompanionBackupOperations(
                 ),
             )
         }
-        val preparation = io.panelassistant.android.backup.CompanionDatabasePreparation.prepare(plan, cacheDir)
+        val preparation = database.prepare(plan, cacheDir)
             ?: return CompanionApplyResult(
                 false,
                 InstallProgress.ComponentResult(
@@ -166,119 +163,218 @@ internal class CompanionBackupOperations(
                     ),
                 )
             }
+            // Until the helper replies, assume its transaction may still be running.
             var result = CompanionHelperProtocol.RestoreResult.INDETERMINATE
             try {
-                result = HelperClient.restoreCompanion(
-                    plan.packageName,
-                    prepared.files.associate { it.relativePath to it.file },
-                )
-                if (result == CompanionHelperProtocol.RestoreResult.INDETERMINATE ||
-                    result == CompanionHelperProtocol.RestoreResult.BUSY
-                ) {
-                    lease.settle(possiblyInFlight = true) {
-                        if (system.resolveDashboard(config.dashboardPackage) != plan.packageName) {
-                            system.launchHome(config.dashboardPackage)
-                        }
-                    }
-                }
+                result = helper.restore(plan.packageName, prepared.files.associate { it.relativePath to it.file })
             } finally {
-                lease.settle(possiblyInFlight = false) {
-                    if (result in setOf(
-                        CompanionHelperProtocol.RestoreResult.COMMITTED_RELAUNCH_FAILED,
-                        CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED,
-                    )
-                    ) system.launchHome(plan.packageName)
-                    if (system.resolveDashboard(config.dashboardPackage) != plan.packageName) {
-                        system.launchHome(config.dashboardPackage)
-                    }
+                lease.settle(possiblyInFlight = result.mayStillHoldData()) {
+                    if (result in RELAUNCH_FAILED) system.launchHome(plan.packageName)
+                    returnToDashboard(plan.packageName)
                 }
             }
-            val repaired = prepared.repairedInternalUrls
-            return when (result) {
-                CompanionHelperProtocol.RestoreResult.COMMITTED -> CompanionApplyResult(
-                    true,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.SUCCEEDED,
-                        plan.files.size,
-                        if (repaired > 0) "$repaired blank internal URL(s) repaired" else "owner/context restored",
-                        if (repaired > 0) {
-                            InstallPresentation(
-                                "companion-urls-repaired",
-                                mapOf("count" to repaired.toString()),
-                            )
-                        } else {
-                            InstallPresentation("companion-owner-restored")
-                        },
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.COMMITTED_RELAUNCH_FAILED -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.PARTIAL,
-                        plan.files.size,
-                        "files restored but Companion relaunch was not confirmed",
-                        InstallPresentation("companion-relaunch-unconfirmed"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.ROLLED_BACK,
-                CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.ROLLED_BACK,
-                        0,
-                        "restore failed; prior Companion files retained",
-                        InstallPresentation("companion-prior-files-retained"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED,
-                CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_FAILED,
-                CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_SUPPRESSED -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.ROLLBACK_FAILED,
-                        null,
-                        "restore and rollback failed; Companion state may be partial",
-                        InstallPresentation("companion-rollback-failed"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.BUSY -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.FAILED,
-                        0,
-                        "Companion helper is busy",
-                        InstallPresentation("companion-helper-busy"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.NOT_SUBMITTED -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.FAILED,
-                        0,
-                        "Companion helper is unavailable",
-                        InstallPresentation("companion-helper-unavailable"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.FAILED -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.FAILED,
-                        0,
-                        "restore rejected before commit",
-                        InstallPresentation("companion-rejected-before-commit"),
-                    ),
-                )
-                CompanionHelperProtocol.RestoreResult.INDETERMINATE -> CompanionApplyResult(
-                    false,
-                    InstallProgress.ComponentResult(
-                        InstallProgress.Outcome.PARTIAL,
-                        null,
-                        "restore terminal status was indeterminate",
-                        InstallPresentation("companion-indeterminate"),
-                    ),
-                )
-            }
+            return restoreOutcome(result, plan.files.size, prepared.repairedInternalUrls)
         }
+    }
+
+    /**
+     * Copy each blank Companion `internal_url` from its `external_url` (the HA 2026.7 "Missing 'Host'
+     * header" repair) without editing the live database in place. One data lease suppresses every
+     * ha-paneld Companion launch from before the helper stops the Companion until the repair is terminal:
+     * the helper captures the raw database files, the private copy is checkpointed and repaired with the
+     * checks a backup restore uses, and only a repaired copy goes back through the helper's rollback-safe
+     * restore transaction. Every refusal before that leaves the live files as they were.
+     */
+    fun repairInternalUrls(): InstallOperationResult {
+        val pkg = installedCompanionPackage() ?: return InstallOperationResult("no HA Companion app installed")
+        if (pkg !in CompanionInstaller.SUPPORTED_PACKAGES || !AndroidInput.isPackage(pkg)) {
+            return InstallOperationResult("HA Companion package is not supported")
+        }
+        if (!ensureCompanionHelper()) {
+            return InstallOperationResult("Companion URL repair needs the current Panel Assistant helper")
+        }
+        val lease = when (
+            val acquisition = CompanionDataLease.acquireArmed(
+                pkg,
+                companionDataOperationState,
+                ::retainCompanionLeaseUntilHelperIdle,
+            )
+        ) {
+            is CompanionDataLease.Acquisition.Acquired -> acquisition.lease
+            CompanionDataLease.Acquisition.GateBusy ->
+                return InstallOperationResult("another Companion data operation is running; nothing was changed")
+            CompanionDataLease.Acquisition.MarkerFailed ->
+                return InstallOperationResult("Companion operation safety marker could not be persisted; nothing was changed")
+        }
+        // Until the helper replies to a call, assume it may still hold Companion data.
+        var backup: CompanionHelperProtocol.BackupResult = CompanionHelperProtocol.BackupResult.Indeterminate
+        var restored: CompanionHelperProtocol.RestoreResult? = null
+        var capture: CompanionHelperProtocol.Capture? = null
+        try {
+            backup = helper.backup(pkg, cacheDir)
+            val captured = (backup as? CompanionHelperProtocol.BackupResult.Success)?.capture
+                ?: return InstallOperationResult(captureRefusal(backup))
+            capture = captured
+            val file = captured.files[CompanionRestore.DATABASE_FILE]
+                ?: return InstallOperationResult("Companion database was not captured; nothing was changed")
+            if (!checkpoint(captured, file)) {
+                return InstallOperationResult("Companion database could not be checkpointed safely; nothing was changed")
+            }
+            val plan = when (
+                val planned = CompanionRestore.planFiles(
+                    pkg,
+                    listOf(CompanionRestore.FilePayload(CompanionRestore.DATABASE_FILE, file, deleteOnClose = false)),
+                    setOf(pkg),
+                )
+            ) {
+                is CompanionRestore.PlanResult.Valid -> planned.plan
+                is CompanionRestore.PlanResult.Invalid ->
+                    return InstallOperationResult("Companion database is outside repair bounds; nothing was changed")
+            }
+            val preparation = database.prepare(plan, cacheDir)
+                ?: return InstallOperationResult("Companion database could not be repaired safely; nothing was changed")
+            preparation.use { prepared ->
+                if (prepared.repairedInternalUrls == 0) {
+                    return InstallOperationResult("nothing to repair — every server already has an internal URL")
+                }
+                restored = CompanionHelperProtocol.RestoreResult.INDETERMINATE
+                val result = helper.restore(pkg, prepared.files.associate { it.relativePath to it.file })
+                restored = result
+                val outcome = restoreOutcome(result, prepared.files.size, prepared.repairedInternalUrls).component
+                return InstallOperationResult(outcome.detail, outcome.presentation)
+            }
+        } finally {
+            val captureResult = backup
+            val restoreResult = restored
+            lease.settle(possiblyInFlight = captureResult.mayStillHoldData() || restoreResult?.mayStillHoldData() == true) {
+                // The helper relaunches the Companion after each call it completes; launch it here only
+                // where that relaunch did not happen and no partial file set is being held back.
+                val companionStopped = when {
+                    captureResult == CompanionHelperProtocol.BackupResult.Indeterminate -> true
+                    captureResult is CompanionHelperProtocol.BackupResult.Failed -> captureResult.relaunchFailed
+                    restoreResult != null -> restoreResult in RELAUNCH_FAILED
+                    else -> capture?.relaunched == false
+                }
+                if (companionStopped) system.launchHome(pkg)
+                returnToDashboard(pkg)
+            }
+            capture?.close()
+        }
+    }
+
+    private fun captureRefusal(backup: CompanionHelperProtocol.BackupResult): String = when (backup) {
+        CompanionHelperProtocol.BackupResult.Busy -> "Companion helper is busy; nothing was changed"
+        CompanionHelperProtocol.BackupResult.NotSubmitted -> "Companion helper is unavailable; nothing was changed"
+        is CompanionHelperProtocol.BackupResult.Failed ->
+            if (backup.relaunchFailed) {
+                "Companion could not be captured and its relaunch was not confirmed; nothing was changed"
+            } else {
+                "Companion could not be captured; nothing was changed"
+            }
+        CompanionHelperProtocol.BackupResult.Indeterminate ->
+            "Companion capture result was indeterminate; nothing was changed"
+        is CompanionHelperProtocol.BackupResult.Success -> error("a successful capture is not a refusal")
+    }
+
+    private fun checkpoint(capture: CompanionHelperProtocol.Capture, file: File): Boolean = database.checkpoint(
+        file,
+        capture.files[CompanionHelperProtocol.DATABASE_WAL_FILE],
+        capture.files[CompanionHelperProtocol.DATABASE_SHM_FILE],
+    )
+
+    private fun returnToDashboard(companionPackage: String) {
+        if (system.resolveDashboard(config.dashboardPackage) != companionPackage) {
+            system.launchHome(config.dashboardPackage)
+        }
+    }
+
+    private fun restoreOutcome(
+        result: CompanionHelperProtocol.RestoreResult,
+        fileCount: Int,
+        repaired: Int,
+    ): CompanionApplyResult = when (result) {
+        CompanionHelperProtocol.RestoreResult.COMMITTED -> CompanionApplyResult(
+            true,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.SUCCEEDED,
+                fileCount,
+                if (repaired > 0) "$repaired blank internal URL(s) repaired" else "owner/context restored",
+                if (repaired > 0) {
+                    InstallPresentation(
+                        "companion-urls-repaired",
+                        mapOf("count" to repaired.toString()),
+                    )
+                } else {
+                    InstallPresentation("companion-owner-restored")
+                },
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.COMMITTED_RELAUNCH_FAILED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.PARTIAL,
+                fileCount,
+                "files restored but Companion relaunch was not confirmed",
+                InstallPresentation("companion-relaunch-unconfirmed"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.ROLLED_BACK,
+        CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.ROLLED_BACK,
+                0,
+                "restore failed; prior Companion files retained",
+                InstallPresentation("companion-prior-files-retained"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED,
+        CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_FAILED,
+        CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_SUPPRESSED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.ROLLBACK_FAILED,
+                null,
+                "restore and rollback failed; Companion state may be partial",
+                InstallPresentation("companion-rollback-failed"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.BUSY -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.FAILED,
+                0,
+                "Companion helper is busy",
+                InstallPresentation("companion-helper-busy"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.NOT_SUBMITTED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.FAILED,
+                0,
+                "Companion helper is unavailable",
+                InstallPresentation("companion-helper-unavailable"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.FAILED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.FAILED,
+                0,
+                "restore rejected before commit",
+                InstallPresentation("companion-rejected-before-commit"),
+            ),
+        )
+        CompanionHelperProtocol.RestoreResult.INDETERMINATE -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.PARTIAL,
+                null,
+                "restore terminal status was indeterminate",
+                InstallPresentation("companion-indeterminate"),
+            ),
+        )
     }
 
     /** A timed-out socket does not cancel the helper worker. Keep every automatic launch path blocked
@@ -292,15 +388,65 @@ internal class CompanionBackupOperations(
                 lease = lease,
                 operationState = companionDataOperationState,
                 afterRelease = afterRelease,
-                operationStatus = HelperClient::companionOperationStatus,
-                pollMs = COMPANION_STATUS_POLL_MS,
+                operationStatus = helper::status,
+                pollMs = statusPollMs,
             )
         }
     }
 
-
     private companion object {
         const val COMPANION_STATUS_POLL_MS = 1_000L
+        val RELAUNCH_FAILED = setOf(
+            CompanionHelperProtocol.RestoreResult.COMMITTED_RELAUNCH_FAILED,
+            CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED,
+        )
+    }
+}
+
+/**
+ * Whether the helper may still hold or be changing Companion data after this capture reply, so launch
+ * suppression must outlive the call until the helper reports IDLE. A failed capture whose relaunch was
+ * not confirmed covers a failed stop and a pending journal the helper could not recover.
+ */
+internal fun CompanionHelperProtocol.BackupResult.mayStillHoldData(): Boolean =
+    this == CompanionHelperProtocol.BackupResult.Busy ||
+        this == CompanionHelperProtocol.BackupResult.Indeterminate ||
+        this is CompanionHelperProtocol.BackupResult.Failed && relaunchFailed
+
+/** The restore counterpart of [CompanionHelperProtocol.BackupResult.mayStillHoldData]: an unknown or
+ *  busy reply, or a rollback the helper must still recover, keeps launch suppression. */
+internal fun CompanionHelperProtocol.RestoreResult.mayStillHoldData(): Boolean = this in setOf(
+    CompanionHelperProtocol.RestoreResult.INDETERMINATE,
+    CompanionHelperProtocol.RestoreResult.BUSY,
+    CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED,
+    CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_FAILED,
+    CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_SUPPRESSED,
+)
+
+/** The root helper's Companion data verbs, an interface so a JVM test can stand in for the device. */
+internal interface CompanionDataHelper {
+    fun backup(packageName: String, cacheDir: File): CompanionHelperProtocol.BackupResult
+    fun restore(packageName: String, files: Map<String, File>): CompanionHelperProtocol.RestoreResult
+    fun status(): CompanionOperationStatus
+
+    object Root : CompanionDataHelper {
+        override fun backup(packageName: String, cacheDir: File) = HelperClient.backupCompanion(packageName, cacheDir)
+        override fun restore(packageName: String, files: Map<String, File>) =
+            HelperClient.restoreCompanion(packageName, files)
+        override fun status() = HelperClient.companionOperationStatus()
+    }
+}
+
+/** Private-copy SQLite work on Android's engine, an interface because the JVM suite has no such engine. */
+internal interface CompanionDatabaseWork {
+    fun checkpoint(database: File, wal: File?, shm: File?): Boolean
+    fun prepare(plan: CompanionRestore.Plan, cacheDir: File): CompanionRestore.Preparation?
+
+    object Platform : CompanionDatabaseWork {
+        override fun checkpoint(database: File, wal: File?, shm: File?) =
+            CompanionDatabasePreparation.checkpointCapturedDatabase(database, wal, shm)
+        override fun prepare(plan: CompanionRestore.Plan, cacheDir: File) =
+            CompanionDatabasePreparation.prepare(plan, cacheDir)
     }
 }
 

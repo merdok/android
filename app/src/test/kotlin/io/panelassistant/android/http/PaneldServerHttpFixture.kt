@@ -112,7 +112,7 @@ internal class PaneldServerHttpFixture(
         field("scope", scope)
         field("system", allocate(io.panelassistant.android.control.SystemController::class.java))
         field("clearStorageGate", clearStorageGate)
-        field("onRepairCompanionUrl", repairCompanionUrl)
+        field("onRepairCompanionUrl", { _: () -> io.panelassistant.android.util.InstallOperationResult -> repairCompanionUrl() })
         companionCache.set(io.panelassistant.android.control.CompanionDb.ServerObservation.EMPTY)
         field("camera", camera)
         field("permissionStatus", permissionStatus)

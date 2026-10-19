@@ -4,22 +4,20 @@ import android.content.Context
 import android.util.Log
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.util.CompanionInstaller
-import io.panelassistant.android.util.InstallPresentation
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
- * Reads + repairs the HA Companion's connection database — the `servers` table in `HomeAssistantDB`.
+ * Reads the HA Companion's connection database — the `servers` table in `HomeAssistantDB`.
  *
  * A Companion `servers` row with an EMPTY `internal_url` (while `internal_ssids` matches the panel's
  * Wi-Fi) makes the Companion request a host-less URL, which HA 2026.7 (new aiohttp)
  * rejects with a full-screen **"Missing 'Host' header in request."** — blanking the dashboard on the
- * restored panels. This detects that state (a panel-health warning) and offers a one-tap repair:
- * copy the row's `external_url` into the empty `internal_url`. Backup restore applies the same policy
- * to its staged database and verifies it before the live transaction begins.
+ * restored panels. This detects that state (a panel-health warning); the one-tap repair, which copies
+ * the row's `external_url` into the empty `internal_url`, and backup restore both apply
+ * [INTERNAL_URL_REPAIR_SQL] to a private copy and return it through the helper's restore transaction
+ * (`http/CompanionBackupOperations`).
  *
  * Root-only (the DB is app-private); a safe no-op on panels without su or without the Companion. The
- * parse + decision logic is pure ([parseServers] / [needsRepair]) and unit-tested; only the
+ * parse + decision logic is pure ([parseServers] / [needsRepair]) and unit-tested; only the read-only
  * sqlite3-over-su calls touch the device.
  */
 object CompanionDb {
@@ -48,12 +46,6 @@ object CompanionDb {
 
     /** Result of a health read: whether any row needs repair and how many. */
     data class UrlStatus(val needsRepair: Boolean, val affected: Int)
-
-    /** Typed repair outcome; [message] remains the exact legacy English status. */
-    data class CompanionUrlRepairResult(
-        val message: String,
-        val presentation: InstallPresentation? = null,
-    )
 
     /** What the last servers-table read found. [TOOL_ABSENT] is a device property (the firmware ships
      *  no `sqlite3`), not a failed check: the table cannot be inspected, so its state stays unknown. */
@@ -210,20 +202,6 @@ object CompanionDb {
         return pickLogin(parseLogins(out), active)
     }
 
-    /** Read the Companion `servers` rows via root sqlite3, or null when unavailable (no root / no
-     *  Companion / no DB / no sqlite3). Opens the file as an **immutable** URI: read-only, WAL ignored,
-     *  and crucially it never creates the `-wal`/`-shm` files — so a root read can't leave root-owned
-     *  sidecar files the app then can't open. Safe while the Companion is running. (Android's bundled
-     *  sqlite3 — 3.19 on PX30 — lacks the `-readonly` flag but supports `file:…?immutable=1`.) */
-    private fun readServers(context: Context, root: RootShell): List<ServerRow>? {
-        val pkg = CompanionInstaller.installedPkg(context) ?: return null
-        return readServers(pkg, root)
-    }
-
-    private fun readServers(pkg: String, root: RootShell): List<ServerRow>? =
-        readServersOutput(pkg, root)?.takeUnless { it.trim() == SQLITE3_ABSENT || sqliteFailure(it) != null }
-            ?.let(::parseServers)
-
     // Printed instead of rows when `sqlite3` is not on the root PATH, so a missing tool (exit 127) is not
     // confused with a read that ran and failed (non-zero, runOutput null). `echo` is a shell builtin; the
     // toybox `printf` is not, and must not be what reports a missing binary.
@@ -238,8 +216,11 @@ object CompanionDb {
         out.lineSequence().firstOrNull { it.startsWith(SQLITE3_FAILED) }
             ?.removePrefix(SQLITE3_FAILED)?.trim()?.take(FAILURE_MAX_CHARS)
 
-    // Stdout carries only rows; stderr is captured apart and reported only on failure. No `exit`, and
-    // prefixed variable names: this runs in Su's persistent shell.
+    // Opens the file as an **immutable** URI: read-only, WAL ignored, and crucially it never creates the
+    // `-wal`/`-shm` files, so a root read can't leave root-owned sidecar files the app then can't open.
+    // Safe while the Companion is running. (Android's bundled sqlite3, 3.19 on PX30, lacks the `-readonly`
+    // flag but supports `file:…?immutable=1`.) Stdout carries only rows; stderr is captured apart and
+    // reported only on failure. No `exit`, and prefixed variable names: this runs in Su's persistent shell.
     private fun readServersOutput(pkg: String, root: RootShell): String? {
         val db = dbPath(pkg)
         return root.runOutput(
@@ -303,55 +284,5 @@ object CompanionDb {
     internal fun observeServers(context: Context, root: RootShell): ServerObservation {
         val pkg = CompanionInstaller.installedPkg(context) ?: return ServerObservation.EMPTY
         return observeServers(pkg, root)
-    }
-
-    /**
-     * Repair every blank `internal_url` by copying the row's `external_url`. Force-stops the Companion
-     * first (so Room isn't mid-write), checkpoints + drops the WAL so sqlite doesn't leave root-owned
-     * `-wal`/`-shm` the app can't read, restores the DB owner + SELinux context, then relaunches the
-     * Companion. Returns a short human status. Root-only; call OFF the main thread.
-     */
-    suspend fun repairInternalUrl(context: Context, root: RootShell): String =
-        repairInternalUrlResult(context, root).message
-
-    /** Locale-neutral companion to [repairInternalUrl]; finite success metadata is selected at source. */
-    suspend fun repairInternalUrlResult(
-        context: Context,
-        root: RootShell,
-    ): CompanionUrlRepairResult = withContext(Dispatchers.IO) {
-        val pkg = CompanionInstaller.installedPkg(context)
-            ?: return@withContext CompanionUrlRepairResult("no HA Companion app installed")
-        val before = readServers(context, root)
-            ?: return@withContext CompanionUrlRepairResult("cannot read the Companion database (needs root)")
-        val bad = before.count(::needsRepair)
-        if (bad == 0) {
-            return@withContext CompanionUrlRepairResult("nothing to repair — every server already has an internal URL")
-        }
-
-        val db = dbPath(pkg)
-        // One privileged operation: stop → repair → checkpoint+drop WAL → restore owner/context → relaunch.
-        // Running under su means the relaunch (monkey) is in the root domain, so BAL doesn't gate it.
-        val script = buildString {
-            append("am force-stop $pkg; ")
-            append("""U=$(stat -c %u "/data/data/$pkg" 2>/dev/null); """)
-            append("""sqlite3 "$db" "$INTERNAL_URL_REPAIR_SQL PRAGMA wal_checkpoint(TRUNCATE);" 2>&1; """)
-            append("""rm -f "$db-wal" "$db-shm" 2>/dev/null; """)
-            append("""[ -n "${'$'}U" ] && { chown "${'$'}U:${'$'}U" "$db" 2>/dev/null; restorecon "$db" 2>/dev/null; }; """)
-            append("monkey -p $pkg -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; echo ok")
-        }
-        val out = root.runOutput(script)
-            ?: return@withContext CompanionUrlRepairResult("repair command failed (needs root)")
-        if (!out.contains("ok")) Log.w(TAG, "repair script output: ${out.take(200)}")
-
-        val remaining = readServers(context, root)?.count(::needsRepair) ?: -1
-        Log.i(TAG, "internal_url repair: $bad row(s) fixed, $remaining remaining")
-        when {
-            remaining == 0 -> CompanionUrlRepairResult(
-                "repaired $bad server${if (bad == 1) "" else "s"} — internal URL set to the external URL; Companion relaunched",
-                InstallPresentation("companion-urls-repaired", mapOf("count" to bad.toString())),
-            )
-            remaining < 0 -> CompanionUrlRepairResult("repair ran ($bad row(s)); could not re-verify the database")
-            else -> CompanionUrlRepairResult("repair incomplete — $remaining server(s) still have no internal URL")
-        }
     }
 }

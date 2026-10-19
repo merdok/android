@@ -850,7 +850,7 @@ class PaneldService : Service() {
             logApp = logCaptureApp, logSystem = logCaptureSystem, logWebView = logCaptureWebView,
             webViewConsoleEnabled = { webViewConsoleEnabled(config) },
             effectiveBrightness = { displayPower.brightness.getBrightness() },
-            onRepairCompanionUrl = { componentOperations.repairCompanionUrl() },
+            onRepairCompanionUrl = componentOperations::repairCompanionUrl,
             onInstallComponent = { name, action, version -> componentOperations.installComponent(name, action, version) },
             powerSafety = { displayPower.powerSafety.assess(config.keepAwake, config.preventIdleDim) },
             freshPowerSafetyRepairCapability = displayPower.powerSafety::repairCapabilityFresh,

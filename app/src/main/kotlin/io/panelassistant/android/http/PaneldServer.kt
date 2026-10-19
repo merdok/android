@@ -127,7 +127,7 @@ class PaneldServer internal constructor(
     private val effectiveBrightness: () -> Int = { -1 },
     // Repair a Companion server row with an empty internal_url (the HA 2026.7 "Missing Host header"
     // incident). False means the shared destructive-operation lane is busy.
-    private val onRepairCompanionUrl: () -> Boolean = { false },
+    private val onRepairCompanionUrl: (() -> io.panelassistant.android.util.InstallOperationResult) -> Boolean = { false },
     // Install/update a managed component from the Install tab. name ∈ {paneld, companion};
     // action ∈ {update, reinstall}; version = a specific release tag to install (blank = channel newest).
     // Runs off-thread; progress is reported via InstallProgress. Injected by the service.
@@ -572,7 +572,7 @@ class PaneldServer internal constructor(
                     )
                     rendererMaintenanceRoutes(
                         appContext, config, system, scope, clearStorageGate, { stopping },
-                        onRepairCompanionUrl,
+                        { onRepairCompanionUrl { companionBackupOperations().repairInternalUrls() } },
                         invalidateCompanionObservation = { managementObservations.companionServerCache.invalidate() },
                         authorizeSensitive = ::authorizeSensitive,
                     )

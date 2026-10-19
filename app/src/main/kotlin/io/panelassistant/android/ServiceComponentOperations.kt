@@ -13,7 +13,9 @@ import io.panelassistant.android.util.SelfUpdater
 import io.panelassistant.android.util.UpdateChecker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The service's software operations: the one destructive-operation lane (Companion URL repair and
@@ -96,20 +98,15 @@ internal class ServiceComponentOperations(
     }
 
     /** Companion internal_url repair (Install-tab button): copy each server's external_url into a blank
-     *  internal_url so HA 2026.7 stops rejecting the dashboard with "Missing 'Host' header". Off-thread
-     *  (su force-stops + relaunches the Companion). */
-    fun repairCompanionUrl(): Boolean {
+     *  internal_url so HA 2026.7 stops rejecting the dashboard with "Missing 'Host' header". [repair]
+     *  owns the Companion data custody; this lane only admits it and reports its result. Off-thread
+     *  (the helper force-stops and relaunches the Companion). */
+    fun repairCompanionUrl(repair: () -> InstallOperationResult): Boolean {
         return launchOperation(
             component = "Companion URL repair",
             owner = "companion-url-repair",
             logLabel = "Companion internal_url repair",
-            operation = {
-                val result = io.panelassistant.android.control.CompanionDb.repairInternalUrlResult(
-                    context,
-                    io.panelassistant.android.control.Su,
-                )
-                InstallOperationResult(result.message, result.presentation)
-            },
+            operation = { withContext(Dispatchers.IO) { repair() } },
         )
     }
 
