@@ -61,6 +61,26 @@ internal class PanelNavigationButtonsTest : PanelRuntimeRig() {
     }
 
     @Test(timeout = 60_000)
+    fun navigateAndReloadEndARunningScreensaverFirst() {
+        for (channel in listOf("navigate", "reload")) {
+            val env = FakeSystemEnv()
+            val screensaver = FakeDreamAccessibility(dreaming = true)
+            val rig = rig(systemEnv = env, systemAccessibility = screensaver, rebootSucceeds = false)
+            try {
+                rig.start()
+                val payload = if (channel == "navigate") "/lovelace/cameras" else "PRESS"
+                assertEquals(channel, PanelAssistantCommandResult.Applied, submitNative(rig, channel, payload))
+                assertEquals(channel, listOf("back"), screensaver.events)
+                assertEquals(channel, listOf(AppIdentity.component(env.ownPackage, ".DashboardActivity")), env.directStarts)
+            } finally {
+                rig.close()
+                io.panelassistant.android.control.BuiltinDashboard.navPath = null
+                io.panelassistant.android.control.BuiltinDashboard.consumeSupersededReload()
+            }
+        }
+    }
+
+    @Test(timeout = 60_000)
     fun backGoesThroughTheAccessibilityServiceWhenItIsConnected() {
         val accessibility = Accessibility(connected = true)
         val rig = rig(navigation = navigation(accessibility))
