@@ -50,7 +50,7 @@ internal data class ManageReply(
  */
 internal interface ManageBlobs {
     suspend fun put(bytes: ByteArray, type: String): JSONObject
-    /** The uploaded body [ref] names, read once; closing it releases the bytes. */
+    /** The uploaded body [ref] names. A door whose request runs again once approved serves that run the same body. */
     suspend fun take(ref: JSONObject): java.io.InputStream?
 }
 

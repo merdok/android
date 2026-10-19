@@ -50,6 +50,7 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
     private lateinit var homeAssistant: HttpServer
     private val received = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
     private val served = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+    private val downloads = java.util.concurrent.ConcurrentHashMap<String, AtomicInteger>()
 
     @Before fun startHomeAssistant() {
         homeAssistant = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
@@ -64,6 +65,8 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
                         exchange.responseBody.write(receipt)
                     }
                     "GET" -> {
+                        downloads.getOrPut(token) { AtomicInteger() }.incrementAndGet()
+                        // One use, as Panel Assistant's blob view claims a download once and discards it.
                         val bytes = served.remove(token)
                         if (bytes == null) exchange.sendResponseHeaders(404, -1) else {
                             exchange.sendResponseHeaders(200, bytes.size.toLong())
@@ -407,6 +410,61 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
             served["reader-token-00001"] = body
             session.deliver(manage("p2", "probe.echo", JSONObject().put("blob", reference("0".repeat(64)))))
             assertFalse("a mismatched body is never used", session.answer("p2").getString("outcome") == "applied")
+        }
+    }
+
+    /** Send [op] with a body the reader uploaded, from a relayed user on a Hardened panel, approve it on the panel, and give the final answer. */
+    private fun relayedApprovedBodyRequest(fixture: PaneldServerHttpFixture, op: String, body: ByteArray, token: String, repeated: Boolean = false): JSONObject {
+        served[token] = body
+        val blob = JSONObject().put("url", PanelAssistantBlobs.PATH + token).put("size", body.size)
+            .put("sha256", sha256(body)).put("type", "application/octet-stream")
+        fun kept() = java.io.File(System.getProperty("java.io.tmpdir")).listFiles { f -> f.name.startsWith("relay") && f.name.endsWith(".blob") }.orEmpty().toSet()
+        val before = kept()
+        return Session({ fixture.door }).use { session ->
+            session.deliver(manage("a1", op, JSONObject().put("blob", blob).put("blob_token", "answer-token-00001")))
+            val interim = session.await("interim answer") { it.optString("command_id") == "a1" }
+            assertEquals(interim.toString(), "pending_approval", interim.getString("outcome"))
+            // Panel Assistant sending the same request again while it waits joins the held run.
+            if (repeated) session.deliver(manage("a1", op, JSONObject().put("blob", blob).put("blob_token", "answer-token-00002")))
+            val pending = LocalApprovalBroker.instance.pending().single()
+            assertEquals("user:$USER", pending.peer)
+            assertTrue(LocalApprovalBroker.instance.approve(pending.id))
+            session.answer("a1").also { assertEquals("the body is deleted with the final answer", emptySet<java.io.File>(), kept() - before) }
+        }
+    }
+
+    @Test fun aRelayedRestoreOnAHardenedPanelRunsAfterItsApprovalHavingReadItsOneUseBlobOnce() {
+        withFullReadServer { config, fixture ->
+            assertTrue(config.setSecurityMode(io.panelassistant.android.Config.SecurityMode.HARDENED))
+            testApplication {
+                application { fixture.mount(this) }
+                startApplication()
+                val backup = """{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored from the sidebar"}}"""
+                val reply = relayedApprovedBodyRequest(fixture, "restore", backup.toByteArray(), "reader-token-restore1", repeated = true)
+
+                assertEquals(reply.toString(), "applied", reply.getString("outcome"))
+                assertEquals(1, downloads["reader-token-restore1"]?.get())
+                val until = System.nanoTime() + 15_000_000_000L
+                while (config.friendlyName != "Restored from the sidebar" && System.nanoTime() < until) Thread.sleep(20)
+                assertEquals("Restored from the sidebar", config.friendlyName)
+            }
+        }
+    }
+
+    @Test fun aRelayedConfigImportOverTheFrameLimitOnAHardenedPanelAppliesAfterItsApprovalHavingReadItsOneUseBlobOnce() {
+        withFullReadServer { config, fixture ->
+            assertTrue(config.setSecurityMode(io.panelassistant.android.Config.SecurityMode.HARDENED))
+            testApplication {
+                application { fixture.mount(this) }
+                startApplication()
+                // Over the 256 KiB a frame carries, so the sidebar sends it as a blob.
+                val bundle = """{"kind":"ha-paneld-config","schema":1,"values":{"friendly_name":"Imported from the sidebar"}}""" + " ".repeat(300 * 1024)
+                val reply = relayedApprovedBodyRequest(fixture, "config.import", bundle.toByteArray(), "reader-token-import01")
+
+                assertEquals(reply.toString(), "applied", reply.getString("outcome"))
+                assertEquals(1, downloads["reader-token-import01"]?.get())
+                assertEquals("Imported from the sidebar", config.friendlyName)
+            }
         }
     }
 

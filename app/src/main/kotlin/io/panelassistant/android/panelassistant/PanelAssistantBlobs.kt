@@ -150,8 +150,9 @@ internal class PanelAssistantBlobs(
 /**
  * A relayed request's bodies (protocol section 20.5): an answer's bytes go up once through the request's own
  * upload [token], and a body the reader uploaded is fetched from the reference Panel Assistant minted and checked
- * before use. The download is written to a file in [dir] (the default temporary directory when null) and deleted
- * once read.
+ * before use. The download is written to a file in [dir] (the default temporary directory when null) and kept until
+ * [release], once the request has its final answer: Panel Assistant serves a download once, and a request held for
+ * its approval on the panel runs again once approved and must read the same body.
  */
 internal class PanelAssistantRelayBlobs(
     private val blobs: PanelAssistantBlobs,
@@ -169,18 +170,24 @@ internal class PanelAssistantRelayBlobs(
         return (blobs.upload(upload, bytes, type) ?: throw IOException("blob upload failed")).json()
     }
 
+    private val taken = java.util.concurrent.ConcurrentHashMap<PanelAssistantBlobs.Reference, File>()
+
     override suspend fun take(ref: JSONObject): java.io.InputStream? {
         val reference = PanelAssistantBlobs.reference(ref, maxBytes) ?: return null
+        taken[reference]?.let { return it.inputStream() }
         dir?.mkdirs()
         val file = File.createTempFile("relay", ".blob", dir)
         if (blobs.download(reference, file) != PanelAssistantBlobs.Fetched.WRITTEN) {
             file.delete()
             return null
         }
-        return object : java.io.FilterInputStream(file.inputStream()) {
-            override fun close() {
-                try { super.close() } finally { file.delete() }
-            }
-        }
+        taken[reference] = file
+        return file.inputStream()
+    }
+
+    /** Delete every body [take] fetched; the request has its final answer. */
+    fun release() {
+        taken.values.forEach(File::delete)
+        taken.clear()
     }
 }
