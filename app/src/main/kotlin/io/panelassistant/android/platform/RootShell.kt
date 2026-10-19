@@ -50,9 +50,11 @@ interface RootShell {
     fun runBytesBounded(cmd: String, maxBytes: Long): ByteArray? =
         runBytes(cmd)?.takeIf { it.size.toLong() <= maxBytes }
 
-    /** Submit [cmd] as root without waiting (for commands like `reboot` that kill the process).
-     *  Returns true only when a root process was successfully started. */
-    fun fireAndForget(cmd: String): Boolean
+    /** Run [cmd] once as root and hold for [windowMs] whatever it does, for a command such as a reboot
+     *  whose effect is not its exit status: a process still alive at the deadline is destroyed, and one
+     *  that ended early is followed by the rest of the window. Returns how it ended ("exit N" or "timed
+     *  out"), or null when no root process started. The default keeps test/legacy fakes compatible. */
+    fun runWindowed(cmd: String, windowMs: Long): String? = if (run(cmd)) "exit 0" else "exit 1"
 
     /** Typed sysfs boundary for profile-selected hardware nodes. Callers never compose shell text. */
     fun listSysfs(path: String): String? {

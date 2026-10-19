@@ -74,7 +74,6 @@ class ControlUnavailabilityTest {
             override fun run(cmd: String) = false
             override fun runOutput(cmd: String): String? = null
             override fun runBytes(cmd: String): ByteArray? = null
-            override fun fireAndForget(cmd: String) = false
         }
 
         assertEquals(RootRunOutcome.RAN_FAILED, defaultOnly.runClassified("true"))

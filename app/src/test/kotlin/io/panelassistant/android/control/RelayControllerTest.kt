@@ -449,8 +449,6 @@ class RelayControllerTest {
         }
 
         override fun runBytes(cmd: String): ByteArray? = null
-
-        override fun fireAndForget(cmd: String): Boolean = run(cmd)
     }
 
     private class SequencedRootShell(
@@ -480,10 +478,5 @@ class RelayControllerTest {
         }
 
         override fun runBytes(cmd: String): ByteArray? = null
-
-        override fun fireAndForget(cmd: String): Boolean {
-            ran += cmd
-            return true
-        }
     }
 }

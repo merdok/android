@@ -295,6 +295,5 @@ class KioskPolicyRecoveryTest {
         override fun run(cmd: String): Boolean = result(cmd).also { commands += cmd }
         override fun runOutput(cmd: String): String? = output(cmd).also { commands += cmd }
         override fun runBytes(cmd: String): ByteArray? = null
-        override fun fireAndForget(cmd: String): Boolean = false
     }
 }

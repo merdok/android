@@ -269,7 +269,7 @@ private fun errorNumber(error: Exception): String? =
  * per-call `su` exec — **never worse than the pre-0.8.3 behaviour**. All entry points are `@Synchronized`,
  * so the single pipe is strictly one command at a time.
  *
- * [fireAndForget] (e.g. `reboot`) and the form probe always use one-shot execs — a `reboot` must not be
+ * [runWindowed] (e.g. `reboot`) and the form probe always use one-shot execs — a `reboot` must not be
  * fed into the shared shell, and the probe is what discovers/caches the form the shell is opened with.
  */
 object Su : RootShell by productionSu {
@@ -298,6 +298,7 @@ private const val SKIPPED_EXEC_SIGNATURE = "skipped-exec"
 internal class SuShell(
     private val launch: (Array<String>) -> Process = { Runtime.getRuntime().exec(it) },
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
+    private val sleepMs: (Long) -> Unit = { Thread.sleep(it) },
 ) : RootShell {
 
     // A successful dialect is sticky. NONE_LAST_PROBE records diagnostics only; it must not suppress
@@ -355,12 +356,17 @@ internal class SuShell(
     /** Resolve the harmless su dialect first, then execute the side-effecting command exactly once. */
     @Synchronized
     override fun runSingleAttempt(cmd: String, timeoutMs: Long): Boolean {
+        val form = workingForm() ?: return false
+        return runBounded("run-single", argvOneShot(form, cmd), timeoutMs) { it.waitFor() } == 0
+    }
+
+    @Synchronized
+    private fun workingForm(): Int? {
         if (!formState.working()) {
             oneShotRun("true")
-            if (!formState.working()) return false
+            if (!formState.working()) return null
         }
-        val form = formState.current()
-        return runBounded("run-single", argvOneShot(form, cmd), timeoutMs) { it.waitFor() } == 0
+        return formState.current()
     }
 
     /** Run [cmd] as root and return its stdout, or null if no su form works / it exits non-zero. */
@@ -390,23 +396,16 @@ internal class SuShell(
         )
     }
 
-    /** Fire [cmd] as root without waiting (for commands like `reboot` that kill the process). Always a
-     *  one-shot — never sent into the shared persistent shell (it would take the shell down with it). */
-    override fun fireAndForget(cmd: String): Boolean {
-        if (execFailureCache.shouldSkipExec()) {
-            noteSkippedExec()
-            return false
-        }
-        val forms = formState.candidates()
-        for (f in forms) {
-            try {
-                launch(argvOneShot(f, cmd))
-                return true
-            } catch (e: Exception) {
-                if (logExecFailure("fire form $f", e)) return false
-            }
-        }
-        return false
+    /** Always a one-shot — a `reboot` must never be sent into the shared persistent shell (it would take
+     *  the shell down with it). Not synchronized: holding the window must not stall other root actions. */
+    override fun runWindowed(cmd: String, windowMs: Long): String? {
+        val form = workingForm() ?: return null
+        val startedAt = nowMs()
+        val started = java.util.concurrent.atomic.AtomicBoolean(false)
+        val exit = runBounded("run-windowed", argvOneShot(form, cmd), windowMs) { started.set(true); it.waitFor() }
+        if (exit == null && !started.get()) return null
+        (windowMs - (nowMs() - startedAt)).takeIf { it > 0L }?.let(sleepMs)
+        return exit?.let { "exit $it" } ?: "timed out"
     }
 
     /** Run [cmd] as root and return its raw stdout **bytes** (one-shot — the persistent shell's sentinel

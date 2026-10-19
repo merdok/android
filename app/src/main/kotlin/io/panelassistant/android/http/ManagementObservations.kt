@@ -102,7 +102,8 @@ internal class ManagementObservations(
     val diagCache = Cached(DIAG_TTL_MS) {
         diagnosticReport(checkNotNull(snapCache.peek()) {
             "diagnostics require the management snapshot to be built first"
-        }, { termuxBridgeCache.get() })
+        }, { termuxBridgeCache.get() }) +
+            (DiagReader.companionDbLine(companionServerCache.peek())?.let { "$it\n" } ?: "")
     }
 
     /** Call after any write that changes probed state (config apply/import/restore, density, tame),

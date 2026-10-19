@@ -419,6 +419,9 @@ object DiagReader {
 
     /** Version only: a custom profile's package id stays out of the report. */
     internal fun vendorAppLine(version: String): String = "[vendor-app] version=$version"
+    /** The last Companion servers read's `sqlite3` failure, if it failed. */
+    internal fun companionDbLine(observation: io.panelassistant.android.control.CompanionDb.ServerObservation?): String? =
+        observation?.failure?.let { "[companion-db] read failed: $it" }
 
     internal fun displaySizingLine(evidence: DisplaySizingEvidence, profile: DeviceProfile): String {
         fun dpi(value: Int?) = value?.toString() ?: "?"

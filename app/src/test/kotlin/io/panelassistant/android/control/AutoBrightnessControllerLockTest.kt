@@ -380,7 +380,6 @@ class AutoBrightnessControllerLockTest {
             else -> null
         }
         override fun runBytes(cmd: String): ByteArray? = null
-        override fun fireAndForget(cmd: String) = true
 
         fun awaitWrites(count: Int): Boolean {
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)

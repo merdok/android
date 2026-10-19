@@ -74,7 +74,8 @@ internal class DashboardRendererPacer(private val main: Handler, private val hos
 
     // After a screen-off reload (memory shed), let the fresh page load with timers LIVE for a settle
     // window, then freeze — so we never reload into a frozen WebView, but also never leave it churning
-    // behind a dark screen forever. Fires only if the frontend hasn't already connected (which freezes early).
+    // behind a dark screen forever. Connecting does not freeze it: the frontend reports connected before the
+    // dashboard has drawn, so this window is the one freeze for every dark load.
     private val darkSettle = Runnable {
         if (!host.destroyed && host.owned && !screenAwake) {
             val phase = host.phase
@@ -155,15 +156,14 @@ internal class DashboardRendererPacer(private val main: Handler, private val hos
             when (screenOffStep(phase == RendererPhase.CONNECTED, phase == RendererPhase.AUTH_LATCHED, reloadDue())) {
                 ScreenOffStep.FREEZE -> { w.onPause(); w.pauseTimers() }
                 // A load still in flight: leave the WebView live, untouched, so it can draw and connect.
-                // freezeIfDark freezes it the moment it connects, darkSettle at the end of the window.
+                // darkSettle freezes it at the end of the window.
                 ScreenOffStep.SETTLE -> {
                     Log.i(TAG, "screen off before the dashboard connected — keeping the load live for ${DARK_SETTLE_MS}ms")
                     scheduleDarkSettle()
                 }
                 ScreenOffStep.QUIET_RELOAD -> {
                     // Reload to shed memory, but DON'T pause timers yet — a paused WebView can't load. The dark
-                    // load runs live; freezeIfDark freezes it the moment it connects, or darkSettle freezes it
-                    // after the settle window if it never does. Either way it doesn't churn all night.
+                    // load runs live and darkSettle freezes it after the settle window, so it doesn't churn all night.
                     reloadPending = false
                     reload("quiet reload (screen off, due)")
                 }
@@ -330,12 +330,6 @@ internal class DashboardRendererPacer(private val main: Handler, private val hos
         wakeMediaRecovery.activateDeferred(generation)?.let { ticket ->
             host.web?.let { w -> armWakeMediaRecovery(w, generation, ticket) }
         }
-    }
-
-    /** If we connected while the screen is off (a screen-off memory reload), freeze now — the fresh
-     *  page is loaded + connected, so there's nothing left to do behind the dark screen. */
-    fun freezeIfDark() {
-        if (!screenAwake) { main.removeCallbacks(darkSettle); host.web?.let { it.onPause(); it.pauseTimers() } }
     }
 
     /** The frontend dropped its connection ([what] says how): give its own reconnect a grace window, then
