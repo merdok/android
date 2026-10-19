@@ -338,9 +338,8 @@ class SettingsBehaviorContractTest {
         assertEquals("renderer", directConfigEffectFailureOwner(false))
     }
 
-    @Test fun `read-then-drop camera and idle-return shapes are rejected rather than called applied`() {
+    @Test fun `read-then-drop camera shapes are rejected rather than called applied`() {
         listOf(
-            "dashboard_idle_return_min",
             "camera_enabled",
             "camera_resolution",
             "camera_fps",

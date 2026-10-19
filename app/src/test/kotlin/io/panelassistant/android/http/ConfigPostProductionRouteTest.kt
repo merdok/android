@@ -1078,7 +1078,6 @@ class ConfigPostProductionRouteTest {
                 config.setRaw(requireNotNull(SettingsRegistry.spec("model")), "Contract model")
             })
             val posted = linkedMapOf(
-                "dashboard_idle_return_min" to "15",
                 "dashboard_network_warning" to "false",
                 "voice_wake_words" to "[\"hey_jarvis\"]",
                 "voice_pipelines" to "{\"hey_jarvis\":\"contract-pipeline\"}",

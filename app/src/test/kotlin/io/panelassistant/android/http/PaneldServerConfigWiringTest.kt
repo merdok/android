@@ -12,7 +12,7 @@ class PaneldServerConfigWiringTest {
         val expectedKeys = setOf(
             "auto_brightness", "auto_brightness_ha_entity", "auto_brightness_minimum_percent", "auto_brightness_maximum_percent",
             "auto_brightness_response_percent", "auto_sleep", "auto_sleep_source",
-            "cpu_governor", "ha_area", "home_dashboard", "kiosk_lock",
+            "cpu_governor", "dashboard_idle_return_min", "dashboard_theme", "ha_area", "home_dashboard", "kiosk_lock",
             "navbar_mode", "network_adb", "prevent_idle_dim", "silence_boot_chime",
             "touch_sound", "voice_enabled", "wake_on_wave", "watchdog_enabled",
             "zigbee_router",

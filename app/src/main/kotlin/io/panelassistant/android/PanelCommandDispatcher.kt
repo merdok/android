@@ -805,6 +805,22 @@ internal class PanelCommandDispatcher(
     /** Nothing to actuate: the server owns HA registry write-back. */
     override fun handleHaAreaPublishOnly() = Unit
 
+    // Both take effect from the stored value alone: the renderer rebuilds for a new theme from its own
+    // preference listener, and the idle check reads the minutes on every tick.
+    override fun handleDashboardTheme(option: ChannelOption) {
+        check(config.commitRaw(requireNotNull(SettingsRegistry.spec("dashboard_theme")), option.label)) {
+            "dashboard theme could not be persisted"
+        }
+        core.reconcile("dashboard_theme")
+    }
+
+    override fun handleIdleReturn(minutes: Int) {
+        check(config.commitRaw(requireNotNull(SettingsRegistry.spec("dashboard_idle_return_min")), minutes.toString())) {
+            "idle return could not be persisted"
+        }
+        core.reconcile("dashboard_idle_return")
+    }
+
     private fun handleNavigate(target: String) {
         // Local navigation only: strip any scheme + host so an external URL can't be pushed (the HA
         // Companion opens a disorienting in-app WebView for those). We keep just the path.
@@ -1001,7 +1017,7 @@ internal class PanelCommandDispatcher(
             "cpu_governor", "network_adb", "screen", "led", "navigate", "volume", "home_dashboard",
             "buttons", "navbar", "wake_on_wave", "auto_sleep", "touch_sound", "watchdog", "kiosk_lock",
             "silence_boot_chime", "prevent_idle_dim", "zigbee_router", "auto_brightness",
-            "camera_enabled",
+            "camera_enabled", "dashboard_theme", "dashboard_idle_return",
         )
         /** Channels whose commands never conflate. */
         private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher")
@@ -1035,6 +1051,8 @@ internal enum class LiveSettingEffectOwner(val settingKey: String) {
     NAVBAR("navbar_mode"),
     HOME_DASHBOARD("home_dashboard"),
     HA_AREA_PUBLISH_ONLY("ha_area"),
+    DASHBOARD_THEME("dashboard_theme"),
+    IDLE_RETURN("dashboard_idle_return_min"),
     ;
 
     companion object {
@@ -1069,6 +1087,8 @@ internal val externalLiveSettingOwners: Map<String, String> = linkedMapOf(
     "prevent_idle_dim" to "prevent_idle_dim",
     "zigbee_router" to "zigbee_router",
     "auto_brightness" to "auto_brightness",
+    "dashboard_theme" to "dashboard_theme",
+    "dashboard_idle_return" to "dashboard_idle_return_min",
 )
 
 /**
@@ -1124,6 +1144,8 @@ internal interface LiveSettingHandlers {
     fun handleNavbar(option: ChannelOption)
     fun handleHomeDashboard(payload: String, previousValue: String? = null)
     fun handleHaAreaPublishOnly()
+    fun handleDashboardTheme(option: ChannelOption)
+    fun handleIdleReturn(minutes: Int)
 }
 
 /** [this] as the kind [T] the [target] takes; any other kind is refused as an invalid value. */
@@ -1184,6 +1206,8 @@ internal fun dispatchLiveSetting(
         LiveSettingEffectOwner.NAVBAR -> handlers.handleNavbar(option())
         LiveSettingEffectOwner.HOME_DASHBOARD -> handlers.handleHomeDashboard(text(), previousValue)
         LiveSettingEffectOwner.HA_AREA_PUBLISH_ONLY -> handlers.handleHaAreaPublishOnly()
+        LiveSettingEffectOwner.DASHBOARD_THEME -> handlers.handleDashboardTheme(option())
+        LiveSettingEffectOwner.IDLE_RETURN -> handlers.handleIdleReturn(percent())
     }
 }
 

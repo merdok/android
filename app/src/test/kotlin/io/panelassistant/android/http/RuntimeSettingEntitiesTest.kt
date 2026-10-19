@@ -1,0 +1,169 @@
+package io.panelassistant.android.http
+
+import io.ktor.client.request.accept
+import io.ktor.client.request.forms.submitForm
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.Parameters
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
+import io.panelassistant.android.Config
+import io.panelassistant.android.LiveSettingAuthority
+import io.panelassistant.android.config.Capabilities
+import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.panelassistant.PanelAssistantCommandResult
+import io.panelassistant.android.panelassistant.PanelAssistantReportResult
+import io.panelassistant.android.panelassistant.PanelAssistantStateReporter
+import io.panelassistant.android.security.LocalApprovalBroker
+import io.panelassistant.android.testsupport.PanelRuntimeRig
+import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * The dashboard theme select and the idle-return number (ha-integration #17): a change from Panel Assistant
+ * reaches the setting and comes back as the entity's state, and a change on the panel's own pages reaches
+ * Panel Assistant at once, through the reporter a session sends `report_state` from.
+ */
+internal class RuntimeSettingEntitiesTest : PanelRuntimeRig() {
+    private val rigs = mutableListOf<Rig>()
+
+    @After fun tearDown() {
+        rigs.forEach { it.close() }
+    }
+
+    private fun started(configure: (Config) -> Unit = {}): Rig = rig(
+        deviceSecure = false,
+        configure = { config ->
+            config.ensurePanelId { "entity_panel" }
+            config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Entity panel")
+            configure(config)
+        },
+    ).also { it.start(); rigs += it }
+
+    /** A Panel Assistant session past its full sync; [state] reads what it has reported for a channel. */
+    private class Session(rig: Rig) {
+        private val reporter = PanelAssistantStateReporter(log = {})
+        private val reported = mutableMapOf<String, JSONObject>()
+        private var id = 1L
+
+        init {
+            rig.core.addStateSink(reporter.bindShape(rig.core::nativeChannelShape))
+            assertTrue(runBlocking { rig.core.observeForNativeHello { true } })
+            drainStatePump()
+            reporter.open(reporter.offer().descriptors)
+            repeat(2) { assertTrue("full sync step $it", send()) }
+            assertTrue(reporter.fullSyncComplete())
+        }
+
+        private fun send(): Boolean {
+            val message = reporter.next(id, "entity-session", 0L) ?: return false
+            val observations = JSONObject(message).getJSONArray("observations")
+            for (i in 0 until observations.length()) observations.getJSONObject(i).let { reported[it.getString("channel")] = it }
+            reporter.onResult(PanelAssistantReportResult.Acknowledged(id++, emptyMap()), 0L)
+            return true
+        }
+
+        /** The channel's latest reported observation once [expected] holds, sending each delta as it comes. */
+        fun state(channel: String, expected: (JSONObject) -> Boolean = { true }): JSONObject {
+            val deadline = System.nanoTime() + 5_000_000_000L
+            while (System.nanoTime() < deadline) {
+                drainStatePump()
+                while (send()) Unit
+                reported[channel]?.takeIf(expected)?.let { return it }
+                Thread.sleep(5)
+            }
+            error("$channel never reported as expected; last ${reported[channel]}")
+        }
+
+        fun value(channel: String, expected: Any): JSONObject = state(channel) { it.opt("value") == expected }
+    }
+
+    @Test fun panelAssistantChangesTheThemeAndIdleReturnAndSeesThemBack() {
+        val rig = started()
+        val session = Session(rig)
+        assertEquals("follow", session.state("dashboard_theme").get("value"))
+        assertEquals(0, session.state("dashboard_idle_return").get("value"))
+
+        assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard_theme", "dark"))
+        assertEquals("Dark", rig.config.dashboardTheme)
+        session.value("dashboard_theme", "dark")
+
+        assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard_idle_return", "15"))
+        assertEquals(15, rig.config.dashboardIdleReturnMin)
+        session.value("dashboard_idle_return", 15)
+    }
+
+    @Test fun aChangeOnTheSettingsPageReachesPanelAssistantWithoutWaitingForAPass() {
+        val rig = started()
+        val session = Session(rig)
+        val authority = LiveSettingAuthority(setOf("dashboard_theme", "dashboard_idle_return_min"))
+        val server = routeServer(rig.config) { key, normalized ->
+            val previous = rig.config.getRaw(requireNotNull(SettingsRegistry.spec(key)))
+            authority.applyOrQueueOutcome(key, normalized, previous) { appliedKey, value, before ->
+                rig.commands.applySetting(appliedKey, value, before)
+            }
+        }
+
+        testApplication {
+            application {
+                routing { route("/api/v1") { with(server) { installDirectConfigPostRoute { Capabilities() } } } }
+            }
+            val response = client.submitForm(
+                url = "/api/v1/config",
+                formParameters = Parameters.build {
+                    append("dashboard_theme", "Light")
+                    append("dashboard_idle_return_min", "20")
+                },
+            ) { accept(ContentType.Application.Json) }
+            assertEquals(response.bodyAsText(), HttpStatusCode.OK, response.status)
+        }
+
+        assertEquals("Light", rig.config.dashboardTheme)
+        session.value("dashboard_theme", "light")
+        session.value("dashboard_idle_return", 20)
+    }
+
+    /** The select shows the owner's choice; an Ambient flip changes only the scheme it resolves to. */
+    @Test fun anAmbientFlipLeavesTheSelectOnAmbient() {
+        val rig = started { it.setRaw(requireNotNull(SettingsRegistry.spec("dashboard_theme")), "Ambient") }
+        val session = Session(rig)
+        session.value("dashboard_theme", "ambient")
+
+        rig.config.setDashboardAmbientDark(true)
+        rig.core.reconcileAll()
+        assertEquals("ambient", session.state("dashboard_theme").get("value"))
+    }
+
+    /** Idle return acts only in the built-in renderer, so another dashboard app leaves the number unavailable. */
+    @Test fun idleReturnIsUnavailableUnderAnotherDashboardApp() {
+        val rig = started { it.setDashboardPackage("com.example.dashboard") }
+        val session = Session(rig)
+        assertEquals("unavailable", session.state("dashboard_idle_return").getString("state"))
+    }
+
+    /**
+     * Neither entity needs approval on the panel in Hardened mode, so neither is a setting the promise keeps off
+     * Home Assistant; turning Prevent idle dim off from the same session still asks.
+     */
+    @Test fun inHardenedModeTheNewEntitiesApplyWithoutAnApprovalWhilePreventIdleDimStillAsks() {
+        val rig = started { assertTrue(it.setSecurityMode(Config.SecurityMode.HARDENED)) }
+        val broker = LocalApprovalBroker.instance
+        val before = broker.pending().map { it.id }.toSet()
+        try {
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard_theme", "light"))
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard_idle_return", "5"))
+            assertEquals(emptyList<String>(), broker.pending().map { it.id }.filter { it !in before })
+
+            val reduction = submitNative(rig, "prevent_idle_dim", "OFF")
+            assertTrue("$reduction", reduction is PanelAssistantCommandResult.ApprovalPending)
+        } finally {
+            broker.pending().filter { it.id !in before }.forEach { broker.deny(it.id) }
+        }
+    }
+}

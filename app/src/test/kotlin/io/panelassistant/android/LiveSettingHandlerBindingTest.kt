@@ -39,6 +39,8 @@ class LiveSettingHandlerBindingTest {
         override fun handleHomeDashboard(payload: String, previousValue: String?) =
             record("handleHomeDashboard", payload, previousValue)
         override fun handleHaAreaPublishOnly() = record("handleHaAreaPublishOnly")
+        override fun handleDashboardTheme(option: ChannelOption) = record("handleDashboardTheme", option)
+        override fun handleIdleReturn(minutes: Int) = record("handleIdleReturn", minutes)
     }
 
     /** The typed value the HTTP config route hands the dispatcher for a normalized [value]. */
@@ -110,6 +112,12 @@ class LiveSettingHandlerBindingTest {
                 expected = invocation("handleHomeDashboard", "/dashboard-alpha/0", "/lovelace/0"),
             ),
             Case("ha_area", "Office", expected = invocation("handleHaAreaPublishOnly")),
+            Case(
+                "dashboard_theme",
+                "Ambient",
+                expected = invocation("handleDashboardTheme", ChannelOption("ambient", "Ambient")),
+            ),
+            Case("dashboard_idle_return_min", "15", expected = invocation("handleIdleReturn", 15)),
         )
 
         assertEquals(LiveSettingEffectOwner.settingKeys, cases.mapTo(linkedSetOf()) { it.key })
@@ -168,6 +176,8 @@ class LiveSettingHandlerBindingTest {
             "prevent_idle_dim" to "prevent_idle_dim",
             "zigbee_router" to "zigbee_router",
             "auto_brightness" to "auto_brightness",
+            "dashboard_theme" to "dashboard_theme",
+            "dashboard_idle_return" to "dashboard_idle_return_min",
         )
 
         assertEquals(expected, externalLiveSettingOwners)

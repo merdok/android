@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.control.SystemController
+
 /** Pure idle-return decision shared by the Android lifecycle path and deterministic JVM tests. */
 internal object DashboardIdleReturnPolicy {
     sealed interface Tick {
@@ -9,6 +11,10 @@ internal object DashboardIdleReturnPolicy {
         data object AtHome : Tick
         data class Return(val target: String) : Tick
     }
+
+    /** Whether idle return can act under [dashboardPackage]: only the built-in renderer returns home. */
+    fun appliesTo(dashboardPackage: String): Boolean =
+        dashboardPackage.isBlank() || dashboardPackage == SystemController.BUILTIN_DASHBOARD
 
     /** One idle-return tick; [targetFor] maps the normalised home dashboard to [target]'s answer.
      *  The switched-off and not-idle-yet guards come first, so [homeDashboard] is read only by a tick

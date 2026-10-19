@@ -240,6 +240,12 @@ internal class PanelStateCore(
             else Observation.Known(if (snapshot.holdingAwake) "ON" else "OFF", autoSleepActivityProjection(snapshot).attributes)
         }
         channel("navbar") { known(config.navbarMode) }
+        // The stored choice, so an Ambient flip, which changes only the effective scheme, leaves it alone.
+        channel("dashboard_theme") { known(config.dashboardTheme) }
+        channel("dashboard_idle_return") {
+            if (DashboardIdleReturnPolicy.appliesTo(config.dashboardPackage)) known(config.dashboardIdleReturnMin.toString())
+            else Observation.Unavailable
+        }
 
         // A sensor with no reading says why, so Home Assistant shows it unknown rather than a stale value.
         val waiting = noReading(NoReadingReason.WAITING)
