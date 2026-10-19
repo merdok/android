@@ -236,7 +236,7 @@ internal class PanelAssistantManagementRequests(
             }
             val commandId = frame.getString("command_id")
             val interim = frame.optBoolean("interim")
-            val carrier = if (interim) carriers[commandId] else carriers.remove(commandId)
+            val carrier = if (interim) carriers[commandId] else carriers.remove(commandId)?.also { it.release() }
             val result = frame.opt("result")
             val text = when (result) {
                 null -> null
