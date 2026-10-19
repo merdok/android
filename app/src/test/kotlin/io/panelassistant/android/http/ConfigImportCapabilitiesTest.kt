@@ -171,7 +171,19 @@ class ConfigImportCapabilitiesTest {
             val revisions = readField(fixture.server, "revisions") as RevisionStore
             val historical = revisions.list().first { it.second.values["friendly_name"] == "Historical" }
             assertEquals("true", revisions.get(historical.first)?.values?.get("kiosk_lock"))
+            val current = revisions.snapshot(ConfigBundle.fromValues(
+                mapOf("friendly_name" to "Current", "kiosk_lock" to "false"),
+                kind = ConfigBundle.KIND_REVISION,
+            ))
+            resetCapabilities(Capabilities(appCanSu = true, networkAdb = true, canControlBootChime = true))
+            assertEquals(HttpStatusCode.OK, client.post("/api/v1/config/revisions/${historical.first}/restore").status)
+            assertTrue(config.kioskLock)
             canEnable = false
+            resetCapabilities(Capabilities())
+            val cleanup = client.post("/api/v1/config/revisions/$current/restore")
+            assertEquals(HttpStatusCode.OK, cleanup.status)
+            assertFalse(strings(JSONObject(cleanup.bodyAsText()), "skipped").contains("kiosk_lock"))
+            assertFalse(config.kioskLock)
             resetCapabilities(Capabilities())
             val response = client.post("/api/v1/config/revisions/${historical.first}/restore")
             assertEquals(HttpStatusCode.OK, response.status)
