@@ -1,5 +1,6 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.dashboard.InjectionScript
 import org.json.JSONObject
 import java.util.LinkedHashMap
 
@@ -119,7 +120,7 @@ internal object ExternalBusProtocol {
             .put("payload", JSONObject().put("enable", enabled)),
     )
 
-    private fun script(message: JSONObject): String = "externalBus($message);"
+    private fun script(message: JSONObject): String = InjectionScript.pageCall("externalBus", "$message")
 
     private fun boundedText(value: String?, maxChars: Int): String? = value
         ?.take(maxChars)

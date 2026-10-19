@@ -253,15 +253,19 @@ object ExternalAuthProtocol {
      *  [expiresInSec] is the token's remaining life the frontend uses to know when to ask again. */
     fun authReply(payload: String, accessToken: String?, expiresInSec: Long): String? {
         if (callbackOf(payload) != "externalAuthSetToken") return null
-        if (accessToken.isNullOrBlank()) return "externalAuthSetToken(false)"
+        if (accessToken.isNullOrBlank()) return InjectionScript.pageCall("externalAuthSetToken", "false")
         val auth = JSONObject().put("access_token", accessToken).put("expires_in", expiresInSec)
-        return "externalAuthSetToken(true, $auth)"
+        return InjectionScript.pageCall("externalAuthSetToken", "true, $auth")
     }
 
     /** `revokeExternalAuth` ack. The panel doesn't own the long-lived token (the admin minted it),
      *  so there's no server-side revoke to perform — acknowledge so the frontend can finish logout. */
     fun revokeReply(payload: String): String? =
-        if (callbackOf(payload) == "externalAuthRevokeToken") "externalAuthRevokeToken(true)" else null
+        if (callbackOf(payload) == "externalAuthRevokeToken") {
+            InjectionScript.pageCall("externalAuthRevokeToken", "true")
+        } else {
+            null
+        }
 
     /** Document-start script that forces panel-appropriate HA frontend prefs on this WebView's FIRST
      *  run, then never again: hide the sidebar, keep the websocket alive when idle, no haptics. Values

@@ -1,5 +1,7 @@
 package io.panelassistant.android
 
+import io.panelassistant.android.testsupport.Node
+import io.panelassistant.android.testsupport.PageScript
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -120,9 +122,20 @@ class ExternalBusProtocolTest {
         assertTrue(kiosk.getJSONObject("payload").getBoolean("enable"))
     }
 
+    @Test fun `a command that reaches a page without the bus is dropped, not thrown`() {
+        Node.assumeAvailable()
+        val script = ExternalBusProtocol.navigate(4, "/lovelace/1")
+        assertEquals(PageScript.Outcome(emptyList(), null), PageScript.run(script))
+    }
+
+    /** The one message the frontend's `externalBus` receives when the page evaluates [script]. */
     private fun messageOf(script: String): JSONObject {
-        assertTrue(script.startsWith("externalBus(") && script.endsWith(");"))
-        return JSONObject(script.removePrefix("externalBus(").removeSuffix(");"))
+        Node.assumeAvailable()
+        val outcome = PageScript.run(script, "externalBus")
+        assertNull(outcome.error)
+        val call = outcome.calls.single()
+        assertEquals(1, call.args.length())
+        return call.args.getJSONObject(0)
     }
 }
 

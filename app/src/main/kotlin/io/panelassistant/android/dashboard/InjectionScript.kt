@@ -49,6 +49,12 @@ internal object InjectionScript {
      *  (never inside an embedded iframe). */
     const val TOP_FRAME_GUARD = "if(window.top&&window.top!==window)return;"
 
+    /** A call into a page global the HA frontend defines only in a page that asked for it. A reload
+     *  can deliver a reply to the page that replaced the asker; that page asks again itself, so the
+     *  call is dropped there instead of throwing a ReferenceError. */
+    fun pageCall(function: String, args: String): String =
+        "typeof window.$function==='function'&&window.$function($args);"
+
     /** Keep rejection details as strings: Chromium/CDP otherwise expose plain objects as #<Object>. */
     fun rejectionLoggingJs(): String = """
         (function(){

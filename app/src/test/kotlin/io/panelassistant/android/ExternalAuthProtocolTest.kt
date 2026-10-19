@@ -1,6 +1,8 @@
 package io.panelassistant.android
 
-import org.json.JSONObject
+import io.panelassistant.android.testsupport.Node
+import io.panelassistant.android.testsupport.PageScript
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -14,27 +16,49 @@ import org.junit.Test
  */
 class ExternalAuthProtocolTest {
 
+    /** The arguments the frontend's callback receives when the page that asked evaluates [script]. */
+    private fun delivered(script: String, callback: String): JSONArray {
+        Node.assumeAvailable()
+        val outcome = PageScript.run(script, callback)
+        assertNull(outcome.error)
+        val call = outcome.calls.single()
+        assertEquals(callback, call.function)
+        return call.args
+    }
+
     // --- getExternalAuth ---------------------------------------------------------------------------
 
     @Test
     fun `auth reply carries the token and its real expiry`() {
         val js = ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken"}""", "tok123", 1800L)!!
-        assertTrue(js.startsWith("externalAuthSetToken(true, "))
-        val json = JSONObject(js.removePrefix("externalAuthSetToken(true, ").removeSuffix(")"))
+        val args = delivered(js, "externalAuthSetToken")
+        assertEquals(true, args.getBoolean(0))
+        val json = args.getJSONObject(1)
         assertEquals("tok123", json.getString("access_token"))
         assertEquals(1800L, json.getLong("expires_in"))
     }
 
     @Test
     fun `auth reply fails closed with no token`() {
-        assertEquals(
-            "externalAuthSetToken(false)",
-            ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken","force":true}""", "", 0L),
+        for (token in listOf("", null)) {
+            val js = ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken","force":true}""", token, 0L)!!
+            val args = delivered(js, "externalAuthSetToken")
+            assertEquals(1, args.length())
+            assertEquals(false, args.getBoolean(0))
+        }
+    }
+
+    @Test
+    fun `a reply that reaches a page which never asked is dropped, not thrown`() {
+        // A reload can hand the old page's reply to its replacement, which has not defined the
+        // callback yet and asks for its own token once it boots.
+        Node.assumeAvailable()
+        val replies = listOf(
+            ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken"}""", "tok", 1800L)!!,
+            ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken"}""", null, 0L)!!,
+            ExternalAuthProtocol.revokeReply("""{"callback":"externalAuthRevokeToken"}""")!!,
         )
-        assertEquals(
-            "externalAuthSetToken(false)",
-            ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken"}""", null, 0L),
-        )
+        for (js in replies) assertEquals(js, PageScript.Outcome(emptyList(), null), PageScript.run(js))
     }
 
     @Test
@@ -56,7 +80,7 @@ class ExternalAuthProtocolTest {
     @Test
     fun `token with quotes is JSON-escaped not injected`() {
         val js = ExternalAuthProtocol.authReply("""{"callback":"externalAuthSetToken"}""", """t"),alert("x""", 1800L)!!
-        val json = JSONObject(js.removePrefix("externalAuthSetToken(true, ").removeSuffix(")"))
+        val json = delivered(js, "externalAuthSetToken").getJSONObject(1)
         assertEquals("""t"),alert("x""", json.getString("access_token"))
     }
 
@@ -64,7 +88,8 @@ class ExternalAuthProtocolTest {
 
     @Test
     fun `revoke acks only the expected callback`() {
-        assertEquals("externalAuthRevokeToken(true)", ExternalAuthProtocol.revokeReply("""{"callback":"externalAuthRevokeToken"}"""))
+        val js = ExternalAuthProtocol.revokeReply("""{"callback":"externalAuthRevokeToken"}""")!!
+        assertEquals(true, delivered(js, "externalAuthRevokeToken").getBoolean(0))
         assertNull(ExternalAuthProtocol.revokeReply("""{"callback":"externalAuthSetToken"}"""))
     }
 
