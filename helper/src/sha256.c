@@ -112,6 +112,14 @@ void hapaneld_sha256_hex(const unsigned char digest[32], char hex[65]) {
     hex[64] = '\0';
 }
 
+int lower_hex_64(const char *value) {
+    if (!value || strlen(value) != 64) return 0;
+    for (size_t i = 0; i < 64; i++)
+        if (!((value[i] >= '0' && value[i] <= '9') ||
+              (value[i] >= 'a' && value[i] <= 'f'))) return 0;
+    return 1;
+}
+
 int hapaneld_sha256_fd(int fd, uint64_t expected_size, char hex[65]) {
     if (fd < 0 || lseek(fd, 0, SEEK_SET) < 0) return -1;
     hapaneld_sha256 ctx;

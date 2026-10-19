@@ -287,14 +287,6 @@ static int test_app_autonomous_profile;
 #define TEST_FAULT(value) ((void)(value), 0)
 #endif
 
-static int lower_hex_64(const char *value) {
-    if (!value || strlen(value) != 64) return 0;
-    for (size_t i = 0; i < 64; i++)
-        if (!((value[i] >= '0' && value[i] <= '9') ||
-              (value[i] >= 'a' && value[i] <= 'f'))) return 0;
-    return 1;
-}
-
 static int parse_u64(const char *text, uint64_t minimum, uint64_t maximum, uint64_t *value) {
     if (!text || !*text) return -1;
     if (text[0] == '0' && text[1] != '\0') return -1;

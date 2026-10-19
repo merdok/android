@@ -994,13 +994,6 @@ static int commit_restore(
     return 0;
 }
 
-static int valid_sha256_hex(const char *text) {
-    if (strlen(text) != 64) return 0;
-    for (const char *c = text; *c; c++)
-        if (!((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'f'))) return 0;
-    return 1;
-}
-
 // 0 when the live database and WAL still hold exactly the captured bytes; -1 when either changed,
 // vanished or cannot be read safely. "-" expects no WAL or an empty one, as a capture omits it.
 static int live_matches_capture(const target_dirs *target, const char *db_sha, const char *wal_sha) {
@@ -1027,8 +1020,8 @@ void cmd_companionrestore(conn_ctx *ctx, const char *args) {
     int fields = sscanf(args, "%127s %31s %31s %31s %7s %65s %65s %1s",
         pkg, db_text, session_text, integration_text, option, db_sha, wal_sha, extra);
     // EXPECT names the live database and WAL a held capture saw; the restore commits only over them.
-    int expect = fields == 7 && strcmp(option, "EXPECT") == 0 && valid_sha256_hex(db_sha) &&
-        (strcmp(wal_sha, "-") == 0 || valid_sha256_hex(wal_sha));
+    int expect = fields == 7 && strcmp(option, "EXPECT") == 0 && lower_hex_64(db_sha) &&
+        (strcmp(wal_sha, "-") == 0 || lower_hex_64(wal_sha));
     uint64_t sizes[3];
     if ((fields != 4 && !expect) || !supported_pkg(pkg) ||
         parse_size(db_text, DB_MAX_BYTES, &sizes[0]) != 0 ||

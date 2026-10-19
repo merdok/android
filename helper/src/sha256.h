@@ -16,6 +16,9 @@ void hapaneld_sha256_update(hapaneld_sha256 *ctx, const void *bytes, size_t size
 void hapaneld_sha256_final(hapaneld_sha256 *ctx, unsigned char digest[32]);
 void hapaneld_sha256_hex(const unsigned char digest[32], char hex[65]);
 
+/* 1 when value is exactly 64 lowercase hex digits, the form hapaneld_sha256_hex writes. */
+int lower_hex_64(const char *value);
+
 /* Hash an already-open descriptor from offset zero without changing its final offset. */
 int hapaneld_sha256_fd(int fd, uint64_t expected_size, char hex[65]);
 
