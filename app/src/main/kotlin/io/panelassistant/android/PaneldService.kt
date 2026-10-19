@@ -36,6 +36,7 @@ import io.panelassistant.android.control.CompanionDataOperationGate
 import io.panelassistant.android.control.CompanionDataOperationState
 import io.panelassistant.android.control.CdpRelay
 import io.panelassistant.android.control.RemoteDebugSecurityTransitionGate
+import io.panelassistant.android.control.InteractiveController
 import io.panelassistant.android.control.NavbarController
 import io.panelassistant.android.control.PrivilegedRouteObservation
 import io.panelassistant.android.control.WakeOutcome
@@ -935,6 +936,7 @@ class PaneldService : Service() {
         media = voiceAudio.media.takeIf { profile.hasSpeaker },
         hasCamera = { cameraReason().takeUnless { it == CameraCapabilityReason.UNDETERMINED }?.capable },
         lightChannel = sensors::lightChannel,
+        canBack = InteractiveController(canSu = profile.appCanSu)::canBack,
         autoSleepActivity = { displayPower.autoSleep.activitySnapshot() },
         softwareUpdateSources = componentOperations::softwareUpdateSources,
         zigbeeHealth = controls.zigbeeHealth::snapshot,
@@ -967,6 +969,7 @@ class PaneldService : Service() {
         onCameraEnabledChanged = { if (::camera.isInitialized) runCatching { camera.onEnabledChanged() } },
         onDashboardTargetChanged = entityLearning::onTargetConfigurationChanged,
         kioskApply = controls.kiosk::apply,
+        goBack = InteractiveController(canSu = profile.appCanSu)::back,
         kioskRecover = controls.kiosk::recoverPersistentState,
         onExternalSettingApplied = liveSettingAuthority::discard,
         onZigbeeExplicitRetry = controls.zigbeeHealth::explicitRetry,

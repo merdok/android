@@ -223,6 +223,16 @@ internal abstract class PanelRuntimeRig {
         /** The kiosk controller's lock and its start-up recovery; a test records the calls. */
         kioskApply: (Boolean) -> Boolean = { true },
         kioskRecover: (Boolean) -> Boolean = { true },
+        /** The panel's Back routes; by default neither root nor an accessibility service is there. */
+        navigation: io.panelassistant.android.control.InteractiveController = io.panelassistant.android.control.InteractiveController(
+            canSu = false,
+            root = FakeRootShell(available = false, runResult = false),
+            accessibility = object : io.panelassistant.android.platform.AccessibilityActions {
+                override fun back() = false
+                override fun recents() = false
+                override fun tap(x: Int, y: Int) = false
+            },
+        ),
         /** Whether the navbar controller acknowledges each mode at once, drawing nothing; otherwise it is unusable. */
         navbarAcknowledges: Boolean = false,
         configure: (Config) -> Unit = {},
@@ -350,6 +360,7 @@ internal abstract class PanelRuntimeRig {
             media = media,
             hasCamera = cameraAvailability,
             lightChannel = lightChannel,
+            canBack = navigation::canBack,
             autoSleepActivity = autoSleepActivity,
             softwareUpdateSources = { updateSources.get() },
             storageHealth = { storageReads.incrementAndGet(); storage.get() },
@@ -385,6 +396,7 @@ internal abstract class PanelRuntimeRig {
             // Never reached: no screen brightness or auto-brightness command is sent.
             autoBright = allocate(AutoBrightnessController::class.java),
             kioskApply = kioskApply,
+            goBack = navigation::back,
             kioskRecover = kioskRecover,
             onAutoSleepConfigChanged = { autoSleepConfigChanges.incrementAndGet() },
             onZigbeeExplicitRetry = onZigbeeExplicitRetry,
