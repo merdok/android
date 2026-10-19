@@ -82,7 +82,7 @@ internal class PanelAssistantTransportContractFixtureTest : PanelRuntimeRig() {
         fun sample(key: String) = family.matchEntire(key)?.let { it.groupValues[1] + "1" } ?: key
         val registered = everyChannel().map(::sample).toSet()
         val fixtureChannels = fixture.getJSONArray("channelDescriptors").objects().map { it.getString("channel") }
-        val actions = setOf("reload", "reboot", "android_settings", "launcher", "dashboard", "back", "button")
+        val actions = setOf("reload", "reboot", "android_settings", "launcher", "dashboard", "back", "recents", "button")
         val wires = (registered + fixtureChannels + actions).sorted()
         if (!recordingProducer()) {
             val unregistered = fixtureChannels.filter { sample(it) !in registered + actions }

@@ -98,7 +98,7 @@ internal object ExternalBusProtocol {
         )
     }
 
-    fun navigate(id: Int, path: String): String {
+    fun navigate(id: Int, path: String, replace: Boolean = true): String {
         val normalized = "/${normalizeDashboardTarget(path)}"
         return script(
             JSONObject()
@@ -107,7 +107,7 @@ internal object ExternalBusProtocol {
                 .put("command", "navigate")
                 .put(
                     "payload",
-                    JSONObject().put("path", normalized).put("options", JSONObject().put("replace", true)),
+                    JSONObject().put("path", normalized).put("options", JSONObject().put("replace", replace)),
                 ),
         )
     }
@@ -175,7 +175,7 @@ internal class ExternalBusController(
     data class Session(val rendererGeneration: Long, val documentEpoch: Long)
 
     sealed interface CommandKind {
-        data class Navigate(val path: String) : CommandKind
+        data class Navigate(val path: String, val replace: Boolean = true) : CommandKind
         data class KioskMode(val enabled: Boolean) : CommandKind
     }
 
@@ -260,9 +260,9 @@ internal class ExternalBusController(
     }
 
     @Synchronized
-    fun navigate(session: Session, path: String): Outbound? {
+    fun navigate(session: Session, path: String, replace: Boolean = true): Outbound? {
         if (!owns(session)) return null
-        return issue(session, CommandKind.Navigate(path))
+        return issue(session, CommandKind.Navigate(path, replace))
     }
 
     @Synchronized
@@ -336,7 +336,7 @@ internal class ExternalBusController(
         }
         val id = nextCommandId()
         val script = when (kind) {
-            is CommandKind.Navigate -> ExternalBusProtocol.navigate(id, kind.path)
+            is CommandKind.Navigate -> ExternalBusProtocol.navigate(id, kind.path, kind.replace)
             is CommandKind.KioskMode -> ExternalBusProtocol.setKioskMode(id, kind.enabled)
         }
         return Outbound(session, id, kind, script, evicted).also { pending[id] = Pending(it) }

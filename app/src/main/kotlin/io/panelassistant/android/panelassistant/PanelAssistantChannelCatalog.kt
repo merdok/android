@@ -240,6 +240,10 @@ internal object PanelAssistantChannelCatalog {
             uniqueSuffix = "back", kind = PanelAssistantValueKind.BUTTON,
         ),
         PanelAssistantChannelDescriptor(
+            channel = "recents", platform = "button", translationKey = "recents",
+            uniqueSuffix = "recents", kind = PanelAssistantValueKind.BUTTON, enabledDefault = false,
+        ),
+        PanelAssistantChannelDescriptor(
             channel = "reboot", platform = "button", translationKey = "reboot",
             uniqueSuffix = "reboot", kind = PanelAssistantValueKind.BUTTON, deviceClass = "restart",
         ),

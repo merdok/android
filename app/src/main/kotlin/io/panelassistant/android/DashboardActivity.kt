@@ -386,6 +386,7 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         activityOwner = BuiltinDashboard.acquireActivityOwner()
+        BuiltinDashboard.setBackHandler(activityOwner) { onMain(::goBackInHistory) == true }
         if (dashboardIsTopResumed) {
             BuiltinDashboard.setActivityForeground(activityOwner, true)
         }
@@ -728,9 +729,10 @@ class DashboardActivity : AppCompatActivity() {
         if (nav == null && !reload && healthy) return   // foreground-only: page is fine, nothing to do
         if (nav != null && !reload && healthy) {
             // Navigate on a healthy page: an instant bus re-navigate (same as idle-return), not a full
-            // page load — the JS bundle + websocket stay live.
+            // page load — the JS bundle + websocket stay live. It adds a history entry, so a voice Back
+            // returns to the page it left.
             Log.i(TAG, "navigate -> /$nav (bus)")
-            sendBusNavigate(nav)
+            sendBusNavigate(nav, replace = false)
             return
         }
         // A plain return to the foreground (the kiosk and watchdog return loops, HOME) is not consent. It
@@ -1123,10 +1125,32 @@ class DashboardActivity : AppCompatActivity() {
         main.postDelayed({ if (rendererCurrent(generation, w)) swipe?.isRefreshing = false }, LIGHT_REFRESH_SPINNER_MS)
     }
 
-    private fun sendBusNavigate(path: String) {
+    /** A voice Back: the previous page in this WebView's history, false when there is none. */
+    private fun goBackInHistory(): Boolean {
+        val w = web?.takeIf { rendererCurrent(rendererGeneration, it) } ?: return false
+        val history = w.copyBackForwardList()
+        val urls = (0 until history.size).map { history.getItemAtIndex(it).url }
+        val steps = BuiltinDashboard.previousPageSteps(urls, history.currentIndex) ?: return false
+        noteDeliberateDashboardNavigation()
+        w.goBackOrForward(-steps)
+        return true
+    }
+
+    /** Run [block] on the main thread from another and wait for it; null if it threw or took over 2 s. */
+    private fun <T> onMain(block: () -> T): T? {
+        var result: T? = null
+        val done = java.util.concurrent.CountDownLatch(1)
+        main.post {
+            result = runCatching(block).onFailure { Log.w(TAG, "main-thread dashboard operation failed", it) }.getOrNull()
+            done.countDown()
+        }
+        return if (done.await(2, java.util.concurrent.TimeUnit.SECONDS)) result else null
+    }
+
+    private fun sendBusNavigate(path: String, replace: Boolean = true) {
         noteDeliberateDashboardNavigation(path)
         noteAppNavigationTarget(path)
-        bridge.navigate(path)
+        bridge.navigate(path, replace)
     }
 
     /** Every navigation that CHOOSES a target — bus navigates (user, Home Assistant, idle return, correction),

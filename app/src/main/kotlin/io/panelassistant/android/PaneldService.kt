@@ -973,6 +973,7 @@ class PaneldService : Service() {
         kioskRecover = controls.kiosk::recoverPersistentState,
         onExternalSettingApplied = liveSettingAuthority::discard,
         onZigbeeExplicitRetry = controls.zigbeeHealth::explicitRetry,
+        goRecents = InteractiveController(canSu = profile.appCanSu)::recents,
         onAutoSleepConfigChanged = {
             acceptCommittedAutoSleepSetting(liveSettingAuthority) { displayPower.refreshAutoSleepPresence() }
         },

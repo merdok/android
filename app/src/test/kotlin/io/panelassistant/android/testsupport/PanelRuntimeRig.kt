@@ -402,6 +402,7 @@ internal abstract class PanelRuntimeRig {
             onZigbeeExplicitRetry = onZigbeeExplicitRetry,
             onExternalSettingApplied = onExternalSettingApplied,
             helperSend = helperSend ?: io.panelassistant.android.util.HelperClient::send,
+            goRecents = navigation::recents,
             manageTable = manageTable,
             manageFamilies = manageFamilies,
             approvalPollMs = approvalPollMs,

@@ -37,6 +37,7 @@ object BuiltinDashboard {
         activityOwner = owner
         authLatched = false
         pendingSettings = null
+        backHandler = null
         return owner
     }
 
@@ -86,7 +87,21 @@ object BuiltinDashboard {
         appliedThemeSignature = null
         authLatched = false
         foreground = false
+        backHandler = null
     }
+
+    // The owning dashboard's Back: true when it went to its previous page, false when it has none.
+    @Volatile private var backHandler: (() -> Boolean)? = null
+
+    @Synchronized fun setBackHandler(owner: Long, h: () -> Boolean) { if (activityOwner == owner) backHandler = h }
+
+    /** Back on the dashboard, or null when no dashboard owns the renderer. Not on the main thread. */
+    fun back(): Boolean? = backHandler?.invoke()
+
+    /** How many history steps back the previous page is, from [current] in [urls]; null with none. An idle
+     *  return replaces the entry with the page it already shows, so equal neighbours are one page. */
+    internal fun previousPageSteps(urls: List<String>, current: Int): Int? =
+        (current - 1 downTo 0).firstOrNull { urls[it] != urls.getOrNull(current) }?.let { current - it }
 
     // --- foreground state + change fan-out (navbar overlay-strip suppression) ---
     //

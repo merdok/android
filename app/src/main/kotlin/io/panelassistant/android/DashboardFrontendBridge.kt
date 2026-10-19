@@ -177,9 +177,9 @@ internal class DashboardFrontendBridge(
         session?.takeIf { current(generation, it) }?.let(v2Handshake::finish)
     }
 
-    fun navigate(path: String) {
+    fun navigate(path: String, replace: Boolean = true) {
         val session = session ?: return
-        dispatch(externalBus.navigate(session, path))
+        dispatch(externalBus.navigate(session, path, replace))
     }
 
     fun updateKioskPreference(kiosk: Boolean) {
