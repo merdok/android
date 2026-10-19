@@ -1138,15 +1138,8 @@ class DashboardActivity : AppCompatActivity() {
         return true
     }
 
-    /** Run [block] on the main thread from another and wait for it; null if it threw or took over 2 s. */
-    private fun <T> onMain(block: () -> T): T? {
-        var result: T? = null
-        val done = java.util.concurrent.CountDownLatch(1)
-        main.post {
-            result = runCatching(block).onFailure { Log.w(TAG, "main-thread dashboard operation failed", it) }.getOrNull()
-            done.countDown()
-        }
-        return if (done.await(2, java.util.concurrent.TimeUnit.SECONDS)) result else null
+    private fun <T> onMain(block: () -> T): T? = BuiltinDashboard.callWithin({ main.post(it) }, 2_000) {
+        runCatching(block).onFailure { Log.w(TAG, "main-thread dashboard operation failed", it) }.getOrNull()
     }
 
     private fun sendBusNavigate(path: String, replace: Boolean = true) {

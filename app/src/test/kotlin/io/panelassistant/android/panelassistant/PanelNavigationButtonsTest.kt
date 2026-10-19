@@ -76,7 +76,10 @@ internal class PanelNavigationButtonsTest : PanelRuntimeRig() {
 
     @Test(timeout = 60_000)
     fun aPanelWithNoBackRouteStatesBackUnsupportedAndRefusesAPress() {
-        val rig = rig(navigation = navigation(Accessibility(connected = false)))
+        // A Companion-rendered panel: the built-in dashboard's own Back is not there either.
+        val rig = rig(navigation = navigation(Accessibility(connected = false)), configure = {
+            it.setRaw(requireNotNull(io.panelassistant.android.config.SettingsRegistry.spec("dashboard_package")), "io.homeassistant.companion.android")
+        })
         try {
             rig.start()
             val shape = rig.core.nativeChannelShape()

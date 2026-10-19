@@ -98,6 +98,19 @@ object BuiltinDashboard {
     /** Back on the dashboard, or null when no dashboard owns the renderer. Not on the main thread. */
     fun back(): Boolean? = backHandler?.invoke()
 
+    /** Run [block] through [post] and wait up to [timeoutMs]; null when it did not start in time, and then it never
+     *  runs, so a stalled main thread cannot report failure and act later. */
+    internal fun <T> callWithin(post: (Runnable) -> Unit, timeoutMs: Long, block: () -> T): T? {
+        val claimed = java.util.concurrent.atomic.AtomicBoolean()
+        val done = java.util.concurrent.CountDownLatch(1)
+        var result: T? = null
+        post(Runnable { if (claimed.compareAndSet(false, true)) { result = block(); done.countDown() } })
+        if (done.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)) return result
+        if (claimed.compareAndSet(false, true)) return null // abandoned before it started
+        done.await() // already running: its result is the outcome
+        return result
+    }
+
     /** How many history steps back the previous page is, from [current] in [urls]; null with none. An idle
      *  return replaces the entry with the page it already shows, so equal neighbours are one page. */
     internal fun previousPageSteps(urls: List<String>, current: Int): Int? =

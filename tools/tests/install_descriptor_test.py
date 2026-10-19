@@ -30,7 +30,7 @@ ANDROID_PRODUCER_FIXTURE = json.loads(
         / "app/src/test/resources/panel-assistant-contract/android_producer_v1.json"
     ).read_text(encoding="utf-8")
 )
-ANDROID_PRODUCER_SOURCE_REVISION = "60689d2033357aa288b8d1a7891d79ffc662778c"
+ANDROID_PRODUCER_SOURCE_REVISION = "562ad120a51ff40964ec781bb98340dae6567f46"
 BADGING = """\
 package: name='io.panelassistant.android' versionCode='701' versionName='1.2.3-rc1' \
 platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' \

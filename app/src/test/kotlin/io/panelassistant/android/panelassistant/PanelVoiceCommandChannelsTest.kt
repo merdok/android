@@ -172,6 +172,25 @@ internal class PanelVoiceCommandChannelsTest : PanelRuntimeRig() {
         } finally { locked.close() }
     }
 
+    @Test fun theBuiltInDashboardOffersBackWithNoPrivilegedRoute() {
+        val rig = rig(navigation = navigation())
+        try {
+            rig.start()
+            val shape = rig.core.nativeChannelShape()
+            assertEquals(true, "back" in shape.served)
+            assertEquals(false, "back" in shape.unsupported)
+        } finally { rig.close() }
+    }
+
+    @Test fun aMainThreadCallThatMissesItsDeadlineNeverRunsLater() {
+        val queued = mutableListOf<Runnable>()
+        val ran = AtomicInteger()
+        assertNull(BuiltinDashboard.callWithin({ queued += it }, 50) { ran.incrementAndGet() })
+        queued.single().run() // the main thread frees up after the caller gave up
+        assertEquals(0, ran.get())
+        assertEquals(1, BuiltinDashboard.callWithin({ it.run() }, 50) { ran.incrementAndGet() })
+    }
+
     @Test fun thePreviousPageIsTheNearestEarlierEntryShowingAnotherPage() {
         assertEquals(1, BuiltinDashboard.previousPageSteps(listOf("/home", "/cameras"), 1))
         // An idle return replaced the entry with the page it already showed.

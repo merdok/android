@@ -320,7 +320,9 @@ internal class PanelStateCore(
         val learned = runCatching(learnedProximityState).getOrNull()
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
-        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true, "dashboard" to true, "back" to canBack(), "recents" to true)
+        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true, "dashboard" to true,
+            // The built-in dashboard goes back to its own previous page with no privileged route.
+            "back" to (canBack() || system.isBuiltinDashboardTarget(config.dashboardPackage)), "recents" to true)
         // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
         val noKeys = buttonKeys == PanelButtonKeys.NONE
         val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }
