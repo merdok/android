@@ -2,6 +2,9 @@ package io.panelassistant.android.platform
 
 /** Optional accessibility-service boundary for global navigation, gesture injection and screen capture. */
 interface AccessibilityActions {
+    /** Whether the service is connected now, so [back] and [recents] can act. */
+    fun connected(): Boolean = false
+
     /** Perform Android's global Back action. */
     fun back(): Boolean
 

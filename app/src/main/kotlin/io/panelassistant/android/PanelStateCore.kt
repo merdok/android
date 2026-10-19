@@ -94,6 +94,8 @@ internal class PanelStateCore(
     private val hasCamera: () -> Boolean? = { false },
     // Live light-sensor answer: true described, false settled absent, null left out until it settles.
     private val lightChannel: () -> Boolean? = { true },
+    // Whether the panel can perform Android's Back now (InteractiveController.canBack); false states it unsupported.
+    private val canBack: () -> Boolean = { false },
     // Service-owned auto-sleep policy projection.
     private val autoSleepActivity: () -> AutoSleepActivitySnapshot = { AutoSleepActivitySnapshot() },
     // Inputs for the update channels: installed versions, same-policy catalog targets, install-lane
@@ -305,7 +307,7 @@ internal class PanelStateCore(
         val learned = runCatching(learnedProximityState).getOrNull()
         val keys = converger.keys().filterNot { it in PROVEN_ONLY_CHANNELS && hardwareAvailability(it, learned) == null }
         val (unsupported, served) = keys.partition { hardwareAvailability(it, learned) == false }
-        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true)
+        val actions = listOf("reload" to system.canReloadDashboard(config.dashboardPackage), "reboot" to system.canReboot(), "android_settings" to true, "launcher" to true, "dashboard" to true, "back" to canBack())
         // A panel profiled without physical keys never fires a key event, so the entity would only sit unknown.
         val noKeys = buttonKeys == PanelButtonKeys.NONE
         val events = listOf(BUTTON_EVENT_CHANNEL).filter { !noKeys && (buttonsEnabled || buttonKeys == PanelButtonKeys.PROFILED) }

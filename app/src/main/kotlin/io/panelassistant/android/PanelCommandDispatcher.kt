@@ -146,6 +146,8 @@ internal class PanelCommandDispatcher(
     // The service-owned kiosk controller. Every kiosk change and its start-up recovery runs on this
     // dispatcher's worker, whichever door it came through, so they apply in the order they were asked for.
     private val kioskApply: (Boolean) -> Boolean,
+    // Android's Back through the panel's live input route (InteractiveController.back); false when none acted.
+    private val goBack: () -> Boolean = { false },
     private val kioskRecover: (legacyMayBeActive: Boolean) -> Boolean,
     // A successfully executed remote setting is newer truth than any HTTP generation which timed out
     // ahead of it, even though their dispatcher conflation keys intentionally differ.
@@ -390,6 +392,9 @@ internal class PanelCommandDispatcher(
             // Kiosk lock keeps the panel on its dashboard, so neither leaves it while the lock is on.
             "android_settings" -> if (config.kioskLock || !system.launchAndroidSettings()) throw LiveSettingUnavailableException(channel)
             "launcher" -> if (config.kioskLock || !system.launchLauncher(config.launcherPackage)) throw LiveSettingUnavailableException(channel)
+            // Both keep the panel on its dashboard, so kiosk lock allows them.
+            "dashboard" -> system.launchHome(config.dashboardPackage)
+            "back" -> if (!goBack()) throw LiveSettingUnavailableException(channel)
             "reboot" -> {
                 system.requireRebootAllowed()
                 authorizeRemoteSensitive(
@@ -1004,7 +1009,7 @@ internal class PanelCommandDispatcher(
             "camera_enabled",
         )
         /** Channels whose commands never conflate. */
-        private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher")
+        private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher", "dashboard", "back")
 
         /** Keys accepted by [applySetting], declared once by [SettingsRegistry]. */
         internal val APPLY_SETTING_KEYS = SettingsRegistry.liveApplyKeys().toSet()

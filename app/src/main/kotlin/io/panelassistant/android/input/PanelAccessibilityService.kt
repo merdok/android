@@ -340,6 +340,7 @@ class PanelAccessibilityService : AccessibilityService() {
             })
         }
 
+        override fun connected(): Boolean = instance != null
         override fun back(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false
         override fun recents(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_RECENTS) ?: false
 

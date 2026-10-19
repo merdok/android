@@ -223,6 +223,15 @@ internal object PanelAssistantChannelCatalog {
             channel = "launcher", platform = "button", translationKey = "launcher",
             uniqueSuffix = "launcher", kind = PanelAssistantValueKind.BUTTON, enabledDefault = false,
         ),
+        // Automations bring the dashboard forward or go Back with these, so they are on by default.
+        PanelAssistantChannelDescriptor(
+            channel = "dashboard", platform = "button", translationKey = "dashboard",
+            uniqueSuffix = "dashboard", kind = PanelAssistantValueKind.BUTTON,
+        ),
+        PanelAssistantChannelDescriptor(
+            channel = "back", platform = "button", translationKey = "back",
+            uniqueSuffix = "back", kind = PanelAssistantValueKind.BUTTON,
+        ),
         PanelAssistantChannelDescriptor(
             channel = "reboot", platform = "button", translationKey = "reboot",
             uniqueSuffix = "reboot", kind = PanelAssistantValueKind.BUTTON, deviceClass = "restart",
