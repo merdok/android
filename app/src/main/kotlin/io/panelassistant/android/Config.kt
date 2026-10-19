@@ -362,6 +362,12 @@ class Config private constructor(
             editor.putString("ha_client_id", "")
             editor.putLong("ha_token_expiry", 0L)
         } else {
+            haSignInAfterOriginChange(oldAuth.url, accepted)?.let { moved ->
+                editor.putString("ha_token", moved.accessToken)
+                editor.putString("ha_refresh_token", moved.refreshToken)
+                editor.putLong("ha_token_expiry", moved.tokenExpiry)
+                editor.putString("ha_client_id", moved.clientId)
+            }
             val access = accepted["ha_token"]
             val explicitAccess = access != null && access.isNotEmpty()
             if ("ha_token_expiry" !in accepted &&

@@ -7,6 +7,7 @@ import io.panelassistant.android.autoSleep
 import io.panelassistant.android.autoSleepSource
 import io.panelassistant.android.dashboardEntityLearningEnabled
 import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.haOriginChanges
 import io.panelassistant.android.haRefreshToken
 import io.panelassistant.android.haToken
 import io.panelassistant.android.haUrl

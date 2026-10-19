@@ -183,6 +183,28 @@ internal fun Config.commitHaConnectionRecord(expected: HaConnectionRoute, value:
         }
     }
 
+/** Whether [posted] as `ha_url` moves the panel to another Home Assistant, which clears the stored credentials.
+ * A credential stored while no address was set can only belong to the first address, so setting that address
+ * keeps it: Configure sends each field as it is committed, and a token can arrive first. */
+internal fun haOriginChanges(previousUrl: String, posted: String?): Boolean =
+    posted != null && previousUrl.isNotBlank() && posted.trimEnd('/') != previousUrl.trimEnd('/')
+
+/** The sign-in left after [incoming] moves the panel from [previousUrl] to another Home Assistant: each
+ * credential [incoming] carries, and a blank for every one it does not, so the previous account's tokens never
+ * reach the new address. Null when the origin does not change. The one rule for the Configure door and for
+ * every import and restore. */
+internal fun haSignInAfterOriginChange(previousUrl: String, incoming: Map<String, String>): HaAuthSnapshot? {
+    val url = incoming["ha_url"]
+    if (url == null || !haOriginChanges(previousUrl, url)) return null
+    return HaAuthSnapshot(
+        url = url,
+        accessToken = incoming["ha_token"].orEmpty(),
+        refreshToken = incoming["ha_refresh_token"].orEmpty(),
+        tokenExpiry = incoming["ha_token_expiry"]?.toLongOrNull() ?: 0L,
+        clientId = incoming["ha_client_id"].orEmpty(),
+    )
+}
+
 internal fun Config.forgetHaRoutes(editor: SharedPreferences.Editor) {
     editor.remove(HaConnectionRoutes.RECORD_KEY)
     // A new binding reopens the REST routes until its Panel Assistant grants both UI families (section 20.8).
