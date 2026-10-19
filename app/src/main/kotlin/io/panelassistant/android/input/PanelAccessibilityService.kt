@@ -21,6 +21,7 @@ import io.panelassistant.android.PaneldService
 import io.panelassistant.android.R
 import io.panelassistant.android.setupEverCompleted
 import io.panelassistant.android.platform.AccessibilityActions
+import io.panelassistant.android.platform.dreamInFront
 import io.panelassistant.android.platform.accessibilityScreenshotGranted
 import io.panelassistant.android.platform.AndroidSystemEnv
 import io.panelassistant.android.util.ConfirmedSelfInstaller
@@ -155,8 +156,7 @@ class PanelAccessibilityService : AccessibilityService() {
         },
         log = { Log.i(TAG, it) },
     ) }
-    // Written on main by events; read from control threads by [dreamShowing].
-    @Volatile private var lastWindowState: WindowState? = null
+    private var lastWindowState: WindowState? = null
     private data class WindowState(val packageName: String?, val className: String?, val id: Int)
 
     override fun onDestroy() {
@@ -345,16 +345,17 @@ class PanelAccessibilityService : AccessibilityService() {
         override fun back(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false
         override fun recents(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_RECENTS) ?: false
 
-        /** The last window Android reported is a dream's activity, and the active window still belongs
-         *  to that dream's package, so a dream that has since ended does not read as showing. */
+        /** See [dreamInFront]. Both settings keys are readable by apps (`@Readable` in AOSP). */
         override fun dreamShowing(): Boolean = runCatching {
             val service = instance ?: return false
-            val window = service.lastWindowState ?: return false
-            window.className == DREAM_ACTIVITY && window.packageName != null &&
-                service.rootInActiveWindow?.packageName?.toString() == window.packageName
+            val active = service.rootInActiveWindow?.packageName?.toString()
+            if (active == null || active == service.packageName) return false
+            val screensavers = listOf("screensaver_components", "screensaver_default_component")
+                .map { Settings.Secure.getString(service.contentResolver, it) }
+            dreamInFront(active, screensavers, service.packageName).also {
+                Log.i(TAG, "front window $active, screensavers $screensavers -> screensaver=$it")
+            }
         }.getOrDefault(false)
-
-        private const val DREAM_ACTIVITY = "android.service.dreams.DreamActivity"
 
 
         /**

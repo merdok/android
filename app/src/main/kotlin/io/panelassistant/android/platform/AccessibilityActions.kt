@@ -26,11 +26,24 @@ interface AccessibilityActions {
 }
 
 /**
+ * Whether a screensaver is in front: the active window belongs to a package that provides one of the
+ * configured screensavers ([screensavers] holds the raw `screensaver_components` and
+ * `screensaver_default_component` values, comma-separated flattened component names). A window
+ * event's class cannot tell: on Android 11 a dream's names its root view, `android.widget.FrameLayout`.
+ */
+internal fun dreamInFront(activePackage: String?, screensavers: List<String?>, ownPackage: String): Boolean {
+    if (activePackage == null || activePackage == ownPackage) return false
+    return screensavers.filterNotNull().flatMap { it.split(',') }
+        .map { it.trim().substringBefore('/') }
+        .any { it == activePackage }
+}
+
+/**
  * End a screensaver in front before something is brought forward: on Android 11 and later a dream
  * runs as an activity that stays above every activity start, even one from root, so the dashboard
  * would start behind it and never be seen (ha-integration #15). Android's DreamService finishes on
- * Back whether or not the dream is interactive. Back is sent only on a positive dream reading,
- * because the callers include polling loops and a Back on the dashboard would navigate it.
+ * Back whether or not the dream is interactive. Back is sent only on a positive reading
+ * ([dreamInFront]), because a Back on the dashboard would navigate it.
  */
 fun AccessibilityActions.endDream(log: (String) -> Unit): Boolean {
     if (!dreamShowing()) return false
