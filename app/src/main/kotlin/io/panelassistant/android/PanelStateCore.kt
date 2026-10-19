@@ -210,7 +210,7 @@ internal class PanelStateCore(
                 LedCommandPolicy.stored(config.lastLed, config.lastLedEffect),
                 ledActuationKnown,
                 ledEffect.status(),
-            )?.let(known) ?: unknown
+            )?.let(known) ?: Observation.Unavailable
         }
         channel("navigate") { known(config.lastNavigate.ifEmpty { "/" }) }
         channel("home_dashboard") { known(config.homeDashboard) }
@@ -450,7 +450,7 @@ internal class PanelStateCore(
      * Drive the LED to [desired] and report it. Observation authority is cleared before [desired] runs, so
      * a value it persists is never reported as confirmed until this write succeeded.
      */
-    fun actuateLed(desired: () -> LedCommandPolicy.Desired) {
+    fun actuateLed(desired: () -> LedCommandPolicy.Desired): Boolean {
         ledActuationKnown = false
         val target = desired()
         ledActuationKnown = if (target.on && target.effect != null) {
@@ -467,6 +467,7 @@ internal class PanelStateCore(
             ledEffect.setOff()
         }
         reconcile("led")
+        return ledActuationKnown
     }
 
     /**

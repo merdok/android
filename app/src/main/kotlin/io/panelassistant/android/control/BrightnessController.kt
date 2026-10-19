@@ -144,11 +144,13 @@ class BrightnessController internal constructor(
      * blank + touch-dead. A deliberate screen-off is a separate operation via [ScreenController], which
      * uses [setBrightnessRaw] for its last-resort dim-to-0.
      */
-    override fun setBrightness(level: Int) = writeSequencer.write(level.coerceIn(MIN_VISIBLE, 255))
+    override fun setBrightness(level: Int) { trySetBrightness(level) }
+
+    internal fun trySetBrightness(level: Int): Boolean = writeSequencer.write(level.coerceIn(MIN_VISIBLE, 255))
 
     /** Apply a raw level with NO minimum floor (0 allowed). For [ScreenController]'s screen-off fallback
      *  only — every other caller must use [setBrightness] to preserve the never-blank guarantee. */
-    override fun setBrightnessRaw(level: Int) = writeSequencer.write(level.coerceIn(0, 255))
+    override fun setBrightnessRaw(level: Int) { writeSequencer.write(level.coerceIn(0, 255)) }
 
     private fun applyBrightnessUnserialized(level: Int): Boolean {
         val v = scale.settingFor(level)
@@ -309,8 +311,8 @@ internal class BrightnessWriteSequencer(
     private val successfulWrites: BacklightWriteTracker,
     private val elapsedRealtimeMs: ElapsedRealtimeSource,
 ) {
-    @Synchronized fun write(level: Int) {
-        if (actuator.apply(level)) successfulWrites.record(elapsedRealtimeMs.read())
+    @Synchronized fun write(level: Int): Boolean = actuator.apply(level).also { accepted ->
+        if (accepted) successfulWrites.record(elapsedRealtimeMs.read())
     }
 
     /** Primitive seams keep repeated low-end-device writes allocation-free. */

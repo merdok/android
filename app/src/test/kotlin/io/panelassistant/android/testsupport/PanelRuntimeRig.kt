@@ -206,6 +206,7 @@ internal abstract class PanelRuntimeRig {
         commitsSucceed: () -> Boolean = { true },
         /** The SCREEN_OFF_TIMEOUT setting prevent_idle_dim writes; null keeps Android's, which is an inert stub here. */
         screenOffTimeout: io.panelassistant.android.control.ScreenTimeoutController? = null,
+        brightnessSetting: io.panelassistant.android.control.BrightnessSetting? = null,
         /** Boot-chime hardware; null keeps the inert controller. When given, the controller persists its
          *  setting in this rig's Config, as production does. */
         bootChimeHardware: BootChimeHardware? = null,
@@ -264,11 +265,13 @@ internal abstract class PanelRuntimeRig {
             fakeProfile(relayBase = RELAY_BASE, buttonLedGpioBase = LED_GPIO_BASE),
             sysfs,
         )
-        val brightness = screenOffTimeout?.let { BrightnessController(context, FakeRootShell(), FakeDaemon(), screenTimeout = it) }
+        val brightness = if (brightnessSetting != null) {
+            BrightnessController(context, FakeRootShell(), FakeDaemon(), setting = brightnessSetting)
+        } else screenOffTimeout?.let { BrightnessController(context, FakeRootShell(), FakeDaemon(), screenTimeout = it) }
             ?: BrightnessController(context, FakeRootShell(), FakeDaemon())
         val screen = ScreenController(
-            FakeBacklight(160), FakeScreenPower(), FakeRootShell(), FakeDaemon(), FakeWakeTap(),
-            ScreenOff.BRIGHTNESS_ZERO, nap = {},
+            if (brightnessSetting != null) brightness else FakeBacklight(160), FakeScreenPower(), FakeRootShell(), FakeDaemon(), FakeWakeTap(),
+            ScreenOff.BRIGHTNESS_ZERO, nap = {}, accessibility = io.panelassistant.android.control.FakeDreamAccessibility(false),
         )
         val companion = "io.homeassistant.companion.android.minimal"
         val system = SystemController(
@@ -401,8 +404,10 @@ internal abstract class PanelRuntimeRig {
             hasMicrophone = true,
             media = media,
             hasCamera = cameraAvailability,
-            // Never reached: no screen brightness or auto-brightness command is sent.
-            autoBright = allocate(AutoBrightnessController::class.java),
+            // Automatic brightness is disabled; the real command's preference capture reads that Config.
+            autoBright = allocate(AutoBrightnessController::class.java).also { controller ->
+                AutoBrightnessController::class.java.getDeclaredField("config").apply { isAccessible = true }.set(controller, config)
+            },
             kioskApply = kioskApply,
             goBack = navigation::back,
             kioskRecover = kioskRecover,

@@ -64,7 +64,8 @@ internal class UiFrames(
     )
 
     /** Handle one request object; [request] is null when the frame was not one. [blobs] carry its bodies. */
-    fun handle(request: JSONObject?, blobs: ManageBlobs?) {
+    @Synchronized fun handle(request: JSONObject?, blobs: ManageBlobs?) {
+        if (!open.get()) return
         val commandId = request?.optString("command_id").orEmpty()
         if (request == null || commandId.isEmpty()) {
             return answer(commandId, PanelAssistantTransportProtocol.OUTCOME_REFUSED, PanelAssistantTransportProtocol.CODE_INVALID_FORMAT)
@@ -89,7 +90,7 @@ internal class UiFrames(
     }
 
     /** End the connection: its commands still waiting fail, and every subscription it holds ends. */
-    fun close() {
+    @Synchronized fun close() {
         open.set(false)
         dispatcher.closeOrigin(origin)
     }

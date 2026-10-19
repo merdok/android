@@ -521,6 +521,10 @@
         if (openLink) openLink.removeAttribute("href");
       }
       if (status === "success") {
+        cfg.homeDashboardRequest++;
+        cfg.homeDashboardItems = [];
+        cfg.homeDashboardDefault = { explicit: false, path: "" };
+        cfg.homeDashboardQueried = false;
         cfg.haAuth = { configured: true, oauth: true };
         if (cfg.haOauthTargetUrl) cfg.values.ha_url = cfg.haOauthTargetUrl;
         // Browser sign-in supersedes any manually typed token still present in this form.
@@ -536,6 +540,7 @@
         cfg.scheduleAutoSleepPrerequisite();
         if (cfg.values.auto_sleep === "true") setTimeout(cfg.loadAutoSleepData, 0);
         loadHaUserStatus();
+        loadHomeDashboards();
         document.getElementById("cfg-msg").textContent = cfg.i18nText("configure.oauth.configured", "Home Assistant configured.");
       } else {
         cfg.haOauthTargetUrl = "";

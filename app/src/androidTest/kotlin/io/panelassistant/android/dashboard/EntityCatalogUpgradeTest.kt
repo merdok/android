@@ -210,15 +210,16 @@ class EntityCatalogUpgradeTest {
         EntityCatalogStore(context).use { store ->
             val db = store.writableDatabase
             assertEquals(EntityCatalogSchema.CURRENT_VERSION, db.version)
-            val history = store.dashboardPerformanceHistory("home", "lovelace", 0)
-            assertEquals(1, history.size)
-            val minute = history.single()
-            assertEquals(1000L, minute.minute)
-            assertTrue(minute.filterActive)
-            assertEquals(42, minute.entityCount)
-            assertEquals(7L, minute.totals.frames)
-            assertEquals(900L, minute.totals.loafMaxMicros)
-            assertEquals("the slowest interaction keeps its breakdown", 60L, minute.totals.inputDelayMicros)
+            val payload = db.rawQuery("SELECT payload FROM dashboard_metric_minute WHERE instance='home' AND path='lovelace' AND minute=1000", null).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                requireNotNull(io.panelassistant.android.metrics.MetricPayload.decode(cursor.getBlob(0)))
+            }
+            val metrics = io.panelassistant.android.metrics.DashboardMetrics
+            assertEquals(1L, payload[metrics.FILTER_ACTIVE])
+            assertEquals(42L, payload[metrics.ENTITY_COUNT])
+            assertEquals(7L, payload[metrics.FRAMES])
+            assertEquals(900L, payload[metrics.LOAF_MAX_MICROS])
+            assertEquals("the slowest interaction keeps its breakdown", 60L, payload[metrics.INPUT_DELAY_MICROS])
             assertFalse("v14 retires the migrated table", tableExists(db, "dashboard_performance"))
         }
     }

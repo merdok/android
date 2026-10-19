@@ -84,6 +84,7 @@ internal class ConfigValueProjection(
         "{\"settings\":${settingsValuesJson(configLiveValues())}," +
             "\"ha_expose\":${haExposeJson()}," +
             "\"ha_auth\":${haAuthJson()}," +
+            "\"ha_area_user_override\":${config.haAreaUserOverride}," +
             applyStateJson() + "," +
             "\"renderer_pending\":${rendererPending?.let { jarr(it.sorted()) } ?: "null"}" +
             "}"

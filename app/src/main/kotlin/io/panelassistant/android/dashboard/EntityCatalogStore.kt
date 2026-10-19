@@ -25,7 +25,6 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
     internal val appContext: Context = context.applicationContext ?: context
     internal val databaseTarget: File = context.getDatabasePath(DATABASE_NAME)
     internal val maintenanceGate = MaintenanceIntervalGate(MAINTENANCE_INTERVAL_MS)
-    internal val performanceMaintenanceGate = MaintenanceIntervalGate(PERFORMANCE_MAINTENANCE_INTERVAL_MS)
     internal val busyRetry = DatabaseBusyRetry()
 
     /** Closing races a retry backoff; the flag lets an in-flight run give up instead of sleeping on. */
@@ -1119,7 +1118,6 @@ class EntityCatalogStore(context: Context) : SQLiteOpenHelper(context, DATABASE_
         private const val MAINTENANCE_INTERVAL_MS = 10L * 60_000
         private const val MAX_SQL_ID_FILTER = 800
         internal const val PERFORMANCE_RETENTION_DAYS = 7
-        private const val PERFORMANCE_MAINTENANCE_INTERVAL_MS = HOUR_MS
         /**
          * Deletes the dashboard_entity rows an entity purge is about to strand. `dashboard_entity` is logically a child
          * of `entity` but declares no foreign key, so nothing cascades, and unlike `dashboard_entity_traffic_minute` it has no

@@ -144,6 +144,45 @@ class ConfigImportCapabilitiesTest {
         }
     }
 
+    @Test fun savedRevisionSkipsLostKioskCapabilityAndReportsDurableState() = withRealConfigFixture { config, fixture ->
+        val observations = readField(fixture.server, "managementObservations") as ManagementObservations
+        val initial = requireNotNull(observations.snapCache.peek())
+        fun resetCapabilities(caps: Capabilities) {
+            observations.snapCache.set(initial)
+            capabilities(fixture, caps)
+        }
+        resetCapabilities(Capabilities(appCanSu = true, networkAdb = true, canControlBootChime = true))
+        var canEnable = true
+        val kiosk = kioskSetting(canEnable = { canEnable }, actuate = { true }, persist = config::commitKioskLock)
+        field(fixture.server, "applySetting", { key: String, value: String ->
+            if (key == "kiosk_lock") {
+                if (kiosk(value == "true")) LiveSettingRequestOutcome.APPLIED else LiveSettingRequestOutcome.REJECTED
+            } else LiveSettingRequestOutcome.APPLIED
+        })
+        testApplication {
+            application { fixture.mount(this) }
+            suspend fun save(values: Map<String, String>) = client.post("/api/v1/config/import") {
+                setBody(ConfigBundle.fromValues(values).serialize())
+            }
+            assertEquals(HttpStatusCode.OK, save(mapOf("friendly_name" to "Historical", "kiosk_lock" to "true")).status)
+            assertTrue(config.kioskLock)
+            resetCapabilities(Capabilities(appCanSu = true, networkAdb = true, canControlBootChime = true))
+            assertEquals(HttpStatusCode.OK, save(mapOf("friendly_name" to "Current", "kiosk_lock" to "false")).status)
+            val revisions = readField(fixture.server, "revisions") as RevisionStore
+            val historical = revisions.list().first { it.second.values["friendly_name"] == "Historical" }
+            assertEquals("true", revisions.get(historical.first)?.values?.get("kiosk_lock"))
+            canEnable = false
+            resetCapabilities(Capabilities())
+            val response = client.post("/api/v1/config/revisions/${historical.first}/restore")
+            assertEquals(HttpStatusCode.OK, response.status)
+            val receipt = JSONObject(response.bodyAsText())
+            assertEquals("partial", receipt.getString("status"))
+            assertTrue(strings(receipt, "skipped").contains("kiosk_lock"))
+            assertEquals("Historical", config.friendlyName)
+            assertFalse(config.kioskLock)
+        }
+    }
+
     private fun capabilities(fixture: PaneldServerHttpFixture, caps: Capabilities) {
         val observations = readField(fixture.server, "managementObservations") as ManagementObservations
         val previous = requireNotNull(observations.snapCache.peek())
