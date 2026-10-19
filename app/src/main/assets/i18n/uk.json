@@ -4899,7 +4899,7 @@
    "state": "machine-cross-checked"
   },
   "entities.issues.rescan": {
-   "text": "Пересканувати після редагування панелі",
+   "text": "Пересканувати після редагування інформаційної панелі",
    "sourceHash": "a6373efa0c0388c76fbfaff8c85718c444fd22dd8cc9667c3cd02aabc7f84786",
    "state": "machine-cross-checked"
   },
@@ -5414,7 +5414,7 @@
    "state": "machine-cross-checked"
   },
   "entities.table.suggested.title": {
-   "text": "Рекомендовані сутності",
+   "text": "Рекомендовані сутності інформаційної панелі",
    "sourceHash": "116d030af30a47c77e4b40b6783fbab3837e71cf38b5c7b3d5408ac7f9cd3831",
    "state": "machine-cross-checked"
   },

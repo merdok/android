@@ -722,6 +722,10 @@ body.hdr-hide-logo .hdr .logo,body.hdr-hide-logo .hdr .sep{display:none}
 @media (max-width:479px){.card h2{font-size:.8rem;letter-spacing:0}.card h2 small{display:block}
   /* Long translated action labels keep one line: tighter side padding, never wider than the card. */
   .pbtn{font-size:.75rem;padding-left:8px;padding-right:8px;max-width:100%;box-sizing:border-box}.entity-issue{padding-left:7px;padding-right:7px}
+  /* Sentence case keeps the full Entities headings readable without shrinking their type. The long
+     rescan action uses the card's spare side padding, with the table headers' compact type size. */
+  .entity-cards h2{text-transform:none;padding-left:12px;padding-right:12px}
+  #entity-issues-rescan{font-size:.72rem;padding-left:2px;padding-right:2px;margin-left:-8px;margin-right:-8px;max-width:calc(100% + 16px)}
   #noisyentities th{white-space:nowrap}.log-source{flex-wrap:wrap;min-width:0;max-width:100%}
   /* The entity table's sortable headers are single words that cannot wrap: smaller header type lets the
      Override column fit its longest translation while the entity column keeps its own header whole. */
