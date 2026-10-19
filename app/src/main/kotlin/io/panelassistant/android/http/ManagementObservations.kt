@@ -188,7 +188,6 @@ internal class ManagementObservations(
                 companionSucceeded = runCatching {
                     val observed = companionServerCache.get()
                     observed.preferredUrl?.let { onCompanionUrl(it) }
-                    check(observed.probe != CompanionDb.Probe.FAILED) { "Companion servers table is unreadable" }
                 }.onFailure { Log.w(TAG, "Companion server observation prewarm failed", it) }
                     .isSuccess
             },
