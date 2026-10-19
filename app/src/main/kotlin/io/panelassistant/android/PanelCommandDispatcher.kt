@@ -863,6 +863,7 @@ internal class PanelCommandDispatcher(
         } else {
             val companion = system.resolveDashboard(config.dashboardPackage)
                 .takeIf { RendererResolver.companionHomeRoute(it, config.homeDashboard) != null }
+            system.endDream()
             if (companion != null) navigate.navigate("homeassistant://navigate$path", companion)
             else navigate.navigate("homeassistant://navigate$path")
             config.lastNavigate = path

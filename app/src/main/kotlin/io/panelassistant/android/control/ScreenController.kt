@@ -2,6 +2,8 @@ package io.panelassistant.android.control
 
 import android.util.Log
 import io.panelassistant.android.device.ScreenOff
+import io.panelassistant.android.input.PanelAccessibilityService
+import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.Daemon
 import io.panelassistant.android.platform.NoWakeTap
 import io.panelassistant.android.platform.RootShell
@@ -9,6 +11,7 @@ import io.panelassistant.android.platform.NoVendorScreen
 import io.panelassistant.android.platform.ScreenPower
 import io.panelassistant.android.platform.VendorScreen
 import io.panelassistant.android.platform.WakeTap
+import io.panelassistant.android.platform.endDream
 import io.panelassistant.android.util.HelperClient
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -136,6 +139,8 @@ class ScreenController(
      *  is using the panel, which cancels the off rather than failing it. */
     private val touchCount: () -> Long = { BuiltinDashboard.touchCount },
     private val vendor: VendorScreen = NoVendorScreen,
+    /** A screensaver keeps the panel interactive and lit, so an ON would otherwise leave it in front. */
+    private val accessibility: AccessibilityActions = PanelAccessibilityService,
 ) {
     init {
         // A process that died while the screen-timeout route had the panel asleep left its short
@@ -619,6 +624,7 @@ class ScreenController(
      */
     @Synchronized
     fun ensureOn(): WakeOutcome {
+        accessibility.endDream { Log.i(TAG, it) }
         if (!intendedOff && power.isInteractive() && observedLit() == true) return WakeOutcome.ALREADY_ON
         return runCatching {
             wake()

@@ -1285,6 +1285,19 @@ class ScreenControllerTest {
         assertFalse(sc.isIntendedOff())
     }
 
+    @Test fun bareOnEndsAScreensaverInFrontOfALitPanelAndTouchesNothingElse() {
+        val accessibility = FakeDreamAccessibility(dreaming = true)
+        val sc = ScreenController(backlight, power, FakeRootShell(runResult = false), FakeDaemon(), wakeTap,
+            ScreenOff.BRIGHTNESS_ZERO, accessibility = accessibility)
+        backlight.level = 200
+        assertEquals(WakeOutcome.ALREADY_ON, sc.ensureOn())
+        assertEquals(listOf("back"), accessibility.events)
+        assertEquals("no brightness write", emptyList<String>(), backlight.calls)
+        assertEquals(0, power.pulses)
+        assertEquals("no Back once the screensaver is gone", WakeOutcome.ALREADY_ON, sc.ensureOn())
+        assertEquals(listOf("back"), accessibility.events)
+    }
+
     @Test fun plainWakeStillRestoresTheStaleLevelWhichIsWhyTheGuardExists() {
         val sc = brightnessZero()
         cycleOffOnLeavingStaleSavedLevel(sc, staleLevel = 5)

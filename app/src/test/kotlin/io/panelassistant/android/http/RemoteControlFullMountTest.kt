@@ -4,7 +4,9 @@ import io.panelassistant.android.Config
 import io.panelassistant.android.security.LocalApprovalBroker
 import io.panelassistant.android.control.InteractiveController
 import io.panelassistant.android.control.SystemController
+import io.panelassistant.android.control.BuiltinDashboard
 import io.panelassistant.android.control.FakeDaemon
+import io.panelassistant.android.control.FakeDreamAccessibility
 import io.panelassistant.android.control.FakeRootShell
 import io.panelassistant.android.control.FakeScreenPower
 import io.panelassistant.android.control.FakeSystemEnv
@@ -28,6 +30,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class RemoteControlFullMountTest {
+    private companion object { const val OWN = "io.github.maxlyth.hapaneld" }
     private var stopping = true
 
     @Test fun `credentialed reboot returns a reason before approval or privileged execution`() {
@@ -143,6 +146,48 @@ class RemoteControlFullMountTest {
                 assertEquals("control queue busy\n", busy.bodyAsText())
             }
         }
+    }
+
+    @Test fun `dashboard and reload actions end a running screensaver before starting the dashboard`() {
+        for (action in listOf("dashboard", "reload")) {
+            val events = dreamPanelAction(action, dreaming = true)
+            assertEquals(listOf("back", "am start -n $OWN/io.panelassistant.android.DashboardActivity"), events, action)
+        }
+    }
+
+    @Test fun `dashboard action without a screensaver sends no Back`() {
+        assertEquals(listOf("am start -n $OWN/io.panelassistant.android.DashboardActivity"),
+            dreamPanelAction("dashboard", dreaming = false))
+    }
+
+    /** POST [action] through the production mount on a panel with a dream in front or not, and return
+     *  the Back presses and root commands in the order they happened. */
+    private fun dreamPanelAction(action: String, dreaming: Boolean): List<String> {
+        BuiltinDashboard.clearRendererLatch()
+        val accessibility = FakeDreamAccessibility(dreaming)
+        val events = accessibility.events
+        PaneldServerHttpFixture().use { fixture ->
+            val owner = RemoteControlRoutes(
+                fixture.config, InteractiveController(canSu = false, accessibility = accessibility),
+                SystemController(FakeSystemEnv(), FakeRootShell(onRun = { events += it }), FakeDaemon(),
+                    accessibility = accessibility),
+                stepVolume = {}, stopping = { false }, cacheScreenshot = { null },
+            )
+            field(fixture.server, "remoteControlRoutes", owner)
+            try {
+                testApplication {
+                    application { fixture.mount(this) }
+                    val response = client.submitForm("/api/v1/action", Parameters.build { append("a", action) })
+                    assertEquals(HttpStatusCode.Accepted, response.status)
+                }
+                val deadline = System.currentTimeMillis() + 5_000
+                while (events.none { it.startsWith("am start") } && System.currentTimeMillis() < deadline) Thread.sleep(10)
+            } finally {
+                owner.closeAndJoin(1_000)
+                BuiltinDashboard.consumeSupersededReload()
+            }
+        }
+        return events.toList()
     }
 
     private fun closedControls(fixture: PaneldServerHttpFixture) {

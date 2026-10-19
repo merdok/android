@@ -6,6 +6,7 @@ import io.panelassistant.android.device.LedMechanism
 import io.panelassistant.android.device.ScreenOff
 import io.panelassistant.android.device.SuForm
 import io.panelassistant.android.metrics.MetricSource
+import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.Daemon
 import io.panelassistant.android.platform.DaemonLongResult
@@ -337,4 +338,19 @@ class FakeAppSizing(
         if (granted) font = scale
         return granted
     }
+}
+
+/**
+ * Fake accessibility service on a panel whose screensaver (a dream) may be in front. Back ends the
+ * dream, as Android's DreamService does; each Back is recorded in [events], which a test can share
+ * with a [FakeRootShell] `onRun` to check that Back came before an activity start.
+ */
+class FakeDreamAccessibility(
+    @Volatile var dreaming: Boolean,
+    val events: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf()),
+) : AccessibilityActions {
+    override fun dreamShowing() = dreaming
+    override fun back(): Boolean { events += "back"; dreaming = false; return true }
+    override fun recents() = false
+    override fun tap(x: Int, y: Int) = false
 }

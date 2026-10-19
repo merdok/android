@@ -5,11 +5,14 @@ import android.os.SystemClock
 import android.util.Log
 import io.panelassistant.android.AppIdentity
 import io.panelassistant.android.RendererResolver
+import io.panelassistant.android.input.PanelAccessibilityService
+import io.panelassistant.android.platform.AccessibilityActions
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.Daemon
 import io.panelassistant.android.platform.DaemonLongResult
 import io.panelassistant.android.platform.RootShell
 import io.panelassistant.android.platform.SystemEnv
+import io.panelassistant.android.platform.endDream
 import io.panelassistant.android.util.AndroidInput
 import io.panelassistant.android.util.Cached
 import io.panelassistant.android.util.HelperClient
@@ -55,6 +58,8 @@ class SystemController(
     private val isDeviceSecure: () -> Boolean = { true },
     private val sdkInt: Int = Build.VERSION.SDK_INT,
     private val rebootWindowMs: Long = REBOOT_SU_WINDOW_MS,
+    // Reads and ends a screensaver in front, which hides any dashboard start (ha-integration #15).
+    private val accessibility: AccessibilityActions = PanelAccessibilityService,
 ) {
 
     // Native descriptor checks run on every live transport wake. Reuse one bounded observation of the
@@ -170,6 +175,7 @@ class SystemController(
             Log.i(TAG, "dashboard reload suppressed while Companion data operation owns $pkg")
             return false
         }
+        endDream()
         // Built-in renderer: an explicit reload clears any crash latch (deliberate retry consent), flags
         // the relaunch as reload-intent, and reaches onNewIntent → fresh page load.
         if (isBuiltin(pkg)) {
@@ -432,11 +438,15 @@ class SystemController(
             Log.i(TAG, "home launch suppressed while Companion data operation owns $pkg")
             return
         }
+        endDream()
         if (isBuiltin(pkg)) { startBuiltin(); return }
         val comp = if (pkg.isNotBlank()) env.launchComponent(pkg) else env.defaultHome()?.component
         if (comp == null) { Log.w(TAG, "home: no target resolved"); return }
         if (launchComponent(comp, "home")) returnToCompanionHome(pkg)
     }
+
+    /** End a screensaver in front, so what is brought forward next is seen. */
+    fun endDream(): Boolean = accessibility.endDream { Log.i(TAG, it) }
 
     private fun returnToCompanionHome(pkg: String) {
         RendererResolver.companionHomeRoute(pkg, homeDashboard())?.let { onCompanionHome(pkg, it) }

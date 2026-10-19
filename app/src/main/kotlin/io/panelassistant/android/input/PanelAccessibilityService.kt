@@ -155,7 +155,8 @@ class PanelAccessibilityService : AccessibilityService() {
         },
         log = { Log.i(TAG, it) },
     ) }
-    private var lastWindowState: WindowState? = null
+    // Written on main by events; read from control threads by [dreamShowing].
+    @Volatile private var lastWindowState: WindowState? = null
     private data class WindowState(val packageName: String?, val className: String?, val id: Int)
 
     override fun onDestroy() {
@@ -343,6 +344,17 @@ class PanelAccessibilityService : AccessibilityService() {
         override fun connected(): Boolean = instance != null
         override fun back(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_BACK) ?: false
         override fun recents(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_RECENTS) ?: false
+
+        /** The last window Android reported is a dream's activity, and the active window still belongs
+         *  to that dream's package, so a dream that has since ended does not read as showing. */
+        override fun dreamShowing(): Boolean = runCatching {
+            val service = instance ?: return false
+            val window = service.lastWindowState ?: return false
+            window.className == DREAM_ACTIVITY && window.packageName != null &&
+                service.rootInActiveWindow?.packageName?.toString() == window.packageName
+        }.getOrDefault(false)
+
+        private const val DREAM_ACTIVITY = "android.service.dreams.DreamActivity"
 
 
         /**
