@@ -389,6 +389,7 @@ internal class PanelCommandDispatcher(
                     PRESS_BINDING,
                     "Reload the dashboard renderer from Home Assistant",
                 )
+                system.endDream()
                 if (!system.reloadDashboard(config.dashboardPackage)) throw LiveSettingUnavailableException("reload")
             }
             // Kiosk lock keeps the panel on its dashboard, so neither leaves it while the lock is on.
@@ -396,7 +397,7 @@ internal class PanelCommandDispatcher(
             "launcher" -> if (config.kioskLock || !system.launchLauncher(config.launcherPackage)) throw LiveSettingUnavailableException(channel)
             "recents" -> if (config.kioskLock || !goRecents()) throw LiveSettingUnavailableException(channel)
             // Both keep the panel on its dashboard, so kiosk lock allows them.
-            "dashboard" -> system.launchHome(config.dashboardPackage)
+            "dashboard" -> { system.endDream(); system.launchHome(config.dashboardPackage) }
             // The dashboard swallows Android's Back, so in front it goes to its own previous page or says it has none.
             "back" -> if (!((if (BuiltinDashboard.foreground) BuiltinDashboard.back() else null) ?: goBack())) throw LiveSettingUnavailableException(channel)
             "reboot" -> {
@@ -847,6 +848,7 @@ internal class PanelCommandDispatcher(
         // Companion opens a disorienting in-app WebView for those). We keep just the path.
         val path = toLocalPath(target)
         if (path.isEmpty()) return
+        system.endDream()
         if (config.dashboardPackage.isBlank() || config.dashboardPackage == SystemController.BUILTIN_DASHBOARD) {
             // Built-in renderer: set the target path and (re)launch DashboardActivity, which loads it —
             // the deep link targets the Companion and would no-op on a builtin-only panel. A repeated path
@@ -863,7 +865,6 @@ internal class PanelCommandDispatcher(
         } else {
             val companion = system.resolveDashboard(config.dashboardPackage)
                 .takeIf { RendererResolver.companionHomeRoute(it, config.homeDashboard) != null }
-            system.endDream()
             if (companion != null) navigate.navigate("homeassistant://navigate$path", companion)
             else navigate.navigate("homeassistant://navigate$path")
             config.lastNavigate = path

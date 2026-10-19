@@ -574,9 +574,9 @@ class NavbarController(
     private fun addNavGroup(row: LinearLayout, autoHide: Boolean) {
         row.addView(navButton(R.drawable.ic_nav_back, R.string.nav_back, autoHide) { NavActions.back(appCanSu) })
         row.addView(navButton(R.drawable.ic_nav_launcher, R.string.nav_launcher, autoHide) { system.launchLauncher(launcherPkg()) })
-        row.addView(navButton(R.drawable.ic_nav_dashboard, R.string.nav_dashboard, autoHide) { system.launchHome(dashboardPkg()) })
+        row.addView(navButton(R.drawable.ic_nav_dashboard, R.string.nav_dashboard, autoHide) { system.endDream(); system.launchHome(dashboardPkg()) })
         if (hasRecents) row.addView(navButton(R.drawable.ic_nav_recents, R.string.nav_recents, autoHide) { NavActions.recents(appCanSu) })
-        row.addView(navButton(R.drawable.ic_nav_reload, R.string.nav_reload, autoHide) { system.reloadDashboard(dashboardPkg()) })
+        row.addView(navButton(R.drawable.ic_nav_reload, R.string.nav_reload, autoHide) { system.endDream(); system.reloadDashboard(dashboardPkg()) })
     }
 
     /** Narrow-panel control button: a single weight-1.0 icon that toggles a vertical pop-up slider for

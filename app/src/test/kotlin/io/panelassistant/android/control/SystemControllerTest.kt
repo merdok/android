@@ -889,6 +889,19 @@ class SystemControllerTest {
         assertTrue(root.ran.contains("am start -n $MIN/.Main"))
     }
 
+    /** Kiosk lock, the watchdog, entity learning, settings and startup all bring the dashboard back through
+     *  these two; only an explicit request ends a screensaver, which may be the panel's photo frame. */
+    @Test fun automaticLaunchAndReloadLeaveARunningScreensaver() {
+        val screensaver = FakeDreamAccessibility(dreaming = true)
+        val root = FakeRootShell()
+        val c = SystemController(FakeSystemEnv(), root, FakeDaemon(), accessibility = screensaver)
+        c.launchHome(SystemController.BUILTIN_DASHBOARD)
+        c.reloadDashboard(SystemController.BUILTIN_DASHBOARD)
+        BuiltinDashboard.consumeSupersededReload()
+        assertEquals("no Back", emptyList<String>(), screensaver.events)
+        assertEquals("both still start the dashboard", 2, root.ran.count { it.endsWith(".DashboardActivity") })
+    }
+
     @Test fun companionLaunchAndReloadReturnToThisPanelsHome() {
         val events = mutableListOf<String>()
         val home = "/lovelace/this-panel"

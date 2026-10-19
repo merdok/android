@@ -1,6 +1,7 @@
 package io.panelassistant.android.panelassistant
 
 import io.panelassistant.android.AppIdentity
+import io.panelassistant.android.control.FakeDreamAccessibility
 import io.panelassistant.android.control.FakeRootShell
 import io.panelassistant.android.control.FakeSystemEnv
 import io.panelassistant.android.control.InteractiveController
@@ -38,6 +39,21 @@ internal class PanelNavigationButtonsTest : PanelRuntimeRig() {
             rig.start()
             assertTrue("dashboard" in rig.core.nativeChannelShape().served)
             assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard", "PRESS"))
+            assertEquals(listOf(AppIdentity.component(env.ownPackage, ".DashboardActivity")), env.directStarts)
+        } finally {
+            rig.close()
+        }
+    }
+
+    @Test(timeout = 60_000)
+    fun theDashboardButtonEndsARunningScreensaverFirst() {
+        val env = FakeSystemEnv()
+        val screensaver = FakeDreamAccessibility(dreaming = true)
+        val rig = rig(systemEnv = env, systemAccessibility = screensaver, rebootSucceeds = false)
+        try {
+            rig.start()
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "dashboard", "PRESS"))
+            assertEquals(listOf("back"), screensaver.events)
             assertEquals(listOf(AppIdentity.component(env.ownPackage, ".DashboardActivity")), env.directStarts)
         } finally {
             rig.close()

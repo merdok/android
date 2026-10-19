@@ -175,7 +175,6 @@ class SystemController(
             Log.i(TAG, "dashboard reload suppressed while Companion data operation owns $pkg")
             return false
         }
-        endDream()
         // Built-in renderer: an explicit reload clears any crash latch (deliberate retry consent), flags
         // the relaunch as reload-intent, and reaches onNewIntent → fresh page load.
         if (isBuiltin(pkg)) {
@@ -438,14 +437,15 @@ class SystemController(
             Log.i(TAG, "home launch suppressed while Companion data operation owns $pkg")
             return
         }
-        endDream()
         if (isBuiltin(pkg)) { startBuiltin(); return }
         val comp = if (pkg.isNotBlank()) env.launchComponent(pkg) else env.defaultHome()?.component
         if (comp == null) { Log.w(TAG, "home: no target resolved"); return }
         if (launchComponent(comp, "home")) returnToCompanionHome(pkg)
     }
 
-    /** End a screensaver in front, so what is brought forward next is seen. */
+    /** End a screensaver in front, so what is brought forward next is seen. Only an explicit request
+     *  calls this; automatic launches and reloads (kiosk lock, the watchdog, entity learning, settings,
+     *  startup) leave a screensaver running, because one may be the panel's photo frame. */
     fun endDream(): Boolean = accessibility.endDream { Log.i(TAG, it) }
 
     private fun returnToCompanionHome(pkg: String) {

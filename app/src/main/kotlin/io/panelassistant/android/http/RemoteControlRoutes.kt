@@ -72,8 +72,8 @@ internal class RemoteControlRoutes(
                 is RemoteControl.Action -> if (executeRemoteDashboardAction(
                         command.name,
                         config.dashboardPackage,
-                        launch = { system.launchHome(it) },
-                        reload = { system.reloadDashboard(it) },
+                        launch = { system.endDream(); system.launchHome(it) },
+                        reload = { system.endDream(); system.reloadDashboard(it) },
                     )
                 ) true else when (command.name) {
                     "back" -> interactive.back()

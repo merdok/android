@@ -219,6 +219,9 @@ internal abstract class PanelRuntimeRig {
         ),
         /** The packages and activities the system controller resolves starts against. */
         systemEnv: FakeSystemEnv = FakeSystemEnv(),
+        /** What the system controller reads a screensaver from and ends it with; by default no service. */
+        systemAccessibility: io.panelassistant.android.platform.AccessibilityActions =
+            io.panelassistant.android.input.PanelAccessibilityService,
         onZigbeeExplicitRetry: () -> Unit = {},
         /** Retires a queued HTTP value an external command superseded; a test records the keys. */
         onExternalSettingApplied: (String) -> Boolean = { true },
@@ -272,7 +275,7 @@ internal abstract class PanelRuntimeRig {
             systemEnv, FakeRootShell(runResult = rebootSucceeds), systemDaemon,
             builtinForeground = { false }, homeDashboard = { config.homeDashboard },
             onCompanionHome = { pkg, path -> companionHomeReturns?.add("$pkg:$path") },
-            isDeviceSecure = { deviceSecure },
+            isDeviceSecure = { deviceSecure }, accessibility = systemAccessibility,
         )
         val bootChime = if (bootChimeHardware != null) {
             BootChimeController(
