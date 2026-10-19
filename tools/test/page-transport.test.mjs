@@ -197,7 +197,7 @@ const PAGE_CALLED = [
   'GET display', 'POST display/density', 'POST ha/oauth/start', 'GET ha/oauth/status', 'POST hand-back-home', 'GET info', 'POST input',
   'GET inspect', 'POST inspect/start', 'POST inspect/stop', 'POST install/apk', 'POST install/apk/allow', 'POST install/apk/commit',
   'POST install/apk/discard', 'POST install/apk/fetch/cancel', 'POST install/apk/from-url', 'GET install/apk/pending', 'GET install/status',
-  'POST install/component', 'GET install/versions', 'GET logs/stream', 'POST migration-notice/dismiss', 'GET peers', 'GET perf',
+  'POST install/component', 'GET install/versions', 'GET logs/stream', 'GET peers', 'GET perf',
   'GET power-safety', 'POST power-safety/acknowledge', 'POST power-safety/repair', 'GET profiles', 'GET profiles/{id}/revisions/{revision}',
   'GET profiles/device-draft', 'GET profiles/drivers', 'GET profiles/report', 'GET profiles/schema', 'GET profiles/template',
   'POST profiles/compare', 'POST profiles/preview', 'POST profiles/probe', 'POST profiles/validate', 'POST profiles/activate',

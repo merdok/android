@@ -1,7 +1,6 @@
 package io.panelassistant.android.http
 
 import io.panelassistant.android.Config
-import io.panelassistant.android.MigrationNotice
 import io.panelassistant.android.appVersion
 import io.panelassistant.android.haLinkUrl
 import io.panelassistant.android.i18n.AppLocale
@@ -100,13 +99,6 @@ internal class PageShell(
      content is parsed and publishes the final header height without causing a post-paint card-wall shift. -->
 <script src="assets/switcher.js"></script>
 """
-        val migrationNotice = notice(
-            NoticeSeverity.WARNING, strings,
-            title = esc(strings.get("shell.migration.title")),
-            detail = """${esc(strings.get("shell.migration.body"))} <a href="${MigrationNotice.URL}" target="_blank" rel="noopener">${esc(MigrationNotice.URL)}</a>""",
-            action = """<button id="migration-dismiss" class="pbtn" type="button">${esc(strings.get("shell.migration.dismiss"))}</button>""",
-            attrs = """ id="migrationbar"${if (config.migrationNoticeVisible()) "" else " style=\"display:none\""}""",
-        )
         val versionNotice = notice(
             NoticeSeverity.UPDATE, strings,
             title = esc(strings.get("shell.new_version.installed")),
@@ -136,7 +128,6 @@ setTimeout(function(){URL.revokeObjectURL(u);},60000);}).catch(function(err){if(
 <div class="topbar">$header${navBar(active, strings, preserveExplicitEnglish, embed?.hiddenTabs.orEmpty())}</div>
 $switcher<div id="halifebar" class="notice" style="display:none"></div>
 <div id="hanetbar" class="notice" style="display:none"></div>
-$migrationNotice
 $versionNotice
 $body
 $extraScripts<script src="assets/power-safety.js"></script>

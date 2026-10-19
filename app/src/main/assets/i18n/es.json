@@ -11928,21 +11928,6 @@
       "state": "machine-cross-checked",
       "text": "Menú"
     },
-    "shell.migration.body": {
-      "sourceHash": "d624e8b4cd2a9f8067e4808c0952370185b235548991a95638208acf4ea0802f",
-      "state": "machine-cross-checked",
-      "text": "Añade la integración de Panel Assistant en Home Assistant para gestionar este panel."
-    },
-    "shell.migration.dismiss": {
-      "sourceHash": "4408fd0fc8e99928d6e4692d251092ad97818a409742e5f85e03696dedcf65e4",
-      "state": "machine-cross-checked",
-      "text": "Ignorar hasta la próxima actualización"
-    },
-    "shell.migration.title": {
-      "sourceHash": "3c6a7e4ff60e0b683b82059e1d48cce22adf06168d8477c1b9130c8d9c2ab1c3",
-      "state": "machine-cross-checked",
-      "text": "Panel Assistant es obligatorio"
-    },
     "shell.nav.configure": {
       "sourceHash": "6defafa2caa65304173956e3fbc26b6947c50bc769c08c3da32c1032fa6519d4",
       "state": "machine-cross-checked",

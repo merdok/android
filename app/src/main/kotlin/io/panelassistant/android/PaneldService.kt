@@ -441,7 +441,6 @@ class PaneldService : Service() {
     // thread until then, and is drained before the camera owner so no client can reattach mid-stop.
     private lateinit var cameraStream: io.panelassistant.android.camera.CameraRtspServer
     private val notifications = ServiceNotifications(this)
-    private lateinit var migrationNotice: MigrationNotice
     private lateinit var profile: DeviceProfile
     private lateinit var profileRegistry: RuntimeProfileRegistry
     private lateinit var passiveProfileProbe: AndroidPassiveProfileProbe
@@ -610,7 +609,6 @@ class PaneldService : Service() {
         wifiStore: AndroidWifiOutageStore,
         preparedEntityLearning: EntityLearningManager,
     ) {
-        migrationNotice = MigrationNotice(this, config)
         reconcileNativePresentationAfterPromotion()
         updateForegroundStatus(nativeString(R.string.starting))
         // Resolve one immutable profile revision before constructing any hardware owner. Activations are
@@ -1711,7 +1709,6 @@ class PaneldService : Service() {
                 },
             ) { key, value, previous -> applyLiveSettingObserved(activeRuntime.commands, key, value, previous) }
             scheduleLiveSettingRetries(PanelCommandDispatcher.APPLY_SETTING_KEYS)
-            migrationNotice.start()
             controls.startPolicies(kioskRecoveredAtStartup)
             receivers.startScreenOnReconciliation()
             controls.startVendorService()
@@ -2040,7 +2037,6 @@ class PaneldService : Service() {
         // App-local completion may continue off-main, but every subsidiary owner shares this one budget.
         // External display/system-policy recovery remains mandatory even after this deadline expires.
         val asyncTeardownDeadline = MonotonicDeadline(ASYNC_TEARDOWN_BUDGET_MS)
-        if (::migrationNotice.isInitialized) migrationNotice.close()
         // Bind any armed request to this exact lifecycle generation. A finalizer that was already in
         // flight before PREPARE cannot later satisfy or cancel the new request.
         upgradeShutdownClaim = UpgradeShutdownCoordinator.claimShutdown()

@@ -3,7 +3,6 @@
 //    changes while a page is open, the app was updated → AUTO-RELOAD to pull fresh html/css/js.
 //    Unsaved edits (a focused field, or the Profiles editor's enabled Save button) must never be
 //    destroyed — show the #verbar banner instead and let the user choose. Baseline = <body data-build>.
-//  - pa_notice= : whether an unconnected panel still owes its owner the migration notice.
 // Configure follows setting changes through its own `config` family (configure.js), not a reload.
 (function () {
   "use strict";
@@ -47,27 +46,6 @@
     window.HaNotice.fill(b, "update", i18nText(key, english), "", reload);
     b.style.display = "";
   }
-  function migrationBanner(visible) {
-    var b = document.getElementById("migrationbar");
-    if (b) b.style.display = visible ? "" : "none";
-  }
-  // A reading taken before durable dismissal can arrive afterwards; that same reading cannot restore
-  // the old notice. Any newer reading (an update, a withdrawal) decides again.
-  var lastHealth = null, dismissedHealth = null;
-  var dismiss = document.getElementById("migration-dismiss");
-  if (dismiss) dismiss.addEventListener("click", function () {
-    dismiss.disabled = true;
-    window.PaneldTransport.request("migration_notice.dismiss")
-      .then(function (reply) {
-        if (reply.outcome !== "applied") throw new Error("dismiss failed");
-        return reply.result;
-      })
-      .then(function (result) {
-        dismiss.disabled = false;
-        if (result && result.ok === true) { dismissedHealth = lastHealth; migrationBanner(false); }
-      })
-      .catch(function () { dismiss.disabled = false; });
-  });
   // Home Assistant lifecycle. /health carries `ha=<state>` only while the panel is watching, so an
   // absent token means "nothing to say" rather than "healthy". Rendered here rather than through the
   // Information page's banner zone because that hydrates once and would freeze mid-outage; this poll
@@ -263,10 +241,6 @@
   }
   function vc(t) {
     if (typeof t !== "string") return;
-    var notice = t.match(/(?:^|\s)pa_notice=([01])(?:\s|$)/);
-    if (t !== dismissedHealth) dismissedHealth = null;
-    if (notice && dismissedHealth === null) migrationBanner(notice[1] === "1");
-    lastHealth = t;
     var mh = t.match(/ha=(\S+)/);
     var mr = t.match(/ha_refused=1/);
     var reason = t.match(/(?:^|\s)ha_reason=(\S+)/);
