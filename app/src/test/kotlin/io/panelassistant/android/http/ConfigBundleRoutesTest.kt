@@ -12,7 +12,13 @@ import io.ktor.server.testing.testApplication
 import io.ktor.server.application.Application
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.panelassistant.android.HaAuthSnapshot
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.setHaClientId
+import io.panelassistant.android.setHaConnection
+import io.panelassistant.android.setHaRefreshToken
+import io.panelassistant.android.setHaTokenExpiry
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.ConfigBundle
 import io.panelassistant.android.config.SettingsRegistry
@@ -80,6 +86,56 @@ class ConfigBundleRoutesTest {
                     InstallProgress.finish(held, "released")
                 }
             }
+        }
+    }
+
+    @Test fun `an import that moves the panel to another Home Assistant drops the previous sign-in`() {
+        importOntoSignedInPanel("", mapOf("ha_url" to "http://b.test:8123")) { config ->
+            assertEquals(HaAuthSnapshot("http://b.test:8123", "", "", 0L, ""), config.haAuthSnapshot())
+        }
+    }
+
+    @Test fun `a fleet import that moves the panel to another Home Assistant drops the previous sign-in`() {
+        importOntoSignedInPanel("?mode=fleet", mapOf("ha_url" to "http://b.test:8123")) { config ->
+            assertEquals(HaAuthSnapshot("http://b.test:8123", "", "", 0L, ""), config.haAuthSnapshot())
+        }
+    }
+
+    @Test fun `an import that moves the panel keeps the sign-in it carries for the new address`() {
+        importOntoSignedInPanel("", mapOf(
+            "ha_url" to "http://b.test:8123",
+            "ha_token" to "b-access",
+            "ha_refresh_token" to "b-refresh",
+            "ha_token_expiry" to "2345678901",
+            "ha_client_id" to "b-client",
+        )) { config ->
+            assertEquals(
+                HaAuthSnapshot("http://b.test:8123", "b-access", "b-refresh", 2_345_678_901L, "b-client"),
+                config.haAuthSnapshot(),
+            )
+        }
+    }
+
+    private fun importOntoSignedInPanel(
+        query: String,
+        values: Map<String, String>,
+        check: (io.panelassistant.android.Config) -> Unit,
+    ) {
+        PaneldServerHttpFixture().use { fixture ->
+            val config = fixture.config
+            assertTrue(config.setHaConnection("http://a.test:8123", "a-access"))
+            config.setHaRefreshToken("a-refresh")
+            config.setHaTokenExpiry(9_999_999_999L)
+            config.setHaClientId("a-client")
+            testApplication {
+                application { mountConfigBundleRoutes(fixture) }
+                val response = client.post("/api/v1/config/import$query") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    setBody(ConfigBundle.fromValues(values).serialize())
+                }
+                assertEquals(response.bodyAsText(), HttpStatusCode.OK, response.status)
+            }
+            check(config)
         }
     }
 
