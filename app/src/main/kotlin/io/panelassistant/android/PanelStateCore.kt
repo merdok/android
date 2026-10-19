@@ -189,7 +189,6 @@ internal class PanelStateCore(
             }
         }
         channel("screen") {
-            if (!config.haExposed("screen", true)) return@channel unknown
             when (screen.observedDark()) {
                 true -> {
                     lastScreenBrightness = -1
@@ -215,10 +214,9 @@ internal class PanelStateCore(
         }
         channel("navigate") { known(config.lastNavigate.ifEmpty { "/" }) }
         channel("home_dashboard") { known(config.homeDashboard) }
-        // A panel's media player shows and sets its volume through this channel, so the exposure pip,
-        // which a panel with a speaker does not offer, cannot blank it.
+        // Commandable controls report independently of old exposure preferences; Home Assistant owns their visibility.
         channel("volume") {
-            if (media != null || config.haExposed("volume", true)) known(volume.getPercent().toString()) else unknown
+            known(volume.getPercent().toString())
         }
         channel("media") { media?.let { known(it.observation()) } ?: unknown }
         if (hasButtonBacklight) channel("buttons") { known(buttonBacklightState(config.lastButtonBacklight)) }

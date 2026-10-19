@@ -204,6 +204,8 @@ class ConfigPostProductionRouteTest {
                         byKey.getValue("dashboard_fullscreen").getBoolean("available"))
                     val options = byKey.getValue("navbar_mode").getJSONArray("options")
                     assertEquals(caps.hasNativeNavbar, (0 until options.length()).any { options.getString(it) == "Native" })
+                    assertFalse(byKey.getValue("screen").getBoolean("ha"), "screen is commandable")
+                    assertFalse(byKey.getValue("volume").getBoolean("ha"), "volume is commandable")
                     // With a speaker the volume is the media player's, so there is no number to expose.
                     assertEquals(!caps.hasSpeaker, byKey.getValue("volume").getBoolean("available"))
                 }
