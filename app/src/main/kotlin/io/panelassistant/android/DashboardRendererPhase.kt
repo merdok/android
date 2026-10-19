@@ -96,7 +96,10 @@ internal enum class RendererRebuildCause(
     ENTITY_FILTER(readmit = false, resolveHome = false, consent = true),
 
     /** The dashboard theme policy differs from the one baked into the document-start script. */
-    THEME(readmit = false, resolveHome = false, consent = true),
+    THEME(readmit = false, resolveHome = false, consent = false),
+
+    /** The person changed the configured policy, rather than Ambient changing its effective scheme. */
+    THEME_POLICY(readmit = false, resolveHome = false, consent = true),
 }
 
 /**
@@ -111,6 +114,7 @@ internal data class RendererConfiguration(
     val authOwner: HaAuthOwner?,
     val filter: String?,
     val theme: String?,
+    val themePolicy: String? = null,
 )
 
 /** Every cause for which [embodied] no longer matches [wanted], in [RendererRebuildCause] order. */
@@ -128,6 +132,7 @@ internal fun rendererRebuildCauses(
     if (differs(embodied.homeOwner, wanted.homeOwner)) add(RendererRebuildCause.HOME_DASHBOARD)
     if (differs(embodied.filter, wanted.filter)) add(RendererRebuildCause.ENTITY_FILTER)
     if (differs(embodied.theme, wanted.theme)) add(RendererRebuildCause.THEME)
+    if (differs(embodied.themePolicy, wanted.themePolicy)) add(RendererRebuildCause.THEME_POLICY)
 }
 
 /**

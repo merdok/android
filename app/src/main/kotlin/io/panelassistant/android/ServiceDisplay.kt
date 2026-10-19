@@ -515,7 +515,7 @@ internal class ServiceDisplay(
         ) return
         ambientRebuildRequestedFor = effective
         Log.i(TAG, "Ambient theme now resolves to $effective — rebuilding the dashboard")
-        runCatching { system.reloadDashboard(SystemController.BUILTIN_DASHBOARD, reason = "applying your settings") }
+        runCatching { system.launchHome(SystemController.BUILTIN_DASHBOARD) }
             .onFailure { Log.w(TAG, "Ambient theme rebuild failed", it) }
     }
 

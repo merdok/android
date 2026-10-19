@@ -127,6 +127,7 @@ class DashboardActivity : AppCompatActivity() {
     // The colour-scheme policy baked into the live WebView's document-start script. Document-start
     // scripts cannot be replaced in an existing WebView, so a policy change rebuilds it (below).
     private var dashboardThemeSignature = DashboardTheme.DEFAULT
+    private var dashboardThemePolicy: String? = null
     // The credential the renderer last built or re-admitted a dashboard with. Kept across a teardown: a
     // refused login belongs to it, and changing it is the consent that lets the renderer ask again.
     private var builtAuthOwner: HaAuthOwner? = null
@@ -677,6 +678,7 @@ class DashboardActivity : AppCompatActivity() {
                 authOwner = builtAuthOwner,
                 filter = entityGate.preparedSignature.takeIf { dashboardBuilt },
                 theme = dashboardThemeSignature.takeIf { dashboardBuilt },
+                themePolicy = dashboardThemePolicy.takeIf { dashboardBuilt },
             ),
             wanted = RendererConfiguration(
                 admittedUrl = normalizedUrl,
@@ -684,6 +686,7 @@ class DashboardActivity : AppCompatActivity() {
                 authOwner = config.haAuthSnapshot().stableOwner(),
                 filter = prepared.signature,
                 theme = config.dashboardThemeEffective,
+                themePolicy = config.dashboardTheme,
             ),
         )
         routeChangePending = false
@@ -804,6 +807,8 @@ class DashboardActivity : AppCompatActivity() {
         Log.i(TAG, "renderer no longer embodies its configuration (${causes.joinToString { it.name.lowercase() }}) — rebuilding")
         // A rebuild satisfies a pending reload request. The learner's reload lands here with its reason
         // pending: only it is a learning restart; a hand edit or a settings change announces as a lone one.
+        val explicitReload = BuiltinDashboard.consumeReloadRequest()
+        val explicitNavigate = BuiltinDashboard.navPath != null
         val superseded = BuiltinDashboard.consumeSupersededReload()
         when {
             RendererRebuildCause.ENTITY_FILTER in causes -> statusScreens.announceDeliberateRestart(
@@ -812,7 +817,7 @@ class DashboardActivity : AppCompatActivity() {
             )
             // The fresh theme script runs the hand-back transaction before Home Assistant's own bootstrap
             // reads the store, so the restored value is the one the frontend boots with.
-            RendererRebuildCause.THEME in causes ->
+            RendererRebuildCause.THEME in causes || RendererRebuildCause.THEME_POLICY in causes ->
                 statusScreens.announceDeliberateRestart(getString(R.string.applying_dashboard_theme))
         }
         if (causes.any { it.readmit }) {
@@ -822,7 +827,7 @@ class DashboardActivity : AppCompatActivity() {
             compatibilityAttempts.invalidate()
         }
         if (causes.any { it.resolveHome }) invalidateHomeDashboardResolution()
-        if (causes.any { it.consent }) consentToRetry(causes.first().name.lowercase())
+        if (explicitReload || explicitNavigate || causes.any { it.consent }) consentToRetry(causes.first().name.lowercase())
         // The credential this rebuild re-admits with is the one the renderer now answers for, built or not:
         // a refused re-admission otherwise re-fired the change on every later trigger, replaying the
         // refused credential to Home Assistant over the status screen.
@@ -2087,7 +2092,10 @@ class DashboardActivity : AppCompatActivity() {
     private fun createWebView(
         config: Config,
         generation: Long,
-    ): WebView = createDashboardWebView(this, config, activityOwner, { dashboardThemeSignature = it }, entityGate, bridge).apply {
+    ): WebView = createDashboardWebView(this, config, activityOwner, {
+        dashboardThemeSignature = it
+        dashboardThemePolicy = config.dashboardTheme
+    }, entityGate, bridge).apply {
         webChromeClient = dashboardChromeClient(generation)
         webViewClient = object : WebViewClient() {
             // A dead renderer process must not take the app down with it: rebuild the WebView in place

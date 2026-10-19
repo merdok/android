@@ -16,6 +16,14 @@ class RendererRebuildCauseTest {
     private fun causes(embodied: RendererConfiguration, wanted: RendererConfiguration = this.wanted, route: Boolean = false) =
         rendererRebuildCauses(routeChanged = route, signedIn = false, embodied = embodied, wanted = wanted)
 
+    @Test fun anEffectiveThemeChangeDoesNotConsentToRetryARefusedCredential() {
+        val found = causes(wanted.copy(theme = "Light"), wanted.copy(theme = "Dark"))
+        assertTrue("the renderer still applies the new effective theme", found.isNotEmpty())
+        var phase = RendererPhase.AUTH_LATCHED
+        for (cause in found) if (cause.consent) phase = phase.after(RendererEvent.CONSENT)
+        assertEquals("room light is not a person's retry consent", RendererPhase.AUTH_LATCHED, phase)
+    }
+
     @Test fun aRendererThatEmbodiesTheConfigurationNeedsNothing() {
         assertEquals(emptyList<RendererRebuildCause>(), causes(wanted))
     }
@@ -46,6 +54,14 @@ class RendererRebuildCauseTest {
     }
 
     /** An access token that its refresh token rotates is not a different credential. */
+    @Test fun aConfiguredThemePolicyChangeStillConsentsEvenWithTheSameEffectiveScheme() {
+        val previous = wanted.copy(theme = "Dark", themePolicy = "Ambient")
+        val changed = wanted.copy(theme = "Dark", themePolicy = "Dark")
+        val found = causes(previous, changed)
+        assertEquals(listOf(RendererRebuildCause.THEME_POLICY), found)
+        assertTrue(found.any { it.consent })
+    }
+
     @Test fun aRotatedAccessTokenIsNoCause() {
         val rotated = HaAuthSnapshot("http://ha.local:8123/", "new-access", "refresh", 99L, "client").stableOwner()
 

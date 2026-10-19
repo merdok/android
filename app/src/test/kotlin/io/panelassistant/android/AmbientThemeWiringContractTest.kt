@@ -85,7 +85,6 @@ class AmbientThemeWiringContractTest {
         assertTrue(service.contains("onAmbientThemeChanged = ::reconcileAmbientTheme"))
         assertTrue(service.contains("private fun reconcileAmbientTheme(): Unit = synchronized(ambientRebuildLock) {"))
         val reconcile = slice(service, "private fun reconcileAmbientTheme()", "\n    }\n")
-        assertTrue(reconcile.contains("system.reloadDashboard(SystemController.BUILTIN_DASHBOARD"))
         assertTrue(reconcile.contains("val applied = BuiltinDashboard.appliedThemeSignature"))
         assertTrue(reconcile.contains("appliedSignature = applied,"))
     }
