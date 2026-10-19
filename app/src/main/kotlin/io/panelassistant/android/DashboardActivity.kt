@@ -1132,7 +1132,9 @@ class DashboardActivity : AppCompatActivity() {
         val urls = (0 until history.size).map { history.getItemAtIndex(it).url }
         val steps = BuiltinDashboard.previousPageSteps(urls, history.currentIndex) ?: return false
         noteDeliberateDashboardNavigation()
-        w.goBackOrForward(-steps)
+        // From the page, not goBackOrForward: Chromium skips history entries a page added without a
+        // user gesture when the embedder goes back, which is every entry a Home Assistant navigate adds.
+        w.evaluateJavascript("history.go(-$steps)", null)
         return true
     }
 
