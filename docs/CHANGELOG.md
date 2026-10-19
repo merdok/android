@@ -26,6 +26,7 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 - **Panel models start with their own sensible defaults.** Each panel model's profile can now set starting values, such as dashboard zoom and brightness range, and recommend a display size; a Meta Portal 10 starts at 85 percent dashboard zoom, for example. A setting you have already changed keeps your choice.
 - **A panel's device links to the same hardware in other integrations.** The panel now reports its Wi-Fi and Ethernet hardware addresses, and Panel Assistant adds them to the panel's device, so a device another integration made for the same panel, such as the Shelly integration's for a Shelly Wall Display, shows as linked on the device page.
 - **USB debugging shows as a diagnostic.** Home Assistant now shows whether USB debugging is on for each panel as a diagnostic entity, so you can see whether a panel can still be reached for updates, and the panel shows a notice on screen when it changes.
+- **Dashboard theme, idle return and screen timeout from Home Assistant.** With a Panel Assistant that offers them, Home Assistant can show and change the dashboard theme, the idle return to home and Android's screen timeout, which is the screensaver delay on a TV, and a change on either side shows on the other at once. The screen timeout can be changed only while Prevent idle dim is off.
 
 ### Changed
 
