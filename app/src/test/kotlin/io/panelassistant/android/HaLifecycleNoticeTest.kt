@@ -39,6 +39,28 @@ class HaLifecycleNoticeTest {
     private fun snapshot(state: HaLifecycleState) =
         HaLifecycle.Snapshot(state, false, 1L, 8_000L)
 
+    @Test fun aRefusedSignInDoesNotPretendThePanelIsRetryingAnOutage() {
+        val rig = DashboardRendererRig()
+        rig.phase = RendererPhase.NONE
+        try {
+            for (event in listOf(RendererEvent.LOAD_STARTED, RendererEvent.CONNECTED,
+                RendererEvent.DISCONNECTED, RendererEvent.DISCONNECTED, RendererEvent.DISCONNECTED,
+                RendererEvent.LOGIN_REFUSED)) rig.call("on", event)
+            assertEquals(RendererPhase.AUTH_LATCHED, rig.phase)
+            for (snap in listOf(null, snapshot(HaLifecycleState.NORMAL))) {
+                for (now in listOf(21_000L, 600_000L)) {
+                    val live = RendererAdmissionRuntime.current()
+                    val notice = haLifecycleNoticeState(snap, live, now)
+                    assertNull("a refused sign-in is not a retrying outage at $now", notice)
+                    assertNull(notice?.let { haLifecycleCard(it, snap, dashboardConnected = false) })
+                }
+            }
+            for (state in listOf(HaLifecycleState.SHUTTING_DOWN, HaLifecycleState.STARTING)) {
+                assertEquals(state, haLifecycleNoticeState(snapshot(state), RendererAdmissionRuntime.current(), 600_000L))
+            }
+        } finally { rig.close() }
+    }
+
     @Test fun panelThatMissedStopShowsOfflineAfterConnectionLoss() {
         val tracker = HaLifecycle()
         tracker.onDisconnected(100L)

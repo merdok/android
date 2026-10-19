@@ -37,6 +37,7 @@ internal fun haLifecycleNoticeState(
     nowMs: Long = SystemClock.elapsedRealtime(),
 ): HaLifecycleState? = when {
     snap?.state == HaLifecycleState.SHUTTING_DOWN || snap?.state == HaLifecycleState.STARTING -> snap.state
+    renderer?.phase == RendererPhase.AUTH_LATCHED -> null
     snap?.state == HaLifecycleState.CONNECTION_LOST && snap.offlineGraceRemainingMs > 0L -> null
     renderer?.record?.state == RendererAdmissionState.ADMITTED &&
         renderer.record.admittedOnCachedVersion && !renderer.frontendConnected -> HaLifecycleState.CONNECTION_LOST

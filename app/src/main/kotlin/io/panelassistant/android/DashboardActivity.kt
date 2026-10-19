@@ -233,7 +233,7 @@ class DashboardActivity : AppCompatActivity() {
         // runtime clears its effective-theme observation, or the stale result can republish it.
         if (value != RendererPhase.CONNECTED) themeObservationEpoch++
         phase = value
-        if (RendererAdmissionRuntime.setFrontendConnected(activityOwner, value == RendererPhase.CONNECTED, event) && !destroyed) {
+        if (RendererAdmissionRuntime.setFrontendConnected(activityOwner, value == RendererPhase.CONNECTED, event, phase = value) && !destroyed) {
             redrawLifecycleBar()
         }
         if ((was == RendererPhase.AUTH_LATCHED) != (value == RendererPhase.AUTH_LATCHED)) {

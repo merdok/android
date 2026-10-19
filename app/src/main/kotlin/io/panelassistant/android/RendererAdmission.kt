@@ -111,6 +111,8 @@ internal object RendererAdmissionRuntime {
          * neither is a teardown or reload the app started itself.
          */
         val frontendLostAtMs: Long? = null,
+        /** The owning activity's phase, so terminal sign-in refusal cannot be shown as a retrying outage. */
+        val phase: RendererPhase? = null,
     )
 
     private val lock = Any()
@@ -141,7 +143,7 @@ internal object RendererAdmissionRuntime {
         val next = Record(state, outcome, admittedOnCachedVersion, evidence, nowElapsedMs)
         synchronized(lock) {
             val previous = live?.takeIf { it.owner == owner }
-            live = Live(owner, next, previous?.frontendConnected ?: false, previous?.effectiveDark, previous?.frontendLostAtMs)
+            live = Live(owner, next, previous?.frontendConnected ?: false, previous?.effectiveDark, previous?.frontendLostAtMs, previous?.phase)
         }
         return true
     }
@@ -160,6 +162,7 @@ internal object RendererAdmissionRuntime {
         connected: Boolean,
         cause: RendererEvent,
         nowElapsedMs: Long = SystemClock.elapsedRealtime(),
+        phase: RendererPhase? = null,
     ): Boolean {
         if (!BuiltinDashboard.ownsActivity(owner)) return false
         synchronized(lock) {
@@ -172,7 +175,7 @@ internal object RendererAdmissionRuntime {
             }
             // A disconnected page renders nothing current, so its last observed scheme goes with it
             // rather than being reported as though it were still on screen.
-            live = Live(owner, previous?.record, connected, if (connected) previous?.effectiveDark else null, lostAt)
+            live = Live(owner, previous?.record, connected, if (connected) previous?.effectiveDark else null, lostAt, phase)
         }
         return true
     }
