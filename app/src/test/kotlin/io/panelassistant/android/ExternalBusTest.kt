@@ -129,6 +129,16 @@ class ExternalBusProtocolTest {
     }
 
     /** The one message the frontend's `externalBus` receives when the page evaluates [script]. */
+    @Test fun `a navigate that keeps the page it leaves asks the frontend for a new history entry`() {
+        val controller = ExternalBusController()
+        val session = controller.beginDocument(1, kioskEnabled = false)
+        controller.onConnection(session, true)
+        fun replaces(outbound: ExternalBusController.Outbound?): Boolean =
+            messageOf(requireNotNull(outbound).script).getJSONObject("payload").getJSONObject("options").getBoolean("replace")
+        assertFalse(replaces(controller.navigate(session, "lovelace/cameras", replace = false)))
+        assertTrue(replaces(controller.navigate(session, "lovelace/home")))
+    }
+
     private fun messageOf(script: String): JSONObject {
         Node.assumeAvailable()
         val outcome = PageScript.run(script, "externalBus")
@@ -140,17 +150,6 @@ class ExternalBusProtocolTest {
 }
 
 class ExternalBusControllerTest {
-    @Test fun `a navigate that keeps the page it leaves asks the frontend for a new history entry`() {
-        val controller = ExternalBusController()
-        val session = controller.beginDocument(1, kioskEnabled = false)
-        controller.onConnection(session, true)
-        fun replaces(outbound: ExternalBusController.Outbound?): Boolean = JSONObject(
-            requireNotNull(outbound).script.removePrefix("externalBus(").removeSuffix(");"),
-        ).getJSONObject("payload").getJSONObject("options").getBoolean("replace")
-        assertFalse(replaces(controller.navigate(session, "lovelace/cameras", replace = false)))
-        assertTrue(replaces(controller.navigate(session, "lovelace/home")))
-    }
-
     @Test fun `disabled native kiosk causes no command on a fresh document`() {
         val controller = ExternalBusController()
         val session = controller.beginDocument(1, kioskEnabled = false)
