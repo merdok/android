@@ -69,6 +69,30 @@ class SuLostRootTest {
         assertEquals(true, screen.observedLit())
     }
 
+    @Test fun `negative startup prewarm cannot block reads after root is proven`() {
+        daemonAlive = false
+        assertEquals(false, su.availableCachedIsolated())
+        daemonAlive = true
+        assertEquals(true, screen.observedLit())
+        assertEquals(true, screen.observedLit())
+        assertTrue(su.run("true"))
+        assertEquals("persistent root shell opened", 1, shells.size)
+        val beforeReuse = launches.get()
+        repeat(5) { assertEquals(true, screen.observedLit()) }
+        assertEquals(beforeReuse, launches.get())
+    }
+
+    @Test fun `isolated proof clears the negative startup availability observation`() {
+        daemonAlive = false
+        assertEquals(false, su.availableCachedIsolated())
+        daemonAlive = true
+        assertEquals("", su.runOutputIsolatedBounded("true", 1L, 5_000L))
+        assertEquals(true, screen.observedLit())
+        assertEquals(true, screen.observedLit())
+        assertTrue(su.run("true"))
+        assertEquals(1, shells.size)
+    }
+
     private fun launch(argv: Array<String>): Process {
         launches.incrementAndGet()
         if (!daemonAlive) return ExitedProcess(1, "")

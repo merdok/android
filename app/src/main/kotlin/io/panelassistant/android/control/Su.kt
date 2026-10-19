@@ -340,9 +340,15 @@ internal class SuShell(
      */
     private fun <T : Any> overForms(attempt: (Int) -> T?): T? {
         SuFormPolicy.firstAccepted(formState.current(), attempt)
-            ?.let { formState.recordSuccess(it.form); return it.value }
+            ?.let { recordFormSuccess(it.form); return it.value }
         formState.recordExhaustion()
         return null
+    }
+
+    private fun recordFormSuccess(form: Int) {
+        val firstProof = !formState.working()
+        formState.recordSuccess(form)
+        if (firstProof) availabilityCache.invalidate()
     }
 
     /** Run [cmd] as root, waiting for completion. Returns true on exit 0. */
@@ -435,7 +441,7 @@ internal class SuShell(
             }
         }
         if (selected != null) {
-            formState.recordSuccess(selected.form)
+            recordFormSuccess(selected.form)
             return selected.value
         }
         formState.recordExhaustion()
