@@ -61,6 +61,7 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 - **Restoring a backup onto a panel without root skips what it cannot apply.** The restore lists the settings that panel cannot apply instead of failing.
 - **Voice settings stay current.** The list of voice pipelines is fetched again when the panel's Home Assistant connection changes, and a new audio source takes effect as soon as the camera stream lets go of the microphone.
 - **The Install page and Panel Assistant's panel-download route find releases again.** Since 0.9.10 the app is published as `panel-assistant-<version>-manual-setup-required.apk.bin`, and the panel looked only for a name ending in `.apk`, so the Install page listed no panel app release and an update Panel Assistant asked the panel to download itself found nothing to install.
+- **Vendor apps are tamed on the first try on a slow panel.** On a panel whose root helper takes more than half a second to stop or disable an app, each action used to run a second time through su, and the whole taming pass repeated for several minutes after the app started. The helper is now given the time those commands take.
 - **Log shipping reports an outage once.** While the log collector cannot be reached, the panel logs the first failed attempt and, when it reconnects, one line saying how many attempts failed and the last reason, instead of a warning every few seconds.
 - **Translation corrections** across every shipped language, including the setup screens, the Voice card and the diagnostics page.
 

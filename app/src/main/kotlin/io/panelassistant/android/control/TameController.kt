@@ -11,6 +11,8 @@ import io.panelassistant.android.config.TamePackagePolicy
 import io.panelassistant.android.device.TameCandidate
 import io.panelassistant.android.persistence.AppState
 import io.panelassistant.android.persistence.commitWithDurableVisibility
+import io.panelassistant.android.platform.Daemon
+import io.panelassistant.android.platform.DaemonLongResult
 import io.panelassistant.android.util.AndroidInput
 import io.panelassistant.android.util.CompanionInstaller
 import io.panelassistant.android.util.HelperClient
@@ -486,7 +488,7 @@ class TameController(
 
     /** Exact pre-mutation app-op observation; query failure refuses mutation rather than inventing state. */
     private fun observeOverlayMode(pkg: String): String? {
-        val helperMode = HelperClient.send("OVERLAY $pkg")?.let(TameStatePolicy::overlayMode)
+        val helperMode = TameStatePolicy.helperReply(HelperClient, "OVERLAY $pkg")?.let(TameStatePolicy::overlayMode)
         return helperMode ?: run {
             Su.runOutput("appops get $pkg SYSTEM_ALERT_WINDOW 2>/dev/null")
                 ?.let(TameStatePolicy::overlayMode)
@@ -498,7 +500,7 @@ class TameController(
         TameStatePolicy.privileged(
             daemonCmd = daemonCmd,
             suCmd = suCmd,
-            send = HelperClient::send,
+            daemon = HelperClient,
             runSu = Su::run,
         )
 
@@ -604,9 +606,17 @@ internal object TameStatePolicy {
     fun privileged(
         daemonCmd: String,
         suCmd: String,
-        send: (String) -> String?,
+        daemon: Daemon,
         runSu: (String) -> Boolean,
-    ): Boolean = send(daemonCmd) == "OK" || runSu(suCmd)
+    ): Boolean = helperReply(daemon, daemonCmd) == "OK" || runSu(suCmd)
+
+    /** The helper runs `am`, `pm` and `appops` for these verbs, which take seconds on a slow panel
+     *  (su `pm disable-user` on a slow Sonoff: p50 3.5 s, p90 10.3 s), so they get [HELPER_TIMEOUT_MS]
+     *  rather than the helper's 500 ms budget for sysfs verbs; past that the action reruns through su. */
+    fun helperReply(daemon: Daemon, cmd: String): String? =
+        (daemon.sendLong(cmd, HELPER_TIMEOUT_MS) as? DaemonLongResult.Reply)?.value
+
+    const val HELPER_TIMEOUT_MS = 30_000L
 
     fun overlayMode(output: String): String? {
         val helper = output.trim().removePrefix("MODE=").takeIf { output.trim().startsWith("MODE=") }

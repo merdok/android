@@ -1,5 +1,7 @@
 package io.panelassistant.android.control
 
+import io.panelassistant.android.platform.Daemon
+import io.panelassistant.android.platform.DaemonLongResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -212,30 +214,58 @@ class TameOwnershipPolicyTest {
     }
 
     @Test fun `privileged route admits one helper command and preserves su fallback`() {
-        var helperCalls = 0
         var suCalls = 0
+        val answers = FakeDaemon(replies = mapOf("DISABLE com.vendor.one" to "OK"))
         assertTrue(
             TameStatePolicy.privileged(
                 daemonCmd = "DISABLE com.vendor.one",
                 suCmd = "pm disable-user --user 0 com.vendor.one",
-                send = { helperCalls++; "OK" },
+                daemon = answers,
                 runSu = { suCalls++; true },
             ),
         )
-        assertEquals(1, helperCalls)
+        assertEquals(listOf("DISABLE com.vendor.one"), answers.sent)
         assertEquals(0, suCalls)
 
-        helperCalls = 0
+        val gone = FakeDaemon(longOutcomes = mapOf("ENABLE com.vendor.one" to DaemonLongResult.Indeterminate))
         assertTrue(
             TameStatePolicy.privileged(
                 daemonCmd = "ENABLE com.vendor.one",
                 suCmd = "pm enable com.vendor.one",
-                send = { helperCalls++; null },
+                daemon = gone,
                 runSu = { suCalls++; true },
             ),
         )
-        assertEquals(1, helperCalls)
+        assertEquals(listOf("ENABLE com.vendor.one"), gone.sent)
         assertEquals(1, suCalls)
+    }
+
+    /** A helper that answers [reply] only after [latencyMs], as a slow panel's does for `pm`. */
+    private class SlowHelper(private val latencyMs: Long, private val reply: String = "OK") : Daemon {
+        val sent = mutableListOf<String>()
+        override fun available() = true
+        // The production short call gives up at 500 ms and reports the helper unreachable.
+        override fun send(cmd: String): String? { sent += cmd; return null }
+        override fun sendLong(cmd: String, timeoutMs: Long): DaemonLongResult {
+            sent += cmd
+            return if (timeoutMs >= latencyMs) DaemonLongResult.Reply(reply) else DaemonLongResult.Indeterminate
+        }
+        override fun sendBytes(cmd: String): ByteArray? = null
+    }
+
+    @Test fun `a helper slower than its short budget still carries the action without su`() {
+        // su pm disable-user after a helper timeout on a slow panel: p50 3.5 s, p90 10.3 s. Each action
+        // that missed 500 ms ran again through su, and su failures retried the whole pass.
+        for (cmd in listOf("STOP com.vendor.one", "DISABLE com.vendor.one", "OVERLAY com.vendor.one deny")) {
+            val helper = SlowHelper(latencyMs = 10_300)
+            var suCalls = 0
+            assertTrue(TameStatePolicy.privileged(cmd, "su form of $cmd", daemon = helper, runSu = { suCalls++; false }))
+            assertEquals(listOf(cmd), helper.sent)
+            assertEquals(cmd, 0, suCalls)
+        }
+        // The overlay observation before a mutation asks the same slow helper.
+        val overlay = SlowHelper(latencyMs = 10_300, reply = "MODE=allow")
+        assertEquals("allow", TameStatePolicy.helperReply(overlay, "OVERLAY com.vendor.one")?.let(TameStatePolicy::overlayMode))
     }
 
     @Test fun `write ahead marker commit precedes every external action`() {
