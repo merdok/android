@@ -8,6 +8,7 @@ import io.panelassistant.android.config.Validation
 import io.panelassistant.android.haClientId
 import io.panelassistant.android.haRefreshToken
 import io.panelassistant.android.haSetupHandover
+import io.panelassistant.android.haSignInAfterOriginChange
 import io.panelassistant.android.haToken
 import io.panelassistant.android.haTokenExpiry
 import io.panelassistant.android.haUrl
@@ -84,12 +85,6 @@ internal fun stageDirectLogShipping(config: Config, posted: Map<String, String>)
     }
 }
 
-/** Whether posting [posted] as `ha_url` moves the panel to another Home Assistant, which clears the stored
- * credentials. A credential stored while no address was set can only belong to the first address, so setting
- * that address keeps it: Configure sends each field as it is committed, and a token can arrive first. */
-internal fun haOriginChanges(previousUrl: String, posted: String?): Boolean =
-    posted != null && previousUrl.isNotBlank() && posted.trimEnd('/') != previousUrl.trimEnd('/')
-
 /** Stage the direct form's coupled Home Assistant credentials through their real Config owners. Blank
  * secret placeholders preserve existing credentials except where the URL is explicitly cleared or the
  * Home Assistant origin changes. Kept production-used so mutations to those dependent clears reach the JVM
@@ -104,10 +99,10 @@ internal fun stageDirectCredentialSettings(
     val previousExpiry = config.haTokenExpiry
     val previousClientId = config.haClientId
     val url = posted["ha_url"]
-    val haOriginChange = haOriginChanges(previousUrl, url)
+    val moved = haSignInAfterOriginChange(previousUrl, posted)
     val token = when {
         url != null && url.isEmpty() -> ""
-        haOriginChange -> posted["ha_token"]?.takeIf(String::isNotEmpty) ?: ""
+        moved != null -> moved.accessToken
         else -> posted["ha_token"]?.takeIf(String::isNotEmpty)
     }
     // A posted URL was admitted by the same spec; only a stored address an older writer let through can
@@ -119,13 +114,12 @@ internal fun stageDirectCredentialSettings(
     val clearingHa = url != null && url.isEmpty()
     val refresh = when {
         clearingHa -> ""
-        haOriginChange -> posted["ha_refresh_token"]?.takeIf(String::isNotEmpty) ?: ""
+        moved != null -> moved.refreshToken
         else -> posted["ha_refresh_token"]?.takeIf(String::isNotEmpty)
     }
     refresh?.let(config::setHaRefreshToken)
-    val expiry = posted["ha_token_expiry"]?.toLongOrNull() ?: if (haOriginChange) 0L else null
-    val clientId = posted["ha_client_id"]?.let { if (clearingHa) "" else it }
-        ?: if (haOriginChange) "" else null
+    val expiry = posted["ha_token_expiry"]?.toLongOrNull() ?: moved?.tokenExpiry
+    val clientId = posted["ha_client_id"]?.let { if (clearingHa) "" else it } ?: moved?.clientId
     expiry?.let(config::setHaTokenExpiry)
     clientId?.let(config::setHaClientId)
     if (clearingHa) config.setHaRefreshToken("")

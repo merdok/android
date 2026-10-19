@@ -2,7 +2,13 @@ package io.panelassistant.android.http
 
 import io.panelassistant.android.config.Capabilities
 import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.HaAuthSnapshot
 import io.panelassistant.android.LiveSettingRequestOutcome
+import io.panelassistant.android.haAuthSnapshot
+import io.panelassistant.android.setHaClientId
+import io.panelassistant.android.setHaConnection
+import io.panelassistant.android.setHaRefreshToken
+import io.panelassistant.android.setHaTokenExpiry
 import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.platform.ActivityRef
 import io.panelassistant.android.platform.SystemEnv
@@ -55,6 +61,36 @@ class AcceptedRestoreTransactionTest {
                 assertEquals("failed", result.getString("status"))
                 assertEquals("failed", result.getJSONObject("config").getString("status"))
                 assertEquals("moved-panel", config.panelId)
+            } finally {
+                InstallProgress.finish(ticket, "test cleanup")
+            }
+        }
+    }
+
+    @Test fun aRestoreThatMovesThePanelToAnotherHomeAssistantDropsThePreviousSignIn() = runBlocking {
+        PaneldServerHttpFixture().use { fixture ->
+            val config = fixture.config
+            config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Restore contract panel")
+            assertTrue(config.setHaConnection("http://a.test:8123", "a-access"))
+            config.setHaRefreshToken("a-refresh")
+            config.setHaTokenExpiry(9_999_999_999L)
+            config.setHaClientId("a-client")
+            val executor = restoreExecutor(
+                fixture,
+                capabilities = { Capabilities(networkAdb = true) },
+                persist = { true },
+                onReconfigure = {},
+            )
+            val ticket = requireNotNull(InstallProgress.start("restore"))
+            try {
+                executor.execute(
+                    RestoreConfigPlan(mapOf("ha_url" to "http://b.test:8123"), emptyList(), emptyList()),
+                    null, null, null, null, emptyList(), false,
+                    emptyList(), null, ticket,
+                )
+                val result = JSONObject(InstallProgress.json()).getJSONObject("result")
+                assertEquals(result.toString(), "succeeded", result.getString("status"))
+                assertEquals(HaAuthSnapshot("http://b.test:8123", "", "", 0L, ""), config.haAuthSnapshot())
             } finally {
                 InstallProgress.finish(ticket, "test cleanup")
             }
