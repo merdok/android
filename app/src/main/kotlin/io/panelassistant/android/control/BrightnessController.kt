@@ -61,7 +61,25 @@ internal class ScreenTimeoutController(
     }
 
     fun current(): Int = read()
+
+    /**
+     * Set the timeout to [ms]. While a screen-timeout sleep has the panel asleep, [held] is the value its
+     * wake restores, so that is what changes; otherwise the live value, proved by reading it back.
+     */
+    fun set(ms: Int, held: DisplacedScreenTimeout?): Boolean {
+        if (held != null) {
+            held.displacedMs = ms
+            return true
+        }
+        return write(ms) && read() == ms
+    }
 }
+
+/** Android's screen-off timeout as Home Assistant's number shows it: whole seconds, from Android's 10 s floor. */
+internal const val SCREEN_OFF_TIMEOUT_MIN_S = 10
+internal const val SCREEN_OFF_TIMEOUT_MAX_S = NEVER_SCREEN_TIMEOUT_MS / 1_000
+
+internal fun screenOffTimeoutSeconds(ms: Int): Int = (ms / 1_000).coerceIn(SCREEN_OFF_TIMEOUT_MIN_S, SCREEN_OFF_TIMEOUT_MAX_S)
 
 internal fun preventIdleDimDiagnostic(enabled: Boolean, timeoutMs: Int): String {
     val state = if (enabled) "on" else "off"
@@ -270,6 +288,13 @@ class BrightnessController internal constructor(
     }
 
     fun screenOffTimeoutMs(): Int = runCatching { screenTimeout.current() }.getOrDefault(-1)
+
+    /** The timeout the panel uses: while a screen-timeout sleep holds it ([held]), the one its wake restores. */
+    fun configuredScreenOffTimeoutMs(held: DisplacedScreenTimeout?): Int =
+        held?.displacedMs?.takeIf { it > 0 } ?: screenOffTimeoutMs()
+
+    fun setScreenOffTimeout(ms: Int, held: DisplacedScreenTimeout?): Boolean =
+        runCatching { screenTimeout.set(ms, held) }.getOrDefault(false)
 
     companion object {
         private const val TAG = "ha-paneld/brightness"

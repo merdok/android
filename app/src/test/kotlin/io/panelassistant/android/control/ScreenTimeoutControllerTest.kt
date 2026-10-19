@@ -85,4 +85,22 @@ class ScreenTimeoutControllerTest {
         assertEquals("off · timeout 60s", preventIdleDimDiagnostic(false, 60_000))
         assertEquals("on · timeout unknown", preventIdleDimDiagnostic(true, -1))
     }
+
+    /** While a screen-timeout sleep holds the panel, a new choice is the value its wake restores, never the live 1 s. */
+    @Test fun aChosenTimeoutDuringAHeldSleepChangesTheValueTheWakeRestores() {
+        var live = 1_000
+        val held = object : DisplacedScreenTimeout {
+            override var displacedMs = 60_000
+            override var displacedStayOnMask = -1
+        }
+        val controller = ScreenTimeoutController(read = { live }, write = { live = it; true })
+
+        assertTrue(controller.set(300_000, held))
+        assertEquals(300_000, held.displacedMs)
+        assertEquals(1_000, live)
+
+        assertTrue(controller.set(120_000, null))
+        assertEquals(120_000, live)
+        assertFalse(ScreenTimeoutController(read = { 60_000 }, write = { true }).set(120_000, null))
+    }
 }

@@ -401,6 +401,7 @@ internal class PanelCommandDispatcher(
             }
             "buttons" -> if (hasButtonBacklight) handleButtons(value.expect(channel))
             "camera_enabled" -> handleCameraEnabled(value.expect<CommandValue.Switch>(channel).on)
+            "screen_off_timeout" -> handleScreenOffTimeout(value.expect<CommandValue.Quantity>(channel).value.toInt())
             else -> Log.d(TAG, "unhandled command channel $channel")
         }
     }
@@ -484,6 +485,7 @@ internal class PanelCommandDispatcher(
         externalIntentCommitted.set("prevent_idle_dim")
         val timeout = brightness.applyPreventIdleDim(on, config)
         core.reconcile("prevent_idle_dim")
+        core.reconcile("screen_off_timeout")
         if (!timeout.effective) {
             // observedMs < 0: WRITE_SETTINGS denied or the setting is unreadable, so there is no path.
             if (timeout.observedMs < 0) throw LiveSettingUnavailableException("prevent_idle_dim")
@@ -802,6 +804,16 @@ internal class PanelCommandDispatcher(
         core.reconcile("home_dashboard")
     }
 
+    // Android's own screen-off timeout, the screensaver delay on a TV. Prevent idle dim holds it at "never",
+    // so a value is taken only while that is off: turning it off stays the approval-gated step.
+    private fun handleScreenOffTimeout(seconds: Int) {
+        if (config.preventIdleDim || !brightness.setScreenOffTimeout(seconds * 1_000, screen.heldSleepRecord())) {
+            core.reconcile("screen_off_timeout")
+            throw LiveSettingUnavailableException("screen_off_timeout")
+        }
+        core.reconcile("screen_off_timeout")
+    }
+
     /** Nothing to actuate: the server owns HA registry write-back. */
     override fun handleHaAreaPublishOnly() = Unit
 
@@ -1017,7 +1029,7 @@ internal class PanelCommandDispatcher(
             "cpu_governor", "network_adb", "screen", "led", "navigate", "volume", "home_dashboard",
             "buttons", "navbar", "wake_on_wave", "auto_sleep", "touch_sound", "watchdog", "kiosk_lock",
             "silence_boot_chime", "prevent_idle_dim", "zigbee_router", "auto_brightness",
-            "camera_enabled", "dashboard_theme", "dashboard_idle_return",
+            "camera_enabled", "dashboard_theme", "dashboard_idle_return", "screen_off_timeout",
         )
         /** Channels whose commands never conflate. */
         private val ACTION_CHANNELS = setOf("reload", "reboot", "android_settings", "launcher")

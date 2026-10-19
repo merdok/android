@@ -37,8 +37,14 @@ internal class RuntimeSettingEntitiesTest : PanelRuntimeRig() {
         rigs.forEach { it.close() }
     }
 
+    private val timeout = java.util.concurrent.atomic.AtomicInteger(45_000)
+
     private fun started(configure: (Config) -> Unit = {}): Rig = rig(
         deviceSecure = false,
+        screenOffTimeout = io.panelassistant.android.control.ScreenTimeoutController(
+            read = timeout::get,
+            write = { timeout.set(it); true },
+        ),
         configure = { config ->
             config.ensurePanelId { "entity_panel" }
             config.setRaw(requireNotNull(SettingsRegistry.spec("friendly_name")), "Entity panel")
@@ -162,6 +168,45 @@ internal class RuntimeSettingEntitiesTest : PanelRuntimeRig() {
 
             val reduction = submitNative(rig, "prevent_idle_dim", "OFF")
             assertTrue("$reduction", reduction is PanelAssistantCommandResult.ApprovalPending)
+        } finally {
+            broker.pending().filter { it.id !in before }.forEach { broker.deny(it.id) }
+        }
+    }
+
+    /**
+     * Prevent idle dim holds Android's screen-off timeout at "never", so the number is unavailable while it is on
+     * and follows the timeout both ways once it is off; turning it off stays the approval-gated step.
+     */
+    @Test fun theScreenOffTimeoutFollowsAndroidBothWaysOnlyWhilePreventIdleDimIsOff() {
+        val rig = started()
+        val session = Session(rig)
+        assertEquals("unavailable", session.state("screen_off_timeout").getString("state"))
+        assertTrue(submitNative(rig, "screen_off_timeout", "300") is PanelAssistantCommandResult.Failed)
+
+        assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "prevent_idle_dim", "OFF"))
+        session.value("screen_off_timeout", timeout.get() / 1_000)
+
+        assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "screen_off_timeout", "300"))
+        assertEquals(300_000, timeout.get())
+        session.value("screen_off_timeout", 300)
+
+        // Changed in Android's own settings, which the service's observer turns into this reconcile.
+        timeout.set(900_000)
+        rig.core.reconcile("screen_off_timeout")
+        session.value("screen_off_timeout", 900)
+    }
+
+    @Test fun inHardenedModeTheScreenOffTimeoutAppliesWithoutAnApprovalOncePreventIdleDimIsOff() {
+        val rig = started {
+            it.setRaw(requireNotNull(SettingsRegistry.spec("prevent_idle_dim")), "false")
+            assertTrue(it.setSecurityMode(Config.SecurityMode.HARDENED))
+        }
+        val broker = LocalApprovalBroker.instance
+        val before = broker.pending().map { it.id }.toSet()
+        try {
+            assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, "screen_off_timeout", "120"))
+            assertEquals(120_000, timeout.get())
+            assertEquals(emptyList<String>(), broker.pending().map { it.id }.filter { it !in before })
         } finally {
             broker.pending().filter { it.id !in before }.forEach { broker.deny(it.id) }
         }

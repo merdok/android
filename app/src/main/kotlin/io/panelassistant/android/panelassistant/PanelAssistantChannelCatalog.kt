@@ -3,6 +3,8 @@ package io.panelassistant.android.panelassistant
 import io.panelassistant.android.config.ChannelOption
 import io.panelassistant.android.config.SettingSpec
 import io.panelassistant.android.config.SettingsRegistry
+import io.panelassistant.android.control.SCREEN_OFF_TIMEOUT_MAX_S
+import io.panelassistant.android.control.SCREEN_OFF_TIMEOUT_MIN_S
 import io.panelassistant.android.control.ZigbeeHealthState
 import io.panelassistant.android.state.SoftwareComponent
 import io.panelassistant.android.storage.StorageHealthSeverity
@@ -209,6 +211,11 @@ internal object PanelAssistantChannelCatalog {
         PanelAssistantChannelDescriptor(
             channel = "home_dashboard", platform = "text", translationKey = "home_dashboard",
             uniqueSuffix = "home_dashboard", kind = PanelAssistantValueKind.TEXT, entityCategory = "config",
+        ),
+        PanelAssistantChannelDescriptor(
+            channel = "screen_off_timeout", platform = "number", translationKey = "screen_off_timeout",
+            uniqueSuffix = "screen_off_timeout", kind = PanelAssistantValueKind.NUMBER, entityCategory = "config",
+            enabledDefault = false, unit = "s", min = SCREEN_OFF_TIMEOUT_MIN_S, max = SCREEN_OFF_TIMEOUT_MAX_S, step = 1,
         ),
         PanelAssistantChannelDescriptor(
             channel = "reload", platform = "button", translationKey = "reload",
