@@ -10,11 +10,11 @@
 [![CI](https://github.com/panel-assistant/android/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/panel-assistant/android/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/panel-assistant/android?include_prereleases&sort=semver&style=flat-square&color=blue)](https://github.com/panel-assistant/android/releases)
 
-**The Home Assistant dashboard app for Android wall panels.**
+**The Panel Assistant app for Android wall panels: your Home Assistant dashboard on the wall, the panel's screen, sensors and buttons as Home Assistant entities, and an Assist voice satellite on panels with a microphone.**
 
-ha-paneld is the Android app installed and updated by Panel Assistant, the Home Assistant integration. Its built-in dashboard renderer filters entity updates, and hardware profiles provide controls for supported panels.
+It runs on ARM wall panels with Android 8.0 or newer and debugging access, from Sonoff (NSPanel Pro), Shelly, Tuya, Meta, Electron and Smatek, and on any other panel that meets those requirements. You do not install it yourself: the [Panel Assistant integration](https://github.com/panel-assistant/ha-integration) installs it from Home Assistant, over the network or over USB from your browser, and delivers every update.
 
-For installation, user guides, hardware support and community information, visit [panel-assistant.io](https://panel-assistant.io/).
+**Get started:** add Panel Assistant to Home Assistant through [HACS](https://github.com/panel-assistant/ha-integration#install-the-integration), then follow [Getting started](https://panel-assistant.io/start/getting-started/). [Choose a panel](https://panel-assistant.io/install/supported-panels/) says what to expect from each model, and [Updates and recovery](https://panel-assistant.io/manage/updates-and-recovery/) covers what happens if an installation stops.
 
 ## Development
 
