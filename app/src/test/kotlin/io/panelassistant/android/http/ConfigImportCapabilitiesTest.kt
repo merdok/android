@@ -183,6 +183,28 @@ class ConfigImportCapabilitiesTest {
         }
     }
 
+    @Test fun lateRevisionRefusalNamesAlreadyCommittedKeys() = withRealConfigFixture { config, fixture ->
+        capabilities(fixture, Capabilities(appCanSu = true, networkAdb = true))
+        val kiosk = kioskSetting(canEnable = { false }, actuate = { error("must refuse") }, persist = config::commitKioskLock)
+        field(fixture.server, "applySetting", { key: String, value: String ->
+            if (key == "kiosk_lock" && !kiosk(value == "true")) LiveSettingRequestOutcome.REJECTED
+            else LiveSettingRequestOutcome.APPLIED
+        })
+        val revisions = readField(fixture.server, "revisions") as RevisionStore
+        val id = revisions.snapshot(ConfigBundle.fromValues(linkedMapOf("friendly_name" to "Historical", "kiosk_lock" to "true"), kind = ConfigBundle.KIND_REVISION))
+        testApplication {
+            application { fixture.mount(this) }
+            val response = client.post("/api/v1/config/revisions/$id/restore")
+            assertEquals(HttpStatusCode.OK, response.status)
+            val receipt = JSONObject(response.bodyAsText())
+            assertEquals("partial", receipt.getString("status"))
+            assertEquals(listOf("friendly_name"), strings(receipt, "applied"))
+            assertTrue(strings(receipt, "errors").any { it.contains("kiosk_lock") })
+            assertEquals("Historical", config.friendlyName)
+            assertFalse(config.kioskLock)
+        }
+    }
+
     private fun capabilities(fixture: PaneldServerHttpFixture, caps: Capabilities) {
         val observations = readField(fixture.server, "managementObservations") as ManagementObservations
         val previous = requireNotNull(observations.snapCache.peek())

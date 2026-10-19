@@ -33,10 +33,15 @@ class RegisteredInstallLifetimeTest {
 
     @Test fun endingTheManagementSessionWithdrawsARegisteredCommit() = probe(close = true, sessionClose = true)
 
-    private fun probe(close: Boolean, shared: Boolean = false, sessionClose: Boolean = false) = testApplication {
+    @Test fun anAdmittedInstallCompletesAfterItsManagementSessionEnds() = probe(close = false, sessionClose = true, started = true)
+
+    private fun probe(close: Boolean, shared: Boolean = false, sessionClose: Boolean = false, started: Boolean = false) = testApplication {
         val table = ManageTable()
         val broker = ApprovalBroker(monotonicMs = { System.nanoTime() / 1_000_000 })
         val effects = AtomicInteger()
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val finished = java.util.concurrent.CountDownLatch(1)
         val pending = PendingUploadStore(newToken = { "stage-token" }).apply { open() }
         val lease = (pending.begin() as PendingUploadStore.BeginResult.Granted).lease
         val file = temporary.newFile("staged.apk").apply { writeText("probe bytes, never installed") }
@@ -51,7 +56,10 @@ class RegisteredInstallLifetimeTest {
                 startInstall = { entry, ticket ->
                     assertEquals("stage-token", entry.token)
                     effects.incrementAndGet()
+                    entered.countDown()
+                    if (started) check(release.await(5, TimeUnit.SECONDS))
                     InstallProgress.finish(ticket, "probe effect, no installation")
+                    finished.countDown()
                 },
             ),
             authorize = { call, operation, payload, summary ->
@@ -122,10 +130,15 @@ class RegisteredInstallLifetimeTest {
                 assertEquals(0, effects.get())
             } else {
                 assertTrue(broker.approve(approval.id))
-                assertEquals("applied", sent.poll(5, TimeUnit.SECONDS)?.optString("outcome"))
+                if (started) {
+                    assertTrue(entered.await(5, TimeUnit.SECONDS))
+                    requests.close()
+                    release.countDown()
+                    assertTrue(finished.await(5, TimeUnit.SECONDS))
+                } else assertEquals("applied", sent.poll(5, TimeUnit.SECONDS)?.optString("outcome"))
                 assertEquals(1, effects.get())
                 assertNull(pending.peek("stage-token"))
             }
-        } finally { requests.close(); frames.close(); other.close(); relayScope.cancel(); operations.stop(); pending.close() }
+        } finally { release.countDown(); requests.close(); frames.close(); other.close(); relayScope.cancel(); operations.stop(); pending.close() }
     }
 }
