@@ -145,6 +145,8 @@ internal abstract class PanelRuntimeRig {
         /** The CPU governor source; a test changes its governor as a thermal daemon would. */
         val metrics: io.panelassistant.android.control.FakeMetricSource,
         val screen: ScreenController,
+        /** The root shell the CPU governor writes go through; a test sets its runResult false to refuse them. */
+        val cpuShell: FakeRootShell,
     ) {
         /** The service's start order: the state core's startup step. */
         fun start() {
@@ -235,6 +237,8 @@ internal abstract class PanelRuntimeRig {
         ),
         /** Whether the navbar controller acknowledges each mode at once, drawing nothing; otherwise it is unusable. */
         navbarAcknowledges: Boolean = false,
+        /** Runs before each acknowledged navbar mode change completes; a test can hold the command worker in it. */
+        beforeNavbarAcknowledged: () -> Unit = {},
         configure: (Config) -> Unit = {},
     ): Rig {
         val tmp = scratchDirectory("panel-runtime-rig").toFile()
@@ -324,9 +328,10 @@ internal abstract class PanelRuntimeRig {
             governor = cpuGovernor,
             availableGovernors = cpuGovernor?.let { "performance powersave schedutil" },
         )
-        // A governor write the root shell runs becomes the governor the panel reads back.
-        val cpuShell = FakeRootShell(onRun = { command ->
-            Regex("echo ([a-z0-9_]+) >").find(command)?.let { metrics.governor = it.groupValues[1] }
+        // A governor write the root shell runs becomes the governor the panel reads back, unless it is refused.
+        lateinit var cpuShell: FakeRootShell
+        cpuShell = FakeRootShell(onRun = { command ->
+            if (cpuShell.runResult) Regex("echo ([a-z0-9_]+) >").find(command)?.let { metrics.governor = it.groupValues[1] }
         })
         val cpu = CpuController(
             fakeProfile(), cpuShell, FakeDaemon(), io.panelassistant.android.metrics.PanelMetrics(metrics),
@@ -378,7 +383,7 @@ internal abstract class PanelRuntimeRig {
             volume = volume,
             system = system,
             // Never usable unless asked for: a navbar command that reaches the controller throws here.
-            navbar = allocate(NavbarController::class.java).also { if (navbarAcknowledges) acknowledgeModes(it) },
+            navbar = allocate(NavbarController::class.java).also { if (navbarAcknowledges) acknowledgeModes(it, beforeNavbarAcknowledged) },
             watchdog = WatchdogController(system, config),
             // The real controller over fake hardware when a test drives touch_sound; otherwise never usable.
             touchSound = touchSoundHardware?.let { touchSoundController(context, it) }
@@ -409,17 +414,18 @@ internal abstract class PanelRuntimeRig {
         )
         return Rig(
             tmp, config, sysfs, core, commands, storage, storageReads, updateSources, autoSleepConfigChanges,
-            context.audio, metrics, screen,
+            context.audio, metrics, screen, cpuShell,
         )
     }
 
     /** Let an allocated [navbar] take mode changes: each one is acknowledged as applied at once. */
-    private fun acknowledgeModes(navbar: NavbarController) {
+    private fun acknowledgeModes(navbar: NavbarController, beforeAcknowledged: () -> Unit) {
         fun field(name: String, value: Any) =
             NavbarController::class.java.getDeclaredField(name).apply { isAccessible = true }.set(navbar, value)
         fun read(work: Any, getter: String): Any? = work.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(work)
         field("lifecycleLock", Any())
         field("modeDispatcher", io.panelassistant.android.util.LatestDispatcher.singleSlot<Any>("rig-navbar", consume = { work ->
+            beforeAcknowledged()
             @Suppress("UNCHECKED_CAST")
             (read(work, "getCompletion") as java.util.concurrent.CompletableFuture<io.panelassistant.android.control.NavbarModeApplyOutcome>?)
                 ?.complete(
