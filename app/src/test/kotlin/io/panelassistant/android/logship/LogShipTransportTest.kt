@@ -483,14 +483,17 @@ class LogShipTransportTest {
             ).use { harness ->
                 harness.start()
                 harness.emit(logcatLine("I", "queued during the outage"))
-                await(30_000) { "recovered after" in receiver.text() }
+                // Sent only after the reconnect, by which time the shipper has logged what it will.
+                await(30_000) { "queued during the outage" in receiver.text() }
 
                 val warnings = harness.logged.filter { it.first == android.util.Log.WARN }
                 assertEquals(harness.logged.toString(), 1, warnings.size)
                 assertTrue(warnings.single().second, "UnknownHostException" in warnings.single().second)
-                val recovered = harness.logged.single { it.first == android.util.Log.INFO }.second
-                assertTrue(recovered, "recovered after 2 failed attempts; last: UnknownHostException" in recovered)
-                await { "queued during the outage" in receiver.text() }
+                val recovered = harness.logged.filter { it.first == android.util.Log.INFO }
+                assertEquals(harness.logged.toString(), 1, recovered.size)
+                assertTrue(recovered.single().second, "recovered after 2 failed attempts; last: UnknownHostException" in recovered.single().second)
+                // Both lines re-entered the capture and reached the collector.
+                await { "recovered after 2 failed attempts" in receiver.text() }
             }
         }
     }
