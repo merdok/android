@@ -481,6 +481,9 @@ internal abstract class PanelRuntimeRig {
             ),
         )
         val writes = CopyOnWriteArrayList<String>()
+        var refusedWrite: String? = null
+        var refuseGpioPreparation = false
+        var unreadable: String? = null
         @Volatile private var blockPath: String? = null
         val blockEntered = CountDownLatch(1)
         val blockRelease = CountDownLatch(1)
@@ -494,8 +497,8 @@ internal abstract class PanelRuntimeRig {
         override fun runOutput(cmd: String): String? = null
         override fun runBytes(cmd: String): ByteArray? = null
         override fun listSysfs(path: String): String? = if (path == RELAY_BASE) "relay1 relay2" else null
-        override fun readSysfs(path: String): String? = nodes[path]
-        override fun prepareOutputGpio(gpio: Int) = true
+        override fun readSysfs(path: String): String? = if (path == unreadable) null else nodes[path]
+        override fun prepareOutputGpio(gpio: Int) = !refuseGpioPreparation
         override fun writeSysfs(path: String, value: String): Boolean {
             if (path == blockPath) {
                 blockPath = null
@@ -503,6 +506,7 @@ internal abstract class PanelRuntimeRig {
                 check(blockRelease.await(30, TimeUnit.SECONDS)) { "blocked write never released" }
             }
             writes += "$path=$value"
+            if (path == refusedWrite) return false
             nodes[path] = value
             return true
         }

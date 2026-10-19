@@ -618,10 +618,10 @@ internal class PanelCommandDispatcher(
     // (same daemon that owns the sysfs LED). Daemon calls are short blocking I/O — fine on this thread.
     private fun handleButtons(light: CommandValue.Light) {
         val level = if (!light.on) 0 else light.brightness ?: 255
-        if (helperSend(buttonBacklightCommand(level, buttonBacklightTransfer)) == "OK") {
-            config.lastButtonBacklight = level
-            core.reconcile("buttons")
-        }
+        val applied = helperSend(buttonBacklightCommand(level, buttonBacklightTransfer)) == "OK"
+        if (applied) config.lastButtonBacklight = level
+        core.reconcile("buttons")
+        if (!applied) throw LiveSettingUnavailableException("buttons")
     }
 
     // Zigbee router toggle (Sonoff NSPanel Pro). ON starts the guard supervisor (→ mosquitto +
@@ -712,7 +712,7 @@ internal class PanelCommandDispatcher(
     private fun handleRelay(channel: String, on: Boolean) {
         val n = channel.removePrefix("relay").toIntOrNull() ?: return
         if (!relayReadbackGate.command("relay$n") { relay.set(n, on) }) {
-            Log.w(TAG, "relay$n write failed; read-back will publish the physical state")
+            throw LiveSettingUnavailableException(channel)
         }
     }
 
@@ -720,7 +720,7 @@ internal class PanelCommandDispatcher(
     private fun handleButtonLed(channel: String, on: Boolean) {
         val n = channel.removePrefix("button_led").toIntOrNull() ?: return
         if (!relayReadbackGate.command("button_led$n") { relay.ledSet(n - 1, on) }) {
-            Log.w(TAG, "button_led$n write failed; read-back will publish the physical state")
+            throw LiveSettingUnavailableException(channel)
         }
     }
 

@@ -41,6 +41,73 @@ internal class PanelAssistantCommandWiringContractTest : PanelRuntimeRig() {
         } finally { rig.close() }
     }
 
+    @Test fun refusedButtonBacklightWritesFailAndReportTheStoredLevel() {
+        for (answer in listOf(null, "ERR")) {
+            val writes = java.util.concurrent.CopyOnWriteArrayList<String>()
+            val rig = rig(helperSend = { writes += it; answer }, configure = {
+                it.attachProfile(io.panelassistant.android.control.fakeProfile(hasButtonBacklight = true))
+            })
+            try {
+                rig.config.lastButtonBacklight = 73
+                rig.start()
+                writes.clear()
+                val observations = java.util.concurrent.CopyOnWriteArrayList<io.panelassistant.android.state.StateConverger.Observation>()
+                rig.core.addStateSink { key, value -> if (key == "buttons") observations += value }
+                val result = submitNative(rig, "buttons", CommandValue.Light(on = true, brightness = 180))
+                assertEquals(PanelAssistantCommandResult.Failed("hardware_unavailable"), result)
+                assertEquals(73, rig.config.lastButtonBacklight)
+                assertEquals(1, writes.size)
+                assertTrue("the stored brightness was re-reported", observations.isNotEmpty())
+                assertEquals(io.panelassistant.android.state.StateConverger.Observation.Known(
+                    io.panelassistant.android.buttonBacklightState(73)), observations.last())
+            } finally { rig.close() }
+        }
+    }
+
+    @Test fun failedDynamicWritesKeepPhysicalReadbackAndSuccessfulRetryAppliesOnce() {
+        for (channel in listOf("relay1", "button_led1")) {
+            val rig = rig()
+            try {
+                rig.start()
+                assertTrue(kotlinx.coroutines.runBlocking { rig.core.observeForNativeHello { true } })
+                val path = if (channel == "relay1") "$RELAY_BASE/relay1" else "/sys/class/gpio/gpio$LED_GPIO_BASE/value"
+                val observations = java.util.concurrent.CopyOnWriteArrayList<io.panelassistant.android.state.StateConverger.Observation>()
+                rig.core.addStateSink { key, value -> if (key == channel) observations += value }
+                rig.sysfs.refusedWrite = path
+                rig.sysfs.writes.clear()
+                assertEquals(PanelAssistantCommandResult.Failed("hardware_unavailable"), submitNative(rig, channel, if (channel == "relay1") "ON" else """{"on":true}"""))
+                drainStatePump()
+                assertEquals(listOf("$path=1"), rig.sysfs.writes.toList())
+                assertEquals(io.panelassistant.android.state.StateConverger.Observation.Known("OFF"), observations.last())
+                rig.sysfs.refusedWrite = null
+                rig.sysfs.writes.clear()
+                assertEquals(PanelAssistantCommandResult.Applied, submitNative(rig, channel, if (channel == "relay1") "ON" else """{"on":true}"""))
+                drainStatePump()
+                assertEquals(listOf("$path=1"), rig.sysfs.writes.toList())
+                assertEquals(io.panelassistant.android.state.StateConverger.Observation.Known("ON"), observations.last())
+            } finally { rig.close() }
+        }
+    }
+
+    @Test fun refusedGpioPreparationFailsBeforeWritingAndUnreadableReadbackIsUnavailable() {
+        val rig = rig()
+        try {
+            rig.start()
+            assertTrue(kotlinx.coroutines.runBlocking { rig.core.observeForNativeHello { true } })
+            val channel = "button_led1"
+            val observations = java.util.concurrent.CopyOnWriteArrayList<io.panelassistant.android.state.StateConverger.Observation>()
+            rig.core.addStateSink { key, value -> if (key == channel) observations += value }
+            rig.sysfs.refuseGpioPreparation = true
+            rig.sysfs.unreadable = "/sys/class/gpio/gpio$LED_GPIO_BASE/value"
+            assertEquals(PanelAssistantCommandResult.Failed("hardware_unavailable"), submitNative(rig, channel, if (channel == "relay1") "ON" else """{"on":true}"""))
+            drainStatePump()
+            assertTrue("failed preparation must not write", rig.sysfs.writes.isEmpty())
+            val descriptor = requireNotNull(PanelAssistantChannelCatalog.describe(channel))
+            assertEquals(PanelAssistantWireValue.Unavailable,
+                PanelAssistantValueTranslation.translate(descriptor, observations.last() as io.panelassistant.android.state.StateConverger.Observation.Reportable))
+        } finally { rig.close() }
+    }
+
     @Test fun aSensitiveCommandWaitsForApprovalUnderThePanelAssistantPeer() {
         val rig = rig(hasCamera = true)
         val broker = LocalApprovalBroker.instance
