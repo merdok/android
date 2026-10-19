@@ -97,6 +97,5 @@ class HomeDashboardSpecTest {
         assertEquals("ha_dashboard", spec.picker)
         assertEquals(Scope.DEVICE, spec.scope)
         assertTrue("a dashboard change must not need a restart", spec.liveApply)
-        assertEquals(2_048, spec.maxChars)
     }
 }

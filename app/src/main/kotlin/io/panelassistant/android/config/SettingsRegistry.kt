@@ -614,7 +614,7 @@ object SettingsRegistry {
             tier = Tier.BASIC, summary = "Dashboard opened on reload and idle return.",
             label = "Home dashboard", default = "", picker = "ha_dashboard", scope = Scope.DEVICE,
             liveApply = true,
-            maxChars = 2_048,
+            maxChars = 255,
             help = "Dashboard used by reload and idle return.\n\n- **Auto** lets Home Assistant choose.\n- **Custom** accepts a specific view, e.g. `/dashboard-name/tab-name`.",
             validate = { raw ->
                 // Blank and bare-root spellings mean "follow the account default" and name no dashboard,
@@ -629,7 +629,10 @@ object SettingsRegistry {
                 // stored verbatim they are absent from the dashboard list, so both pickers would reopen
                 // in Custom showing a path the panel is not actually using.
                 if (DashboardPath.followsAccountDefault(raw)) Validation.Ok("")
-                else DashboardPath.canonical(raw, preserveRoute = true)?.let(Validation::Ok)
+                else DashboardPath.canonical(raw, preserveRoute = true)?.let { path ->
+                    if (path.length <= 255) Validation.Ok(path)
+                    else Validation.Bad("home_dashboard: must be at most 255 characters")
+                }
                     ?: Validation.Bad(
                         "home_dashboard: expected a dashboard path on this Home Assistant, " +
                             "e.g. /lovelace or /dashboard-name/tab-name",

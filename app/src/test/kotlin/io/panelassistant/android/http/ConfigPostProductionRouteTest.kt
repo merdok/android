@@ -155,6 +155,46 @@ class ConfigPostProductionRouteTest {
             }
         }
 
+    @Test fun `home dashboard refuses overlong routes before changing stored state`() =
+        withRouteConfig { config, _, _, _ ->
+            val spec = requireNotNull(SettingsRegistry.spec("home_dashboard"))
+            assertTrue(config.applyBatch { config.setRaw(spec, "/lovelace/original") })
+            val commands = liveEffectBridge(config) {}
+            val server = routeServer(config) { key, value ->
+                dispatchLiveSetting(key = key,
+                    value = io.panelassistant.android.liveSettingValue(spec, value),
+                    previousValue = config.getRaw(spec), handlers = commands)
+                LiveSettingRequestOutcome.APPLIED
+            }
+            fun route(length: Int, char: Char = 'a') = "/lovelace/view?q=" + char.toString().repeat(length - "/lovelace/view?q=".length)
+            testApplication {
+                application { routing { route("/api/v1") {
+                    with(server) { installDirectConfigPostRoute { Capabilities() } }
+                } } }
+                for (value in listOf(route(300), route(256).removePrefix("/"))) {
+                    val before = config.getRaw(spec)
+                    val response = client.submitForm("/api/v1/config", Parameters.build { append(spec.key, value) }) {
+                        accept(ContentType.Application.Json)
+                    }
+                    assertEquals(HttpStatusCode.BadRequest, response.status)
+                    assertTrue(response.bodyAsText().contains("must be at most 255 characters"))
+                    assertEquals(before, config.getRaw(spec))
+                }
+                for (value in listOf(route(255), route(255, 'b').removePrefix("/"))) {
+                    val expected = if (value.startsWith("/")) value else "/$value"
+                    val response = client.submitForm("/api/v1/config", Parameters.build { append(spec.key, value) }) {
+                        accept(ContentType.Application.Json)
+                    }
+                    assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+                    assertEquals(expected, config.getRaw(spec))
+                    val descriptor = requireNotNull(io.panelassistant.android.panelassistant.PanelAssistantChannelCatalog.describe("home_dashboard"))
+                    assertEquals(io.panelassistant.android.panelassistant.PanelAssistantWireValue.Known(expected),
+                        io.panelassistant.android.panelassistant.PanelAssistantValueTranslation.translate(descriptor,
+                            StateConverger.Observation.Known(config.getRaw(spec))))
+                }
+            }
+        }
+
     @Test fun `zoom 96 persists through the production route and invalid values explain the rule`() =
         withRouteConfig { config, _, server, _ ->
             testApplication {
