@@ -20,6 +20,7 @@ import java.net.UnknownHostException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
@@ -154,6 +155,9 @@ class LogShipTransportTest {
         private val scope = CoroutineScope(SupervisorJob() + executor.asCoroutineDispatcher())
         private val listener = AtomicReference<((String) -> Unit)?>(null)
 
+        /** The shipper's own log lines, which also re-enter the capture as logcat feeds [LogCapture]. */
+        val logged = CopyOnWriteArrayList<Pair<Int, String>>()
+
         val shipper = LogShipper(
             configSnapshot = { LogShipConfigSnapshot(true, host, port, protocol, panelId) },
             scope = scope,
@@ -162,6 +166,10 @@ class LogShipTransportTest {
                 AutoCloseable { listener.compareAndSet(candidate, null) }
             },
             sinkFactory = sinkFactory,
+            log = { priority, message ->
+                logged += priority to message
+                listener.get()?.invoke("07-26 12:34:56.789  1234  5678 ${"VDIWE"[priority - 2]} ha-paneld/logship: $message")
+            },
         )
 
         fun start() = shipper.start()
@@ -443,6 +451,65 @@ class LogShipTransportTest {
             // cannot carry a destination; "host not found" still says what went wrong.
             assertEquals("host not found", reason)
             assertFalse("the status must not carry the destination: $status", host in status)
+        }
+    }
+
+    /** A sink factory whose name lookups fail [failures] times with UnknownHost, then resolve to loopback. */
+    private fun failingLookups(failures: Int): LogSinkFactory {
+        val lookups = AtomicInteger()
+        return LogSinkFactory { target, encode ->
+            NetworkLogSinkFactory.create(
+                target,
+                encode,
+                LogAddressResolver { host, _ ->
+                    if (lookups.incrementAndGet() <= failures) throw UnknownHostException(host)
+                    listOf(InetAddress.getLoopbackAddress())
+                },
+                LogShipper.NETWORK_TIMEOUT_MS.toLong(),
+            )
+        }
+    }
+
+    /**
+     * An outage logs one warning when attempts start failing and one line when they recover, with the
+     * last reason, not one warning per 5 s attempt: one panel's 2.5 h DNS loss logged 1,381.
+     */
+    @Test(timeout = 40_000)
+    fun aFailingStreakIsLoggedOnceAndItsRecoveryOnceWithTheLastReason() {
+        TcpReceiver().use { receiver ->
+            Harness(
+                LogShipEndpoint.SYSLOG_TCP, receiver.port, host = "collector.lan",
+                sinkFactory = failingLookups(2),
+            ).use { harness ->
+                harness.start()
+                harness.emit(logcatLine("I", "queued during the outage"))
+                await(30_000) { "recovered after" in receiver.text() }
+
+                val warnings = harness.logged.filter { it.first == android.util.Log.WARN }
+                assertEquals(harness.logged.toString(), 1, warnings.size)
+                assertTrue(warnings.single().second, "UnknownHostException" in warnings.single().second)
+                val recovered = harness.logged.single { it.first == android.util.Log.INFO }.second
+                assertTrue(recovered, "recovered after 2 failed attempts; last: UnknownHostException" in recovered)
+                await { "queued during the outage" in receiver.text() }
+            }
+        }
+    }
+
+    /** A single failed attempt reads as it always did: one warning, and no recovery line after it. */
+    @Test(timeout = 30_000)
+    fun aSingleFailedAttemptLogsOneWarningAndNoRecovery() {
+        TcpReceiver().use { receiver ->
+            Harness(
+                LogShipEndpoint.SYSLOG_TCP, receiver.port, host = "collector.lan",
+                sinkFactory = failingLookups(1),
+            ).use { harness ->
+                harness.start()
+                harness.emit(logcatLine("I", "after one failure"))
+                await(20_000) { "after one failure" in receiver.text() }
+
+                assertEquals(harness.logged.toString(), 1, harness.logged.size)
+                assertEquals(android.util.Log.WARN, harness.logged.single().first)
+            }
         }
     }
 

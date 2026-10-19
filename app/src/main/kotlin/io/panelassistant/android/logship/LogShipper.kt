@@ -235,6 +235,8 @@ class LogShipper internal constructor(
     private val sinkFactory: LogSinkFactory,
     private val featureCosts: FeatureCostRegistry = FeatureCosts.registry,
     private val build: LogShipRecord.Build = LogShipRecord.Build.CURRENT,
+    // Its own lines re-enter the capture it ships; tests observe them here.
+    private val log: (Int, String) -> Unit = { priority, message -> Log.println(priority, TAG, message) },
 ) {
     /** Ships [capture] and, when given, the dashboard [console] source through the same run. */
     constructor(
@@ -401,6 +403,17 @@ class LogShipper internal constructor(
         } else {
             { line -> syslogFrame(line, target.panelId) }
         }
+        val where = "${LogShipEndpoint.scheme(target.protocol)} " +
+            "${LogShipEndpoint.displayHost(target.host)}:${target.port}"
+        // One warning when attempts start failing and one line when they recover, not one per attempt:
+        // an outage would otherwise fill the queue with its own retries.
+        var failures = 0
+        var lastReason = ""
+        fun connected() {
+            run.markConnected()
+            if (failures > 1) log(Log.INFO, "$where: recovered after $failures failed attempts; last: $lastReason")
+            failures = 0
+        }
         while (isActive && run.isOpen()) {
             var sink: LogSink? = null
             try {
@@ -413,7 +426,7 @@ class LogShipper internal constructor(
                 candidate.connect()
                 // Syslog has no application handshake, so a completed connect (or, for UDP, a
                 // successful name resolution) is the only positive signal the transport ever gives.
-                if (target.protocol != LogShipEndpoint.HTTP) run.markConnected()
+                if (target.protocol != LogShipEndpoint.HTTP) connected()
                 while (isActive && run.isOpen()) {
                     val batch = run.takeBatch(batchMax, POLL_SECONDS)
                     if (batch.isEmpty()) continue
@@ -422,7 +435,7 @@ class LogShipper internal constructor(
                     try {
                         candidate.send(batch)
                         run.recordSent(batch.size)
-                        run.markConnected()
+                        connected()
                     } catch (e: Exception) {
                         outcome = FeatureCostOutcome.FAILURE
                         // The batch left the bounded queue and will not be retried, so account for its loss.
@@ -448,11 +461,8 @@ class LogShipper internal constructor(
                 if (run.isOpen()) {
                     val reason = describeFailure(e, target.host)
                     run.markFailure(reason)
-                    Log.w(
-                        TAG,
-                        "${LogShipEndpoint.scheme(target.protocol)} " +
-                            "${LogShipEndpoint.displayHost(target.host)}:${target.port}: $reason",
-                    )
+                    lastReason = reason
+                    if (++failures == 1) log(Log.WARN, "$where: $reason")
                     if (isActive) delay(SINK_BACKOFF_MS)
                 }
             } finally {
