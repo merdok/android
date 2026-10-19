@@ -271,13 +271,15 @@ class HelperSocketCompositionTest {
             packageName: String,
             cacheDir: File,
             timeoutMs: Long,
+            hold: Boolean,
         ): CompanionHelperProtocol.BackupResult =
-            CompanionHelperProtocol.backup(packageName, cacheDir, input, output)
+            CompanionHelperProtocol.backup(packageName, cacheDir, input, output, hold)
 
         override fun restoreCompanion(
             packageName: String,
             files: Map<String, File>,
             timeoutMs: Long,
+            expected: CompanionHelperProtocol.LiveDigest?,
         ): CompanionHelperProtocol.RestoreResult = error("not used by this composition fixture")
 
         override fun close() {

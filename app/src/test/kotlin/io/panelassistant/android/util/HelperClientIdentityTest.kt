@@ -675,6 +675,7 @@ private class FakeHelperTransport(initial: FakeGeneration = FakeGeneration()) : 
                 packageName: String,
                 cacheDir: File,
                 timeoutMs: Long,
+                hold: Boolean,
             ): CompanionHelperProtocol.BackupResult {
                 companionCommands += RecordedCommand(session, snapshot.id, "BACKUP $packageName")
                 return CompanionHelperProtocol.BackupResult.Busy
@@ -684,6 +685,7 @@ private class FakeHelperTransport(initial: FakeGeneration = FakeGeneration()) : 
                 packageName: String,
                 files: Map<String, File>,
                 timeoutMs: Long,
+                expected: CompanionHelperProtocol.LiveDigest?,
             ): CompanionHelperProtocol.RestoreResult {
                 companionCommands += RecordedCommand(session, snapshot.id, "RESTORE $packageName")
                 return CompanionHelperProtocol.RestoreResult.COMMITTED

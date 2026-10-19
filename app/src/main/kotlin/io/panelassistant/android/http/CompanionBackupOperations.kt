@@ -180,10 +180,12 @@ internal class CompanionBackupOperations(
     /**
      * Copy each blank Companion `internal_url` from its `external_url` (the HA 2026.7 "Missing 'Host'
      * header" repair) without editing the live database in place. One data lease suppresses every
-     * ha-paneld Companion launch from before the helper stops the Companion until the repair is terminal:
-     * the helper captures the raw database files, the private copy is checkpointed and repaired with the
-     * checks a backup restore uses, and only a repaired copy goes back through the helper's rollback-safe
-     * restore transaction. Every refusal before that leaves the live files as they were.
+     * ha-paneld Companion launch from before the helper stops the Companion until the repair is terminal,
+     * and the helper keeps the captured Companion stopped (HOLD) rather than relaunching it: the private
+     * copy is checkpointed and repaired with the checks a backup restore uses, and the repaired copy goes
+     * back through the helper's rollback-safe restore transaction only while the live database and WAL
+     * are still the bytes captured (EXPECT). Anything written since, by a launch from outside ha-paneld,
+     * refuses the restore. Every refusal leaves the live files as they were.
      */
     fun repairInternalUrls(): InstallOperationResult {
         val pkg = installedCompanionPackage() ?: return InstallOperationResult("no HA Companion app installed")
@@ -211,11 +213,14 @@ internal class CompanionBackupOperations(
         var restored: CompanionHelperProtocol.RestoreResult? = null
         var capture: CompanionHelperProtocol.Capture? = null
         try {
-            backup = helper.backup(pkg, cacheDir)
+            backup = helper.backup(pkg, cacheDir, hold = true)
             val captured = (backup as? CompanionHelperProtocol.BackupResult.Success)?.capture
                 ?: return InstallOperationResult(captureRefusal(backup))
             capture = captured
             val file = captured.files[CompanionRestore.DATABASE_FILE]
+                ?: return InstallOperationResult("Companion database was not captured; nothing was changed")
+            // The live bytes as captured, read before the checkpoint below rewrites this copy.
+            val live = CompanionHelperProtocol.LiveDigest.of(captured)
                 ?: return InstallOperationResult("Companion database was not captured; nothing was changed")
             if (!checkpoint(captured, file)) {
                 return InstallOperationResult("Companion database could not be checkpointed safely; nothing was changed")
@@ -238,7 +243,7 @@ internal class CompanionBackupOperations(
                     return InstallOperationResult("nothing to repair — every server already has an internal URL")
                 }
                 restored = CompanionHelperProtocol.RestoreResult.INDETERMINATE
-                val result = helper.restore(pkg, prepared.files.associate { it.relativePath to it.file })
+                val result = helper.restore(pkg, prepared.files.associate { it.relativePath to it.file }, live)
                 restored = result
                 val outcome = restoreOutcome(result, prepared.files.size, prepared.repairedInternalUrls).component
                 return InstallOperationResult(outcome.detail, outcome.presentation)
@@ -247,8 +252,8 @@ internal class CompanionBackupOperations(
             val captureResult = backup
             val restoreResult = restored
             lease.settle(possiblyInFlight = captureResult.mayStillHoldData() || restoreResult?.mayStillHoldData() == true) {
-                // The helper relaunches the Companion after each call it completes; launch it here only
-                // where that relaunch did not happen and no partial file set is being held back.
+                // The helper relaunches the Companion after a completed restore and leaves a held capture
+                // stopped; launch it here where neither happened and no partial file set is held back.
                 val companionStopped = when {
                     captureResult == CompanionHelperProtocol.BackupResult.Indeterminate -> true
                     captureResult is CompanionHelperProtocol.BackupResult.Failed -> captureResult.relaunchFailed
@@ -328,6 +333,15 @@ internal class CompanionBackupOperations(
                 InstallPresentation("companion-prior-files-retained"),
             ),
         )
+        CompanionHelperProtocol.RestoreResult.CHANGED,
+        CompanionHelperProtocol.RestoreResult.CHANGED_RELAUNCH_FAILED -> CompanionApplyResult(
+            false,
+            InstallProgress.ComponentResult(
+                InstallProgress.Outcome.FAILED,
+                0,
+                "the Companion's database changed during the repair; nothing was replaced",
+            ),
+        )
         CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED,
         CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_FAILED,
         CompanionHelperProtocol.RestoreResult.ROLLBACK_FAILED_RELAUNCH_SUPPRESSED -> CompanionApplyResult(
@@ -399,6 +413,7 @@ internal class CompanionBackupOperations(
         val RELAUNCH_FAILED = setOf(
             CompanionHelperProtocol.RestoreResult.COMMITTED_RELAUNCH_FAILED,
             CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED,
+            CompanionHelperProtocol.RestoreResult.CHANGED_RELAUNCH_FAILED,
         )
     }
 }
@@ -425,14 +440,22 @@ internal fun CompanionHelperProtocol.RestoreResult.mayStillHoldData(): Boolean =
 
 /** The root helper's Companion data verbs, an interface so a JVM test can stand in for the device. */
 internal interface CompanionDataHelper {
-    fun backup(packageName: String, cacheDir: File): CompanionHelperProtocol.BackupResult
-    fun restore(packageName: String, files: Map<String, File>): CompanionHelperProtocol.RestoreResult
+    fun backup(packageName: String, cacheDir: File, hold: Boolean = false): CompanionHelperProtocol.BackupResult
+    fun restore(
+        packageName: String,
+        files: Map<String, File>,
+        expected: CompanionHelperProtocol.LiveDigest? = null,
+    ): CompanionHelperProtocol.RestoreResult
     fun status(): CompanionOperationStatus
 
     object Root : CompanionDataHelper {
-        override fun backup(packageName: String, cacheDir: File) = HelperClient.backupCompanion(packageName, cacheDir)
-        override fun restore(packageName: String, files: Map<String, File>) =
-            HelperClient.restoreCompanion(packageName, files)
+        override fun backup(packageName: String, cacheDir: File, hold: Boolean) =
+            HelperClient.backupCompanion(packageName, cacheDir, hold)
+        override fun restore(
+            packageName: String,
+            files: Map<String, File>,
+            expected: CompanionHelperProtocol.LiveDigest?,
+        ) = HelperClient.restoreCompanion(packageName, files, expected)
         override fun status() = HelperClient.companionOperationStatus()
     }
 }

@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include "companion.h"
 
+#include "sha256.h"
 #include "sysexec.h"
 #include "util.h"
 
@@ -719,8 +720,12 @@ static void close_opened(opened_file files[SLOT_COUNT]) {
 }
 
 void cmd_companionbackup(conn_ctx *ctx, const char *args) {
-    char pkg[128] = "", extra[2] = "";
-    if (sscanf(args, "%127s %1s", pkg, extra) != 1 || !supported_pkg(pkg)) {
+    char pkg[128] = "", option[8] = "", extra[2] = "";
+    int fields = sscanf(args, "%127s %7s %1s", pkg, option, extra);
+    // HOLD leaves a captured Companion stopped, so nothing it writes can be lost before the caller's
+    // restore; a capture that fails still relaunches.
+    int hold = fields == 2 && strcmp(option, "HOLD") == 0;
+    if ((fields != 1 && !hold) || !supported_pkg(pkg)) {
         reply(ctx->fd, "ERR\n");
         return;
     }
@@ -788,9 +793,12 @@ void cmd_companionbackup(conn_ctx *ctx, const char *args) {
     close_opened(files);
     close_target(&target);
     if (stage_dir >= 0) close(stage_dir);
-    int relaunched = recovery_safe && stopped && relaunch(pkg) == 0;
+    int held = hold && captured && streamed;
+    int relaunched = !held && recovery_safe && stopped && relaunch(pkg) == 0;
     if (!captured) {
         reply(ctx->fd, relaunched ? "ERR\n" : "ERR RELAUNCH_ERR\n");
+    } else if (held) {
+        reply(ctx->fd, "DONE HELD\n");
     } else if (streamed) {
         reply(ctx->fd, relaunched ? "DONE\n" : "DONE RELAUNCH_ERR\n");
     }
@@ -986,13 +994,43 @@ static int commit_restore(
     return 0;
 }
 
+static int valid_sha256_hex(const char *text) {
+    if (strlen(text) != 64) return 0;
+    for (const char *c = text; *c; c++)
+        if (!((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'f'))) return 0;
+    return 1;
+}
+
+// 0 when the live database and WAL still hold exactly the captured bytes; -1 when either changed,
+// vanished or cannot be read safely. "-" expects no WAL or an empty one, as a capture omits it.
+static int live_matches_capture(const target_dirs *target, const char *db_sha, const char *wal_sha) {
+    const char *const expected[2] = { db_sha, wal_sha };
+    for (int slot = SLOT_DB; slot <= SLOT_DB_WAL; slot++) {
+        opened_file file;
+        int found = open_live_file(slot_parent(target, &SLOTS[slot]), &SLOTS[slot], target->uid,
+            target->label, target->label_len, slot == SLOT_DB_WAL, &file);
+        int absent = found == 0 || (found == 1 && file.st.st_size == 0);
+        char actual[65];
+        int same = found >= 0 && (strcmp(expected[slot], "-") == 0
+            ? absent
+            : !absent && hapaneld_sha256_fd(file.fd, (uint64_t)file.st.st_size, actual) == 0 &&
+                strcmp(actual, expected[slot]) == 0);
+        if (found == 1) close(file.fd);
+        if (!same) return -1;
+    }
+    return 0;
+}
+
 void cmd_companionrestore(conn_ctx *ctx, const char *args) {
     char pkg[128] = "", db_text[32] = "", session_text[32] = "", integration_text[32] = "";
-    char extra[2] = "";
-    int fields = sscanf(args, "%127s %31s %31s %31s %1s",
-        pkg, db_text, session_text, integration_text, extra);
+    char option[8] = "", db_sha[66] = "", wal_sha[66] = "", extra[2] = "";
+    int fields = sscanf(args, "%127s %31s %31s %31s %7s %65s %65s %1s",
+        pkg, db_text, session_text, integration_text, option, db_sha, wal_sha, extra);
+    // EXPECT names the live database and WAL a held capture saw; the restore commits only over them.
+    int expect = fields == 7 && strcmp(option, "EXPECT") == 0 && valid_sha256_hex(db_sha) &&
+        (strcmp(wal_sha, "-") == 0 || valid_sha256_hex(wal_sha));
     uint64_t sizes[3];
-    if (fields != 4 || !supported_pkg(pkg) ||
+    if ((fields != 4 && !expect) || !supported_pkg(pkg) ||
         parse_size(db_text, DB_MAX_BYTES, &sizes[0]) != 0 ||
         parse_size(session_text, PREF_MAX_BYTES, &sizes[1]) != 0 ||
         parse_size(integration_text, PREF_MAX_BYTES, &sizes[2]) != 0 ||
@@ -1034,14 +1072,19 @@ void cmd_companionrestore(conn_ctx *ctx, const char *args) {
     int recovery_safe = recover_pending_transaction(stage_dir, pkg, &stopped) >= 0;
     if (recovery_safe && !stopped) stopped = force_stop(pkg) == 0;
     int commit_result = recovery_safe ? 1 : -1;
+    int changed = 0;
     target_dirs target = { .base = -1, .databases = -1, .shared_prefs = -1 };
-    if (stopped && open_target(pkg, &target) == 0)
-        commit_result = commit_restore(&target, stage_dir, pkg, sizes, sources);
+    if (stopped && open_target(pkg, &target) == 0) {
+        changed = recovery_safe && expect && live_matches_capture(&target, db_sha, wal_sha) != 0;
+        if (!changed) commit_result = commit_restore(&target, stage_dir, pkg, sizes, sources);
+    }
     close_target(&target);
     // Never execute a partially restored application. A known rollback failure is a terminal safety
     // state that requires manual recovery; only committed or confirmed-rolled-back states may launch.
     int relaunched = commit_result >= 0 && stopped && relaunch(pkg) == 0;
-    if (commit_result == 0)
+    if (changed)
+        reply(ctx->fd, relaunched ? "CHANGED\n" : "CHANGED RELAUNCH_ERR\n");
+    else if (commit_result == 0)
         reply(ctx->fd, relaunched ? "OK\n" : "COMMITTED RELAUNCH_ERR\n");
     else if (commit_result > 0)
         reply(ctx->fd, relaunched ? "ROLLED_BACK\n" : "ROLLED_BACK RELAUNCH_ERR\n");

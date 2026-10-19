@@ -164,11 +164,17 @@ internal interface HelperCommandSession : AutoCloseable {
     fun sendFile(cmd: String, source: File, timeoutMs: Long): DaemonStreamResult
     fun sendBytes(cmd: String, maxBytes: Long): ByteArray?
     fun readLogcatLine(): String?
-    fun backupCompanion(packageName: String, cacheDir: File, timeoutMs: Long): CompanionHelperProtocol.BackupResult
+    fun backupCompanion(
+        packageName: String,
+        cacheDir: File,
+        timeoutMs: Long,
+        hold: Boolean,
+    ): CompanionHelperProtocol.BackupResult
     fun restoreCompanion(
         packageName: String,
         files: Map<String, File>,
         timeoutMs: Long,
+        expected: CompanionHelperProtocol.LiveDigest?,
     ): CompanionHelperProtocol.RestoreResult
 }
 
@@ -268,19 +274,21 @@ internal class IdentityAdmittingHelperClient(
         packageName: String,
         cacheDir: File,
         timeoutMs: Long,
+        hold: Boolean = false,
     ): CompanionHelperProtocol.BackupResult = execute(
         CompanionHelperProtocol.BackupResult.NotSubmitted,
         requireCompanionCapability = true,
-    ) { it.backupCompanion(packageName, cacheDir, timeoutMs) }
+    ) { it.backupCompanion(packageName, cacheDir, timeoutMs, hold) }
 
     fun restoreCompanion(
         packageName: String,
         files: Map<String, File>,
         timeoutMs: Long,
+        expected: CompanionHelperProtocol.LiveDigest? = null,
     ): CompanionHelperProtocol.RestoreResult = execute(
         CompanionHelperProtocol.RestoreResult.NOT_SUBMITTED,
         requireCompanionCapability = true,
-    ) { it.restoreCompanion(packageName, files, timeoutMs) }
+    ) { it.restoreCompanion(packageName, files, timeoutMs, expected) }
 
     private fun newDeadline(): MonotonicDeadline =
         MonotonicDeadline(bootstrapTimeoutMs, nowNs)
@@ -384,21 +392,25 @@ object HelperClient : Daemon by admittedHelperClient {
     internal fun companionOperationStatus(): CompanionOperationStatus =
         parseCompanionOperationStatus(send("COMPANIONSTATUS"))
 
-    /** Descriptor-confined raw Companion capture. The helper owns stop/open/relaunch as one operation. */
+    /** Descriptor-confined raw Companion capture. The helper owns stop/open/relaunch as one operation;
+     *  [hold] leaves a successfully captured Companion stopped for the caller's restore. */
     internal fun backupCompanion(
         packageName: String,
         cacheDir: File,
+        hold: Boolean = false,
         timeoutMs: Long = COMPANION_OPERATION_TIMEOUT_MS,
     ): CompanionHelperProtocol.BackupResult =
-        admittedHelperClient.backupCompanion(packageName, cacheDir, timeoutMs)
+        admittedHelperClient.backupCompanion(packageName, cacheDir, timeoutMs, hold)
 
-    /** Atomic descriptor-confined Companion restore. No shell or pathname fallback is permitted. */
+    /** Atomic descriptor-confined Companion restore. No shell or pathname fallback is permitted. With
+     *  [expected], the helper commits only while the live database and WAL are still those bytes. */
     internal fun restoreCompanion(
         packageName: String,
         files: Map<String, File>,
+        expected: CompanionHelperProtocol.LiveDigest? = null,
         timeoutMs: Long = COMPANION_OPERATION_TIMEOUT_MS,
     ): CompanionHelperProtocol.RestoreResult =
-        admittedHelperClient.restoreCompanion(packageName, files, timeoutMs)
+        admittedHelperClient.restoreCompanion(packageName, files, timeoutMs, expected)
 
     private const val COMPANION_OPERATION_TIMEOUT_MS = 120_000L
 }
@@ -509,11 +521,12 @@ private class LocalSocketHelperSession(
         packageName: String,
         cacheDir: File,
         timeoutMs: Long,
+        hold: Boolean,
     ): CompanionHelperProtocol.BackupResult {
         val deadline = StreamDeadline(timeoutMs) { runCatching { socket.close() } }
         return try {
             socket.soTimeout = timeoutMs.asSocketTimeout()
-            CompanionHelperProtocol.backup(packageName, cacheDir, input, output)
+            CompanionHelperProtocol.backup(packageName, cacheDir, input, output, hold)
         } catch (e: Exception) {
             Log.w(tag, "Companion backup exchange failed", e)
             CompanionHelperProtocol.BackupResult.Indeterminate
@@ -526,6 +539,7 @@ private class LocalSocketHelperSession(
         packageName: String,
         files: Map<String, File>,
         timeoutMs: Long,
+        expected: CompanionHelperProtocol.LiveDigest?,
     ): CompanionHelperProtocol.RestoreResult {
         val deadline = StreamDeadline(timeoutMs) { runCatching { socket.close() } }
         return try {
@@ -536,6 +550,7 @@ private class LocalSocketHelperSession(
                 input,
                 output,
                 socket::shutdownOutput,
+                expected,
             )
         } catch (e: Exception) {
             Log.w(tag, "Companion restore exchange failed", e)

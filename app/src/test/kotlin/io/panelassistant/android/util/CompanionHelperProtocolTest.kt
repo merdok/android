@@ -90,6 +90,66 @@ class CompanionHelperProtocolTest {
         assertArrayEquals(expected, output.toByteArray())
     }
 
+    @Test fun `a held capture asks the helper to leave the Companion stopped and only then accepts it held`() {
+        val database = byteArrayOf(7, 8)
+        fun response(terminal: String) = ByteArrayOutputStream().apply {
+            write("BACKUP 1 ${database.size}\n".toByteArray())
+            write("FILE ${CompanionRestore.DATABASE_FILE} ${database.size}\n".toByteArray())
+            write(database)
+            write("$terminal\n".toByteArray())
+        }.toByteArray()
+        val command = ByteArrayOutputStream()
+
+        val held = CompanionHelperProtocol.backup(
+            pkg,
+            temporary.root,
+            ByteArrayInputStream(response("DONE HELD")),
+            command,
+            hold = true,
+        ) as CompanionHelperProtocol.BackupResult.Success
+
+        held.capture.use { assertFalse(it.relaunched) }
+        assertArrayEquals("COMPANIONBACKUP $pkg HOLD\n".toByteArray(), command.toByteArray())
+        assertEquals(
+            CompanionHelperProtocol.BackupResult.Indeterminate,
+            CompanionHelperProtocol.backup(
+                pkg,
+                temporary.root,
+                ByteArrayInputStream(response("DONE HELD")),
+                ByteArrayOutputStream(),
+            ),
+        )
+    }
+
+    @Test fun `an expecting restore names the captured bytes and reports a changed database`() {
+        val database = temporary.newFile("db-expect").apply { writeBytes(byteArrayOf(1)) }
+        val expected = CompanionHelperProtocol.LiveDigest("a".repeat(64), null)
+        val output = ByteArrayOutputStream()
+
+        val result = CompanionHelperProtocol.restore(
+            pkg,
+            mapOf(CompanionRestore.DATABASE_FILE to database),
+            ByteArrayInputStream("READY\nCHANGED\n".toByteArray()),
+            output,
+            shutdownOutput = {},
+            expected = expected,
+        )
+
+        assertEquals(CompanionHelperProtocol.RestoreResult.CHANGED, result)
+        assertTrue(output.toString(Charsets.US_ASCII).startsWith("COMPANIONRESTORE $pkg 1 - - EXPECT ${"a".repeat(64)} -\n"))
+        assertEquals(
+            "a CHANGED reply to a restore that expected nothing is not a known outcome",
+            CompanionHelperProtocol.RestoreResult.INDETERMINATE,
+            CompanionHelperProtocol.restore(
+                pkg,
+                mapOf(CompanionRestore.DATABASE_FILE to database),
+                ByteArrayInputStream("READY\nCHANGED\n".toByteArray()),
+                ByteArrayOutputStream(),
+                shutdownOutput = {},
+            ),
+        )
+    }
+
     @Test fun `restore preserves rollback and relaunch terminal distinctions`() {
         val database = temporary.newFile("db-terminal").apply { writeBytes(byteArrayOf(1)) }
         val result = CompanionHelperProtocol.restore(

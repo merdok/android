@@ -6,6 +6,7 @@ import java.io.EOFException
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 
 /** Binary-safe framing for the descriptor-confined Companion backup/restore helper verbs. */
 internal object CompanionHelperProtocol {
@@ -58,6 +59,32 @@ internal object CompanionHelperProtocol {
         }
     }
 
+    /**
+     * SHA-256 of the live database and WAL as a held capture read them (lowercase hex). A null [wal] is
+     * a capture with no WAL, or an empty one. A restore that names them commits only over those bytes.
+     */
+    data class LiveDigest(val database: String, val wal: String?) {
+        companion object {
+            fun of(capture: Capture): LiveDigest? {
+                val database = capture.files[CompanionRestore.DATABASE_FILE] ?: return null
+                return LiveDigest(sha256(database), capture.files[DATABASE_WAL_FILE]?.let(::sha256))
+            }
+
+            private fun sha256(file: File): String {
+                val digest = MessageDigest.getInstance("SHA-256")
+                file.inputStream().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        digest.update(buffer, 0, read)
+                    }
+                }
+                return digest.digest().joinToString("") { "%02x".format(it) }
+            }
+        }
+    }
+
     sealed interface BackupResult {
         data class Success(val capture: Capture) : BackupResult
         data object Busy : BackupResult
@@ -71,6 +98,9 @@ internal object CompanionHelperProtocol {
         COMMITTED_RELAUNCH_FAILED,
         ROLLED_BACK,
         ROLLED_BACK_RELAUNCH_FAILED,
+        /** The live database or WAL no longer matched the expected capture; nothing was replaced. */
+        CHANGED,
+        CHANGED_RELAUNCH_FAILED,
         ROLLBACK_FAILED,
         ROLLBACK_FAILED_RELAUNCH_FAILED,
         ROLLBACK_FAILED_RELAUNCH_SUPPRESSED,
@@ -85,8 +115,9 @@ internal object CompanionHelperProtocol {
         cacheDir: File,
         input: InputStream,
         output: OutputStream,
+        hold: Boolean = false,
     ): BackupResult {
-        writeLine(output, "COMPANIONBACKUP $packageName")
+        writeLine(output, "COMPANIONBACKUP $packageName" + if (hold) " HOLD" else "")
         val first = readLine(input) ?: return BackupResult.Indeterminate
         if (first == "BUSY") return BackupResult.Busy
         if (first == "ERR") return BackupResult.Failed(relaunchFailed = false)
@@ -129,6 +160,7 @@ internal object CompanionHelperProtocol {
             val relaunched = when (terminal) {
                 "DONE" -> true
                 "DONE RELAUNCH_ERR" -> false
+                "DONE HELD" -> if (hold) false else throw EOFException("unrequested Companion hold")
                 else -> throw EOFException("missing Companion backup terminal")
             }
             return BackupResult.Success(Capture(captured, relaunched, directory))
@@ -145,6 +177,7 @@ internal object CompanionHelperProtocol {
         input: InputStream,
         output: OutputStream,
         shutdownOutput: () -> Unit,
+        expected: LiveDigest? = null,
     ): RestoreResult {
         if (files.isEmpty() || files.keys.any { it !in restoreOrder }) return RestoreResult.FAILED
         var total = 0L
@@ -161,7 +194,8 @@ internal object CompanionHelperProtocol {
         }
         writeLine(
             output,
-            "COMPANIONRESTORE $packageName " + sizes.joinToString(" ") { it?.toString() ?: "-" },
+            "COMPANIONRESTORE $packageName " + sizes.joinToString(" ") { it?.toString() ?: "-" } +
+                (expected?.let { " EXPECT ${it.database} ${it.wal ?: "-"}" } ?: ""),
         )
         return when (readLine(input)) {
             "BUSY" -> RestoreResult.BUSY
@@ -178,6 +212,9 @@ internal object CompanionHelperProtocol {
                         "COMMITTED RELAUNCH_ERR" -> RestoreResult.COMMITTED_RELAUNCH_FAILED
                         "ROLLED_BACK" -> RestoreResult.ROLLED_BACK
                         "ROLLED_BACK RELAUNCH_ERR" -> RestoreResult.ROLLED_BACK_RELAUNCH_FAILED
+                        "CHANGED" -> if (expected != null) RestoreResult.CHANGED else RestoreResult.INDETERMINATE
+                        "CHANGED RELAUNCH_ERR" ->
+                            if (expected != null) RestoreResult.CHANGED_RELAUNCH_FAILED else RestoreResult.INDETERMINATE
                         "ROLLBACK_FAILED" -> RestoreResult.ROLLBACK_FAILED
                         "ROLLBACK_FAILED RELAUNCH_ERR" -> RestoreResult.ROLLBACK_FAILED_RELAUNCH_FAILED
                         "ROLLBACK_FAILED RELAUNCH_SUPPRESSED" -> RestoreResult.ROLLBACK_FAILED_RELAUNCH_SUPPRESSED

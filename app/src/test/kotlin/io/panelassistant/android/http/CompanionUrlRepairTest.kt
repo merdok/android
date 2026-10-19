@@ -86,9 +86,27 @@ class CompanionUrlRepairTest {
         assertEquals(before.sensors, after.sensors)
         assertEquals("token-1-refreshed", after.servers.getValue(1).refreshToken)
         assertEquals(listOf(CompanionRestore.DATABASE_FILE), device.restoredPaths)
+        assertEquals("the helper keeps the captured Companion stopped until the restore", listOf(true), device.holds)
         awaitGateReleased()
         assertFalse(operationState.isPending())
         assertTrue("the repair leaves no capture or preparation files", cache.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test fun aCommitMadeAfterTheCaptureIsKeptAndTheRepairChangesNothing() {
+        // A launch from outside Panel Assistant starts the held Companion, and it saves before the restore.
+        device.launchedFromOutside = { device.commit("INSERT INTO sensors VALUES ('light', 'on')") }
+
+        val message = repairThroughService()
+
+        assertEquals("the Companion's database changed during the repair; nothing was replaced", message)
+        val after = device.liveRows()
+        assertEquals("on", after.sensors["light"])
+        assertEquals("80", after.sensors["battery"])
+        assertEquals("", after.servers.getValue(1).internalUrl)
+        assertEquals("token-1-refreshed", after.servers.getValue(1).refreshToken)
+        awaitGateReleased()
+        assertFalse(operationState.isPending())
+        assertEquals("the helper relaunches a Companion whose restore it refused", 0, launches())
     }
 
     @Test fun aCompanionWithNoBlankInternalUrlIsLeftAsItWas() {
@@ -102,6 +120,7 @@ class CompanionUrlRepairTest {
         assertEquals(emptyList<String>(), device.restoredPaths)
         awaitGateReleased()
         assertFalse(operationState.isPending())
+        assertEquals("the Companion held for the repair is relaunched once, after release", 1, launches())
     }
 
     @Test fun aStopThatFailsChangesNothingAndHoldsLaunchUntilTheHelperIsIdle() {
@@ -297,6 +316,9 @@ private class CompanionDevice(dataDir: File, private val pkg: String) : Companio
     var stopFails = false
     var restoreReply: CompanionHelperProtocol.RestoreResult? = null
     var restoreThrows = false
+    /** What a launch from outside Panel Assistant does between the capture and the restore. */
+    var launchedFromOutside: () -> Unit = {}
+    val holds = mutableListOf<Boolean>()
     /** What the helper's STATUS verb answers: BUSY while it may still hold the data. */
     @Volatile var helperIdle = true
     var observe: () -> Sample = { error("no observer") }
@@ -328,6 +350,11 @@ private class CompanionDevice(dataDir: File, private val pkg: String) : Companio
         check(File("${db.path}-wal").length() > 0) { "the fixture must leave commits in the WAL" }
     }
 
+    /** The Companion, running again, saves something of its own. */
+    fun commit(sql: String) {
+        DriverManager.getConnection("jdbc:sqlite:${db.path}").use { it.exec(sql) }
+    }
+
     fun fingerprint(): Map<String, String> = trio.filter(File::exists).associate { it.name to sha256(it) }
 
     /** Read the live set from a copy, so reading never checkpoints the files under test. */
@@ -349,8 +376,9 @@ private class CompanionDevice(dataDir: File, private val pkg: String) : Companio
         }
     }
 
-    override fun backup(packageName: String, cacheDir: File): CompanionHelperProtocol.BackupResult {
+    override fun backup(packageName: String, cacheDir: File, hold: Boolean): CompanionHelperProtocol.BackupResult {
         assertEquals(pkg, packageName)
+        holds += hold
         samples += observe()
         if (stopFails) return CompanionHelperProtocol.BackupResult.Failed(relaunchFailed = true)
         val directory = cacheDir.resolve("${CompanionHelperProtocol.CAPTURE_DIRECTORY_PREFIX}${captures++}")
@@ -359,19 +387,29 @@ private class CompanionDevice(dataDir: File, private val pkg: String) : Companio
             CompanionRestore.DATABASE_FILE to db,
             CompanionHelperProtocol.DATABASE_WAL_FILE to File("${db.path}-wal"),
             CompanionHelperProtocol.DATABASE_SHM_FILE to File("${db.path}-shm"),
-        ).filterValues(File::exists).mapValues { (_, live) -> live.copyTo(captured.resolve(live.name)) }
+        ).filterValues { it.length() > 0 }.mapValues { (_, live) -> live.copyTo(captured.resolve(live.name)) }
         return CompanionHelperProtocol.BackupResult.Success(
-            CompanionHelperProtocol.Capture(files, relaunched = true, directory),
+            CompanionHelperProtocol.Capture(files, relaunched = !hold, directory),
         )
     }
 
-    override fun restore(packageName: String, files: Map<String, File>): CompanionHelperProtocol.RestoreResult {
+    override fun restore(
+        packageName: String,
+        files: Map<String, File>,
+        expected: CompanionHelperProtocol.LiveDigest?,
+    ): CompanionHelperProtocol.RestoreResult {
         assertEquals(pkg, packageName)
+        launchedFromOutside()
         samples += observe()
         restoredPaths += files.keys
         if (restoreThrows) throw IllegalStateException("helper socket thread died after submission")
         restoreReply?.let { return it }
         if (stopFails) return CompanionHelperProtocol.RestoreResult.ROLLED_BACK_RELAUNCH_FAILED
+        // As helper/src/companion.c: commit only over the live bytes the capture saw.
+        val wal = File("${db.path}-wal").takeIf { it.length() > 0 }
+        if (expected != null && expected != CompanionHelperProtocol.LiveDigest(sha256(db), wal?.let(::sha256))) {
+            return CompanionHelperProtocol.RestoreResult.CHANGED
+        }
         trio.forEach(File::delete)
         files.getValue(CompanionRestore.DATABASE_FILE).copyTo(db)
         return CompanionHelperProtocol.RestoreResult.COMMITTED

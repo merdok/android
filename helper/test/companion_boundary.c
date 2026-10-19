@@ -13,6 +13,7 @@
 #include "companion.h"
 #include "dispatch.h"
 #include "server.h"
+#include "sha256.h"
 #include "sysexec_stub.h"
 
 #define ROOT "/tmp/.hapaneld-companion-test/data/user/0"
@@ -298,6 +299,104 @@ static void test_backup_rejects_hardlinked_live_file(void) {
     read_line(peer[1], line, sizeof line);
     CHECK(strcmp(line, "ERR\n") == 0, "hardlinked DB rejected (got %s)\n", line);
     finish(thread, peer[1]);
+}
+
+static void test_backup_hold_leaves_captured_companion_stopped(void) {
+    setup_fixture();
+    int peer[2];
+    job work;
+    pthread_t thread;
+    start(&work, &thread, peer, "COMPANIONBACKUP " PKG " HOLD");
+    char line[256], bytes[32];
+    read_line(peer[1], line, sizeof line);
+    int framed = strcmp(line, "BACKUP 3 18\n") == 0;
+    CHECK(framed, "held backup frames the same files (got %s)\n", line);
+    for (int frame = 0; framed && frame < 3; frame++) {
+        read_line(peer[1], line, sizeof line);
+        const char *size_text = strrchr(line, ' ');
+        size_t size = size_text ? strtoul(size_text + 1, NULL, 10) : 0;
+        framed = size > 0 && size <= sizeof bytes && read_exact(peer[1], bytes, size) == (ssize_t)size;
+        CHECK(framed, "held backup frame bytes\n");
+    }
+    if (framed) read_line(peer[1], line, sizeof line);
+    CHECK(strcmp(line, "DONE HELD\n") == 0, "held backup reports the Companion left stopped (got %s)\n", line);
+    finish(thread, peer[1]);
+    CHECK(force_stop_count() == 1, "held backup stops the Companion\n");
+    CHECK(relaunch_count() == 0, "held backup does not relaunch the captured Companion\n");
+}
+
+static void test_backup_hold_relaunches_a_failed_capture(void) {
+    setup_fixture();
+    CHECK(link(DB, "/tmp/.hapaneld-companion-sentinel") == 0, "hardlink live DB fixture\n");
+    char line[64];
+    dispatch_once("COMPANIONBACKUP " PKG " HOLD", line, sizeof line);
+    CHECK(strcmp(line, "ERR\n") == 0, "held backup of an unsafe DB fails (got %s)\n", line);
+    CHECK(relaunch_count() == 1, "a capture that fails is relaunched even when held\n");
+    dispatch_once("COMPANIONBACKUP " PKG " KEEP", line, sizeof line);
+    CHECK(strcmp(line, "ERR\n") == 0, "an unknown backup option is refused (got %s)\n", line);
+}
+
+static void sha256_text(const char *text, char hex[65]) {
+    hapaneld_sha256 ctx;
+    unsigned char digest[32];
+    hapaneld_sha256_init(&ctx);
+    hapaneld_sha256_update(&ctx, text, strlen(text));
+    hapaneld_sha256_final(&ctx, digest);
+    hapaneld_sha256_hex(digest, hex);
+}
+
+// Restore the DB "newdb" over the fixture, expecting the live DB and WAL a capture saw.
+static void restore_expecting(const char *db_text, const char *wal_text, char *reply_line, size_t capacity) {
+    char db_sha[65], wal_sha[65], command[256];
+    sha256_text(db_text, db_sha);
+    if (wal_text) sha256_text(wal_text, wal_sha);
+    snprintf(command, sizeof command, "COMPANIONRESTORE " PKG " 5 - - EXPECT %s %s",
+        db_sha, wal_text ? wal_sha : "-");
+    int peer[2];
+    job work;
+    pthread_t thread;
+    start(&work, &thread, peer, command);
+    read_line(peer[1], reply_line, capacity);
+    CHECK(strcmp(reply_line, "READY\n") == 0, "expecting restore receives READY (got %s)\n", reply_line);
+    CHECK(write_all(peer[1], "newdb", 5) == 0, "write expecting restore payload\n");
+    shutdown(peer[1], SHUT_WR);
+    read_line(peer[1], reply_line, capacity);
+    finish(thread, peer[1]);
+}
+
+static void test_restore_expect_commits_over_the_captured_files(void) {
+    setup_fixture();
+    char line[64], content[32];
+    restore_expecting("database", "wal", line, sizeof line);
+    CHECK(strcmp(line, "OK\n") == 0, "unchanged live files take the restore (got %s)\n", line);
+    CHECK(strcmp(slurp(DB, content, sizeof content), "newdb") == 0, "DB replaced over the captured one\n");
+    CHECK(access(WAL, F_OK) != 0, "captured WAL removed by the DB transaction\n");
+}
+
+static void test_restore_expect_refuses_a_database_written_after_capture(void) {
+    setup_fixture();
+    write_file(WAL, "wal+later commit");
+    char line[64], content[32];
+    restore_expecting("database", "wal", line, sizeof line);
+    CHECK(strcmp(line, "CHANGED\n") == 0, "a WAL written after capture refuses the restore (got %s)\n", line);
+    CHECK(strcmp(slurp(DB, content, sizeof content), "database") == 0, "live DB kept\n");
+    CHECK(strcmp(slurp(WAL, content, sizeof content), "wal+later commit") == 0, "later commit kept\n");
+    CHECK(relaunch_count() == 1, "the refused Companion is relaunched\n");
+
+    setup_fixture();
+    restore_expecting("database", NULL, line, sizeof line);
+    CHECK(strcmp(line, "CHANGED\n") == 0, "a WAL that appeared after a WAL-less capture refuses (got %s)\n", line);
+    CHECK(strcmp(slurp(WAL, content, sizeof content), "wal") == 0, "the new WAL is kept\n");
+
+    setup_fixture();
+    write_file(DB, "database2");
+    restore_expecting("database", "wal", line, sizeof line);
+    CHECK(strcmp(line, "CHANGED\n") == 0, "a rewritten DB refuses the restore (got %s)\n", line);
+    CHECK(strcmp(slurp(DB, content, sizeof content), "database2") == 0, "rewritten DB kept\n");
+
+    setup_fixture();
+    dispatch_once("COMPANIONRESTORE " PKG " 5 - - EXPECT nothex -", line, sizeof line);
+    CHECK(strcmp(line, "STREAMERR\n") == 0, "a malformed expectation is refused before READY (got %s)\n", line);
 }
 
 static void test_restore_commits_exact_payload_and_drops_db_sidecars(void) {
@@ -607,6 +706,10 @@ int main(void) {
     test_backup_frames_raw_fixed_files();
     test_backup_rejects_links_and_reports_relaunch_failure();
     test_backup_rejects_hardlinked_live_file();
+    test_backup_hold_leaves_captured_companion_stopped();
+    test_backup_hold_relaunches_a_failed_capture();
+    test_restore_expect_commits_over_the_captured_files();
+    test_restore_expect_refuses_a_database_written_after_capture();
     test_restore_commits_exact_payload_and_drops_db_sidecars();
     test_restore_stream_failure_never_mutates_target();
     test_restore_replaces_preplanted_stage_symlink_without_following();
