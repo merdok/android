@@ -225,8 +225,10 @@ internal class PanelAssistantManagementRequests(
             val args = request.optJSONObject("args")
             // The upload token is the transfer's, never an argument of the operation.
             val token = args?.remove("blob_token")?.let(PanelAssistantBlobs::validToken)
-            val carrier = management.blobs?.let { PanelAssistantRelayBlobs(it, token) }
-            if (carrier != null) carriers[request.optString("command_id")] = carrier
+            // A repeat of a command still in flight joins its run, so it keeps that run's carrier and the body it holds.
+            val carrier = management.blobs?.let { blobs ->
+                carriers.computeIfAbsent(request.optString("command_id")) { PanelAssistantRelayBlobs(blobs, token) }
+            }
             frames.handle(request, carrier)
         }
 

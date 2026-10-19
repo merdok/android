@@ -414,7 +414,7 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
     }
 
     /** Send [op] with a body the reader uploaded, from a relayed user on a Hardened panel, approve it on the panel, and give the final answer. */
-    private fun relayedApprovedBodyRequest(fixture: PaneldServerHttpFixture, op: String, body: ByteArray, token: String): JSONObject {
+    private fun relayedApprovedBodyRequest(fixture: PaneldServerHttpFixture, op: String, body: ByteArray, token: String, repeated: Boolean = false): JSONObject {
         served[token] = body
         val blob = JSONObject().put("url", PanelAssistantBlobs.PATH + token).put("size", body.size)
             .put("sha256", sha256(body)).put("type", "application/octet-stream")
@@ -424,6 +424,8 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
             session.deliver(manage("a1", op, JSONObject().put("blob", blob).put("blob_token", "answer-token-00001")))
             val interim = session.await("interim answer") { it.optString("command_id") == "a1" }
             assertEquals(interim.toString(), "pending_approval", interim.getString("outcome"))
+            // Panel Assistant sending the same request again while it waits joins the held run.
+            if (repeated) session.deliver(manage("a1", op, JSONObject().put("blob", blob).put("blob_token", "answer-token-00002")))
             val pending = LocalApprovalBroker.instance.pending().single()
             assertEquals("user:$USER", pending.peer)
             assertTrue(LocalApprovalBroker.instance.approve(pending.id))
@@ -438,7 +440,7 @@ internal class SidebarRelayTest : io.panelassistant.android.testsupport.PanelRun
                 application { fixture.mount(this) }
                 startApplication()
                 val backup = """{"kind":"ha-paneld-backup","schema":15,"config":{"friendly_name":"Restored from the sidebar"}}"""
-                val reply = relayedApprovedBodyRequest(fixture, "restore", backup.toByteArray(), "reader-token-restore1")
+                val reply = relayedApprovedBodyRequest(fixture, "restore", backup.toByteArray(), "reader-token-restore1", repeated = true)
 
                 assertEquals(reply.toString(), "applied", reply.getString("outcome"))
                 assertEquals(1, downloads["reader-token-restore1"]?.get())
