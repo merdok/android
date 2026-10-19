@@ -1339,6 +1339,43 @@ class PanelAssistantTransportOwnerTest {
         }
     }
 
+    @Test fun slowInitialObservationDoesNotConsumeThePlayersHandshakeWindow() = runTest {
+        val observed = CompletableDeferred<Unit>()
+        val player = FakePlayer()
+        var openedAt = -1L
+        var firstFrameDelay = -1L
+        val peer = object : PanelAssistantVoiceStreamPeer by player {
+            override fun open(grant: PanelAssistantVoiceStreamGrant, send: (ByteArray, Boolean) -> Unit) {
+                openedAt = testScheduler.currentTime
+                player.open(grant, send)
+            }
+            override fun receive(frame: ByteArray, text: Boolean) {
+                firstFrameDelay = testScheduler.currentTime - openedAt
+                player.receive(frame, text)
+            }
+        }
+        val shadow = Shadow(listOf("screen"))
+        val connection = FakeConnection(Ha.accepting(
+            capabilities = listOf("state", "voice_stream_session"), voiceStream = streamGrant,
+        ))
+        val harness = harness(connection, shadow = shadow.reporter, voiceStream = PanelAssistantVoiceStream(peer),
+            observeForHello = { observed.await(); true })
+        try {
+            harness.owner.replaceDemand(DEMAND)
+            runCurrent()
+            advanceTimeBy(40_000)
+            observed.complete(Unit)
+            runCurrent()
+            connection.inbound.trySend(sendspin("handshake", false, null))
+            runCurrent()
+            assertEquals(listOf(false to "handshake"), player.received)
+            assertTrue("the native nursery allows 30 s to establish: $firstFrameDelay ms", firstFrameDelay in 0L until 30_000L)
+        } finally {
+            harness.owner.close()
+            runCurrent()
+        }
+    }
+
     @Test fun aGrantedSessionConnectsThePlayerAndAnUngrantedOneDoesNot() = runTest {
         val player = FakePlayer()
         val first = FakeConnection(Ha.accepting(capabilities = listOf("voice_stream_session"), voiceStream = streamGrant))

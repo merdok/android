@@ -46,6 +46,10 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 
 ### Fixed
 
+- Synchronised voice can connect after a slow initial state sample without exhausting its handshake window.
+- Display sizing and launcher controls wait for a slow root helper's reply instead of reporting a false failure or repeating the operation.
+- Logs queued during an outage keep the time they were captured when they reach the collector.
+
 - **The right WebView for the Smatek S9E and the Electron WF2489T.** The S9E profile now names the 64-bit replacement WebView its 64-bit firmware needs, instead of a 32-bit build that cannot serve the app. The WF2489T profile no longer names a replacement WebView at all, because that panel updates Google's WebView from the Play Store.
 - **Panel Assistant can remove the app when it is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app failed on such a panel. The app now gives up device admin when Panel Assistant asks, just before removing it.
 - **The panel says when it cannot reach Home Assistant.** When the dashboard drops and the panel has no session to Panel Assistant, it shows Cannot reach Home Assistant with a retry timer instead of a bare Offline. The reconnect card also comes back correctly after the dashboard's browser engine crashes or the screen goes dark mid-load.
