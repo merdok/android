@@ -11,6 +11,7 @@ import io.panelassistant.android.control.BootChimeController
 import io.panelassistant.android.control.BrightnessController
 import io.panelassistant.android.control.CpuController
 import io.panelassistant.android.control.LedCommandPolicy
+import io.panelassistant.android.control.screenOffTimeoutSeconds
 import io.panelassistant.android.control.LedEffectController
 import io.panelassistant.android.control.RelayController
 import io.panelassistant.android.control.ScreenController
@@ -242,6 +243,18 @@ internal class PanelStateCore(
             else Observation.Known(if (snapshot.holdingAwake) "ON" else "OFF", autoSleepActivityProjection(snapshot).attributes)
         }
         channel("navbar") { known(config.navbarMode) }
+        // The stored choice, so an Ambient flip, which changes only the effective scheme, leaves it alone.
+        channel("dashboard_theme") { known(config.dashboardTheme) }
+        // Prevent idle dim holds Android's screen-off timeout at "never", so the number is usable only while it is off.
+        channel("screen_off_timeout") {
+            if (config.preventIdleDim) return@channel Observation.Unavailable
+            brightness.configuredScreenOffTimeoutMs(screen.heldSleepRecord()).takeIf { it > 0 }
+                ?.let { known(screenOffTimeoutSeconds(it).toString()) } ?: unknown
+        }
+        channel("dashboard_idle_return") {
+            if (DashboardIdleReturnPolicy.appliesTo(config.dashboardPackage)) known(config.dashboardIdleReturnMin.toString())
+            else Observation.Unavailable
+        }
 
         // A sensor with no reading says why, so Home Assistant shows it unknown rather than a stale value.
         val waiting = noReading(NoReadingReason.WAITING)

@@ -163,6 +163,7 @@ internal class ServiceDisplay(
         private set
     private lateinit var haSiteMetadata: HaSiteMetadataClient
     private var brightnessObserver: ContentObserver? = null
+    private var screenOffTimeoutObserver: ContentObserver? = null
     private var haCandidateIdentity = ""
     private val adaptiveSiteGeneration = java.util.concurrent.atomic.AtomicLong()
     // One observer task at a time, in delivery order, on the service scope's IO pool: no thread of its own.
@@ -347,6 +348,10 @@ internal class ServiceDisplay(
             runCatching { service.contentResolver.unregisterContentObserver(observer) }
             brightnessObserver = null
         }
+        screenOffTimeoutObserver?.let { observer ->
+            runCatching { service.contentResolver.unregisterContentObserver(observer) }
+            screenOffTimeoutObserver = null
+        }
     }
 
     fun closeHaAmbientAndSleep(closeOwner: (String, () -> Unit) -> Unit, closeOwnerResult: (String, () -> Boolean) -> Unit, deadline: MonotonicDeadline) {
@@ -421,6 +426,18 @@ internal class ServiceDisplay(
             observer,
         )
         brightnessObserver = observer
+        // A timeout changed in Android's own settings reaches Home Assistant now, not at the next pass.
+        val timeoutObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                runCatching { core.reconcile("screen_off_timeout") }
+            }
+        }
+        service.contentResolver.registerContentObserver(
+            Settings.System.getUriFor(Settings.System.SCREEN_OFF_TIMEOUT),
+            false,
+            timeoutObserver,
+        )
+        screenOffTimeoutObserver = timeoutObserver
     }
 
     fun refreshAdaptiveBrightnessInputs(restartSource: Boolean = true) {
@@ -518,6 +535,7 @@ internal class ServiceDisplay(
     ).also {
         // The repair may turn prevent_idle_dim on outside the dispatcher; report it now, not at the next audit.
         runCatching { core.reconcile("prevent_idle_dim") }
+        runCatching { core.reconcile("screen_off_timeout") }
     }
 
     fun ensureScreenExitRecovery(): CompletableFuture<Boolean> {

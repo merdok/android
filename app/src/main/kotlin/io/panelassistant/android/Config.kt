@@ -779,7 +779,7 @@ class Config private constructor(
     }
 
     /** Built-in renderer: minutes of no touch before it navigates back to [homeDashboard] (0 = off). */
-    val dashboardIdleReturnMin: Int get() = intPref("dashboard_idle_return_min")
+    val dashboardIdleReturnMin: Int get() = intPrefInRange("dashboard_idle_return_min")
 
     /** Built-in renderer: hide the system status + navigation bars (immersive edge-to-edge kiosk).
      *  Swipe-from-edge still transiently reveals them, so an admin is never locked out. */

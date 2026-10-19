@@ -2,6 +2,7 @@ package io.panelassistant.android.http
 
 import android.util.Log
 import io.panelassistant.android.Config
+import io.panelassistant.android.DashboardIdleReturnPolicy
 import io.panelassistant.android.NativeLocale
 import io.panelassistant.android.autoSleep
 import io.panelassistant.android.autoSleepSource
@@ -23,7 +24,6 @@ import io.panelassistant.android.config.SettingValue
 import io.panelassistant.android.config.SettingsRegistry
 import io.panelassistant.android.config.Validation
 import io.panelassistant.android.control.PowerSafetyMutationPolicy
-import io.panelassistant.android.control.SystemController
 import io.panelassistant.android.security.SensitiveOperation
 import io.panelassistant.android.util.isLoopbackPeer
 import io.panelassistant.android.util.InstallProgress
@@ -211,7 +211,7 @@ internal class DirectConfigPost(
             return
         }
         if (p["dashboard_idle_return_min"] != null &&
-            (dashboardPackage ?: config.dashboardPackage).let { it.isNotBlank() && it != SystemController.BUILTIN_DASHBOARD }
+            !DashboardIdleReturnPolicy.appliesTo(dashboardPackage ?: config.dashboardPackage)
         ) {
             call.respondText(
                 """{"ok":false,"error":"built-in-renderer-required","message":"Idle return is available only for the built-in renderer."}""",

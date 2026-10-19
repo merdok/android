@@ -57,6 +57,50 @@ class PowerSafetyScreenTimeoutSleepTest {
         assertSafe("awake")
     }
 
+    @Test fun aTimeoutChangeRacingWakeIsTheTimeoutAndroidRestores() {
+        screen.sleep()
+        val selected = java.util.concurrent.CountDownLatch(1)
+        val finishUpdate = java.util.concurrent.CountDownLatch(1)
+        val wakeStarted = java.util.concurrent.CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val timeout = ScreenTimeoutController(
+            read = power::screenOffTimeoutMs,
+            write = power::setScreenOffTimeoutMs,
+        )
+        val update = Thread {
+            try {
+                assertTrue(screen.updateScreenOffTimeout { held ->
+                    selected.countDown()
+                    check(finishUpdate.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    timeout.set(300_000, held)
+                })
+            } catch (t: Throwable) { failure.set(t) }
+        }
+        val wake = Thread {
+            wakeStarted.countDown()
+            screen.wake()
+        }
+        try {
+            update.start()
+            assertTrue(selected.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            wake.start()
+            assertTrue(wakeStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            // Wait until wake either contends with the update or completes it. Without serialization
+            // it restores the old value here, leaving the later choice stranded in the saved record.
+            val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+            while (wake.isAlive && wake.state != Thread.State.BLOCKED && System.nanoTime() < deadline) Thread.yield()
+        } finally {
+            finishUpdate.countDown()
+            update.join(5_000)
+            wake.join(5_000)
+        }
+        failure.get()?.let { throw it }
+        assertFalse("update completed", update.isAlive)
+        assertFalse("wake completed", wake.isAlive)
+        assertEquals(300_000, power.screenOffTimeoutMs())
+        assertEquals(-1, displaced.displacedMs)
+    }
+
     @Test fun aWakeWhoseRestoreFailedReportsTheShortTimeoutItLeftBehind() {
         screen.sleep()
         assertEquals("precondition: the SCREEN_TIMEOUT route displaced the timeout", Int.MAX_VALUE, displaced.displacedMs)

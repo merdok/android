@@ -199,6 +199,11 @@ class ScreenController(
     fun heldSleepRecord(): DisplacedScreenTimeout? =
         displacedTimeout.takeIf { intendedOff && appliedOffRoute == ScreenOff.SCREEN_TIMEOUT }
 
+    /** Keep the held/live timeout choice and its write atomic with sleep and wake restoration. */
+    @Synchronized
+    fun updateScreenOffTimeout(apply: (DisplacedScreenTimeout?) -> Boolean): Boolean =
+        apply(heldSleepRecord())
+
     /**
      * Declared route (the profile's preference) versus what the last actual off applied, and why they
      * differ. A pure read of durable state recorded at the last [sleepInternal] — it never probes su or
