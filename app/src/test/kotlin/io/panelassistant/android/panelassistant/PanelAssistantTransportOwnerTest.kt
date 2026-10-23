@@ -1408,12 +1408,15 @@ class PanelAssistantTransportOwnerTest {
             harness.owner.replaceDemand(DEMAND)
             runCurrent()
             val oldSender = player.send!!
+            val oldClose = player.closed!!
             val held = async { stream.play("interrupted") }
             runCurrent()
             oldSender("queued-old-ciphertext".toByteArray(), false)
             connection.inbound.trySend(streamEvent(JSONObject().put("kind", "sendspin_closed")))
             runCurrent()
-            val resetRequest = connection.sent.map(::JSONObject).single { it.getString("type") == "panel_assistant/voice_stream_reset" }
+            val resets = connection.sent.map(::JSONObject).filter { it.getString("type") == "panel_assistant/voice_stream_reset" }
+            assertEquals("known close requests an immediate reset", 1, resets.size)
+            val resetRequest = resets.single()
             assertEquals("old server frames must not reach a replacement before its reset result", 1, player.events.count { it.startsWith("open") })
             connection.inbound.trySend(sendspin("old-server-frame", false, null))
             connection.inbound.trySend(streamEvent(JSONObject().put("kind", "sendspin_closed")))
@@ -1426,9 +1429,11 @@ class PanelAssistantTransportOwnerTest {
             assertEquals(1, connection.sent.map(::JSONObject).count { it.getString("type") == "panel_assistant/hello" })
             assertEquals("failed", held.await().outcome)
             oldSender("late-old-ciphertext".toByteArray(), false)
+            oldClose()
             player.send!!("new-handshake".toByteArray(), false)
             runCurrent()
             val commands = connection.sent.map(::JSONObject)
+            assertEquals("old native close cannot reset the replacement", 1, commands.count { it.getString("type") == "panel_assistant/voice_stream_reset" })
             val reset = commands.indexOfFirst { it.getString("type") == "panel_assistant/voice_stream_reset" }
             assertTrue("reset is ordered before the replacement handshake", reset >= 0)
             val following = commands.drop(reset + 1).filter { it.getString("type") == "panel_assistant/voice_stream_frame" }
