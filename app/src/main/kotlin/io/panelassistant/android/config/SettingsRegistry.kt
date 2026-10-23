@@ -377,6 +377,19 @@ object SettingsRegistry {
             },
         ),
         SettingSpec(
+            key = "screensaver", type = SettingType.BOOL, group = "Behaviour",
+            tier = Tier.BASIC, summary = "Show the panel's Android screensaver.",
+            label = "Screensaver", default = "false", scope = Scope.DEVICE,
+            liveApply = true,
+            // Needs su to launch the dream; the state follows the live dream, not a stored value, so this
+            // switch is momentary (on = show now, off = return to the dashboard).
+            availableWhen = { it.appCanSu },
+            help = "Show Android's configured screensaver (set it in the panel's Android Settings › Display › Screen saver). Turning this off returns to the dashboard; touching the panel also dismisses it.",
+            ha = haEntity("switch", "screensaver") {
+                entityCategory("config")
+            },
+        ),
+        SettingSpec(
             key = "kiosk_lock", type = SettingType.BOOL, group = "Behaviour",
             tier = Tier.ADVANCED, summary = "Root only. Bring the dashboard back when another app opens.",
             label = "Lock Android to dashboard (experimental)", default = "false", scope = Scope.DEVICE,

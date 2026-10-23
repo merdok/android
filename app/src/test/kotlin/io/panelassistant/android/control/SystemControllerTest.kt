@@ -1201,4 +1201,58 @@ class SystemControllerTest {
         assertTrue(BuiltinDashboard.consumeReloadRequest())
         assertFalse(BuiltinDashboard.consumeReloadRequest())
     }
+
+    // ---------- screensaver (Android Dream) ----------
+
+    private fun systemWithFocus(focus: String?): SystemController =
+        SystemController(FakeSystemEnv(), FakeRootShell(outputs = focus?.let { mapOf("dumpsys window" to it) } ?: emptyMap()), FakeDaemon())
+
+    @Test fun screensaverShowingTrueWhenDreamActivityFocused() {
+        val focus = "  mCurrentFocus=Window{99e0d96 u0 com.android.deskclock/android.service.dreams.DreamActivity}"
+        assertTrue(systemWithFocus(focus).screensaverShowing())
+    }
+
+    @Test fun screensaverShowingTrueForAnyDreamPackage() {
+        // The marker is the framework host activity, not the deskclock package, so any dream app counts.
+        val focus = "mFocusedWindow=Window{a u0 com.android.dreams.phototable/android.service.dreams.DreamActivity}"
+        assertTrue(systemWithFocus(focus).screensaverShowing())
+    }
+
+    @Test fun screensaverShowingFalseForDashboardFocus() {
+        val focus = "mCurrentFocus=Window{1 u0 io.github.maxlyth.hapaneld/io.panelassistant.android.DashboardActivity}"
+        assertFalse(systemWithFocus(focus).screensaverShowing())
+    }
+
+    @Test fun screensaverShowingFalseWhenFocusUnreadable() {
+        // runOutput null (SELinux denial / no su) must read as "not showing", never throw or report ON.
+        assertFalse(systemWithFocus(null).screensaverShowing())
+    }
+
+    @Test fun showScreensaverTriesTheVerifiedStartRoute() {
+        val root = FakeRootShell(runResult = true)
+        val system = SystemController(FakeSystemEnv(), root, FakeDaemon())
+        assertTrue(system.showScreensaver())
+        assertTrue(
+            "the Somnambulator start route must be issued",
+            root.ran.any { it.contains("com.android.systemui/.Somnambulator") },
+        )
+    }
+
+    @Test fun showScreensaverReportsFailureWhenNoRouteAccepted() {
+        val root = FakeRootShell(runResult = false)
+        assertFalse(SystemController(FakeSystemEnv(), root, FakeDaemon()).showScreensaver())
+    }
+
+    @Test fun actuatingTheScreensaverInvalidatesTheShowingCache() {
+        // After show/dismiss the switch must re-probe rather than serve a pre-actuation cached value, so a
+        // just-started/stopped dream is reflected on the next read instead of after the poll TTL.
+        val root = FakeRootShell(outputs = mapOf("dumpsys window" to "mCurrentFocus=Window{x u0 pkg/other}"))
+        val system = SystemController(FakeSystemEnv(), root, FakeDaemon())
+        system.screensaverShowing()                 // builds + caches a probe
+        val before = root.outputRan.count { it.contains("dumpsys window") }
+        system.showScreensaver()                    // invalidates
+        system.screensaverShowing()                 // must probe again, not serve the cached value
+        val after = root.outputRan.count { it.contains("dumpsys window") }
+        assertTrue("show must invalidate the showing cache so the next read re-probes", after > before)
+    }
 }

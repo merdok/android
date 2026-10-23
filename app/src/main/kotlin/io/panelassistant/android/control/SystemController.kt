@@ -153,6 +153,46 @@ class SystemController(
     private fun isOwnDashboard(activity: ActivityRef?): Boolean =
         activity?.pkg == env.ownPackage && activity.cls.endsWith("DashboardActivity")
 
+    // --- screensaver (Android Dream) --------------------------------------------------------------
+    // The framework hosts every dream in android.service.dreams.DreamActivity, so detection keys on that
+    // host rather than any one dream package (DeskClock/PhotoTable/BasicDreams/vendor), and it is matched
+    // across whichever focus line a given Android version prints. Starting a dream has no stable public
+    // shell API; the one route verified on live hardware (S9E, Android 11) is the SystemUI Somnambulator
+    // activity. SCREENSAVER_STARTERS is an ordered, extensible ladder so more routes can be added from
+    // device evidence without changing callers.
+
+    // The dream-showing read is an su `dumpsys window` round-trip. The state channel reconciles it on a
+    // ~1-minute audit AND on demand, so a short-TTL cache coalesces a burst of reconciles into one probe
+    // without adding latency beyond the poll the switch already has. show/dismiss invalidate it so a
+    // just-actuated change is reflected on the next read rather than after the TTL.
+    private val screensaverShowingCache = Cached(SCREENSAVER_POLL_TTL_MS) {
+        val focus = root.runOutput(
+            "dumpsys window 2>/dev/null | grep -iE 'mCurrentFocus|mFocusedWindow|mFocusedApp'",
+        )
+        focus?.contains(DREAM_FOCUS_MARKER) == true
+    }
+
+    /** True when a dream is the focused window. Null focus / read failure / any non-dream focus → false,
+     *  so the switch never falsely reports a screensaver that is not actually on screen. */
+    fun screensaverShowing(): Boolean = screensaverShowingCache.get()
+
+    /** Start the panel's currently-configured Android dream. Tries each known route until one is accepted;
+     *  returns false when no route started it (e.g. firmware with no dream). */
+    fun showScreensaver(): Boolean {
+        for (cmd in SCREENSAVER_STARTERS) {
+            if (root.run(cmd)) {
+                screensaverShowingCache.invalidate()
+                return true
+            }
+        }
+        Log.w(TAG, "no screensaver start route was accepted")
+        return false
+    }
+
+    /** Dismiss a showing dream by foregrounding the dashboard; any activity to front ends a Dream. Reuses
+     *  the same HOME-return/launch path the kiosk and watchdog returns use. */
+    fun dismissScreensaver(): Boolean = startBuiltin().also { screensaverShowingCache.invalidate() }
+
     /** Configured dashboard package, or the automatic built-in renderer for a blank selection. The
      * sentinel [BUILTIN_DASHBOARD] passes through unchanged. A corrupt non-blank stored value remains
      * invalid rather than being mistaken for Auto and crossing a privileged launch boundary. */
@@ -548,6 +588,16 @@ class SystemController(
 
     companion object {
         private const val TAG = "ha-paneld/system"
+        // The framework Dream host activity: every dream (any package) focuses it, so it is the stable,
+        // version- and vendor-agnostic marker for "a screensaver is on screen".
+        private const val DREAM_FOCUS_MARKER = "android.service.dreams.DreamActivity"
+        // Ordered start routes, first accepted wins. Only the Somnambulator route is verified on live
+        // hardware (S9E/Android 11); add further routes here as device evidence confirms them.
+        private val SCREENSAVER_STARTERS = listOf("am start -n com.android.systemui/.Somnambulator")
+        // Short TTL: long enough to coalesce a burst of state-channel reconciles into one su probe, short
+        // enough that the Home Assistant switch still follows a touch-dismiss promptly. show/dismiss
+        // invalidate the cache, so a user-driven change does not wait out even this.
+        private const val SCREENSAVER_POLL_TTL_MS = 1_500L
         private const val ANDROID_SETTINGS_PACKAGE = "com.android.settings"
 
         /** Must exceed the helper's whole bounded escalation, or a still-escalating daemon would be

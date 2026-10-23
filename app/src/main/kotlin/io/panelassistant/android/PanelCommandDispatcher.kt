@@ -511,6 +511,17 @@ internal class PanelCommandDispatcher(
         core.reconcile("watchdog")
     }
 
+    // Momentary, unlike the other switches: there is no persisted hardware state to reconcile. The HA
+    // switch's truth is the live dream-focus poll in the "screensaver" state channel, so this handler only
+    // actuates — ON starts Android's configured dream, OFF returns to the dashboard (which ends the dream).
+    // A failed start throws so the live-setting path reports FAILED rather than a false APPLIED; the state
+    // channel then re-publishes OFF on the next reconcile.
+    override fun handleScreensaver(on: Boolean) {
+        val ok = if (on) system.showScreensaver() else system.dismissScreensaver()
+        core.reconcile("screensaver")
+        if (!ok) throw LiveSettingUnavailableException("screensaver")
+    }
+
     // The voice assistant is a Home Assistant satellite through Panel Assistant, never a separate entity:
     // this handler is only the live-setting path the panel's own Configure page uses, and an ON on a
     // runtime generation without a microphone is refused.
@@ -1018,6 +1029,7 @@ internal enum class LiveSettingEffectOwner(val settingKey: String) {
     WAKE_ON_WAVE("wake_on_wave"),
     AUTO_SLEEP("auto_sleep"),
     AUTO_SLEEP_SOURCE("auto_sleep_source"),
+    SCREENSAVER("screensaver"),
     PREVENT_IDLE_DIM("prevent_idle_dim"),
     WATCHDOG("watchdog_enabled"),
     KIOSK("kiosk_lock"),
@@ -1062,6 +1074,7 @@ internal val externalLiveSettingOwners: Map<String, String> = linkedMapOf(
     "navbar" to "navbar_mode",
     "wake_on_wave" to "wake_on_wave",
     "auto_sleep" to "auto_sleep",
+    "screensaver" to "screensaver",
     "touch_sound" to "touch_sound",
     "watchdog" to "watchdog_enabled",
     "kiosk_lock" to "kiosk_lock",
@@ -1107,6 +1120,7 @@ internal interface LiveSettingHandlers {
     fun handleWakeOnWave(on: Boolean)
     fun handleAutoSleep(on: Boolean)
     fun handleAutoSleepSource(source: String)
+    fun handleScreensaver(on: Boolean)
     fun handlePreventIdleDim(on: Boolean, approvalRequired: Boolean = true)
     fun handleWatchdog(on: Boolean)
     fun handleKiosk(on: Boolean)
@@ -1167,6 +1181,7 @@ internal fun dispatchLiveSetting(
         LiveSettingEffectOwner.WAKE_ON_WAVE -> handlers.handleWakeOnWave(on())
         LiveSettingEffectOwner.AUTO_SLEEP -> handlers.handleAutoSleep(on())
         LiveSettingEffectOwner.AUTO_SLEEP_SOURCE -> handlers.handleAutoSleepSource(text())
+        LiveSettingEffectOwner.SCREENSAVER -> handlers.handleScreensaver(on())
         LiveSettingEffectOwner.PREVENT_IDLE_DIM -> handlers.handlePreventIdleDim(on(), sensitiveApprovalRequired)
         LiveSettingEffectOwner.WATCHDOG -> handlers.handleWatchdog(on())
         LiveSettingEffectOwner.KIOSK -> handlers.handleKiosk(on())

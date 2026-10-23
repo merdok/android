@@ -18,6 +18,7 @@ class LiveSettingHandlerBindingTest {
         override fun handleWakeOnWave(on: Boolean) = record("handleWakeOnWave", on)
         override fun handleAutoSleep(on: Boolean) = record("handleAutoSleep", on)
         override fun handleAutoSleepSource(source: String) = record("handleAutoSleepSource", source)
+        override fun handleScreensaver(on: Boolean) = record("handleScreensaver", on)
         override fun handlePreventIdleDim(on: Boolean, approvalRequired: Boolean) =
             record("handlePreventIdleDim", on, approvalRequired)
         override fun handleWatchdog(on: Boolean) = record("handleWatchdog", on)
@@ -59,6 +60,7 @@ class LiveSettingHandlerBindingTest {
             Case("wake_on_wave", "true", expected = invocation("handleWakeOnWave", true)),
             Case("auto_sleep", "true", expected = invocation("handleAutoSleep", true)),
             Case("auto_sleep_source", "panel", expected = invocation("handleAutoSleepSource", "panel")),
+            Case("screensaver", "true", expected = invocation("handleScreensaver", true)),
             Case(
                 "prevent_idle_dim",
                 "true",
@@ -161,6 +163,7 @@ class LiveSettingHandlerBindingTest {
             "navbar" to "navbar_mode",
             "wake_on_wave" to "wake_on_wave",
             "auto_sleep" to "auto_sleep",
+            "screensaver" to "screensaver",
             "touch_sound" to "touch_sound",
             "watchdog" to "watchdog_enabled",
             "kiosk_lock" to "kiosk_lock",

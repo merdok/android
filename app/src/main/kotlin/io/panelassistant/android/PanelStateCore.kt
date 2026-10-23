@@ -223,6 +223,10 @@ internal class PanelStateCore(
             if (hasProximity) known(if (config.wakeOnWave) "ON" else "OFF") else unknown
         }
         channel("auto_sleep") { known(if (config.autoSleep) "ON" else "OFF") }
+        // Momentary switch: unlike the persisted-intent switches below, its truth is the live dream, read
+        // from window focus each reconcile. This is what lets a touch-dismiss or an OS-started dream move
+        // the Home Assistant switch without the app persisting or intercepting anything.
+        channel("screensaver") { known(if (system.screensaverShowing()) "ON" else "OFF") }
         // Persisted intent, not the platform flag: the flag has other writers, and reporting an
         // observation of it would let firmware drift flip the Home Assistant switch on its own.
         channel("touch_sound") { known(if (config.touchSound) "ON" else "OFF") }

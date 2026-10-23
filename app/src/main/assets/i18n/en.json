@@ -32945,6 +32945,50 @@
       "softMaxChars": 70,
       "hardMaxChars": 90
     },
+    "settings.screensaver.help": {
+      "text": "Show Android's configured screensaver (set it in the panel's Android Settings › Display › Screen saver). Turning this off returns to the dashboard; touching the panel also dismisses it.",
+      "sourceHash": "4aa583e085c45f5102381649162aa6bf1e51414ee00a53a9b7aae41049c20a36",
+      "surface": "settings",
+      "context": "Configure > Behaviour > Screensaver: supporting help for the screensaver setting.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.screensaver.label"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 196,
+      "hardMaxChars": 261
+    },
+    "settings.screensaver.label": {
+      "text": "Screensaver",
+      "sourceHash": "7c9b526d4ae707e76eba16a6fd8e74b80d85522dead81143645a17d6ab2d88e8",
+      "surface": "settings",
+      "context": "Configure > Behaviour: label for the screensaver setting.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.screensaver.help",
+        "settings.screensaver.summary"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 32,
+      "hardMaxChars": 32
+    },
+    "settings.screensaver.summary": {
+      "text": "Show the panel's Android screensaver.",
+      "sourceHash": "53940eb32a805ce6abf5dba83d5ba94543de471fcaf8eb0317ef9b102d2e7b36",
+      "surface": "settings",
+      "context": "Configure > Behaviour: one-line summary shown under the screensaver setting's label; the full help opens behind an info button. Plain text, one line.",
+      "risk": "ordinary",
+      "siblings": [
+        "settings.screensaver.label",
+        "settings.screensaver.help"
+      ],
+      "placeholders": [],
+      "frozen": [],
+      "softMaxChars": 70,
+      "hardMaxChars": 90
+    },
     "settings.silence_boot_chime.label": {
       "text": "Silence boot chime",
       "sourceHash": "402c4a157e6de7c2740e1fb700551f2558ab61be196ac81bf44f6b78cf8abc34",
