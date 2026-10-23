@@ -18,12 +18,6 @@ object DashboardTelemetry {
     private var generation = 0L
     private var installed = false
     private var latestSampleAtElapsedMs = 0L
-    @Volatile private var historySink: DashboardPerformanceHistorySink? = null
-
-    internal fun setHistorySink(sink: DashboardPerformanceHistorySink?) {
-        historySink = sink
-    }
-
     fun reset(installed: Boolean = false) = synchronized(lock) {
         generation++
         this.installed = installed
@@ -43,7 +37,7 @@ object DashboardTelemetry {
         batch: EntityFilterProtocol.TrafficBatch,
         observedAtElapsedMs: Long = monotonicElapsedMs(),
     ) {
-        val accepted = synchronized(lock) {
+        synchronized(lock) {
             if (!installed || batch.sampleMs <= 0L) false else {
                 if (buckets.size == MAX_BUCKETS) buckets.removeFirst()
                 buckets.addLast(Bucket(batch))
@@ -51,7 +45,6 @@ object DashboardTelemetry {
                 true
             }
         }
-        if (accepted) historySink?.record(batch)
     }
 
     fun json(

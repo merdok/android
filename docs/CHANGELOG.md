@@ -8,7 +8,6 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 
 ### Before you update
 
-- Synchronised voice reconnects as soon as its audio connection closes, while panel controls stay connected.
 - **This is a preview, not a release candidate.** Once 1.0.0-rc1 is published the preview releases are removed from GitHub. A panel running the preview keeps working and is offered the release candidate as a normal update.
 - **Update Panel Assistant to 1.0.0-preview1 first.** 1.0 changes how the panel and Panel Assistant talk to each other, and Panel Assistant 1.0.0-preview1 speaks only the new way. It offers this preview to every panel it manages without a per-panel pre-release setting. In HACS, turn on Show beta versions for Panel Assistant to see its preview.
 - **Every panel must already be on v0.9.11 with Panel Assistant 0.9.0.** 1.0 has no MQTT and does not move a panel off the old app id. A panel still on MQTT or the old app is refused, with a Repair asking you to go through Panel Assistant 0.9.0 first.
@@ -47,9 +46,13 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 
 ### Fixed
 
+- Synchronised voice reconnects as soon as its audio connection closes, while panel controls stay connected.
 - Synchronised voice can connect after a slow initial state sample without exhausting its handshake window.
 - Display sizing and launcher controls wait for a slow root helper's reply instead of reporting a false failure or repeating the operation.
 - Logs queued during an outage keep the time they were captured when they reach the collector.
+- Pending install approvals end with their connection. Refused screen brightness and RGB LED writes report failure, and failed LED effects become unavailable until output is confirmed again.
+- Configure keeps local Area overrides visible and refreshes dashboard choices after sign-in. Low-memory recovery preserves on-panel sign-in forms, and revision restores name settings the panel can no longer apply.
+- Dashboard responsiveness keeps its live metrics without writing retired performance history.
 
 - **The right WebView for the Smatek S9E and the Electron WF2489T.** The S9E profile now names the 64-bit replacement WebView its 64-bit firmware needs, instead of a 32-bit build that cannot serve the app. The WF2489T profile no longer names a replacement WebView at all, because that panel updates Google's WebView from the Play Store.
 - **Panel Assistant can remove the app when it is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app failed on such a panel. The app now gives up device admin when Panel Assistant asks, just before removing it.

@@ -60,7 +60,39 @@ internal class ManageRequest(
     val args: JSONObject,
     val origin: CommandOrigin,
     val blobs: ManageBlobs?,
+    val approval: ManageApproval? = null,
 )
+
+/** Approval registration and consumption share the origin-close boundary. Started work is released. */
+internal class ManageApproval(
+    private val lock: Any,
+    private val broker: () -> ApprovalBroker,
+    val owner: String,
+    private val holders: MutableSet<ManageApproval>,
+) {
+    private var id: String? = null
+    private var closed = false
+    private var admitted = false
+
+    fun request(action: () -> Pair<ApprovalBroker.Decision, String>): Pair<ApprovalBroker.Decision, String> = synchronized(lock) {
+        check(!closed) { "request origin ended" }
+        action().also { (decision, approvalId) ->
+            id = approvalId
+            if (decision == ApprovalBroker.Decision.APPROVED) admitted = true
+        }
+    }
+
+    fun close() = synchronized(lock) {
+        if (!admitted) {
+            closed = true
+            id?.let { approvalId ->
+                if (holders.none { it !== this && !it.closed && it.id == approvalId }) broker().deny(approvalId)
+            }
+        }
+    }
+
+    fun release() = synchronized(lock) { holders.remove(this); Unit }
+}
 
 internal fun interface ManageHandler {
     suspend fun handle(request: ManageRequest): ManageReply
@@ -196,6 +228,7 @@ internal class ManageOperations(
     private class Recorded(var answer: ManageReply?, val waiters: MutableList<(ManageReply) -> Unit>)
 
     private val lock = Any()
+    private val approvalHolders = mutableSetOf<ManageApproval>()
     /** Command answers by origin approval key, then command ID, oldest first; a running command has none. */
     private val remembered = HashMap<String, LinkedHashMap<String, Recorded>>()
     private val subscriptions = HashMap<String, LinkedHashMap<String, FamilySubscription>>()
@@ -219,8 +252,8 @@ internal class ManageOperations(
         if (entry == null || !job.isActive) {
             return done(ManageReply.refused(PanelAssistantCommandProcessor.CODE_UNKNOWN_COMMAND))
         }
-        val request = ManageRequest(op, args, origin, blobs)
         if (entry.kind == ManageKind.READ) {
+            val request = trackedRequest(op, args, origin, blobs)
             // Started even if this owner stops first, so a stop answers it as failed rather than dropping it.
             scope.launch(start = CoroutineStart.ATOMIC) {
                 val answer = try {
@@ -249,6 +282,7 @@ internal class ManageOperations(
             null
         }
         if (record != null) return record()
+        val request = trackedRequest(op, args, origin, blobs)
         scope.launch(start = CoroutineStart.ATOMIC) {
             val answer = try {
                 run(entry, request, onPending)
@@ -271,7 +305,20 @@ internal class ManageOperations(
         }
     }
 
-    private suspend fun run(entry: ManageTable.Entry, request: ManageRequest, onPending: () -> Unit): ManageReply {
+    private fun trackedRequest(op: String, args: JSONObject, origin: CommandOrigin, blobs: ManageBlobs?): ManageRequest {
+        val approval = synchronized(lock) {
+            ManageApproval(lock, approvals, origin.subscriptionOwner, approvalHolders).also { approvalHolders += it }
+        }
+        return ManageRequest(op, args, origin, blobs, approval)
+    }
+
+    private suspend fun run(entry: ManageTable.Entry, request: ManageRequest, onPending: () -> Unit): ManageReply = try {
+        runActive(entry, request, onPending)
+    } finally {
+        request.approval?.release()
+    }
+
+    private suspend fun runActive(entry: ManageTable.Entry, request: ManageRequest, onPending: () -> Unit): ManageReply {
         var pendingSent = false
         while (true) {
             val approvalId = try {
@@ -344,11 +391,15 @@ internal class ManageOperations(
 
     /** End every subscription [origin]'s owner holds (that socket only, when it has one), as a door does when its connection closes. */
     fun closeOrigin(origin: CommandOrigin) {
-        val held = synchronized(lock) { subscriptions.remove(origin.subscriptionOwner)?.values?.toList().orEmpty() }
+        val held = synchronized(lock) {
+            approvalHolders.filter { it.owner == origin.subscriptionOwner }.forEach { it.close() }
+            subscriptions.remove(origin.subscriptionOwner)?.values?.toList().orEmpty()
+        }
         held.forEach { it.stop() }
     }
 
     fun stop() {
+        synchronized(lock) { approvalHolders.toList().forEach { it.close() } }
         job.cancel()
         // Commands still running are answered here or by their own cancellation, whichever takes them first.
         val unanswered = synchronized(lock) {

@@ -432,12 +432,12 @@ internal class PanelCommandDispatcher(
         val delivered = io.panelassistant.android.control.ScreenCommandPolicy.executeOn(
             command,
             ensureOn = screen::ensureOn,
-            setBrightness = brightness::setBrightness,
+            setBrightness = brightness::trySetBrightness,
             commandedLevel = brightness::getCommanded,
             noteLevel = screen::noteLevel,
             publish = core::publishScreenBrightness,
         )
-        check(delivered) { "screen wake failed; ON not published" }
+        check(delivered) { "screen actuation failed; requested brightness not published" }
     }
 
     private fun handleLed(light: CommandValue.Light) {
@@ -447,11 +447,12 @@ internal class PanelCommandDispatcher(
         )
         // Persist user intent even when hardware is temporarily unreachable so reconnect can retry it,
         // but clear observation authority before exposing the new desired state.
-        core.actuateLed {
+        val accepted = core.actuateLed {
             config.lastLed = desired.storedColor()
             config.lastLedEffect = desired.storedEffect()
             desired
         }
+        if (!accepted) throw LiveSettingUnavailableException("led")
     }
 
     override fun handleWakeOnWave(on: Boolean) {

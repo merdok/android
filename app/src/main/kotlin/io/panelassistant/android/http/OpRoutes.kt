@@ -130,7 +130,7 @@ internal fun ApplicationCall.op(): OpCall = HttpOpCall(this)
 
 /** The managed door: `args` stand in for the query, path parameters and body; the first answer is kept. */
 internal class ManageOpCall(
-    private val managed: ManageRequest,
+    internal val managed: ManageRequest,
     method: HttpMethod,
     path: String,
 ) : OpCall() {

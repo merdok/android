@@ -281,6 +281,9 @@ class ConfigPostProductionRouteTest {
     /** A bundle import and a revision restore change the interface language the panel's own screens use at once. */
     @Test fun `an imported or restored interface language applies the native locale at once`() =
         withRouteConfig { config, _, server, _ ->
+            val observations = PaneldServer::class.java.getDeclaredField("managementObservations")
+                .apply { isAccessible = true }.get(server) as ManagementObservations
+            val observedHardware = requireNotNull(observations.snapCache.peek())
             // The panel is running in French, as any earlier save would have left it.
             config.setRaw(requireNotNull(SettingsRegistry.spec("ui_language")), "fr")
             io.panelassistant.android.NativeLocale.apply("fr")
@@ -303,6 +306,7 @@ class ConfigPostProductionRouteTest {
                         "an imported language must reach the native locale, not wait for a restart",
                     )
 
+                    observations.snapCache.set(observedHardware)
                     val revisions = JSONArray(client.get("/api/v1/config/revisions").bodyAsText())
                     val restored = client.post("/api/v1/config/revisions/${revisions.getJSONObject(0).getLong("id")}/restore")
                     assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
@@ -476,6 +480,9 @@ class ConfigPostProductionRouteTest {
 
     @Test fun `production bundle import exports redacted values and revision restore undoes the commit`() =
         withRouteConfig { config, _, server, _ ->
+            val observations = PaneldServer::class.java.getDeclaredField("managementObservations")
+                .apply { isAccessible = true }.get(server) as ManagementObservations
+            val observedHardware = requireNotNull(observations.snapCache.peek())
             config.setHaConnection("http://ha.test", "private-test-value")
             config.setHaExposed("touch_sound", true)
             testApplication {
@@ -500,11 +507,12 @@ class ConfigPostProductionRouteTest {
                 assertEquals("applied", JSONObject(imported.bodyAsText()).getString("status"))
                 assertEquals("Imported panel", config.friendlyName)
                 assertEquals(false, config.haExposed("touch_sound", true))
-                val revisions = JSONArray(client.get("/api/v1/config/revisions").bodyAsText())
+                observations.snapCache.set(observedHardware)
+                    val revisions = JSONArray(client.get("/api/v1/config/revisions").bodyAsText())
                 assertEquals(1, revisions.length())
                 val restored = client.post("/api/v1/config/revisions/${revisions.getJSONObject(0).getLong("id")}/restore")
                 assertEquals(HttpStatusCode.OK, restored.status, restored.bodyAsText())
-                assertEquals("restored", JSONObject(restored.bodyAsText()).getString("status"))
+                assertEquals("partial", JSONObject(restored.bodyAsText()).getString("status"))
                 assertEquals("Contract panel", config.friendlyName)
                 assertEquals(true, config.haExposed("touch_sound", false))
                 assertEquals("private-test-value", config.haToken)

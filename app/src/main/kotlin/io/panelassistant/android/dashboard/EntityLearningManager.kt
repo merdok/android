@@ -97,10 +97,7 @@ class EntityLearningManager(
     private var promotionWindowStart = 0L
     private var promotionsInWindow = 0
     private val telemetryStoreGate = EntityTelemetryStoreGate()
-    // Entity access/metric telemetry and dashboard performance history each own a single-owner drain
-    // worker via the shared EntityTelemetryPipeline. Each keeps its own accumulator, cadence and
-    // flush body; the pipeline owns the accumulator plus the worker-lifecycle contract they used to
-    // hand-roll separately (launch-if-idle, respawn-while-pending, close cancels).
+    // Entity access/metric telemetry has one bounded owner and drain worker.
     private val telemetryPipeline = EntityTelemetryPipeline(
         scope = scope,
         accumulator = EntityTelemetryAccumulator(MAX_TELEMETRY_IDS),
@@ -108,14 +105,6 @@ class EntityLearningManager(
         drain = ::drainTelemetry,
     )
     private val telemetryPending: EntityTelemetryAccumulator get() = telemetryPipeline.accumulator
-    private val performanceHistorySink = DashboardPerformanceHistorySink(::admitDashboardPerformance)
-    private val performancePipeline = EntityTelemetryPipeline(
-        scope = scope,
-        accumulator = DashboardPerformanceAccumulator(MAX_PERFORMANCE_PENDING),
-        hasPending = { it.isNotEmpty() },
-        drain = ::drainDashboardPerformance,
-    )
-    private val performancePending: DashboardPerformanceAccumulator get() = performancePipeline.accumulator
     @Volatile private var performanceSummaryAt = 0L
     @Volatile private var performanceSummary = "[]"
     @Volatile private var performanceSummaryTarget = ""
@@ -141,7 +130,6 @@ class EntityLearningManager(
     private var periodicJob: Job? = null
 
     fun start() {
-        DashboardTelemetry.setHistorySink(performanceHistorySink)
         if (!shouldInitializeEntityLearningOnStart(config.dashboardEntityLearningEnabled)) return
         ensureInitialized()
     }
@@ -249,7 +237,6 @@ class EntityLearningManager(
     }
 
     fun close() {
-        DashboardTelemetry.setHistorySink(null)
         synchronized(this) {
             closed = true
             cancelPeriodicSyncLocked()
@@ -267,61 +254,8 @@ class EntityLearningManager(
             }
             FeatureCosts.registry.setBacklog(FeatureCostOperation.ENTITY_TELEMETRY_FLUSH, 0)
         }
-        val pendingPerformance = performancePipeline.close { it.drain() }
-        if (pendingPerformance.isNotEmpty()) {
-            telemetryStoreGate.withStore { store.recordDashboardPerformance(pendingPerformance) }
-        }
-        // Cancellation cannot interrupt a synchronous SQLite transaction. The generation check keeps
-        // a not-yet-started flush out, while this gate waits for an already-started bounded telemetry
-        // or performance-history write. Performance history remains active when learning is disabled,
-        // so the shared store must always be closed.
+        // Wait for an admitted bounded entity telemetry write before closing the shared store.
         telemetryStoreGate.withStore { store.close() }
-    }
-
-    private fun admitDashboardPerformance(batch: EntityFilterProtocol.TrafficBatch) {
-        val now = System.currentTimeMillis()
-        val filter = EntityFilterTelemetry.dashboardFilterState()
-        val sample = DashboardPerformanceSample(
-            instance = instance(),
-            path = dashboardPath(),
-            minute = now / 60_000L,
-            filterActive = filter.first,
-            entityCount = filter.second,
-            batch = batch,
-        )
-        performancePipeline.admit(
-            onOpen = { pending ->
-                if (pending.add(sample) != null) {
-                    Log.w(TAG, "dashboard performance queue full; dropped oldest minute aggregate")
-                }
-            },
-            onClosed = {},
-        )
-    }
-
-    private suspend fun drainDashboardPerformance() {
-        delay(PERFORMANCE_FLUSH_MS)
-        flushDashboardPerformance()
-    }
-
-    private fun flushDashboardPerformance() {
-        val pending = performancePipeline.withLock { it.drain() }
-        if (pending.isEmpty()) return
-        runCatching {
-            telemetryStoreGate.withStore { store.recordDashboardPerformance(pending) }
-        }.onFailure { Log.w(TAG, "dashboard performance history write failed: ${it.message}") }
-    }
-
-    fun performanceHistoryJson(hours: Int): String {
-        flushDashboardPerformance()
-        val boundedHours = hours.coerceIn(1, EntityCatalogStore.PERFORMANCE_RETENTION_DAYS * 24)
-        val sinceMinute = System.currentTimeMillis() / 60_000L - boundedHours * 60L
-        return dashboardPerformanceHistoryJson(
-            telemetryStoreGate.withStore {
-                store.dashboardPerformanceHistory(instance(), dashboardPath(), sinceMinute)
-            },
-            EntityCatalogStore.PERFORMANCE_RETENTION_DAYS,
-        )
     }
 
     /** Rebind owner-scoped state before a renderer is relaunched for a new HA URL/dashboard. */
@@ -1835,8 +1769,6 @@ class EntityLearningManager(
         private const val HTTP_TIMEOUT_MS = 30_000
         private const val HA_CONFIG_TIMEOUT_MS = 10_000
         private const val MAX_HA_CONFIG_BYTES = 256L * 1024
-        private const val MAX_PERFORMANCE_PENDING = 24
-        private const val PERFORMANCE_FLUSH_MS = 60_000L
         private const val SYNC_TIMEOUT_MS = 120_000L
         private const val PROBE_TIMEOUT_MS = 60_000L
         private const val MAX_TARGETS = 500
