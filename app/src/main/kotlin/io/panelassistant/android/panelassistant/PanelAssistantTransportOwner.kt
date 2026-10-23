@@ -52,7 +52,7 @@ internal interface PanelAssistantVoiceStreamPeer {
     fun clientId(): String?
 
     /** The session granted the stream: connect, sending each of the player's messages to [send] in order. */
-    fun open(grant: PanelAssistantVoiceStreamGrant, send: (frame: ByteArray, text: Boolean) -> Unit)
+    fun open(grant: PanelAssistantVoiceStreamGrant, closed: () -> Unit = {}, send: (frame: ByteArray, text: Boolean) -> Unit)
 
     /** One message Panel Assistant sent; called in session order. */
     fun receive(frame: ByteArray, text: Boolean)

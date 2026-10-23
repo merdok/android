@@ -8,6 +8,7 @@ Pairs with Panel Assistant 1.0.0-preview1, the Home Assistant integration.
 
 ### Before you update
 
+- Synchronised voice reconnects as soon as its audio connection closes, while panel controls stay connected.
 - **This is a preview, not a release candidate.** Once 1.0.0-rc1 is published the preview releases are removed from GitHub. A panel running the preview keeps working and is offered the release candidate as a normal update.
 - **Update Panel Assistant to 1.0.0-preview1 first.** 1.0 changes how the panel and Panel Assistant talk to each other, and Panel Assistant 1.0.0-preview1 speaks only the new way. It offers this preview to every panel it manages without a per-panel pre-release setting. In HACS, turn on Show beta versions for Panel Assistant to see its preview.
 - **Every panel must already be on v0.9.11 with Panel Assistant 0.9.0.** 1.0 has no MQTT and does not move a panel off the old app id. A panel still on MQTT or the old app is refused, with a Repair asking you to go through Panel Assistant 0.9.0 first.
