@@ -22,13 +22,13 @@ internal object ScreenCommandPolicy {
      * a lit panel therefore touches no actuator. An explicit brightness is applied whether or not a
      * wake was needed, and the level in force is remembered as the off/on restore point and reported.
      *
-     * Returns false when the wake actuator failed. Nothing is applied or published then, so the state
+     * Returns false when wake or explicit brightness is refused. No requested level is published, so the state
      * Home Assistant holds stays whatever was last true rather than an ON the panel could not deliver.
      */
     fun executeOn(
         command: Command,
         ensureOn: () -> WakeOutcome,
-        setBrightness: (Int) -> Unit,
+        setBrightness: (Int) -> Boolean,
         commandedLevel: () -> Int,
         noteLevel: (Int) -> Unit,
         publish: (Int) -> Unit,
@@ -36,7 +36,7 @@ internal object ScreenCommandPolicy {
         require(command.on) { "executeOn takes an ON command" }
         if (ensureOn() == WakeOutcome.ACTUATION_FAILED) return false
         val explicit = command.brightness
-        if (explicit != null) setBrightness(explicit)
+        if (explicit != null && !setBrightness(explicit)) return false
         val level = explicit ?: commandedLevel().coerceAtLeast(1)
         noteLevel(level)
         publish(level)

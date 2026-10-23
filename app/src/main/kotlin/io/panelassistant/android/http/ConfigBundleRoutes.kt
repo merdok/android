@@ -267,6 +267,9 @@ internal class ConfigBundleRoutes(
         }
         preserveUnconfiguredZigbeeOwnership(accepted, config.zigbeeRouterConfigured)
         if (rejectHardenedNetworkAdb(call, accepted["network_adb"])) return
+        val skipped = unavailableRestoreSettings(accepted, capabilities())
+        skipped.forEach { accepted.remove(it) }
+        val warnings = skipped.map { "$it: unavailable on this panel" }
         val revisionDigest = sha256Hex(bundle.serialize().toByteArray(Charsets.UTF_8))
         if (!authorizeSensitive(
                 call,
@@ -287,12 +290,22 @@ internal class ConfigBundleRoutes(
             )
             return
         }
-        val applied = transaction.applyAccepted(accepted, entityState = entityState)
+        val applied = try {
+            transaction.applyAccepted(accepted, entityState = entityState)
+        } catch (refused: ConfigLiveApplyRefused) {
+            call.respondText(
+                importJson(if (refused.appliedKeys.isEmpty()) "error" else "partial",
+                    refused.appliedKeys, skipped, warnings, listOf(requireNotNull(refused.message))),
+                ContentType.Application.Json,
+                if (refused.appliedKeys.isEmpty()) HttpStatusCode.InternalServerError else HttpStatusCode.OK,
+            )
+            return
+        }
         if (applied != ApplyAcceptedResult.Applied) {
             call.respondText(
                 importJson(
                     if (applied is ApplyAcceptedResult.CompatibilityRefused) "database-compatibility-refused" else "error",
-                    emptyList(), emptyList(), emptyList(),
+                    emptyList(), skipped, warnings,
                     listOf(
                         if (applied is ApplyAcceptedResult.CompatibilityRefused) {
                             applied.message
@@ -305,7 +318,7 @@ internal class ConfigBundleRoutes(
             )
             return
         }
-        call.respondText(importJson("restored", accepted.keys.toList(), emptyList(), emptyList(), emptyList()), ContentType.Application.Json)
+        call.respondText(importJson(if (skipped.isEmpty()) "restored" else "partial", accepted.keys.toList(), skipped, warnings, emptyList()), ContentType.Application.Json)
     }
 
     private fun revisionEntityState(values: Map<String, String>): DashboardEntityBackupState? {

@@ -58,6 +58,7 @@
   function adoptStatus(body) {
     var fields = {
       haAuth: ["ha_auth", function (v) { return v || {}; }],
+      haAreaUserOverride: ["ha_area_user_override", function (v) { return v === true; }],
       applyPending: ["apply_pending", function (v) { return v || {}; }],
       applyStalled: ["apply_stalled", stalledMap],
       rendererPending: ["renderer_pending", stalledMap],
@@ -78,6 +79,10 @@
     if (force !== true && previousUrl === cfg.values.ha_url &&
         (previousAuth.configured === true) === (cfg.haAuth.configured === true) &&
         (previousAuth.oauth === true) === (cfg.haAuth.oauth === true)) return false;
+    cfg.homeDashboardRequest++;
+    cfg.homeDashboardItems = [];
+    cfg.homeDashboardDefault = { explicit: false, path: "" };
+    cfg.homeDashboardQueried = false;
     cfg.haUserStatus = { phase: "unknown" };
     cfg.autoSleepAreaGeneration++;
     cfg.autoSleepSourceUpdating = Object.create(null);
@@ -100,6 +105,7 @@
     if (haChanged) {
       cfg.scheduleAutoSleepPrerequisite();
       cfg.loadHaUserStatus();
+      cfg.loadHomeDashboards();
       cfg.voicePipelinesCatalog = null;
       cfg.loadVoicePipelines();
     }

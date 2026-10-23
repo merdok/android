@@ -37,7 +37,7 @@ class ScreenCommandPolicyTest {
             ScreenCommandPolicy.executeOn(
                 command,
                 ensureOn = { log += "ensureOn"; outcome },
-                setBrightness = { log += "set:$it" },
+                setBrightness = { log += "set:$it"; true },
                 commandedLevel = { log += "commanded"; commanded },
                 noteLevel = { log += "note:$it" },
                 publish = { log += "publish:$it" },

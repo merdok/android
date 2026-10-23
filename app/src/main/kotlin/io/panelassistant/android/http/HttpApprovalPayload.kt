@@ -196,7 +196,8 @@ internal suspend fun authorizeSensitiveRequest(
     val origin = call.origin
     if (!hardened || origin.peerAddress?.let(::isLoopbackPeer) == true) return true
     if (relayedAdministratorExempt(origin, operation)) return true
-    val (decision, id) = broker.request(operation, origin.approvalKey, payload, summary)
+    val registration = { broker.request(operation, origin.approvalKey, payload, summary) }
+    val (decision, id) = (call as? ManageOpCall)?.managed?.approval?.request(registration) ?: registration()
     if (decision == ApprovalBroker.Decision.APPROVED) return true
     if (origin.isPanelAssistant || origin.isUser) throw io.panelassistant.android.ManageApprovalPending(id)
     call.respondText(approvalRequiredBody(id), ContentType.Application.Json, HttpStatusCode.Accepted)

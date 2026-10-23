@@ -260,7 +260,7 @@ internal class DashboardRendererPacer(private val main: Handler, private val hos
 
     /** The activity's low-memory callback, past its maintenance fence. */
     fun onLowMemory() {
-        if (!host.destroyed && host.owned && host.phase != RendererPhase.AUTH_LATCHED &&
+        if (!host.destroyed && host.owned && !host.signInShown && host.phase != RendererPhase.AUTH_LATCHED &&
             (!screenAwake || !BuiltinDashboard.foreground)) {
             reload("onLowMemory")
         }
