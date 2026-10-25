@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0-rc1
+## v1.0.0-rc1 - 2026-10-25
 
 This is the first release candidate of the panel app's 1.0, the Android app that Panel Assistant installs on your panels. Please open an issue with the panel model and what you saw if something breaks. The story of 1.0 is that MQTT and the old app are gone for good, so this release only works with panels that Panel Assistant 0.9.0 has already moved. In exchange the panel and Panel Assistant now talk over one connection for everything, including the sidebar, updates and voice, and that is what makes most of the changes below possible. A lot changed; I have listed what you will notice rather than every commit.
 
@@ -77,8 +77,8 @@ Pairs with Panel Assistant 1.0.0-rc1, the Home Assistant integration.
 - Pending install approvals end with their connection. Refused screen brightness and RGB LED writes report failure, and failed LED effects become unavailable until output is confirmed again.
 - Configure keeps local Area overrides visible and refreshes dashboard choices after sign-in. Low-memory recovery preserves on-panel sign-in forms, and revision restores name settings the panel can no longer apply.
 - Dashboard responsiveness keeps its live metrics without writing retired performance history.
-
 - **The right WebView for the Smatek S9E and the Electron WF2489T.** The S9E profile now names the 64-bit replacement WebView its 64-bit firmware needs, instead of a 32-bit build that cannot serve the app. The WF2489T profile no longer names a replacement WebView at all, because that panel updates Google's WebView from the Play Store.
+- **The Smatek S9E switches its backlight off.** Switching the screen off used to dim it to black with the backlight still lit, and the screen switch in Home Assistant could turn itself back on a few minutes later. The panel app now powers the S9E's backlight off, the switch stays off, and a touch still wakes the screen. Contributed by @merdok.
 - **Panel Assistant can remove the app when it is a device admin.** Android refuses to uninstall an app that has been made a device admin in its settings, so removing the panel app failed on such a panel. The app now gives up device admin when Panel Assistant asks, just before removing it.
 - **The panel says when it cannot reach Home Assistant.** When the dashboard drops and the panel has no session to Panel Assistant, it shows Cannot reach Home Assistant with a retry timer instead of a bare Offline. The reconnect card also comes back correctly after the dashboard's browser engine crashes or the screen goes dark mid-load.
 - **The restart notice knows when a restart is late.** While Home Assistant restarts, the notice says so when the restart runs past its usual time, even while the dashboard reloads, and gives way if Home Assistant never comes back.
